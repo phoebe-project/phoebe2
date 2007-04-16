@@ -1,0 +1,15 @@
+INCLUDES = \
+	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
+	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
+	@PACKAGE_CFLAGS@ -I/usr/include/libglade-2.0
+
+bin_PROGRAMS = phoebe_gui
+
+phoebe_gui_SOURCES = \
+	main.c
+
+phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
+phoebe_gui_LDFLAGS = -export-dynamic
+
+EXTRA_DIST = phoebe.glade          \
+             phoebe_settings.glade

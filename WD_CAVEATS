@@ -1,0 +1,18 @@
+* Star 1 should be hotter, otherwise the computation won't be precise. To see
+  this effect, try plotting a light curve for two identical stars with their
+  surface temperatures 3000K and 10000K or 10000K and 3000K. You'll see that
+  in the first case the model will go crazy and in the second case it will be
+  ok.
+
+* The current way of computing the horizon of the star in front (using Fourier
+  series decomposition over boundary surface elements) is inaccurate. This
+  would be easy to replace with a Newton-Raphson-powered method for getting
+  an analytical function over the boundary radii. Which analytical function?
+  Perhaps splines. Think this over.
+
+* Units of passband luminosity: total flux is normalized to the flux of the
+  primary star × HLA/4\pi. This means that quarter-phase total flux will be 1.0
+  for a binary system with primary star an order of magnitude more luminous than
+  the secondary (e.g. T1 = 10000K, T2 = 3000K, \Omega1 = \Omega2) and HLA =
+  4\pi. Having two stars exactly the same and HLA = 4\pi yields quarter-phase
+  total flux 2.0.
