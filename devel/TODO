@@ -1,0 +1,57 @@
+This file contains release-critical TODO items. These have to be worked out
+for the next testing release to go out. Once an item has been resolved, tick
+it.
+
+VERSION 0.31 (by end of 2005)
+
+[ ] A dedicated PHOEBE plotting library to break any external dependency
+[ ] Simulated annealing algorithm re-assessment
+[ ] Final scripting assessment
+[ ] Updated PHOEBE User Manual, PHOEBE Tutorial and PHOEBE API
+
+VERSION 0.30 (by end of September 2005)
+
+[ ] Change grammar rules so that it always takes a variable number of arguments.
+[ ] PHOEBE results must be fool-proofed to release a stable version
+[ ] Full support for color-index constraint (table readouts) must be done
+[ ] SPECS file must be up-to-date
+[ ] Limb darkening tables readout must be implemented
+[ ] Development specifications freeze for 0.3x versions
+[ ] Clear developer status and assignments
+[ ] Inline help for commands implemented in scripter
+[x] Readline library interface for scripter
+[ ] Test scripter functionality
+[ ] All PHOEBE functions must return int and implement proper error handling
+[ ] Complete scripter-GUI interoperability
+[ ] Updated GUI
+[ ] Weight functions for DC and NMS are different, they should be unified
+[x] Limb darkening interpolation from Van Hamme tables has to be done
+[ ] Write a fool-proof version of LDtable lookup function
+[ ] DC should use read_in_adjustable_parameters to get its parameters
+
+VERSION 0.30pre4: (by mid-May 2005)
+
+[x] Color index constraint should be implemented (ratios, not tables)
+[x] Test scripts should be incorporated via autotools
+[x] DC must support Calculate HLA and Calculate VGA options
+[x] PHOEBE API must be up-to-date
+[x] PHOEBE must be tested on a wider data sample
+
+VERSION 0.30pre3: (by mid-March 2005)
+
+[x] OS directives (ls, cd, pwd, ...) must be incorporated to the scripter
+[x] atmcof & atmcofplanck locations should be standardized and used by WD
+    functions
+[x] PHOEBE API must be up-to-date
+[x] phoebe2 must be put under the CVS with the name phoebe-dev
+[x] Scripter logic overview
+[x] Configuration directory handling
+[x] NM Simplex method works either with no or both RVs, it should also work
+    with only one RV curve
+[x] Implement proper sigma transformation (magnitude or flux to total flux)
+    and use it for fitting
+[x] DC minimization scheme must be supported
+[x] PHOEBE qualifier names must comply with the specifications
+[x] Initial values for passband-dependent parameters must be set
+[x] Test DC algorithm against a test data suite
+[x] Put a proper 0.2x -> 0.30pre3 parameter file converter to tools/

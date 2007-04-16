@@ -1,0 +1,211 @@
+          *-------------------------------------------------------*
+          |  P R O G R A M M I N G   S P E C I F I C A T I O N S  |
+          |                                                       |
+          |               Conforming to PHOEBE 0.30               |
+          |                Last change: 2005-03-02                |
+          *-------------------------------------------------------*
+
+
+Below are given programming specifications, requirements and suggestions for
+modifying or adding to PHOEBE source development. Any commits to the CVS have
+to conform to these standards. Any contribution failing to comply with these
+requirements will not be accepted to PHOEBE's CVS branch.
+
+
+            *-------------------------------------------------*
+            |   G E N E R A L   S P E C I F I C A T I O N S   |
+            *-------------------------------------------------*
+
+
+All parts of PHOEBE (scripting and add-ons) must conform to the following
+specifications:
+
+ 1) The top-level directory structure is as follows:
+
+      autoconfig/         directory that contains autoutils macros
+      autom4te.cache      m4 scripts for autoutils
+      data/               experimental demo data that comes with PHOEBE
+      defaults/           the default parameter file default.phoebe
+      doc/                PHOEBE documentation
+      gui/                Graphical User Interface (GUI)
+      include/            External library header files (currently cfortran.h)
+      pixmaps/            directory for logos, icons and other graphics
+      scripts/            PHOEBE scripter scripts
+      share/              GNOME appdefaults, links, system-wide icons
+      src/                all PHOEBE sources
+      tests/              tests to check PHOEBE execution consistency
+      tools/              parameter file converters, syntax highlighting
+      AUTHORS             PHOEBE authors
+      COPYING             GNU General Public Licence PHOEBE conforms to
+      ChangeLog           programming log of changes
+      INSTALL             installation instructions
+      Makefile.am         automake input file
+      NEWS                stable releases tracker
+      README              basic information file
+      SPECS               programming specifications (this file)
+      TODO                enhancements yet to be done
+      aclocal.m4          script that does all the work for Automake
+      configure.ac        autoconf input file
+      phoebe.glade        Glade 2.0 XML file
+      phoebe.gladep       Glade 2.0 project file
+
+ 2) All PHOEBE sources within the src/ directory must have the following form:
+
+      main.c              the main routine,
+      phoebe_*.c          for calculation routines,
+
+    where * denotes the segment of code the particular source contains. For
+    example, if we want to create potential calculation function, it goes to
+    phoebe_calculations.c.
+
+ 3) All GUI sources within the gui/ directory must have the following form:
+
+      phoebe_gui_*.c      for GUI related routines.
+
+    Adding functions to these source files follows the same specifications as
+    given for 2).
+
+ 4) All physical parameters in PHOEBE are declared and initialized in a global
+    parameter table:
+
+      typedef struct PHOEBE_parameter_tag
+      	{
+      	char                  *qualifier;
+      	char                  *description;
+        char                  *dependency;
+        PHOEBE_parameter_kind  kind;
+      	PHOEBE_type            type;
+	anytype                value;
+      	double                 min;
+      	double                 max;
+      	double                 step;
+      	bool                   tba;
+      	} PHOEBE_parameter_tag;
+
+      PHOEBE_parameter_tag *PHOEBE_parameters;
+      int                   PHOEBE_parameters_no;
+
+    Adding new parameters may be done only via declare_parameter () function
+    from declare_all_parameters () function. The prototype for the declaration
+    function is:
+
+      void declare_parameter (char *qualifier, char *dependency,
+        char *description, PHOEBE_parameter_kind kind, double min, double max,
+	double step, bool tba, ...);
+
+    The variable argument list contains the parameter type (PHOEBE_type enume-
+    rator) and its value of whatever suitable type. These prototypes may be
+    found in phoebe_keywords.h.
+
+ 5) Memory allocations for array/table/container variables must be done by
+    calling wrapper functions phoebe_malloc and phoebe_realloc. These func-
+    tions must be called from allocation functions residing in
+    phoebe_allocations.c.
+  
+      a) If the arrays are local, they must be freed in the same function
+         they are declared in. For this use the command triplet initialize_
+         _memory_for_*, allocate_memory_for_* and free_allocated_memory_for_*.
+
+      b) If the arrays are global (e.g. graph cache variables), they need not
+         be freed within the same function, but must be checked for contents
+         before new allocation or re-allocation is made. E.g. you don't have to
+         free the allocated memory immediately after using the array, but you
+         must free it before you initialize or allocate it again for some other
+         set of data.
+
+ 6) All PHOEBE configuration options (values and switches) are defined
+    globally. Their definitions go to phoebe_global.h. Their names must be in
+    capital letters.
+
+ 7) All comments follow the same shape: the beginning of a comment /* goes
+    to the same level as the object that is commented and the ending of a
+    comment */, no matter how long, is placed in the last two visible pla-
+    ces, meaning 78. and 79. place.
+
+
+                   *-------------------------------------*
+                   |   P H O E B E   S C R I P T I N G   |
+                   *-------------------------------------*
+
+
+Scripting is the main scientific core of PHOEBE. It allows the user to inter-
+actively or automatically control the flow of algorithm logic. It is the part
+of PHOEBE around which the graphical user interface (GUI) is wrapped. All GUI
+functions should ideally call corresponding script commands and update PHOEBE
+windows. In reality much of the GUI functions are exclusively GUI-related and
+it wouldn't make much sense to create special scripting commands for it.
+
+
+                        *--------------------------*
+                        |    P H O E B E   G U I   |
+                        *--------------------------*
+
+
+The most visible (and probably most used) PHOEBE plug-in is the graphical user
+interface (GUI). The following are GUI specifications for GTK+ version.
+
+ 1) All PHOEBE windows (parent, childs, dialogs, pop-ups) are defined globally.
+    Their definitions go to phoebe_global.h. Their type is (GtkWidget *).
+
+ 2) All widgets within the GUI must follow the same naming convention:
+
+      [parent widget name]_[widget_function]_[widget_type]
+
+    In example: if an entry is placed in PHOEBE_configuration widget and it
+    contains the sources directory, its name will be:
+
+      configuration_sources_directory_entry
+
+    "configuration" is the parent widget name (note that the leading "PHOEBE"
+    is omitted), "sources_directory" is the widget's function and its type is
+    "entry".
+
+    The following widget types are allowed:
+
+      buttons:            button
+      toggle buttons:     switch
+      spin_buttons:       value
+      entries:            entry
+      labels:             label
+      tab labels:         tab_label
+      combo boxes:        list
+      combo box entries:  list_entry
+      list stores:        info_list
+      tree views:         info_list_view
+      tree columns:       info_list_column_i
+      scrolled windows:   info_list_scroller
+
+ 3) All widget references from within PHOEBE must be declared within phoebe_
+    keywords.c source file - function declare_all_parameters (). The arguments
+    are:
+
+      PHOEBE widget:      the actual GUI widget name (see specification 4) )
+      PHOEBE qualifier:   the internal name by which PHOEBE references widgets
+      PHOEBE keyword:     short delimeter in capitals (uniquely defined)
+      PHOEBE description: long description of the widget.
+
+ 4) All widget readout wrapping functions are declared in phoebe_keywords.c.
+    All value readouts must be done by calling these functions with the key-
+    word qualifier supplied as the argument.
+
+ 5) All callbacks must conform to generic names:
+
+      buttons:            on_*_clicked
+      toggle-buttons:     on_*_toggled
+      spin-buttons:       on_*_changed
+      menus:              on_*_selected
+
+    They all go to phoebe_gui_callbacks.c, phoebe_gui_callbacks.h.
+
+ 6) All GLADE/GTK+ related work-arounds and accessories go to phoebe_gui_
+    _accessories.c.
+
+
+                          *-----------------------*
+                          | S U G G E S T I O N S |
+                          *-----------------------*
+
+- Set the editor width to 80 characters.
+
+- Set the tabulator width to 2 spaces in your favorite editor. Only that
+  way you'll be able to see the code cleanly.

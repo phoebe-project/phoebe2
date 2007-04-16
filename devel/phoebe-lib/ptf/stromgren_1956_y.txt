@@ -1,0 +1,36 @@
+# PASS_SET  Stromgren
+# PASSBAND  y
+# EFFWL     5470
+# WLFACTOR  1
+# REFERENCE Stromgren, B. 1956, Vistas in Astronomy 2, 1337              
+# Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
+5125   0.0
+5150   0.5
+5175   1.0
+5200   2.0
+5225   3.0
+5250   4.0
+5275   6.0
+5300  10.0
+5325  15.0
+5350  23.0
+5375  33.0
+5400  41.0
+5425  46.0
+5450  48.0
+5475  50.0
+5500  53.0
+5525  52.0
+5550  46.0
+5575  35.0
+5600  24.0
+5625  16.0
+5650  10.0
+5675   6.0
+5700   4.0
+5725   3.0
+5750   2.0
+5775   1.5
+5800   1.0
+5825   0.5
+5850   0.0
