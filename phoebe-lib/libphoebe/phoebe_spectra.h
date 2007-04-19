@@ -33,7 +33,7 @@ int              phoebe_spectrum_new_from_repository         (PHOEBE_spectrum **
 int              phoebe_spectrum_alloc                       (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_realloc                     (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_free                        (PHOEBE_spectrum *spectrum);
-int              phoebe_spectrum_resample                    (PHOEBE_spectrum **src, double R);
+int              phoebe_spectrum_rebin                       (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion disp, double R);
 int              phoebe_spectrum_integrate                   (PHOEBE_spectrum *spectrum, double ll, double ul, double *result);
 int              phoebe_spectrum_broaden                     (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double R);
 int              phoebe_spectrum_crop                        (PHOEBE_spectrum *spectrum, double ll, double ul);

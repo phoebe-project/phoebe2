@@ -128,7 +128,7 @@ int          phoebe_hist_get_bin         (int *bin, PHOEBE_hist *hist, double r)
 int          phoebe_hist_evaluate        (double *y, PHOEBE_hist *hist, double x);
 int          phoebe_hist_integrate       (double *integral, PHOEBE_hist *hist, double ll, double ul);
 int          phoebe_hist_correlate       (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double dl, double delta);
-int          phoebe_hist_resample        (PHOEBE_hist *out, PHOEBE_hist *in);
+int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in);
 int          phoebe_hist_pad             (PHOEBE_hist *hist, double val);
 int          phoebe_hist_crop            (PHOEBE_hist *hist, double ll, double ul);
 
