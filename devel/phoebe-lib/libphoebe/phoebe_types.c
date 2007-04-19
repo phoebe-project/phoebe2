@@ -1031,7 +1031,7 @@ int phoebe_hist_pad (PHOEBE_hist *hist, double val)
 	return SUCCESS;
 }
 
-int phoebe_hist_resample (PHOEBE_hist *out, PHOEBE_hist *in)
+int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in)
 {
 	/*
 	 * This function takes the input histrogram 'in' and resamples its

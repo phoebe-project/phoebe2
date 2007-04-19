@@ -153,7 +153,7 @@ PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_
 	PHOEBE_spectrum *spectrum;
 	int N, i;
 	double q;
-
+printf ("disp: %d\n", disp);
 	switch (disp) {
 		case PHOEBE_SPECTRUM_DISPERSION_LINEAR:
 			q = 2.0*ll/(2.0*R-1.0);
@@ -570,11 +570,11 @@ int phoebe_spectrum_apply_doppler_shift (PHOEBE_spectrum **dest, PHOEBE_spectrum
 	for (i = 0; i < src->data->bins+1; i++)
 		src->data->range[i] *= 1.0 + velocity / 299791.0;
 
-	status = phoebe_hist_resample ((*dest)->data, src->data);
+	status = phoebe_hist_rebin ((*dest)->data, src->data);
 	return status;
 }
 
-int phoebe_spectrum_resample (PHOEBE_spectrum **src, double R)
+int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion disp, double R)
 {
 	/*
 	 * This function resamples the passed spectrum to a resolution R. It works
@@ -594,15 +594,11 @@ int phoebe_spectrum_resample (PHOEBE_spectrum **src, double R)
 	if ((*src)->data->bins == 0)
 		return ERROR_SPECTRUM_NOT_ALLOCATED;
 
-	/*
-	 * Create a new spectrum with linear dispersion, limits [ll, ul] and
-	 * sampling power R:
-	 */
-
-	dest = phoebe_spectrum_create ((*src)->data->range[0], (*src)->data->range[(*src)->data->bins], R, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+	/* Create a new spectrum with a given dispersion type and sampling power: */
+	dest = phoebe_spectrum_create ((*src)->data->range[0], (*src)->data->range[(*src)->data->bins], R, disp);
 
 	/* Resample the histogram in the spectrum: */
-	status = phoebe_hist_resample (dest->data, (*src)->data);
+	status = phoebe_hist_rebin (dest->data, (*src)->data);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (dest);
 		return status;
@@ -721,21 +717,21 @@ int phoebe_spectra_merge (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_
 	if (Rs <= 1)  return ERROR_INVALID_SAMPLING_POWER;
 
 	s1 = phoebe_spectrum_duplicate (src1);
-	status = phoebe_spectrum_resample (&s1, Rs);
+	status = phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LOG, Rs);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (s1);
 		return status;
 	}
 
 	s2 = phoebe_spectrum_duplicate (src2);
-	status = phoebe_spectrum_resample (&s2, Rs);
+	status = phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LOG, Rs);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (s1);
 		phoebe_spectrum_free (s2);
 		return status;
 	}
 
-	*dest = phoebe_spectrum_create (ll, ul, Rs, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+	*dest = phoebe_spectrum_create (ll, ul, Rs, PHOEBE_SPECTRUM_DISPERSION_LOG);
 
 	for (i = 0; i < (*dest)->data->bins; i++)
 		(*dest)->data->val[i] = (w1 * s1->data->val[i] + w2 * s2->data->val[i])/(w1+w2);
@@ -769,10 +765,10 @@ int phoebe_spectra_multiply (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOE
 	s1 = phoebe_spectrum_duplicate (src1);
 	s2 = phoebe_spectrum_duplicate (src2);
 
-	phoebe_spectrum_resample (&s1, R);
-	phoebe_spectrum_resample (&s2, R);
+	phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LOG, R);
+	phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LOG, R);
 
-	*dest = phoebe_spectrum_create (ll, ul, R, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+	*dest = phoebe_spectrum_create (ll, ul, R, PHOEBE_SPECTRUM_DISPERSION_LOG);
 
 	for (i = 0; i < (*dest)->data->bins; i++) {
 		(*dest)->data->val[i] = s1->data->val[i] * s2->data->val[i];
