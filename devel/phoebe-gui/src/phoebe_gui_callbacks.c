@@ -13,7 +13,7 @@ void
 on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
                                         gpointer         user_data)
 {
-    //hello world!!!
+
 }
 
 
