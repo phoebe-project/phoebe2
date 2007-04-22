@@ -144,6 +144,12 @@
       gnuplot="gnuplot"
     fi
 
+# Concatenate all supporting plotting programs into $plotters:
+  plotters=$gnuplot
+  if test x$plotters = x; then
+    plotters="none"
+  fi
+
 # Optional debugging support:
   debugstate="no"
   AC_ARG_ENABLE(debug,
@@ -205,6 +211,6 @@
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
-  echo "Supported plotting packages:      $gnuplot"
+  echo "Supported plotting packages:      $plotters"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
