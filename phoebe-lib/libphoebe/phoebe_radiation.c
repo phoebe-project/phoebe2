@@ -1,8 +1,11 @@
 #include <math.h>
-#include <gsl/gsl_spline.h>
 
 #include "phoebe_error_handling.h"
 #include "phoebe_types.h"
+
+#if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
+#include <gsl/gsl_spline.h>
+#endif
 
 int compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist *PTF)
 {
@@ -27,6 +30,7 @@ int compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist
 	 *   SUCCESS
 	 */
 
+#if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
 	int status, i;
 
 	double intPTF;
@@ -67,7 +71,10 @@ int compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist
 
 	/* Free the spline:                                                       */
 	gsl_spline_free (spline);
-    gsl_interp_accel_free (acc);
+	gsl_interp_accel_free (acc);
 
 	return SUCCESS;
+#endif
+	phoebe_warning ("GSL support needed to compute passband intensity, aborting.\n");
 }
+
