@@ -153,7 +153,7 @@ PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_
 	PHOEBE_spectrum *spectrum;
 	int N, i;
 	double q;
-printf ("disp: %d\n", disp);
+
 	switch (disp) {
 		case PHOEBE_SPECTRUM_DISPERSION_LINEAR:
 			q = 2.0*ll/(2.0*R-1.0);
