@@ -51,7 +51,7 @@ typedef enum {
 	kind_os_cd,
 	kind_os_ls,
 	kind_os_pwd,
-	kind_pot,
+	kind_raise,
 	kind_print,
 	kind_qual_value,
 	kind_quit,

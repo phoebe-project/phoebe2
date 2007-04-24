@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -342,7 +343,7 @@ int scripter_ast_values_subtract (scripter_ast_value *out, scripter_ast_value va
 {
 	/*
 	 * This function subtracts the two AST values. It checks all combinations of
-	 * value types, propagates if necessary and performs the sumation.
+	 * value types, propagates if necessary and performs the subtraction.
 	 *
 	 * Return values:
 	 *
@@ -579,7 +580,7 @@ int scripter_ast_values_multiply (scripter_ast_value *out, scripter_ast_value va
 {
 	/*
 	 * This function multiplies the two AST values. It checks all combinations
-	 * of value types, propagates if necessary and performs the sumation.
+	 * of value types, propagates if necessary and performs the multiplication.
 	 *
 	 * Return values:
 	 *
@@ -803,7 +804,7 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 {
 	/*
 	 * This function divides the two AST values. It checks all combinations
-	 * of value types, propagates if necessary and performs the sumation.
+	 * of value types, propagates if necessary and performs the division.
 	 *
 	 * Return values:
 	 *
@@ -1027,6 +1028,199 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 		break;
 		default:
 			printf ("exception handler invoked in scripter_ast_values_divide (), please report this!\n");
+		break;
+	}
+
+	return SUCCESS;
+}
+
+int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1, scripter_ast_value val2)
+{
+	/*
+	 * This function raises the first AST value to the second AST value.
+	 * It checks all combinations of value types, propagates if necessary
+	 * and performs the raise operation.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS
+	 *   SUCCESS
+	 */
+
+	int i, status;
+
+	/*
+	 * Since the '/' operator acts only on some data types, first we eliminate
+	 * all data types that are not supported:
+	 */
+
+	if (val1.type == type_bool || val2.type == type_bool) {
+		phoebe_scripter_output ("operator '^' cannot act on booleans, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_string || val2.type == type_string) {
+		phoebe_scripter_output ("operator '^' cannot act on strings, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_array || val2.type == type_array) {
+		phoebe_scripter_output ("operator '^' cannot act on non-numeric arrays, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_minfeedback || val2.type == type_minfeedback) {
+		phoebe_scripter_output ("operator '^' cannot act on minimizer feedback, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	switch (val1.type) {
+		case type_int:
+			switch (val2.type) {
+				case type_int:
+					out->type = type_int;
+					out->value.i = (int) pow (val1.value.i, val2.value.i);
+				break;
+				case type_double:
+					out->type = type_double;
+					out->value.d = pow (val1.value.i, val2.value.d);
+				break;
+				case type_vector:
+					out->type = type_vector;
+					out->value.vec = phoebe_vector_new ();
+					phoebe_vector_alloc (out->value.vec, val2.value.vec->dim);
+					for (i = 0; i < out->value.vec->dim; i++)
+						out->value.vec->val[i] = pow (val1.value.i, val2.value.vec->val[i]);
+				break;
+				case type_spectrum:
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_new ();
+					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.i, val2.value.spectrum->data->val[i]);
+				break;
+				case type_void:
+					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+				break;
+				default:
+					out->type = type_void;
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+				break;
+			}
+		break;
+		case type_double:
+			switch (val2.type) {
+				case type_int:
+					out->type = type_double;
+					out->value.d = pow (val1.value.d, val2.value.i);
+				break;
+				case type_double:
+					out->type = type_double;
+					out->value.d = pow (val1.value.d, val2.value.d);
+				break;
+				case type_vector:
+					out->type = type_vector;
+					out->value.vec = phoebe_vector_new ();
+					phoebe_vector_alloc (out->value.vec, val2.value.vec->dim);
+					for (i = 0; i < out->value.vec->dim; i++)
+						out->value.vec->val[i] = pow (val1.value.d, val2.value.vec->val[i]);
+				break;
+				case type_spectrum:
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_new ();
+					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.d, val2.value.spectrum->data->val[i]);
+				break;
+				case type_void:
+					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+				break;
+				default:
+					out->type = type_void;
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+				break;
+			}
+		break;
+		case type_vector:
+			switch (val2.type) {
+				case type_int:
+					out->type = type_vector;
+					out->value.vec = phoebe_vector_new ();
+					phoebe_vector_alloc (out->value.vec, val1.value.vec->dim);
+					for (i = 0; i < out->value.vec->dim; i++)
+						out->value.vec->val[i] = pow (val1.value.vec->val[i], val2.value.i);
+				break;
+				case type_double:
+					out->type = type_vector;
+					out->value.vec = phoebe_vector_new ();
+					phoebe_vector_alloc (out->value.vec, val1.value.vec->dim);
+					for (i = 0; i < out->value.vec->dim; i++)
+						out->value.vec->val[i] = pow (val1.value.vec->val[i], val2.value.d);
+				break;
+				case type_vector:
+					out->type = type_vector;
+					out->value.vec = phoebe_vector_new ();
+					phoebe_vector_alloc (out->value.vec, val1.value.vec->dim);
+					status = phoebe_vector_raise (out->value.vec, val1.value.vec, val2.value.vec);
+					if (status != SUCCESS) {
+						out->type = type_void;
+						return status;
+					}
+				break;
+				case type_spectrum:
+					if (val1.value.vec->dim != val2.value.spectrum->data->bins) {
+						out->type = type_void;
+						return ERROR_VECTOR_DIMENSIONS_MISMATCH;
+					}
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_new ();
+					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.vec->val[i], val2.value.spectrum->data->val[i]);
+				break;
+				case type_void:
+					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+				break;
+				default:
+					out->type = type_void;
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+				break;
+			}
+		break;
+		case type_spectrum:
+			out->type = type_spectrum;
+			out->value.spectrum = phoebe_spectrum_new ();
+			phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
+
+			switch (val2.type) {
+				case type_int:
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.i);
+				break;
+				case type_double:
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.d);
+				break;
+				case type_vector:
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.vec->val[i]);
+				break;
+				case type_spectrum:
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.spectrum->data->val[i]);
+				break;
+				case type_void:
+					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+				break;
+				default:
+					out->type = type_void;
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+				break;
+			}
+		break;
+		default:
+			out->type = type_void;
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}
 

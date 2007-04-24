@@ -355,7 +355,7 @@ expr
 	| expr '*' expr			{ $$ = scripter_ast_add_node (kind_mul,     scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
 	| expr '/' expr			{ $$ = scripter_ast_add_node (kind_div,     scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
 	| expr '%' expr			{ $$ = scripter_ast_add_node (kind_idiv,    scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
-	| expr '^' expr			{ $$ = scripter_ast_add_node (kind_pot,     scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
+	| expr '^' expr			{ $$ = scripter_ast_add_node (kind_raise,   scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
 	| '+' expr %prec NEG	{ $$ = scripter_ast_add_node (kind_unaryp,  scripter_ast_construct_list ($2, NULL)); }
 	| '-' expr %prec NEG	{ $$ = scripter_ast_add_node (kind_unarym,  scripter_ast_construct_list ($2, NULL)); }
 	| expr EQ  expr			{ $$ = scripter_ast_add_node (kind_equal,   scripter_ast_construct_list ($1, scripter_ast_construct_list ($3, NULL))); }
