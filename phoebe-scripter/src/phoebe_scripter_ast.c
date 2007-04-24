@@ -68,7 +68,7 @@ char *scripter_ast_kind_name (scripter_ast_kind kind)
 		case kind_os_cd:                       return "os_cd";                       break;
 		case kind_os_ls:                       return "os_ls";                       break;
 		case kind_os_pwd:                      return "os_pwd";                      break;
-		case kind_pot:                         return "pot";                         break;
+		case kind_raise:                       return "raise";                       break;
 		case kind_print:                       return "print";                       break;
 		case kind_qual_value:                  return "qual_value";                  break;
 		case kind_quit:                        return "quit";                        break;
@@ -2027,35 +2027,52 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 */
 
 				switch (in->value.node.kind) {
-					/*
-					 * Don't print the error messages here, the functions
-					 * already do this. Just set the value type to void.
-					 */
-
 					case kind_add:
 						status = scripter_ast_values_add (&out, val1, val2);
-						if (status != SUCCESS) out.type = type_void;
+						if (status != SUCCESS) {
+							phoebe_scripter_output ("%s", phoebe_error (status));
+							out.type = type_void;
+						}
 						scripter_ast_value_free (val1);
 						scripter_ast_value_free (val2);
 						return out;
 					break;
 					case kind_sub:
 						status = scripter_ast_values_subtract (&out, val1, val2);
-						if (status != SUCCESS) out.type = type_void;
+						if (status != SUCCESS) {
+							phoebe_scripter_output ("%s", phoebe_error (status));
+							out.type = type_void;
+						}
 						scripter_ast_value_free (val1);
 						scripter_ast_value_free (val2);
 						return out;
 					break;
 					case kind_mul:
 						status = scripter_ast_values_multiply (&out, val1, val2);
-						if (status != SUCCESS) out.type = type_void;
+						if (status != SUCCESS) {
+							phoebe_scripter_output ("%s", phoebe_error (status));
+							out.type = type_void;
+						}
 						scripter_ast_value_free (val1);
 						scripter_ast_value_free (val2);
 						return out;
 					break;
 					case kind_div:
 						status = scripter_ast_values_divide (&out, val1, val2);
-						if (status != SUCCESS) out.type = type_void;
+						if (status != SUCCESS) {
+							phoebe_scripter_output ("%s", phoebe_error (status));
+							out.type = type_void;
+						}
+						scripter_ast_value_free (val1);
+						scripter_ast_value_free (val2);
+						return out;
+					break;
+					case kind_raise:
+						status = scripter_ast_values_raise (&out, val1, val2);
+						if (status != SUCCESS) {
+							phoebe_scripter_output ("%s", phoebe_error (status));
+							out.type = type_void;
+						}
 						scripter_ast_value_free (val1);
 						scripter_ast_value_free (val2);
 						return out;
@@ -2064,72 +2081,6 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						if (val1.type == type_int && val2.type == type_int) {
 							out.type = type_int;
 							out.value.i = val1.value.i % val2.value.i;
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						out.type = type_void;
-						scripter_ast_value_free (val1);
-						scripter_ast_value_free (val2);
-						return out;
-					break;
-					case kind_pot:
-						if (val1.type == type_int && val2.type == type_int) {
-							out.type = type_int;
-							out.value.i = (int) pow ((double) val1.value.i, (double) val2.value.i);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_int && val2.type == type_double) {
-							out.type = type_double;
-							out.value.d = pow ((double) val1.value.i, val2.value.d);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_double && val2.type == type_int) {
-							out.type = type_double;
-							out.value.d = pow (val1.value.d, (double) val2.value.i);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_double && val2.type == type_double) {
-							out.type = type_double;
-							out.value.d = pow (val1.value.d, val2.value.d);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_vector && val2.type == type_int) {
-							PHOEBE_vector *vec = phoebe_vector_new ();
-							phoebe_vector_alloc (vec, val1.value.vec->dim);
-							phoebe_vector_pad (vec, val2.value.i);
-							out.type = type_vector;
-							out.value.vec = phoebe_vector_new ();
-							if (phoebe_vector_raise (out.value.vec, val1.value.vec, vec) == -1) out.type = type_void;
-							phoebe_vector_free (vec);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_vector && val2.type == type_double) {
-							PHOEBE_vector *vec = phoebe_vector_new ();
-							phoebe_vector_alloc (vec, val1.value.vec->dim);
-							phoebe_vector_pad (vec, val2.value.d);
-							out.type = type_vector;
-							out.value.vec = phoebe_vector_new ();
-							if (phoebe_vector_raise (out.value.vec, val1.value.vec, vec) == -1) out.type = type_void;
-							phoebe_vector_free (vec);
-							scripter_ast_value_free (val1);
-							scripter_ast_value_free (val2);
-							return out;
-						}
-						if (val1.type == type_vector && val2.type == type_vector) {
-							out.type = type_vector;
-							out.value.vec = phoebe_vector_new ();
-							if (phoebe_vector_raise (out.value.vec, val1.value.vec, val2.value.vec) == -1) out.type = type_void;
 							scripter_ast_value_free (val1);
 							scripter_ast_value_free (val2);
 							return out;
