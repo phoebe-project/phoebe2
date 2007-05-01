@@ -58,11 +58,13 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 				break;
 				case type_spectrum:
 					out->type = type_spectrum;
-					propagate_int_to_double (&val1);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
-						out->value.spectrum->data->val[i] = val1.value.d + val2.value.spectrum->data->val[i];
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
+						out->value.spectrum->data->val[i] = val1.value.i + val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_minfeedback:
 					phoebe_scripter_output ("operator '+' cannot act on minimizer feedback, aborting.\n");
@@ -115,8 +117,11 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.d + val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_minfeedback:
 					phoebe_scripter_output ("operator '+' cannot act on minimizer feedback, aborting.\n");
@@ -277,8 +282,11 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 					propagate_int_to_double (&val2);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] + val2.value.d;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_bool:
 					phoebe_scripter_output ("operator '+' cannot act on booleans, aborting.\n");
@@ -288,8 +296,11 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] + val2.value.d;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_string:
 					phoebe_scripter_output ("operator '+' cannot act between strings and spectra, aborting.\n");
@@ -403,8 +414,11 @@ int scripter_ast_values_subtract (scripter_ast_value *out, scripter_ast_value va
 					propagate_int_to_double (&val1);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.d - val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -440,8 +454,11 @@ int scripter_ast_values_subtract (scripter_ast_value *out, scripter_ast_value va
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.d - val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -530,15 +547,21 @@ int scripter_ast_values_subtract (scripter_ast_value *out, scripter_ast_value va
 					propagate_int_to_double (&val2);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] - val2.value.d;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_double:
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] - val2.value.d;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_vector:
 					phoebe_scripter_output ("operator '-' cannot act between arrays and spectra, aborting.\n");
@@ -866,8 +889,11 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 					propagate_int_to_double (&val1);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.d / val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -903,8 +929,11 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.d / val2.value.spectrum->data->val[i];
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -990,18 +1019,23 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 			switch (val2.type) {
 				case type_int:
 					out->type = type_spectrum;
-					propagate_int_to_double (&val2);
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
-						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] / val2.value.d;
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
+						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] / val2.value.i;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_double:
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val1.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = val1.value.spectrum->data->val[i] / val2.value.d;
+					}
+					out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 				break;
 				case type_vector:
 					phoebe_scripter_output ("operator '/' cannot act between arrays and spectra, aborting.\n");
@@ -1096,8 +1130,11 @@ int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1,
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.i, val2.value.spectrum->data->val[i]);
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -1129,8 +1166,11 @@ int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1,
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.d, val2.value.spectrum->data->val[i]);
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -1175,8 +1215,11 @@ int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1,
 					out->type = type_spectrum;
 					out->value.spectrum = phoebe_spectrum_new ();
 					phoebe_spectrum_alloc (out->value.spectrum, val2.value.spectrum->data->bins);
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.vec->val[i], val2.value.spectrum->data->val[i]);
+					}
+					out->value.spectrum->data->range[i] = val2.value.spectrum->data->range[i];
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -1194,20 +1237,28 @@ int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1,
 
 			switch (val2.type) {
 				case type_int:
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.i);
+					}
 				break;
 				case type_double:
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.d);
+					}
 				break;
 				case type_vector:
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.vec->val[i]);
+					}
 				break;
 				case type_spectrum:
-					for (i = 0; i < out->value.spectrum->data->bins; i++)
+					for (i = 0; i < out->value.spectrum->data->bins; i++) {
+						out->value.spectrum->data->range[i] = val1.value.spectrum->data->range[i];
 						out->value.spectrum->data->val[i] = pow (val1.value.spectrum->data->val[i], val2.value.spectrum->data->val[i]);
+					}
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
