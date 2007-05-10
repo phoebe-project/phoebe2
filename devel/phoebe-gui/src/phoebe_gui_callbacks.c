@@ -1,28 +1,12 @@
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
-#include <gtk/gtk.h>
-
 #include "phoebe_gui_callbacks.h"
-#include "phoebe_gui_interface.h"
-#include "phoebe_gui_support.h"
 
-
-void
-on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+gboolean
+on_phoebe_window_delete_event          (GtkWidget *widget,
+                                        GdkEvent  *event,
+                                        gpointer   user_data)
 {
-
-}
-
-
-void
-on_phoebe_save_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
-{
-
-}
+    gtk_main_quit();
+}                                        
 
 
 void
@@ -62,7 +46,7 @@ void
 on_phoebe_file_quit_menuitem_activate  (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+    gtk_main_quit();
 }
 
 
@@ -109,6 +93,22 @@ on_phoebe_settings_toolbutton_clicked  (GtkToolButton   *toolbutton,
 
 void
 on_phoebe_quit_toolbutton_clicked      (GtkToolButton   *toolbutton,
+                                        gpointer         user_data)
+{
+    gtk_main_quit();
+}
+
+
+void
+on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
+                                        gpointer         user_data)
+{
+
+}
+
+
+void
+on_phoebe_save_toolbutton_clicked      (GtkToolButton   *toolbutton,
                                         gpointer         user_data)
 {
 

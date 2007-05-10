@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-
+#include <glade/glade.h>
 
 void
 on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
