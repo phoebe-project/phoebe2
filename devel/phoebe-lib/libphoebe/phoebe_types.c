@@ -6,6 +6,7 @@
 
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
+#include "phoebe_calculations.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
@@ -69,12 +70,13 @@ PHOEBE_vector *phoebe_vector_new_from_column (char *filename, int col)
 	 */
 
 	FILE *input;
-	PHOEBE_vector *vec = phoebe_vector_new ();
+	PHOEBE_vector *vec;
 	int i, linecount = 1;
 
 	input = fopen (filename, "r");
 	if (input == NULL) return NULL;
 
+	vec = phoebe_vector_new ();
 	while (!feof (input)) {
 		double val;
 		char line[255];
@@ -989,7 +991,7 @@ int phoebe_hist_evaluate (double *y, PHOEBE_hist *hist, double x)
 		i++;
 		if (i == hist->bins) break;
 	}
-	if (i != 0 && i != hist->bins) i--;
+	if (i != hist->bins) i--;
 
 	if (i == -1) {                      /* Extrapolation on the left border:  */
 		n0 = 0.5 * (hist->range[0] + hist->range[1]);
@@ -1031,11 +1033,11 @@ int phoebe_hist_pad (PHOEBE_hist *hist, double val)
 	return SUCCESS;
 }
 
-int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in)
+int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type)
 {
 	/*
-	 * This function takes the input histrogram 'in' and resamples its
-	 * contents to the output histogram 'out'.
+	 * This function takes the input histrogram 'in' and rebins its contents
+	 * to the output histogram 'out'.
 	 */
 
 	int i = 0, j = 0;
@@ -1047,58 +1049,105 @@ int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in)
 	if (in->bins == 0 || out->bins == 0) return ERROR_HIST_NOT_ALLOCATED;
 	if (in->range[0] > out->range[out->bins] || out->range[0] > in->range[in->bins]) return ERROR_HIST_NO_OVERLAP;
 
-	/* Get bin centers: */
-	centers = phoebe_vector_new ();
-	phoebe_vector_alloc (centers, in->bins);
-	phoebe_hist_get_bin_centers (in, centers);
+	/*
+	 * There are two ways how to rebin the histogram:
+	 *
+	 *   1) conserve the values and
+	 *   2) conserve the value densities.
+	 *
+	 * The first option is better if we are degrading the histogram, and the
+	 * second option is better if we are oversampling the histogram. The
+	 * approach is similar yet distinct to the point that it is easier to
+	 * switch on the type and do the computation completely separately.
+	 */
 
-	/* Pad the output histogram with zeroes: */
-	phoebe_hist_pad (out, 0.0);
+	switch (type) {
+		case PHOEBE_HIST_CONSERVE_DENSITY:
+			/* Get bin centers: */
+			centers = phoebe_vector_new ();
+			phoebe_vector_alloc (centers, in->bins);
+			phoebe_hist_get_bin_centers (in, centers);
 
-	/* Fast-forward the indices to overlap: */
-	while (out->range[i+1] <  in->range[0]) i++;
-	while ( in->range[j+1] < out->range[0]) j++;
+			/* Pad the output histogram with zeroes: */
+			phoebe_hist_pad (out, 0.0);
 
-	/* If there are bins before centers->val[0], we have to extrapolate: */
-	while (out->range[i] < centers->val[0]) {
-		 ll = max (in->range[0], out->range[i]);
-		 ul = min (centers->val[0], out->range[i+1]);
-		yll = in->val[0] + (ll-centers->val[0])/(centers->val[1]-centers->val[0]) * (in->val[1]-in->val[0]);
-		yul = in->val[0] + (ul-centers->val[0])/(centers->val[1]-centers->val[0]) * (in->val[1]-in->val[0]);
-		out->val[i] += 0.5*(ul-ll)/(in->range[1]-in->range[0])*(yll+yul);
-		phoebe_debug ("E: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
-		i++;
-	};
-	if (i > 0) i--;
+			/* Fast-forward the indices to overlap: */
+			while (out->range[i+1] <  in->range[0]) i++;
+			while ( in->range[j+1] < out->range[0]) j++;
 
-	/* Do the interpolated rebinning: */
-	for ( ; i < out->bins; i++) {
-		do {
-			 ll = max (centers->val[j],   out->range[i]);
-			 ul = min (centers->val[j+1], out->range[i+1]);
-			yll = in->val[j] + (ll-centers->val[j])/(centers->val[j+1]-centers->val[j]) * (in->val[j+1]-in->val[j]);
-			yul = in->val[j] + (ul-centers->val[j])/(centers->val[j+1]-centers->val[j]) * (in->val[j+1]-in->val[j]);
-			out->val[i] += 0.5*(ul-ll)/(in->range[j+1]-in->range[j])*(yll+yul);
-			phoebe_debug ("I: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
-			j++;
-			if (j == in->bins-1) break;
-		} while (centers->val[j] < out->range[i+1]);
-		if (centers->val[j] < out->range[i+1] && j == in->bins-1) break;
-		j--;
+			/*
+			 * If there are bins before centers->val[0], we have to extra-
+			 * polate:
+			 */
+
+			while (out->range[i] < centers->val[0]) {
+				 ll = max (in->range[0], out->range[i]);
+				 ul = min (centers->val[0], out->range[i+1]);
+				yll = in->val[0] + (ll-centers->val[0])/(centers->val[1]-centers->val[0]) * (in->val[1]-in->val[0]);
+				yul = in->val[0] + (ul-centers->val[0])/(centers->val[1]-centers->val[0]) * (in->val[1]-in->val[0]);
+				out->val[i] += 0.5*(ul-ll)/(in->range[1]-in->range[0])*(yll+yul);
+				phoebe_debug ("E: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
+				i++;
+			};
+			if (i > 0) i--;
+
+			/* Do the interpolated rebinning: */
+			for ( ; i < out->bins; i++) {
+				do {
+					 ll = max (centers->val[j],   out->range[i]);
+					 ul = min (centers->val[j+1], out->range[i+1]);
+					yll = in->val[j] + (ll-centers->val[j])/(centers->val[j+1]-centers->val[j]) * (in->val[j+1]-in->val[j]);
+					yul = in->val[j] + (ul-centers->val[j])/(centers->val[j+1]-centers->val[j]) * (in->val[j+1]-in->val[j]);
+					out->val[i] += 0.5*(ul-ll)/(in->range[j+1]-in->range[j])*(yll+yul);
+					phoebe_debug ("I: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
+					j++;
+					if (j == in->bins-1) break;
+				} while (centers->val[j] < out->range[i+1]);
+				if (centers->val[j] < out->range[i+1] && j == in->bins-1) break;
+				j--;
+			}
+
+			/*
+			 * If there are bins after centers->val[N-1], we have to extra-
+			 * polate:
+			 */
+
+			while (i < out->bins && out->range[i] < in->range[in->bins]) {
+				 ll = max (centers->val[j], out->range[i]);
+				 ul = min (in->range[j+1], out->range[i+1]);
+				yll = in->val[j-1] + (ll-centers->val[j-1])/(centers->val[j]-centers->val[j-1]) * (in->val[j]-in->val[j-1]);
+				yul = in->val[j-1] + (ul-centers->val[j-1])/(centers->val[j]-centers->val[j-1]) * (in->val[j]-in->val[j-1]);
+				out->val[i] += 0.5*(ul-ll)/(in->range[j+1]-in->range[j])*(yll+yul);
+				phoebe_debug ("E: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
+				i++;
+			};
+
+			phoebe_vector_free (centers);
+		break;
+		case PHOEBE_HIST_CONSERVE_VALUES:
+			/* Pad the output histogram with zeroes: */
+			phoebe_hist_pad (out, 0.0);
+
+			/* Fast-forward the indices to overlap: */
+			while (out->range[i+1] < in->range[0]) i++;
+			while (in->range[j+1] < out->range[0]) j++;
+
+			/* Do the resampling:                                                     */
+			for ( ; i < out->bins; i++) {
+				do {
+					ll = max (in->range[j], out->range[i]);
+					ul = min (in->range[j+1], out->range[i+1]);
+					out->val[i] += (ul - ll) / (in->range[j+1] - in->range[j]) * in->val[j];
+					j++;
+					if (j == in->bins) break;
+				} while (in->range[j] < out->range[i+1]);
+				if (in->range[j] < out->range[i+1] && j == in->bins) break;
+				j--;
+			}	
+		break;
+		default:
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
-
-	/* If there are bins after centers->val[N-1], we have to extrapolate: */
-	while (i < out->bins && out->range[i] < in->range[in->bins]) {
-		 ll = max (centers->val[j], out->range[i]);
-		 ul = min (in->range[j+1], out->range[i+1]);
-		yll = in->val[j-1] + (ll-centers->val[j-1])/(centers->val[j]-centers->val[j-1]) * (in->val[j]-in->val[j-1]);
-		yul = in->val[j-1] + (ul-centers->val[j-1])/(centers->val[j]-centers->val[j-1]) * (in->val[j]-in->val[j-1]);
-		out->val[i] += 0.5*(ul-ll)/(in->range[j+1]-in->range[j])*(yll+yul);
-		phoebe_debug ("E: %d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", i, j, ll, ul, yll, yul, out->val[i]);
-		i++;
-	};
-
-	phoebe_vector_free (centers);
 
 	/* Hopefully everything went ok. ;) The resampling is done!               */
 	return SUCCESS;
@@ -1140,17 +1189,58 @@ int phoebe_hist_integrate (double *integral, PHOEBE_hist *hist, double ll, doubl
 	return SUCCESS;
 }
 
-int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double dl, double delta)
+int phoebe_hist_shift (PHOEBE_hist *hist, double shift)
+{
+	/*
+	 * This function shifts the contents of the histogram hist in pixel-space
+	 * by the passed shift. If the shift is positive, the contents are shifted
+	 * to the right; if negative, they are shifted to the left.
+	 */
+
+	PHOEBE_hist *copy = phoebe_hist_duplicate (hist);
+	int    int_shift = fabs ((int) shift);
+	double frac_shift = fabs (frac (shift));
+	int i;
+
+	if (shift > 0) {
+		for (i = 0; i < int_shift; i++)
+			copy->val[i] = 0.0;
+		copy->val[i] = hist->val[0] * (1.0-frac_shift); i++;
+		for ( ; i < hist->bins; i++)
+			copy->val[i] = hist->val[i-int_shift-1] * frac_shift
+			             + hist->val[i-int_shift] * (1.0 - frac_shift);
+	}
+
+	if (shift < 0) {
+		for (i = 0; i < hist->bins-int_shift-1; i++)
+			copy->val[i] = hist->val[i+int_shift]   * (1.0-frac_shift)
+			             + hist->val[i+int_shift+1] * frac_shift;
+		copy->val[i] = hist->val[i+int_shift] * (1.0-frac_shift); i++;
+		for ( ; i < hist->bins; i++)
+			copy->val[i] = 0.0;
+	}
+
+	for (i = 0; i < hist->bins; i++)
+		hist->val[i] = copy->val[i];
+
+	phoebe_hist_free (copy);
+
+	return SUCCESS;
+}
+
+int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double xi)
 {
 	/*
 	 * This function computes the correlation of the passed histograms h1 and
-	 * and h2 in the passed point delta:
+	 * and h2 in pixel space.
 	 *
-	 *   Corr (h1, h2) (delta) = \int_ll^ul h1(l) h2(l+delta) dl
+	 *   Corr (h1, h2) (xi) = \int_x0^xN h1(x) h2(x-xi) dx
+	 *                      = 1/N \sum_j h1(x_j) h2(x_j-xi)
 	 */
 
 	int i;
-	double l, h1v, h2v;
+	PHOEBE_hist *h2s;
+	int llidx, ulidx;
 
 	/* Error checking: */
 	if (!h1 || !h2)
@@ -1160,13 +1250,22 @@ int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, doub
 	if (h1->range[h1->bins] < ll || h2->range[h2->bins] < ll)
 		return ERROR_HIST_INVALID_RANGES;
 
-	*cfval = 0.0; i = 0;
-	for (l = ll; l < ul; l += dl) {
-		phoebe_hist_evaluate (&h1v, h1, l);
-		phoebe_hist_evaluate (&h2v, h2, l+delta);
-		*cfval += h1v * h2v; i++;
-	}
-	*cfval /= i;
+	/* Shift a second histogram: */
+	h2s = phoebe_hist_duplicate (h2);
+	phoebe_hist_shift (h2s, xi);
+
+	/* Find the starting and ending indices: */
+	llidx = 0; ulidx = 0;
+	while (h1->range[llidx] < ll) llidx++;
+	while (h1->range[h1->bins-ulidx-1] > ul) ulidx++;
+	ulidx = h1->bins-ulidx-1;
+
+	*cfval = 0.0;
+	for (i = llidx; i <= ulidx; i++)
+		*cfval += h1->val[i] * h2s->val[i];
+	*cfval /= (ulidx-llidx+1);
+
+	phoebe_hist_free (h2s);
 
 	return SUCCESS;
 }
