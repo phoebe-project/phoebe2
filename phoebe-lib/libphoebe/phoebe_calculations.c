@@ -87,6 +87,10 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 	 *
 	 *  where 0 and 1 are used for lower and upper node values, respectively,
 	 *  listed in a consecutive parameter order.
+	 *
+	 * The function *modifies* the passed array fv[], so make sure you copy
+	 * its contents if it is needed later. The result of the interpolation is
+	 * contained in the first element of that array, fv[0].
 	 */
 
 	int i, j, k;
