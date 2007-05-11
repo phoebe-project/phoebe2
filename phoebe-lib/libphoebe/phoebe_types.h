@@ -113,6 +113,11 @@ typedef struct PHOEBE_hist {
 	double *val;            /* A vector of histogram values */
 } PHOEBE_hist;
 
+typedef enum PHOEBE_hist_rebin_type {
+	PHOEBE_HIST_CONSERVE_VALUES = 20,
+	PHOEBE_HIST_CONSERVE_DENSITY
+} PHOEBE_hist_rebin_type;
+
 PHOEBE_hist *phoebe_hist_new             ();
 PHOEBE_hist *phoebe_hist_new_from_arrays (int bins, double *binarray, double *valarray);
 PHOEBE_hist *phoebe_hist_new_from_file   (char *filename);
@@ -127,10 +132,11 @@ int          phoebe_hist_get_bin_centers (PHOEBE_hist *hist, PHOEBE_vector *bin_
 int          phoebe_hist_get_bin         (int *bin, PHOEBE_hist *hist, double r);
 int          phoebe_hist_evaluate        (double *y, PHOEBE_hist *hist, double x);
 int          phoebe_hist_integrate       (double *integral, PHOEBE_hist *hist, double ll, double ul);
-int          phoebe_hist_correlate       (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double dl, double delta);
-int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in);
+int          phoebe_hist_shift           (PHOEBE_hist *hist, double shift);
+int          phoebe_hist_correlate       (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double xi);
 int          phoebe_hist_pad             (PHOEBE_hist *hist, double val);
 int          phoebe_hist_crop            (PHOEBE_hist *hist, double ll, double ul);
+int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type);
 
 /******************************************************************************/
 
@@ -197,9 +203,30 @@ int           phoebe_curve_free           (PHOEBE_curve *curve);
 
 /******************************************************************************/
 
+/*
+ * Spectrum dispersion tells us how dx is connected to dlambda. If the
+ * dispersion is linear, then dx is proportional to dlambda. If it is log,
+ * dx is proportional to dlambda/lambda. If there is no dispersion function,
+ * that means that there is no simple transformation from wavelength space
+ * to pixel space. In that case everything must be done according to histogram
+ * ranges.
+ */
+
+typedef enum PHOEBE_spectrum_dispersion {
+	PHOEBE_SPECTRUM_DISPERSION_LINEAR,
+	PHOEBE_SPECTRUM_DISPERSION_LOG,
+	PHOEBE_SPECTRUM_DISPERSION_NONE
+} PHOEBE_spectrum_dispersion;
+
+/*
+ * The spectrum structure is defined here, but the manipulation functions
+ * reside in phoebe_spectra.c/h files.
+*/
+
 typedef struct PHOEBE_spectrum {
 	double  R;
 	double  Rs;
+	PHOEBE_spectrum_dispersion disp;
 	PHOEBE_hist *data;
 } PHOEBE_spectrum;
 

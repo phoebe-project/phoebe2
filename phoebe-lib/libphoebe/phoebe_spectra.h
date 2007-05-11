@@ -17,11 +17,6 @@ typedef struct PHOEBE_specrep {
 	PHOEBE_specrep_tag *prop;
 } PHOEBE_specrep;
 
-typedef enum PHOEBE_spectrum_dispersion {
-	PHOEBE_SPECTRUM_DISPERSION_LINEAR,
-	PHOEBE_SPECTRUM_DISPERSION_LOG
-} PHOEBE_spectrum_dispersion;
-
 int              query_spectra_repository                    (char *rep_name, PHOEBE_specrep *spec);
 
 PHOEBE_spectrum *phoebe_spectrum_new                         ();
@@ -33,7 +28,7 @@ int              phoebe_spectrum_new_from_repository         (PHOEBE_spectrum **
 int              phoebe_spectrum_alloc                       (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_realloc                     (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_free                        (PHOEBE_spectrum *spectrum);
-int              phoebe_spectrum_rebin                       (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion disp, double R);
+int              phoebe_spectrum_rebin                       (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion disp, double ll, double ul, double R);
 int              phoebe_spectrum_integrate                   (PHOEBE_spectrum *spectrum, double ll, double ul, double *result);
 int              phoebe_spectrum_broaden                     (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double R);
 int              phoebe_spectrum_crop                        (PHOEBE_spectrum *spectrum, double ll, double ul);
@@ -42,6 +37,8 @@ int              phoebe_spectrum_apply_rotational_broadening (PHOEBE_spectrum **
 int              phoebe_spectrum_set_sampling                (PHOEBE_spectrum *spectrum, double Rs);
 int              phoebe_spectrum_set_resolution              (PHOEBE_spectrum *spectrum, double R);
 int              phoebe_spectrum_multiply_by                 (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double factor);
+int              phoebe_spectrum_dispersion_guess            (PHOEBE_spectrum_dispersion *disp, PHOEBE_spectrum *spectrum);
+char            *phoebe_spectrum_dispersion_type_get_name    (PHOEBE_spectrum_dispersion disp);
 
 int              phoebe_spectra_add                          (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2);
 int              phoebe_spectra_subtract                     (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2);
