@@ -1228,14 +1228,14 @@ int phoebe_hist_shift (PHOEBE_hist *hist, double shift)
 	return SUCCESS;
 }
 
-int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double ll, double ul, double xi)
+int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double sigma1, double sigma2, double ll, double ul, double xi)
 {
 	/*
 	 * This function computes the correlation of the passed histograms h1 and
 	 * and h2 in pixel space.
 	 *
 	 *   Corr (h1, h2) (xi) = \int_x0^xN h1(x) h2(x-xi) dx
-	 *                      = 1/N \sum_j h1(x_j) h2(x_j-xi)
+	 *                      = 1/(N \sig_h1 \sig_h2) \sum_j h1(x_j) h2(x_j-xi)
 	 */
 
 	int i;
@@ -1263,7 +1263,7 @@ int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, doub
 	*cfval = 0.0;
 	for (i = llidx; i <= ulidx; i++)
 		*cfval += h1->val[i] * h2s->val[i];
-	*cfval /= (ulidx-llidx+1);
+	*cfval /= (ulidx-llidx+1)*sigma1*sigma2;
 
 	phoebe_hist_free (h2s);
 
