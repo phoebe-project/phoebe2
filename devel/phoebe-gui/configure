@@ -578,7 +578,7 @@ PACKAGE_VERSION='0.30'
 PACKAGE_STRING='PHOEBE GUI 0.30'
 PACKAGE_BUGREPORT='gal.matijevic@fmf.uni-lj.si'
 
-ac_unique_file="src/main.c"
+ac_unique_file="src/phoebe_gui_main.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>

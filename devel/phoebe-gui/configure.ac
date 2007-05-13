@@ -53,7 +53,7 @@
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
-  AC_CONFIG_SRCDIR([src/main.c])
+  AC_CONFIG_SRCDIR([src/phoebe_gui_main.c])
 
 # Initialize the location of the autoconf macros:
   AC_CONFIG_AUX_DIR(autoconfig)
