@@ -48,7 +48,8 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_phoebe_gui_OBJECTS = main.$(OBJEXT) phoebe_gui_callbacks.$(OBJEXT)
+am_phoebe_gui_OBJECTS = phoebe_gui_main.$(OBJEXT) \
+	phoebe_gui_callbacks.$(OBJEXT)
 phoebe_gui_OBJECTS = $(am_phoebe_gui_OBJECTS)
 phoebe_gui_DEPENDENCIES =
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
@@ -160,14 +161,12 @@ INCLUDES = \
 	@PACKAGE_CFLAGS@ -I/usr/include/libglade-2.0
 
 phoebe_gui_SOURCES = \
-	main.c                                          \
-	phoebe_gui_callbacks.h phoebe_gui_callbacks.c
+	phoebe_gui_main.h       phoebe_gui_main.c       \
+	phoebe_gui_callbacks.h  phoebe_gui_callbacks.c
 
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
-EXTRA_DIST = phoebe.glade          \
-             phoebe_settings.glade
-
+EXTRA_DIST = phoebe.glade
 all: phoebe_gui_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -252,8 +251,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_callbacks.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_main.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
