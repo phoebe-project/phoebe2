@@ -1,4 +1,5 @@
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_main.h"
 
 gboolean
 on_phoebe_window_delete_event          (GtkWidget *widget,
@@ -6,7 +7,7 @@ on_phoebe_window_delete_event          (GtkWidget *widget,
                                         gpointer   user_data)
 {
     gtk_main_quit();
-}                                        
+}
 
 
 void
@@ -35,7 +36,7 @@ on_phoebe_file_save_menuitem_activate  (GtkMenuItem     *menuitem,
 
 void
 on_phoebe_file_saveas_menuitem_activate
-                                        (GtkMenuItem     *menuitem,
+                                       (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
 
@@ -52,10 +53,10 @@ on_phoebe_file_quit_menuitem_activate  (GtkMenuItem     *menuitem,
 
 void
 on_phoebe_settings_configuration_menuitem_activate
-                                        (GtkMenuItem     *menuitem,
+                                       (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+    gtk_widget_show(phoebe_settings_window);
 }
 
 
@@ -3254,3 +3255,40 @@ on_phoebe_plots_rv_options_x_combobox_changed
 
 }
 
+/**********************************************************************
+ *
+ *                    phoebe_settings_window events
+ *
+ **********************************************************************/
+
+gboolean
+on_phoebe_settings_window_delete_event (GtkWidget *widget,
+                                        GdkEvent  *event,
+                                        gpointer   user_data)
+{
+    gtk_widget_hide(phoebe_settings_window);
+}
+
+void
+on_phoebe_settings_ok_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+    gtk_widget_hide(phoebe_settings_window);
+}
+
+void
+on_phoebe_settings_save_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+
+}
+
+void
+on_phoebe_settings_cancel_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+    gtk_widget_hide(phoebe_settings_window);
+}
