@@ -2721,7 +2721,7 @@ scripter_ast_value scripter_resample_spectrum (scripter_ast_list *args)
 	}
 
 	spectrum = phoebe_spectrum_duplicate (vals[0].value.spectrum);
-	status = phoebe_spectrum_rebin (&spectrum, spectrum->disp, vals[1].value.d);
+	status = phoebe_spectrum_rebin (&spectrum, spectrum->disp, vals[0].value.spectrum->data->range[0], vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins], vals[1].value.d);
 
 	scripter_ast_value_array_free (vals, 2);
 
