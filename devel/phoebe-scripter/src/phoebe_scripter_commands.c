@@ -1592,6 +1592,11 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		PHOEBE_output_dep   odep;
 
 		phoebe_get_parameter_value ("phoebe_rv_filename", vals[0].value.i-1, &filename);
+		if (!filename_exists (filename)) {
+			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
+			scripter_ast_value_array_free (vals, 3);
+			return out;
+		}
 
 		phoebe_get_parameter_value ("phoebe_rv_indep", vals[0].value.i-1, &readout_str);
 		get_input_independent_variable (readout_str, &iindep);
