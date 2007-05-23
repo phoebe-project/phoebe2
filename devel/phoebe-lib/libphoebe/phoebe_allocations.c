@@ -173,7 +173,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 }
 
 int read_in_observational_data (const char *filename,
-	PHOEBE_curve *obs,  int indep,  int outindep,
+	PHOEBE_curve **obs, int indep,  int outindep,
 	                    int dep,    int outdep,
 	                    int weight, int outweight,
 	bool alias, double phmin, double phmax)
@@ -207,11 +207,11 @@ int read_in_observational_data (const char *filename,
 	 * memory leak.
 	 */
 
-	if (!obs) {
+	if (!(*obs)) {
 		phoebe_lib_error ("PHOEBE_curve is not initialized, aborting.\n");
 		return ERROR_CURVE_NOT_INITIALIZED;
 	}
-	if (obs->indep->val) {
+	if ((*obs)->indep->val) {
 		phoebe_lib_error ("PHOEBE_curve is already allocated, aborting.\n");
 		return ERROR_CURVE_ALREADY_ALLOCATED;
 	}
@@ -242,20 +242,20 @@ int read_in_observational_data (const char *filename,
 	if (!filename_exists (filename))          return ERROR_FILE_NOT_FOUND;
 	if (!filename_is_regular_file (filename)) return ERROR_FILE_IS_INVALID;
 
-	obs = phoebe_curve_new_from_file ((char *) filename);
-	if (!obs) return ERROR_FILE_HAS_NO_DATA;
+	(*obs) = phoebe_curve_new_from_file ((char *) filename);
+	if (!(*obs)) return ERROR_FILE_HAS_NO_DATA;
 
 	/* Now do all the necessary transformations:                                */
 	if ( indep == INPUT_HJD && outindep == OUTPUT_PHASE ) {
 		double hjd0, period, dpdt, pshift;
 		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
-		transform_hjd_to_phase (obs->indep, hjd0, period, dpdt, 0.0);
+		transform_hjd_to_phase ((*obs)->indep, hjd0, period, dpdt, 0.0);
 	}
 
 	if ( indep == INPUT_PHASE && outindep == OUTPUT_HJD ) {
 		double hjd0, period, dpdt, pshift;
 		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
-		transform_phase_to_hjd (obs->indep, hjd0, period, dpdt, 0.0);
+		transform_phase_to_hjd ((*obs)->indep, hjd0, period, dpdt, 0.0);
 	}
 
 	if ( dep == INPUT_MAGNITUDE && outdep == OUTPUT_TOTAL_FLUX ) {
@@ -268,9 +268,9 @@ int read_in_observational_data (const char *filename,
 		 * uses fluxes and not magnitudes.
 		 */
 
- 		transform_magnitude_to_flux (obs->dep, mnorm);
+ 		transform_magnitude_to_flux ((*obs)->dep, mnorm);
 		if (weight == INPUT_STANDARD_DEVIATION && outweight != OUTPUT_UNAVAILABLE)
-			transform_magnitude_sigma_to_flux_sigma (obs->weight, obs->dep);
+			transform_magnitude_sigma_to_flux_sigma ((*obs)->weight, (*obs)->dep);
 	}
 	if ( dep == INPUT_FLUX && outdep == OUTPUT_MAGNITUDE ) {
 		double mnorm;
@@ -283,52 +283,52 @@ int read_in_observational_data (const char *filename,
 		 */
 
 		if (weight == INPUT_STANDARD_DEVIATION && outweight != OUTPUT_UNAVAILABLE)
-			transform_flux_sigma_to_magnitude_sigma (obs->weight, obs->dep);
-		transform_flux_to_magnitude (obs->dep, mnorm);
+			transform_flux_sigma_to_magnitude_sigma ((*obs)->weight, (*obs)->dep);
+		transform_flux_to_magnitude ((*obs)->dep, mnorm);
 	}
 	if ( dep == INPUT_PRIMARY_RV && outdep == OUTPUT_PRIMARY_NORMALIZED_RV ) {
 		double sma, period;
 		phoebe_get_parameter_value ("phoebe_sma",    &sma);
 		phoebe_get_parameter_value ("phoebe_period", &period);
-		normalize_kms_to_orbit (obs->dep, sma, period);
+		normalize_kms_to_orbit ((*obs)->dep, sma, period);
 		if ( (weight == INPUT_STANDARD_DEVIATION) && (outweight != OUTPUT_UNAVAILABLE) )
-			normalize_kms_to_orbit (obs->weight, sma, period);
+			normalize_kms_to_orbit ((*obs)->weight, sma, period);
 	}
 	if ( dep == INPUT_SECONDARY_RV && outdep == OUTPUT_SECONDARY_NORMALIZED_RV ) {
 		double sma, period;
 		phoebe_get_parameter_value ("phoebe_sma", &sma);
 		phoebe_get_parameter_value ("phoebe_period", &period);
-		normalize_kms_to_orbit (obs->dep, sma, period);
+		normalize_kms_to_orbit ((*obs)->dep, sma, period);
 		if ( (weight == INPUT_STANDARD_DEVIATION) && (outweight != OUTPUT_UNAVAILABLE) )
-			normalize_kms_to_orbit (obs->weight, sma, period);
+			normalize_kms_to_orbit ((*obs)->weight, sma, period);
 	}
 
 	if ( weight == INPUT_STANDARD_DEVIATION && outweight == OUTPUT_STANDARD_WEIGHT ) {
-		status = transform_sigma_to_weight (obs->weight);
+		status = transform_sigma_to_weight ((*obs)->weight);
 		if (status != SUCCESS) {
-			obs->indep->dim = 0; free (obs->indep->val); obs->indep->val = NULL;
-			obs->dep->dim   = 0; free (obs->dep->val);   obs->dep->val   = NULL;
+			(*obs)->indep->dim = 0; free ((*obs)->indep->val); (*obs)->indep->val = NULL;
+			(*obs)->dep->dim   = 0; free ((*obs)->dep->val);   (*obs)->dep->val   = NULL;
 			return status;
 		}
 	}
 	if ( weight == INPUT_STANDARD_WEIGHT && outweight == OUTPUT_STANDARD_DEVIATION ) {
-		status = transform_weight_to_sigma (obs->weight);
+		status = transform_weight_to_sigma ((*obs)->weight);
 		if (status != SUCCESS) {
-			obs->indep->dim = 0; free (obs->indep->val); obs->indep->val = NULL;
-			obs->dep->dim   = 0; free (obs->dep->val);   obs->dep->val   = NULL;
+			(*obs)->indep->dim = 0; free ((*obs)->indep->val); (*obs)->indep->val = NULL;
+			(*obs)->dep->dim   = 0; free ((*obs)->dep->val);   (*obs)->dep->val   = NULL;
 			return status;
 		}
 	}
 	if ( weight == INPUT_UNAVAILABLE && outweight == OUTPUT_STANDARD_DEVIATION ) {
-		if (obs->weight && obs->weight->dim == 0) {
-			phoebe_vector_alloc (obs->weight, obs->dep->dim);
-			phoebe_vector_pad (obs->weight, 0.01);
+		if ((*obs)->weight && (*obs)->weight->dim == 0) {
+			phoebe_vector_alloc ((*obs)->weight, (*obs)->dep->dim);
+			phoebe_vector_pad ((*obs)->weight, 0.01);
 		}
 	}
 	if ( weight == INPUT_UNAVAILABLE && outweight == OUTPUT_STANDARD_WEIGHT ) {
-		if (obs->weight && obs->weight->dim == 0) {
-			phoebe_vector_alloc (obs->weight, obs->dep->dim);
-			phoebe_vector_pad (obs->weight, 1.0);
+		if ((*obs)->weight && (*obs)->weight->dim == 0) {
+			phoebe_vector_alloc ((*obs)->weight, (*obs)->dep->dim);
+			phoebe_vector_pad ((*obs)->weight, 1.0);
 		}
 	}
 
@@ -337,9 +337,9 @@ int read_in_observational_data (const char *filename,
 			phoebe_lib_error ("cannot alias HJD points, ignoring.\n");
 		else {
 			if (no_of_columns == 2)
-				alias_phase_points (obs->indep, obs->dep, NULL, phmin, phmax);
+				alias_phase_points ((*obs)->indep, (*obs)->dep, NULL, phmin, phmax);
 			else
-				alias_phase_points (obs->indep, obs->dep, obs->weight, phmin, phmax);
+				alias_phase_points ((*obs)->indep, (*obs)->dep, (*obs)->weight, phmin, phmax);
 		}
 	}
 
@@ -933,7 +933,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		status = read_in_observational_data
 			(
 			readout_str,
-			params->obs[0],
+			&(params->obs[0]),
 			varindep,
 			indep,
 			vardep,
@@ -971,7 +971,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		status = read_in_observational_data
 			(
 			readout_str,
-			params->obs[index],
+			&(params->obs[index]),
 			varindep,
 			indep,
 			vardep,
@@ -1007,7 +1007,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		status = read_in_observational_data
 			(
 			readout_str,
-			params->obs[i],
+			&(params->obs[i]),
 			varindep,
 			indep,
 			vardep,

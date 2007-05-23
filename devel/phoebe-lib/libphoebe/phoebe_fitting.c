@@ -563,7 +563,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			status = read_in_observational_data
 				(
 				file,
-				obs[curve],
+				&(obs[curve]),
 				indep,
 #warning FIX PHASE-ONLY COMPUTATION
 				OUTPUT_PHASE,
@@ -603,7 +603,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 				if (dep == INPUT_PRIMARY_RV) {
 					status = read_in_observational_data (
 						file,
-						obs[curve],
+						&(obs[curve]),
 						indep,
 #warning FIX PHASE-ONLY COMPUTATION
 						OUTPUT_PHASE,
@@ -620,7 +620,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 				if (dep == INPUT_SECONDARY_RV) {
 					status = read_in_observational_data (
 						file,
-						obs[curve+1],
+						&(obs[curve+1]),
 						indep,
 #warning FIX PHASE-ONLY COMPUTATION
 						OUTPUT_PHASE,
@@ -638,7 +638,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 				if (dep == INPUT_PRIMARY_RV) {
 					status = read_in_observational_data (
 						file,
-						obs[curve],
+						&(obs[curve]),
 						indep,
 #warning FIX PHASE-ONLY COMPUTATION
 						OUTPUT_PHASE,
@@ -655,7 +655,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 				if (dep == INPUT_SECONDARY_RV) {
 					status = read_in_observational_data (
 						file,
-						obs[curve],
+						&(obs[curve]),
 						indep,
 #warning FIX PHASE-ONLY COMPUTATION
 						OUTPUT_PHASE,
@@ -699,7 +699,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			if (dep == INPUT_PRIMARY_RV) {
 				status = read_in_observational_data (
 					file,
-					obs[curve-1],
+					&(obs[curve-1]),
 					indep,
 #warning FIX PHASE-ONLY COMPUTATION
 					OUTPUT_PHASE,
@@ -716,7 +716,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			if (dep == INPUT_SECONDARY_RV) {
 				status = read_in_observational_data (
 					file,
-					obs[curve],
+					&(obs[curve]),
 					indep,
 #warning FIX PHASE-ONLY COMPUTATION
 					OUTPUT_PHASE,
