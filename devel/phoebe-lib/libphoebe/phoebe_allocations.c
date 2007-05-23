@@ -179,7 +179,7 @@ int read_in_observational_data (const char *filename,
 	bool alias, double phmin, double phmax)
 {
 	/*
-	 * This function reads out observational data. It should be fool-proof to
+	 * This function reads in observational data. It should be fool-proof to
 	 * a reasonable extent. Memory has also been checked against leaks.
 	 *
 	 * Return codes:
@@ -243,6 +243,7 @@ int read_in_observational_data (const char *filename,
 	if (!filename_is_regular_file (filename)) return ERROR_FILE_IS_INVALID;
 
 	obs = phoebe_curve_new_from_file ((char *) filename);
+	if (!obs) return ERROR_FILE_HAS_NO_DATA;
 
 	/* Now do all the necessary transformations:                                */
 	if ( indep == INPUT_HJD && outindep == OUTPUT_PHASE ) {

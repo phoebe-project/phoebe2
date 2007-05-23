@@ -45,6 +45,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "the file is invalid.\n";
 		case ERROR_FILE_IS_EMPTY:
 			return "the file is empty.\n";
+		case ERROR_FILE_HAS_NO_DATA:
+			return "the file contains no data, aborting.\n";
 		case ERROR_DIRECTORY_PERMISSION_DENIED:
 			return "cannot access directory: permission denied.\n";
 		case ERROR_DIRECTORY_TOO_MANY_FILE_DESCRIPTORS:
