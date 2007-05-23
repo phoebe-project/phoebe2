@@ -7,7 +7,7 @@
 char  *parse_data_line               (char *in);
 
 int    read_in_synthetic_data        (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_output_dep var);
-int    read_in_observational_data    (const char *filename, PHOEBE_curve *obs, int indep, int outindep, int dep, int outdep, int weight, int outweight, bool alias, double phmin, double phmax);
+int    read_in_observational_data    (const char *filename, PHOEBE_curve **obs, int indep, int outindep, int dep, int outdep, int weight, int outweight, bool alias, double phmin, double phmax);
 int    read_in_ephemeris_parameters  (double *hjd0, double *period, double *dpdt, double *pshift);
 int    read_in_adjustable_parameters (int *tba, double **values, int **indices);
 

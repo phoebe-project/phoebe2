@@ -1619,7 +1619,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 		status = read_in_observational_data (
 			filename,
-			rv[index],
+			&(rv[index]),
 			iindep,
 			OUTPUT_PHASE,
 			idep,
@@ -1630,7 +1630,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 			-0.6,
 			+0.6
 		);
-
+printf ("rv[%d]->indep->dim = %d\n", index, rv[index]->indep->dim);
 		if (status != SUCCESS) {
 			scripter_ast_value_array_free (vals, 3);
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -2160,7 +2160,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 
 			status = read_in_observational_data (
 				filename,
-				obs,
+				&obs,
 				iindep,
 				OUTPUT_PHASE,
 				idep,
@@ -2231,7 +2231,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			if (index == lcno+1) {
 				status = read_in_observational_data (
 					filename,
-					obs,
+					&obs,
 					iindep,
 					OUTPUT_PHASE,
 					idep,
@@ -2267,7 +2267,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			if (index == lcno+2) {
 				status = read_in_observational_data (
 					filename,
-					obs,
+					&obs,
 					iindep,
 					OUTPUT_PHASE,
 					idep,
