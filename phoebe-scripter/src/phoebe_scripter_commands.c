@@ -1416,8 +1416,13 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 			return out;
 		}
 
+		/* Check passband; if invalid, no biggie, but warn that it's missing. */
 		phoebe_get_parameter_value ("phoebe_lc_filter", curve-1, &passband);
+		passband_ptr = phoebe_passband_lookup (passband);
+		if (!passband_ptr)
+			phoebe_warning ("passband for observational data not set or invalid!\n");
 
+		/* Get column contents: */
 		phoebe_get_parameter_value ("phoebe_lc_indep", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &itype);
 
@@ -1427,43 +1432,11 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		phoebe_get_parameter_value ("phoebe_lc_indweight", vals[0].value.i-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &wtype);
 
-		passband_ptr = phoebe_passband_lookup (passband);
-
-		/*
-		 * Check if the passband is set; if it is not, no biggie, since the
-		 * plot does not depend on the passband, but we should warn the user
-		 * anyway...
-		 */
-	
-		if (!passband_ptr)
-			phoebe_warning ("passband for observational data not set or invalid!\n");
-
 		lc = phoebe_malloc (sizeof (*lc));
 
 		lc[index] = phoebe_curve_new_from_file ((char *) filename);
-		phoebe_curve_set_properties (
-			lc[index],
-			PHOEBE_CURVE_LC,
-			(char *) filename,
-			passband_ptr,
-			itype,
-			dtype,
-			wtype,
-			0.01
-		);
-
-		if (itype == PHOEBE_COLUMN_HJD) {
-			double hjd0, period, dpdt, pshift;
-			read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
-			transform_hjd_to_phase (lc[index]->indep, hjd0, period, dpdt, 0.0);
-		}
-
-		if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
-	 		double mnorm;
-			phoebe_get_parameter_value ("phoebe_mnorm", &mnorm);
-	 		transform_magnitude_to_flux (lc[index]->dep, mnorm);
-		}
-
+		phoebe_curve_set_properties (lc[index], PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
+		phoebe_curve_transform (lc[index], PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_UNDEFINED);
 		alias_phase_points (lc[index]->indep, lc[index]->dep, NULL, -0.6, 0.6);
 
 		props = phoebe_malloc (sizeof (*props));
@@ -1555,7 +1528,10 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	int i;
 	int status;
 	int index = 0;
-	int rvno;
+	int curve, rvno;
+
+	const char *filename;
+	const char *readout_str;
 
 	PHOEBE_curve **rv             = NULL;
 	PHOEBE_plot_properties *props = NULL;
@@ -1571,73 +1547,51 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	if (status != SUCCESS) return out;
 
 	/* Is the curve initialized?                                              */
-	status = phoebe_get_parameter_value ("phoebe_rvno", &rvno);
-	if (status != SUCCESS) {
-		scripter_ast_value_array_free (vals, 3);
-		return out;
-	}
-	if (vals[0].value.i <= 0 || vals[0].value.i > rvno) {
+	curve = vals[0].value.i;
+	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	if (curve <= 0 || curve > rvno) {
 		phoebe_scripter_output ("RV curve %d is not initialized, aborting.\n", vals[0].value.i);
 		scripter_ast_value_array_free (vals, 3);
 		return out;
 	}
 
-	/* Is observational data to be plotted?                                     */
+	/* Is observational data to be plotted?                                   */
 	if (vals[1].value.b) {
-		const char *filename;
-		const char *readout_str;
-		PHOEBE_input_indep  iindep;
-		PHOEBE_input_dep    idep;
-		PHOEBE_input_weight iweight;
-		PHOEBE_output_dep   odep;
+		PHOEBE_column_type itype, dtype, wtype;
+		char *passband;
+		PHOEBE_passband *passband_ptr;
 
-		phoebe_get_parameter_value ("phoebe_rv_filename", vals[0].value.i-1, &filename);
+		phoebe_get_parameter_value ("phoebe_rv_filename", curve-1, &filename);
 		if (!filename_exists (filename)) {
 			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
 			scripter_ast_value_array_free (vals, 3);
 			return out;
 		}
 
-		phoebe_get_parameter_value ("phoebe_rv_indep", vals[0].value.i-1, &readout_str);
-		get_input_independent_variable (readout_str, &iindep);
+		/* Check passband; if invalid, no biggie, but warn that it's missing. */
+		phoebe_get_parameter_value ("phoebe_rv_filter", curve-1, &passband);
+		passband_ptr = phoebe_passband_lookup (passband);
+		if (!passband_ptr)
+			phoebe_warning ("passband for observational data not set or invalid!\n");
 
-		phoebe_get_parameter_value ("phoebe_rv_dep", vals[0].value.i-1, &readout_str);
-		get_input_dependent_variable (readout_str, &idep);
+		/* Get column contents: */
+		phoebe_get_parameter_value ("phoebe_rv_indep", curve-1, &readout_str);
+		phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_rv_indweight", vals[0].value.i-1, &readout_str);
-		get_input_weight (readout_str, &iweight);
+		phoebe_get_parameter_value ("phoebe_rv_dep", curve-1, &readout_str);
+		phoebe_column_type_from_string (readout_str, &dtype);
 
-		if (idep == INPUT_PRIMARY_RV)
-			odep = OUTPUT_PRIMARY_RV;
-		else
-			odep = OUTPUT_SECONDARY_RV;
-		
+		phoebe_get_parameter_value ("phoebe_rv_indweight", curve-1, &readout_str);
+		phoebe_column_type_from_string (readout_str, &wtype);
+
 		rv = phoebe_malloc (sizeof (*rv));
 
-		rv[index] = phoebe_curve_new ();
-		rv[index]->type = PHOEBE_CURVE_RV;
+		rv[index] = phoebe_curve_new_from_file ((char *) filename);
+		phoebe_curve_set_properties (rv[index], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
+		phoebe_curve_transform (rv[index], PHOEBE_COLUMN_PHASE, rv[index]->dtype, PHOEBE_COLUMN_UNDEFINED);
+		alias_phase_points (rv[index]->indep, rv[index]->dep, NULL, -0.6, 0.6);
 
-		status = read_in_observational_data (
-			filename,
-			&(rv[index]),
-			iindep,
-			OUTPUT_PHASE,
-			idep,
-			odep,
-			iweight,
-			OUTPUT_UNAVAILABLE,
-			YES,
-			-0.6,
-			+0.6
-		);
-
-		if (status != SUCCESS) {
-			scripter_ast_value_array_free (vals, 3);
-			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			return out;
-		}
-
-		props = phoebe_realloc (props, sizeof (*props));
+		props = phoebe_malloc (sizeof (*props));
 		props[index].lines = FALSE;
 		props[index].ctype = 3;
 		props[index].ptype = 13;
@@ -2083,17 +2037,20 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 	scripter_ast_value *vals;
 	scripter_ast_value out;
 
-	PHOEBE_vector *chi2s;
+	PHOEBE_vector *chi2s = NULL;
 
 	double chi2;
 	int index, lcno, rvno;
+
 	const char *filename;
+	const char *readout_str;
+
+	char *passband;
+	PHOEBE_passband *passband_ptr;
+	PHOEBE_column_type itype, dtype, wtype;
 
 	PHOEBE_curve *syncurve;
 	PHOEBE_curve *obs;
-	PHOEBE_input_indep  iindep;
-	PHOEBE_input_dep    idep;
-	PHOEBE_input_weight iweight;
 
 	int status = scripter_command_args_evaluate (args, &vals, 0, 1, type_int);
 	if (status != SUCCESS) {
@@ -2116,190 +2073,65 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 	if (index < 1 || index > lcno + rvno) {
 		phoebe_scripter_output ("passband index %d out of range, aborting.\n", index);
 		scripter_ast_value_array_free (vals, 1);
+		if (chi2s) phoebe_vector_free (chi2s);
 		out.type = type_void;
 		return out;
 	}
 
 	while (index <= lcno + rvno) {
-		obs = phoebe_curve_new ();
-
 		if (index <= lcno) {
-			const char *readout_str;
-
 			phoebe_get_parameter_value ("phoebe_lc_filename", index-1, &filename);
 
+			phoebe_get_parameter_value ("phoebe_lc_filter", index-1, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
+			if (!passband_ptr)
+				phoebe_warning ("passband for observational data not set or invalid!\n");
+
 			phoebe_get_parameter_value ("phoebe_lc_indep", index-1, &readout_str);
-			status = get_input_independent_variable (readout_str, &iindep);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &itype);
 
 			phoebe_get_parameter_value ("phoebe_lc_dep", index-1, &readout_str);
-			status = get_input_dependent_variable (readout_str, &idep);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &dtype);
 
 			phoebe_get_parameter_value ("phoebe_lc_indweight", index-1, &readout_str);
-			status = get_input_weight (readout_str, &iweight);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &wtype);
 
-			status = read_in_observational_data (
-				filename,
-				&obs,
-				iindep,
-				OUTPUT_PHASE,
-				idep,
-				OUTPUT_TOTAL_FLUX,
-				iweight,
-				OUTPUT_STANDARD_WEIGHT,
-				/* Alias = */ FALSE,
-				-0.5,
-				 0.5
-			);
+			/* Read in the observed curve: */
+			obs = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (obs, PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
+			phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
-
+			/* Synthesize a theoretical curve: */
 			syncurve = phoebe_curve_new ();
-			status = read_in_synthetic_data (syncurve, obs->indep, index-1, OUTPUT_TOTAL_FLUX);
-
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				phoebe_curve_free (obs);
-				phoebe_curve_free (syncurve);
-				out.type = type_void;
-				return out;
-			}
+			read_in_synthetic_data (syncurve, obs->indep, index-1, OUTPUT_TOTAL_FLUX);
 		}
 		else {
-			const char *readout_str;
-
 			phoebe_get_parameter_value ("phoebe_rv_filename", index-lcno-1, &filename);
 
+			phoebe_get_parameter_value ("phoebe_rv_filter", index-lcno-1, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
+			if (!passband_ptr)
+				phoebe_warning ("passband for observational data not set or invalid!\n");
+
 			phoebe_get_parameter_value ("phoebe_rv_indep", index-lcno-1, &readout_str);
-			status = get_input_independent_variable (readout_str, &iindep);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &itype);
 
 			phoebe_get_parameter_value ("phoebe_rv_dep", index-lcno-1, &readout_str);
-			status = get_input_dependent_variable (readout_str, &idep);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &dtype);
 
 			phoebe_get_parameter_value ("phoebe_rv_indweight", index-lcno-1, &readout_str);
-			status = get_input_weight (readout_str, &iweight);
-			if (status != SUCCESS) {
-				phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-				scripter_ast_value_array_free (vals, 1);
-				if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-				out.type = type_void;
-				return out;
-			}
+			phoebe_column_type_from_string (readout_str, &wtype);
 
-			if (index == lcno+1) {
-				status = read_in_observational_data (
-					filename,
-					&obs,
-					iindep,
-					OUTPUT_PHASE,
-					idep,
-					OUTPUT_PRIMARY_RV,
-					iweight,
-					OUTPUT_STANDARD_WEIGHT,
-					/* Alias = */ FALSE,
-					-0.5,
-					 0.5
-				);
+			/* Read in the observed curve: */
+			obs = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (obs, PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, 1.0);
+			phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, obs->dtype, PHOEBE_COLUMN_WEIGHT);
 
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					scripter_ast_value_array_free (vals, 1);
-					if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-					out.type = type_void;
-					return out;
-				}
-
-				syncurve = phoebe_curve_new ();
+			syncurve = phoebe_curve_new ();
+			if (obs->dtype == PHOEBE_COLUMN_PRIMARY_RV)
 				status = read_in_synthetic_data (syncurve, obs->indep, index-lcno-1, OUTPUT_PRIMARY_RV);
-
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					scripter_ast_value_array_free (vals, 1);
-					if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-					phoebe_curve_free (obs);
-					phoebe_curve_free (syncurve);
-					out.type = type_void;
-					return out;
-				}
-			}
-			if (index == lcno+2) {
-				status = read_in_observational_data (
-					filename,
-					&obs,
-					iindep,
-					OUTPUT_PHASE,
-					idep,
-					OUTPUT_SECONDARY_RV,
-					iweight,
-					OUTPUT_STANDARD_WEIGHT,
-					/* Alias = */ FALSE,
-					-0.5,
-					 0.5
-				);
-
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					scripter_ast_value_array_free (vals, 1);
-					if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-					out.type = type_void;
-					return out;
-				}
-
-				syncurve = phoebe_curve_new ();
+			else
 				status = read_in_synthetic_data (syncurve, obs->indep, index-lcno-1, OUTPUT_SECONDARY_RV);
-
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					scripter_ast_value_array_free (vals, 1);
-					if (vals[0].type == type_void) phoebe_vector_free (chi2s);
-					phoebe_curve_free (obs);
-					phoebe_curve_free (syncurve);
-					out.type = type_void;
-					return out;
-				}
-			}
 		}
 
 		status = calculate_chi2 (syncurve->dep, obs->dep, obs->weight, PHOEBE_CF_CHI2, &chi2);
