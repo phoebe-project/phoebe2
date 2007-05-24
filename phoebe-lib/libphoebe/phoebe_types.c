@@ -1861,6 +1861,107 @@ int phoebe_curve_alloc (PHOEBE_curve *curve, int dim)
 	return SUCCESS;
 }
 
+int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype)
+{
+	/*
+	 * This function transforms the data to itype, dtype, wtype column types.
+	 */
+
+	int status;
+
+	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
+		double hjd0, period, dpdt, pshift;
+		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+		status = transform_hjd_to_phase (curve->indep, hjd0, period, dpdt, 0.0);
+		if (status != SUCCESS) return status;
+		curve->itype = itype;
+	}
+
+	if (curve->itype == PHOEBE_COLUMN_PHASE && itype == PHOEBE_COLUMN_HJD) {
+		double hjd0, period, dpdt, pshift;
+		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+		status = transform_phase_to_hjd (curve->indep, hjd0, period, dpdt, 0.0);
+		if (status != SUCCESS) return status;
+		curve->itype = itype;
+	}
+
+	if (curve->dtype == PHOEBE_COLUMN_MAGNITUDE && dtype == PHOEBE_COLUMN_FLUX) {
+ 		double mnorm;
+		phoebe_get_parameter_value ("phoebe_mnorm", &mnorm);
+
+		/*
+		 * If weights need to be transformed, we need to transform them *after*
+		 * we transform magnitudes to fluxes, because the transformation funcion
+		 * uses fluxes and not magnitudes.
+		 */
+
+ 		status = transform_magnitude_to_flux (curve->dep, mnorm);
+		if (status != SUCCESS) return status;
+		if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype != PHOEBE_COLUMN_UNDEFINED) {
+			status = transform_magnitude_sigma_to_flux_sigma (curve->weight, curve->dep);
+			if (status != SUCCESS) return status;
+			curve->wtype = wtype;
+		}
+		curve->dtype = dtype;
+	}
+
+	if (curve->dtype == PHOEBE_COLUMN_FLUX && dtype == PHOEBE_COLUMN_MAGNITUDE) {
+		double mnorm;
+		phoebe_get_parameter_value ("phoebe_mnorm", &mnorm);
+
+		/*
+		 * If weights need to be transformed, we need to transform them *before*
+		 * we transform fluxes to magnitudes, because the transformation funcion
+		 * uses fluxes and not magnitudes.
+		 */
+
+		if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype != PHOEBE_COLUMN_UNDEFINED) {
+			status = transform_flux_sigma_to_magnitude_sigma (curve->weight, curve->dep);
+			if (status != SUCCESS) return status;
+			curve->wtype = wtype;
+		}
+		status = transform_flux_to_magnitude (curve->dep, mnorm);
+		if (status != SUCCESS) return status;
+		curve->dtype = dtype;
+	}
+
+	if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype == PHOEBE_COLUMN_WEIGHT) {
+		status = transform_sigma_to_weight (curve->weight);
+		if (status != SUCCESS) return status;
+		curve->wtype = wtype;
+	}
+
+	if (curve->wtype == PHOEBE_COLUMN_WEIGHT && wtype == PHOEBE_COLUMN_SIGMA) {
+		status = transform_weight_to_sigma (curve->weight);
+		if (status != SUCCESS) return status;
+		curve->wtype = wtype;
+	}
+
+	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_SIGMA) {
+		if (curve->weight && curve->weight->dim == 0) {
+			phoebe_vector_alloc (curve->weight, curve->dep->dim);
+			phoebe_vector_pad (curve->weight, 0.01);
+			curve->wtype = wtype;
+		}
+		else {
+			phoebe_lib_error ("weight column contents undefined, ignoring.\n");
+		}
+	}
+
+	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_WEIGHT) {
+		if (curve->weight && curve->weight->dim == 0) {
+			phoebe_vector_alloc (curve->weight, curve->dep->dim);
+			phoebe_vector_pad (curve->weight, 1.00);
+			curve->wtype = wtype;
+		}
+		else {
+			phoebe_lib_error ("weight column contents undefined, ignoring.\n");
+		}
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_curve_set_properties (PHOEBE_curve *curve, PHOEBE_curve_type type, char *filename, PHOEBE_passband *passband, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype, double sigma)
 {
 	/*
