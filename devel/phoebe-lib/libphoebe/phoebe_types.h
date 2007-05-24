@@ -198,6 +198,7 @@ PHOEBE_curve *phoebe_curve_new_from_file  (char *filename);
 PHOEBE_curve *phoebe_curve_new_from_pars  (PHOEBE_curve_type ctype, int index);
 PHOEBE_curve *phoebe_curve_duplicate      (PHOEBE_curve *curve);
 int           phoebe_curve_alloc          (PHOEBE_curve *curve, int dim);
+int           phoebe_curve_transform      (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype);
 int           phoebe_curve_set_properties (PHOEBE_curve *curve, PHOEBE_curve_type type, char *filename, PHOEBE_passband *passband, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype, double sigma);
 int           phoebe_curve_free           (PHOEBE_curve *curve);
 
