@@ -2,7 +2,7 @@
      $GRXQ,GRYQ,GRZQ,MMSAVE,FR1,FR2,HLD,FF,D,SNTH,CSTH,SNFI,CSFI,GRV1,
      $GRV2,XX1,YY1,ZZ1,XX2,YY2,ZZ2,CSBT1,CSBT2,GLUMP1,GLUMP2,GMAG1,
      $GMAG2,glog1,glog2,GREXP)
-c  Version of June 9, 2004
+c  Version of May 24, 2007
       implicit real*8 (a-h,o-z)
       DIMENSION RV(*),GRX(*),GRY(*),GRZ(*),RVQ(*),GRXQ(*),GRYQ(*),GRZQ(*
      $),MMSAVE(*),FR1(*),FR2(*),HLD(*),SNTH(*),CSTH(*),SNFI(*),CSFI(*)
@@ -22,7 +22,8 @@ c  Version of June 9, 2004
       IP=(KOMP-1)*(N1+1)+1
       IQ=IP-1
       IS=0
-      ISX=(KOMP-1)*MMSAVE(IQ)
+      isx=0
+      if(iq.ne.0) isx=(komp-1)*mmsave(iq)
       MMSAVE(IP)=0
       KFLAG=0
       CALL ELLONE (FF,D,RMAS,X1,OMEGA,XL2,OM2)

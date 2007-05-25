@@ -1,7 +1,7 @@
       SUBROUTINE OLUMP(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,SLUMP1,SLUMP2,
      $MMSAVE,GREXP,ALB,RB,TPOLL,SBR,SUMM,N1,N2,KOMP,IFAT,x,y,D,
      $SNTH,CSTH,SNFI,CSFI,tld,glump1,glump2,glog1,glog2,grv1,grv2,iband)
-c   Version of January 8, 2003
+c   Version of May 24, 2007
       implicit real*8 (a-h,o-z)
       DIMENSION RV(*),GRX(*),GRY(*),GRZ(*),RVQ(*),GRXQ(*),GRYQ(*),GRZQ(*
      $),SLUMP1(*),SLUMP2(*),MMSAVE(*),F(3),W(3),SNTH(*),CSTH(*),
@@ -14,7 +14,8 @@ c   Version of January 8, 2003
       common /gpoles/ gplog1,gplog2
       kompcom=komp
       IQ=(KOMP-1)*(N1+1)
-      IS=(KOMP-1)*MMSAVE(IQ)
+      is=0
+      if(iq.ne.0) is=(komp-1)*mmsave(iq)
       FP=7.957747d-2
       PI=3.141592653589793d0
       PIH=1.570796326794897d0

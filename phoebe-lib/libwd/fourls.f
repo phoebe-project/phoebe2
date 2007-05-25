@@ -1,6 +1,6 @@
       subroutine fourls(th,ro,nobs,nth,aa,bb)
       implicit real*8(a-h,o-z)
-c   version of September 14, 1998
+c   version of May 24, 2007
 c
 c    Input integer nth is the largest Fourier term fitted (e.g.
 c       for nth=6, terms up to sine & cosine of 6 theta are
@@ -8,8 +8,16 @@ c       evaluated).
 c    This subroutine can handle nth only up to 6. Additional
 c      programming is needed for larger values.
 c
-      dimension aa(*),bb(*),th(*),ro(*),obs(5000),ll(14),mm(14),
-     $cn(196),cl(14),out(14)
+      parameter (maxdim=14)
+      parameter (maxobs=600)
+      dimension aa(*),bb(*),th(*),ro(*)
+      dimension obs(maxdim*maxobs),cn(maxdim*maxdim),ll(maxdim),
+     $mm(maxdim),cl(maxdim),out(maxdim)
+      if (nobs.le.maxobs) goto 11
+      write (6,*) "MAXIMUM SIZE EXCEEDED for OBS ARRAY in SUBROUTINE FOU
+     $RLS: ABORT"
+      stop
+   11 continue
       mpl=nth+1
       ml=mpl+nth
       jjmax=ml*ml

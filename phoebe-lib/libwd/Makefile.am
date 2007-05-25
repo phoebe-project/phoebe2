@@ -56,7 +56,7 @@ $(libwd_la_SOURCES):
 CLEANFILES = \
 	$(BUILT_SOURCES)
 
-libwd_la_LDFLAGS = -release 2005-10-28
+libwd_la_LDFLAGS = -release 2007-05-24
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
 libwd_la_LIBADD = -lg2c
