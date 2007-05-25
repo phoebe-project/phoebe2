@@ -79,7 +79,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 	"$(DESTDIR)$(library_includedir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libphoebe_la_LIBADD =
+libphoebe_la_DEPENDENCIES = ../libwd/libwd.la
 am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_wd_algorithms.lo \
 	libphoebe_la-phoebe_accessories.lo \
 	libphoebe_la-phoebe_allocations.lo libphoebe_la-phoebe_base.lo \
@@ -262,8 +262,7 @@ INCLUDES = \
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS = -ff2c
 libphoebe_la_CFLAGS = -Wimplicit -Wformat -Wunused
-
-#libphoebe_la_LIBADD  = ../libwd/libwd.la
+libphoebe_la_LIBADD = ../libwd/libwd.la
 library_includedir = $(includedir)/phoebe
 library_include_HEADERS = phoebe.h                   \
                           phoebe_accessories.h       \
