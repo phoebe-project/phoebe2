@@ -6,7 +6,11 @@ ChangeLog:
   atmcof.dat and atmcofplanck.dat auxiliary files. A similar change proposed
   to upstream.
 
-* Arguments vertno, indeps and deps added to lc.sub.f ():
+* Arguments request, vertno, indeps and deps added to lc.sub.f ():
+   request .. what do we want LC to compute:
+                1 .. light curve
+                2 .. primary RV curve
+                3 .. secondary RV curve
 	vertno .. number of vertices in a light/RV curve
 	indeps .. an array of HJDs or phases in which deps are to be computed
 	  deps .. an array of fluxes or RVs computed in indeps points.
