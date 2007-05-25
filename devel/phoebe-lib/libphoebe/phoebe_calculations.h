@@ -18,6 +18,15 @@ int    diff (const void *a, const void *b);
 
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...);
 
+/*
+ * The following define statements have been derived from f2c prototypes.
+ * If you run 'f2c -P lc.sub.f', f2c will create lc.sub.P. This file should
+ * then be stripped of comments and appended to wd.h. The #define statement
+ * below should then correspond to that prototype.
+ */
+
+#define wd_lc(atmtab,pltab,request,vertno,indeps,deps) lc_(atmtab,pltab,request,vertno,indeps,deps,strlen(atmtab),strlen(pltab))
+
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
 int call_wd_to_get_rv1    (PHOEBE_curve *rv1, PHOEBE_vector *indep);
 int call_wd_to_get_rv2    (PHOEBE_curve *rv2, PHOEBE_vector *indep);
