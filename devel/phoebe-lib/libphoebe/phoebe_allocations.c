@@ -672,6 +672,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	int rv1index = -1;
 	int rv2index = -1;
 
+	PHOEBE_column_type master_indep, itype, dtype, wtype;
+
 	/* DC features 35 adjustable parameters and we initialize such arrays:    */
 	bool    *tba;
 	double *step;
@@ -761,14 +763,19 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	if (params->morph == -2) return ERROR_INVALID_MODEL;
 	}
 
-	/* Independent fit variable:                                                */
+	/* Do we work in HJD-space or in phase-space? */
 	{
-	const char *indep;
-	phoebe_get_parameter_value ("phoebe_indep", &indep);
-	params->indep = 0;
-	if (strcmp (indep, "Time (HJD)") == 0) params->indep = 1;
-	if (strcmp (indep, "Phase") == 0) params->indep = 2;
-	if (params->indep == 0) return ERROR_INVALID_INDEP;
+		phoebe_get_parameter_value ("phoebe_indep", &readout_str);
+		if (strcmp (readout_str, "Time (HJD)")  == 0) {
+			params->indep = 1;
+			master_indep = PHOEBE_COLUMN_HJD;
+		}
+		else if (strcmp (readout_str, "Phase") == 0) {
+			params->indep = 2;
+			master_indep = PHOEBE_COLUMN_PHASE;
+		}
+		else
+			return ERROR_INVALID_INDEP;
 	}
 
 	/* Luminosity decoupling:                                                   */
@@ -900,131 +907,93 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	/* Observational data:                                                      */
 	{
-	int indep;
+		/* Allocate observational data arrays:                                */
+		params->obs = phoebe_malloc (cno * sizeof (*(params->obs)));
 
-	/* Allocate observational data arrays:                                    */
-	params->obs = phoebe_malloc (cno * sizeof (*(params->obs)));
+		if (params->rv1data) {
+			const char *filename;
+			char *passband;
+			PHOEBE_passband *passband_ptr;
+			double sigma;
 
-	/* Initialize individual data arrays to receive data:                     */
-	for (i = 0; i < cno; i++)
-		params->obs[i]  = phoebe_curve_new ();
+			phoebe_get_parameter_value ("phoebe_rv_filename", rv1index, &filename);
 
-	if (params->indep == 1) indep = OUTPUT_HJD; else indep = OUTPUT_PHASE;
+			phoebe_get_parameter_value ("phoebe_rv_filter", rv1index, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
 
-	if (params->rv1data) {
-		int status;
-		PHOEBE_input_indep  varindep;
-		PHOEBE_input_dep    vardep;
-		PHOEBE_input_weight varweight;
+			phoebe_get_parameter_value ("phoebe_rv_indep", rv1index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_rv_indep", rv1index, &readout_str);
-		status = get_input_independent_variable (readout_str, &varindep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_dep", rv1index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &dtype);
 
-		phoebe_get_parameter_value ("phoebe_rv_dep", rv1index, &readout_str);
-		status = get_input_dependent_variable (readout_str, &vardep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_indweight", rv1index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &wtype);
 
-		phoebe_get_parameter_value ("phoebe_rv_indweight", rv1index, &readout_str);
-		status = get_input_weight (readout_str, &varweight);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_sigma", rv1index, &sigma);
 
-		phoebe_get_parameter_value ("phoebe_rv_filename", rv1index, &readout_str);
-		status = read_in_observational_data
-			(
-			readout_str,
-			&(params->obs[0]),
-			varindep,
-			indep,
-			vardep,
-			OUTPUT_PRIMARY_RV,
-			varweight,
-			OUTPUT_STANDARD_WEIGHT,
-			NO,
-			-0.5,
-			+0.5
-			);
+			params->obs[0] = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (params->obs[0], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
+			phoebe_curve_transform (params->obs[0], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
+		}
+		if (params->rv2data) {
+			int index;
+			const char *filename;
+			char *passband;
+			PHOEBE_passband *passband_ptr;
+			double sigma;
 
-		if (status != SUCCESS) return status;
-	}
-	if (params->rv2data) {
-		int status, index;
-		PHOEBE_input_indep  varindep;
-		PHOEBE_input_dep    vardep;
-		PHOEBE_input_weight varweight;
+			phoebe_get_parameter_value ("phoebe_rv_filename", rv2index, &filename);
 
-		phoebe_get_parameter_value ("phoebe_rv_indep", rv2index, &readout_str);
-		status = get_input_independent_variable (readout_str, &varindep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_filter", rv2index, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
 
-		phoebe_get_parameter_value ("phoebe_rv_dep", rv2index, &readout_str);
-		status = get_input_dependent_variable (readout_str, &vardep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_indep", rv2index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_rv_indweight", rv2index, &readout_str);
-		status = get_input_weight (readout_str, &varweight);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_rv_dep", rv2index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &dtype);
 
-		if (params->rv1data) index = 1; else index = 0;
+			phoebe_get_parameter_value ("phoebe_rv_indweight", rv2index, &readout_str);
+			phoebe_column_type_from_string (readout_str, &wtype);
 
-		phoebe_get_parameter_value ("phoebe_rv_filename", rv2index, &readout_str);
-		status = read_in_observational_data
-			(
-			readout_str,
-			&(params->obs[index]),
-			varindep,
-			indep,
-			vardep,
-			OUTPUT_SECONDARY_RV,
-			varweight,
-			OUTPUT_STANDARD_WEIGHT,
-			NO,
-			-0.5,
-			+0.5
-			);
+			phoebe_get_parameter_value ("phoebe_rv_sigma", rv2index, &sigma);
 
-		if (status != SUCCESS) return status;
-	}
-	for (i = rvno; i < cno; i++) {
-		int status;
-		PHOEBE_input_indep  varindep;
-		PHOEBE_input_dep    vardep;
-		PHOEBE_input_weight varweight;
+			if (params->rv1data) index = 1; else index = 0;
+			params->obs[index] = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (params->obs[index], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
+			phoebe_curve_transform (params->obs[index], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
+		}
+		for (i = rvno; i < cno; i++) {
+			const char *filename;
+			char *passband;
+			PHOEBE_passband *passband_ptr;
+			double sigma;
 
-		phoebe_get_parameter_value ("phoebe_lc_indep", i-rvno, &readout_str);
-		status = get_input_independent_variable (readout_str, &varindep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_lc_filename", i-rvno, &filename);
 
-		phoebe_get_parameter_value ("phoebe_lc_dep", i-rvno, &readout_str);
-		status = get_input_dependent_variable (readout_str, &vardep);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_lc_filter", i-rvno, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
 
-		phoebe_get_parameter_value ("phoebe_lc_indweight", i-rvno, &readout_str);
-		status = get_input_weight (readout_str, &varweight);
-		if (status != SUCCESS) return status;
+			phoebe_get_parameter_value ("phoebe_lc_indep", i-rvno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_lc_filename", i-rvno, &readout_str);
-		status = read_in_observational_data
-			(
-			readout_str,
-			&(params->obs[i]),
-			varindep,
-			indep,
-			vardep,
-			OUTPUT_TOTAL_FLUX,
-			varweight,
-			OUTPUT_STANDARD_WEIGHT,
-			NO,
-			-0.5,
-			+0.5
-			);
+			phoebe_get_parameter_value ("phoebe_lc_dep", i-rvno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &dtype);
 
-		if (status != SUCCESS) return status;
-	}
+			phoebe_get_parameter_value ("phoebe_lc_indweight", i-rvno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &wtype);
+
+			phoebe_get_parameter_value ("phoebe_lc_sigma", i-rvno, &sigma);
+
+			params->obs[i] = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (params->obs[i], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
+			phoebe_curve_transform (params->obs[i], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+		}
 	}
 
 	return SUCCESS;
-	}
+}
 
 WD_DCI_parameters *wd_dci_parameters_new ()
 {
