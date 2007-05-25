@@ -1,4 +1,4 @@
-      subroutine lc()
+      subroutine lc(atmtab,pltab,request,vertno,indeps,deps)
 c
 c  Main program for computing light and radial velocity curves,
 c      line profiles, and images
@@ -49,6 +49,15 @@ c
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
+c     Locations of the auxiliary files atmcof.dat and atmcofplanck.dat:
+c
+      character atmtab*(*),pltab*(*)
+c
+c     parameter (atmtab='atmcof.dat')
+c     parameter ( pltab='atmcofplanck.dat')
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
 c     Other array dimensions that are set automatically are listed
 c     below and should not be changed, as the above parameter statements
 c     determine their values.
@@ -74,6 +83,20 @@ c
 c
 c     Nothing needs to be changed beyond this point to accomodate
 c     finer grids.
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extensions:
+c
+c      request   ..   what do we want to compute:
+c                       1  ..  light curve
+c                       2  ..  primary RV curve
+c                       3  ..  secondary RV curve
+c       vertno   ..   number of vertices in a light/RV curve
+c       indeps   ..   an array of vertices (HJDs or phases)
+c         deps   ..   an array of computed values (fluxes or RVs)
+c
+      integer request,vertno
+      double precision indeps(*),deps(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -203,9 +226,9 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       glog(11)=5.0d0
       nn=100
       gau=0.d0
-      open(unit=22,file='atmcof.dat',status='old')
+      open(unit=22,file=atmtab,status='old')
       read(22,*) grand
-      open(unit=23,file='atmcofplanck.dat',status='old')
+      open(unit=23,file=pltab,status='old')
       read(23,*) plcof
       close(22)
       close(23)
@@ -227,7 +250,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(mpage.ne.9) goto 414
       close(5)
       close(6)
-      stop
+      return
   414 continue
       message(1,1)=0
       message(1,2)=0
@@ -409,9 +432,12 @@ c***************************************************************
       stopp=phstop
       step=phin
   887 continue
-      do 20 phjd=start,stopp,step
-      hjdi=phjd
-      phasi=phjd
+c     do 20 phjd=start,stopp,step
+c     hjdi=phjd
+c     phasi=phjd
+      do 20 idx=1,vertno
+      hjdi=indeps(idx)
+      phasi=indeps(idx)
       call jdph(hjdi,phasi,hjd0,period,dpdt,hjdo,phaso)
       hjd=hjdi
       phas=phasi
@@ -445,6 +471,10 @@ c***************************************************************
       totall=totall*ranf
   348 continue
       SMAGG=-1.085736d0*dlog(TOTALL)+ZERO
+
+      if (request.eq.1) deps(idx)=total
+      if (request.eq.2) deps(idx)=vkm1
+      if (request.eq.3) deps(idx)=vkm2
 
       call wrdata(hjd,phas,yskp,zskp,htt,cool,total,tot,d,smagg,
      $vsum1,vsum2,vra1,vra2,vkm1,vkm2,delv1,delwl1,wl1,fbin1,resf1,
