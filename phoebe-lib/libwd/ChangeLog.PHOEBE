@@ -1,0 +1,30 @@
+ChangeLog:
+
+2007-05-25:
+
+* Arguments atmtab and pltab added to lc.sub.f (). These are the links to
+  atmcof.dat and atmcofplanck.dat auxiliary files. A similar change proposed
+  to upstream.
+
+* Arguments vertno, indeps and deps added to lc.sub.f ():
+	vertno .. number of vertices in a light/RV curve
+	indeps .. an array of HJDs or phases in which deps are to be computed
+	  deps .. an array of fluxes or RVs computed in indeps points.
+
+* All stop statements that are *not* stopping the program because of critical
+  errors have been changed to return. In particular, the following lines have
+  been changed:
+
+	* a line just above label 414
+
+* Just below label 887:
+
+      do 20 phjd=start,stopp,step
+      hjdi=phjd
+      phasi=phjd
+
+  changed to:
+
+      do 20 idx=1,vertno
+      hjdi=indeps(idx)
+      phasi=indeps(idx)
