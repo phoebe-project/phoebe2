@@ -9,6 +9,7 @@
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fitting.h"
 #include "phoebe_fortran_interface.h"
@@ -164,6 +165,7 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 		status = phoebe_el3_units_id (&el3units);
 		if (status != SUCCESS) {
 			phoebe_lib_error (phoebe_error (status));
+#warning FIX INVALID RETURN VALUE
 			return -1.0;
 		}
 
@@ -188,8 +190,8 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 			exit (-1);
 		}
 
-		/* Finally, let's compute (rather than minimize) the levels HLA:   	  */
 		if (CALCHLA == 1) {
+			/* Compute (rather than minimize) passband luminosities: */
 			double av1;
 
 			if (!color_constraint || curve == 0) {
@@ -333,8 +335,8 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	 *  SUCCESS
 	 */
 
-#ifdef HAVE_LIBGSL
-#ifndef PHOEBE_GSL_DISABLED
+#if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
+
 	double *initvals;         /* An array of initial parameter values.        */
 	int    *indices;          /* An array of global table reference indices   */
 	int     cno, lcno, rvno;  /* Curves (both LC and RV) number               */
@@ -355,6 +357,14 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	int curve, index, parindex;
 	double parvalue;
 
+	PHOEBE_column_type master_indep;
+
+	const char *filename;
+	char *passband;
+	PHOEBE_passband *passband_ptr;
+	PHOEBE_column_type itype, dtype, wtype;
+	double sigma;
+
 	clock_t clock_start, clock_stop;
 
 	const gsl_multimin_fminimizer_type *T;
@@ -363,7 +373,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	gsl_multimin_function cost_function;
 
 	size_t iter = 0;
-	size_t i, j, k;
+	size_t i, k;
 	int status;
 	double size;
 	double dpdt;
@@ -380,22 +390,22 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	phoebe_get_parameter_value ("phoebe_indep", &indep);
 	phoebe_get_parameter_value ("phoebe_dpdt",  &dpdt);
 
-	/* Before we do anything, let's check whether the setup is sane:          */
+	/* Before we do anything, let's check whether the setup is sane: */
 	if (!hla_request_is_sane  ()) return ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE;
 	if (!vga_request_is_sane  ()) return ERROR_MINIMIZER_VGA_REQUEST_NOT_SANE;
 	if (!dpdt_request_is_sane ()) return ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE;
 
-	/* Is the feedback structure initialized:                                 */
+	/* Is the feedback structure initialized? */
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
 
-	/* Fire up the stop watch:                                                */
+	/* Fire up the stop watch: */
 	clock_start = clock ();
 
-	/* Initializing the NMS minimizer:                                        */
+	/* Initialize the NMS minimizer: */
 	phoebe_debug ("initializing the minimizer.\n");
 	T = gsl_multimin_fminimizer_nmsimplex;
 
-	/* Count the available curves:                                            */
+	/* Count the available curves: */
 	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
 	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
 	cno = lcno + rvno;
@@ -433,6 +443,12 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 	phoebe_debug ("RV1 curve is present: %d\n", passed_pars.rv1);
 	phoebe_debug ("RV2 curve is present: %d\n", passed_pars.rv2);
+
+	/* Do we work in HJD-space or in phase-space? */
+	phoebe_get_parameter_value ("phoebe_indep", &readout_str);
+	if (strcmp (readout_str, "Time (HJD)")  == 0) master_indep = PHOEBE_COLUMN_HJD;
+	else if (strcmp (readout_str, "Phase") == 0)  master_indep = PHOEBE_COLUMN_PHASE;
+	else return ERROR_INVALID_MAIN_INDEP;
 
 	/* The following block reads out parameters marked for adjustment:        */
 	status = read_in_adjustable_parameters (&to_be_adjusted, &initvals, &indices);
@@ -539,234 +555,63 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 		/* Initialize observational data:                                         */
 		obs[curve]  = phoebe_curve_new ();
 
-		/* Read the LC data in and do all exception checking rigorously:          */
+		/* Read in the LC data: */
 		if (curve < lcno) {
-			const char *file;
-			PHOEBE_input_indep  indep;
-			PHOEBE_input_dep    dep;
-			PHOEBE_input_weight weight;
+			phoebe_get_parameter_value ("phoebe_lc_filename", curve, &filename);
 
-			phoebe_get_parameter_value ("phoebe_lc_filename", curve, &file);
+			phoebe_get_parameter_value ("phoebe_lc_filter", curve, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_get_parameter_value ("phoebe_lc_indep", curve, &readout_str);
-			status = get_input_independent_variable (readout_str, &indep);
-			if (status != SUCCESS) return status;
+			phoebe_column_type_from_string (readout_str, &itype);
 
 			phoebe_get_parameter_value ("phoebe_lc_dep", curve, &readout_str);
-			status = get_input_dependent_variable (readout_str, &dep);
-			if (status != SUCCESS) return status;
+			phoebe_column_type_from_string (readout_str, &dtype);
 
 			phoebe_get_parameter_value ("phoebe_lc_indweight", curve, &readout_str);
-			status = get_input_weight (readout_str, &weight);
-			if (status != SUCCESS) return status;
-
-			status = read_in_observational_data
-				(
-				file,
-				&(obs[curve]),
-				indep,
-#warning FIX PHASE-ONLY COMPUTATION
-				OUTPUT_PHASE,
-				dep,
-				OUTPUT_TOTAL_FLUX,
-				weight,
-				OUTPUT_STANDARD_WEIGHT,
-				NO,
-				-0.5,
-				+0.5
-				);
-			if (status != SUCCESS) return status;
-		}
-
-		/* Read in RV data in and do all exception checking rigorously:       */
-		if (curve == lcno) {
-			const char *file;
-			PHOEBE_input_indep  indep;
-			PHOEBE_input_dep    dep;
-			PHOEBE_input_weight weight;
-
-			phoebe_get_parameter_value ("phoebe_rv_filename", curve-lcno, &file);
-
-			phoebe_get_parameter_value ("phoebe_rv_indep", curve-lcno, &readout_str);
-			status = get_input_independent_variable (readout_str, &indep);
-			if (status != SUCCESS) return status;
-
-			phoebe_get_parameter_value ("phoebe_rv_dep", curve-lcno, &readout_str);
-			status = get_input_dependent_variable (readout_str, &dep);
-			if (status != SUCCESS) return status;
-
-			phoebe_get_parameter_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
-			status = get_input_weight (readout_str, &weight);
-			if (status != SUCCESS) return status;
-
-			if (rvno == 2) {
-				if (dep == INPUT_PRIMARY_RV) {
-					status = read_in_observational_data (
-						file,
-						&(obs[curve]),
-						indep,
-#warning FIX PHASE-ONLY COMPUTATION
-						OUTPUT_PHASE,
-						dep,
-						OUTPUT_PRIMARY_RV,
-						weight,
-						OUTPUT_STANDARD_WEIGHT,
-						NO,
-						-0.5,
-						+0.5
-					);
-					if (status != SUCCESS) return status;
-				}
-				if (dep == INPUT_SECONDARY_RV) {
-					status = read_in_observational_data (
-						file,
-						&(obs[curve+1]),
-						indep,
-#warning FIX PHASE-ONLY COMPUTATION
-						OUTPUT_PHASE,
-						dep,
-						OUTPUT_SECONDARY_RV,
-						weight,
-						OUTPUT_STANDARD_WEIGHT,
-						NO,
-						-0.5,
-						+0.5
-					);
-					if (status != SUCCESS) return status;
-				}
-			} else {
-				if (dep == INPUT_PRIMARY_RV) {
-					status = read_in_observational_data (
-						file,
-						&(obs[curve]),
-						indep,
-#warning FIX PHASE-ONLY COMPUTATION
-						OUTPUT_PHASE,
-						dep,
-						OUTPUT_PRIMARY_RV,
-						weight,
-						OUTPUT_STANDARD_WEIGHT,
-						NO,
-						-0.5,
-						+0.5
-					);
-					if (status != SUCCESS) return status;
-				}
-				if (dep == INPUT_SECONDARY_RV) {
-					status = read_in_observational_data (
-						file,
-						&(obs[curve]),
-						indep,
-#warning FIX PHASE-ONLY COMPUTATION
-						OUTPUT_PHASE,
-						dep,
-						OUTPUT_SECONDARY_RV,
-						weight,
-						OUTPUT_STANDARD_WEIGHT,
-						NO,
-						-0.5,
-						+0.5
-					);
-					if (status != SUCCESS) return status;
-				}
-			}
-
-			/* Transform read experimental data to 100km/s units:                   */
-			for (i = 0; i < obs[curve]->dep->dim; i++)
-				obs[curve]->dep->val[i] /= 100.0;
-		}
-
-		if (curve == lcno+1) {
-			const char *file;
-			PHOEBE_input_indep  indep;
-			PHOEBE_input_dep    dep;
-			PHOEBE_input_weight weight;
-
-			phoebe_get_parameter_value ("phoebe_rv_filename", curve-lcno, &file);
-
-			phoebe_get_parameter_value ("phoebe_rv_indep", curve-lcno, &readout_str);
-			status = get_input_independent_variable (readout_str, &indep);
-			if (status != SUCCESS) return status;
-
-			phoebe_get_parameter_value ("phoebe_rv_dep", curve-lcno, &readout_str);
-			status = get_input_dependent_variable (readout_str, &dep);
-			if (status != SUCCESS) return status;
-
-			phoebe_get_parameter_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
-			status = get_input_weight (readout_str, &weight);
-			if (status != SUCCESS) return status;
-
-			if (dep == INPUT_PRIMARY_RV) {
-				status = read_in_observational_data (
-					file,
-					&(obs[curve-1]),
-					indep,
-#warning FIX PHASE-ONLY COMPUTATION
-					OUTPUT_PHASE,
-					dep,
-					OUTPUT_PRIMARY_RV,
-					weight,
-					OUTPUT_STANDARD_WEIGHT,
-					NO,
-					-0.5,
-					+0.5
-				);
-				if (status != SUCCESS) return status;
-			}
-			if (dep == INPUT_SECONDARY_RV) {
-				status = read_in_observational_data (
-					file,
-					&(obs[curve]),
-					indep,
-#warning FIX PHASE-ONLY COMPUTATION
-					OUTPUT_PHASE,
-					dep,
-					OUTPUT_SECONDARY_RV,
-					weight,
-					OUTPUT_STANDARD_WEIGHT,
-					NO,
-					-0.5,
-					+0.5
-				);
-			if (status != SUCCESS) return status;
-			}
-
-			/* Transform read experimental data to 100km/s units:                   */
-			for (i = 0; i < obs[curve]->dep->dim; i++)
-				obs[curve]->dep->val[i] /= 100.0;
-		}
-
-		/* Get standard deviations, average values and color indices for the  */
-		/* observed data:                                                     */
-		if (curve < lcno) {
-			PHOEBE_input_dep dep;
-			double sigma;
-
-			phoebe_get_parameter_value ("phoebe_lc_dep", curve, &readout_str);
-			get_input_dependent_variable (readout_str, &dep);
+			phoebe_column_type_from_string (readout_str, &wtype);
 
 			phoebe_get_parameter_value ("phoebe_lc_sigma", curve, &sigma);
-			if (dep == INPUT_MAGNITUDE)
-				sigma = pow (10, 2./5.*sigma) - 1.0;
 
-			weight[curve] = 1./sigma/sigma;
+			obs[curve] = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
+			phoebe_curve_transform (obs[curve], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+		}
 
-			phoebe_get_parameter_value ("phoebe_cindex", curve, &(cindex[curve]));
+		/* Read in the RV data: */
+		else {
+			phoebe_get_parameter_value ("phoebe_rv_filename", curve-lcno, &filename);
+
+			phoebe_get_parameter_value ("phoebe_rv_filter", curve-lcno, &passband);
+			passband_ptr = phoebe_passband_lookup (passband);
+
+			phoebe_get_parameter_value ("phoebe_rv_indep", curve-lcno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &itype);
+
+			phoebe_get_parameter_value ("phoebe_rv_dep", curve-lcno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &dtype);
+
+			phoebe_get_parameter_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
+			phoebe_column_type_from_string (readout_str, &wtype);
+
+			phoebe_get_parameter_value ("phoebe_rv_sigma", curve-lcno, &sigma);
+
+			obs[curve] = phoebe_curve_new_from_file ((char *) filename);
+			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
+			phoebe_curve_transform (obs[curve], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
+
+			/* Transform read experimental data to 100km/s units:                   */
+			for (i = 0; i < obs[curve]->dep->dim; i++)
+				obs[curve]->dep->val[i] /= 100.0;
+			sigma /= 100.0;
 		}
-		if (curve == lcno) {
-			double sigma;
-			phoebe_get_parameter_value ("phoebe_rv_sigma", 0, &sigma);
-			weight[curve] = 1./(sigma/100.0)/(sigma/100.0);
-		}
-		if (curve == lcno+1) {
-			double sigma;
-			phoebe_get_parameter_value ("phoebe_rv_sigma", 1, &sigma);
-			weight[curve] = 1./(sigma/100.0)/(sigma/100.0);
-		}
+
+		weight[curve] = 1./sigma/sigma;
+
+		phoebe_get_parameter_value ("phoebe_cindex", curve, &(cindex[curve]));
 
 		status = calculate_weighted_average (&(average[curve]), obs[curve]->dep, obs[curve]->weight);
 	}
-
 
 	/* Fill in the structure the pointer to which will be passed to chi2      */
 	/* function:                                                              */
@@ -943,7 +788,6 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	phoebe_debug ("leaving downhill simplex minimizer.\n");
 
 	return status;
-#endif
 #endif
 
 	phoebe_lib_error ("GSL library not present, cannot initiate NMS minimizer.\n");
