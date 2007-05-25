@@ -19,8 +19,8 @@ int    diff (const void *a, const void *b);
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...);
 
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
-int call_wd_to_get_rv1    (PHOEBE_curve *curve, PHOEBE_vector *indep);
-int call_wd_to_get_rv2    (PHOEBE_curve *curve, PHOEBE_vector *indep);
+int call_wd_to_get_rv1    (PHOEBE_curve *rv1, PHOEBE_vector *indep);
+int call_wd_to_get_rv2    (PHOEBE_curve *rv2, PHOEBE_vector *indep);
 
 int calculate_model_level (double *level, int curve, PHOEBE_vector *indep);
 int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep);

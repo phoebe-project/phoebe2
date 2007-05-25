@@ -17,9 +17,10 @@
 /* ************************************************************************** */
 
 #include "phoebe_build_config.h"
-#include "cfortran.h"
+#include "../libwd/wd.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <time.h>
 
@@ -31,8 +32,14 @@
 #include "phoebe_spectra.h"
 #include "phoebe_types.h"
 
-PROTOCCALLSFFUN10(VOID,WDGETCURVE,wdgetcurve,STRING,STRING,INT,INT,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV)
-#define WD_GET_CURVE(FATMCOF,FATMCOFPL,REQMODE,PTSNO,PHASES,VALUES,L1,L2,PSBR1,PSBR2) CCALLSFFUN10(WDGETCURVE,wdgetcurve,STRING,STRING,INT,INT,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,FATMCOF,FATMCOFPL,REQMODE,PTSNO,PHASES,VALUES,L1,L2,PSBR1,PSBR2)
+/*
+ * The following define statements have been derived from f2c prototypes.
+ * If you run 'f2c -P lc.sub.f', f2c will create lc.sub.P. This file should
+ * then be stripped of comments and appended to wd.h. The #define statement
+ * below should then correspond to that prototype.
+ */
+
+#define wd_lc(atmtab,pltab,request,vertno,indeps,deps) lc_(atmtab,pltab,request,vertno,indeps,deps,strlen(atmtab),strlen(pltab))
 
 double frac (double x)
 {
@@ -176,6 +183,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	 */
 
 	int i;
+	int request = 1;
 	char atmcof[255], atmcofplanck[255];
 
 	if (!curve)
@@ -185,7 +193,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
-	curve->type  = PHOEBE_CURVE_LC;
+	curve->type = PHOEBE_CURVE_LC;
 
 	phoebe_vector_alloc (curve->indep, indep->dim);
 	for (i = 0; i < indep->dim; i++)
@@ -196,52 +204,70 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	WD_GET_CURVE (atmcof, atmcofplanck, 1, curve->indep->dim, curve->indep->val, curve->dep->val, &(curve->L1), &(curve->L2), &(curve->SBR1), &(curve->SBR2));
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val);
 
+	curve->L1 = 1.0;
+	curve->L2 = 1.0;
+	curve->SBR1 = 1.0;
+	curve->SBR2 = 1.0;
 	return SUCCESS;
 }
 
-int call_wd_to_get_rv1 (PHOEBE_curve *curve, PHOEBE_vector *indep)
+int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 {
+	int i;
+	int request = 2;
 	char atmcof[255], atmcofplanck[255];
 
-	if (!curve)
+	if (!rv1)
 		return ERROR_CURVE_NOT_INITIALIZED;
 	if (!indep)
 		return ERROR_VECTOR_NOT_INITIALIZED;
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
-	curve->type  = PHOEBE_CURVE_RV;
-	curve->indep = phoebe_vector_duplicate (indep);
-	phoebe_vector_alloc (curve->dep, indep->dim);
+	rv1->type  = PHOEBE_CURVE_RV;
+
+	phoebe_vector_alloc (rv1->indep, indep->dim);
+	for (i = 0; i < indep->dim; i++)
+		rv1->indep->val[i] = indep->val[i];
+
+	phoebe_vector_alloc (rv1->dep, indep->dim);
 
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	WD_GET_CURVE (atmcof, atmcofplanck, 2, curve->indep->dim, curve->indep->val, curve->dep->val, &(curve->L1), &(curve->L2), &(curve->SBR1), &(curve->SBR2));
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val);
+
 	return SUCCESS;
 }
 
-int call_wd_to_get_rv2 (PHOEBE_curve *curve, PHOEBE_vector *indep)
+int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 {
+	int i;
+	int request = 3;
 	char atmcof[255], atmcofplanck[255];
 
-	if (!curve)
+	if (!rv2)
 		return ERROR_CURVE_NOT_INITIALIZED;
 	if (!indep)
 		return ERROR_VECTOR_NOT_INITIALIZED;
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
-	curve->type  = PHOEBE_CURVE_RV;
-	curve->indep = phoebe_vector_duplicate (indep);
-	phoebe_vector_alloc (curve->dep, indep->dim);
+	rv2->type  = PHOEBE_CURVE_RV;
+
+	phoebe_vector_alloc (rv2->indep, indep->dim);
+	for (i = 0; i < indep->dim; i++)
+		rv2->indep->val[i] = indep->val[i];
+
+	phoebe_vector_alloc (rv2->dep, indep->dim);
 
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	WD_GET_CURVE (atmcof, atmcofplanck, 3, curve->indep->dim, curve->indep->val, curve->dep->val, &(curve->L1), &(curve->L2), &(curve->SBR1), &(curve->SBR2));
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val);
+
 	return SUCCESS;
 }
 

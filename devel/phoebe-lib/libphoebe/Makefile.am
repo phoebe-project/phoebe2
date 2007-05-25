@@ -56,7 +56,7 @@ libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS  = -ff2c
 libphoebe_la_CFLAGS  = -Wimplicit -Wformat -Wunused
 
-#libphoebe_la_LIBADD  = ../libwd/libwd.la
+libphoebe_la_LIBADD  = ../libwd/libwd.la
 
 library_includedir=$(includedir)/phoebe
 library_include_HEADERS = phoebe.h                   \
