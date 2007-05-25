@@ -1676,7 +1676,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 		/* Read out the values from the parsed string:                        */
 		no_of_columns = sscanf (in, "%lf %lf %lf", &x, &y, &z);
 		if (no_of_columns < 2) {
-			phoebe_lib_error ("read_in_observational_data () notice: line %d discarded\n in file \"%s\".\n", line_number, filename);
+			phoebe_lib_error ("phoebe_curve_new_from_file (): line %d discarded\n in file \"%s\".\n", line_number, filename);
 			free (in);
 			continue;
 		} else {
