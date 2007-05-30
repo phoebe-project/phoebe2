@@ -92,10 +92,20 @@ PHOEBE_spectrum *phoebe_spectrum_new ()
 
 PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 {
+	/*
+	 * This function opens a two-column file 'filename' and reads its contents
+	 * to a newly allocated spectrum. The columns are assumed to contain bin
+	 * centers and fluxes.
+	 */
+
 	FILE *input;
 	PHOEBE_spectrum *spectrum;
 	PHOEBE_vector *bin_centers;
 	int linecount = 1;
+
+	char line[255];
+	char *strptr;
+	double wl, flux;
 
 	input = fopen (filename, "r");
 	if (!input) return NULL;
@@ -104,34 +114,21 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	bin_centers = phoebe_vector_new ();
 
 	while (!feof (input)) {
-		double wl, flux;
-		char line[255];
-		char *strptr;
-		char *lineptr = line;
-
 		fgets (line, 254, input);
 		if (feof (input)) break;
 
-		/* Remove the trailing newline:                                       */
+		/* Remove empty lines:                                                */
 		if ( strptr = strchr (line, '\n') ) *strptr = '\0';
 
 		/* Remove comments (if any):                                          */
 		if ( strptr = strchr (line, '#') ) *strptr = '\0';
 
-		/* Remove any leading whitespaces and empty lines:                        */
-		while ( (lineptr[0] == ' ' || lineptr[0] == '\t') && lineptr[0] != '\0') lineptr++;
-		if (*lineptr == '\0') {
-			linecount++;
-			continue;
+		if (sscanf (line, "%lf %lf", &wl, &flux) == 2) {
+			phoebe_vector_realloc (bin_centers, bin_centers->dim + 1);
+			phoebe_spectrum_realloc (spectrum, spectrum->data->bins + 1);
+			bin_centers->val[bin_centers->dim-1] = wl;
+			spectrum->data->val[spectrum->data->bins-1] = flux;
 		}
-
-		if (lineptr[0] != '\0')
-			if (sscanf (lineptr, "%lf %lf", &wl, &flux) == 2) {
-				phoebe_vector_realloc (bin_centers, bin_centers->dim + 1);
-				phoebe_spectrum_realloc (spectrum, spectrum->data->bins + 1);
-				bin_centers->val[bin_centers->dim-1] = wl;
-				spectrum->data->val[spectrum->data->bins-1] = flux;
-			}
 
 		linecount++;
 	}
@@ -139,6 +136,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	fclose (input);
 
 	phoebe_hist_set_ranges (spectrum->data, bin_centers);
+
 	phoebe_vector_free (bin_centers);
 
 	/* Guess the dispersion function: */
@@ -230,7 +228,7 @@ PHOEBE_spectrum *phoebe_spectrum_duplicate (PHOEBE_spectrum *spectrum)
 	 * function also initializes an empty histogram and allocates space for
 	 * the copy. Thus there should be no call to phoebe_spectrum_alloc () in
 	 * this function. The current implementation has been tested against
-	 * memory leaks and there are none (according to valgrind).
+	 * memory leaks and there were none (according to valgrind).
 	 */
 
 	PHOEBE_spectrum *copy;
@@ -338,6 +336,7 @@ int phoebe_spectrum_free (PHOEBE_spectrum *spectrum)
 	 */
 
 	if (!spectrum) return SUCCESS;
+
 	if (spectrum->data)
 		phoebe_hist_free (spectrum->data);
 

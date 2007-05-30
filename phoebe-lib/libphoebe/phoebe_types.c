@@ -821,8 +821,8 @@ int phoebe_hist_free (PHOEBE_hist *hist)
 
 	if (!hist) return SUCCESS;
 
-	free (hist->range);
-	free (hist->val);
+	if (hist->range) free (hist->range);
+	if (hist->val)   free (hist->val);
 	free (hist);
 
 	return SUCCESS;
