@@ -1,6 +1,6 @@
 # PASS_SET  Johnson
 # PASSBAND  B
-# EFFWL     440.0
+# EFFWL     4400.0
 # WLFACTOR  1.0
 # REFERENCE Johnson, H. L. (1965), ApJ 141, 923
 # Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
