@@ -58,7 +58,7 @@ int create_lci_file (char filename[], WD_LCI_parameters param)
 	CREATELCILINE4  (param.MODE, param.IPB, param.IFAT1, param.IFAT2, param.N1, param.N2, param.PERR0, param.DPERDT, param.THE, 100.0);
 	CREATELCILINE5  (param.E, param.SMA, param.F1, param.F2, param.VGA/100., param.INCL, param.GR1, param.GR2, param.MET1);
 	CREATELCILINE6  (param.TAVH/10000., param.TAVC/10000., param.ALB1, param.ALB2, param.PHSV, param.PCSV, param.RM, param.XBOL1, param.XBOL2, param.YBOL1, param.YBOL2);
-	CREATELCILINE7  (param.IBAND, param.HLA, param.CLA, param.X1A, param.X2A, param.Y1A, param.Y2A, /* param.EL3 = */ 0.0, param.OPSF, 0.0, param.FACTOR, param.WLA/1000.);
+	CREATELCILINE7  (param.IBAND, param.HLA, param.CLA, param.X1A, param.X2A, param.Y1A, param.Y2A, /* param.EL3 = */ 0.0, param.OPSF, 0.0, param.FACTOR, param.WLA/10000.);
 	if (param.SPRIM != 0)
 		for (i = 0; i < param.SPRIM; i++)
 			CREATELCILINE8  (param.XLAT1[i], param.XLONG1[i], param.RADSP1[i], param.TEMSP1[i]);
