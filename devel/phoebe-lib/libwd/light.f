@@ -305,7 +305,6 @@ c   Version of October 18, 2004
   818 continue
       DIF=rit*COSGAM*DARKEN*CORFAC*(CMP*SLUMP2(IX)+CMPP*SLUMP1(IX))
       v=-r*(STCF*YLOS-stsf*XLOS)*COMP
-      write (6,*) "i = ", i, "dif = ", dif, ", v = ", v
       if(ifphn.eq.1) goto 423
       if(mpage.ne.3) goto 423
       vflump=vfvuff*r*comp*costh
@@ -522,7 +521,6 @@ c    of accuracy for distorted stars without those terms. See notes.
   718 continue
       DIF=rit*COSGAM*DARKEN*CORFAC*(CMPP*SLUMP2(IX)+CMP*SLUMP1(IX))
       v=R*(STCF*YLOS-STSF*XLOS)*COMP
-      write (6,*) "i = ", i, "dif = ", dif, ", v = ", v
       DIFF=DIF*V
       IF(SINSQ.GT.SINSQE) GOTO 63
       OLSIGN=SIGN

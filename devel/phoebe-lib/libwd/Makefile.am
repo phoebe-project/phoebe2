@@ -36,7 +36,7 @@ SOURCES = \
     lump.f      mlrg.f      modlog.f    nekmin.f    olump.f     planckint.f    \
     rangau.f    ranuni.f    rddata.f    ring.f      romq.f      sincos.f       \
     spot.f      square.f    surfas.f    volume.f    wrhead.f    wrdata.f       \
-    wrfoot.f    lc.sub.f
+    wrfoot.f    wrlci.f     wrdci.f     lc.sub.f
 
 BUILT_SOURCES = \
     atmx.c      bbl.c       binnum.c    cloud.c     conjph.c    dgmprd.c       \
@@ -45,7 +45,7 @@ BUILT_SOURCES = \
     lump.c      mlrg.c      modlog.c    nekmin.c    olump.c     planckint.c    \
     rangau.c    ranuni.c    rddata.c    ring.c      romq.c      sincos.c       \
     spot.c      square.c    surfas.c    volume.c    wrhead.c    wrdata.c       \
-    wrfoot.c    lc.sub.c
+    wrfoot.c    wrlci.c     wrdci.c     lc.sub.c
 
 EXTRA_DIST = \
 	$(SOURCES)
