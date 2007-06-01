@@ -40,8 +40,8 @@ c                        default: ispmax =    100
 c      iclmax    ..    maximum number of clouds
 c                        default: iclmax =    100
 c
-      parameter (Nmax=      60)
-      parameter (igsmax=  3011)
+      parameter (Nmax=     100)
+      parameter (igsmax=  8331)
       parameter (lpimax=   100)
       parameter (lpomax=100000)
       parameter (ispmax=   100)
