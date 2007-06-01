@@ -3,8 +3,9 @@
 #include <string.h>
 #include <time.h>
 
+#include "../libwd/wd.h"
+
 #include "phoebe_build_config.h"
-#include "cfortran.h"
 
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
@@ -16,9 +17,6 @@
 #include "phoebe_global.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
-
-PROTOCCALLSFFUN6(VOID,WDDC,wddc,STRING,STRING,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV)
-#define WD_FIND_MINIMUM_WITH_DC(FATMCOF,FATMCOFPL,CORRECTION,STDDEV,CHISQS,CHISQ) CCALLSFFUN6(WDDC,wddc,STRING,STRING,DOUBLEV,DOUBLEV,DOUBLEV,DOUBLEV,FATMCOF,FATMCOFPL,CORRECTION,STDDEV,CHISQS,CHISQ)
 
 /* At this point we should check whether GSL is available; if it isn't, then  */
 /* we don't have much to compile here.                                        */
@@ -1024,7 +1022,9 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 	}
 
 	create_dci_file ("dcin.active", params);
-	WD_FIND_MINIMUM_WITH_DC (atmcof, atmcofplanck, corrections, errors, chi2s, &cfval);
+
+	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
+	cfval = 0.0;
 
 	/* Allocate and fill-in the feedback structure; the number of parameter   */
 	/* fields equals the number of parameters marked for adjustment plus the  */
