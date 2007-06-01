@@ -136,7 +136,7 @@ int phoebe_minimizer_feedback_print (PHOEBE_minimizer_feedback *feedback)
 	phoebe_minimizer_type_get_name (feedback->algorithm, &algname);
 	fprintf (PHOEBE_output, "  algorithm:            %s\n", algname);
 	fprintf (PHOEBE_output, "  no. of iterations:    %d\n", feedback->iters);
-	fprintf (PHOEBE_output, "  CPU time:             %lf seconds\n", feedback->cputime);
+	fprintf (PHOEBE_output, "  CPU time:             %2.2lf seconds\n", feedback->cputime);
 
 	fprintf (PHOEBE_output, "  Adjusted parameters:  ");
 	if (feedback->indices) {
