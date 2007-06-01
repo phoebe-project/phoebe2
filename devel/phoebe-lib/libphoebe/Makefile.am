@@ -35,7 +35,6 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
     phoebe_data.c                     phoebe_data.h                     \
-    phoebe_driver.c                   phoebe_driver.h                   \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
@@ -66,7 +65,6 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_calculations.h      \
                           phoebe_configuration.h     \
                           phoebe_data.h              \
-                          phoebe_driver.h            \
                           phoebe_error_handling.h    \
                           phoebe_fitting.h           \
                           phoebe_fortran_interface.h \

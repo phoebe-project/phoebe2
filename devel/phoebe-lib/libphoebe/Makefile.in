@@ -85,7 +85,7 @@ am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_wd_algorithms.lo \
 	libphoebe_la-phoebe_allocations.lo libphoebe_la-phoebe_base.lo \
 	libphoebe_la-phoebe_calculations.lo \
 	libphoebe_la-phoebe_configuration.lo \
-	libphoebe_la-phoebe_data.lo libphoebe_la-phoebe_driver.lo \
+	libphoebe_la-phoebe_data.lo \
 	libphoebe_la-phoebe_error_handling.lo \
 	libphoebe_la-phoebe_fitting.lo \
 	libphoebe_la-phoebe_fortran_interface.lo \
@@ -242,7 +242,6 @@ libphoebe_la_SOURCES = \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
     phoebe_data.c                     phoebe_data.h                     \
-    phoebe_driver.c                   phoebe_driver.h                   \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
@@ -271,7 +270,6 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_calculations.h      \
                           phoebe_configuration.h     \
                           phoebe_data.h              \
-                          phoebe_driver.h            \
                           phoebe_error_handling.h    \
                           phoebe_fitting.h           \
                           phoebe_fortran_interface.h \
@@ -376,7 +374,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_calculations.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_configuration.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_data.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_driver.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_error_handling.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fitting.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fortran_interface.Plo@am__quote@
@@ -450,13 +447,6 @@ libphoebe_la-phoebe_data.lo: phoebe_data.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_data.c' object='libphoebe_la-phoebe_data.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_data.lo `test -f 'phoebe_data.c' || echo '$(srcdir)/'`phoebe_data.c
-
-libphoebe_la-phoebe_driver.lo: phoebe_driver.c
-@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_driver.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_driver.Tpo -c -o libphoebe_la-phoebe_driver.lo `test -f 'phoebe_driver.c' || echo '$(srcdir)/'`phoebe_driver.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_driver.Tpo $(DEPDIR)/libphoebe_la-phoebe_driver.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_driver.c' object='libphoebe_la-phoebe_driver.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_driver.lo `test -f 'phoebe_driver.c' || echo '$(srcdir)/'`phoebe_driver.c
 
 libphoebe_la-phoebe_error_handling.lo: phoebe_error_handling.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_error_handling.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_error_handling.Tpo -c -o libphoebe_la-phoebe_error_handling.lo `test -f 'phoebe_error_handling.c' || echo '$(srcdir)/'`phoebe_error_handling.c

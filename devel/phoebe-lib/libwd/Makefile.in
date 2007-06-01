@@ -86,7 +86,7 @@ am__objects_1 = atmx.lo bbl.lo binnum.lo cloud.lo conjph.lo dgmprd.lo \
 	modlog.lo nekmin.lo olump.lo planckint.lo rangau.lo ranuni.lo \
 	rddata.lo ring.lo romq.lo sincos.lo spot.lo square.lo \
 	surfas.lo volume.lo wrhead.lo wrdata.lo wrfoot.lo wrlci.lo \
-	wrdci.lo lc.sub.lo
+	wrdci.lo lc.sub.lo dc.sub.lo
 am_libwd_la_OBJECTS = $(am__objects_1)
 libwd_la_OBJECTS = $(am_libwd_la_OBJECTS)
 libwd_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
@@ -230,7 +230,7 @@ SOURCES = \
     lump.f      mlrg.f      modlog.f    nekmin.f    olump.f     planckint.f    \
     rangau.f    ranuni.f    rddata.f    ring.f      romq.f      sincos.f       \
     spot.f      square.f    surfas.f    volume.f    wrhead.f    wrdata.f       \
-    wrfoot.f    wrlci.f     wrdci.f     lc.sub.f
+    wrfoot.f    wrlci.f     wrdci.f     lc.sub.f    dc.sub.f
 
 BUILT_SOURCES = \
     atmx.c      bbl.c       binnum.c    cloud.c     conjph.c    dgmprd.c       \
@@ -239,7 +239,7 @@ BUILT_SOURCES = \
     lump.c      mlrg.c      modlog.c    nekmin.c    olump.c     planckint.c    \
     rangau.c    ranuni.c    rddata.c    ring.c      romq.c      sincos.c       \
     spot.c      square.c    surfas.c    volume.c    wrhead.c    wrdata.c       \
-    wrfoot.c    wrlci.c     wrdci.c     lc.sub.c
+    wrfoot.c    wrlci.c     wrdci.c     lc.sub.c    dc.sub.c
 
 EXTRA_DIST = \
 	$(SOURCES)
@@ -328,6 +328,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/binnum.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cloud.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conjph.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dc.sub.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dgmprd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dminv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dura.Plo@am__quote@
