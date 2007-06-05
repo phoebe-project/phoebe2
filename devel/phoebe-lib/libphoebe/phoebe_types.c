@@ -1347,6 +1347,9 @@ int phoebe_array_realloc (PHOEBE_array *array, int dimension)
 	 *   SUCCESS
 	 */
 
+	int i;
+	int olddim = array->dim;
+
 	if (!array)
 		return ERROR_ARRAY_NOT_INITIALIZED;
 
@@ -1355,18 +1358,14 @@ int phoebe_array_realloc (PHOEBE_array *array, int dimension)
 
 	array->dim = dimension;
 	switch (array->type) {
-		case TYPE_INT_ARRAY:
-			array->val.iarray = phoebe_realloc (array->val.iarray, dimension * sizeof (*(array->val.iarray)));
-		break;
-		case TYPE_BOOL_ARRAY:
-			array->val.barray = phoebe_realloc (array->val.barray, dimension * sizeof (*(array->val.barray)));
-		break;		
-		case TYPE_DOUBLE_ARRAY:
-			array->val.darray = phoebe_realloc (array->val.darray, dimension * sizeof (*(array->val.darray)));
-		break;		
+		case TYPE_INT_ARRAY:    array->val.iarray   = phoebe_realloc (array->val.iarray,   dimension * sizeof (*(array->val.iarray)));   break;
+		case TYPE_BOOL_ARRAY:   array->val.barray   = phoebe_realloc (array->val.barray,   dimension * sizeof (*(array->val.barray)));   break;
+		case TYPE_DOUBLE_ARRAY: array->val.darray   = phoebe_realloc (array->val.darray,   dimension * sizeof (*(array->val.darray)));   break;
 		case TYPE_STRING_ARRAY:
 			array->val.strarray = phoebe_realloc (array->val.strarray, dimension * sizeof (*(array->val.strarray)));
-		break;		
+			for (i = olddim; i < dimension; i++)
+				array->val.strarray[i] = NULL;
+		break;
 	}
 
 	return SUCCESS;
@@ -2061,17 +2060,20 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	PHOEBE_minimizer_feedback *feedback = phoebe_malloc (sizeof (*feedback));
 
 	/* NULLify all structure pointers so that subsequent allocation is clean: */
-	feedback->indices  = phoebe_array_new  (TYPE_INT_ARRAY);
-	feedback->initvals = phoebe_vector_new ();
-	feedback->newvals  = phoebe_vector_new ();
-	feedback->ferrors  = phoebe_vector_new ();
-	feedback->chi2s    = phoebe_vector_new ();
-	feedback->wchi2s   = phoebe_vector_new ();
+	feedback->qualifiers = phoebe_array_new (TYPE_STRING_ARRAY);
+	feedback->initvals   = phoebe_vector_new ();
+	feedback->newvals    = phoebe_vector_new ();
+	feedback->ferrors    = phoebe_vector_new ();
+	feedback->chi2s      = phoebe_vector_new ();
+	feedback->wchi2s     = phoebe_vector_new ();
+
+#warning OBSOLETE
+	feedback->indices    = phoebe_array_new  (TYPE_INT_ARRAY);
 
 	return feedback;
 }
 
-int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback **feedback, int tba, int cno)
+int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tba, int cno)
 {
 	/*
 	 * This function allocates the arrays of the PHOEBE_minimizer_feedback
@@ -2087,15 +2089,18 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback **feedback, int t
 	 *   SUCCESS
 	 */
 
-	if (!*feedback)
+	if (!feedback)
 		return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
 
-	phoebe_array_alloc  ((*feedback)->indices,  tba);
-	phoebe_vector_alloc ((*feedback)->initvals, tba);
-	phoebe_vector_alloc ((*feedback)->newvals,  tba);
-	phoebe_vector_alloc ((*feedback)->ferrors,  tba);
-	phoebe_vector_alloc ((*feedback)->chi2s,    cno);
-	phoebe_vector_alloc ((*feedback)->wchi2s,   cno);
+	phoebe_array_alloc  (feedback->qualifiers, tba);
+	phoebe_vector_alloc (feedback->initvals,   tba);
+	phoebe_vector_alloc (feedback->newvals,    tba);
+	phoebe_vector_alloc (feedback->ferrors,    tba);
+	phoebe_vector_alloc (feedback->chi2s,      cno);
+	phoebe_vector_alloc (feedback->wchi2s,     cno);
+
+#warning OBSOLETE
+	phoebe_array_alloc  (feedback->indices,  tba);
 
 	return SUCCESS;
 }
@@ -2107,31 +2112,34 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	 * to the newly allocated feedback structure 'new', which is returned.
 	 */
 
-	PHOEBE_minimizer_feedback *new;
+	PHOEBE_minimizer_feedback *dup;
 
 	if (!feedback) {
 		phoebe_lib_error ("feedback structure not initialized, aborting.\n");
 		return NULL;
 	}
 
-	new = phoebe_minimizer_feedback_new ();
+	dup = phoebe_minimizer_feedback_new ();
 
-	new->algorithm = feedback->algorithm;
-	new->cputime   = feedback->cputime;
-	new->iters     = feedback->iters;
-	new->cfval     = feedback->cfval;
+	dup->algorithm = feedback->algorithm;
+	dup->cputime   = feedback->cputime;
+	dup->iters     = feedback->iters;
+	dup->cfval     = feedback->cfval;
 
 	/* There is no need to check for existence of feedback fields explicitly, */
 	/* the phoebe_*_duplicate functions do that automatically.                */
 
-	new->indices   = phoebe_array_duplicate  (feedback->indices);
-	new->initvals  = phoebe_vector_duplicate (feedback->initvals);
-	new->newvals   = phoebe_vector_duplicate (feedback->newvals);
-	new->ferrors   = phoebe_vector_duplicate (feedback->ferrors);
-	new->chi2s     = phoebe_vector_duplicate (feedback->chi2s);
-	new->wchi2s    = phoebe_vector_duplicate (feedback->wchi2s);
+	dup->qualifiers = phoebe_array_duplicate  (feedback->qualifiers);
+	dup->initvals   = phoebe_vector_duplicate (feedback->initvals);
+	dup->newvals    = phoebe_vector_duplicate (feedback->newvals);
+	dup->ferrors    = phoebe_vector_duplicate (feedback->ferrors);
+	dup->chi2s      = phoebe_vector_duplicate (feedback->chi2s);
+	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
 
-	return new;
+#warning OBSOLETE
+	dup->indices    = phoebe_array_duplicate  (feedback->indices);
+
+	return dup;
 }
 
 int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
@@ -2143,12 +2151,15 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
 
-	phoebe_array_free  (feedback->indices);
+	phoebe_array_free  (feedback->qualifiers);
 	phoebe_vector_free (feedback->initvals);
 	phoebe_vector_free (feedback->newvals);
 	phoebe_vector_free (feedback->ferrors);
 	phoebe_vector_free (feedback->chi2s);
 	phoebe_vector_free (feedback->wchi2s);
+
+#warning OBSOLETE
+	phoebe_array_free  (feedback->indices);
 
 	free (feedback);
 

@@ -242,20 +242,22 @@ int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name
 
 typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_minimizer_type algorithm; /* Minimizer (algorithm) type            */
-	double           cputime;   /* CPU time required for algorithm execution  */
-	int              iters;     /* Number of performed iterations             */
-	double           cfval;     /* Cost function value (combined chi2)        */
-	PHOEBE_array    *indices;   /* A list of indices of TBA parameters        */
-	PHOEBE_vector   *initvals;  /* A list of initial parameter values         */
-	PHOEBE_vector   *newvals;   /* A list of new (corrected) parameter values */
-	PHOEBE_vector   *ferrors;   /* A list of formal error estimates           */
-	PHOEBE_vector   *chi2s;     /* A list of passband chi2 values             */
-	PHOEBE_vector   *wchi2s;    /* A list of weighted passband chi2 values    */
+	double           cputime;    /* CPU time required for algorithm execution */
+	int              iters;      /* Number of performed iterations            */
+	double           cfval;      /* Cost function value (combined chi2)       */
+	PHOEBE_array    *qualifiers; /* A list of TBA qualifiers                  */
+	PHOEBE_vector   *initvals;   /* A list of initial parameter values        */
+	PHOEBE_vector   *newvals;    /* A list of new parameter values            */
+	PHOEBE_vector   *ferrors;    /* A list of formal error estimates          */
+	PHOEBE_vector   *chi2s;      /* A list of passband chi2 values            */
+	PHOEBE_vector   *wchi2s;     /* A list of weighted passband chi2 values   */
+	PHOEBE_array    *indices;    /* A list of indices of TBA parameters       */
+	struct PHOEBE_parameter_list *pars; /* A list of parameters marked for adjustment*/
 } PHOEBE_minimizer_feedback;
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new       ();
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer_feedback *feedback);
-int                        phoebe_minimizer_feedback_alloc     (PHOEBE_minimizer_feedback **feedback, int tba, int cno);
+int                        phoebe_minimizer_feedback_alloc     (PHOEBE_minimizer_feedback *feedback, int tba, int cno);
 int                        phoebe_minimizer_feedback_free      (PHOEBE_minimizer_feedback *feedback);
 
 /******************************************************************************/

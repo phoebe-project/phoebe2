@@ -32,6 +32,8 @@ int intern_phoebe_variables_init ()
 	 * be used fearlessly by other functions.
 	 */
 
+	int i;
+
 	/*
 	 * First things first: let's initialize PHOEBE version number and date; we
 	 * get the values from configure.ac, so this is done automatically.
@@ -53,8 +55,13 @@ int intern_phoebe_variables_init ()
 	 * cally stored by phoebe_realloc, we need to set it to NULL.
 	 */
 
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
+		PHOEBE_pt[i] = NULL;
+
+/************ OBSOLETE **************/
 	PHOEBE_parameters_no = 0;
 	PHOEBE_parameters    = NULL;
+/************************************/
 
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;
@@ -209,7 +216,10 @@ int phoebe_init ()
 	 */
 
 	phoebe_debug ("* declaring parameters:\n");
+	phoebe_init_parameters ();
+/************** OBSOLETE ***************/
 	declare_all_parameters ();
+/***************************************/
 	phoebe_debug ("  %d parameters declared.\n", PHOEBE_parameters_no);
 
 	/* Read in all supported passbands and their transmission functions:      */
@@ -218,7 +228,10 @@ int phoebe_init ()
 	phoebe_debug ("  %d passbands read in.\n", PHOEBE_passbands_no);
 
 	/* Add options to all KIND_MENU parameters:                               */
+	phoebe_init_parameter_options ();
+/************** OBSOLETE ***************/
 	add_options_to_all_parameters ();
+/***************************************/
 
 	/* Choose a randomizer seed:                                              */
 	srand (time (0));

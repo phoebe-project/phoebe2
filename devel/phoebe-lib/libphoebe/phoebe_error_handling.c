@@ -63,6 +63,10 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "cannot access directory: bad file descriptor.\n";
 		case ERROR_DIRECTORY_UNKNOWN_ERROR:
 			return "cannot access directory: an unkown error occured. Please report this!\n";
+		case ERROR_PARAMETER_NOT_INITIALIZED:
+			return "parameter is not initialized, aborting.\n";
+		case ERROR_PARAMETER_ALREADY_DECLARED:
+			return "parameter has already been declared, aborting.\n";
 		case ERROR_DATA_NOT_INITIALIZED:
 			return "the variable to hold the data is not initialized, aborting.\n";
 		case ERROR_DATA_INVALID_SIZE:
