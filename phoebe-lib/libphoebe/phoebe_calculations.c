@@ -294,20 +294,20 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	double rv1average, rv2average;
 	PHOEBE_curve *syncurve;
 
-	const char       *depvalstr;
-	PHOEBE_input_dep  depval;
+	PHOEBE_column_type dtype;
+	const char *depvalstr;
 
 	int rv1ptsno = 0, rv2ptsno = 0;
 
 	if (rv1_indep && rv1_dep) {
 		phoebe_get_parameter_value ("phoebe_rv_dep", 0, &depvalstr);
-		status = get_input_dependent_variable (depvalstr, &depval);
+		status = phoebe_column_type_from_string (depvalstr, &dtype);
 		if (status != SUCCESS) return status;
 
 		syncurve = phoebe_curve_new ();
 		rv1ptsno = rv1_indep->dim;
 
-		if (depval == INPUT_PRIMARY_RV)
+		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
 			status = read_in_synthetic_data (syncurve, rv1_indep, 0, OUTPUT_PRIMARY_RV);
 		else
 			status = read_in_synthetic_data (syncurve, rv1_indep, 0, OUTPUT_SECONDARY_RV);
@@ -323,13 +323,13 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 
 	if (rv2_indep && rv2_dep) {
 		phoebe_get_parameter_value ("phoebe_rv_dep", 1, &depvalstr);
-		status = get_input_dependent_variable (depvalstr, &depval);
+		status = phoebe_column_type_from_string (depvalstr, &dtype);
 		if (status != SUCCESS) return status;
 
 		syncurve = phoebe_curve_new ();
 		rv2ptsno = rv2_indep->dim;
 
-		if (depval == INPUT_PRIMARY_RV)
+		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
 			status = read_in_synthetic_data (syncurve, rv2_indep, 1, OUTPUT_PRIMARY_RV);
 		else
 			status = read_in_synthetic_data (syncurve, rv2_indep, 1, OUTPUT_SECONDARY_RV);

@@ -117,34 +117,34 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	if (status != SUCCESS) return status;
 
 	phoebe_get_parameter_value ("phoebe_extinction", curve_index, &A);
-
+/*
 	status = phoebe_el3_units_id (&el3units);
 	if (status != SUCCESS) return status;
 
 	phoebe_get_parameter_value ("phoebe_el3", curve_index, &el3value);
-
+*/
 	filename = resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
 
 	switch (var) {
 		case OUTPUT_MAGNITUDE:
 			call_wd_to_get_fluxes (curve, indep);
-			apply_third_light_correction (curve, el3units, el3value);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case OUTPUT_PRIMARY_FLUX:
 			call_wd_to_get_fluxes (curve, indep);
-			apply_third_light_correction (curve, el3units, el3value);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case OUTPUT_SECONDARY_FLUX:
 			call_wd_to_get_fluxes (curve, indep);
-			apply_third_light_correction (curve, el3units, el3value);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case OUTPUT_TOTAL_FLUX:
 			call_wd_to_get_fluxes (curve, indep);
-			apply_third_light_correction (curve, el3units, el3value);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case OUTPUT_PRIMARY_RV:
@@ -380,21 +380,21 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 		phoebe_get_parameter_value ("phoebe_ld_lcy2", curve, &(params->Y2A));
 	}
 
-	/* Third light is extrinsic and will be computed later by PHOEBE:         */
-	params->EL3 = 0.0;
-
 	if (MPAGE == 1) {
-/*		phoebe_get_parameter_value ("phoebe_el3", curve, &(params->EL3));*/
+		phoebe_get_parameter_value ("phoebe_el3", curve, &(params->EL3));
 		phoebe_get_parameter_value ("phoebe_opsf", curve, &(params->OPSF));
 	}
 	else {
 		/* Third light and opacity function don't make sense for RVs.             */
-/*		params->EL3 = 0.0;*/
+		params->EL3 = 0.0;
 		params->OPSF = 0.0;
 	}
 
-	/* MZERO and FACTOR variables set offsets in synthetic light curves. PHOEBE */
-	/* controls this by its own variables, so we hardcode these to 0 and 1.     */
+	/*
+	 * MZERO and FACTOR variables set offsets in synthetic light curves. PHOEBE
+	 * controls this by its own variables, so we hardcode these to 0 and 1.
+	 */
+
 	params->MZERO  = 0.0;
 	params->FACTOR = 1.0;
 
@@ -532,20 +532,22 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	/* Check the presence of RV and LC data:                                  */
 	{
-	PHOEBE_input_dep dep;
 	params->rv1data = FALSE; params->rv2data = FALSE;
 	for (i = 0; i < rvno; i++) {
 		phoebe_get_parameter_value ("phoebe_rv_dep", i, &readout_str);
-		get_input_dependent_variable (readout_str, &dep);
-		if (dep == INPUT_PRIMARY_RV) {
-			params->rv1data = TRUE;
-			rv1index = i;
+		phoebe_column_type_from_string (readout_str, &dtype);
+		switch (dtype) {
+			case PHOEBE_COLUMN_PRIMARY_RV:
+				params->rv1data = TRUE;
+				rv1index = i;
+			break;
+			case PHOEBE_COLUMN_SECONDARY_RV:
+				params->rv2data = TRUE;
+				rv2index = i;
+			break;
+			default:
+				phoebe_lib_error ("exception handler invoked in read_in_wd_dci_parameters (), please report this!\n");
 		}
-		if (dep == INPUT_SECONDARY_RV) {
-			params->rv2data = TRUE;
-			rv2index = i;
-		}
-		if (dep == -1) return ERROR_INVALID_DEP;
 	}
 	params->nlc = lcno;
 	}
@@ -656,10 +658,9 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->levweight  = phoebe_malloc (cno * sizeof (*(params->levweight)));
 
 	for (i = 0; i < rvno; i++) {
-		PHOEBE_input_dep dep;
 		phoebe_get_parameter_value ("phoebe_rv_dep", i, &readout_str);
-		get_input_dependent_variable (readout_str, &dep);
-		if (dep == INPUT_SECONDARY_RV && rvno == 2) index = 1; else index = 0;
+		phoebe_column_type_from_string (readout_str, &dtype);
+		if (dtype == PHOEBE_COLUMN_SECONDARY_RV && rvno == 2) index = 1; else index = 0;
 
 		phoebe_get_parameter_value ("phoebe_rv_filter", i, &readout_str);
 		passband = phoebe_passband_lookup (readout_str);

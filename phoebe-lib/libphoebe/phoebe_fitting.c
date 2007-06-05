@@ -314,7 +314,7 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 #endif
 #endif
 
-int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEBE_minimizer_feedback **feedback)
+int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
 	 * This is a GSL simplex function that we use for multi-D minimization. All
@@ -381,41 +381,46 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	NMS_passed_parameters passed_pars;
 	WD_LCI_parameters *params;
 
-	PHOEBE_input_dep dep;
-
+	phoebe_lib_warning ("NMS minimization currently disabled, sorry.\n");
+/*
 	phoebe_debug ("entering downhill simplex minimizer.\n");
 
 	phoebe_get_parameter_value ("phoebe_indep", &indep);
 	phoebe_get_parameter_value ("phoebe_dpdt",  &dpdt);
-
+*/
 	/* Before we do anything, let's check whether the setup is sane: */
+/*
 	if (!hla_request_is_sane  ()) return ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE;
 	if (!vga_request_is_sane  ()) return ERROR_MINIMIZER_VGA_REQUEST_NOT_SANE;
 	if (!dpdt_request_is_sane ()) return ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE;
-
+*/
 	/* Is the feedback structure initialized? */
+/*
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
-
+*/
 	/* Fire up the stop watch: */
+/*
 	clock_start = clock ();
-
+*/
 	/* Initialize the NMS minimizer: */
+/*
 	phoebe_debug ("initializing the minimizer.\n");
 	T = gsl_multimin_fminimizer_nmsimplex;
-
+*/
 	/* Count the available curves: */
+/*
 	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
 	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
 	cno = lcno + rvno;
 	phoebe_debug ("total number of curves (both LC and RV): %d\n", cno);
 
 	if (cno == 0) return ERROR_MINIMIZER_NO_CURVES;
-
+*/
 	/*
 	 * Check the filenames; we do this early because nothing is yet
 	 * initialized and we don't have to worry about any memory leaks.
 	 */
-
+/*
 	phoebe_debug ("checking whether everything's ok with filenames.\n");
 	for (i = 0; i < lcno; i++) {
 		phoebe_get_parameter_value ("phoebe_lc_filename", i, &readout_str);
@@ -427,28 +432,31 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 		if (!filename_exists (readout_str))
 			return ERROR_MINIMIZER_INVALID_FILE;
 	}
-
+*/
 	/* Verify the types of RV curves:                                         */
+/*
 	passed_pars.rv1 = FALSE; passed_pars.rv2 = FALSE;
 	for (i = 0; i < rvno; i++) {
 		phoebe_get_parameter_value ("phoebe_rv_dep", i, &readout_str);
-		status = get_input_dependent_variable (readout_str, &dep);
+		status = phoebe_column_type_from_string (readout_str, &dtype);
 		if (status != SUCCESS) return status;
 
-		if (dep == INPUT_PRIMARY_RV)   passed_pars.rv1 = TRUE;
-		if (dep == INPUT_SECONDARY_RV) passed_pars.rv2 = TRUE;
+		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)   passed_pars.rv1 = TRUE;
+		if (dtype == PHOEBE_COLUMN_SECONDARY_RV) passed_pars.rv2 = TRUE;
 	}
 
 	phoebe_debug ("RV1 curve is present: %d\n", passed_pars.rv1);
 	phoebe_debug ("RV2 curve is present: %d\n", passed_pars.rv2);
-
+*/
 	/* Do we work in HJD-space or in phase-space? */
+/*
 	phoebe_get_parameter_value ("phoebe_indep", &readout_str);
 	if (strcmp (readout_str, "Time (HJD)")  == 0) master_indep = PHOEBE_COLUMN_HJD;
 	else if (strcmp (readout_str, "Phase") == 0)  master_indep = PHOEBE_COLUMN_PHASE;
 	else return ERROR_INVALID_MAIN_INDEP;
-
+*/
 	/* The following block reads out parameters marked for adjustment:        */
+/*
 	status = read_in_adjustable_parameters (&to_be_adjusted, &initvals, &indices);
 	if (status != SUCCESS) return status;
 	phoebe_debug ("total number of parameters to be adjusted: %d\n", to_be_adjusted);
@@ -476,14 +484,14 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	weight           = phoebe_malloc ( cno * sizeof (*weight));
 	average          = phoebe_malloc ( cno * sizeof (*average));
 	cindex           = phoebe_malloc (lcno * sizeof (*cindex));
-
+*/
 	/* First we must read in all data, so that the following segment may se-  */
 	/* quentially assign pointers to it:                                      */
-
+/*
 	for (curve = 0; curve < lcno; curve++)
-		read_in_wd_lci_parameters (&params[curve], /*MPAGE=*/1, curve);
+		read_in_wd_lci_parameters (&params[curve], 1, curve);
 	for (curve = lcno; curve < cno; curve++)
-		read_in_wd_lci_parameters (&params[curve], /*MPAGE=*/2, curve-lcno);
+		read_in_wd_lci_parameters (&params[curve], 2, curve-lcno);
 
 	CALCHLA          = params[0].CALCHLA;
 	CALCVGA          = params[0].CALCVGA;
@@ -508,7 +516,9 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 	for (curve = 0; curve < cno; curve++) {
 		k = 0;
+*/
 		/* Now comes the pointing part:                                           */
+/*
 		for (i = 0; i < to_be_adjusted; i++) {
 			gsl_vector_set (adjpars, i, initvals[i]);
 			gsl_vector_set (step_size, i, PHOEBE_parameters[indices[i]].step);
@@ -549,11 +559,13 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 		}
 
 		passed_pars.pars[curve] = &params[curve];
-
+*/
 		/* Initialize observational data:                                         */
+/*
 		obs[curve]  = phoebe_curve_new ();
-
+*/
 		/* Read in the LC data: */
+/*
 		if (curve < lcno) {
 			phoebe_get_parameter_value ("phoebe_lc_filename", curve, &filename);
 
@@ -575,8 +587,9 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
 			phoebe_curve_transform (obs[curve], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 		}
-
+*/
 		/* Read in the RV data: */
+/*
 		else {
 			phoebe_get_parameter_value ("phoebe_rv_filename", curve-lcno, &filename);
 
@@ -597,9 +610,10 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			obs[curve] = phoebe_curve_new_from_file ((char *) filename);
 			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
 			phoebe_curve_transform (obs[curve], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
-
+*/
 			/* Transform read experimental data to 100km/s units:                   */
-			for (i = 0; i < obs[curve]->dep->dim; i++)
+/*
+		for (i = 0; i < obs[curve]->dep->dim; i++)
 				obs[curve]->dep->val[i] /= 100.0;
 			sigma /= 100.0;
 		}
@@ -610,9 +624,10 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 		status = calculate_weighted_average (&(average[curve]), obs[curve]->dep, obs[curve]->weight);
 	}
-
+*/
 	/* Fill in the structure the pointer to which will be passed to chi2      */
 	/* function:                                                              */
+/*
 	passed_pars.to_be_adjusted   = to_be_adjusted;
 	passed_pars.lcno             = lcno;
 	passed_pars.rvno             = rvno;
@@ -629,16 +644,18 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	passed_pars.cindex           = cindex;
 
 	passed_pars.chi2s            = &chi2s;
-
+*/
 	/* Initialize method and iterate */
+/*
 	cost_function.f      = &intern_chi2_cost_function;
 	cost_function.n      = to_be_adjusted;
 	cost_function.params = (void *) &passed_pars;
 
 	s = gsl_multimin_fminimizer_alloc (T, to_be_adjusted);
 	gsl_multimin_fminimizer_set (s, &cost_function, adjpars, step_size);
-
+*/
 	/* The main iterating loop:                                               */
+/*
 	do {
 		iter++;
 
@@ -646,11 +663,11 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 		status = gsl_multimin_fminimizer_iterate (s);
 		if (status) break;
-
+*/
 		/* This is an optional action to be performed after each iteration. It is */
 		/* a statement passed by the user through a command line.                 */
 		/*		if (action) scripter_ast_evaluate (action);*/
-
+/*
 		size = gsl_multimin_fminimizer_size (s);
 		status = gsl_multimin_test_size (size, accuracy);
 
@@ -665,7 +682,10 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			fprintf (nms_output, "T1 = %0.0f T2 = %0.0f q = %4.4f i = %4.4f a = %4.4f O1 = %4.4f O2 = %4.4f ", params[0].TAVH, params[0].TAVC, params[0].RM, params[0].INCL, params[0].SMA, params[0].PHSV, params[0].PCSV);
 		if (ASINI == TRUE)
 			fprintf (nms_output, "a = %4.4f i = %4.4f ", params[0].SMA, params[0].INCL);
-		if (lcno != cno)               /* Print VGA only if there are RVs present */
+		if (lcno != cno)
+*/			
+			/* Print VGA only if there are RVs present */
+/*
 			fprintf (nms_output, "VGA = %3.3f ", params[cno-1].VGA);
 		fprintf (nms_output, "chi2 = %10.3f step = %.3f\n", s->fval, size);
 	} while (status == GSL_CONTINUE && iter < iter_no);
@@ -699,56 +719,67 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 	phoebe_debug ("GSL exit status: %d\n", status);
 	if (status != GSL_SUCCESS && iter == iter_no) status = SUCCESS;
-
+*/
 	/* Stop the clock watch and compute the total CPU time on the process:    */
+/*
 	clock_stop = clock ();
-
+*/
 	/* Allocate the feedback structure and fill in its contents:              */
+/*
 	phoebe_debug ("allocated fields for feedback: %d + %d*%d + %d = %d\n", to_be_adjusted, CALCHLA, lcno, CALCVGA, to_be_adjusted+CALCHLA*lcno+CALCVGA);
 	status = phoebe_minimizer_feedback_alloc (feedback, to_be_adjusted+CALCHLA*lcno+CALCVGA, cno);
 	if (status != SUCCESS) return status;
 
-	(*feedback)->algorithm = PHOEBE_MINIMIZER_NMS;
-	(*feedback)->iters     = iter;
-	(*feedback)->cfval     = s->fval;
-	(*feedback)->cputime   = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
+	feedback->algorithm = PHOEBE_MINIMIZER_NMS;
+	feedback->iters     = iter;
+	feedback->cfval     = s->fval;
+	feedback->cputime   = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
 
 	index = 0;
-
+*/
 	/* If HLA's were calculated (rather than fitted), update their values:    */
+/*
 	if (CALCHLA == 1) {
 		phoebe_index_from_qualifier (&parindex, "phoebe_hla");
 		for (i = 0; i < lcno; i++) {
 			phoebe_get_parameter_value ("phoebe_hla", i, &parvalue);
-			(*feedback)->indices->val.iarray[index] = parindex;
-			(*feedback)->initvals->val[index] = parvalue;
-			(*feedback)->newvals->val[index] = params[i].HLA;
-			(*feedback)->ferrors->val[index] = sqrt (-1);
+			feedback->qualifiers->val.strarray[index] = strdup ("phoebe_hla");
+			feedback->initvals->val[index] = parvalue;
+			feedback->newvals->val[index] = params[i].HLA;
+			feedback->ferrors->val[index] = sqrt (-1);
+#warning OBSOLETE
+			feedback->indices->val.iarray[index] = parindex;
 			index++;
 		}
 	}
-
+*/
 	/* We do the same with v_\gamma:                                          */
+/*
 	if (CALCVGA == 1) {
 		phoebe_index_from_qualifier (&parindex, "phoebe_vga");
 		phoebe_get_parameter_value ("phoebe_vga", &parvalue);
 
-		(*feedback)->indices->val.iarray[index] = parindex;
-		(*feedback)->initvals->val[index] = parvalue;
-		(*feedback)->newvals->val[index] = params[i].VGA;
-		(*feedback)->ferrors->val[index] = sqrt (-1);
+		feedback->qualifiers->val.strarray[index] = strdup ("phoebe_vga");
+		feedback->initvals->val[index] = parvalue;
+		feedback->newvals->val[index] = params[i].VGA;
+		feedback->ferrors->val[index] = sqrt (-1);
+#warning OBSOLETE
+		feedback->indices->val.iarray[index] = parindex;
 		index++;
 	}
 
 	for (i = 0; i < to_be_adjusted; i++) {
-		(*feedback)->indices->val.iarray[index] = indices[i];
-		(*feedback)->initvals->val[index]       = initvals[i];
-		(*feedback)->newvals->val[index]        = gsl_vector_get (s->x, i);
-		(*feedback)->ferrors->val[index]        = accuracy*gsl_vector_get (s->x, i);
+		feedback->qualifiers->val.strarray[index] = ;
+		feedback->initvals->val[index]       = initvals[i];
+		feedback->newvals->val[index]        = gsl_vector_get (s->x, i);
+		feedback->ferrors->val[index]        = accuracy*gsl_vector_get (s->x, i);
+#warning OBSOLETE
+		feedback->indices->val.iarray[index] = indices[i];
 		index++;
 	}
-
+*/
 	/* Supply unweighted and passband-weighted chi2 values to the feedback:   */
+/*
 	{
 		double total_weight = 0.0;
 		for (i = 0; i < cno; i++) {
@@ -760,8 +791,9 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			(*feedback)->wchi2s->val[i] = weight[i]/total_weight * chi2s->val[i];
 		}
 	}
-
+*/
 	/* Let's clean up:                                                        */
+/*
 	gsl_multimin_fminimizer_free (s);
 
 	gsl_vector_free (adjpars);
@@ -786,11 +818,12 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	phoebe_debug ("leaving downhill simplex minimizer.\n");
 
 	return status;
+*/
 #endif
 
 	phoebe_lib_error ("GSL library not present, cannot initiate NMS minimizer.\n");
 	return ERROR_GSL_NOT_INSTALLED;
-	}
+}
 
 int kick_parameters (double sigma)
 {
@@ -853,7 +886,7 @@ int kick_parameters (double sigma)
 	return ERROR_GSL_NOT_INSTALLED;
 }
 
-int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
+int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
 	 * This is WD's built-in DC algorithm and as such it doesn't depend on GSL.
@@ -944,6 +977,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 	if (!dpdt_request_is_sane ()) return ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE;
 
 	/* Check whether third light units are Flux; DC doesn't yet support %.    */
+/*
 	{
 	PHOEBE_el3_units el3units;
 	status = phoebe_el3_units_id (&el3units);
@@ -952,6 +986,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 		return ERROR_INVALID_EL3_UNITS;
 	}
 	}
+*/
 
 	/* Is the feedback structure initialized:                                 */
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
@@ -1033,18 +1068,18 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 
 	phoebe_minimizer_feedback_alloc (feedback, marked_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
 
-	(*feedback)->algorithm = PHOEBE_MINIMIZER_DC;
-	(*feedback)->iters = 1;
+	feedback->algorithm = PHOEBE_MINIMIZER_DC;
+	feedback->iters = 1;
 
 	for (i = 0; i < params->nlc + rvno; i++) {
-		(*feedback)->chi2s->val[i] = chi2s[i];
+		feedback->chi2s->val[i] = chi2s[i];
 	}
 
-	(*feedback)->cfval = cfval;
+	feedback->cfval = cfval;
 
 	/* This isn't handled yet: */
-	phoebe_vector_free ((*feedback)->wchi2s);
-	(*feedback)->wchi2s = NULL;
+	phoebe_vector_free (feedback->wchi2s);
+	feedback->wchi2s = NULL;
 
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
@@ -1060,10 +1095,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 			fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->hla[i] - parvalue, params->hla[i], "n/a");
 
 			phoebe_index_from_qualifier (&qindex, "phoebe_hla");
-			(*feedback)-> indices->val.iarray[index] = qindex;
-			(*feedback)->initvals->val[index] = parvalue;
-			(*feedback)-> newvals->val[index] = params->hla[i];
-			(*feedback)-> ferrors->val[index] = sqrt (-1);
+			feedback->qualifiers->val.strarray[index] = strdup ("phoebe_hla");
+			feedback->initvals->val[index] = parvalue;
+			feedback-> newvals->val[index] = params->hla[i];
+			feedback-> ferrors->val[index] = sqrt (-1);
+#warning OBSOLETE
+			feedback-> indices->val.iarray[index] = qindex;
 
 			index++;
 		}
@@ -1073,10 +1110,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 		fprintf (dc_output, "phoebe_vga      %12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->vga - parvalue, params->vga, "n/a");
 
 		phoebe_index_from_qualifier (&qindex, "phoebe_vga");
-		(*feedback)-> indices->val.iarray[index] = qindex;
-		(*feedback)->initvals->val[index] = parvalue;
-		(*feedback)-> newvals->val[index] = params->vga;
-		(*feedback)-> ferrors->val[index] = sqrt (-1);
+		feedback->qualifiers->val.strarray[index] = strdup ("phoebe_vga");
+		feedback->initvals->val[index] = parvalue;
+		feedback-> newvals->val[index] = params->vga;
+		feedback-> ferrors->val[index] = sqrt (-1);
+#warning OBSOLETE
+		feedback-> indices->val.iarray[index] = qindex;
 
 		index++;
 	}
@@ -1095,10 +1134,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 				fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
 
 				phoebe_index_from_qualifier (&qindex, pars[i]);
-				(*feedback)-> indices->val.iarray[index] = qindex;
-				(*feedback)->initvals->val[index] = parvalue;
-				(*feedback)-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
-				(*feedback)-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
+				feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
+				feedback->initvals->val[index] = parvalue;
+				feedback-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
+				feedback-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
+#warning OBSOLETE
+				feedback-> indices->val.iarray[index] = qindex;
 
 				index++;
 			}
@@ -1117,19 +1158,19 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 					if (cindex == TRUE && j != 0) {
 						double cindex_val;
 						phoebe_get_parameter_value ("phoebe_cindex", j, &cindex_val);
-/*						phoebe_set_parameter_value (pars[i], j, hla0 * cindex_val);*/
 						fprintf (dc_output, "%12.6lf %12s %12.6lf %12.6lf\n", parvalue, "n/a  ", hla0 * cindex_val, errors[index-calchla*params->nlc-calcvga]);
 					}
 					else {
-/*						phoebe_set_parameter_value (pars[i], j, parvalue + corrections[index-calchla*params->nlc-calcvga]);*/
 						fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
 					}
 
 					phoebe_index_from_qualifier (&qindex, pars[i]);
-					(*feedback)-> indices->val.iarray[index] = qindex;
-					(*feedback)->initvals->val[index]        = parvalue;
-					(*feedback)-> newvals->val[index]        = parvalue + corrections[index-calchla*params->nlc-calcvga];
-					(*feedback)-> ferrors->val[index]        = errors[index-calchla*params->nlc-calcvga];
+					feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
+					feedback->initvals->val[index]        = parvalue;
+					feedback-> newvals->val[index]        = parvalue + corrections[index-calchla*params->nlc-calcvga];
+					feedback-> ferrors->val[index]        = errors[index-calchla*params->nlc-calcvga];
+#warning OBSOLETE
+					feedback-> indices->val.iarray[index] = qindex;
 
 					index++;
 				}
@@ -1143,10 +1184,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 					fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
 
 					phoebe_index_from_qualifier (&qindex, pars[i]);
-					(*feedback)-> indices->val.iarray[index] = qindex;
-					(*feedback)->initvals->val[index] = parvalue;
-					(*feedback)-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
-					(*feedback)-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
+					feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
+					feedback->initvals->val[index] = parvalue;
+					feedback-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
+					feedback-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
+#warning OBSOLETE
+					feedback-> indices->val.iarray[index] = qindex;
 
 					index++;
 				}
@@ -1156,7 +1199,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback **feedback)
 	/* Stop the clock watch and compute the total CPU time on the process:    */
 	clock_stop = clock ();
 
-	(*feedback)->cputime = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
+	feedback->cputime = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
 
 	wd_dci_parameters_free (params);
 
