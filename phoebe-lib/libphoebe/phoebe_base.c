@@ -292,9 +292,8 @@ int phoebe_quit ()
 	phoebe_free_parameters ();
 
 	/* Free passband list: */
-/*
-	phoebe_free_all_passbands ();
-*/
+	phoebe_free_passbands ();
+
 	#ifdef HAVE_LIBGSL
 		#ifndef PHOEBE_GSL_DISABLED
 			gsl_rng_free (PHOEBE_randomizer);

@@ -23,5 +23,6 @@ PHOEBE_passband *phoebe_passband_lookup         (const char *name);
 int              phoebe_passband_free           (PHOEBE_passband *passband);
 
 int              phoebe_read_in_passbands       (char *dir_name);
+int              phoebe_free_passbands          ();
 
 #endif
