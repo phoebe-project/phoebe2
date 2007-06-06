@@ -289,7 +289,7 @@ int phoebe_quit ()
 	free (PHOEBE_PARAMETERS_FILENAME);
 
 	/* Free parameters and their options:                                     */
-#warning MISSING PARAMETER FREEING
+	phoebe_free_parameters ();
 
 	/* Free passband list: */
 /*

@@ -53,6 +53,8 @@ int               phoebe_set_parameter_value    (char *qualifier, ...);
 bool              phoebe_parameter_menu_option_is_valid (char *qualifier, char *option);
 
 int               phoebe_init_parameters        ();
+int               phoebe_free_parameters        ();
+
 int               phoebe_init_parameter_options ();
 
 /**************************   PARAMETER TABLE   *******************************/
