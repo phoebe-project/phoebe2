@@ -129,6 +129,8 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 		}
 	}
 
+	fclose (ptf_file);
+
 	if (bins == 0 || !passband->name) {
 		phoebe_passband_free (passband);
 		passband = NULL;
@@ -225,10 +227,29 @@ int phoebe_passband_free (PHOEBE_passband *passband)
 	 * This function frees memory occupied by the passband record.
 	 */
 
+	if (!passband)
+		return SUCCESS;
+
 	free (passband->set);
 	free (passband->name);
 	phoebe_hist_free (passband->tf);
 	free (passband);
+
+	return SUCCESS;
+}
+
+int phoebe_free_passbands ()
+{
+	/*
+	 * This function sweeps through the whole passband array and frees all
+	 * passbands.
+	 */
+
+	int i;
+
+	for (i = 0; i < PHOEBE_passbands_no; i++)
+		phoebe_passband_free (PHOEBE_passbands[i]);
+	free (PHOEBE_passbands);
 
 	return SUCCESS;
 }
