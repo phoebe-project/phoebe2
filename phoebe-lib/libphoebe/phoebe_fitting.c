@@ -43,7 +43,8 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 	 * **pointers is an array of pointers to double that point to those ele-
 	 * ments of *pars which are set for adjustment.
 	 */
-
+#warning FUNCTION TEMPORARILY DISABLED FOR REVIEW
+/*
 	int i, curve, status;
 	PHOEBE_vector *chi2weights;
 
@@ -69,46 +70,50 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 	double       ***pointers         = (*(NMS_passed_parameters *) params).pointers;
 	WD_LCI_parameters **pars         = (*(NMS_passed_parameters *) params).pars;
 	PHOEBE_vector **chi2s            = (*(NMS_passed_parameters *) params).chi2s;
-
+*/
 	/*
 	 * During this function we'll store chi2 values of individual datasets to
 	 * the vector chi2s and their respective weights to chi2weights. So let us
 	 * initialize these two vectors and allocate the data for them:
 	 */
-
+/*
 	*chi2s = phoebe_vector_new ();
 	phoebe_vector_alloc (*chi2s, lcno + rvno);
 
 	chi2weights = phoebe_vector_new ();
 	phoebe_vector_alloc (chi2weights, lcno + rvno);
-
+*/
 	/*
 	 * 1st step: impose value constraints for parameters marked for adjustment.
 	 * The trick used here is to make a chi2 barrier over which the solution
 	 * won't be able to escape - in particular, a barrier of height 10^10. :)
 	 */
-
+/*
 	for (i = 0; i < tba; i++) {
 		if (  (gsl_vector_get (adjpars, i) < PHOEBE_parameters[indices[i]].min)
 		   || (gsl_vector_get (adjpars, i) > PHOEBE_parameters[indices[i]].max) )
 			chi2 = 10E10;
 	}
-
+*/
 	/*
 	 * The following loop traverses through all observed light curves, computes
 	 * synthetic counterparts at observed times/phases and calculates the
 	 * chi2 value for each O-C pair.
 	 */
-
+/*
 	for (curve = 0; curve < lcno; curve++) {
+*/
 		/* Initialize a synthetic curve: */
+/*
 		PHOEBE_curve *syncurve = phoebe_curve_new ();
-
+*/
 		/* Take care of conditional constraining if it's used:                */
+/*
 		if (MSC) {
 			double T1, T2, P0, L1, L2, M1, M2, q, a, R1, R2, O1, O2;
-
+*/
 			/* Scan all TBA parameters to find the temperatures:                    */
+/*
 			for (i = 0; i < tba; i++) {
 				if (strcmp (PHOEBE_parameters[indices[i]].qualifier, "phoebe_teff1") == 0)
 					T1 = gsl_vector_get (adjpars, i);
@@ -125,10 +130,11 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 			pars[curve]->HLA  = L1;
 		}
 		if (ASINI) {
+*/
 			/* 'indices' is a cno-dimensional array of integers holding indices to  */
 			/* parameter qualifiers set for adjustment. We use this to find SMA and */
 			/* INCL.                                                                */
-
+/*
 			double sma, incl, asini;
 			phoebe_get_parameter_value ("phoebe_asini", &asini);
 
@@ -149,12 +155,12 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 				}
 			}
 		}
-
+*/
 		/*
 		 * Set the values in a parameter table to match current iteration
 		 * values:
 		 */
-
+/*
 		for (i = 0; i < tba; i++)
 			*pointers[curve][i] = gsl_vector_get (adjpars, i);
 
@@ -171,8 +177,9 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 		call_wd_to_get_fluxes (syncurve, obs[curve]->indep);
 		apply_third_light_correction (syncurve, el3units, pars[curve]->EL3);
 		apply_extinction_correction (syncurve, A);
-
+*/
 		/* If WD crashes, catch it and exit PHOEBE to see what went wrong:    */
+/*
 		if (isnan (syncurve->dep->val[0])) {
 			phoebe_lib_error ("     *** WD CRASH CAPTURE ***\n");
 			phoebe_lib_error ("lcin.active copied to broken.lcin\n");
@@ -189,44 +196,50 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 		}
 
 		if (CALCHLA == 1) {
+*/
 			/* Compute (rather than minimize) passband luminosities: */
+/*
 			double av1;
 
 			if (!color_constraint || curve == 0) {
 				status = calculate_average (&av1, syncurve->dep);
-
+*/
 				/* If the computation went crazy, keep the last sane value:           */
+/*
 				if (av1 < 1e-1 || isnan (av1)) av1 = average[curve];
 				pars[curve]->HLA *= average[curve] / av1;
 				for (i = 0; i < syncurve->dep->dim; i++)
 					syncurve->dep->val[i] *= average[curve] / av1;
 			}
 		}
-
+*/
 		/* Color-index constraint:                                            */
+/*
 		if (color_constraint) {
 			phoebe_debug ("using the color-index constraint.\n");
 			pars[curve]->HLA = cindex[curve] * pars[0]->HLA;
 			printf ("index = %lf, L%d = %lf\n", cindex[curve], curve + 1, pars[curve]->HLA);
 		}
-
+*/
 		/* The weighted chi2 computation:                                     */
+/*
 		calculate_chi2 (syncurve->dep, obs[curve]->dep, obs[curve]->weight, PHOEBE_CF_CHI2, &((*chi2s)->val[curve]));
 		chi2weights->val[curve] = weight[curve];
-
+*/
 		/* The cycle is complete, we may release synthetic data:              */
-		phoebe_curve_free (syncurve);
+/*
+	phoebe_curve_free (syncurve);
 	}
 
 	if (rvno != 0) {
 		PHOEBE_curve *rv1curve = phoebe_curve_new ();
 		PHOEBE_curve *rv2curve = phoebe_curve_new ();
-
+*/
 		/*
 		 * RVs are sorted in obsdep[] array so that RV1 always preceeds RV2.
 		 * Read in the data:
 		 */
-
+/*
 		if (rv1present) {
 			for (i = 0; i < tba; i++)
 				*pointers[curve][i] = gsl_vector_get (adjpars, i);
@@ -250,8 +263,9 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 			create_lci_file ("lcin.active", *pars[curve]);
 			call_wd_to_get_rv2 (rv2curve, obs[curve]->indep);
 		}
-
+*/
 		/* If gamma velocity VGA is set to be calculated, do it:              */
+/*
 		if (CALCVGA) {
 			double vga;
 			if ( rv1present && !rv2present)
@@ -302,14 +316,17 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 		phoebe_curve_free (rv1curve);
 		phoebe_curve_free (rv2curve);
 	}
-
+*/
 	/* We're through with computing synthetic data. Now we calculate chi2:      */
+/*
 	phoebe_join_chi2 (&chi2, *chi2s, chi2weights);
-	
+*/
 	/* Free the chi2 containers:                                                */
+/*
 	phoebe_vector_free (chi2weights);
 
 	return chi2;
+*/
 }
 #endif
 #endif
@@ -333,25 +350,42 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	 *  SUCCESS
 	 */
 
+#warning FUNCTION TEMPORARILY DISABLED FOR REVIEW
+
 #if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
-
-	double *initvals;         /* An array of initial parameter values.        */
-	int    *indices;          /* An array of global table reference indices   */
-	int     cno, lcno, rvno;  /* Curves (both LC and RV) number               */
-	int     CALCHLA;          /* Should light levels be calculated or fitted  */
-	int     CALCVGA;          /* Should gamma velocity be calculated          */
-	bool    ASINI;            /* A switch whether a \sin i should be constant */
-	bool    color_constraint; /* Color-constraint switch                      */
-	int     CC;               /* Conditional constraining (CC) switch         */
-	int     to_be_adjusted;   /* The number of adjustables to be adjusted     */
-	double ***pointers;       /* Array of pointers to the WD_LCI_parameters   */
-	PHOEBE_curve **obs;       /* An array of observational data               */
-	double *weight;           /* Weights of passband curves                   */
-	double *average;          /* Average values of observations for HLA/VGA   */
-	double *cindex;           /* An array of color indices                    */
-
-	PHOEBE_vector *chi2s;     /* A list of individual passband chi2 values    */
-
+/*
+	double *initvals;         
+	int    *indices;          
+	int     cno, lcno, rvno;  
+	int     CALCHLA;          
+	int     CALCVGA;          
+	bool    ASINI;            
+	bool    color_constraint; 
+	int     CC;               
+	int     to_be_adjusted;   
+	double ***pointers;       
+	PHOEBE_curve **obs;       
+	double *weight;           
+	double *average;          
+	double *cindex;           
+	PHOEBE_vector *chi2s;     
+*/
+	/* An array of initial parameter values.        */
+	/* An array of global table reference indices   */
+	/* Curves (both LC and RV) number               */
+	/* Should light levels be calculated or fitted  */
+	/* Should gamma velocity be calculated          */
+	/* A switch whether a \sin i should be constant */
+	/* Color-constraint switch                      */
+	/* Conditional constraining (CC) switch         */
+	/* The number of adjustables to be adjusted     */
+	/* Array of pointers to the WD_LCI_parameters   */
+	/* An array of observational data               */
+	/* Weights of passband curves                   */
+	/* Average values of observations for HLA/VGA   */
+	/* An array of color indices                    */
+	/* A list of individual passband chi2 values    */	
+/*
 	int curve, index, parindex;
 	double parvalue;
 
@@ -382,7 +416,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	WD_LCI_parameters *params;
 
 	phoebe_lib_warning ("NMS minimization currently disabled, sorry.\n");
-/*
+
 	phoebe_debug ("entering downhill simplex minimizer.\n");
 
 	phoebe_get_parameter_value ("phoebe_indep", &indep);
@@ -844,23 +878,30 @@ int kick_parameters (double sigma)
 	 *   SUCCESS
 	 */
 
+#warning FUNCTION TEMPORARILY DISABLED FOR REVIEW
+
+/*
 #ifdef HAVE_LIBGSL
 #ifndef PHOEBE_GSL_DISABLED
 
 	int status;
 	int to_be_adjusted;
-	double *initvals;         /* An array of initial parameter values.        */
-	int    *indices;          /* An array of global table reference indices   */
+*/
+/*	double *initvals; */        /* An array of initial parameter values.        */
+/*	int    *indices;  */        /* An array of global table reference indices   */
+/*
 	int lcno, rvno;
 	int i;
 
 	phoebe_debug ("entering kick_parameters ()\n");
-
+*/
 	/* Count the available curves:                                            */
+/*
 	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
 	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
-
+*/
 	/* The following block reads out parameters marked for adjustment:        */
+/*
 	read_in_adjustable_parameters (&to_be_adjusted, &initvals, &indices);
 
 	for (i = 0; i < to_be_adjusted; i++)
@@ -884,6 +925,7 @@ int kick_parameters (double sigma)
 
 	phoebe_lib_error ("GSL library not present, cannot kick parameters.\n");
 	return ERROR_GSL_NOT_INSTALLED;
+*/
 }
 
 int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
@@ -945,14 +987,17 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		/* 34 */ "phoebe_el3"
 	};
 
+#warning FUNCTION DISABLED FOR REVIEW
+/*
 	WD_DCI_parameters *params;
 	int i, j, index, qindex;
 	int status;
 
 	char atmcof[255], atmcofplanck[255];
-
+*/
 	/* Define arrays that will hold DC results; they will be allocated when a */
 	/* number of parameters set for adjustment are known.                     */
+/*
 	double *corrections;
 	double *errors;
 	double *chi2s;
@@ -969,13 +1014,13 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	clock_t clock_start, clock_stop;
 
 	phoebe_debug ("entering differential corrections minimizer.\n");
-
+*/
 	/* Before we do anything, let's check whether the setup is sane:          */
-
+/*
 	if (!hla_request_is_sane  ()) return ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE;
 	if (!vga_request_is_sane  ()) return ERROR_MINIMIZER_VGA_REQUEST_NOT_SANE;
 	if (!dpdt_request_is_sane ()) return ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE;
-
+*/
 	/* Check whether third light units are Flux; DC doesn't yet support %.    */
 /*
 	{
@@ -989,9 +1034,11 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 */
 
 	/* Is the feedback structure initialized:                                 */
+/*
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
-
+*/
 	/* Everything seems to be ok. Fire up the stop watch:                     */
+/*
 	clock_start = clock ();
 
 	params = wd_dci_parameters_new ();
@@ -1060,12 +1107,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 
 	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
 	cfval = 0.0;
-
+*/
 	/* Allocate and fill-in the feedback structure; the number of parameter   */
 	/* fields equals the number of parameters marked for adjustment plus the  */
 	/* number of light curves if HLAs are marked for computation plus 1 if    */
 	/* VGA is marked for computation.                                         */
-
+/*
 	phoebe_minimizer_feedback_alloc (feedback, marked_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
 
 	feedback->algorithm = PHOEBE_MINIMIZER_DC;
@@ -1076,8 +1123,9 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	}
 
 	feedback->cfval = cfval;
-
+*/
 	/* This isn't handled yet: */
+/*
 	phoebe_vector_free (feedback->wchi2s);
 	feedback->wchi2s = NULL;
 
@@ -1195,8 +1243,9 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 				}
 			}
 		}
-
+*/
 	/* Stop the clock watch and compute the total CPU time on the process:    */
+/*
 	clock_stop = clock ();
 
 	feedback->cputime = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
@@ -1210,6 +1259,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	phoebe_debug ("leaving differential corrections minimizer.\n");
 
 	return SUCCESS;
+*/
 }
 
 #warning NMS_PRINT () NOT YET IMPLEMENTED
