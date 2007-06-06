@@ -302,8 +302,8 @@ PHOEBE_parameter *phoebe_parameter_new ()
 	par->qualifier   = NULL;
 	par->description = NULL;
 	par->menu        = NULL;
-	par->widget      = NULL;
 	par->deps        = NULL;
+	par->widget      = NULL;
 
 	return par;
 }
@@ -335,7 +335,7 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 	}
 
 	va_start (args, tba);
-	par->type        = va_arg (args, PHOEBE_type);
+	par->type = va_arg (args, PHOEBE_type);
 
 	switch (par->type) {
 		case TYPE_INT:
@@ -465,14 +465,15 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 {
 	unsigned int hash = phoebe_parameter_hash (qualifier);
-	PHOEBE_pt_bucket *bucket_element = PHOEBE_pt[hash];
+	PHOEBE_pt_bucket *elem = PHOEBE_pt[hash];
 
-	while (bucket_element) {
-		if (strcmp (bucket_element->par->qualifier, qualifier) == 0) break;
-		bucket_element = bucket_element->next;
+	while (elem) {
+		if (strcmp (elem->par->qualifier, qualifier) == 0) break;
+		elem = elem->next;
 	}
 
-	return bucket_element->par;
+	if (!elem) return NULL;
+	return elem->par;
 }
 
 int phoebe_parameter_free (PHOEBE_parameter *par)
@@ -481,11 +482,35 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	 * This function frees all memory allocated for the passed parameter 'par'.
 	 */
 
+	int i;
+
 	if (par->qualifier)   free (par->qualifier);
 	if (par->description) free (par->description);
-	if (par->menu)        free (par->menu);
-	if (par->widget)      free (par->widget);
 
+	/* Free parameter options: */
+	if (par->menu) {
+		for (i = 0; i < par->menu->optno; i++)
+			free (par->menu->option[i]);
+		free (par->menu->option);
+		free (par->menu);
+	}
+
+	/* If parameters are strings or arrays, we need to free them as well: */
+	if (par->type == TYPE_STRING)
+		free (par->value.str);
+
+	if (par->type == TYPE_STRING_ARRAY) {
+		phoebe_array_free (par->value.array);
+		free (par->defaultvalue.str);
+	}
+
+	if (par->type == TYPE_INT_ARRAY    ||
+		par->type == TYPE_BOOL_ARRAY   ||
+		par->type == TYPE_DOUBLE_ARRAY) {
+		phoebe_array_free (par->value.array);
+	}
+
+	/* Free linked list elements, but not stored parameters: */
 	while (par->deps) {
 		PHOEBE_parameter_list *list = par->deps->next;
 		free (par->deps);
@@ -493,6 +518,29 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	}
 
 	free (par);
+
+	return SUCCESS;
+}
+
+int phoebe_free_parameters ()
+{
+	/*
+	 * This function frees all parameters from the parameter table.
+	 */
+
+	int i;
+	PHOEBE_pt_bucket *elem;
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		while (PHOEBE_pt[i]) {
+			elem = PHOEBE_pt[i];
+			PHOEBE_pt[i] = elem->next;
+			phoebe_parameter_free (elem->par);
+			free (elem);
+		}
+	}
+
+	return SUCCESS;
 }
 
 int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
@@ -991,51 +1039,6 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 	return SUCCESS;
 }
 
-int intern_get_from_keyword_file (char *qualifier, char *value_str)
-{
-	/*
-	 * This is an internal function that looks up a qualifier in the global
-	 * parameter table and sets its value to the passed string representation
-	 * of that value, value_str.
-	 *
-	 * Return values:
-	 *
-	 *   ERROR_QUALIFIER_NOT_FOUND
-	 *   SUCCESS
-	 */
-
-	int status;
-
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
-	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
-
-	switch (par->type) {
-		case TYPE_INT:
-			status = phoebe_set_parameter_value (qualifier, atoi (value_str));
-		break;
-		case TYPE_BOOL:
-			status = phoebe_set_parameter_value (qualifier, atoi (value_str));
-		break;
-		case TYPE_DOUBLE:
-			status = phoebe_set_parameter_value (qualifier, atof (value_str));
-		break;
-		case TYPE_STRING:
-			/* Strip the string of quotes if necessary:                             */
-			while (value_str[0] == '"') value_str++;
-			while (value_str[strlen(value_str)-1] == '"') value_str[strlen(value_str)-1] = '\0';
-			status = phoebe_set_parameter_value (qualifier, value_str);
-		break;
-		default:
-			phoebe_lib_error ("exception handler invoked in intern_get_from_parameter_file (), please report this!\n");
-			return ERROR_EXCEPTION_HANDLER_INVOKED;
-	}
-
-	if (status != SUCCESS)
-		phoebe_lib_error ("%s", phoebe_error (status));
-
-	return status;
-}
-
 int phoebe_open_parameter_file (const char *filename)
 {
 	/*
@@ -1169,6 +1172,12 @@ int phoebe_open_parameter_file (const char *filename)
 			phoebe_debug ("%30s %2d %6s", qualifier, elem, field);
 
 			par = phoebe_parameter_lookup (qualifier);
+			if (!par) {
+				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				free (qualifier);
+				free (field);
+				continue;
+			}
 
 			/*
 			 * Here's a trick: qualifiers in the parameter file may be shuffled
@@ -1244,6 +1253,11 @@ int phoebe_open_parameter_file (const char *filename)
 			phoebe_debug ("%30s %2d", qualifier, elem);
 
 			par = phoebe_parameter_lookup (qualifier);
+			if (!par) {
+				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				free (qualifier);
+				continue;
+			}
 
 			/*
 			 * Here's a trick: qualifiers in the parameter file may be shuffled
@@ -1303,6 +1317,12 @@ int phoebe_open_parameter_file (const char *filename)
 			phoebe_debug ("%30s    %6s", qualifier, field);
 
 			par = phoebe_parameter_lookup (qualifier);
+			if (!par) {
+				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				free (qualifier);
+				free (field);
+				continue;
+			}
 
 			if (strcmp (field,  "VAL") == 0) par->value.d = atof (value_str);
 			if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
@@ -1315,7 +1335,34 @@ int phoebe_open_parameter_file (const char *filename)
 			qualifier = phoebe_malloc ((strlen(keyword_str)+1)*sizeof(*qualifier));
 			strcpy (qualifier, keyword_str);
 			phoebe_debug ("%30s   ", qualifier);
-			intern_get_from_keyword_file (qualifier, value_str);
+
+			par = phoebe_parameter_lookup (qualifier);
+			if (!par) {
+				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				free (qualifier);
+				continue;
+			}
+
+			switch (par->type) {
+				case TYPE_INT:
+					par->value.i = atoi (value_str);
+				break;
+				case TYPE_BOOL:
+					par->value.b = atob (value_str);
+				break;
+				case TYPE_DOUBLE:
+					par->value.d = atof (value_str);
+				break;
+				case TYPE_STRING:
+					/* Strip the string of quotes if necessary:                       */
+					while (value_str[0] == '"') value_str++;
+					while (value_str[strlen(value_str)-1] == '"') value_str[strlen(value_str)-1] = '\0';
+					par->value.str = strdup (value_str);
+				break;
+				default:
+					phoebe_lib_error ("exception handler invoked in phoebe_open_parameter_file (), please report this!\n");
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+			}
 		}
 		phoebe_debug ("\n");
 
