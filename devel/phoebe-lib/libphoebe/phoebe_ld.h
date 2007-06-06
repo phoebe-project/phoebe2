@@ -33,7 +33,7 @@ extern int      PHOEBE_ld_table_size;
 extern LDtable *PHOEBE_ld_table;
 
 typedef enum LDLaw {
-	LD_LAW_LINEAR,
+	LD_LAW_LINEAR = 1,
 	LD_LAW_LOG,
 	LD_LAW_SQRT,
 	LD_LAW_INVALID

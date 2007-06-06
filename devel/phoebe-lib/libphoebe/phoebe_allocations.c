@@ -14,6 +14,7 @@
 #include "phoebe_error_handling.h"
 #include "phoebe_fortran_interface.h"
 #include "phoebe_global.h"
+#include "phoebe_ld.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
@@ -186,7 +187,6 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	 *   SUCCESS
 	 */
 
-	int status;
 	int i;
 
 	int lcno, rvno;
@@ -236,8 +236,10 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	phoebe_get_parameter_value ("phoebe_proximity_rv2_switch", &readout_bool);
 	if (readout_bool) params->ICOR2  = 1; else params->ICOR2  = 0;
 
-	status = get_ld_model_id (&(params->LD));
-	if (status != SUCCESS) return status;
+	phoebe_get_parameter_value ("phoebe_ld_model", &readout_str);
+	params->LD = phoebe_ld_model_type (readout_str);
+	if (params->LD == LD_LAW_INVALID)
+		return ERROR_INVALID_LDLAW;
 
 	phoebe_get_parameter_value ("phoebe_indep", &readout_str);
 	if (strcmp (readout_str, "Time (HJD)")  == 0) params->JDPHS = 1;
@@ -488,7 +490,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		"phoebe_el3"
 	};
 
-	int i, status;
+	int i;
 	int lcno, rvno, cno;
 	bool readout_bool;
 	const char *readout_str;
@@ -570,8 +572,10 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	phoebe_get_parameter_value ("phoebe_proximity_rv2_switch", &(params->rv2proximity));
 
 	/* Limb darkening effect:                                                   */
-	status = get_ld_model_id (&(params->ldmodel));
-	if (status != SUCCESS) return status;
+	phoebe_get_parameter_value ("phoebe_ld_model", &readout_str);
+	params->ldmodel = phoebe_ld_model_type (readout_str);
+	if (params->ldmodel == LD_LAW_INVALID)
+		return ERROR_INVALID_LDLAW;
 
 	/* Morphological constraint:                                                */
 	{
@@ -949,6 +953,8 @@ int read_in_adjustable_parameters (int *tba, double **values, int **indices)
 	 * to free it after using it.
 	 */
 
+#warning FUNCTION TEMPORARILY DISABLED FOR REVIEW
+/*
 	int i, j, k;
 	int status, calchla_idx, calcvga_idx, sma_idx, incl_idx;
 	bool calchla, calcvga, asini;
@@ -977,9 +983,10 @@ int read_in_adjustable_parameters (int *tba, double **values, int **indices)
 	j = 0;
 	for (i = 0; i < PHOEBE_parameters_no; i++) {
 		if (PHOEBE_parameters[i].kind == KIND_ADJUSTABLE && PHOEBE_parameters[i].tba == YES) {
+*/
 			/* First, let's check whether the user tries something silly like ad-   */
 			/* justing HLAs when they should be calculated:                         */
-
+/*
 			if (i == calchla_idx && calchla == TRUE) {
 				phoebe_lib_error ("light levels (HLAs) cannot be adjusted if the calculation\n");
 				phoebe_lib_error ("switch 'phoebe_compute_hla_switch' is turned on. Ignoring HLAs.\n");
@@ -1000,11 +1007,11 @@ int read_in_adjustable_parameters (int *tba, double **values, int **indices)
 					continue;
 				}
 			}
-
+*/
 			/* Now we have to see whether it's a system parameter (one for all      */
 			/* light curves) or is it a filter-dependent parameter (one for each    */
 			/* light curve):                                                        */
-
+/*
 			switch (PHOEBE_parameters[i].type) {
 				case TYPE_DOUBLE:
 					j++;
@@ -1019,13 +1026,15 @@ int read_in_adjustable_parameters (int *tba, double **values, int **indices)
 					return ERROR_ARG_NOT_DOUBLE;
 				break;
 			}
-
-			/* Next, we (re)allocate memory:                                        */
+*/
+			/* Next, we (re)allocate memory:                                  */
+/*
 			*values   = phoebe_realloc (*values,   j * sizeof (**values));
 			*indices  = phoebe_realloc (*indices,  j * sizeof (**indices));
-
+*/
 			/* Finally, we fill in all values: if multi = 0, then only (j-1). field */
 			/* is updated, otherwise all filter-dependent fields are updated:       */
+/*
 			for (k = j - (multi * (lcno-1)) - 1; k < j; k++) {
 				(*indices)[k] = i;
 				if (PHOEBE_parameters[i].type == TYPE_DOUBLE)
@@ -1037,6 +1046,7 @@ int read_in_adjustable_parameters (int *tba, double **values, int **indices)
 	}
 
 	*tba = j;
+*/
 	return SUCCESS;
 }
 

@@ -38,25 +38,19 @@ PHOEBE_vector *phoebe_vector_new_from_qualifier (char *qualifier)
 	 * If an error occured, NULL is returned.
 	 */
 
+	int i;
 	PHOEBE_vector *vec;
 
-	int j, status, index, range;
-	PHOEBE_type type;
-
-	status = phoebe_type_from_qualifier (&type, qualifier);
-	if (status != SUCCESS)           return NULL;
-	if (  type != TYPE_DOUBLE_ARRAY) return NULL;
+	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
+	if (!par) return NULL;
+	if (par->type != TYPE_DOUBLE_ARRAY) return NULL;
+	if (par->value.vec->dim == 0) return NULL;
 
 	vec = phoebe_vector_new ();
-	status = phoebe_index_from_qualifier (&index, qualifier);
-	if (status != SUCCESS) return NULL;
+	phoebe_vector_alloc (vec, par->value.vec->dim);
 
-	status = phoebe_get_parameter_value (PHOEBE_parameters[index].dependency, &range);
-	if (status != SUCCESS || range == 0) return NULL;
-
-	phoebe_vector_alloc (vec, range);
-	for (j = 0; j < range; j++)
-		phoebe_get_parameter_value (qualifier, j, &(vec->val[j]));
+	for (i = 0; i < par->value.vec->dim; i++)
+		vec->val[i] = par->value.vec->val[i];
 
 	return vec;
 }
@@ -1381,70 +1375,41 @@ PHOEBE_array *phoebe_array_new_from_qualifier (char *qualifier)
 	 *
 	 */
 
+	int i;
 	PHOEBE_array *array;
-	int status, j, index, dim;
-	PHOEBE_type type;
 
-	status = phoebe_type_from_qualifier (&type, qualifier);
-	if (status != SUCCESS) return NULL;
+	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
+	if (!par) return NULL;
+	if (par->type != TYPE_INT_ARRAY    &&
+		par->type != TYPE_BOOL_ARRAY   &&
+		par->type != TYPE_DOUBLE_ARRAY &&
+		par->type != TYPE_STRING_ARRAY) return NULL;
+	if (par->value.array->dim == 0) return NULL;
 
-	/* Check if the type of the qualifier is really an array and if not,      */
-	/* return NULL:                                                           */
+	/* Create and allocate a new array of the given type: */
+	array = phoebe_array_new (par->type);
+	phoebe_array_alloc (array, par->value.array->dim);
 
-	if (
-		(type != TYPE_INT_ARRAY)    &&
-		(type != TYPE_DOUBLE_ARRAY) &&
-    	(type != TYPE_BOOL_ARRAY)   &&
-    	(type != TYPE_STRING_ARRAY)
-	   )
-		return NULL;
-
-	/* Get the dimension of the array from the dependency parameter:          */
-	status = phoebe_index_from_qualifier (&index, qualifier);
-	if (status != SUCCESS) return NULL;
-
-	status = phoebe_get_parameter_value (PHOEBE_parameters[index].dependency, &dim);
-
-	if (status != SUCCESS || dim == 0) return NULL;
-
-	/* Create and allocate a new array of the given type:                     */
-	array = phoebe_array_new (type);
-	phoebe_array_alloc (array, dim);
-
-	for (j = 0; j < dim; j++) {
-		switch (type) {
-			case TYPE_INT_ARRAY: {
-				int value;
-				status = phoebe_get_parameter_value (qualifier, j, &value);
-				if (status != SUCCESS) return NULL;
-				array->val.iarray[j] = value;
-			}
-			break;
-			case TYPE_BOOL_ARRAY: {
-				bool value;
-				status = phoebe_get_parameter_value (qualifier, j, &value);
-				if (status != SUCCESS) return NULL;
-				array->val.barray[j] = value;
-			}
-			break;
-			case TYPE_DOUBLE_ARRAY: {
-				double value;
-				status = phoebe_get_parameter_value (qualifier, j, &value);
-				if (status != SUCCESS) return NULL;
-				array->val.darray[j] = value;
-			}
-			break;
-			case TYPE_STRING_ARRAY: {
-				const char *value;
-				status = phoebe_get_parameter_value (qualifier, j, &value);
-				if (status != SUCCESS) return NULL;
-				array->val.strarray[j] = strdup (value);
-			}
-			break;
-			default:
-				phoebe_lib_error ("exception handler invoked in phoebe_array_new_from_qualifier ()!\n");
-			break;
-		}
+	switch (par->type) {
+		case TYPE_INT_ARRAY:
+			for (i = 0; i < par->value.array->dim; i++)
+				array->val.iarray[i] = par->value.array->val.iarray[i];
+		break;
+		case TYPE_BOOL_ARRAY:
+			for (i = 0; i < par->value.array->dim; i++)
+				array->val.barray[i] = par->value.array->val.barray[i];
+		break;
+		case TYPE_DOUBLE_ARRAY:
+			for (i = 0; i < par->value.array->dim; i++)
+				array->val.darray[i] = par->value.array->val.darray[i];
+		break;
+		case TYPE_STRING_ARRAY:
+			for (i = 0; i < par->value.array->dim; i++)
+				array->val.strarray[i] = strdup (par->value.array->val.strarray[i]);
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_array_new_from_qualifier ()!\n");
+		break;
 	}
 
 	return array;

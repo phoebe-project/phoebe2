@@ -58,11 +58,6 @@ int intern_phoebe_variables_init ()
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
 		PHOEBE_pt[i] = NULL;
 
-/************ OBSOLETE **************/
-	PHOEBE_parameters_no = 0;
-	PHOEBE_parameters    = NULL;
-/************************************/
-
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;
 
@@ -215,12 +210,8 @@ int phoebe_init ()
 	 * them before they could be used:
 	 */
 
-	phoebe_debug ("* declaring parameters:\n");
+	phoebe_debug ("* declaring parameters...\n");
 	phoebe_init_parameters ();
-/************** OBSOLETE ***************/
-	declare_all_parameters ();
-/***************************************/
-	phoebe_debug ("  %d parameters declared.\n", PHOEBE_parameters_no);
 
 	/* Read in all supported passbands and their transmission functions:      */
 	phoebe_debug ("* reading in passbands:\n");
@@ -229,9 +220,6 @@ int phoebe_init ()
 
 	/* Add options to all KIND_MENU parameters:                               */
 	phoebe_init_parameter_options ();
-/************** OBSOLETE ***************/
-	add_options_to_all_parameters ();
-/***************************************/
 
 	/* Choose a randomizer seed:                                              */
 	srand (time (0));
@@ -301,9 +289,7 @@ int phoebe_quit ()
 	free (PHOEBE_PARAMETERS_FILENAME);
 
 	/* Free parameters and their options:                                     */
-	release_all_parameter_options ();
-	release_all_parameters ();
-	free (PHOEBE_parameters);
+#warning MISSING PARAMETER FREEING
 
 	/* Free passband list: */
 /*
