@@ -206,86 +206,86 @@ int phoebe_init_parameter_options ()
 	 */
 
 	int i;
+	PHOEBE_parameter *par;
 	char *passband_str;
 
-	/* Parameter: phoebe_indep                                                */
-	phoebe_parameter_add_option ("phoebe_indep", "Time (HJD)");
-	phoebe_parameter_add_option ("phoebe_indep", "Phase");
+	par = phoebe_parameter_lookup ("phoebe_indep");
+	phoebe_parameter_add_option (par, "Time (HJD)");
+	phoebe_parameter_add_option (par, "Phase");
 
-	/* Parameter: phoebe_model                                                */
-	phoebe_parameter_add_option ("phoebe_model", "X-ray binary");
-	phoebe_parameter_add_option ("phoebe_model", "Unconstrained binary system");
-	phoebe_parameter_add_option ("phoebe_model", "Overcontact binary of the W UMa type");
-	phoebe_parameter_add_option ("phoebe_model", "Detached binary");
-	phoebe_parameter_add_option ("phoebe_model", "Overcontact binary not in thermal contact");
-	phoebe_parameter_add_option ("phoebe_model", "Semi-detached binary, primary star fills Roche lobe");
-	phoebe_parameter_add_option ("phoebe_model", "Semi-detached binary, secondary star fills Roche lobe");
-	phoebe_parameter_add_option ("phoebe_model", "Double contact binary");
+	par = phoebe_parameter_lookup ("phoebe_model");
+	phoebe_parameter_add_option (par, "X-ray binary");
+	phoebe_parameter_add_option (par, "Unconstrained binary system");
+	phoebe_parameter_add_option (par, "Overcontact binary of the W UMa type");
+	phoebe_parameter_add_option (par, "Detached binary");
+	phoebe_parameter_add_option (par, "Overcontact binary not in thermal contact");
+	phoebe_parameter_add_option (par, "Semi-detached binary, primary star fills Roche lobe");
+	phoebe_parameter_add_option (par, "Semi-detached binary, secondary star fills Roche lobe");
+	phoebe_parameter_add_option (par, "Double contact binary");
 
-	/* Parameter: phoebe_lc_filter                                            */
-
+	par = phoebe_parameter_lookup ("phoebe_lc_filter");
 	for (i = 0; i < PHOEBE_passbands_no; i++) {
 		passband_str = concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
-		phoebe_parameter_add_option ("phoebe_lc_filter", passband_str);
+		phoebe_parameter_add_option (par, passband_str);
 		free (passband_str);
 	}
 
-	/* Parameter: phoebe_lc_indep                                             */
-	phoebe_parameter_add_option ("phoebe_lc_indep", "Time (HJD)");
-	phoebe_parameter_add_option ("phoebe_lc_indep", "Phase");
+	par = phoebe_parameter_lookup ("phoebe_lc_indep");
+	phoebe_parameter_add_option (par, "Time (HJD)");
+	phoebe_parameter_add_option (par, "Phase");
 
-	/* Parameter: phoebe_lc_dep                                               */
-	phoebe_parameter_add_option ("phoebe_lc_dep", "Magnitude");
-	phoebe_parameter_add_option ("phoebe_lc_dep", "Flux");
+	par = phoebe_parameter_lookup ("phoebe_lc_dep");
+	phoebe_parameter_add_option (par, "Magnitude");
+	phoebe_parameter_add_option (par, "Flux");
 
-	/* Parameter: phoebe_lc_indweight                                         */
-	phoebe_parameter_add_option ("phoebe_lc_indweight", "Standard weight");
-	phoebe_parameter_add_option ("phoebe_lc_indweight", "Standard deviation");
-	phoebe_parameter_add_option ("phoebe_lc_indweight", "Unavailable");
+	par = phoebe_parameter_lookup ("phoebe_lc_indweight");
+	phoebe_parameter_add_option (par, "Standard weight");
+	phoebe_parameter_add_option (par, "Standard deviation");
+	phoebe_parameter_add_option (par, "Unavailable");
 
-	/* Parameter: phoebe_lc_levweight                                         */
-	phoebe_parameter_add_option ("phoebe_lc_levweight", "No level-dependent weighting");
-	phoebe_parameter_add_option ("phoebe_lc_levweight", "Poissonian scatter");
-	phoebe_parameter_add_option ("phoebe_lc_levweight", "Low light scatter");
+	par = phoebe_parameter_lookup ("phoebe_lc_levweight");
+	phoebe_parameter_add_option (par, "No level-dependent weighting");
+	phoebe_parameter_add_option (par, "Poissonian scatter");
+	phoebe_parameter_add_option (par, "Low light scatter");
 
-	/* Parameter: phoebe_rv_filter                                            */
+	par = phoebe_parameter_lookup ("phoebe_rv_filter");
 	for (i = 0; i < PHOEBE_passbands_no; i++) {
 		passband_str = concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
-		phoebe_parameter_add_option ("phoebe_rv_filter", passband_str);
+		phoebe_parameter_add_option (par, passband_str);
 		free (passband_str);
 	}
 
-	/* Parameter: phoebe_rv_indep                                             */
-	phoebe_parameter_add_option ("phoebe_rv_indep", "Time (HJD)");
-	phoebe_parameter_add_option ("phoebe_rv_indep", "Phase");
+	par = phoebe_parameter_lookup ("phoebe_rv_indep");
+	phoebe_parameter_add_option (par, "Time (HJD)");
+	phoebe_parameter_add_option (par, "Phase");
 
-	/* Parameter: phoebe_rv_dep                                               */
-	phoebe_parameter_add_option ("phoebe_rv_dep", "Primary RV");
-	phoebe_parameter_add_option ("phoebe_rv_dep", "Secondary RV");
+	par = phoebe_parameter_lookup ("phoebe_rv_dep");
+	phoebe_parameter_add_option (par, "Primary RV");
+	phoebe_parameter_add_option (par, "Secondary RV");
 
-	/* Parameter: phoebe_rv_indweight                                         */
-	phoebe_parameter_add_option ("phoebe_rv_indweight", "Standard weight");
-	phoebe_parameter_add_option ("phoebe_rv_indweight", "Standard deviation");
-	phoebe_parameter_add_option ("phoebe_rv_indweight", "Unavailable");
+	par = phoebe_parameter_lookup ("phoebe_rv_indweight");
+	phoebe_parameter_add_option (par, "Standard weight");
+	phoebe_parameter_add_option (par, "Standard deviation");
+	phoebe_parameter_add_option (par, "Unavailable");
 
-	/* Parameter: phoebe_ld_model                                             */
-	phoebe_parameter_add_option ("phoebe_ld_model",     "Linear cosine law");
-	phoebe_parameter_add_option ("phoebe_ld_model",     "Logarithmic law");
-	phoebe_parameter_add_option ("phoebe_ld_model",     "Square root law");
+	par = phoebe_parameter_lookup ("phoebe_ld_model");
+	phoebe_parameter_add_option (par, "Linear cosine law");
+	phoebe_parameter_add_option (par, "Logarithmic law");
+	phoebe_parameter_add_option (par, "Square root law");
 
-	/* Parameter: phoebe_synscatter_levweight                                 */
-	phoebe_parameter_add_option ("phoebe_synscatter_levweight", "No level-dependent weighting");
-	phoebe_parameter_add_option ("phoebe_synscatter_levweight", "Poissonian scatter");
-	phoebe_parameter_add_option ("phoebe_synscatter_levweight", "Low light scatter");
+	par = phoebe_parameter_lookup ("phoebe_synscatter_levweight");
+	phoebe_parameter_add_option (par, "No level-dependent weighting");
+	phoebe_parameter_add_option (par, "Poissonian scatter");
+	phoebe_parameter_add_option (par, "Low light scatter");
 
-	/* Parameter: phoebe_passband_treatment_mode                              */
-	phoebe_parameter_add_option ("phoebe_passband_mode", "None");
-	phoebe_parameter_add_option ("phoebe_passband_mode", "Interpolation");
-	phoebe_parameter_add_option ("phoebe_passband_mode", "Rigorous");
+	par = phoebe_parameter_lookup ("phoebe_passband_mode");
+	phoebe_parameter_add_option (par, "None");
+	phoebe_parameter_add_option (par, "Interpolation");
+	phoebe_parameter_add_option (par, "Rigorous");
 
-	/* Parameter: phoebe_el3_units                                            */
-	phoebe_parameter_add_option ("phoebe_el3_units", "Total light");
-	phoebe_parameter_add_option ("phoebe_el3_units", "Flux");
+	par = phoebe_parameter_lookup ("phoebe_el3_units");
+	phoebe_parameter_add_option (par, "Total light");
+	phoebe_parameter_add_option (par, "Flux");
 
 	return SUCCESS;
 }
@@ -386,11 +386,11 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 	return SUCCESS;
 }
 
-int phoebe_parameter_add_option (char *qualifier, char *option)
+int phoebe_parameter_add_option (PHOEBE_parameter *par, char *option)
 {
 	/*
-	 * This function adds an option 'option' to the parameter menu of the
-	 * passed qualifier. The qualifier's kind must be KIND_MENU, otherwise
+	 * This function adds an option 'option' to the menu of the passed
+	 * parameter. The kind field of the parameter must be KIND_MENU, otherwise
 	 * the function will abort.
 	 *
 	 * Return values:
@@ -400,15 +400,13 @@ int phoebe_parameter_add_option (char *qualifier, char *option)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
-
 	if (!par) {
-		phoebe_lib_error ("qualifier %s not found, ignoring.\n", qualifier);
+		phoebe_lib_error ("invalid parameter passed to phoebe_parameter_add_option ()!\n");
 		return ERROR_QUALIFIER_NOT_FOUND;
 	}
 
 	if (par->kind != KIND_MENU) {
-		phoebe_lib_error ("qualifier %s kind is not a menu, aborting.\n", qualifier);
+		phoebe_lib_error ("a non-KIND_MENU parameter passed to phoebe_parameter_add_option ()!\n");
 		return ERROR_PARAMETER_KIND_NOT_MENU;
 	}
 
@@ -416,7 +414,7 @@ int phoebe_parameter_add_option (char *qualifier, char *option)
 	par->menu->option = phoebe_realloc (par->menu->option, par->menu->optno * sizeof (*(par->menu->option)));
 	par->menu->option[par->menu->optno-1] = strdup (option);
 
-	phoebe_debug ("option \"%s\" added to parameter %s.\n", option, qualifier);
+	phoebe_debug ("option \"%s\" added to parameter %s.\n", option, par->qualifier);
 	return SUCCESS;
 }
 

@@ -251,8 +251,6 @@ typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_vector   *ferrors;    /* A list of formal error estimates          */
 	PHOEBE_vector   *chi2s;      /* A list of passband chi2 values            */
 	PHOEBE_vector   *wchi2s;     /* A list of weighted passband chi2 values   */
-	PHOEBE_array    *indices;    /* A list of indices of TBA parameters       */
-	struct PHOEBE_parameter_list *pars; /* A list of parameters marked for adjustment*/
 } PHOEBE_minimizer_feedback;
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new       ();

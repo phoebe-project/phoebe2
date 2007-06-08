@@ -43,7 +43,7 @@ int               phoebe_parameter_add          (char *qualifier, char *descript
 unsigned int      phoebe_parameter_hash         (char *qualifier);
 int               phoebe_parameter_commit       (PHOEBE_parameter *par);
 PHOEBE_parameter *phoebe_parameter_lookup       (char *qualifier);
-int               phoebe_parameter_add_option   (char *qualifier, char *option);
+int               phoebe_parameter_add_option   (PHOEBE_parameter *par, char *option);
 int               phoebe_parameter_update_deps  (PHOEBE_parameter *par, int oldval);
 int               phoebe_parameter_free         (PHOEBE_parameter *par);
 

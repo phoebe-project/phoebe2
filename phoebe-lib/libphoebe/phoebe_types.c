@@ -2032,9 +2032,6 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	feedback->chi2s      = phoebe_vector_new ();
 	feedback->wchi2s     = phoebe_vector_new ();
 
-#warning OBSOLETE
-	feedback->indices    = phoebe_array_new  (TYPE_INT_ARRAY);
-
 	return feedback;
 }
 
@@ -2063,9 +2060,6 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tb
 	phoebe_vector_alloc (feedback->ferrors,    tba);
 	phoebe_vector_alloc (feedback->chi2s,      cno);
 	phoebe_vector_alloc (feedback->wchi2s,     cno);
-
-#warning OBSOLETE
-	phoebe_array_alloc  (feedback->indices,  tba);
 
 	return SUCCESS;
 }
@@ -2101,9 +2095,6 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup->chi2s      = phoebe_vector_duplicate (feedback->chi2s);
 	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
 
-#warning OBSOLETE
-	dup->indices    = phoebe_array_duplicate  (feedback->indices);
-
 	return dup;
 }
 
@@ -2122,9 +2113,6 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 	phoebe_vector_free (feedback->ferrors);
 	phoebe_vector_free (feedback->chi2s);
 	phoebe_vector_free (feedback->wchi2s);
-
-#warning OBSOLETE
-	phoebe_array_free  (feedback->indices);
 
 	free (feedback);
 
