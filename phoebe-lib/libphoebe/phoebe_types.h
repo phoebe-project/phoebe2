@@ -272,10 +272,6 @@ typedef union anytype {
 	PHOEBE_curve              *curve;
 	PHOEBE_spectrum           *spectrum;
 	PHOEBE_minimizer_feedback *feedback;
-	int                       *iarray;
-	double                    *darray;
-	bool                      *barray;
-	char                     **strarray;
 } anytype;
 
 /******************************************************************************/
