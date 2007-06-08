@@ -64,7 +64,7 @@ char *parse_data_line (char *in)
 	return value;
 }
 
-int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_output_dep var)
+int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_column_type dtype)
 {
 	/*
 	 * This function creates a WD input file 'lcin.active' and calls LC to
@@ -92,20 +92,20 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	if (!indep)
 		return ERROR_VECTOR_NOT_INITIALIZED;
 
-	switch (var) {
-		case OUTPUT_TOTAL_FLUX:
+	switch (dtype) {
+		case PHOEBE_COLUMN_FLUX:
 			mpage = 1;
 			curve->type = PHOEBE_CURVE_LC;
 		break;
-		case OUTPUT_MAGNITUDE:
+		case PHOEBE_COLUMN_MAGNITUDE:
 			mpage = 1;
 			curve->type = PHOEBE_CURVE_LC;
 		break;
-		case OUTPUT_PRIMARY_RV:
+		case PHOEBE_COLUMN_PRIMARY_RV:
 			mpage = 2;
 			curve->type = PHOEBE_CURVE_RV;
 		break;
-		case OUTPUT_SECONDARY_RV:
+		case PHOEBE_COLUMN_SECONDARY_RV:
 			mpage = 2;
 			curve->type = PHOEBE_CURVE_RV;
 		break;
@@ -127,31 +127,21 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	filename = resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
 
-	switch (var) {
-		case OUTPUT_MAGNITUDE:
+	switch (dtype) {
+		case PHOEBE_COLUMN_MAGNITUDE:
 			call_wd_to_get_fluxes (curve, indep);
 /*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
-		case OUTPUT_PRIMARY_FLUX:
+		case PHOEBE_COLUMN_FLUX:
 			call_wd_to_get_fluxes (curve, indep);
 /*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
-		case OUTPUT_SECONDARY_FLUX:
-			call_wd_to_get_fluxes (curve, indep);
-/*			apply_third_light_correction (curve, el3units, el3value);*/
-			apply_extinction_correction (curve, A);
-		break;
-		case OUTPUT_TOTAL_FLUX:
-			call_wd_to_get_fluxes (curve, indep);
-/*			apply_third_light_correction (curve, el3units, el3value);*/
-			apply_extinction_correction (curve, A);
-		break;
-		case OUTPUT_PRIMARY_RV:
+		case PHOEBE_COLUMN_PRIMARY_RV:
 			call_wd_to_get_rv1    (curve, indep);
 		break;
-		case OUTPUT_SECONDARY_RV:
+		case PHOEBE_COLUMN_SECONDARY_RV:
 			call_wd_to_get_rv2    (curve, indep);
 		break;
 	}
@@ -159,13 +149,13 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	remove (filename);
 	free (filename);
 
-	if ( var == OUTPUT_MAGNITUDE ) {
+	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
 		double mnorm;
 		phoebe_get_parameter_value ("phoebe_mnorm", &mnorm);
 		transform_flux_to_magnitude (curve->dep, mnorm);
 	}
 
-	if ( var == OUTPUT_PRIMARY_RV || var == OUTPUT_SECONDARY_RV ) {
+	if (dtype == PHOEBE_COLUMN_PRIMARY_RV || dtype == PHOEBE_COLUMN_SECONDARY_RV) {
 		for (i = 0; i < curve->dep->dim; i++)
 			curve->dep->val[i] *= 100.0;
 	}

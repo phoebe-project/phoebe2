@@ -277,7 +277,7 @@ int calculate_model_level (double *level, int curve, PHOEBE_vector *indep)
 
 	syncurve = phoebe_curve_new ();
 
-	status = read_in_synthetic_data (syncurve, indep, curve, OUTPUT_TOTAL_FLUX);
+	status = read_in_synthetic_data (syncurve, indep, curve, PHOEBE_COLUMN_FLUX);
 	if (status != SUCCESS) return status;
 
 	status = calculate_average (level, syncurve->dep);
@@ -308,9 +308,9 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 		rv1ptsno = rv1_indep->dim;
 
 		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
-			status = read_in_synthetic_data (syncurve, rv1_indep, 0, OUTPUT_PRIMARY_RV);
+			status = read_in_synthetic_data (syncurve, rv1_indep, 0, PHOEBE_COLUMN_PRIMARY_RV);
 		else
-			status = read_in_synthetic_data (syncurve, rv1_indep, 0, OUTPUT_SECONDARY_RV);
+			status = read_in_synthetic_data (syncurve, rv1_indep, 0, PHOEBE_COLUMN_SECONDARY_RV);
 
 		if (status != SUCCESS) {
 			phoebe_curve_free (syncurve);
@@ -330,9 +330,9 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 		rv2ptsno = rv2_indep->dim;
 
 		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
-			status = read_in_synthetic_data (syncurve, rv2_indep, 1, OUTPUT_PRIMARY_RV);
+			status = read_in_synthetic_data (syncurve, rv2_indep, 1, PHOEBE_COLUMN_PRIMARY_RV);
 		else
-			status = read_in_synthetic_data (syncurve, rv2_indep, 1, OUTPUT_SECONDARY_RV);
+			status = read_in_synthetic_data (syncurve, rv2_indep, 1, PHOEBE_COLUMN_SECONDARY_RV);
 
 		if (status != SUCCESS) {
 			phoebe_curve_free (syncurve);
