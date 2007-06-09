@@ -50,13 +50,14 @@ int intern_phoebe_variables_init ()
 
 	PHOEBE_PARAMETERS_FILENAME = strdup ("Undefined");
 
+	PHOEBE_pt = phoebe_malloc (sizeof (*PHOEBE_pt));
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
+		PHOEBE_pt->elem[i] = NULL;
+
 	/*
 	 * The following are global parameter variables. Since they will be dynami-
 	 * cally stored by phoebe_realloc, we need to set it to NULL.
 	 */
-
-	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
-		PHOEBE_pt[i] = NULL;
 
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;

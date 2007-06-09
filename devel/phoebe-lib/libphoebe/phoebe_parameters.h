@@ -41,8 +41,8 @@ typedef struct PHOEBE_parameter
 PHOEBE_parameter *phoebe_parameter_new          ();
 int               phoebe_parameter_add          (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...);
 unsigned int      phoebe_parameter_hash         (char *qualifier);
-int               phoebe_parameter_commit       (PHOEBE_parameter *par);
 PHOEBE_parameter *phoebe_parameter_lookup       (char *qualifier);
+int               phoebe_parameter_commit       (PHOEBE_parameter *par);
 int               phoebe_parameter_add_option   (PHOEBE_parameter *par, char *option);
 int               phoebe_parameter_update_deps  (PHOEBE_parameter *par, int oldval);
 int               phoebe_parameter_free         (PHOEBE_parameter *par);
@@ -69,7 +69,14 @@ typedef struct PHOEBE_pt_bucket {
 	struct PHOEBE_pt_bucket *next;
 } PHOEBE_pt_bucket;
 
-PHOEBE_pt_bucket *PHOEBE_pt[PHOEBE_PT_HASH_BUCKETS];
+typedef struct PHOEBE_parameter_table {
+	PHOEBE_pt_bucket *elem[PHOEBE_PT_HASH_BUCKETS];
+	struct {
+		PHOEBE_parameter_list *marked_tba;
+	} lists;
+} PHOEBE_parameter_table;
+
+PHOEBE_parameter_table *PHOEBE_pt;
 
 /******************************************************************************/
 
