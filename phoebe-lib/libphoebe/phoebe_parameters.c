@@ -437,23 +437,23 @@ unsigned int phoebe_parameter_hash (char *qualifier)
 int phoebe_parameter_commit (PHOEBE_parameter *par)
 {
 	int hash = phoebe_parameter_hash (par->qualifier);
-	PHOEBE_pt_bucket *bucket_element = PHOEBE_pt[hash];
+	PHOEBE_pt_bucket *elem = PHOEBE_pt->elem[hash];
 
-	while (bucket_element) {
-		if (strcmp (bucket_element->par->qualifier, par->qualifier) == 0) break;
-		bucket_element = bucket_element->next;
+	while (elem) {
+		if (strcmp (elem->par->qualifier, par->qualifier) == 0) break;
+		elem = elem->next;
 	}
 
-	if (bucket_element) {
+	if (elem) {
 		phoebe_lib_error ("parameter %s already declared, ignoring.\n", par->qualifier);
 		return SUCCESS;
 	}
 	else {
-		bucket_element = phoebe_malloc (sizeof (*bucket_element));
+		elem = phoebe_malloc (sizeof (*elem));
 
-		bucket_element->par  = par;
-		bucket_element->next = PHOEBE_pt[hash];
-		PHOEBE_pt[hash] = bucket_element;
+		elem->par  = par;
+		elem->next = PHOEBE_pt->elem[hash];
+		PHOEBE_pt->elem[hash] = elem;
 	}
 
 	phoebe_debug ("parameter %s added to bucket %d.\n", par->qualifier, hash);
@@ -463,7 +463,7 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 {
 	unsigned int hash = phoebe_parameter_hash (qualifier);
-	PHOEBE_pt_bucket *elem = PHOEBE_pt[hash];
+	PHOEBE_pt_bucket *elem = PHOEBE_pt->elem[hash];
 
 	while (elem) {
 		if (strcmp (elem->par->qualifier, qualifier) == 0) break;
@@ -530,13 +530,14 @@ int phoebe_free_parameters ()
 	PHOEBE_pt_bucket *elem;
 
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
-		while (PHOEBE_pt[i]) {
-			elem = PHOEBE_pt[i];
-			PHOEBE_pt[i] = elem->next;
+		while (PHOEBE_pt->elem[i]) {
+			elem = PHOEBE_pt->elem[i];
+			PHOEBE_pt->elem[i] = elem->next;
 			phoebe_parameter_free (elem->par);
 			free (elem);
 		}
 	}
+	free (PHOEBE_pt);
 
 	return SUCCESS;
 }
@@ -1470,7 +1471,7 @@ int phoebe_save_parameter_file (const char *filename)
 
 	/* Traverse the parameter table and save parameters one by one: */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
-		elem = PHOEBE_pt[i];
+		elem = PHOEBE_pt->elem[i];
 		while (elem) {
 			intern_save_to_parameter_file (elem->par, parameter_file);
 			elem = elem->next;
