@@ -56,7 +56,7 @@ on_phoebe_settings_configuration_menuitem_activate
                                        (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-    gtk_widget_show(phoebe_settings_window);
+
 }
 
 
@@ -172,20 +172,38 @@ on_phoebe_data_rvoptions_ssepe_checkbutton_toggled
 
 void
 on_phoebe_data_lc_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
+                                        (GtkTreeView      *treeview,
+                                        GtkTreePath       *path,
                                         GtkTreeViewColumn *column,
-                                        gpointer         user_data)
+                                        gpointer           user_data)
 {
-
+    g_print("Hello!");
 }
+
+
+void  
+on_phoebe_data_lc_treeview_cursor_changed
+                                        (GtkTreeView *tree_view,
+                                         gpointer     user_data)
+{
+    // g_print("Hello!");
+    
+    GtkTreePath **path;
+    GtkTreeViewColumn **focus_column;
+    
+    gtk_tree_view_get_cursor (tree_view, path, focus_column);
+    if(path == NULL)g_print("NULL");
+    else g_print("SUCCESS");
+}                                                        
 
 
 void
 on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+    GtkTreeIter   iter;
+    gtk_list_store_append(lc_curves_model, &iter);
+    gtk_list_store_set(lc_curves_model, &iter, 0, "Name me!", 1, "Some passband", 2, "HJD?", 4, "Absolute error", -1); 
 }
 
 
@@ -3266,7 +3284,7 @@ on_phoebe_settings_window_delete_event (GtkWidget *widget,
                                         GdkEvent  *event,
                                         gpointer   user_data)
 {
-    gtk_widget_hide(phoebe_settings_window);
+
 }
 
 void
@@ -3274,7 +3292,7 @@ on_phoebe_settings_ok_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
-    gtk_widget_hide(phoebe_settings_window);
+
 }
 
 void
@@ -3290,5 +3308,5 @@ on_phoebe_settings_cancel_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
-    gtk_widget_hide(phoebe_settings_window);
+
 }
