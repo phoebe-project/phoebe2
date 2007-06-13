@@ -47,9 +47,6 @@ int               phoebe_parameter_add_option   (PHOEBE_parameter *par, char *op
 int               phoebe_parameter_update_deps  (PHOEBE_parameter *par, int oldval);
 int               phoebe_parameter_free         (PHOEBE_parameter *par);
 
-int               phoebe_get_parameter_value    (char *qualifier, ...);
-int               phoebe_set_parameter_value    (char *qualifier, ...);
-
 bool              phoebe_parameter_menu_option_is_valid (char *qualifier, char *option);
 
 int               phoebe_init_parameters        ();
@@ -80,20 +77,23 @@ PHOEBE_parameter_table *PHOEBE_pt;
 
 /******************************************************************************/
 
-int phoebe_get_parameter_tba          (char *qualifier, bool *tba);
-int phoebe_set_parameter_tba          (char *qualifier, bool  tba);
+int phoebe_parameter_get_value        (char *qualifier, ...);
+int phoebe_parameter_set_value        (char *qualifier, ...);
 
-int phoebe_get_parameter_step         (char *qualifier, double *step);
-int phoebe_set_parameter_step         (char *qualifier, double  step);
+int phoebe_parameter_get_tba          (char *qualifier, bool *tba);
+int phoebe_parameter_set_tba          (char *qualifier, bool  tba);
 
-int phoebe_get_parameter_lower_limit  (char *qualifier, double *valmin);
-int phoebe_set_parameter_lower_limit  (char *qualifier, double  valmin);
+int phoebe_parameter_get_step         (char *qualifier, double *step);
+int phoebe_parameter_set_step         (char *qualifier, double  step);
 
-int phoebe_get_parameter_upper_limit  (char *qualifier, double *valmax);
-int phoebe_set_parameter_upper_limit  (char *qualifier, double  valmax);
+int phoebe_parameter_get_lower_limit  (char *qualifier, double *valmin);
+int phoebe_parameter_set_lower_limit  (char *qualifier, double  valmin);
 
-int phoebe_get_parameter_limits       (char *qualifier, double *valmin, double *valmax);
-int phoebe_set_parameter_limits       (char *qualifier, double  valmin, double  valmax);
+int phoebe_parameter_get_upper_limit  (char *qualifier, double *valmax);
+int phoebe_parameter_set_upper_limit  (char *qualifier, double  valmax);
+
+int phoebe_parameter_get_limits       (char *qualifier, double *valmin, double *valmax);
+int phoebe_parameter_set_limits       (char *qualifier, double  valmin, double  valmax);
 
 /* ***************************   Third light   ****************************** */
 

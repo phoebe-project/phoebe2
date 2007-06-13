@@ -300,7 +300,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	int rv1ptsno = 0, rv2ptsno = 0;
 
 	if (rv1_indep && rv1_dep) {
-		phoebe_get_parameter_value ("phoebe_rv_dep", 0, &depvalstr);
+		phoebe_parameter_get_value ("phoebe_rv_dep", 0, &depvalstr);
 		status = phoebe_column_type_from_string (depvalstr, &dtype);
 		if (status != SUCCESS) return status;
 
@@ -322,7 +322,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	}
 
 	if (rv2_indep && rv2_dep) {
-		phoebe_get_parameter_value ("phoebe_rv_dep", 1, &depvalstr);
+		phoebe_parameter_get_value ("phoebe_rv_dep", 1, &depvalstr);
 		status = phoebe_column_type_from_string (depvalstr, &dtype);
 		if (status != SUCCESS) return status;
 
