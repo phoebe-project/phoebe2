@@ -620,7 +620,7 @@ bool phoebe_parameter_menu_option_is_valid (char *qualifier, char *option)
 	return FALSE;
 }
 
-int phoebe_get_parameter_value (char *qualifier, ...)
+int phoebe_parameter_get_value (char *qualifier, ...)
 {
 	/*
 	 * This is the public function for providing the values of parameters
@@ -630,7 +630,7 @@ int phoebe_get_parameter_value (char *qualifier, ...)
 	 *
 	 * Synopsis:
 	 *
-	 *   phoebe_get_parameter_value (qualifier, [index, ], &value)
+	 *   phoebe_parameter_get_value (qualifier, [index, ], &value)
 	 *
 	 * Return values:
 	 *
@@ -705,7 +705,7 @@ int phoebe_get_parameter_value (char *qualifier, ...)
 			}
 		break;
 		default:
-			phoebe_lib_error ("exception handler invoked in phoebe_get_parameter_value (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked in phoebe_parameter_get_value (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 	va_end (args);
@@ -713,7 +713,7 @@ int phoebe_get_parameter_value (char *qualifier, ...)
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_value (char *qualifier, ...)
+int phoebe_parameter_set_value (char *qualifier, ...)
 {
 	/*
 	 * This is the public function for changing qualifier values. It is the
@@ -722,7 +722,7 @@ int phoebe_set_parameter_value (char *qualifier, ...)
 	 *
 	 * Synopsis:
 	 *
-	 *   phoebe_set_parameter_value (qualifier, [curve, ] value)
+	 *   phoebe_parameter_set_value (qualifier, [curve, ] value)
 	 *
 	 * Return values:
 	 *
@@ -829,7 +829,7 @@ int phoebe_set_parameter_value (char *qualifier, ...)
 	return SUCCESS;
 }
 
-int phoebe_get_parameter_tba (char *qualifier, bool *tba)
+int phoebe_parameter_get_tba (char *qualifier, bool *tba)
 {
 	/*
 	 * This is a public function for reading out qualifier's TBA (To Be Adjusted
@@ -848,7 +848,7 @@ int phoebe_get_parameter_tba (char *qualifier, bool *tba)
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_tba (char *qualifier, bool tba)
+int phoebe_parameter_set_tba (char *qualifier, bool tba)
 {
 	/*
 	 * This is the public function for changing qualifier's TBA (To Be Adjusted
@@ -868,7 +868,7 @@ int phoebe_set_parameter_tba (char *qualifier, bool tba)
 	return SUCCESS;
 }
 
-int phoebe_get_parameter_step (char *qualifier, double *step)
+int phoebe_parameter_get_step (char *qualifier, double *step)
 {
 	/*
 	 * This is a public function for reading out qualifier's step size used
@@ -887,7 +887,7 @@ int phoebe_get_parameter_step (char *qualifier, double *step)
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_step (char *qualifier, double step)
+int phoebe_parameter_set_step (char *qualifier, double step)
 {
 	/*
 	 * This is the public function for changing qualifier step.
@@ -906,7 +906,7 @@ int phoebe_set_parameter_step (char *qualifier, double step)
 	return SUCCESS;
 }
 
-int phoebe_get_parameter_lower_limit (char *qualifier, double *valmin)
+int phoebe_parameter_get_lower_limit (char *qualifier, double *valmin)
 {
 	/*
 	 * This is the public function for reading out the lower parameter limit.
@@ -924,7 +924,7 @@ int phoebe_get_parameter_lower_limit (char *qualifier, double *valmin)
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_lower_limit (char *qualifier, double valmin)
+int phoebe_parameter_set_lower_limit (char *qualifier, double valmin)
 {
 	/*
 	 * This is the public function for changing the lower parameter limit.
@@ -942,7 +942,7 @@ int phoebe_set_parameter_lower_limit (char *qualifier, double valmin)
 	return SUCCESS;
 }
 
-int phoebe_get_parameter_upper_limit (char *qualifier, double *valmax)
+int phoebe_parameter_get_upper_limit (char *qualifier, double *valmax)
 {
 	/*
 	 * This is the public function for reading out the upper parameter limit.
@@ -960,7 +960,7 @@ int phoebe_get_parameter_upper_limit (char *qualifier, double *valmax)
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_upper_limit (char *qualifier, double valmax)
+int phoebe_parameter_set_upper_limit (char *qualifier, double valmax)
 {
 	/*
 	 * This is the public function for changing the upper parameter limit.
@@ -978,7 +978,7 @@ int phoebe_set_parameter_upper_limit (char *qualifier, double valmax)
 	return SUCCESS;
 }
 
-int phoebe_get_parameter_limits (char *qualifier, double *valmin, double *valmax)
+int phoebe_parameter_get_limits (char *qualifier, double *valmin, double *valmax)
 {
 	/*
 	 * This is the public function for reading out qualifier limits.
@@ -998,7 +998,7 @@ int phoebe_get_parameter_limits (char *qualifier, double *valmin, double *valmax
 	return SUCCESS;
 }
 
-int phoebe_set_parameter_limits (char *qualifier, double valmin, double valmax)
+int phoebe_parameter_set_limits (char *qualifier, double valmin, double valmax)
 {
 	/*
 	 * This is the public function for changing qualifier limits.
@@ -1027,7 +1027,7 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 	 */
 
 	const char *el3str;
-	phoebe_get_parameter_value ("phoebe_el3_units", &el3str);
+	phoebe_parameter_get_value ("phoebe_el3_units", &el3str);
 
 	*el3_units = PHOEBE_EL3_UNITS_INVALID_ENTRY;
 	if (strcmp (el3str, "Total light") == 0) *el3_units = PHOEBE_EL3_UNITS_TOTAL_LIGHT;

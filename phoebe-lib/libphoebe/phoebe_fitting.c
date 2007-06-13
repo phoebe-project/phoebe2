@@ -136,7 +136,7 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 			/* INCL.                                                                */
 /*
 			double sma, incl, asini;
-			phoebe_get_parameter_value ("phoebe_asini", &asini);
+			phoebe_parameter_get_value ("phoebe_asini", &asini);
 
 			for (i = 0; i < tba; i++) {
 				if (strcmp (PHOEBE_parameters[indices[i]].qualifier, "phoebe_sma") == 0) {
@@ -164,7 +164,7 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 		for (i = 0; i < tba; i++)
 			*pointers[curve][i] = gsl_vector_get (adjpars, i);
 
-		phoebe_get_parameter_value ("phoebe_extinction", curve, &A);
+		phoebe_parameter_get_value ("phoebe_extinction", curve, &A);
 
 		status = phoebe_el3_units_id (&el3units);
 		if (status != SUCCESS) {
@@ -280,7 +280,7 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 
 		if (ASINI) {
 			double sma, incl, asini;
-			phoebe_get_parameter_value ("phoebe_asini", &asini);
+			phoebe_parameter_get_value ("phoebe_asini", &asini);
 
 			for (i = 0; i < tba; i++) {
 				if (strcmp (PHOEBE_parameters[indices[i]].qualifier, "phoebe_sma") == 0) {
@@ -419,8 +419,8 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 	phoebe_debug ("entering downhill simplex minimizer.\n");
 
-	phoebe_get_parameter_value ("phoebe_indep", &indep);
-	phoebe_get_parameter_value ("phoebe_dpdt",  &dpdt);
+	phoebe_parameter_get_value ("phoebe_indep", &indep);
+	phoebe_parameter_get_value ("phoebe_dpdt",  &dpdt);
 */
 	/* Before we do anything, let's check whether the setup is sane: */
 /*
@@ -443,8 +443,8 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 */
 	/* Count the available curves: */
 /*
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
-	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
 	cno = lcno + rvno;
 	phoebe_debug ("total number of curves (both LC and RV): %d\n", cno);
 
@@ -457,12 +457,12 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 /*
 	phoebe_debug ("checking whether everything's ok with filenames.\n");
 	for (i = 0; i < lcno; i++) {
-		phoebe_get_parameter_value ("phoebe_lc_filename", i, &readout_str);
+		phoebe_parameter_get_value ("phoebe_lc_filename", i, &readout_str);
 		if (!filename_exists (readout_str))
 			return ERROR_MINIMIZER_INVALID_FILE;
 	}
 	for (i = 0; i < rvno; i++) {
-		phoebe_get_parameter_value ("phoebe_rv_filename", i, &readout_str);
+		phoebe_parameter_get_value ("phoebe_rv_filename", i, &readout_str);
 		if (!filename_exists (readout_str))
 			return ERROR_MINIMIZER_INVALID_FILE;
 	}
@@ -471,7 +471,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 /*
 	passed_pars.rv1 = FALSE; passed_pars.rv2 = FALSE;
 	for (i = 0; i < rvno; i++) {
-		phoebe_get_parameter_value ("phoebe_rv_dep", i, &readout_str);
+		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
 		status = phoebe_column_type_from_string (readout_str, &dtype);
 		if (status != SUCCESS) return status;
 
@@ -484,7 +484,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 */
 	/* Do we work in HJD-space or in phase-space? */
 /*
-	phoebe_get_parameter_value ("phoebe_indep", &readout_str);
+	phoebe_parameter_get_value ("phoebe_indep", &readout_str);
 	if (strcmp (readout_str, "Time (HJD)")  == 0) master_indep = PHOEBE_COLUMN_HJD;
 	else if (strcmp (readout_str, "Phase") == 0)  master_indep = PHOEBE_COLUMN_PHASE;
 	else return ERROR_INVALID_MAIN_INDEP;
@@ -601,21 +601,21 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 		/* Read in the LC data: */
 /*
 		if (curve < lcno) {
-			phoebe_get_parameter_value ("phoebe_lc_filename", curve, &filename);
+			phoebe_parameter_get_value ("phoebe_lc_filename", curve, &filename);
 
-			phoebe_get_parameter_value ("phoebe_lc_filter", curve, &passband);
+			phoebe_parameter_get_value ("phoebe_lc_filter", curve, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 
-			phoebe_get_parameter_value ("phoebe_lc_indep", curve, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_indep", curve, &readout_str);
 			phoebe_column_type_from_string (readout_str, &itype);
 
-			phoebe_get_parameter_value ("phoebe_lc_dep", curve, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_dep", curve, &readout_str);
 			phoebe_column_type_from_string (readout_str, &dtype);
 
-			phoebe_get_parameter_value ("phoebe_lc_indweight", curve, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_indweight", curve, &readout_str);
 			phoebe_column_type_from_string (readout_str, &wtype);
 
-			phoebe_get_parameter_value ("phoebe_lc_sigma", curve, &sigma);
+			phoebe_parameter_get_value ("phoebe_lc_sigma", curve, &sigma);
 
 			obs[curve] = phoebe_curve_new_from_file ((char *) filename);
 			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
@@ -625,21 +625,21 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 		/* Read in the RV data: */
 /*
 		else {
-			phoebe_get_parameter_value ("phoebe_rv_filename", curve-lcno, &filename);
+			phoebe_parameter_get_value ("phoebe_rv_filename", curve-lcno, &filename);
 
-			phoebe_get_parameter_value ("phoebe_rv_filter", curve-lcno, &passband);
+			phoebe_parameter_get_value ("phoebe_rv_filter", curve-lcno, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 
-			phoebe_get_parameter_value ("phoebe_rv_indep", curve-lcno, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_indep", curve-lcno, &readout_str);
 			phoebe_column_type_from_string (readout_str, &itype);
 
-			phoebe_get_parameter_value ("phoebe_rv_dep", curve-lcno, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_dep", curve-lcno, &readout_str);
 			phoebe_column_type_from_string (readout_str, &dtype);
 
-			phoebe_get_parameter_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
 			phoebe_column_type_from_string (readout_str, &wtype);
 
-			phoebe_get_parameter_value ("phoebe_rv_sigma", curve-lcno, &sigma);
+			phoebe_parameter_get_value ("phoebe_rv_sigma", curve-lcno, &sigma);
 
 			obs[curve] = phoebe_curve_new_from_file ((char *) filename);
 			phoebe_curve_set_properties (obs[curve], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
@@ -654,7 +654,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 
 		weight[curve] = 1./sigma/sigma;
 
-		phoebe_get_parameter_value ("phoebe_cindex", curve, &(cindex[curve]));
+		phoebe_parameter_get_value ("phoebe_cindex", curve, &(cindex[curve]));
 
 		status = calculate_weighted_average (&(average[curve]), obs[curve]->dep, obs[curve]->weight);
 	}
@@ -776,7 +776,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	if (CALCHLA == 1) {
 		phoebe_index_from_qualifier (&parindex, "phoebe_hla");
 		for (i = 0; i < lcno; i++) {
-			phoebe_get_parameter_value ("phoebe_hla", i, &parvalue);
+			phoebe_parameter_get_value ("phoebe_hla", i, &parvalue);
 			feedback->qualifiers->val.strarray[index] = strdup ("phoebe_hla");
 			feedback->initvals->val[index] = parvalue;
 			feedback->newvals->val[index] = params[i].HLA;
@@ -791,7 +791,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 /*
 	if (CALCVGA == 1) {
 		phoebe_index_from_qualifier (&parindex, "phoebe_vga");
-		phoebe_get_parameter_value ("phoebe_vga", &parvalue);
+		phoebe_parameter_get_value ("phoebe_vga", &parvalue);
 
 		feedback->qualifiers->val.strarray[index] = strdup ("phoebe_vga");
 		feedback->initvals->val[index] = parvalue;
@@ -897,8 +897,8 @@ int kick_parameters (double sigma)
 */
 	/* Count the available curves:                                            */
 /*
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
-	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
 */
 	/* The following block reads out parameters marked for adjustment:        */
 /*
@@ -907,7 +907,7 @@ int kick_parameters (double sigma)
 	for (i = 0; i < to_be_adjusted; i++)
 		if (PHOEBE_parameters[indices[i]].type == TYPE_DOUBLE)
 			{
-			phoebe_set_parameter_value (PHOEBE_parameters[indices[i]].qualifier, initvals[i] + gsl_ran_gaussian (PHOEBE_randomizer, sigma * initvals[i]));
+			phoebe_parameter_set_value (PHOEBE_parameters[indices[i]].qualifier, initvals[i] + gsl_ran_gaussian (PHOEBE_randomizer, sigma * initvals[i]));
 			phoebe_debug ("  kicked %s from %lf to %lf\n", PHOEBE_parameters[indices[i]].qualifier, initvals[i], PHOEBE_parameters[indices[i]].value.d);
 			}
 		else
@@ -1051,13 +1051,13 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	phoebe_get_parameter_value ("phoebe_compute_hla_switch", &calchla);
+	phoebe_parameter_get_value ("phoebe_compute_hla_switch", &calchla);
 	if (params->nlc == 0) calchla = 0;
 
-	phoebe_get_parameter_value ("phoebe_compute_vga_switch", &calcvga);
+	phoebe_parameter_get_value ("phoebe_compute_vga_switch", &calcvga);
 	if (rvno == 0) calcvga = 0;
 
-	phoebe_get_parameter_value ("phoebe_cindex_switch",      &cindex);
+	phoebe_parameter_get_value ("phoebe_cindex_switch",      &cindex);
 
 	corrections = phoebe_malloc (marked_tba * sizeof (*corrections));
 	errors      = phoebe_malloc (marked_tba * sizeof (*errors));
@@ -1098,7 +1098,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	if (cindex) {
 		for (i = rvno + 1; i < rvno + params->nlc; i++) {
 			double cindex;
-			phoebe_get_parameter_value ("phoebe_cindex", i-rvno, &cindex);
+			phoebe_parameter_get_value ("phoebe_cindex", i-rvno, &cindex);
 			params->hla[i] = params->hla[rvno] * cindex;
 		}
 	}
@@ -1137,7 +1137,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	if (calchla == TRUE)
 		for (i = rvno; i < rvno + params->nlc; i++) {
 			int idx;
-			phoebe_get_parameter_value ("phoebe_hla", i-rvno, &parvalue);
+			phoebe_parameter_get_value ("phoebe_hla", i-rvno, &parvalue);
 			fprintf (dc_output, "%s[%d]", pars[30], i-rvno+1);
 			for (idx = strlen("phoebe_hla"); idx <= 12; idx++) fprintf (dc_output, " ");
 			fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->hla[i] - parvalue, params->hla[i], "n/a");
@@ -1154,7 +1154,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		}
 
 	if (calcvga == TRUE) {
-		phoebe_get_parameter_value ("phoebe_vga", &parvalue);
+		phoebe_parameter_get_value ("phoebe_vga", &parvalue);
 		fprintf (dc_output, "phoebe_vga      %12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->vga - parvalue, params->vga, "n/a");
 
 		phoebe_index_from_qualifier (&qindex, "phoebe_vga");
@@ -1172,7 +1172,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		if (params->tba[i] == 0) {
 			if (i < 29) {
 				int idx;
-				status = phoebe_get_parameter_value (pars[i], &parvalue);
+				status = phoebe_parameter_get_value (pars[i], &parvalue);
 				if (status != SUCCESS) return status;
 				fprintf (dc_output, "%s", pars[i]);
 				if (strcmp (pars[i],   "phoebe_vga") == 0) { corrections[index-calchla*params->nlc-calcvga] *=   100.0; errors[index-calchla*params->nlc-calcvga] *=   100.0; }
@@ -1196,7 +1196,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 				for (j = 0; j < params->nlc; j++) {
 					int idx;
 
-					phoebe_get_parameter_value (pars[i], j, &parvalue);
+					phoebe_parameter_get_value (pars[i], j, &parvalue);
 					if (j == 0) hla0 = parvalue + corrections[index-calchla*params->nlc-calcvga];
 
 					fprintf (dc_output, "%s[%d]", pars[i], j+1);
@@ -1205,7 +1205,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 
 					if (cindex == TRUE && j != 0) {
 						double cindex_val;
-						phoebe_get_parameter_value ("phoebe_cindex", j, &cindex_val);
+						phoebe_parameter_get_value ("phoebe_cindex", j, &cindex_val);
 						fprintf (dc_output, "%12.6lf %12s %12.6lf %12.6lf\n", parvalue, "n/a  ", hla0 * cindex_val, errors[index-calchla*params->nlc-calcvga]);
 					}
 					else {
@@ -1226,7 +1226,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 			if (i > 30) {
 				for (j = 0; j < params->nlc; j++) {
 					int idx;
-					phoebe_get_parameter_value (pars[i], j, &parvalue);
+					phoebe_parameter_get_value (pars[i], j, &parvalue);
 					fprintf (dc_output, "%s[%d]", pars[i], j+1);
 					for (idx = strlen(pars[i]); idx <= 12; idx++) fprintf (dc_output, " ");
 					fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
