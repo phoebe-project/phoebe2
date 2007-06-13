@@ -860,10 +860,53 @@ int phoebe_parameter_set_tba (char *qualifier, bool tba)
 	 *   SUCCESS
 	 */
 
+	PHOEBE_parameter_list *list, *prev = NULL;
 	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->tba = tba;
+
+	/*
+	 * Now we need to add or remove the parameter from the TBA list in the
+	 * parameter table:
+	 */
+
+	list = PHOEBE_pt->lists.marked_tba;
+	if (tba) {
+		while (list) {
+			if (list->elem == par) break;
+			list = list->next;
+		}
+		if (!list) {
+			list = phoebe_malloc (sizeof (*list));
+			list->elem = par;
+			list->next = PHOEBE_pt->lists.marked_tba;
+			PHOEBE_pt->lists.marked_tba = list;
+			phoebe_debug ("Parameter %s added to the tba list.\n", list->elem->qualifier);
+		}
+		else {
+			/* The parameter is already in the list, nothing to be done. */
+		}
+	}
+	else /* if (!tba) */ {
+		while (list) {
+			if (list->elem == par) break;
+			prev = list;
+			list = list->next;
+		}
+		if (list) {
+			if (prev)
+				prev->next = list->next;
+			else {
+				PHOEBE_pt->lists.marked_tba = list->next;
+				phoebe_debug ("Parameter %s removed from the tba list.\n", list->elem->qualifier);
+			}
+			free (list);
+		}
+		else {
+			/* The parameter is not in the list, nothing to be done. */
+		}
+	}
 
 	return SUCCESS;
 }
