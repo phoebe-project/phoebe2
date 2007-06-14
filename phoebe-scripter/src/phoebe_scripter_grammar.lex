@@ -197,9 +197,9 @@ testme          return TESTME;
 			return BOOLEAN;
 			}
 {WORD}		{
-            int dummy;
+			int dummy;
 			yylval.str = strdup (yytext);
-			if (phoebe_index_from_qualifier (&dummy, yylval.str) == SUCCESS) return QUALIFIER;
+			if (phoebe_parameter_lookup (yylval.str)) return QUALIFIER;
 			if (scripter_command_get_index (yylval.str, &dummy) == SUCCESS)  return COMMAND;
 			return IDENT;
 			}

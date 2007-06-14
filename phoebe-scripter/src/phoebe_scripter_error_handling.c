@@ -75,7 +75,7 @@ int phoebe_scripter_output (const char *fmt, ...)
 	int r;
 	int verbosity;
 
-	phoebe_get_parameter_value ("scripter_verbosity_level", &verbosity);
+	phoebe_parameter_get_value ("scripter_verbosity_level", &verbosity);
 	if (verbosity == 0) return 0;
 
 	printf ("PHOEBE scripter: ");

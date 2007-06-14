@@ -98,7 +98,7 @@ scripter_ast_value scripter_open_parameter_file (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_string);
 	if (status != SUCCESS) return out;
 
-	status = open_parameter_file (vals[0].value.str);
+	status = phoebe_open_parameter_file (vals[0].value.str);
 
 	if (status != SUCCESS)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -127,7 +127,7 @@ scripter_ast_value scripter_save_parameter_file (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_string);
 	if (status != SUCCESS) return out;
 
-	status = save_parameter_file (vals[0].value.str);
+	status = phoebe_save_parameter_file (vals[0].value.str);
 	if (status != SUCCESS)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
@@ -213,7 +213,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, val.value.i);
+			status = phoebe_parameter_set_value (qualifier.value.str, val.value.i);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -235,7 +235,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, val.value.b);
+			status = phoebe_parameter_set_value (qualifier.value.str, val.value.b);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -257,7 +257,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, val.value.d);
+			status = phoebe_parameter_set_value (qualifier.value.str, val.value.d);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -280,7 +280,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, val.value.str);
+			status = phoebe_parameter_set_value (qualifier.value.str, val.value.str);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -316,7 +316,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, index.value.i-1, val.value.i);
+			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.i);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -354,7 +354,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, index.value.i-1, val.value.b);
+			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.b);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -392,7 +392,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, index.value.i-1, val.value.d);
+			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.d);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -430,7 +430,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_set_parameter_value (qualifier.value.str, index.value.i-1, val.value.str);
+			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.str);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
@@ -482,7 +482,7 @@ scripter_ast_value scripter_mark_for_adjustment (scripter_ast_list *args)
 		return out;
 	}
 
-	status = phoebe_set_parameter_tba (vals[0].value.str, vals[1].value.b);
+	status = phoebe_parameter_set_tba (vals[0].value.str, vals[1].value.b);
 	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 2);
@@ -530,7 +530,7 @@ scripter_ast_value scripter_set_parameter_limits (scripter_ast_list *args)
 		return out;
 	}
 
-	status = phoebe_set_parameter_limits (vals[0].value.str, vals[1].value.d, vals[2].value.d);
+	status = phoebe_parameter_set_limits (vals[0].value.str, vals[1].value.d, vals[2].value.d);
 	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 3);
@@ -571,7 +571,7 @@ scripter_ast_value scripter_set_parameter_step (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_set_parameter_step (vals[0].value.str, vals[1].value.d);
+	phoebe_parameter_set_step (vals[0].value.str, vals[1].value.d);
 
 	scripter_ast_value_array_free (vals, 2);
 	return out;
@@ -917,19 +917,19 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 	switch (type) {
 		case (TYPE_INT):
 			out.type = type_int;
-			phoebe_get_parameter_value (vals[0].value.str, &(out.value.i));
+			phoebe_parameter_get_value (vals[0].value.str, &(out.value.i));
 		break;
 		case (TYPE_BOOL):
 			out.type = type_bool;
-			phoebe_get_parameter_value (vals[0].value.str, &(out.value.b));
+			phoebe_parameter_get_value (vals[0].value.str, &(out.value.b));
 		break;
 		case (TYPE_DOUBLE):
 			out.type = type_double;
-			phoebe_get_parameter_value (vals[0].value.str, &(out.value.d));
+			phoebe_parameter_get_value (vals[0].value.str, &(out.value.d));
 		break;
 		case (TYPE_STRING):
 			out.type = type_string;
-			phoebe_get_parameter_value (vals[0].value.str, &(out.value.str));
+			phoebe_parameter_get_value (vals[0].value.str, &(out.value.str));
 		break;
 		case (TYPE_INT_ARRAY):
 			if (vals[1].type == type_void) {
@@ -938,7 +938,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_int;
-				status = phoebe_get_parameter_value (vals[0].value.str, vals[1].value.i, &out.value.i);
+				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.i);
 				if (status != SUCCESS) {
 					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
@@ -953,7 +953,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_bool;
-				status = phoebe_get_parameter_value (vals[0].value.str, vals[1].value.i, &out.value.b);
+				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.b);
 				if (status != SUCCESS) {
 					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
@@ -968,7 +968,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_double;
-				status = phoebe_get_parameter_value (vals[0].value.str, vals[1].value.i, &out.value.d);
+				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.d);
 				if (status != SUCCESS) {
 					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
@@ -984,7 +984,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			else {
 				char *readout;
 				out.type = type_string;
-				status = phoebe_get_parameter_value (vals[0].value.str, vals[1].value.i, &readout);
+				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &readout);
 				if (status != SUCCESS) {
 					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
@@ -1053,7 +1053,7 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 	phoebe_scripter_output ("DC: initiating the minimization.\n");
 
 	feedback = phoebe_minimizer_feedback_new ();
-	status = find_minimum_with_dc (PHOEBE_output, &feedback);
+	status = find_minimum_with_dc (PHOEBE_output, feedback);
 
 	/* Return the minimizer structure value if everything was ok:             */
 	if (status == SUCCESS) {
@@ -1110,7 +1110,7 @@ scripter_ast_value scripter_minimize_using_nms (scripter_ast_list *args)
 	feedback = phoebe_minimizer_feedback_new ();
 
 	/* Call the downhill simplex minimizer:                                   */
-	status = find_minimum_with_nms (vals[0].value.d, vals[1].value.i, PHOEBE_output, &feedback);
+	status = find_minimum_with_nms (vals[0].value.d, vals[1].value.i, PHOEBE_output, feedback);
 
 	/* Return the minimizer structure value if everything was ok:             */
 	if (status == SUCCESS) {
@@ -1155,7 +1155,7 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 	}
 
 	feedback = vals[0].value.feedback;
-	for (i = 0; i < feedback->newvals->dim; i++) {
+	for (i = 0; i < feedback->qualifiers->dim; i++) {
 		/* Get the parameter type from the global parameter table:            */
 		status = phoebe_type_from_index (&type, feedback->indices->val.iarray[i]);
 		if (status != SUCCESS) {
@@ -1174,7 +1174,7 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 					return out;
 				}
 				phoebe_debug ("parameter %s set to %lf\n", qualifier, feedback->newvals->val[i]);
-				phoebe_set_parameter_value ((char *) qualifier, feedback->newvals->val[i]);
+				phoebe_parameter_set_value ((char *) qualifier, feedback->newvals->val[i]);
 			break;
 			case TYPE_DOUBLE_ARRAY:
 				/* This means that it is a passband-dependent parameter.      */
@@ -1185,7 +1185,7 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 					return out;
 				}
 				do {
-					phoebe_set_parameter_value ((char *) qualifier, passband_index, feedback->newvals->val[i+passband_index]);
+					phoebe_parameter_set_value ((char *) qualifier, passband_index, feedback->newvals->val[i+passband_index]);
 					phoebe_debug ("parameter %s[%d] set to %lf\n", qualifier, passband_index, feedback->newvals->val[i+passband_index]);
 					passband_index++;
 				} while (i+passband_index < feedback->newvals->dim && feedback->indices->val.iarray[i] == feedback->indices->val.iarray[i+passband_index]);
@@ -1340,7 +1340,7 @@ scripter_ast_value scripter_transform_flux_to_magnitude (scripter_ast_list *args
 	}
 
 	if (vals[1].type == type_void)
-		phoebe_get_parameter_value ("phoebe_mnorm", &mnorm);
+		phoebe_parameter_get_value ("phoebe_mnorm", &mnorm);
 	else
 		mnorm = vals[1].value.d;
 
@@ -1396,7 +1396,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 
 	/* Is the curve initialized?                                              */
 	curve = vals[0].value.i;
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
 	if (curve <= 0 || curve > lcno) {
 		phoebe_scripter_output ("light curve %d is not initialized, aborting.\n", vals[0].value.i);
 		scripter_ast_value_array_free (vals, 3);
@@ -1409,7 +1409,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		char *passband;
 		PHOEBE_passband *passband_ptr;
 
-		phoebe_get_parameter_value ("phoebe_lc_filename", curve-1, &filename);
+		phoebe_parameter_get_value ("phoebe_lc_filename", curve-1, &filename);
 		if (!filename_exists (filename)) {
 			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
 			scripter_ast_value_array_free (vals, 3);
@@ -1417,19 +1417,19 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		}
 
 		/* Check passband; if invalid, no biggie, but warn that it's missing. */
-		phoebe_get_parameter_value ("phoebe_lc_filter", curve-1, &passband);
+		phoebe_parameter_get_value ("phoebe_lc_filter", curve-1, &passband);
 		passband_ptr = phoebe_passband_lookup (passband);
 		if (!passband_ptr)
 			phoebe_warning ("passband for observational data not set or invalid!\n");
 
 		/* Get column contents: */
-		phoebe_get_parameter_value ("phoebe_lc_indep", curve-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_lc_indep", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_lc_dep", curve-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_lc_dep", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &dtype);
 
-		phoebe_get_parameter_value ("phoebe_lc_indweight", vals[0].value.i-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_lc_indweight", vals[0].value.i-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &wtype);
 
 		lc = phoebe_malloc (sizeof (*lc));
@@ -1548,7 +1548,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 	/* Is the curve initialized?                                              */
 	curve = vals[0].value.i;
-	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
 	if (curve <= 0 || curve > rvno) {
 		phoebe_scripter_output ("RV curve %d is not initialized, aborting.\n", vals[0].value.i);
 		scripter_ast_value_array_free (vals, 3);
@@ -1561,7 +1561,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		char *passband;
 		PHOEBE_passband *passband_ptr;
 
-		phoebe_get_parameter_value ("phoebe_rv_filename", curve-1, &filename);
+		phoebe_parameter_get_value ("phoebe_rv_filename", curve-1, &filename);
 		if (!filename_exists (filename)) {
 			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
 			scripter_ast_value_array_free (vals, 3);
@@ -1569,19 +1569,19 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		}
 
 		/* Check passband; if invalid, no biggie, but warn that it's missing. */
-		phoebe_get_parameter_value ("phoebe_rv_filter", curve-1, &passband);
+		phoebe_parameter_get_value ("phoebe_rv_filter", curve-1, &passband);
 		passband_ptr = phoebe_passband_lookup (passband);
 		if (!passband_ptr)
 			phoebe_warning ("passband for observational data not set or invalid!\n");
 
 		/* Get column contents: */
-		phoebe_get_parameter_value ("phoebe_rv_indep", curve-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_rv_indep", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &itype);
 
-		phoebe_get_parameter_value ("phoebe_rv_dep", curve-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_rv_dep", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &dtype);
 
-		phoebe_get_parameter_value ("phoebe_rv_indweight", curve-1, &readout_str);
+		phoebe_parameter_get_value ("phoebe_rv_indweight", curve-1, &readout_str);
 		phoebe_column_type_from_string (readout_str, &wtype);
 
 		rv = phoebe_malloc (sizeof (*rv));
@@ -1601,18 +1601,10 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	/* Is synthetic data to be plotted?                                         */
 	if (vals[2].value.b) {
 		PHOEBE_vector *indep;
+		PHOEBE_column_type dtype;
 
-		const char *idep_str;
-		PHOEBE_input_dep  idep;
-		PHOEBE_output_dep odep;
-
-		phoebe_get_parameter_value ("phoebe_rv_dep", vals[0].value.i-1, &idep_str);
-		get_input_dependent_variable (idep_str, &idep);
-
-		if (idep == INPUT_PRIMARY_RV)
-			odep = OUTPUT_PRIMARY_RV;
-		else
-			odep = OUTPUT_SECONDARY_RV;
+		phoebe_parameter_get_value ("phoebe_rv_dep", vals[0].value.i-1, &readout_str);
+		phoebe_column_type_from_string (readout_str, &dtype);
 
 		if (vals[1].value.b) index = 1;
 
@@ -1631,7 +1623,10 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		for (i = 0; i < 300; i++) indep->val[i] = -0.6 + 1.2 * (double) i/299;
 
 		/* Read in synthetic data:                                            */
-		status = read_in_synthetic_data (rv[index], indep, vals[0].value.i-1, odep);
+		if (dtype == INPUT_PRIMARY_RV)
+			status = read_in_synthetic_data (rv[index], indep, vals[0].value.i-1, OUTPUT_PRIMARY_RV);
+		else
+			status = read_in_synthetic_data (rv[index], indep, vals[0].value.i-1, OUTPUT_SECONDARY_RV);
 
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -1831,7 +1826,7 @@ scripter_ast_value scripter_plot_using_gnuplot (scripter_ast_list *args)
 		list = list->next;
 		}
 
-	phoebe_get_parameter_value ("plot_reversey_switch", &reverse_y);
+	phoebe_parameter_get_value ("plot_reversey_switch", &reverse_y);
 
 	status = plot_using_gnuplot (dim, reverse_y, indeps, deps, props);
 	if (status != SUCCESS) phoebe_scripter_output (phoebe_scripter_error (status));
@@ -1867,7 +1862,7 @@ scripter_ast_value scripter_compute_lc (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
 
 	if (vals[1].value.i < 1 || vals[1].value.i > lcno) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (ERROR_UNINITIALIZED_CURVE));
@@ -1915,7 +1910,7 @@ scripter_ast_value scripter_set_lc_properties (scripter_ast_list *args)
 	}
 
 	propagate_int_to_menu_item (&(vals[1]), "phoebe_lc_filter");
-	status = phoebe_set_parameter_value ("phoebe_lc_filter", vals[0].value.i-1, vals[1].value.str);
+	status = phoebe_parameter_set_value ("phoebe_lc_filter", vals[0].value.i-1, vals[1].value.str);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
@@ -1923,7 +1918,7 @@ scripter_ast_value scripter_set_lc_properties (scripter_ast_list *args)
 	}
 
 	propagate_int_to_menu_item (&(vals[2]), "phoebe_lc_indep");
-	status = phoebe_set_parameter_value ("phoebe_lc_indep", vals[0].value.i-1, vals[2].value.str);
+	status = phoebe_parameter_set_value ("phoebe_lc_indep", vals[0].value.i-1, vals[2].value.str);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
@@ -1931,7 +1926,7 @@ scripter_ast_value scripter_set_lc_properties (scripter_ast_list *args)
 	}
 
 	propagate_int_to_menu_item (&(vals[3]), "phoebe_lc_dep");
-	status = phoebe_set_parameter_value ("phoebe_lc_dep", vals[0].value.i-1, vals[3].value.str);
+	status = phoebe_parameter_set_value ("phoebe_lc_dep", vals[0].value.i-1, vals[3].value.str);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
@@ -1939,21 +1934,21 @@ scripter_ast_value scripter_set_lc_properties (scripter_ast_list *args)
 	}
 
 	propagate_int_to_menu_item (&(vals[4]), "phoebe_lc_indweight");
-	status = phoebe_set_parameter_value ("phoebe_lc_indweight", vals[0].value.i-1, vals[4].value.str);
+	status = phoebe_parameter_set_value ("phoebe_lc_indweight", vals[0].value.i-1, vals[4].value.str);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
 		return out;
 	}
 
-	status = phoebe_set_parameter_value ("phoebe_lc_sigma", vals[0].value.i-1, vals[5].value.d);
+	status = phoebe_parameter_set_value ("phoebe_lc_sigma", vals[0].value.i-1, vals[5].value.d);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
 		return out;
 	}
 
-	status = phoebe_set_parameter_value ("phoebe_lc_filename", vals[0].value.i-1, vals[6].value.d);
+	status = phoebe_parameter_set_value ("phoebe_lc_filename", vals[0].value.i-1, vals[6].value.d);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 7);
@@ -1990,7 +1985,7 @@ scripter_ast_value scripter_compute_rv (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
 
 	if (vals[1].value.i < 1 || vals[1].value.i > rvno) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (ERROR_UNINITIALIZED_CURVE));
@@ -2001,7 +1996,7 @@ scripter_ast_value scripter_compute_rv (scripter_ast_list *args)
 
 	curve = phoebe_curve_new ();
 
-	phoebe_get_parameter_value ("phoebe_rv_dep", vals[1].value.i-1, &idep_str);
+	phoebe_parameter_get_value ("phoebe_rv_dep", vals[1].value.i-1, &idep_str);
 	get_input_dependent_variable (idep_str, &idep);
 	if (idep == INPUT_PRIMARY_RV)
 		status = read_in_synthetic_data (curve, vals[0].value.vec, vals[1].value.i-1, OUTPUT_PRIMARY_RV);
@@ -2058,8 +2053,8 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
-	phoebe_get_parameter_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
 
 	if (vals[0].type != type_void) {
 		index = vals[0].value.i;
@@ -2080,20 +2075,20 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 
 	while (index <= lcno + rvno) {
 		if (index <= lcno) {
-			phoebe_get_parameter_value ("phoebe_lc_filename", index-1, &filename);
+			phoebe_parameter_get_value ("phoebe_lc_filename", index-1, &filename);
 
-			phoebe_get_parameter_value ("phoebe_lc_filter", index-1, &passband);
+			phoebe_parameter_get_value ("phoebe_lc_filter", index-1, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 			if (!passband_ptr)
 				phoebe_warning ("passband for observational data not set or invalid!\n");
 
-			phoebe_get_parameter_value ("phoebe_lc_indep", index-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_indep", index-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &itype);
 
-			phoebe_get_parameter_value ("phoebe_lc_dep", index-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_dep", index-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &dtype);
 
-			phoebe_get_parameter_value ("phoebe_lc_indweight", index-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_lc_indweight", index-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &wtype);
 
 			/* Read in the observed curve: */
@@ -2106,20 +2101,20 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			read_in_synthetic_data (syncurve, obs->indep, index-1, OUTPUT_TOTAL_FLUX);
 		}
 		else {
-			phoebe_get_parameter_value ("phoebe_rv_filename", index-lcno-1, &filename);
+			phoebe_parameter_get_value ("phoebe_rv_filename", index-lcno-1, &filename);
 
-			phoebe_get_parameter_value ("phoebe_rv_filter", index-lcno-1, &passband);
+			phoebe_parameter_get_value ("phoebe_rv_filter", index-lcno-1, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 			if (!passband_ptr)
 				phoebe_warning ("passband for observational data not set or invalid!\n");
 
-			phoebe_get_parameter_value ("phoebe_rv_indep", index-lcno-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_indep", index-lcno-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &itype);
 
-			phoebe_get_parameter_value ("phoebe_rv_dep", index-lcno-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_dep", index-lcno-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &dtype);
 
-			phoebe_get_parameter_value ("phoebe_rv_indweight", index-lcno-1, &readout_str);
+			phoebe_parameter_get_value ("phoebe_rv_indweight", index-lcno-1, &readout_str);
 			phoebe_column_type_from_string (readout_str, &wtype);
 
 			/* Read in the observed curve: */
@@ -2192,7 +2187,7 @@ scripter_ast_value scripter_get_ld_coefficients (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_get_parameter_value ("phoebe_lcno", &lcno);
+	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
 
 	if (vals[0].value.i < 1 || vals[0].value.i > lcno) {
 		phoebe_scripter_output ("curve %d is out of range, aborting.\n", vals[0].value.i);
@@ -2201,10 +2196,10 @@ scripter_ast_value scripter_get_ld_coefficients (scripter_ast_list *args)
 		return out;
 	}
 
-	phoebe_get_parameter_value ("phoebe_lc_filter", vals[0].value.i-1, &passband_str);
+	phoebe_parameter_get_value ("phoebe_lc_filter", vals[0].value.i-1, &passband_str);
 	passband = phoebe_passband_lookup (passband_str);
 
-	phoebe_get_parameter_value ("phoebe_ld_model", &ld_str);
+	phoebe_parameter_get_value ("phoebe_ld_model", &ld_str);
 	ldlaw = phoebe_ld_model_type (ld_str);
 
 	status = phoebe_get_ld_coefficients (ldlaw, passband, vals[3].value.d, (int) vals[1].value.d, vals[2].value.d, &x, &y);

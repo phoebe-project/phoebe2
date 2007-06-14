@@ -278,34 +278,26 @@ int intern_info_on_variables (scripter_ast *ast)
 
 int intern_info_on_qualifiers (scripter_ast *ast)
 {
-	int status;
+	int i, status;
 	scripter_ast_value val = scripter_ast_evaluate (ast);
 	char *qualifier = val.value.str;
 	const char *description;
 	PHOEBE_type type;
 
-	status = phoebe_description_from_qualifier (&description, qualifier);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
-		return status;
-	}
-
-	status = phoebe_type_from_qualifier (&type, qualifier);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
-		return status;
-	}
+	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
+	if (!par)
+		return ERROR_QUALIFIER_NOT_FOUND;
 
 	/* Qualifier, keyword and description:                                    */
 	fprintf (PHOEBE_output, "\n");
-	fprintf (PHOEBE_output, "  Description:    %s\n", description);
-	fprintf (PHOEBE_output, "  Qualifier:      %s\n", qualifier);
+	fprintf (PHOEBE_output, "  Description:    %s\n", par->description);
+	fprintf (PHOEBE_output, "  Qualifier:      %s\n", par->qualifier);
 
 	/* Type and value:                                                        */
-	switch (type) {
+	switch (par->type) {
 		case TYPE_INT: {
 			int value;
-			status = phoebe_get_parameter_value (qualifier, &value);
+			status = phoebe_parameter_get_value (qualifier, &value);
 			if (status != SUCCESS) return status;
 			fprintf (PHOEBE_output, "  Type:           integer\n");
 			fprintf (PHOEBE_output, "  Value:          %d\n", value);
@@ -314,7 +306,7 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 		case TYPE_BOOL: {
 			bool value;
 			fprintf (PHOEBE_output, "  Type:           boolean\n");
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			if (value)
 				fprintf (PHOEBE_output, "  Value:          yes\n");
 			else
@@ -323,14 +315,14 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 		break;
 		case TYPE_DOUBLE: {
 			double value;
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			fprintf (PHOEBE_output, "  Type:           real\n");
 			fprintf (PHOEBE_output, "  Value:          %g\n", value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			fprintf (PHOEBE_output, "  Type:           string\n");
 			fprintf (PHOEBE_output, "  Value:          %s\n", value);
 		}
@@ -389,37 +381,25 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 		break;
 	}
 
-	/* Next, is it adjustable?                                            */
-	{
-	PHOEBE_parameter_kind kind;
-	int index, status;
-	int i;
-
-	status = phoebe_index_from_qualifier (&index, qualifier);
-	if (status != SUCCESS) return status;
-
-	status = phoebe_kind_from_qualifier (&kind, qualifier);
-	if (status != SUCCESS) return status;
-
-	if (kind == KIND_ADJUSTABLE) {
+	/* Next, is it adjustable?                                                */
+	if (par->kind == KIND_ADJUSTABLE) {
 		fprintf (PHOEBE_output, "  Adjustable:     yes\n");
 		fprintf (PHOEBE_output, "  | Marked TBA:   ");
-		if (PHOEBE_parameters[index].tba == TRUE)
+		if (par->tba == TRUE)
 			fprintf (PHOEBE_output, "yes\n");
 		else
 			fprintf (PHOEBE_output, "no\n");
-		fprintf (PHOEBE_output, "  | Step size:    %lf\n", PHOEBE_parameters[index].step);
-		fprintf (PHOEBE_output, "  | Lower limit:  %lf\n", PHOEBE_parameters[index].min);
-		fprintf (PHOEBE_output, "  | Upper limit:  %lf\n", PHOEBE_parameters[index].max);
+		fprintf (PHOEBE_output, "  | Step size:    %lf\n", par->step);
+		fprintf (PHOEBE_output, "  | Lower limit:  %lf\n", par->min);
+		fprintf (PHOEBE_output, "  | Upper limit:  %lf\n", par->max);
 	}
 	else
 		fprintf (PHOEBE_output, "  Adjustable:     no\n");
 
-	if (kind == KIND_MENU) {
+	if (par->kind == KIND_MENU) {
 		fprintf (PHOEBE_output, "\n  Available entries:\n");
-		for (i = 0; i < PHOEBE_parameters[index].menu->optno; i++)
-			fprintf (PHOEBE_output, "  %2d. %s\n", i+1, PHOEBE_parameters[index].menu->option[i]);
-	}
+		for (i = 0; i < par->menu->optno; i++)
+			fprintf (PHOEBE_output, "  %2d. %s\n", i+1, par->menu->option[i]);
 	}
 
 	/* Finally, an empty line to finish:                                      */
@@ -587,14 +567,14 @@ int scripter_directive_show (scripter_ast_list *args)
 	switch (type) {
 		case TYPE_INT: {
 			int value;
-			status = phoebe_get_parameter_value (qualifier, &value);
+			status = phoebe_parameter_get_value (qualifier, &value);
 			if (status != SUCCESS) return status;
 			fprintf (PHOEBE_output, "\t%d\n", value);
 		}
 		break;
 		case TYPE_BOOL: {
 			bool value;
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			if (value)
 				fprintf (PHOEBE_output, "\tYES\n");
 			else
@@ -603,13 +583,13 @@ int scripter_directive_show (scripter_ast_list *args)
 		break;
 		case TYPE_DOUBLE: {
 			double value;
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			fprintf (PHOEBE_output, "\t%g\n", value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
-			phoebe_get_parameter_value (qualifier, &value);
+			phoebe_parameter_get_value (qualifier, &value);
 			fprintf (PHOEBE_output, "\t%s\n", value);
 		}
 		break;
