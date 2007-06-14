@@ -56,7 +56,7 @@ int main (int argc, char *argv[])
 	}
 
 	if (PHOEBE_args.PARAMETER_SWITCH)
-		status = open_parameter_file (PHOEBE_args.PARAMETER_FILE);
+		status = phoebe_open_parameter_file (PHOEBE_args.PARAMETER_FILE);
 	if (status != SUCCESS) {
 		phoebe_warning (phoebe_scripter_error (status));
 		scripter_quit ();

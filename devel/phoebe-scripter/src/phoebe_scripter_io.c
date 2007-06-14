@@ -247,24 +247,18 @@ int propagate_int_to_menu_item (scripter_ast_value *val, char *qualifier)
 	 * parameter menu item.
 	 */
 
-	int status, index;
-	PHOEBE_parameter_kind kind;
+	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
+	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
-	status = phoebe_kind_from_qualifier (&kind, qualifier);
-	if (status != SUCCESS) return status;
-
-	if (kind != KIND_MENU)
+	if (par->kind != KIND_MENU)
 		return ERROR_PARAMETER_KIND_NOT_MENU;
 
-	status = phoebe_index_from_qualifier (&index, qualifier);
-	if (status != SUCCESS) return status;
-
-	if (val->value.i < 1 || val->value.i > PHOEBE_parameters[index].menu->optno) {
+	if (val->value.i < 1 || val->value.i > par->menu->optno) {
 		return ERROR_PARAMETER_MENU_ITEM_OUT_OF_RANGE;
 	}
 	
 	val->type = type_string;
-	val->value.str = strdup (PHOEBE_parameters[index].menu->option[val->value.i-1]);
+	val->value.str = strdup (par->menu->option[val->value.i-1]);
 	return SUCCESS;
 }
 
