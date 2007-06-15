@@ -813,6 +813,9 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 			if (params->rv1data) index = 1; else index = 0;
 			params->obs[index] = phoebe_curve_new_from_file ((char *) filename);
+			if (!params->obs[index])
+				return ERROR_FILE_NOT_FOUND;
+
 			phoebe_curve_set_properties (params->obs[index], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
 			phoebe_curve_transform (params->obs[index], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
 		}
@@ -839,6 +842,9 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			phoebe_parameter_get_value ("phoebe_lc_sigma", i-rvno, &sigma);
 
 			params->obs[i] = phoebe_curve_new_from_file ((char *) filename);
+			if (!params->obs[i])
+				return ERROR_FILE_NOT_FOUND;
+
 			phoebe_curve_set_properties (params->obs[i], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
 			phoebe_curve_transform (params->obs[i], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 		}
