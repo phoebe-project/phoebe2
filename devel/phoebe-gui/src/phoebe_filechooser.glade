@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Wed Jun  6 14:15:02 2007 by gal@brjav-->
+<!--Generated with glade3 3.2.0 on Fri Jun 15 12:39:36 2007 by olivia@olivia-AOB-->
 <glade-interface>
-  <widget class="GtkFileChooserDialog" id="phoebe_filechooserdialog">
+  <widget class="GtkFileChooserDialog" id="phoebe_filechooser_dialog">
     <property name="border_width">5</property>
+    <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
@@ -23,6 +24,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-cancel</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-6</property>
               </widget>
             </child>
             <child>
@@ -30,6 +32,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-open</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-3</property>
               </widget>
               <packing>
                 <property name="position">1</property>
