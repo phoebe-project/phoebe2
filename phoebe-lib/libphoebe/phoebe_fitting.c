@@ -986,14 +986,17 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		/* 34 */ "phoebe_el3"
 	};
 
-	int status;
+	int status, i;
 	clock_t clock_start, clock_stop;
+	char atmcof[255], atmcofplanck[255];
 	WD_DCI_parameters *params;
 	int marked_tba;
 	int lcno = 0, rvno = 0;
+	bool calchla = FALSE, calcvga = FALSE;
 	double *corrections;
 	double *errors;
 	double *chi2s;
+	double  cfval;
 
 	phoebe_debug ("entering differential corrections minimizer.\n");
 
@@ -1023,8 +1026,46 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	/* Create the DCI file from the params variable: */
 	create_dci_file ("dcin.active", params);
 
+	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
+
+	/* Run one DC iteration and store the results in the allocated arrays: */
+	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
+	cfval = 0.0;
+
+	/*
+	 * Allocate the feedback structure and fill it in. The number of parameter
+	 * fields equals the number of parameters marked for adjustment plus the
+	 * number of light curves if HLAs are marked for computation plus 1 if VGA
+	 * VGA is marked for computation.
+	 */
+
+	phoebe_minimizer_feedback_alloc (feedback, marked_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
+
+	feedback->algorithm = PHOEBE_MINIMIZER_DC;
+	feedback->iters = 1;
+
+	for (i = 0; i < params->nlc + rvno; i++) {
+		feedback->chi2s->val[i] = chi2s[i];
+	}
+
+	/* Weighted chi2s are not handled yet, let's free the memory: */
+	phoebe_vector_free (feedback->wchi2s);
+	feedback->wchi2s = NULL;
+
+	feedback->cfval = cfval;
+
+	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
+	fprintf (dc_output, "--------------------------------------------------------------------\n");
+
+
+
 	/* Free all the allocated structures: */
 	wd_dci_parameters_free (params);
+	free (corrections);
+	free (errors);
+	free (chi2s);
 
 	/* Stop the clock watch and compute the total CPU time on the process: */
 	clock_stop = clock ();
@@ -1035,20 +1076,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	return SUCCESS;
 
 /*
-	int i, j, index, qindex;
-	int status;
-
-	char atmcof[255], atmcofplanck[255];
-*/
-	/* Define arrays that will hold DC results; they will be allocated when a */
-	/* number of parameters set for adjustment are known.                     */
-/*
-	double  cfval;
-
+	int j, index, qindex;
 	double parvalue;
-
-	bool calcvga;
-	bool calchla;
 	bool cindex;
 	int marked_tba;
 
@@ -1069,11 +1098,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		return ERROR_INVALID_EL3_UNITS;
 	}
 	}
-
-
-
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
 	phoebe_parameter_get_value ("phoebe_compute_hla_switch", &calchla);
 	if (params->nlc == 0) calchla = 0;
@@ -1123,34 +1147,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 			params->hla[i] = params->hla[rvno] * cindex;
 		}
 	}
-
-
-	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
-	cfval = 0.0;
-*/
-	/* Allocate and fill-in the feedback structure; the number of parameter   */
-	/* fields equals the number of parameters marked for adjustment plus the  */
-	/* number of light curves if HLAs are marked for computation plus 1 if    */
-	/* VGA is marked for computation.                                         */
-/*
-	phoebe_minimizer_feedback_alloc (feedback, marked_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
-
-	feedback->algorithm = PHOEBE_MINIMIZER_DC;
-	feedback->iters = 1;
-
-	for (i = 0; i < params->nlc + rvno; i++) {
-		feedback->chi2s->val[i] = chi2s[i];
-	}
-
-	feedback->cfval = cfval;
-*/
-	/* This isn't handled yet: */
-/*
-	phoebe_vector_free (feedback->wchi2s);
-	feedback->wchi2s = NULL;
-
-	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
-	fprintf (dc_output, "--------------------------------------------------------------------\n");
 
 	index = 0;
 
@@ -1263,12 +1259,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 				}
 			}
 		}
-
-	wd_dci_parameters_free (params);
-
-	free (corrections);
-	free (errors);
-	free (chi2s);
 */
 }
 

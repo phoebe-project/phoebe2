@@ -1866,20 +1866,22 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	int status;
 	char *readout_str;
 
+	phoebe_debug ("entering phoebe_curve_transform ()\n");
+
 	phoebe_column_type_get_name (curve->itype, &readout_str);
-	printf ("transforming %s", readout_str);
+	phoebe_debug ("* transforming %s", readout_str);
 	phoebe_column_type_get_name (itype, &readout_str);
-	printf (" to %s\n", readout_str);
+	phoebe_debug (" to %s\n", readout_str);
 
 	phoebe_column_type_get_name (curve->dtype, &readout_str);
-	printf ("transforming %s", readout_str);
+	phoebe_debug ("* transforming %s", readout_str);
 	phoebe_column_type_get_name (dtype, &readout_str);
-	printf (" to %s\n", readout_str);
+	phoebe_debug (" to %s\n", readout_str);
 
 	phoebe_column_type_get_name (curve->wtype, &readout_str);
-	printf ("transforming %s", readout_str);
+	phoebe_debug ("* transforming %s", readout_str);
 	phoebe_column_type_get_name (wtype, &readout_str);
-	printf (" to %s\n", readout_str);
+	phoebe_debug (" to %s\n", readout_str);
 
 	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
 		double hjd0, period, dpdt, pshift;
@@ -1968,6 +1970,8 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 			phoebe_lib_error ("weight column contents undefined, ignoring.\n");
 		}
 	}
+
+	phoebe_debug ("leaving phoebe_curve_transform ()\n");
 
 	return SUCCESS;
 }
