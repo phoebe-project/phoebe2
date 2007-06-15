@@ -186,24 +186,59 @@ on_phoebe_data_lc_treeview_cursor_changed
                                         (GtkTreeView *tree_view,
                                          gpointer     user_data)
 {
-    // g_print("Hello!");
+    GtkTreePath       *path;
+    GtkTreeIter        iter;
+    GtkTreeModel      *model;
     
-    GtkTreePath **path;
-    GtkTreeViewColumn **focus_column;
+    /* get the clicked row */
+    gtk_tree_view_get_cursor (tree_view, &path, NULL);
     
-    gtk_tree_view_get_cursor (tree_view, path, focus_column);
-    if(path == NULL)g_print("NULL");
-    else g_print("SUCCESS");
-}                                                        
+    /* get the model */
+    model = gtk_tree_view_get_model(tree_view);
 
+    /* get the clicked row from the model */
+    if (gtk_tree_model_get_iter(model, &iter, path))
+    {
+        char *row_num;
+        gtk_tree_model_get(model, &iter, passband, &row_num, -1);
+        g_print ("The row number %s, containing a light curve in passband %s, has been clicked.\n", gtk_tree_path_to_string(path), row_num);
+        g_free(row_num);
+    }
+}                                                        
 
 void
 on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
-{
+{ 
+    GtkTreeModel *model; 
+    char *filename;
+    PHOEBE_curve *new_lc;
+
+    if (gtk_dialog_run (GTK_DIALOG (phoebe_filechooser_dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+        filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (phoebe_filechooser_dialog));
+        new_lc = phoebe_curve_new_from_file(filename);
+    }
+
+    gtk_widget_hide (phoebe_filechooser_dialog);
+
+    char *itype, *dtype, *wtype;
+    phoebe_column_type_get_name(new_lc->itype, &itype);
+    phoebe_column_type_get_name(new_lc->dtype, &dtype);
+    phoebe_column_type_get_name(new_lc->wtype, &wtype);
+    
+    /* get the model */
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_tree_view);
+
     GtkTreeIter   iter;
-    gtk_list_store_append(lc_curves_model, &iter);
-    gtk_list_store_set(lc_curves_model, &iter, 0, "Name me!", 1, "Some passband", 2, "HJD?", 4, "Absolute error", -1); 
+    gtk_list_store_append((GtkListStore*)model, &iter);
+    gtk_list_store_set((GtkListStore*)model, &iter, 0, new_lc->filename, 1, "Undefined", 2, itype, 3, dtype, 4, wtype, 5, new_lc->sigma, -1);
+    
+    g_free(itype);
+    g_free(dtype);
+    g_free(wtype);
+    
+    g_free (filename);
 }
 
 
@@ -220,7 +255,22 @@ on_phoebe_data_lc_remove_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
+    GtkTreePath       *path;
+    GtkTreeIter        iter;
+    GtkTreeModel      *model;
+    
+    /* get the selected row */
+    gtk_tree_view_get_cursor (phoebe_data_lc_tree_view, &path, NULL);
+    
+    /* get the model */
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_tree_view);
 
+    /* get the row from the model */
+    if (gtk_tree_model_get_iter(model, &iter, path))
+    {
+        g_print ("The row number %s will be removed.\n", gtk_tree_path_to_string(path));
+        gtk_list_store_remove((GtkListStore*)model, &iter);
+    }
 }
 
 
