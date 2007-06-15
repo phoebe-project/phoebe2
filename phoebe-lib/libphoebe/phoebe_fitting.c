@@ -472,7 +472,7 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 	passed_pars.rv1 = FALSE; passed_pars.rv2 = FALSE;
 	for (i = 0; i < rvno; i++) {
 		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
-		status = phoebe_column_type_from_string (readout_str, &dtype);
+		status = phoebe_column_get_type (&dtype, readout_str);
 		if (status != SUCCESS) return status;
 
 		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)   passed_pars.rv1 = TRUE;
@@ -607,13 +607,13 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_parameter_get_value ("phoebe_lc_indep", curve, &readout_str);
-			phoebe_column_type_from_string (readout_str, &itype);
+			phoebe_column_get_type (&itype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_dep", curve, &readout_str);
-			phoebe_column_type_from_string (readout_str, &dtype);
+			phoebe_column_get_type (&dtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_indweight", curve, &readout_str);
-			phoebe_column_type_from_string (readout_str, &wtype);
+			phoebe_column_get_type (&wtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_sigma", curve, &sigma);
 
@@ -631,13 +631,13 @@ int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEB
 			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_parameter_get_value ("phoebe_rv_indep", curve-lcno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &itype);
+			phoebe_column_get_type (&itype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_dep", curve-lcno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &dtype);
+			phoebe_column_get_type (&dtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_indweight", curve-lcno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &wtype);
+			phoebe_column_get_type (&wtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_sigma", curve-lcno, &sigma);
 
@@ -932,8 +932,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
 	 * This is WD's built-in DC algorithm and as such it doesn't depend on GSL.
-	 * Macro WD_FIND_MINIMUM_WITH_DC is provided to access the fortran sub-
-	 * routine.
+	 * Macro wd_dc () is provided to access the fortran subroutine.
 	 *
 	 * Return values:
 	 *
@@ -987,9 +986,55 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		/* 34 */ "phoebe_el3"
 	};
 
-#warning FUNCTION DISABLED FOR REVIEW
-/*
+	int status;
+	clock_t clock_start, clock_stop;
 	WD_DCI_parameters *params;
+	int marked_tba;
+	int lcno = 0, rvno = 0;
+	double *corrections;
+	double *errors;
+	double *chi2s;
+
+	phoebe_debug ("entering differential corrections minimizer.\n");
+
+	/* Check if the feedback structure is initialized and not allocated: */
+	if (!feedback)
+		return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
+	if (feedback->qualifiers->dim != 0)
+		return ERROR_MINIMIZER_FEEDBACK_ALREADY_ALLOCATED;
+
+	/* Everything seems to be ok. Fire up the stop watch: */
+	clock_start = clock ();
+
+	/* Read in WD DCI parameters: */
+	params = wd_dci_parameters_new ();
+	status = read_in_wd_dci_parameters (params, &marked_tba);
+	if (status != SUCCESS) return status;
+
+	/* Count the number of light and RV curves: */
+	lcno = params->nlc;
+	rvno = params->rv1data + params->rv2data;
+
+	/* Allocate memory for the results: */
+	corrections = phoebe_malloc (marked_tba * sizeof (*corrections));
+	errors      = phoebe_malloc (marked_tba * sizeof (*errors));
+	chi2s       = phoebe_malloc ((params->nlc + rvno) * sizeof (*chi2s));
+
+	/* Create the DCI file from the params variable: */
+	create_dci_file ("dcin.active", params);
+
+	/* Free all the allocated structures: */
+	wd_dci_parameters_free (params);
+
+	/* Stop the clock watch and compute the total CPU time on the process: */
+	clock_stop = clock ();
+	feedback->cputime = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
+
+	phoebe_debug ("leaving differential corrections minimizer.\n");
+
+	return SUCCESS;
+
+/*
 	int i, j, index, qindex;
 	int status;
 
@@ -998,9 +1043,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	/* Define arrays that will hold DC results; they will be allocated when a */
 	/* number of parameters set for adjustment are known.                     */
 /*
-	double *corrections;
-	double *errors;
-	double *chi2s;
 	double  cfval;
 
 	double parvalue;
@@ -1008,12 +1050,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	bool calcvga;
 	bool calchla;
 	bool cindex;
-	int  rvno = 0;
 	int marked_tba;
 
-	clock_t clock_start, clock_stop;
-
-	phoebe_debug ("entering differential corrections minimizer.\n");
 */
 	/* Before we do anything, let's check whether the setup is sane:          */
 /*
@@ -1031,22 +1069,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		return ERROR_INVALID_EL3_UNITS;
 	}
 	}
-*/
 
-	/* Is the feedback structure initialized:                                 */
-/*
-	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
-*/
-	/* Everything seems to be ok. Fire up the stop watch:                     */
-/*
-	clock_start = clock ();
 
-	params = wd_dci_parameters_new ();
-	status = read_in_wd_dci_parameters (params, &marked_tba);
-	if (status != SUCCESS) return status;
-
-	if (params->rv1data == TRUE) rvno++;
-	if (params->rv2data == TRUE) rvno++;
 
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
@@ -1059,9 +1083,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 
 	phoebe_parameter_get_value ("phoebe_cindex_switch",      &cindex);
 
-	corrections = phoebe_malloc (marked_tba * sizeof (*corrections));
-	errors      = phoebe_malloc (marked_tba * sizeof (*errors));
-	chi2s       = phoebe_malloc ((params->nlc + rvno) * sizeof (*chi2s));
 
 	if (calcvga && rvno > 0) {
 		double observational_average, synthetic_average;
@@ -1103,7 +1124,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		}
 	}
 
-	create_dci_file ("dcin.active", params);
 
 	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
 	cfval = 0.0;
@@ -1243,22 +1263,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 				}
 			}
 		}
-*/
-	/* Stop the clock watch and compute the total CPU time on the process:    */
-/*
-	clock_stop = clock ();
-
-	feedback->cputime = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
 
 	wd_dci_parameters_free (params);
 
 	free (corrections);
 	free (errors);
 	free (chi2s);
-
-	phoebe_debug ("leaving differential corrections minimizer.\n");
-
-	return SUCCESS;
 */
 }
 

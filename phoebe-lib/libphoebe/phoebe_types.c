@@ -1912,7 +1912,6 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 		if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype != PHOEBE_COLUMN_UNDEFINED) {
 			status = transform_magnitude_sigma_to_flux_sigma (curve->weight, curve->dep);
 			if (status != SUCCESS) return status;
-			curve->wtype = wtype;
 		}
 		curve->dtype = dtype;
 	}
@@ -1930,13 +1929,12 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 		if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype != PHOEBE_COLUMN_UNDEFINED) {
 			status = transform_flux_sigma_to_magnitude_sigma (curve->weight, curve->dep);
 			if (status != SUCCESS) return status;
-			curve->wtype = wtype;
 		}
 		status = transform_flux_to_magnitude (curve->dep, mnorm);
 		if (status != SUCCESS) return status;
 		curve->dtype = dtype;
 	}
-printf ("curve->wtype = %d, wtype = %d\n", curve->wtype, wtype);
+
 	if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype == PHOEBE_COLUMN_WEIGHT) {
 		status = transform_sigma_to_weight (curve->weight);
 		if (status != SUCCESS) return status;

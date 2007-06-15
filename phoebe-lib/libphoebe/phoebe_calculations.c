@@ -301,7 +301,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 
 	if (rv1_indep && rv1_dep) {
 		phoebe_parameter_get_value ("phoebe_rv_dep", 0, &depvalstr);
-		status = phoebe_column_type_from_string (depvalstr, &dtype);
+		status = phoebe_column_get_type (&dtype, depvalstr);
 		if (status != SUCCESS) return status;
 
 		syncurve = phoebe_curve_new ();
@@ -323,7 +323,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 
 	if (rv2_indep && rv2_dep) {
 		phoebe_parameter_get_value ("phoebe_rv_dep", 1, &depvalstr);
-		status = phoebe_column_type_from_string (depvalstr, &dtype);
+		status = phoebe_column_get_type (&dtype, depvalstr);
 		if (status != SUCCESS) return status;
 
 		syncurve = phoebe_curve_new ();
@@ -952,10 +952,9 @@ int transform_flux_to_magnitude (PHOEBE_vector *vec, double mnorm)
 int transform_sigma_to_weight (PHOEBE_vector *vec)
 {
 	/*
-	 * This function transforms standard deviations (sigmas) to weights. Since
-	 * the WD input file is restricted to a 4-character space, we must rescale
-	 * the values to 10.00. We go only to 10.00 to be able to use 99.0 for
-	 * special data points, namely those with sigma = 0.
+	 * This function transforms standard deviation (sigma) to weights. Since
+	 * the WD input file is restricted to a 4-character space, we rescale
+	 * the values to the [0.01,10.0] interval.
 	 *
 	 * Return values:
 	 *
@@ -965,27 +964,22 @@ int transform_sigma_to_weight (PHOEBE_vector *vec)
 
 	int i;
 
-	double sigma_min = vec->val[0];
-
-	for (i = 1; i < vec->dim; i++) {
-		if (vec->val[i] < 0) {
-			/* There were several instances of bug reports where users passed */
-			/* some offset columns as standard deviations. Since these off-   */
-			/* sets were also negative, the weights were also negative and    */
-			/* that confused WD. We now make an explicit check here to avoid  */
-			/* negative sigmas.                                               */
-			
-			return ERROR_NEGATIVE_STANDARD_DEVIATION;
-		}
-		if (sigma_min > vec->val[i] && vec->val[i] > 1e-6) sigma_min = vec->val[i];
-	}
+	/*
+	 * There were several instances of bug reports where users passed
+	 * some offset columns as standard deviations. Since these offsets
+	 * were also negative, the weights were also negative and that
+	 * confused WD. We now make an explicit check here to avoid negative
+	 * sigmas.
+	 */
 
 	for (i = 0; i < vec->dim; i++) {
-		if (vec->val[i] < 1e-6 )
-			vec->val[i] = 99.0;
-		else
-			vec->val[i] = 1./vec->val[i]/vec->val[i] / (0.1/sigma_min/sigma_min);
+		if (vec->val[i] < 0)
+			return ERROR_NEGATIVE_STANDARD_DEVIATION;
+
+		vec->val[i] = 1.0/vec->val[i]/vec->val[i];
 	}
+
+	phoebe_vector_rescale (vec, 0.01, 10.0);
 
 	return SUCCESS;
 }
