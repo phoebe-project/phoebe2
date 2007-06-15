@@ -480,6 +480,41 @@ int phoebe_vector_min_max (PHOEBE_vector *vec, double *min, double *max)
 	return SUCCESS;
 }
 
+int phoebe_vector_rescale (PHOEBE_vector *vec, double ll, double ul)
+{
+	/*
+	 * This function rescales the values of elements in the vector vec to the
+	 * [ll, ul] interval. Usually this is useful to map the weights to the
+	 * [0.01, 10.0] interval that is suitable for DC.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_VECTOR_NOT_INITIALIZED
+	 *   ERROR_VECTOR_IS_EMPTY
+	 *   ERROR_VECTOR_INVALID_LIMITS
+	 *   SUCCESS
+	 */
+
+	int i, status;
+	double vmin, vmax;
+
+	if (!vec)
+		return ERROR_VECTOR_NOT_INITIALIZED;
+	if (vec->dim == 0)
+		return ERROR_VECTOR_IS_EMPTY;
+	if (ll >= ul)
+		return ERROR_VECTOR_INVALID_LIMITS;
+
+	status = phoebe_vector_min_max (vec, &vmin, &vmax);
+	if (status != SUCCESS)
+		return status;
+
+	for (i = 0; i < vec->dim; i++)
+		vec->val[i] = ll + (vec->val[i]-vmin)/(vmax-vmin)*(ul-ll);
+
+	return SUCCESS;
+}
+
 bool phoebe_vector_compare (PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
 	/*
@@ -1540,7 +1575,7 @@ int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name)
 	return SUCCESS;
 }
 
-int phoebe_column_type_from_string (const char *string, PHOEBE_column_type *type)
+int phoebe_column_get_type (PHOEBE_column_type *type, const char *string)
 {
 	/*
 	 * This function returns the enumerated type of the column from the
@@ -1548,7 +1583,6 @@ int phoebe_column_type_from_string (const char *string, PHOEBE_column_type *type
 	 *
 	 * Return values:
 	 *
-	 *   ERROR_EXCEPTION_HANDLER_INVOKED
 	 *   SUCCESS
 	 */
 
@@ -1563,10 +1597,8 @@ int phoebe_column_type_from_string (const char *string, PHOEBE_column_type *type
 	else if (strcmp (string, "Unavailable"       ) == 0) *type = PHOEBE_COLUMN_UNDEFINED;
 	else                                                 *type = PHOEBE_COLUMN_INVALID;
 
-	if (*type == PHOEBE_COLUMN_INVALID) {
-		phoebe_lib_error ("exception handler invoked in phoebe_column_type_from_string (), please report this!\n");
-		return ERROR_EXCEPTION_HANDLER_INVOKED;
-	}
+	if (*type == PHOEBE_COLUMN_INVALID)
+		return ERROR_COLUMN_INVALID;
 
 	return SUCCESS;
 }
@@ -1681,21 +1713,21 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		/***********************/
 		/* 1. phoebe_lc_indep: */
 		phoebe_parameter_get_value ("phoebe_lc_indep", index, &param);
-		status = phoebe_column_type_from_string (param, &itype);
+		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/*********************/
 		/* 2. phoebe_lc_dep: */
 		phoebe_parameter_get_value ("phoebe_lc_dep", index, &param);
-		status = phoebe_column_type_from_string (param, &dtype);
+		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/***************************/
 		/* 3. phoebe_lc_indweight: */
 		phoebe_parameter_get_value ("phoebe_lc_indweight", index, &param);
-		status = phoebe_column_type_from_string (param, &wtype);
+		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
@@ -1717,23 +1749,23 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 
 	if (ctype == PHOEBE_CURVE_RV) {
 		/***********************/
-		/* 1. phoebe_lc_indep: */
+		/* 1. phoebe_rv_indep: */
 		phoebe_parameter_get_value ("phoebe_rv_indep", index, &param);
-		status = phoebe_column_type_from_string (param, &itype);
+		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/*********************/
-		/* 2. phoebe_lc_dep: */
+		/* 2. phoebe_rv_dep: */
 		phoebe_parameter_get_value ("phoebe_rv_dep", index, &param);
-		status = phoebe_column_type_from_string (param, &dtype);
+		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/***************************/
-		/* 3. phoebe_lc_indweight: */
+		/* 3. phoebe_rv_indweight: */
 		phoebe_parameter_get_value ("phoebe_rv_indweight", index, &param);
-		status = phoebe_column_type_from_string (param, &wtype);
+		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
@@ -1832,6 +1864,22 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	 */
 
 	int status;
+	char *readout_str;
+
+	phoebe_column_type_get_name (curve->itype, &readout_str);
+	printf ("transforming %s", readout_str);
+	phoebe_column_type_get_name (itype, &readout_str);
+	printf (" to %s\n", readout_str);
+
+	phoebe_column_type_get_name (curve->dtype, &readout_str);
+	printf ("transforming %s", readout_str);
+	phoebe_column_type_get_name (dtype, &readout_str);
+	printf (" to %s\n", readout_str);
+
+	phoebe_column_type_get_name (curve->wtype, &readout_str);
+	printf ("transforming %s", readout_str);
+	phoebe_column_type_get_name (wtype, &readout_str);
+	printf (" to %s\n", readout_str);
 
 	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
 		double hjd0, period, dpdt, pshift;
@@ -1888,7 +1936,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 		if (status != SUCCESS) return status;
 		curve->dtype = dtype;
 	}
-
+printf ("curve->wtype = %d, wtype = %d\n", curve->wtype, wtype);
 	if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype == PHOEBE_COLUMN_WEIGHT) {
 		status = transform_sigma_to_weight (curve->weight);
 		if (status != SUCCESS) return status;

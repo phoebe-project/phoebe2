@@ -59,6 +59,7 @@ int            phoebe_vector_norm               (double *result, PHOEBE_vector *
 int            phoebe_vector_dim                (int *result, PHOEBE_vector *vec);
 int            phoebe_vector_randomize          (PHOEBE_vector *result, double limit);
 int            phoebe_vector_min_max            (PHOEBE_vector *vec, double *min, double *max);
+int            phoebe_vector_rescale            (PHOEBE_vector *vec, double ll, double ul);
 bool           phoebe_vector_compare            (PHOEBE_vector *vec1, PHOEBE_vector *vec2);
 int            phoebe_vector_less_than          (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2);
 int            phoebe_vector_leq_than           (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2);
@@ -172,7 +173,7 @@ typedef enum PHOEBE_column_type {
 } PHOEBE_column_type;
 
 int phoebe_column_type_get_name    (PHOEBE_column_type ctype, char **name);
-int phoebe_column_type_from_string (const char *string, PHOEBE_column_type *type);
+int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
 
 typedef struct PHOEBE_curve {
 	PHOEBE_curve_type  type;
