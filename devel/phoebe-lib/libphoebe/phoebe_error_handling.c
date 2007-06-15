@@ -83,6 +83,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "dimensions of both vectors do not match, aborting.\n";
 		case ERROR_VECTOR_DIMENSION_NOT_THREE:
 			return "the cross product can be evaluated only in 3D, aborting.\n";
+		case ERROR_VECTOR_INVALID_LIMITS:
+			return "the upper limit is smaller than the lower limit, aborting.\n";
 		case ERROR_HIST_NOT_INITIALIZED:
 			return "histogram is not initialized, aborting.\n";
 		case ERROR_HIST_NOT_ALLOCATED:
@@ -103,6 +105,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "array is already allocated, aborting.\n";
 		case ERROR_ARRAY_INVALID_DIMENSION:
 			return "array dimension is invalid, aborting.\n";
+		case ERROR_COLUMN_INVALID:
+			return "column entry is invalid, aborting.\n";
 		case ERROR_CURVE_NOT_INITIALIZED:
 			return "curve is not initialized, aborting.\n";
 		case ERROR_CURVE_ALREADY_ALLOCATED:

@@ -480,7 +480,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		"phoebe_el3"
 	};
 
-	int i;
+	int i, status;
 	int lcno, rvno, cno;
 	bool readout_bool;
 	const char *readout_str;
@@ -490,7 +490,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	PHOEBE_column_type master_indep, itype, dtype, wtype;
 
-	/* DC features 35 adjustable parameters and we initialize such arrays:    */
+	/* DC features 35 adjustable parameters and we initialize such arrays: */
 	bool    *tba;
 	double *step;
 
@@ -500,15 +500,19 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	*marked_tba = 0;
 
-	/* Check whether there are any experimental data present:                 */
+	/* If there are no observations defined, bail out: */
 	if (cno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
-	/* Allocate memory:                                                       */
+	/* Allocate memory: */
 	 tba = phoebe_malloc (35 * sizeof ( *tba));
 	step = phoebe_malloc (35 * sizeof (*step));
 
-	/* Read in TBA states and step-sizes; note the '!' in front of the tba    */
-	/* readout function; that's because WD uses 1 for false and 0 for true.   */
+	/*
+	 * Read in TBA states and step-sizes; note the '!' in front of the tb
+	 * readout function; that's because WD sets 1 for /kept/ parameters and
+	 * 0 for modified parameters.
+	 */
+
 	for (i = 0; i < 35; i++) {
 		if (i == 29) { tba[i] = !FALSE; continue; } /* reserved WD channel */
 		phoebe_parameter_get_tba (pars[i], &(tba[i])); tba[i] = !tba[i];
@@ -522,12 +526,14 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->tba  = tba;
 	params->step = step;
 
-	/* Check the presence of RV and LC data:                                  */
+	/* Check for presence of RV and LC data: */
 	{
 	params->rv1data = FALSE; params->rv2data = FALSE;
 	for (i = 0; i < rvno; i++) {
 		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
-		phoebe_column_type_from_string (readout_str, &dtype);
+		status = phoebe_column_get_type (&dtype, readout_str);
+		if (status != SUCCESS) return status;
+
 		switch (dtype) {
 			case PHOEBE_COLUMN_PRIMARY_RV:
 				params->rv1data = TRUE;
@@ -586,14 +592,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	/* Do we work in HJD-space or in phase-space? */
 	{
 		phoebe_parameter_get_value ("phoebe_indep", &readout_str);
-		if (strcmp (readout_str, "Time (HJD)")  == 0) {
+		status = phoebe_column_get_type (&master_indep, readout_str);
+		if (status != SUCCESS) return status;
+
+		if (master_indep == PHOEBE_COLUMN_HJD)
 			params->indep = 1;
-			master_indep = PHOEBE_COLUMN_HJD;
-		}
-		else if (strcmp (readout_str, "Phase") == 0) {
+		else if (master_indep == PHOEBE_COLUMN_PHASE)
 			params->indep = 2;
-			master_indep = PHOEBE_COLUMN_PHASE;
-		}
 		else
 			return ERROR_INVALID_INDEP;
 	}
@@ -653,11 +658,27 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	for (i = 0; i < rvno; i++) {
 		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
-		phoebe_column_type_from_string (readout_str, &dtype);
+		status = phoebe_column_get_type (&dtype, readout_str);
+		if (status != SUCCESS) {
+			free (params->passband); free (params->wavelength); free (params->sigma);
+			free (params->hla);      free (params->cla);        free (params->x1a);
+			free (params->y1a);      free (params->x2a);        free (params->y2a);
+			free (params->el3);      free (params->opsf);       free (params->levweight);
+			return status;
+		}
+
 		if (dtype == PHOEBE_COLUMN_SECONDARY_RV && rvno == 2) index = 1; else index = 0;
 
 		phoebe_parameter_get_value ("phoebe_rv_filter", i, &readout_str);
 		passband = phoebe_passband_lookup (readout_str);
+		if (!passband) {
+			free (params->passband); free (params->wavelength); free (params->sigma);
+			free (params->hla);      free (params->cla);        free (params->x1a);
+			free (params->y1a);      free (params->x2a);        free (params->y2a);
+			free (params->el3);      free (params->opsf);       free (params->levweight);
+			return ERROR_PASSBAND_INVALID;
+		}
+
 		params->passband[index]   = get_passband_id (readout_str);
 		params->wavelength[index] = passband->effwl;
 
@@ -675,7 +696,16 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	for (i = rvno; i < cno; i++) {
 		phoebe_parameter_get_value ("phoebe_lc_filter", i-rvno, &readout_str);
+
 		passband = phoebe_passband_lookup (readout_str);
+		if (!passband) {
+			free (params->passband); free (params->wavelength); free (params->sigma);
+			free (params->hla);      free (params->cla);        free (params->x1a);
+			free (params->y1a);      free (params->x2a);        free (params->y2a);
+			free (params->el3);      free (params->opsf);       free (params->levweight);
+			return ERROR_PASSBAND_INVALID;
+		}
+
 		params->passband[i]   = get_passband_id (readout_str);
 		params->wavelength[i] = passband->effwl;
 		phoebe_parameter_get_value ("phoebe_lc_sigma", i-rvno, &(params->sigma[i]));
@@ -724,7 +754,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		phoebe_parameter_get_value ("phoebe_spots_temp2", i, &(params->spot2temp[i]));
 	}
 
-	/* Observational data:                                                      */
+	/* Observational data: */
 	{
 		/* Allocate observational data arrays:                                */
 		params->obs = phoebe_malloc (cno * sizeof (*(params->obs)));
@@ -741,17 +771,20 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_parameter_get_value ("phoebe_rv_indep", rv1index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &itype);
+			phoebe_column_get_type (&itype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_dep", rv1index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &dtype);
+			phoebe_column_get_type (&dtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_indweight", rv1index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &wtype);
+			phoebe_column_get_type (&wtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_sigma", rv1index, &sigma);
 
 			params->obs[0] = phoebe_curve_new_from_file ((char *) filename);
+			if (!params->obs[0])
+				return ERROR_FILE_NOT_FOUND;
+
 			phoebe_curve_set_properties (params->obs[0], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
 			phoebe_curve_transform (params->obs[0], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
 		}
@@ -768,13 +801,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_parameter_get_value ("phoebe_rv_indep", rv2index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &itype);
+			phoebe_column_get_type (&itype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_dep", rv2index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &dtype);
+			phoebe_column_get_type (&dtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_indweight", rv2index, &readout_str);
-			phoebe_column_type_from_string (readout_str, &wtype);
+			phoebe_column_get_type (&wtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_rv_sigma", rv2index, &sigma);
 
@@ -795,13 +828,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			passband_ptr = phoebe_passband_lookup (passband);
 
 			phoebe_parameter_get_value ("phoebe_lc_indep", i-rvno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &itype);
+			phoebe_column_get_type (&itype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_dep", i-rvno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &dtype);
+			phoebe_column_get_type (&dtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_indweight", i-rvno, &readout_str);
-			phoebe_column_type_from_string (readout_str, &wtype);
+			phoebe_column_get_type (&wtype, readout_str);
 
 			phoebe_parameter_get_value ("phoebe_lc_sigma", i-rvno, &sigma);
 
@@ -933,17 +966,26 @@ int read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, do
 	return SUCCESS;
 }
 
-int read_in_adjustable_parameters (int *tba, double **values, int **indices)
+int read_in_adjustable_parameters (int *tba, double **values)
 {
-	/*
-	 * This function cross-checks the global parameter table for all adjustable
-	 * parameters, queries the adjustment switch state, step size and the
-	 * initial parameter value; it then fills in the values to the list
-	 * variable. The memory is allocated in this call and it is up to the user
-	 * to free it after using it.
-	 */
+	int i;
+	PHOEBE_parameter_list *list = PHOEBE_pt->lists.marked_tba;
 
-#warning FUNCTION TEMPORARILY DISABLED FOR REVIEW
+	*tba = 0;
+	while (list) {
+		(*tba)++;
+		list = list->next;
+	}
+
+	*values = phoebe_malloc (*tba * sizeof (**values));
+	list = PHOEBE_pt->lists.marked_tba;
+	i = 0;
+	while (list) {
+		phoebe_parameter_get_value (list->elem->qualifier, &(*values[i]));
+		i++; list = list->next;
+	}
+
+	return SUCCESS;
 /*
 	int i, j, k;
 	int status, calchla_idx, calcvga_idx, sma_idx, incl_idx;
