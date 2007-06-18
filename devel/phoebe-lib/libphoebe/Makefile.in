@@ -80,8 +80,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libphoebe_la_DEPENDENCIES = ../libwd/libwd.la
-am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_wd_algorithms.lo \
-	libphoebe_la-phoebe_accessories.lo \
+am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_accessories.lo \
 	libphoebe_la-phoebe_allocations.lo libphoebe_la-phoebe_base.lo \
 	libphoebe_la-phoebe_calculations.lo \
 	libphoebe_la-phoebe_configuration.lo \
@@ -94,9 +93,9 @@ am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_wd_algorithms.lo \
 	libphoebe_la-phoebe_radiation.lo libphoebe_la-phoebe_roche.lo \
 	libphoebe_la-phoebe_spectra.lo libphoebe_la-phoebe_types.lo
 libphoebe_la_OBJECTS = $(am_libphoebe_la_OBJECTS)
-libphoebe_la_LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(F77LD) $(libphoebe_la_FFLAGS) \
-	$(FFLAGS) $(libphoebe_la_LDFLAGS) $(LDFLAGS) -o $@
+libphoebe_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libphoebe_la_CFLAGS) \
+	$(CFLAGS) $(libphoebe_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/autoconfig/depcomp
 am__depfiles_maybe = depfiles
@@ -108,13 +107,6 @@ LTCOMPILE = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-F77COMPILE = $(F77) $(AM_FFLAGS) $(FFLAGS)
-LTF77COMPILE = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(F77) $(AM_FFLAGS) $(FFLAGS)
-F77LD = $(F77)
-F77LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(F77LD) $(AM_FFLAGS) $(FFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libphoebe_la_SOURCES)
 DIST_SOURCES = $(libphoebe_la_SOURCES)
@@ -234,7 +226,6 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 lib_LTLIBRARIES = libphoebe.la
 libphoebe_la_SOURCES = \
-    cfortran.h                        phoebe_wd_algorithms.f            \
     phoebe_accessories.c              phoebe_accessories.h              \
     phoebe_allocations.c              phoebe_allocations.h              \
     phoebe_base.c                     phoebe_base.h                     \
@@ -285,7 +276,7 @@ all: phoebe_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .f .lo .o .obj
+.SUFFIXES: .c .lo .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -517,18 +508,6 @@ libphoebe_la-phoebe_types.lo: phoebe_types.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_types.c' object='libphoebe_la-phoebe_types.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_types.lo `test -f 'phoebe_types.c' || echo '$(srcdir)/'`phoebe_types.c
-
-.f.o:
-	$(F77COMPILE) -c -o $@ $<
-
-.f.obj:
-	$(F77COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-.f.lo:
-	$(LTF77COMPILE) -c -o $@ $<
-
-libphoebe_la-phoebe_wd_algorithms.lo: phoebe_wd_algorithms.f
-	$(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(F77) $(libphoebe_la_FFLAGS) $(FFLAGS) -c -o libphoebe_la-phoebe_wd_algorithms.lo `test -f 'phoebe_wd_algorithms.f' || echo '$(srcdir)/'`phoebe_wd_algorithms.f
 
 mostlyclean-libtool:
 	-rm -f *.lo
