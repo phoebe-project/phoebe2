@@ -8,7 +8,8 @@ bin_PROGRAMS = phoebe_gui
 phoebe_gui_SOURCES =                                \
 	phoebe_gui_main.h       phoebe_gui_main.c       \
 	phoebe_gui_callbacks.h  phoebe_gui_callbacks.c  \
-	phoebe_gui_types.h	    phoebe_gui_types.c
+	phoebe_gui_types.h	   phoebe_gui_types.c  \
+	phoebe_gui_base.h	phoebe_gui_base.c
 
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
