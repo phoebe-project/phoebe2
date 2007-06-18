@@ -1712,77 +1712,77 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	if (ctype == PHOEBE_CURVE_LC) {
 		/***********************/
 		/* 1. phoebe_lc_indep: */
-		phoebe_parameter_get_value ("phoebe_lc_indep", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/*********************/
 		/* 2. phoebe_lc_dep: */
-		phoebe_parameter_get_value ("phoebe_lc_dep", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/***************************/
 		/* 3. phoebe_lc_indweight: */
-		phoebe_parameter_get_value ("phoebe_lc_indweight", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/**************************/
 		/* 4. phoebe_lc_filename: */
-		phoebe_parameter_get_value ("phoebe_lc_filename", index, &filename);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), index, &filename);
 
 		/************************/
 		/* 5. phoebe_lc_filter: */
-		phoebe_parameter_get_value ("phoebe_lc_filter", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband)
 			return NULL;
 
 		/***********************/
 		/* 6. phoebe_lc_sigma: */
-		phoebe_parameter_get_value ("phoebe_lc_sigma", index, &sigma);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), index, &sigma);
 	}
 
 	if (ctype == PHOEBE_CURVE_RV) {
 		/***********************/
 		/* 1. phoebe_rv_indep: */
-		phoebe_parameter_get_value ("phoebe_rv_indep", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/*********************/
 		/* 2. phoebe_rv_dep: */
-		phoebe_parameter_get_value ("phoebe_rv_dep", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/***************************/
 		/* 3. phoebe_rv_indweight: */
-		phoebe_parameter_get_value ("phoebe_rv_indweight", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
 		/**************************/
 		/* 4. phoebe_lc_filename: */
-		phoebe_parameter_get_value ("phoebe_rv_filename", index, &filename);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), index, &filename);
 
 		/************************/
 		/* 5. phoebe_lc_filter: */
-		phoebe_parameter_get_value ("phoebe_rv_filter", index, &param);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband)
 			return NULL;
 
 		/***********************/
 		/* 6. phoebe_lc_sigma: */
-		phoebe_parameter_get_value ("phoebe_rv_sigma", index, &sigma);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), index, &sigma);
 	}
 
 	curve = phoebe_curve_new_from_file (filename);
@@ -1901,7 +1901,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 
 	if (curve->dtype == PHOEBE_COLUMN_MAGNITUDE && dtype == PHOEBE_COLUMN_FLUX) {
  		double mnorm;
-		phoebe_parameter_get_value ("phoebe_mnorm", &mnorm);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
 
 		/*
 		 * If weights need to be transformed, we need to transform them *after*
@@ -1920,7 +1920,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 
 	if (curve->dtype == PHOEBE_COLUMN_FLUX && dtype == PHOEBE_COLUMN_MAGNITUDE) {
 		double mnorm;
-		phoebe_parameter_get_value ("phoebe_mnorm", &mnorm);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
 
 		/*
 		 * If weights need to be transformed, we need to transform them *before*

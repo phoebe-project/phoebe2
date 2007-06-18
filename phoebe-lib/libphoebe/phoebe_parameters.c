@@ -620,17 +620,16 @@ bool phoebe_parameter_menu_option_is_valid (char *qualifier, char *option)
 	return FALSE;
 }
 
-int phoebe_parameter_get_value (char *qualifier, ...)
+int phoebe_parameter_get_value (PHOEBE_parameter *par, ...)
 {
 	/*
-	 * This is the public function for providing the values of parameters
-	 * identified by the qualifiers. It is the only function that should be
-	 * used for this purpose, all other functions are internal and should
-	 * not be used.
+	 * This is the public function for providing the values of parameters.
+	 * It is the only function that should be used for this purpose, all
+	 * other functions are internal and should not be used.
 	 *
 	 * Synopsis:
 	 *
-	 *   phoebe_parameter_get_value (qualifier, [index, ], &value)
+	 *   phoebe_parameter_get_value (par, [index, ], &value)
 	 *
 	 * Return values:
 	 *
@@ -642,10 +641,9 @@ int phoebe_parameter_get_value (char *qualifier, ...)
 	int index = 0;
 	va_list args;
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
-	va_start (args, qualifier);
+	va_start (args, par);
 
 	switch (par->type) {
 		case TYPE_INT: {
@@ -713,12 +711,12 @@ int phoebe_parameter_get_value (char *qualifier, ...)
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_value (char *qualifier, ...)
+int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 {
 	/*
-	 * This is the public function for changing qualifier values. It is the
-	 * only function that should be used for this purpose, all other functions
-	 * should be regarded as internal and should not be used.
+	 * This is the public function for changing the passed parameter's value.
+	 * It is the only function that should be used for this purpose, all other
+	 * functions should be regarded internal and should not be used.
 	 *
 	 * Synopsis:
 	 *
@@ -734,10 +732,9 @@ int phoebe_parameter_set_value (char *qualifier, ...)
 	int index = 0;
 	va_list args;
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
-	va_start (args, qualifier);
+	va_start (args, par);
 
 	switch (par->type) {
 		case TYPE_INT: {
@@ -768,12 +765,12 @@ int phoebe_parameter_set_value (char *qualifier, ...)
 			strcpy (par->value.str, value);
 
 			/*
-			 * If the qualified parameter is a menu, let's check if the option
+			 * If the passed parameter is a menu, let's check if the option
 			 * is valid. If it is not, just warn about it, but set its value
 			 * anyway.
 			 */
 
-			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (qualifier, (char *) value))
+			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (par->qualifier, (char *) value))
 				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
 		}
 		break;
@@ -815,11 +812,12 @@ int phoebe_parameter_set_value (char *qualifier, ...)
 			strcpy (par->value.array->val.strarray[index], value);
 
 			/*
-			 * If the qualified parameter is a menu, let's check if the option is
-			 * valid. If it is not, just warn about it, but set its value anyway.
+			 * If the passed parameter is a menu, let's check if the option is
+			 * valid. If it is not, just warn about it, but set its value
+			 * anyway.
 			 */
 
-			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (qualifier, (char *) value))
+			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (par->qualifier, (char *) value))
 				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
 			}
 		break;
@@ -829,11 +827,11 @@ int phoebe_parameter_set_value (char *qualifier, ...)
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_tba (char *qualifier, bool *tba)
+int phoebe_parameter_get_tba (PHOEBE_parameter *par, bool *tba)
 {
 	/*
-	 * This is a public function for reading out qualifier's TBA (To Be Adjusted
-	 * bit.
+	 * This is a public function for reading out the passed parameter's TBA
+	 * (To Be Adjusted) bit.
 	 *
 	 * Return values:
 	 *
@@ -841,18 +839,18 @@ int phoebe_parameter_get_tba (char *qualifier, bool *tba)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	*tba = par->tba;
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_tba (char *qualifier, bool tba)
+int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 {
 	/*
-	 * This is the public function for changing qualifier's TBA (To Be Adjusted
-	 * bit.
+	 * This is the public function for changing the passed parameter's TBA
+	 * (To Be Adjusted) bit. At the same time the function adds or removes
+	 * that parameter from the list of parameters marked for adjustment.
 	 *
 	 * Return values:
 	 *
@@ -861,7 +859,6 @@ int phoebe_parameter_set_tba (char *qualifier, bool tba)
 	 */
 
 	PHOEBE_parameter_list *list, *prev = NULL;
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->tba = tba;
@@ -911,11 +908,11 @@ int phoebe_parameter_set_tba (char *qualifier, bool tba)
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_step (char *qualifier, double *step)
+int phoebe_parameter_get_step (PHOEBE_parameter *par, double *step)
 {
 	/*
-	 * This is a public function for reading out qualifier's step size used
-	 * for minimization.
+	 * This is a public function for reading out the passed parameter's step
+	 * size that is used for minimization.
 	 *
 	 * Return values:
 	 *
@@ -923,17 +920,16 @@ int phoebe_parameter_get_step (char *qualifier, double *step)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	*step = par->step;
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_step (char *qualifier, double step)
+int phoebe_parameter_set_step (PHOEBE_parameter *par, double step)
 {
 	/*
-	 * This is the public function for changing qualifier step.
+	 * This is the public function for changing the passed parameter's step.
 	 *
 	 * Error codes:
 	 *
@@ -941,7 +937,6 @@ int phoebe_parameter_set_step (char *qualifier, double step)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->step = step;
@@ -949,7 +944,7 @@ int phoebe_parameter_set_step (char *qualifier, double step)
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_lower_limit (char *qualifier, double *valmin)
+int phoebe_parameter_get_lower_limit (PHOEBE_parameter *par, double *valmin)
 {
 	/*
 	 * This is the public function for reading out the lower parameter limit.
@@ -960,14 +955,13 @@ int phoebe_parameter_get_lower_limit (char *qualifier, double *valmin)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	*valmin = par->min;
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_lower_limit (char *qualifier, double valmin)
+int phoebe_parameter_set_lower_limit (PHOEBE_parameter *par, double valmin)
 {
 	/*
 	 * This is the public function for changing the lower parameter limit.
@@ -978,14 +972,13 @@ int phoebe_parameter_set_lower_limit (char *qualifier, double valmin)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->min = valmin;
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_upper_limit (char *qualifier, double *valmax)
+int phoebe_parameter_get_upper_limit (PHOEBE_parameter *par, double *valmax)
 {
 	/*
 	 * This is the public function for reading out the upper parameter limit.
@@ -996,14 +989,13 @@ int phoebe_parameter_get_upper_limit (char *qualifier, double *valmax)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	*valmax = par->max;
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_upper_limit (char *qualifier, double valmax)
+int phoebe_parameter_set_upper_limit (PHOEBE_parameter *par, double valmax)
 {
 	/*
 	 * This is the public function for changing the upper parameter limit.
@@ -1014,17 +1006,17 @@ int phoebe_parameter_set_upper_limit (char *qualifier, double valmax)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->max = valmax;
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_limits (char *qualifier, double *valmin, double *valmax)
+int phoebe_parameter_get_limits (PHOEBE_parameter *par, double *valmin, double *valmax)
 {
 	/*
-	 * This is the public function for reading out qualifier limits.
+	 * This is the public function for reading out the passed parameter's
+	 * limits.
 	 *
 	 * Error codes:
 	 *
@@ -1032,7 +1024,6 @@ int phoebe_parameter_get_limits (char *qualifier, double *valmin, double *valmax
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	*valmin = par->min;
@@ -1041,10 +1032,10 @@ int phoebe_parameter_get_limits (char *qualifier, double *valmin, double *valmax
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_limits (char *qualifier, double valmin, double valmax)
+int phoebe_parameter_set_limits (PHOEBE_parameter *par, double valmin, double valmax)
 {
 	/*
-	 * This is the public function for changing qualifier limits.
+	 * This is the public function for changing the passed parameter's limits.
 	 *
 	 * Error codes:
 	 *
@@ -1052,7 +1043,6 @@ int phoebe_parameter_set_limits (char *qualifier, double valmin, double valmax)
 	 *   SUCCESS
 	 */
 
-	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
 	if (!par) return ERROR_QUALIFIER_NOT_FOUND;
 
 	par->min = valmin;
@@ -1085,7 +1075,7 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 	 */
 
 	const char *el3str;
-	phoebe_parameter_get_value ("phoebe_el3_units", &el3str);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3_units"), &el3str);
 
 	*el3_units = PHOEBE_EL3_UNITS_INVALID_ENTRY;
 	if (strcmp (el3str, "Total light") == 0) *el3_units = PHOEBE_EL3_UNITS_TOTAL_LIGHT;
