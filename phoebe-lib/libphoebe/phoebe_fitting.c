@@ -990,7 +990,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	clock_t clock_start, clock_stop;
 	char atmcof[255], atmcofplanck[255];
 	WD_DCI_parameters *params;
-	int marked_tba;
+	PHOEBE_parameter_list *marked_tba;
+	int no_tba;
 	int lcno = 0, rvno = 0;
 	bool calchla = FALSE, calcvga = FALSE;
 	double *corrections;
@@ -1009,9 +1010,14 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	/* Everything seems to be ok. Fire up the stop watch: */
 	clock_start = clock ();
 
+	/* Get a list of parameters marked for adjustment: */
+	marked_tba = phoebe_parameter_list_get_marked_tba ();
+	if (!marked_tba)
+		return ERROR_MINIMIZER_NO_PARAMS;
+
 	/* Read in WD DCI parameters: */
 	params = wd_dci_parameters_new ();
-	status = read_in_wd_dci_parameters (params, &marked_tba);
+	status = read_in_wd_dci_parameters (params, &no_tba);
 	if (status != SUCCESS) return status;
 
 	/* Count the number of light and RV curves: */
@@ -1019,8 +1025,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	rvno = params->rv1data + params->rv2data;
 
 	/* Allocate memory for the results: */
-	corrections = phoebe_malloc (marked_tba * sizeof (*corrections));
-	errors      = phoebe_malloc (marked_tba * sizeof (*errors));
+	corrections = phoebe_malloc (no_tba * sizeof (*corrections));
+	errors      = phoebe_malloc (no_tba * sizeof (*errors));
 	chi2s       = phoebe_malloc ((params->nlc + rvno) * sizeof (*chi2s));
 
 	/* Create the DCI file from the params variable: */
@@ -1040,12 +1046,12 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	 * VGA is marked for computation.
 	 */
 
-	phoebe_minimizer_feedback_alloc (feedback, marked_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
+	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
 
 	feedback->algorithm = PHOEBE_MINIMIZER_DC;
 	feedback->iters = 1;
 
-	for (i = 0; i < params->nlc + rvno; i++) {
+	for (i = 0; i < lcno + rvno; i++) {
 		feedback->chi2s->val[i] = chi2s[i];
 	}
 
@@ -1058,7 +1064,8 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 
-
+	for (i = 0; i < no_tba; i++)
+		feedback->qualifiers->val.strarray[i] = strdup (marked_tba->elem->qualifier);
 
 	/* Free all the allocated structures: */
 	wd_dci_parameters_free (params);

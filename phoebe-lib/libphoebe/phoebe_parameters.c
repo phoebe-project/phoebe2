@@ -1061,6 +1061,21 @@ int phoebe_parameter_set_limits (char *qualifier, double valmin, double valmax)
 	return SUCCESS;
 }
 
+PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ()
+{
+	/*
+	 * This is a simple wrapper function that returns a list of parameters
+	 * that are marked for adjustment. This is the only function that should
+	 * be used for this purpose; accessing table elements directly is not
+	 * allowed.
+	 *
+	 * The function returns a pointer to a list of parameters marked for
+	 * adjustment. If no parameters are marked, it returns NULL;
+	 */
+
+	return PHOEBE_pt->lists.marked_tba;
+}
+
 int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 {
 	/*
