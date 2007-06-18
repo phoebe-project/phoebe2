@@ -117,7 +117,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	status = read_in_wd_lci_parameters (&params, mpage, curve_index);
 	if (status != SUCCESS) return status;
 
-	phoebe_parameter_get_value ("phoebe_extinction", curve_index, &A);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), curve_index, &A);
 /*
 	status = phoebe_el3_units_id (&el3units);
 	if (status != SUCCESS) return status;
@@ -151,7 +151,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 
 	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
 		double mnorm;
-		phoebe_parameter_get_value ("phoebe_mnorm", &mnorm);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
 		transform_flux_to_magnitude (curve->dep, mnorm);
 	}
 
@@ -187,8 +187,8 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 
 	PHOEBE_passband *passband;
 
-	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
-	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 
 	/*
 	 * The MPAGE switch determines the type of a synthetic curve the program
@@ -213,41 +213,41 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 
 	params->MPAGE = MPAGE;
 
-	phoebe_parameter_get_value ("phoebe_reffect_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_reffect_switch"), &readout_bool);
 	if (readout_bool == YES) params->MREF = 2; else params->MREF = 1;
-	phoebe_parameter_get_value ("phoebe_reffect_reflections", &(params->NREF));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_reffect_reflections"), &(params->NREF));
 
-	phoebe_parameter_get_value ("phoebe_spots_move1", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move1"), &readout_bool);
 	if (readout_bool) params->IFSMV1 = 1; else params->IFSMV1 = 0;
-	phoebe_parameter_get_value ("phoebe_spots_move2", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move2"), &readout_bool);
 	if (readout_bool) params->IFSMV2 = 1; else params->IFSMV2 = 0;
-	phoebe_parameter_get_value ("phoebe_proximity_rv1_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv1_switch"), &readout_bool);
 	if (readout_bool) params->ICOR1  = 1; else params->ICOR1  = 0;
-	phoebe_parameter_get_value ("phoebe_proximity_rv2_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv2_switch"), &readout_bool);
 	if (readout_bool) params->ICOR2  = 1; else params->ICOR2  = 0;
 
-	phoebe_parameter_get_value ("phoebe_ld_model", &readout_str);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &readout_str);
 	params->LD = phoebe_ld_model_type (readout_str);
 	if (params->LD == LD_LAW_INVALID)
 		return ERROR_INVALID_LDLAW;
 
-	phoebe_parameter_get_value ("phoebe_indep", &readout_str);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
 	if (strcmp (readout_str, "Time (HJD)")  == 0) params->JDPHS = 1;
 	if (strcmp (readout_str, "Phase") == 0) params->JDPHS = 2;
 
-	phoebe_parameter_get_value ("phoebe_hjd0", &(params->HJD0));
-	phoebe_parameter_get_value ("phoebe_period", &(params->PERIOD));
-	phoebe_parameter_get_value ("phoebe_dpdt", &(params->DPDT));
-	phoebe_parameter_get_value ("phoebe_pshift", &(params->PSHIFT));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"), &(params->HJD0));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"), &(params->PERIOD));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"), &(params->DPDT));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pshift"), &(params->PSHIFT));
 
-	phoebe_parameter_get_value ("phoebe_synscatter_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_switch"), &readout_bool);
 	if (readout_bool) {
-		phoebe_parameter_get_value ("phoebe_synscatter_sigma", &(params->SIGMA));
-		phoebe_parameter_get_value ("phoebe_synscatter_levweight", &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_sigma"), &(params->SIGMA));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_levweight"), &readout_str);
 		if (strcmp (readout_str, "No level-dependent weighting") == 0) params->WEIGHTING = 0;
 		if (strcmp (readout_str, "Poissonian scatter")           == 0) params->WEIGHTING = 1;
 		if (strcmp (readout_str, "Low light scatter")            == 0) params->WEIGHTING = 2;
-		phoebe_parameter_get_value ("phoebe_synscatter_seed", &(params->SEED));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_seed"), &(params->SEED));
 	}
 	else {
 		params->SIGMA = 0.0; params->WEIGHTING = 0; params->SEED = 0.0;
@@ -268,7 +268,7 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	/* hardcoded to 0.25, but it should be changed.                             */
 	params->PHNORM = 0.25;
 
-	phoebe_parameter_get_value ("phoebe_model", &readout_str);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &readout_str);
 	if (strcmp (readout_str, "X-ray binary"                                         ) == 0) params->MODE = -1;
 	if (strcmp (readout_str, "Unconstrained binary system"                          ) == 0) params->MODE =  0;
 	if (strcmp (readout_str, "Overcontact binary of the W UMa type"                 ) == 0) params->MODE =  1;
@@ -278,28 +278,28 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	if (strcmp (readout_str, "Semi-detached binary, secondary star fills Roche lobe") == 0) params->MODE =  5;
 	if (strcmp (readout_str, "Double contact binary"                                ) == 0) params->MODE =  6;
 
-	phoebe_parameter_get_value ("phoebe_msc1_switch", &(params->MSC1));
-	phoebe_parameter_get_value ("phoebe_msc2_switch", &(params->MSC2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_msc1_switch"), &(params->MSC1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_msc2_switch"), &(params->MSC2));
 
-	phoebe_parameter_get_value ("phoebe_compute_hla_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &readout_bool);
 	if (readout_bool && lcno > 0) params->CALCHLA = 1; else params->CALCHLA = 0;
-	phoebe_parameter_get_value ("phoebe_compute_vga_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &readout_bool);
 	if (readout_bool && rvno > 0) params->CALCVGA = 1; else params->CALCVGA = 0;
-	phoebe_parameter_get_value ("phoebe_asini_switch", &(params->ASINI));
-	phoebe_parameter_get_value ("phoebe_cindex_switch", &(params->CINDEX));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_asini_switch"), &(params->ASINI));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cindex_switch"), &(params->CINDEX));
 
-	phoebe_parameter_get_value ("phoebe_usecla_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_usecla_switch"), &readout_bool);
 	if (readout_bool) params->IPB = 1; else params->IPB  = 0;
-	phoebe_parameter_get_value ("phoebe_atm1_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_atm1_switch"), &readout_bool);
 	if (readout_bool) params->IFAT1 = 1; else params->IFAT1 = 0;
-	phoebe_parameter_get_value ("phoebe_atm2_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_atm2_switch"), &readout_bool);
 	if (readout_bool) params->IFAT2 = 1; else params->IFAT2 = 0;
 
-	phoebe_parameter_get_value ("phoebe_grid_finesize1", &(params->N1));
-	phoebe_parameter_get_value ("phoebe_grid_finesize2", &(params->N2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize1"), &(params->N1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize2"), &(params->N2));
 
-	phoebe_parameter_get_value ("phoebe_perr0", &(params->PERR0));
-	phoebe_parameter_get_value ("phoebe_dperdt", &(params->DPERDT));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_perr0"), &(params->PERR0));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dperdt"), &(params->DPERDT));
 
 	/* THE applies only to X-ray binaries, but it isn't supported yet.          */
 	params->THE    = 0.0;
@@ -309,34 +309,34 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	/* thus hardcoded to the most obvious number, that is 100 km/s.             */
 	params->VUNIT  = 100.0;
 
-	phoebe_parameter_get_value ("phoebe_ecc",      &(params->E));
-	phoebe_parameter_get_value ("phoebe_sma",      &(params->SMA));
-	phoebe_parameter_get_value ("phoebe_f1",       &(params->F1));
-	phoebe_parameter_get_value ("phoebe_f2",       &(params->F2));
-	phoebe_parameter_get_value ("phoebe_vga",      &(params->VGA));
-	phoebe_parameter_get_value ("phoebe_incl",     &(params->INCL));
-	phoebe_parameter_get_value ("phoebe_grb1",     &(params->GR1));
-	phoebe_parameter_get_value ("phoebe_grb2",     &(params->GR2));
-	phoebe_parameter_get_value ("phoebe_logg1",    &(params->LOGG1));
-	phoebe_parameter_get_value ("phoebe_logg2",    &(params->LOGG2));
-	phoebe_parameter_get_value ("phoebe_met1",     &(params->MET1));
-	phoebe_parameter_get_value ("phoebe_met2",     &(params->MET2));
-	phoebe_parameter_get_value ("phoebe_teff1",    &(params->TAVH));
-	phoebe_parameter_get_value ("phoebe_teff2",    &(params->TAVC));   
-	phoebe_parameter_get_value ("phoebe_alb1",     &(params->ALB1));
-	phoebe_parameter_get_value ("phoebe_alb2",     &(params->ALB2));
-	phoebe_parameter_get_value ("phoebe_pot1",     &(params->PHSV));
-	phoebe_parameter_get_value ("phoebe_pot2",     &(params->PCSV));
-	phoebe_parameter_get_value ("phoebe_rm",       &(params->RM));
-	phoebe_parameter_get_value ("phoebe_ld_xbol1", &(params->XBOL1));
-	phoebe_parameter_get_value ("phoebe_ld_xbol2", &(params->XBOL2));
-	phoebe_parameter_get_value ("phoebe_ld_ybol1", &(params->YBOL1));
-	phoebe_parameter_get_value ("phoebe_ld_ybol2", &(params->YBOL2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ecc"),      &(params->E));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_sma"),      &(params->SMA));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_f1"),       &(params->F1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_f2"),       &(params->F2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_vga"),      &(params->VGA));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_incl"),     &(params->INCL));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grb1"),     &(params->GR1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grb2"),     &(params->GR2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg1"),    &(params->LOGG1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg2"),    &(params->LOGG2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met1"),     &(params->MET1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met2"),     &(params->MET2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff1"),    &(params->TAVH));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff2"),    &(params->TAVC));   
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_alb1"),     &(params->ALB1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_alb2"),     &(params->ALB2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pot1"),     &(params->PHSV));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pot2"),     &(params->PCSV));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rm"),       &(params->RM));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_xbol1"), &(params->XBOL1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_xbol2"), &(params->XBOL2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol1"), &(params->YBOL1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol2"), &(params->YBOL2));
 
 	if (MPAGE == 2)
-		phoebe_parameter_get_value ("phoebe_rv_filter", curve, &filter);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), curve, &filter);
 	else
-		phoebe_parameter_get_value ("phoebe_lc_filter", curve, &filter);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), curve, &filter);
 
 	passband = phoebe_passband_lookup (filter);
 	if (!passband) {
@@ -349,8 +349,8 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	}
 
 	if (MPAGE == 1) {
-		phoebe_parameter_get_value ("phoebe_hla", curve, &(params->HLA));
-		phoebe_parameter_get_value ("phoebe_cla", curve, &(params->CLA));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), curve, &(params->HLA));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), curve, &(params->CLA));
 	}
 	else {
 		/* HLAs and CLAs don't make any sense for RV curves, so we initialize     */
@@ -360,21 +360,21 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	}
 
 	if (MPAGE == 2) {
-		phoebe_parameter_get_value ("phoebe_ld_rvx1", curve, &(params->X1A));
-		phoebe_parameter_get_value ("phoebe_ld_rvx2", curve, &(params->X2A));
-		phoebe_parameter_get_value ("phoebe_ld_rvy1", curve, &(params->Y1A));
-		phoebe_parameter_get_value ("phoebe_ld_rvy2", curve, &(params->Y2A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx1"), curve, &(params->X1A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx2"), curve, &(params->X2A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy1"), curve, &(params->Y1A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy2"), curve, &(params->Y2A));
 	}
 	else {
-		phoebe_parameter_get_value ("phoebe_ld_lcx1", curve, &(params->X1A));
-		phoebe_parameter_get_value ("phoebe_ld_lcx2", curve, &(params->X2A));
-		phoebe_parameter_get_value ("phoebe_ld_lcy1", curve, &(params->Y1A));
-		phoebe_parameter_get_value ("phoebe_ld_lcy2", curve, &(params->Y2A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx1"), curve, &(params->X1A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx2"), curve, &(params->X2A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy1"), curve, &(params->Y1A));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy2"), curve, &(params->Y2A));
 	}
 
 	if (MPAGE == 1) {
-		phoebe_parameter_get_value ("phoebe_el3", curve, &(params->EL3));
-		phoebe_parameter_get_value ("phoebe_opsf", curve, &(params->OPSF));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), curve, &(params->EL3));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"), curve, &(params->OPSF));
 	}
 	else {
 		/* Third light and opacity function don't make sense for RVs.             */
@@ -390,11 +390,11 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	params->MZERO  = 0.0;
 	params->FACTOR = 1.0;
 
-	/* Spots:                                                                 */
-	phoebe_parameter_get_value ("phoebe_spots_no1", &(params->SPRIM));
-	phoebe_parameter_get_value ("phoebe_spots_no2", &(params->SSEC));
+	/* Spots: */
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no1"), &(params->SPRIM));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no2"), &(params->SSEC));
 
-	/* Allocate memory for spot parameters and fill in the values:            */
+	/* Allocate memory for spot parameters and fill in the values: */
 	if (params->SPRIM != 0) {
 		params->XLAT1  = phoebe_malloc (params->SPRIM * sizeof (*(params->XLAT1)));
 		params->XLONG1 = phoebe_malloc (params->SPRIM * sizeof (*(params->XLONG1)));
@@ -402,10 +402,10 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 		params->TEMSP1 = phoebe_malloc (params->SPRIM * sizeof (*(params->TEMSP1)));
 
 		for (i = 0; i < params->SPRIM; i++) {
-			phoebe_parameter_get_value ("phoebe_spots_lat1",  i, &(params->XLAT1[i]));
-			phoebe_parameter_get_value ("phoebe_spots_long1", i, &(params->XLONG1[i]));
-			phoebe_parameter_get_value ("phoebe_spots_rad1",  i, &(params->RADSP1[i]));
-			phoebe_parameter_get_value ("phoebe_spots_temp1", i, &(params->TEMSP1[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat1"),  i, &(params->XLAT1[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long1"), i, &(params->XLONG1[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad1"),  i, &(params->RADSP1[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp1"), i, &(params->TEMSP1[i]));
 		}
 	}
 	if (params->SSEC != 0) {
@@ -415,10 +415,10 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 		params->TEMSP2 = phoebe_malloc (params->SSEC * sizeof (*(params->TEMSP2)));
 
 		for (i = 0; i < params->SSEC; i++) {
-			phoebe_parameter_get_value ("phoebe_spots_lat2",  i, &(params->XLAT2[i]));
-			phoebe_parameter_get_value ("phoebe_spots_long2", i, &(params->XLONG2[i]));
-			phoebe_parameter_get_value ("phoebe_spots_rad2",  i, &(params->RADSP2[i]));
-			phoebe_parameter_get_value ("phoebe_spots_temp2", i, &(params->TEMSP2[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat2"),  i, &(params->XLAT2[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long2"), i, &(params->XLONG2[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad2"),  i, &(params->RADSP2[i]));
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp2"), i, &(params->TEMSP2[i]));
 		}
 	}
 
@@ -494,8 +494,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	bool    *tba;
 	double *step;
 
-	phoebe_parameter_get_value ("phoebe_lcno", &lcno);
-	phoebe_parameter_get_value ("phoebe_rvno", &rvno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 	cno = lcno + rvno;
 
 	*marked_tba = 0;
@@ -515,8 +515,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	for (i = 0; i < 35; i++) {
 		if (i == 29) { tba[i] = !FALSE; continue; } /* reserved WD channel */
-		phoebe_parameter_get_tba (pars[i], &(tba[i])); tba[i] = !tba[i];
-		phoebe_parameter_get_step (pars[i], &step[i]);
+		phoebe_parameter_get_tba (phoebe_parameter_lookup (pars[i]), &(tba[i])); tba[i] = !tba[i];
+		phoebe_parameter_get_step (phoebe_parameter_lookup (pars[i]), &step[i]);
 		if (i > 29)
 			*marked_tba += lcno * (1-tba[i]);
 		else
@@ -530,7 +530,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	{
 	params->rv1data = FALSE; params->rv2data = FALSE;
 	for (i = 0; i < rvno; i++) {
-		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &readout_str);
 		status = phoebe_column_get_type (&dtype, readout_str);
 		if (status != SUCCESS) return status;
 
@@ -551,24 +551,24 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	}
 
 	/* DC-related parameters:                                                 */
-	phoebe_parameter_get_value ("phoebe_dc_lambda", &(params->dclambda));
-	phoebe_parameter_get_value ("phoebe_dc_symder_switch", &(params->symder));
-	phoebe_parameter_get_value ("phoebe_grid_coarsesize1", &(params->n1c));
-	phoebe_parameter_get_value ("phoebe_grid_coarsesize2", &(params->n2c));
-	phoebe_parameter_get_value ("phoebe_grid_finesize1", &(params->n1f));
-	phoebe_parameter_get_value ("phoebe_grid_finesize2", &(params->n2f));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_lambda"), &(params->dclambda));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_symder_switch"), &(params->symder));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_coarsesize1"), &(params->n1c));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_coarsesize2"), &(params->n2c));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize1"), &(params->n1f));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize2"), &(params->n2f));
 
 	/* Reflection effect:                                                       */
-	phoebe_parameter_get_value ("phoebe_reffect_switch", &readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_reffect_switch"), &readout_bool);
 	if (readout_bool) params->refswitch = 2; else params->refswitch = 1;
-	phoebe_parameter_get_value ("phoebe_reffect_reflections", &(params->refno));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_reffect_reflections"), &(params->refno));
 
 	/* Eclipse/proximity effect:                                                */
-	phoebe_parameter_get_value ("phoebe_proximity_rv1_switch", &(params->rv1proximity));
-	phoebe_parameter_get_value ("phoebe_proximity_rv2_switch", &(params->rv2proximity));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv1_switch"), &(params->rv1proximity));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv2_switch"), &(params->rv2proximity));
 
 	/* Limb darkening effect:                                                   */
-	phoebe_parameter_get_value ("phoebe_ld_model", &readout_str);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &readout_str);
 	params->ldmodel = phoebe_ld_model_type (readout_str);
 	if (params->ldmodel == LD_LAW_INVALID)
 		return ERROR_INVALID_LDLAW;
@@ -576,7 +576,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	/* Morphological constraint:                                                */
 	{
 	const char *mode;
-	phoebe_parameter_get_value ("phoebe_model", &mode);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &mode);
 	params->morph = -2;
 	if (strcmp (mode, "X-ray binary"                                         ) == 0) params->morph = -1;
 	if (strcmp (mode, "Unconstrained binary system"                          ) == 0) params->morph =  0;
@@ -591,7 +591,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	/* Do we work in HJD-space or in phase-space? */
 	{
-		phoebe_parameter_get_value ("phoebe_indep", &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
 		status = phoebe_column_get_type (&master_indep, readout_str);
 		if (status != SUCCESS) return status;
 
@@ -604,39 +604,39 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	}
 
 	/* Luminosity decoupling:                                                   */
-	phoebe_parameter_get_value ("phoebe_usecla_switch", &(params->cladec));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_usecla_switch"), &(params->cladec));
 
 	/* Model atmosphere switches:                                               */
-	phoebe_parameter_get_value ("phoebe_atm1_switch", &(params->ifat1));
-	phoebe_parameter_get_value ("phoebe_atm2_switch", &(params->ifat2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_atm1_switch"), &(params->ifat1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_atm2_switch"), &(params->ifat2));
 
 	/* Model parameters:                                                        */
-	phoebe_parameter_get_value ("phoebe_hjd0",     &(params->hjd0));
-	phoebe_parameter_get_value ("phoebe_period",   &(params->period));
-	phoebe_parameter_get_value ("phoebe_dpdt",     &(params->dpdt));
-	phoebe_parameter_get_value ("phoebe_pshift",   &(params->pshift));
-	phoebe_parameter_get_value ("phoebe_perr0",    &(params->perr0));
-	phoebe_parameter_get_value ("phoebe_dperdt",   &(params->dperdt));
-	phoebe_parameter_get_value ("phoebe_ecc",      &(params->ecc));
-	phoebe_parameter_get_value ("phoebe_sma",      &(params->sma));
-	phoebe_parameter_get_value ("phoebe_f1",       &(params->f1));
-	phoebe_parameter_get_value ("phoebe_f2",       &(params->f2));
-	phoebe_parameter_get_value ("phoebe_vga",      &(params->vga));
-	phoebe_parameter_get_value ("phoebe_incl",     &(params->incl));
-	phoebe_parameter_get_value ("phoebe_grb1",     &(params->grb1));
-	phoebe_parameter_get_value ("phoebe_grb2",     &(params->grb2));
-	phoebe_parameter_get_value ("phoebe_met1",     &(params->met1));
-	phoebe_parameter_get_value ("phoebe_teff1",    &(params->teff1));
-	phoebe_parameter_get_value ("phoebe_teff2",    &(params->teff2));
-	phoebe_parameter_get_value ("phoebe_alb1",     &(params->alb1));
-	phoebe_parameter_get_value ("phoebe_alb2",     &(params->alb2));
-	phoebe_parameter_get_value ("phoebe_pot1",     &(params->pot1));
-	phoebe_parameter_get_value ("phoebe_pot2",     &(params->pot2));
-	phoebe_parameter_get_value ("phoebe_rm",       &(params->rm));
-	phoebe_parameter_get_value ("phoebe_ld_xbol1", &(params->xbol1));
-	phoebe_parameter_get_value ("phoebe_ld_xbol2", &(params->xbol2));
-	phoebe_parameter_get_value ("phoebe_ld_ybol1", &(params->ybol1));
-	phoebe_parameter_get_value ("phoebe_ld_ybol2", &(params->ybol2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"),     &(params->hjd0));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"),   &(params->period));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"),     &(params->dpdt));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pshift"),   &(params->pshift));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_perr0"),    &(params->perr0));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dperdt"),   &(params->dperdt));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ecc"),      &(params->ecc));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_sma"),      &(params->sma));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_f1"),       &(params->f1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_f2"),       &(params->f2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_vga"),      &(params->vga));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_incl"),     &(params->incl));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grb1"),     &(params->grb1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grb2"),     &(params->grb2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met1"),     &(params->met1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff1"),    &(params->teff1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff2"),    &(params->teff2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_alb1"),     &(params->alb1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_alb2"),     &(params->alb2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pot1"),     &(params->pot1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pot2"),     &(params->pot2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rm"),       &(params->rm));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_xbol1"), &(params->xbol1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_xbol2"), &(params->xbol2));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol1"), &(params->ybol1));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol2"), &(params->ybol2));
 
 	/* Passband-dependent parameters:                                           */
 	{
@@ -657,7 +657,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->levweight  = phoebe_malloc (cno * sizeof (*(params->levweight)));
 
 	for (i = 0; i < rvno; i++) {
-		phoebe_parameter_get_value ("phoebe_rv_dep", i, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &readout_str);
 		status = phoebe_column_get_type (&dtype, readout_str);
 		if (status != SUCCESS) {
 			free (params->passband); free (params->wavelength); free (params->sigma);
@@ -669,7 +669,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 		if (dtype == PHOEBE_COLUMN_SECONDARY_RV && rvno == 2) index = 1; else index = 0;
 
-		phoebe_parameter_get_value ("phoebe_rv_filter", i, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), i, &readout_str);
 		passband = phoebe_passband_lookup (readout_str);
 		if (!passband) {
 			free (params->passband); free (params->wavelength); free (params->sigma);
@@ -682,20 +682,20 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		params->passband[index]   = get_passband_id (readout_str);
 		params->wavelength[index] = passband->effwl;
 
-		phoebe_parameter_get_value ("phoebe_rv_sigma", i, &(params->sigma[index]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), i, &(params->sigma[index]));
 		params->hla[index]        = 10.0;
 		params->cla[index]        = 10.0;
-		phoebe_parameter_get_value ("phoebe_ld_rvx1", i, &(params->x1a[index]));
-		phoebe_parameter_get_value ("phoebe_ld_rvy1", i, &(params->y1a[index]));
-		phoebe_parameter_get_value ("phoebe_ld_rvx2", i, &(params->x2a[index]));
-		phoebe_parameter_get_value ("phoebe_ld_rvy2", i, &(params->y2a[index]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx1"), i, &(params->x1a[index]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy1"), i, &(params->y1a[index]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx2"), i, &(params->x2a[index]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy2"), i, &(params->y2a[index]));
 		params->el3[index]        = 0.0;
 		params->opsf[index]       = 0.0;
 		params->levweight[index]  = 0;
 	}
 
 	for (i = rvno; i < cno; i++) {
-		phoebe_parameter_get_value ("phoebe_lc_filter", i-rvno, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), i-rvno, &readout_str);
 
 		passband = phoebe_passband_lookup (readout_str);
 		if (!passband) {
@@ -708,29 +708,29 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 		params->passband[i]   = get_passband_id (readout_str);
 		params->wavelength[i] = passband->effwl;
-		phoebe_parameter_get_value ("phoebe_lc_sigma", i-rvno, &(params->sigma[i]));
-		phoebe_parameter_get_value ("phoebe_hla", i-rvno, &(params->hla[i]));
-		phoebe_parameter_get_value ("phoebe_cla", i-rvno, &(params->cla[i]));
-		phoebe_parameter_get_value ("phoebe_ld_lcx1", i-rvno, &(params->x1a[i]));
-		phoebe_parameter_get_value ("phoebe_ld_lcy1", i-rvno, &(params->y1a[i]));
-		phoebe_parameter_get_value ("phoebe_ld_lcx2", i-rvno, &(params->x2a[i]));
-		phoebe_parameter_get_value ("phoebe_ld_lcy2", i-rvno, &(params->y2a[i]));
-		phoebe_parameter_get_value ("phoebe_el3", i-rvno, &(params->el3[i]));
-		phoebe_parameter_get_value ("phoebe_opsf", i-rvno, &(params->opsf[i]));
-		phoebe_parameter_get_value ("phoebe_lc_levweight", i-rvno, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i-rvno, &(params->sigma[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), i-rvno, &(params->hla[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), i-rvno, &(params->cla[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx1"), i-rvno, &(params->x1a[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy1"), i-rvno, &(params->y1a[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx2"), i-rvno, &(params->x2a[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy2"), i-rvno, &(params->y2a[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), i-rvno, &(params->el3[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"), i-rvno, &(params->opsf[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), i-rvno, &readout_str);
 		params->levweight[i]  = get_level_weighting_id (readout_str);
 	}
 	}
 
 	/* Spot parameters:                                                       */
-	phoebe_parameter_get_value ("phoebe_spots_no1", &(params->spot1no));
-	phoebe_parameter_get_value ("phoebe_spots_no2", &(params->spot2no));
-	phoebe_parameter_get_value ("phoebe_dc_spot1src", &(params->spot1src));
-	phoebe_parameter_get_value ("phoebe_dc_spot2src", &(params->spot2src));
-	phoebe_parameter_get_value ("phoebe_dc_spot1id", &(params->spot1id));
-	phoebe_parameter_get_value ("phoebe_dc_spot2id", &(params->spot2id));
-	phoebe_parameter_get_value ("phoebe_spots_move1", &(params->spots1move));
-	phoebe_parameter_get_value ("phoebe_spots_move2", &(params->spots2move));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no1"), &(params->spot1no));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no2"), &(params->spot2no));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), &(params->spot1src));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), &(params->spot2src));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), &(params->spot1id));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), &(params->spot2id));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move1"), &(params->spots1move));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move2"), &(params->spots2move));
 
 	params->spot1lat  = phoebe_malloc (params->spot1no * sizeof (*(params->spot1lat)));
 	params->spot1long = phoebe_malloc (params->spot1no * sizeof (*(params->spot1long)));
@@ -742,16 +742,16 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->spot2temp = phoebe_malloc (params->spot2no * sizeof (*(params->spot2temp)));
 
 	for (i = 0; i < params->spot1no; i++) {
-		phoebe_parameter_get_value ("phoebe_spots_lat1", i, &(params->spot1lat[i]));
-		phoebe_parameter_get_value ("phoebe_spots_long1", i, &(params->spot1long[i]));
-		phoebe_parameter_get_value ("phoebe_spots_rad1", i, &(params->spot1rad[i]));
-		phoebe_parameter_get_value ("phoebe_spots_temp1", i, &(params->spot1temp[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat1"), i, &(params->spot1lat[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long1"), i, &(params->spot1long[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad1"), i, &(params->spot1rad[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp1"), i, &(params->spot1temp[i]));
 	}
 	for (i = 0; i < params->spot2no; i++) {
-		phoebe_parameter_get_value ("phoebe_spots_lat2", i, &(params->spot2lat[i]));
-		phoebe_parameter_get_value ("phoebe_spots_long2", i, &(params->spot2long[i]));
-		phoebe_parameter_get_value ("phoebe_spots_rad2", i, &(params->spot2rad[i]));
-		phoebe_parameter_get_value ("phoebe_spots_temp2", i, &(params->spot2temp[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat2"), i, &(params->spot2lat[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long2"), i, &(params->spot2long[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad2"), i, &(params->spot2rad[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp2"), i, &(params->spot2temp[i]));
 	}
 
 	/* Observational data: */
@@ -765,21 +765,21 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			PHOEBE_passband *passband_ptr;
 			double sigma;
 
-			phoebe_parameter_get_value ("phoebe_rv_filename", rv1index, &filename);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), rv1index, &filename);
 
-			phoebe_parameter_get_value ("phoebe_rv_filter", rv1index, &passband);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), rv1index, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 
-			phoebe_parameter_get_value ("phoebe_rv_indep", rv1index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), rv1index, &readout_str);
 			phoebe_column_get_type (&itype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_dep", rv1index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), rv1index, &readout_str);
 			phoebe_column_get_type (&dtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_indweight", rv1index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), rv1index, &readout_str);
 			phoebe_column_get_type (&wtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_sigma", rv1index, &sigma);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), rv1index, &sigma);
 
 			params->obs[0] = phoebe_curve_new_from_file ((char *) filename);
 			if (!params->obs[0])
@@ -795,21 +795,21 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			PHOEBE_passband *passband_ptr;
 			double sigma;
 
-			phoebe_parameter_get_value ("phoebe_rv_filename", rv2index, &filename);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), rv2index, &filename);
 
-			phoebe_parameter_get_value ("phoebe_rv_filter", rv2index, &passband);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), rv2index, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 
-			phoebe_parameter_get_value ("phoebe_rv_indep", rv2index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), rv2index, &readout_str);
 			phoebe_column_get_type (&itype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_dep", rv2index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), rv2index, &readout_str);
 			phoebe_column_get_type (&dtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_indweight", rv2index, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), rv2index, &readout_str);
 			phoebe_column_get_type (&wtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_rv_sigma", rv2index, &sigma);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), rv2index, &sigma);
 
 			if (params->rv1data) index = 1; else index = 0;
 			params->obs[index] = phoebe_curve_new_from_file ((char *) filename);
@@ -825,21 +825,21 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			PHOEBE_passband *passband_ptr;
 			double sigma;
 
-			phoebe_parameter_get_value ("phoebe_lc_filename", i-rvno, &filename);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), i-rvno, &filename);
 
-			phoebe_parameter_get_value ("phoebe_lc_filter", i-rvno, &passband);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), i-rvno, &passband);
 			passband_ptr = phoebe_passband_lookup (passband);
 
-			phoebe_parameter_get_value ("phoebe_lc_indep", i-rvno, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), i-rvno, &readout_str);
 			phoebe_column_get_type (&itype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_lc_dep", i-rvno, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), i-rvno, &readout_str);
 			phoebe_column_get_type (&dtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_lc_indweight", i-rvno, &readout_str);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), i-rvno, &readout_str);
 			phoebe_column_get_type (&wtype, readout_str);
 
-			phoebe_parameter_get_value ("phoebe_lc_sigma", i-rvno, &sigma);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i-rvno, &sigma);
 
 			params->obs[i] = phoebe_curve_new_from_file ((char *) filename);
 			if (!params->obs[i])
@@ -964,10 +964,10 @@ int read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, do
 	 *   SUCCESS
 	 */
 
-	phoebe_parameter_get_value ("phoebe_hjd0", hjd0);
-	phoebe_parameter_get_value ("phoebe_period", period);
-	phoebe_parameter_get_value ("phoebe_dpdt", dpdt);
-	phoebe_parameter_get_value ("phoebe_pshift", pshift);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"), hjd0);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"), period);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"), dpdt);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pshift"), pshift);
 
 	return SUCCESS;
 }
@@ -987,7 +987,7 @@ int read_in_adjustable_parameters (int *tba, double **values)
 	list = PHOEBE_pt->lists.marked_tba;
 	i = 0;
 	while (list) {
-		phoebe_parameter_get_value (list->elem->qualifier, &(*values[i]));
+		phoebe_parameter_get_value (list->elem, &(*values[i]));
 		i++; list = list->next;
 	}
 

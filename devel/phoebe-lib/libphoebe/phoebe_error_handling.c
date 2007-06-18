@@ -360,8 +360,8 @@ bool hla_request_is_sane ()
 
 	bool hla_adj_state, hla_comp_state;
 
-	phoebe_parameter_get_tba   ("phoebe_hla", &hla_adj_state);
-	phoebe_parameter_get_value ("phoebe_compute_hla_switch", &hla_comp_state);
+	phoebe_parameter_get_tba   (phoebe_parameter_lookup ("phoebe_hla"), &hla_adj_state);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &hla_comp_state);
 
 	if (hla_adj_state && hla_comp_state)
 		return FALSE;
@@ -379,8 +379,8 @@ bool vga_request_is_sane ()
 
 	bool vga_adj_state, vga_comp_state;
 
-	phoebe_parameter_get_tba   ("phoebe_vga", &vga_adj_state);
-	phoebe_parameter_get_value ("phoebe_compute_vga_switch", &vga_comp_state);
+	phoebe_parameter_get_tba   (phoebe_parameter_lookup ("phoebe_vga"), &vga_adj_state);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &vga_comp_state);
 
 	if (vga_adj_state && vga_comp_state)
 		return FALSE;
@@ -399,8 +399,8 @@ bool dpdt_request_is_sane ()
 	double dpdt;
 	const char *indep;
 
-	phoebe_parameter_get_value ("phoebe_dpdt",  &dpdt);
-	phoebe_parameter_get_value ("phoebe_indep", &indep);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"),  &dpdt);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &indep);
 
 	if (strcmp (indep, "Phase") && fabs (dpdt) > PHOEBE_NUMERICAL_ACCURACY)
 		return FALSE;

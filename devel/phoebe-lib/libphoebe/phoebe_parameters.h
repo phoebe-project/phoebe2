@@ -77,23 +77,23 @@ PHOEBE_parameter_table *PHOEBE_pt;
 
 /******************************************************************************/
 
-int phoebe_parameter_get_value        (char *qualifier, ...);
-int phoebe_parameter_set_value        (char *qualifier, ...);
+int phoebe_parameter_get_value        (PHOEBE_parameter *par, ...);
+int phoebe_parameter_set_value        (PHOEBE_parameter *par, ...);
 
-int phoebe_parameter_get_tba          (char *qualifier, bool *tba);
-int phoebe_parameter_set_tba          (char *qualifier, bool  tba);
+int phoebe_parameter_get_tba          (PHOEBE_parameter *par, bool *tba);
+int phoebe_parameter_set_tba          (PHOEBE_parameter *par, bool  tba);
 
-int phoebe_parameter_get_step         (char *qualifier, double *step);
-int phoebe_parameter_set_step         (char *qualifier, double  step);
+int phoebe_parameter_get_step         (PHOEBE_parameter *par, double *step);
+int phoebe_parameter_set_step         (PHOEBE_parameter *par, double  step);
 
-int phoebe_parameter_get_lower_limit  (char *qualifier, double *valmin);
-int phoebe_parameter_set_lower_limit  (char *qualifier, double  valmin);
+int phoebe_parameter_get_lower_limit  (PHOEBE_parameter *par, double *valmin);
+int phoebe_parameter_set_lower_limit  (PHOEBE_parameter *par, double  valmin);
 
-int phoebe_parameter_get_upper_limit  (char *qualifier, double *valmax);
-int phoebe_parameter_set_upper_limit  (char *qualifier, double  valmax);
+int phoebe_parameter_get_upper_limit  (PHOEBE_parameter *par, double *valmax);
+int phoebe_parameter_set_upper_limit  (PHOEBE_parameter *par, double  valmax);
 
-int phoebe_parameter_get_limits       (char *qualifier, double *valmin, double *valmax);
-int phoebe_parameter_set_limits       (char *qualifier, double  valmin, double  valmax);
+int phoebe_parameter_get_limits       (PHOEBE_parameter *par, double *valmin, double *valmax);
+int phoebe_parameter_set_limits       (PHOEBE_parameter *par, double  valmin, double  valmax);
 
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ();
 
