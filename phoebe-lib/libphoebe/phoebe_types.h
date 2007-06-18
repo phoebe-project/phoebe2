@@ -172,7 +172,7 @@ typedef enum PHOEBE_column_type {
 	PHOEBE_COLUMN_INVALID
 } PHOEBE_column_type;
 
-int phoebe_column_type_get_name    (PHOEBE_column_type ctype, char **name);
+int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name);
 int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
 
 typedef struct PHOEBE_curve {

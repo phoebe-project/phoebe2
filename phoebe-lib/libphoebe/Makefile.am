@@ -27,7 +27,6 @@
 lib_LTLIBRARIES = libphoebe.la
 
 libphoebe_la_SOURCES =                                                  \
-    cfortran.h                        phoebe_wd_algorithms.f            \
     phoebe_accessories.c              phoebe_accessories.h              \
     phoebe_allocations.c              phoebe_allocations.h              \
     phoebe_base.c                     phoebe_base.h                     \

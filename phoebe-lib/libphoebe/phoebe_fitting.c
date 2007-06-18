@@ -1031,8 +1031,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
 	/* Run one DC iteration and store the results in the allocated arrays: */
-	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s);
-	cfval = 0.0;
+	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s, &cfval);
 
 	/*
 	 * Allocate the feedback structure and fill it in. The number of parameter
