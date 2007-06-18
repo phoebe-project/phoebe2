@@ -1,4 +1,4 @@
-      subroutine dc(atmtab,pltab,corrs,stdevs,chi2s)
+      subroutine dc(atmtab,pltab,corrs,stdevs,chi2s,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -106,8 +106,9 @@ c
 c        corrs   ..   an array of computed corrections
 c       stdevs   ..   standard deviations of fitted parameters
 c        chi2s   ..   chi2 values of individual curves after the fit
+c        cfval   ..   cost function value (global goodness-of-fit value)
 c
-      double precision corrs(*),stdevs(*),chi2s(*)
+      double precision corrs(*),stdevs(*),chi2s(*),cfval
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -1714,6 +1715,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       JST=MAT*NOBS+1
       DO 199 JRES=JST,NCOEFF
   199 RESSQ=RESSQ+OBS(JRES)**2
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+      cfval=ressq
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       WRITE(6,101)
       WRITE(6,40)
       WRITE(6,21) RESSQ,S,deter
