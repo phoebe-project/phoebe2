@@ -95,6 +95,8 @@ int phoebe_parameter_set_upper_limit  (char *qualifier, double  valmax);
 int phoebe_parameter_get_limits       (char *qualifier, double *valmin, double *valmax);
 int phoebe_parameter_set_limits       (char *qualifier, double  valmin, double  valmax);
 
+PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ();
+
 /* ***************************   Third light   ****************************** */
 
 typedef enum PHOEBE_el3_units {
