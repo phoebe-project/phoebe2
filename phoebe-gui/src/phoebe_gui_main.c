@@ -13,7 +13,7 @@ int main (int argc, char *argv[])
     gtk_set_locale();
     gtk_init(&argc, &argv);
     glade_init();
-    
+ 
     phoebe_init();
 
     phoebe = glade_xml_new("phoebe.glade", NULL, NULL);
@@ -31,6 +31,7 @@ int main (int argc, char *argv[])
     gtk_widget_show(phoebe_window);
     
     gtk_main();
+	 phoebe_quit ();
 
     return SUCCESS;
 }
