@@ -16,7 +16,7 @@
 
 ########################################################################
 #                                                                      #
-#                        PHOEBE 0.30pre5 library                       #
+#                          PHOEBE 0.30 library                         #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -60,17 +60,17 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
-	ChangeLog INSTALL NEWS TODO autoconfig/compile \
-	autoconfig/config.guess autoconfig/config.sub \
-	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
-	autoconfig/missing autoconfig/mkinstalldirs
+	ChangeLog INSTALL NEWS TODO autoconfig/config.guess \
+	autoconfig/config.sub autoconfig/depcomp autoconfig/install-sh \
+	autoconfig/ltmain.sh autoconfig/missing config.guess \
+	config.sub ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
-mkinstalldirs = $(SHELL) $(top_srcdir)/autoconfig/mkinstalldirs
+mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/libphoebe/phoebe_build_config.h
 CONFIG_CLEAN_FILES =
 SOURCES =
@@ -128,6 +128,7 @@ FFLAGS = @FFLAGS@
 FLIBS = @FLIBS@
 GNUPLOT = @GNUPLOT@
 GREP = @GREP@
+HTML_DIR = @HTML_DIR@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -150,6 +151,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -207,7 +209,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = libwd libphoebe ptf wd
+SUBDIRS = libwd libphoebe ptf wd docs/reference
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
              autogen.sh                              \

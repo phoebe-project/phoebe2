@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-04-04 #
+#                                            Last revision: 2007-06-19 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -144,6 +144,13 @@
       gnuplot="gnuplot"
     fi
 
+  # gtk-doc support; sorry for the silly formatting, gtkdocize requires it:
+    gtkdocstate="no"
+GTK_DOC_CHECK(1.0)
+    if test "$enable_gtk_doc" == "yes"; then
+      gtkdocstate="yes"
+    fi
+
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot
   if test x$plotters = x; then
@@ -194,6 +201,7 @@
                   libphoebe/Makefile
                   ptf/Makefile
                   wd/Makefile
+                  docs/reference/Makefile
                   ])
 
 # Conclude:
@@ -212,5 +220,6 @@
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
   echo "Supported plotting packages:      $plotters"
+  echo "Build API documentation:          $gtkdocstate"
   echo "Verbose debugging messages:       $debugstate"
   echo ""

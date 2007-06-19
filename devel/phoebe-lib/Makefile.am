@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                        PHOEBE 0.30pre5 library                       #
+#                          PHOEBE 0.30 library                         #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -24,7 +24,7 @@
 #                                                                      #
 ########################################################################
 
-SUBDIRS = libwd libphoebe ptf wd
+SUBDIRS = libwd libphoebe ptf wd docs/reference
 
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
