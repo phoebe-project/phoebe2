@@ -1241,11 +1241,16 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.iarray[i] = par->defaultvalue.i;
 					}
-					if (strcmp (field,  "VAL") == 0) par->value.array->val.iarray[elem-1] = atoi (value_str);
-					if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
-					if (strcmp (field,  "MAX") == 0) par->max     = atof (value_str);
-					if (strcmp (field, "STEP") == 0) par->step    = atof (value_str);
-					if (strcmp (field,  "ADJ") == 0) par->tba     = atob (value_str);
+					if (strcmp (field,  "VAL") == 0)
+						phoebe_parameter_set_value (par, elem-1, atoi (value_str));
+					if (strcmp (field,  "MIN") == 0)
+						phoebe_parameter_set_lower_limit (par, atof (value_str));
+					if (strcmp (field,  "MAX") == 0)
+						phoebe_parameter_set_upper_limit (par, atof (value_str));
+					if (strcmp (field, "STEP") == 0)
+						phoebe_parameter_set_step (par, atof (value_str));
+					if (strcmp (field,  "ADJ") == 0)
+						phoebe_parameter_set_tba (par, atob (value_str));
 				break;
 				case TYPE_BOOL_ARRAY:
 					if (par->value.array->dim < elem) {
@@ -1254,11 +1259,16 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.barray[i] = par->defaultvalue.b;
 					}
-					if (strcmp (field,  "VAL") == 0) par->value.array->val.barray[elem-1] = atob (value_str);
-					if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
-					if (strcmp (field,  "MAX") == 0) par->max     = atof (value_str);
-					if (strcmp (field, "STEP") == 0) par->step    = atof (value_str);
-					if (strcmp (field,  "ADJ") == 0) par->tba     = atob (value_str);
+					if (strcmp (field,  "VAL") == 0)
+						phoebe_parameter_set_value (par, elem-1, atob (value_str));
+					if (strcmp (field,  "MIN") == 0)
+						phoebe_parameter_set_lower_limit (par, atof (value_str));
+					if (strcmp (field,  "MAX") == 0)
+						phoebe_parameter_set_upper_limit (par, atof (value_str));
+					if (strcmp (field, "STEP") == 0)
+						phoebe_parameter_set_step (par, atof (value_str));
+					if (strcmp (field,  "ADJ") == 0)
+						phoebe_parameter_set_tba (par, atob (value_str));
 				break;
 				case TYPE_DOUBLE_ARRAY:
 					if (par->value.vec->dim < elem) {
@@ -1267,11 +1277,16 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.vec->val[i] = par->defaultvalue.d;
 					}
-					if (strcmp (field,  "VAL") == 0) par->value.vec->val[elem-1] = atof (value_str);
-					if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
-					if (strcmp (field,  "MAX") == 0) par->max     = atof (value_str);
-					if (strcmp (field, "STEP") == 0) par->step    = atof (value_str);
-					if (strcmp (field,  "ADJ") == 0) par->tba     = atob (value_str);
+					if (strcmp (field,  "VAL") == 0)
+						phoebe_parameter_set_value (par, elem-1, atof (value_str));
+					if (strcmp (field,  "MIN") == 0)
+						phoebe_parameter_set_lower_limit (par, atof (value_str));
+					if (strcmp (field,  "MAX") == 0)
+						phoebe_parameter_set_upper_limit (par, atof (value_str));
+					if (strcmp (field, "STEP") == 0)
+						phoebe_parameter_set_step (par, atof (value_str));
+					if (strcmp (field,  "ADJ") == 0)
+						phoebe_parameter_set_tba (par, atob (value_str));
 				break;
 				case TYPE_STRING_ARRAY:
 					if (par->value.array->dim < elem) {
@@ -1280,14 +1295,16 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.strarray[i] = strdup (par->defaultvalue.str);
 					}
-					if (strcmp (field,  "VAL") == 0) {
-						if (par->value.array->val.strarray[elem-1]) free (par->value.array->val.strarray[elem-1]);
-						par->value.array->val.strarray[elem-1] = strdup (value_str);
-					}
-					if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
-					if (strcmp (field,  "MAX") == 0) par->max     = atof (value_str);
-					if (strcmp (field, "STEP") == 0) par->step    = atof (value_str);
-					if (strcmp (field,  "ADJ") == 0) par->tba     = atob (value_str);
+					if (strcmp (field,  "VAL") == 0)
+						phoebe_parameter_set_value (par, elem-1, value_str);
+					if (strcmp (field,  "MIN") == 0)
+						phoebe_parameter_set_lower_limit (par, atof (value_str));
+					if (strcmp (field,  "MAX") == 0)
+						phoebe_parameter_set_upper_limit (par, atof (value_str));
+					if (strcmp (field, "STEP") == 0)
+						phoebe_parameter_set_step (par, atof (value_str));
+					if (strcmp (field,  "ADJ") == 0)
+						phoebe_parameter_set_tba (par, atob (value_str));
 				break;
 			}
 		}
@@ -1321,7 +1338,7 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.iarray[i] = par->defaultvalue.i;
 					}
-					par->value.array->val.iarray[elem-1] = atoi (value_str);
+					phoebe_parameter_set_value (par, elem-1, atoi (value_str));
 				break;
 				case TYPE_BOOL_ARRAY:
 					if (par->value.array->dim < elem) {
@@ -1330,7 +1347,7 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.barray[i] = par->defaultvalue.b;
 					}
-					par->value.array->val.barray[elem-1] = atob (value_str);
+					phoebe_parameter_set_value (par, elem-1, atob (value_str));
 				break;
 				case TYPE_DOUBLE_ARRAY:
 					if (par->value.vec->dim < elem) {
@@ -1339,7 +1356,7 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.vec->val[i] = par->defaultvalue.d;
 					}
-					par->value.vec->val[elem-1] = atof (value_str);
+					phoebe_parameter_set_value (par, elem-1, atof (value_str));
 				break;
 				case TYPE_STRING_ARRAY:
 					if (par->value.array->dim < elem) {
@@ -1348,8 +1365,7 @@ int phoebe_open_parameter_file (const char *filename)
 						for (i = olddim; i < elem-1; i++)
 							par->value.array->val.strarray[i] = strdup (par->defaultvalue.str);
 					}
-					if (par->value.array->val.strarray[elem-1]) free (par->value.array->val.strarray[elem-1]);
-					par->value.array->val.strarray[elem-1] = strdup (value_str);
+					phoebe_parameter_set_value (par, elem-1, value_str);
 				break;
 			}
 		}
@@ -1371,11 +1387,16 @@ int phoebe_open_parameter_file (const char *filename)
 				continue;
 			}
 
-			if (strcmp (field,  "VAL") == 0) par->value.d = atof (value_str);
-			if (strcmp (field,  "MIN") == 0) par->min     = atof (value_str);
-			if (strcmp (field,  "MAX") == 0) par->max     = atof (value_str);
-			if (strcmp (field, "STEP") == 0) par->step    = atof (value_str);
-			if (strcmp (field,  "ADJ") == 0) par->tba     = atob (value_str);
+			if (strcmp (field,  "VAL") == 0)
+				phoebe_parameter_set_value (par, atof (value_str));
+					if (strcmp (field,  "MIN") == 0)
+						phoebe_parameter_set_lower_limit (par, atof (value_str));
+					if (strcmp (field,  "MAX") == 0)
+						phoebe_parameter_set_upper_limit (par, atof (value_str));
+					if (strcmp (field, "STEP") == 0)
+						phoebe_parameter_set_step (par, atof (value_str));
+					if (strcmp (field,  "ADJ") == 0)
+						phoebe_parameter_set_tba (par, atob (value_str));
 		}
 		else {
 			phoebe_debug ("      ");
@@ -1392,19 +1413,19 @@ int phoebe_open_parameter_file (const char *filename)
 
 			switch (par->type) {
 				case TYPE_INT:
-					par->value.i = atoi (value_str);
+					phoebe_parameter_set_value (par, atoi (value_str));
 				break;
 				case TYPE_BOOL:
-					par->value.b = atob (value_str);
+					phoebe_parameter_set_value (par, atob (value_str));
 				break;
 				case TYPE_DOUBLE:
-					par->value.d = atof (value_str);
+					phoebe_parameter_set_value (par, atof (value_str));
 				break;
 				case TYPE_STRING:
 					/* Strip the string of quotes if necessary:                       */
 					while (value_str[0] == '"') value_str++;
 					while (value_str[strlen(value_str)-1] == '"') value_str[strlen(value_str)-1] = '\0';
-					par->value.str = strdup (value_str);
+					phoebe_parameter_set_value (par, value_str);
 				break;
 				default:
 					phoebe_lib_error ("exception handler invoked in phoebe_open_parameter_file (), please report this!\n");

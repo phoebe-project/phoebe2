@@ -986,7 +986,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 		/* 34 */ "phoebe_el3"
 	};
 
-	int status, i;
+	int status, i, j;
 	clock_t clock_start, clock_stop;
 	char atmcof[255], atmcofplanck[255];
 	WD_DCI_parameters *params;
@@ -1064,8 +1064,25 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 
-	for (i = 0; i < no_tba; i++)
+	for (i = 0; i < no_tba; i++) {
 		feedback->qualifiers->val.strarray[i] = strdup (marked_tba->elem->qualifier);
+		if (marked_tba->elem->type == TYPE_INT    ||
+			marked_tba->elem->type == TYPE_BOOL   ||
+			marked_tba->elem->type == TYPE_DOUBLE ||
+			marked_tba->elem->type == TYPE_STRING) {
+			phoebe_parameter_get_value (marked_tba->elem, &(feedback->initvals->val[i]));
+			feedback-> newvals->val[i] = params->hla[i];
+			feedback-> ferrors->val[i] = sqrt (-1);
+		}
+		else
+			for (j = 0; j < marked_tba->elem->value.array->dim; j++) {
+				phoebe_parameter_get_value (marked_tba->elem, j, &(feedback->initvals->val[i+j]));
+				feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
+				feedback->ferrors->val[i+j] = sqrt (-1);
+			}
+
+		marked_tba = marked_tba->next;
+	}
 
 	/* Free all the allocated structures: */
 	wd_dci_parameters_free (params);
