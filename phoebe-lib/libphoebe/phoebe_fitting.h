@@ -40,6 +40,5 @@ typedef struct NMS_passed_parameters {
 int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEBE_minimizer_feedback *feedback);
 int find_minimum_with_dc  (FILE *dc_output, PHOEBE_minimizer_feedback *feedback);
 int kick_parameters (double sigma);
-int nms_print (const char *fmt, ...);
 
 #endif
