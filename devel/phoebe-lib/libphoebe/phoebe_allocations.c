@@ -508,9 +508,9 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	step = phoebe_malloc (35 * sizeof (*step));
 
 	/*
-	 * Read in TBA states and step-sizes; note the '!' in front of the tb
+	 * Read in TBA states and step-sizes; note the '!' in front of the tba
 	 * readout function; that's because WD sets 1 for /kept/ parameters and
-	 * 0 for modified parameters.
+	 * 0 for parameters that are marked for adjustment.
 	 */
 
 	for (i = 0; i < 35; i++) {

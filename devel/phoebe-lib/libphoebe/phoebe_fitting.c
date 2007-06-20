@@ -948,44 +948,6 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	 *   SUCCESS
 	 */
 
-	char *pars[] = {
-		/*  0 */ "phoebe_spots_lat1",
-		/*  1 */ "phoebe_spots_long1",
-		/*  2 */ "phoebe_spots_rad1",
-		/*  3 */ "phoebe_spots_temp1",
-		/*  4 */ "phoebe_spots_lat2",
-		/*  5 */ "phoebe_spots_long2",
-		/*  6 */ "phoebe_spots_rad2",
-		/*  7 */ "phoebe_spots_temp2",
-		/*  8 */ "phoebe_sma",
-		/*  9 */ "phoebe_ecc",
-		/* 10 */ "phoebe_perr0",
-		/* 11 */ "phoebe_f1",
-		/* 12 */ "phoebe_f2",
-		/* 13 */ "phoebe_pshift",
-		/* 14 */ "phoebe_vga",
-		/* 15 */ "phoebe_incl",
-		/* 16 */ "phoebe_grb1",
-		/* 17 */ "phoebe_grb2",
-		/* 18 */ "phoebe_teff1",
-		/* 19 */ "phoebe_teff2",
-		/* 20 */ "phoebe_alb1",
-		/* 21 */ "phoebe_alb2",
-		/* 22 */ "phoebe_pot1",
-		/* 23 */ "phoebe_pot2",
-		/* 24 */ "phoebe_rm",
-		/* 25 */ "phoebe_hjd0",
-		/* 26 */ "phoebe_period",
-		/* 27 */ "phoebe_dpdt",
-		/* 28 */ "phoebe_dperdt",
-		/* 29 */ "",
-		/* 30 */ "phoebe_hla",
-		/* 31 */ "phoebe_cla",
-		/* 32 */ "phoebe_ld_lcx1",
-		/* 33 */ "phoebe_ld_lcx2",
-		/* 34 */ "phoebe_el3"
-	};
-
 	int status, i, j;
 	clock_t clock_start, clock_stop;
 	char atmcof[255], atmcofplanck[255];
@@ -1027,7 +989,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	/* Allocate memory for the results: */
 	corrections = phoebe_malloc (no_tba * sizeof (*corrections));
 	errors      = phoebe_malloc (no_tba * sizeof (*errors));
-	chi2s       = phoebe_malloc ((params->nlc + rvno) * sizeof (*chi2s));
+	chi2s       = phoebe_malloc ((lcno + rvno) * sizeof (*chi2s));
 
 	/* Create the DCI file from the params variable: */
 	create_dci_file ("dcin.active", params);
@@ -1046,7 +1008,7 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	 * VGA is marked for computation.
 	 */
 
-	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*params->nlc)+calcvga, rvno+params->nlc);
+	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*lcno)+calcvga, lcno+rvno);
 
 	feedback->algorithm = PHOEBE_MINIMIZER_DC;
 	feedback->iters = 1;
@@ -1071,14 +1033,14 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 			marked_tba->elem->type == TYPE_DOUBLE ||
 			marked_tba->elem->type == TYPE_STRING) {
 			phoebe_parameter_get_value (marked_tba->elem, &(feedback->initvals->val[i]));
-			feedback-> newvals->val[i] = params->hla[i];
-			feedback-> ferrors->val[i] = sqrt (-1);
+			feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
+			feedback->ferrors->val[i] = errors[i];
 		}
 		else
 			for (j = 0; j < marked_tba->elem->value.array->dim; j++) {
 				phoebe_parameter_get_value (marked_tba->elem, j, &(feedback->initvals->val[i+j]));
 				feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
-				feedback->ferrors->val[i+j] = sqrt (-1);
+				feedback->ferrors->val[i+j] = errors[i+j];
 			}
 
 		marked_tba = marked_tba->next;
@@ -1097,203 +1059,4 @@ int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 	phoebe_debug ("leaving differential corrections minimizer.\n");
 
 	return SUCCESS;
-
-/*
-	int j, index, qindex;
-	double parvalue;
-	bool cindex;
-	int marked_tba;
-
-*/
-	/* Before we do anything, let's check whether the setup is sane:          */
-/*
-	if (!hla_request_is_sane  ()) return ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE;
-	if (!vga_request_is_sane  ()) return ERROR_MINIMIZER_VGA_REQUEST_NOT_SANE;
-	if (!dpdt_request_is_sane ()) return ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE;
-*/
-	/* Check whether third light units are Flux; DC doesn't yet support %.    */
-/*
-	{
-	PHOEBE_el3_units el3units;
-	status = phoebe_el3_units_id (&el3units);
-	if (el3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT) {
-		phoebe_lib_error ("handling 3rd light in total light units not yet supported by DC!\n");
-		return ERROR_INVALID_EL3_UNITS;
-	}
-	}
-
-	phoebe_parameter_get_value ("phoebe_compute_hla_switch", &calchla);
-	if (params->nlc == 0) calchla = 0;
-
-	phoebe_parameter_get_value ("phoebe_compute_vga_switch", &calcvga);
-	if (rvno == 0) calcvga = 0;
-
-	phoebe_parameter_get_value ("phoebe_cindex_switch",      &cindex);
-
-
-	if (calcvga && rvno > 0) {
-		double observational_average, synthetic_average;
-
-		if (params->rv1data && params->rv2data) {
-			double obsav1, obsav2;
-			status = calculate_model_vga (&synthetic_average, params->obs[0]->indep, params->obs[0]->dep, params->obs[1]->indep, params->obs[1]->dep);
-
-			status = calculate_average (&obsav1, params->obs[0]->dep);
-			status = calculate_average (&obsav2, params->obs[1]->dep);
-
-			observational_average =
-				  (double) params->obs[0]->dep->dim / (params->obs[0]->dep->dim + params->obs[1]->dep->dim) * obsav1
-				+ (double) params->obs[1]->dep->dim / (params->obs[0]->dep->dim + params->obs[1]->dep->dim) * obsav2;
-		} else {
-			status = calculate_model_vga (&synthetic_average, params->obs[0]->indep, params->obs[0]->dep, NULL, NULL);
-			status = calculate_average (&observational_average, params->obs[0]->dep);
-		}
-#warning FIX VGA COMPUTATION
-		params->vga += observational_average - synthetic_average;
-	}
-
-	if (calchla == TRUE) {
-		double observational_average, synthetic_average;
-
-		for (i = rvno; i < rvno + params->nlc; i++) {
-			calculate_average (&observational_average, params->obs[i]->dep);
-			calculate_model_level (&synthetic_average, i-rvno, params->obs[i]->indep);
-			params->hla[i] *= observational_average/synthetic_average;
-			if (cindex) break;
-		}
-	}
-
-	if (cindex) {
-		for (i = rvno + 1; i < rvno + params->nlc; i++) {
-			double cindex;
-			phoebe_parameter_get_value ("phoebe_cindex", i-rvno, &cindex);
-			params->hla[i] = params->hla[rvno] * cindex;
-		}
-	}
-
-	index = 0;
-
-	if (calchla == TRUE)
-		for (i = rvno; i < rvno + params->nlc; i++) {
-			int idx;
-			phoebe_parameter_get_value ("phoebe_hla", i-rvno, &parvalue);
-			fprintf (dc_output, "%s[%d]", pars[30], i-rvno+1);
-			for (idx = strlen("phoebe_hla"); idx <= 12; idx++) fprintf (dc_output, " ");
-			fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->hla[i] - parvalue, params->hla[i], "n/a");
-
-			phoebe_index_from_qualifier (&qindex, "phoebe_hla");
-			feedback->qualifiers->val.strarray[index] = strdup ("phoebe_hla");
-			feedback->initvals->val[index] = parvalue;
-			feedback-> newvals->val[index] = params->hla[i];
-			feedback-> ferrors->val[index] = sqrt (-1);
-#warning OBSOLETE
-			feedback-> indices->val.iarray[index] = qindex;
-
-			index++;
-		}
-
-	if (calcvga == TRUE) {
-		phoebe_parameter_get_value ("phoebe_vga", &parvalue);
-		fprintf (dc_output, "phoebe_vga      %12.6lf %12.6lf %12.6lf %10s\n", parvalue, params->vga - parvalue, params->vga, "n/a");
-
-		phoebe_index_from_qualifier (&qindex, "phoebe_vga");
-		feedback->qualifiers->val.strarray[index] = strdup ("phoebe_vga");
-		feedback->initvals->val[index] = parvalue;
-		feedback-> newvals->val[index] = params->vga;
-		feedback-> ferrors->val[index] = sqrt (-1);
-#warning OBSOLETE
-		feedback-> indices->val.iarray[index] = qindex;
-
-		index++;
-	}
-
-	for (i = 0; i < 35; i++)
-		if (params->tba[i] == 0) {
-			if (i < 29) {
-				int idx;
-				status = phoebe_parameter_get_value (pars[i], &parvalue);
-				if (status != SUCCESS) return status;
-				fprintf (dc_output, "%s", pars[i]);
-				if (strcmp (pars[i],   "phoebe_vga") == 0) { corrections[index-calchla*params->nlc-calcvga] *=   100.0; errors[index-calchla*params->nlc-calcvga] *=   100.0; }
-				if (strcmp (pars[i], "phoebe_teff1") == 0) { corrections[index-calchla*params->nlc-calcvga] *= 10000.0; errors[index-calchla*params->nlc-calcvga] *= 10000.0; }
-				if (strcmp (pars[i], "phoebe_teff2") == 0) { corrections[index-calchla*params->nlc-calcvga] *= 10000.0; errors[index-calchla*params->nlc-calcvga] *= 10000.0; }
-				for (idx = strlen(pars[i])-3; idx <= 12; idx++) fprintf (dc_output, " ");
-				fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
-
-				phoebe_index_from_qualifier (&qindex, pars[i]);
-				feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
-				feedback->initvals->val[index] = parvalue;
-				feedback-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
-				feedback-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
-#warning OBSOLETE
-				feedback-> indices->val.iarray[index] = qindex;
-
-				index++;
-			}
-			if (i == 30) {
-				double hla0 = 0.0;
-				for (j = 0; j < params->nlc; j++) {
-					int idx;
-
-					phoebe_parameter_get_value (pars[i], j, &parvalue);
-					if (j == 0) hla0 = parvalue + corrections[index-calchla*params->nlc-calcvga];
-
-					fprintf (dc_output, "%s[%d]", pars[i], j+1);
-					for (idx = strlen(pars[i]); idx <= 12; idx++)
-						fprintf (dc_output, " ");
-
-					if (cindex == TRUE && j != 0) {
-						double cindex_val;
-						phoebe_parameter_get_value ("phoebe_cindex", j, &cindex_val);
-						fprintf (dc_output, "%12.6lf %12s %12.6lf %12.6lf\n", parvalue, "n/a  ", hla0 * cindex_val, errors[index-calchla*params->nlc-calcvga]);
-					}
-					else {
-						fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
-					}
-
-					phoebe_index_from_qualifier (&qindex, pars[i]);
-					feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
-					feedback->initvals->val[index]        = parvalue;
-					feedback-> newvals->val[index]        = parvalue + corrections[index-calchla*params->nlc-calcvga];
-					feedback-> ferrors->val[index]        = errors[index-calchla*params->nlc-calcvga];
-#warning OBSOLETE
-					feedback-> indices->val.iarray[index] = qindex;
-
-					index++;
-				}
-			}
-			if (i > 30) {
-				for (j = 0; j < params->nlc; j++) {
-					int idx;
-					phoebe_parameter_get_value (pars[i], j, &parvalue);
-					fprintf (dc_output, "%s[%d]", pars[i], j+1);
-					for (idx = strlen(pars[i]); idx <= 12; idx++) fprintf (dc_output, " ");
-					fprintf (dc_output, "%12.6lf %12.6lf %12.6lf %12.6lf\n", parvalue, corrections[index-calchla*params->nlc-calcvga], parvalue + corrections[index-calchla*params->nlc-calcvga], errors[index-calchla*params->nlc-calcvga]);
-
-					phoebe_index_from_qualifier (&qindex, pars[i]);
-					feedback->qualifiers->val.strarray[index] = strdup (pars[i]);
-					feedback->initvals->val[index] = parvalue;
-					feedback-> newvals->val[index] = parvalue + corrections[index-calchla*params->nlc-calcvga];
-					feedback-> ferrors->val[index] = errors[index-calchla*params->nlc-calcvga];
-#warning OBSOLETE
-					feedback-> indices->val.iarray[index] = qindex;
-
-					index++;
-				}
-			}
-		}
-*/
 }
-
-#warning NMS_PRINT () NOT YET IMPLEMENTED
-int nms_print (const char *fmt, ...)
-	{
-	va_list ap;
-	int r;
-
-	va_start (ap, fmt);
-	r = vprintf (fmt, ap);
-	va_end (ap);
-
-	return r;
-	}
