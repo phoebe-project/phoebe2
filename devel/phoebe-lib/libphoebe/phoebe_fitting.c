@@ -928,7 +928,7 @@ int kick_parameters (double sigma)
 */
 }
 
-int find_minimum_with_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
+int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
 	 * This is WD's built-in DC algorithm and as such it doesn't depend on GSL.
