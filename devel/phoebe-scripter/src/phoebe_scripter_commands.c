@@ -155,17 +155,20 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 	 *   index      ..  array index, in cases when parameter is an array
 	 */
 
-	scripter_ast_value out;
-	scripter_ast_value qualifier, val, index;
 	int status;
 
-	PHOEBE_type partype;
-	PHOEBE_parameter_kind parkind;
+	scripter_ast_value qualifier, val, index, out;
+	PHOEBE_parameter *par;
 
+	/* If anything goes wrong, we return void. */
 	out.type = type_void;
 
 	if (!args) {
-		phoebe_scripter_output ("argument number mismatch: 0 passed, 2-3 expected.\n");
+		phoebe_scripter_output ("argument number mismatch: 0 passed, 2 or 3 expected.\n");
+		return out;
+	}
+	if (!args->next) {
+		phoebe_scripter_output ("argument number mismatch: 1 passed, 2 or 3 expected.\n");
 		return out;
 	}
 
@@ -177,31 +180,18 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		return out;
 	}
 
-	status = phoebe_type_from_qualifier (&partype, qualifier.value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
+	par = phoebe_parameter_lookup (qualifier.value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s is not defined, aborting.\n", qualifier.value.str);
 		scripter_ast_value_free (qualifier);
 		return out;
 	}
+	scripter_ast_value_free (qualifier);
 
-	status = phoebe_kind_from_qualifier (&parkind, qualifier.value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
-		scripter_ast_value_free (qualifier);
-		return out;
-	}
-
-	if (!args->next) {
-		phoebe_scripter_output ("argument number mismatch: 1 passed, 2-3 expected.\n");
-		scripter_ast_value_free (qualifier);
-		return out;
-	}
-
-	switch (partype) {
+	switch (par->type) {
 		case TYPE_INT:
 			if (args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 2 passed, 2 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -209,20 +199,18 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (val.type != type_int) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, val.value.i);
+
+			status = phoebe_parameter_set_value (par, val.value.i);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			return out;
 		break;
 		case TYPE_BOOL:
 			if (args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 2 passed, 2 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -231,20 +219,17 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 			if (val.type == type_int) propagate_int_to_bool (&val);
 			if (val.type != type_bool) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, boolean expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, val.value.b);
+			status = phoebe_parameter_set_value (par, val.value.b);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			return out;
 		break;
 		case TYPE_DOUBLE:
 			if (args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 2 passed, 2 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -253,48 +238,41 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 			if (val.type == type_int) propagate_int_to_double (&val);
 			if (val.type != type_double) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, double expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, val.value.d);
+			status = phoebe_parameter_set_value (par, val.value.d);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			return out;
 		break;
 		case TYPE_STRING:
 			if (args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 2 passed, 2 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
 			val = scripter_ast_evaluate (args->next->elem);
 
-			if (parkind == KIND_MENU && val.type == type_int)
+			if (par->kind == KIND_MENU && val.type == type_int)
 				propagate_int_to_menu_item (&val, qualifier.value.str);
 			if (val.type != type_string) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, string expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, val.value.str);
+			status = phoebe_parameter_set_value (par, val.value.str);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			return out;
 		break;
 		case TYPE_INT_ARRAY:
 			if (!args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: 2 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 			if (args->next->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 3 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -302,7 +280,6 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (val.type != type_int) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
@@ -311,14 +288,12 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (index.type != type_int) {
 				phoebe_scripter_output ("argument 3 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (index.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.i);
+			status = phoebe_parameter_set_value (par, index.value.i-1, val.value.i);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			scripter_ast_value_free (index);
 			return out;
@@ -326,12 +301,10 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		case TYPE_BOOL_ARRAY:
 			if (!args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: 2 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 			if (args->next->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 3 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -340,7 +313,6 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 			if (val.type == type_int) propagate_int_to_bool (&val);
 			if (val.type != type_bool) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, boolean expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
@@ -349,14 +321,12 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (index.type != type_int) {
 				phoebe_scripter_output ("argument 3 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (index.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.b);
+			status = phoebe_parameter_set_value (par, index.value.i-1, val.value.b);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			scripter_ast_value_free (index);
 			return out;
@@ -364,12 +334,10 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		case TYPE_DOUBLE_ARRAY:
 			if (!args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: 2 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 			if (args->next->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 3 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
@@ -378,7 +346,6 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 			if (val.type == type_int) propagate_int_to_double (&val);
 			if (val.type != type_double) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, double expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
@@ -387,14 +354,12 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (index.type != type_int) {
 				phoebe_scripter_output ("argument 3 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (index.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.d);
+			status = phoebe_parameter_set_value (par, index.value.i-1, val.value.d);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			scripter_ast_value_free (index);
 			return out;
@@ -402,21 +367,18 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		case TYPE_STRING_ARRAY:
 			if (!args->next->next) {
 				phoebe_scripter_output ("argument number mismatch: 2 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 			if (args->next->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 3 passed, 3 expected.\n");
-				scripter_ast_value_free (qualifier);
 				return out;
 			}
 
 			val = scripter_ast_evaluate (args->next->elem);
 
-			if (parkind == KIND_MENU && val.type == type_int) propagate_int_to_menu_item (&val, qualifier.value.str);
+			if (par->kind == KIND_MENU && val.type == type_int) propagate_int_to_menu_item (&val, qualifier.value.str);
 			if (val.type != type_string) {
 				phoebe_scripter_output ("argument 2 type mismatch: %s passed, string expected.\n", scripter_ast_value_type_get_name (val.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				return out;
 			}
@@ -425,20 +387,18 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 			if (index.type != type_int) {
 				phoebe_scripter_output ("argument 3 type mismatch: %s passed, integer expected.\n", scripter_ast_value_type_get_name (index.type));
-				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
 				scripter_ast_value_free (index);
 				return out;
 			}
-			status = phoebe_parameter_set_value (qualifier.value.str, index.value.i-1, val.value.str);
+			status = phoebe_parameter_set_value (par, index.value.i-1, val.value.str);
 			if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			scripter_ast_value_free (qualifier);
 			scripter_ast_value_free (val);
 			scripter_ast_value_free (index);
 			return out;
 		break;
 		default:
-			phoebe_scripter_output ("set_parameter_value (): how did I get here?");
+			phoebe_scripter_output ("exception handler invoked in set_parameter_value (), please report this!\n");
 			return out;
 		break;
 	}
@@ -460,32 +420,34 @@ scripter_ast_value scripter_mark_for_adjustment (scripter_ast_list *args)
 	 *   state      ..  bit state, TRUE (1) or FALSE (0)
 	 */
 
-	scripter_ast_value out;
-	scripter_ast_value *vals;
 	int status;
-	PHOEBE_parameter_kind kind;
+	scripter_ast_value out, *vals;
+
+	PHOEBE_parameter *par;
 
 	out.type = type_void;
 
 	status = scripter_command_args_evaluate (args, &vals, 2, 2, type_qualifier, type_bool);
 	if (status != SUCCESS) return out;
 
-	status = phoebe_kind_from_qualifier (&kind, vals[0].value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+	par = phoebe_parameter_lookup (vals[0].value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s not recognized, aborting.\n", vals[0].value.str);
+		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
-	if (kind != KIND_ADJUSTABLE) {
+	if (par->kind != KIND_ADJUSTABLE) {
 		phoebe_scripter_output ("qualifier %s is not adjustable.\n", vals[0].value.str);
 		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
-	status = phoebe_parameter_set_tba (vals[0].value.str, vals[1].value.b);
+	status = phoebe_parameter_set_tba (par, vals[1].value.b);
 	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 2);
+
 	return out;
 }
 
@@ -501,23 +463,23 @@ scripter_ast_value scripter_set_parameter_limits (scripter_ast_list *args)
 	 *   set_parameter_limits (qualifier, min, max)
 	 */
 
-	PHOEBE_parameter_kind kind;
-	scripter_ast_value out;
-	scripter_ast_value *vals;
-
 	int status;
+	scripter_ast_value out, *vals;
+	PHOEBE_parameter *par;
 
 	out.type = type_void;
+
 	status = scripter_command_args_evaluate (args, &vals, 3, 3, type_qualifier, type_double, type_double);
 	if (status != SUCCESS) return out;
 
-	status = phoebe_kind_from_qualifier (&kind, vals[0].value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+	par = phoebe_parameter_lookup (vals[0].value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s not recognized, aborting.\n", vals[0].value.str);
+		scripter_ast_value_array_free (vals, 3);
 		return out;
 	}
 
-	if (kind != KIND_ADJUSTABLE) {
+	if (par->kind != KIND_ADJUSTABLE) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (ERROR_QUALIFIER_NOT_ADJUSTABLE));
 		scripter_ast_value_array_free (vals, 3);
 		return out;
@@ -530,7 +492,7 @@ scripter_ast_value scripter_set_parameter_limits (scripter_ast_list *args)
 		return out;
 	}
 
-	status = phoebe_parameter_set_limits (vals[0].value.str, vals[1].value.d, vals[2].value.d);
+	status = phoebe_parameter_set_limits (par, vals[1].value.d, vals[2].value.d);
 	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 3);
@@ -548,30 +510,30 @@ scripter_ast_value scripter_set_parameter_step (scripter_ast_list *args)
 	 *   set_parameter_step (qualifier, step)
 	 */
 
-	PHOEBE_parameter_kind kind;
-	scripter_ast_value out;
-	scripter_ast_value *vals;
-
 	int status;
+	scripter_ast_value out, *vals;
+	PHOEBE_parameter *par;
 
 	out.type = type_void;
 
 	status = scripter_command_args_evaluate (args, &vals, 2, 2, type_qualifier, type_double);
 	if (status != SUCCESS) return out;
 
-	status = phoebe_kind_from_qualifier (&kind, vals[0].value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
+	par = phoebe_parameter_lookup (vals[0].value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s not recognized, aborting.\n", vals[0].value.str);
+		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
-	if (kind != KIND_ADJUSTABLE) {
+	if (par->kind != KIND_ADJUSTABLE) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (ERROR_QUALIFIER_NOT_ADJUSTABLE));
 		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
-	phoebe_parameter_set_step (vals[0].value.str, vals[1].value.d);
+	status = phoebe_parameter_set_step (par, vals[1].value.d);
+	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 2);
 	return out;
@@ -885,28 +847,24 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 	 */
 
 	int status;
-	PHOEBE_type type;
-	scripter_ast_value out;
-	scripter_ast_value *vals;
+	scripter_ast_value out, *vals;
+	PHOEBE_parameter *par;
+
+	out.type = type_void;
 
 	status = scripter_command_args_evaluate (args, &vals, 1, 2, type_qualifier, type_int);
-	if (status != SUCCESS) {
-		out.type = type_void;
+	if (status != SUCCESS) return out;
+
+	par = phoebe_parameter_lookup (vals[0].value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s not recognized, aborting.\n", vals[0].value.str);
+		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
-	status = phoebe_type_from_qualifier (&type, vals[0].value.str);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s\n", phoebe_scripter_error (status));
-		out.type = type_void;
-		return out;
-	}
-
-	/* Let's see if there is a 2nd parameter passed to this command, but the  */
-	/* qualifier is not an array:                                             */
-	if (vals[1].type != type_void && (type == TYPE_INT || type == TYPE_BOOL || type == TYPE_DOUBLE || type == TYPE_STRING)) {
+	if (vals[1].type != type_void && (par->type == TYPE_INT || par->type == TYPE_BOOL || par->type == TYPE_DOUBLE || par->type == TYPE_STRING)) {
 		phoebe_scripter_output ("qualifier %s is not an array, aborting.\n", vals[0].value.str);
-		out.type = type_void;
+		scripter_ast_value_array_free (vals, 2);
 		return out;
 	}
 
@@ -914,22 +872,22 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 	if (vals[1].type != type_void)
 		vals[1].value.i -= 1;
 
-	switch (type) {
+	switch (par->type) {
 		case (TYPE_INT):
 			out.type = type_int;
-			phoebe_parameter_get_value (vals[0].value.str, &(out.value.i));
+			status = phoebe_parameter_get_value (par, &(out.value.i));
 		break;
 		case (TYPE_BOOL):
 			out.type = type_bool;
-			phoebe_parameter_get_value (vals[0].value.str, &(out.value.b));
+			status = phoebe_parameter_get_value (par, &(out.value.b));
 		break;
 		case (TYPE_DOUBLE):
 			out.type = type_double;
-			phoebe_parameter_get_value (vals[0].value.str, &(out.value.d));
+			status = phoebe_parameter_get_value (par, &(out.value.d));
 		break;
 		case (TYPE_STRING):
 			out.type = type_string;
-			phoebe_parameter_get_value (vals[0].value.str, &(out.value.str));
+			status = phoebe_parameter_get_value (par, &(out.value.str));
 		break;
 		case (TYPE_INT_ARRAY):
 			if (vals[1].type == type_void) {
@@ -938,12 +896,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_int;
-				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.i);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
+				status = phoebe_parameter_get_value (par, vals[1].value.i, &out.value.i);
 			}
 		break;
 		case (TYPE_BOOL_ARRAY):
@@ -953,12 +906,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_bool;
-				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.b);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
+				status = phoebe_parameter_get_value (par, vals[1].value.i, &out.value.b);
 			}
 		break;
 		case (TYPE_DOUBLE_ARRAY):
@@ -968,12 +916,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			}
 			else {
 				out.type = type_double;
-				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &out.value.d);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
+				status = phoebe_parameter_get_value (par, vals[1].value.i, &out.value.d);
 			}
 		break;
 		case (TYPE_STRING_ARRAY):
@@ -984,12 +927,7 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			else {
 				char *readout;
 				out.type = type_string;
-				status = phoebe_parameter_get_value (vals[0].value.str, vals[1].value.i, &readout);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
+				status = phoebe_parameter_get_value (par, vals[1].value.i, &readout);
 				out.value.str = strdup (readout);
 			}
 		break;
@@ -998,6 +936,9 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			out.type = type_void;
 		break;
 	}
+
+	if (status != SUCCESS)
+		out.type = type_void;
 
 	scripter_ast_value_array_free (vals, 2);
 	return out;
@@ -1053,7 +994,7 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 	phoebe_scripter_output ("DC: initiating the minimization.\n");
 
 	feedback = phoebe_minimizer_feedback_new ();
-	status = find_minimum_with_dc (PHOEBE_output, feedback);
+	status = phoebe_minimize_using_dc (PHOEBE_output, feedback);
 
 	/* Return the minimizer structure value if everything was ok:             */
 	if (status == SUCCESS) {
@@ -1139,67 +1080,54 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 	 *   adopt_minimizer_results (feedback)
 	 */
 
+	int status, i;
 	PHOEBE_minimizer_feedback *feedback;
-	PHOEBE_type type;
+	PHOEBE_parameter *par;
 	const char *qualifier;
-	int i, status;
 	int passband_index = 0;
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
 
+	out.type = type_void;
+
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_minfeedback);
-	if (status != SUCCESS) {
-		out.type = type_void;
-		return out;
-	}
+	if (status != SUCCESS) return out;
 
 	feedback = vals[0].value.feedback;
 	for (i = 0; i < feedback->qualifiers->dim; i++) {
-		/* Get the parameter type from the global parameter table:            */
-		status = phoebe_type_from_index (&type, feedback->indices->val.iarray[i]);
-		if (status != SUCCESS) {
-			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-			out.type = type_void;
+		par = phoebe_parameter_lookup (feedback->qualifiers->val.strarray[i]);
+		if (!par) {
+			phoebe_scripter_output ("parameter %s not recognized, aborting.\n", feedback->qualifiers->val.strarray[i]);
+			scripter_ast_value_array_free (vals, 1);
 			return out;
 		}
 
-		switch (type) {
+		switch (par->type) {
 			case TYPE_DOUBLE:
-				/* This means that it is a passband-independent parameter.    */
-				status = phoebe_qualifier_from_index (&qualifier, feedback->indices->val.iarray[i]);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
-				phoebe_debug ("parameter %s set to %lf\n", qualifier, feedback->newvals->val[i]);
-				phoebe_parameter_set_value ((char *) qualifier, feedback->newvals->val[i]);
+				/* This means that it is a passband-independent parameter. */
+				phoebe_debug ("parameter %s set to %lf\n", par->qualifier, feedback->newvals->val[i]);
+				status = phoebe_parameter_set_value (par, feedback->newvals->val[i]);
 			break;
 			case TYPE_DOUBLE_ARRAY:
-				/* This means that it is a passband-dependent parameter.      */
-				status = phoebe_qualifier_from_index (&qualifier, feedback->indices->val.iarray[i]);
-				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-					out.type = type_void;
-					return out;
-				}
 				do {
-					phoebe_parameter_set_value ((char *) qualifier, passband_index, feedback->newvals->val[i+passband_index]);
+					status = phoebe_parameter_set_value (par, passband_index, feedback->newvals->val[i+passband_index]);
 					phoebe_debug ("parameter %s[%d] set to %lf\n", qualifier, passband_index, feedback->newvals->val[i+passband_index]);
 					passband_index++;
-				} while (i+passband_index < feedback->newvals->dim && feedback->indices->val.iarray[i] == feedback->indices->val.iarray[i+passband_index]);
+				} while (i+passband_index < feedback->newvals->dim && strcmp (feedback->qualifiers->val.strarray[i], feedback->qualifiers->val.strarray[i+passband_index]) == 0);
 				i += passband_index - 1; passband_index = 0;
 			break;
 			default:
-				/* All adjustable parameters are either doubles or arrays.    */
+				/* All adjustable parameters are either doubles or arrays. */
 				phoebe_scripter_output ("exception handler invoked in scripter_adopt_minimizer_results, please report this!\n");
-				out.type = type_void;
-				return out;
 			break;
 		}
 	}
 
+	if (status != SUCCESS)
+		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+
+	scripter_ast_value_array_free (vals, 1);
 	out.type = type_void;
 	return out;
 }
@@ -1340,7 +1268,7 @@ scripter_ast_value scripter_transform_flux_to_magnitude (scripter_ast_list *args
 	}
 
 	if (vals[1].type == type_void)
-		phoebe_parameter_get_value ("phoebe_mnorm", &mnorm);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
 	else
 		mnorm = vals[1].value.d;
 
