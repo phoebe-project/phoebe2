@@ -1175,14 +1175,8 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 								return out;
 							}
 							if (strcmp (field, "pars") == 0) {
-								int i;
-
 								out.type = type_array;
-								out.value.array = phoebe_array_new (TYPE_STRING_ARRAY);
-								phoebe_array_alloc (out.value.array, feedback->indices->dim);
-								for (i = 0; i < out.value.array->dim; i++) {
-									out.value.array->val.strarray[i] = phoebe_strdup (PHOEBE_parameters[feedback->indices->val.iarray[i]].qualifier);
-								}
+								out.value.array = phoebe_array_duplicate (feedback->qualifiers);
 								return out;
 							}
 							if (strcmp (field, "initvals") == 0) {
