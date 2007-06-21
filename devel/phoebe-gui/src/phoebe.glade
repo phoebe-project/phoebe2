@@ -138,6 +138,9 @@
                 <property name="stock_id">gtk-open</property>
                 <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_save_toolbutton">
@@ -145,11 +148,18 @@
                 <property name="stock_id">gtk-save</property>
                 <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton1">
@@ -157,6 +167,9 @@
                 <property name="label">LC Plot</property>
                 <property name="stock_id">gtk-select-color</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="toolbutton2">
@@ -164,11 +177,18 @@
                 <property name="label">RV Plot</property>
                 <property name="stock_id">gtk-select-color</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_fiitting_toolbutton">
@@ -178,6 +198,9 @@
                 <property name="stock_id">gtk-execute</property>
                 <signal name="clicked" handler="on_phoebe_fiitting_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_scripter_toolbutton">
@@ -187,11 +210,18 @@
                 <property name="stock_id">gtk-harddisk</property>
                 <signal name="clicked" handler="on_phoebe_scripter_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator2">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_settings_toolbutton">
@@ -201,11 +231,18 @@
                 <property name="stock_id">gtk-preferences</property>
                 <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator3">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_quit_toolbutton">
@@ -213,6 +250,9 @@
                 <property name="stock_id">gtk-quit</property>
                 <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
           </widget>
           <packing>
@@ -546,6 +586,7 @@ X-ray binary</property>
                                       <widget class="GtkTreeView" id="phoebe_data_rv_treeview">
                                         <property name="visible">True</property>
                                         <signal name="row_activated" handler="on_phoebe_data_rv_treeview_row_activated"/>
+                                        <signal name="cursor_changed" handler="on_phoebe_data_rv_treeview_cursor_changed"/>
                                       </widget>
                                     </child>
                                   </widget>

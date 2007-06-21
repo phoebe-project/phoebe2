@@ -50,7 +50,7 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_phoebe_gui_OBJECTS = phoebe_gui_main.$(OBJEXT) \
 	phoebe_gui_callbacks.$(OBJEXT) phoebe_gui_types.$(OBJEXT) \
-	phoebe_gui_base.$(OBJEXT)
+	phoebe_gui_base.$(OBJEXT) phoebe_gui_treeviews.$(OBJEXT)
 phoebe_gui_OBJECTS = $(am_phoebe_gui_OBJECTS)
 phoebe_gui_DEPENDENCIES =
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
@@ -164,8 +164,9 @@ INCLUDES = \
 phoebe_gui_SOURCES = \
 	phoebe_gui_main.h       phoebe_gui_main.c       \
 	phoebe_gui_callbacks.h  phoebe_gui_callbacks.c  \
-	phoebe_gui_types.h	   phoebe_gui_types.c  \
-	phoebe_gui_base.h	phoebe_gui_base.c
+	phoebe_gui_types.h	    phoebe_gui_types.c      \
+	phoebe_gui_base.h	    phoebe_gui_base.c       \
+	phoebe_gui_treeviews.h  phoebe_gui_treeviews.c
 
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
@@ -257,6 +258,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_base.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_callbacks.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_treeviews.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_types.Po@am__quote@
 
 .c.o:
