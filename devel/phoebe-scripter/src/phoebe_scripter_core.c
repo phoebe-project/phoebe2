@@ -95,6 +95,18 @@ int parse_startup_line (int argc, char *argv[])
 	return SUCCESS;
 }
 
+int scripter_parameters_init ()
+{
+	/*
+	 * This function initializes all scripter-related parameters and adds them
+	 * to the global parameter table.
+	 */
+
+	phoebe_parameter_add ("scripter_ordinate_reversed_switch", "Reverse the direction of the ordinate on LC plots", KIND_SWITCH,     NULL,   0.0,    0.0,    0.0,  NO, TYPE_BOOL,         NO);
+
+	return SUCCESS;
+}
+
 int scripter_init ()
 {
 	/*
@@ -117,6 +129,9 @@ int scripter_init ()
 
 	/* Initialize the main symbol table (used for the main script flow):      */
 	symbol_table = symbol_table_add (symbol_table, "phoebe_main");
+
+	/* Initialize all scripter-related parameters: */
+	scripter_parameters_init ();
 
 	/* Initialize the table of scripter commands:                             */
 	scripter_commands = phoebe_malloc (sizeof (*scripter_commands));
