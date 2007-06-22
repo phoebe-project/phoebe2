@@ -17,6 +17,7 @@ PHOEBE_COMMAND_LINE_ARGS PHOEBE_args;
 int parse_startup_line (int argc, char *argv[]);
 
 int scripter_init ();
+int scripter_parameters_init ();
 int scripter_main_loop ();
 int scripter_execute_script_from_stream (FILE *stream);
 int scripter_execute_script_from_buffer (char *buffer);
