@@ -956,6 +956,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	int no_tba;
 	int lcno = 0, rvno = 0;
 	bool calchla = FALSE, calcvga = FALSE;
+
+	/* Minimizer results: */
 	double *corrections;
 	double *errors;
 	double *chi2s;
@@ -1027,18 +1029,18 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 
 	for (i = 0; i < no_tba; i++) {
-		feedback->qualifiers->val.strarray[i] = strdup (marked_tba->elem->qualifier);
-		if (marked_tba->elem->type == TYPE_INT    ||
-			marked_tba->elem->type == TYPE_BOOL   ||
-			marked_tba->elem->type == TYPE_DOUBLE ||
-			marked_tba->elem->type == TYPE_STRING) {
-			phoebe_parameter_get_value (marked_tba->elem, &(feedback->initvals->val[i]));
+		feedback->qualifiers->val.strarray[i] = strdup (marked_tba->par->qualifier);
+		if (marked_tba->par->type == TYPE_INT    ||
+			marked_tba->par->type == TYPE_BOOL   ||
+			marked_tba->par->type == TYPE_DOUBLE ||
+			marked_tba->par->type == TYPE_STRING) {
+			phoebe_parameter_get_value (marked_tba->par, &(feedback->initvals->val[i]));
 			feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
 			feedback->ferrors->val[i] = errors[i];
 		}
 		else
-			for (j = 0; j < marked_tba->elem->value.array->dim; j++) {
-				phoebe_parameter_get_value (marked_tba->elem, j, &(feedback->initvals->val[i+j]));
+			for (j = 0; j < marked_tba->par->value.array->dim; j++) {
+				phoebe_parameter_get_value (marked_tba->par, j, &(feedback->initvals->val[i+j]));
 				feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
 				feedback->ferrors->val[i+j] = errors[i+j];
 			}

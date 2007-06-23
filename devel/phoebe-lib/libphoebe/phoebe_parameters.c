@@ -328,7 +328,7 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 			phoebe_lib_error ("dependency %s for %s not found, ignoring.\n", dependency, qualifier);
 		else {
 			PHOEBE_parameter_list *list = phoebe_malloc (sizeof (*list));
-			list->elem = par;
+			list->par  = par;
 			list->next = dep->deps;
 			dep->deps = list;
 		}
@@ -437,7 +437,7 @@ unsigned int phoebe_parameter_hash (char *qualifier)
 int phoebe_parameter_commit (PHOEBE_parameter *par)
 {
 	int hash = phoebe_parameter_hash (par->qualifier);
-	PHOEBE_pt_bucket *elem = PHOEBE_pt->elem[hash];
+	PHOEBE_parameter_list *elem = PHOEBE_pt->bucket[hash];
 
 	while (elem) {
 		if (strcmp (elem->par->qualifier, par->qualifier) == 0) break;
@@ -452,8 +452,8 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 		elem = phoebe_malloc (sizeof (*elem));
 
 		elem->par  = par;
-		elem->next = PHOEBE_pt->elem[hash];
-		PHOEBE_pt->elem[hash] = elem;
+		elem->next = PHOEBE_pt->bucket[hash];
+		PHOEBE_pt->bucket[hash] = elem;
 	}
 
 	phoebe_debug ("parameter %s added to bucket %d.\n", par->qualifier, hash);
@@ -463,7 +463,7 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 {
 	unsigned int hash = phoebe_parameter_hash (qualifier);
-	PHOEBE_pt_bucket *elem = PHOEBE_pt->elem[hash];
+	PHOEBE_parameter_list *elem = PHOEBE_pt->bucket[hash];
 
 	while (elem) {
 		if (strcmp (elem->par->qualifier, qualifier) == 0) break;
@@ -527,12 +527,12 @@ int phoebe_free_parameters ()
 	 */
 
 	int i;
-	PHOEBE_pt_bucket *elem;
+	PHOEBE_parameter_list *elem;
 
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
-		while (PHOEBE_pt->elem[i]) {
-			elem = PHOEBE_pt->elem[i];
-			PHOEBE_pt->elem[i] = elem->next;
+		while (PHOEBE_pt->bucket[i]) {
+			elem = PHOEBE_pt->bucket[i];
+			PHOEBE_pt->bucket[i] = elem->next;
 			phoebe_parameter_free (elem->par);
 			free (elem);
 		}
@@ -564,29 +564,29 @@ int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 	if (oldval == dim) return SUCCESS;
 
 	while (list) {
-		phoebe_debug ("resizing array %s to dim %d\n", list->elem->qualifier, dim);
+		phoebe_debug ("resizing array %s to dim %d\n", list->par->qualifier, dim);
 
-		switch (list->elem->type) {
+		switch (list->par->type) {
 				case TYPE_INT_ARRAY:
-					phoebe_array_realloc (list->elem->value.array, dim);
+					phoebe_array_realloc (list->par->value.array, dim);
 					for (j = oldval; j < dim; j++)
-						list->elem->value.array->val.iarray[j] = list->elem->defaultvalue.i;
+						list->par->value.array->val.iarray[j] = list->par->defaultvalue.i;
 				break;
 				case TYPE_BOOL_ARRAY:
-					status = phoebe_array_realloc (list->elem->value.array, dim);
+					status = phoebe_array_realloc (list->par->value.array, dim);
 					if (status != SUCCESS) phoebe_lib_error ("%s", phoebe_error (status));
 					for (j = oldval; j < dim; j++)
-						list->elem->value.array->val.barray[j] = list->elem->defaultvalue.b;
+						list->par->value.array->val.barray[j] = list->par->defaultvalue.b;
 				break;
 				case TYPE_DOUBLE_ARRAY:
-					phoebe_vector_realloc (list->elem->value.vec, dim);
+					phoebe_vector_realloc (list->par->value.vec, dim);
 					for (j = oldval; j < dim; j++)
-						list->elem->value.vec->val[j] = list->elem->defaultvalue.d;
+						list->par->value.vec->val[j] = list->par->defaultvalue.d;
 				break;
 				case TYPE_STRING_ARRAY:
-					phoebe_array_realloc (list->elem->value.array, dim);
+					phoebe_array_realloc (list->par->value.array, dim);
 					for (j = oldval; j < dim; j++)
-						list->elem->value.array->val.strarray[j] = strdup (list->elem->defaultvalue.str);
+						list->par->value.array->val.strarray[j] = strdup (list->par->defaultvalue.str);
 				break;
 		}
 
@@ -871,15 +871,15 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 	list = PHOEBE_pt->lists.marked_tba;
 	if (tba) {
 		while (list) {
-			if (list->elem == par) break;
+			if (list->par == par) break;
 			list = list->next;
 		}
 		if (!list) {
 			list = phoebe_malloc (sizeof (*list));
-			list->elem = par;
+			list->par = par;
 			list->next = PHOEBE_pt->lists.marked_tba;
 			PHOEBE_pt->lists.marked_tba = list;
-			phoebe_debug ("Parameter %s added to the tba list.\n", list->elem->qualifier);
+			phoebe_debug ("Parameter %s added to the tba list.\n", list->par->qualifier);
 		}
 		else {
 			/* The parameter is already in the list, nothing to be done. */
@@ -887,7 +887,7 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 	}
 	else /* if (!tba) */ {
 		while (list) {
-			if (list->elem == par) break;
+			if (list->par == par) break;
 			prev = list;
 			list = list->next;
 		}
@@ -896,7 +896,7 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 				prev->next = list->next;
 			else {
 				PHOEBE_pt->lists.marked_tba = list->next;
-				phoebe_debug ("Parameter %s removed from the tba list.\n", list->elem->qualifier);
+				phoebe_debug ("Parameter %s removed from the tba list.\n", list->par->qualifier);
 			}
 			free (list);
 		}
@@ -1529,7 +1529,7 @@ int phoebe_save_parameter_file (const char *filename)
 
 	int i;
 	FILE *parameter_file;
-	PHOEBE_pt_bucket *elem;
+	PHOEBE_parameter_list *elem;
 
 	/* First a checkup if everything is OK with the filename: */
 	parameter_file = fopen (filename, "w");
@@ -1540,7 +1540,7 @@ int phoebe_save_parameter_file (const char *filename)
 
 	/* Traverse the parameter table and save parameters one by one: */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
-		elem = PHOEBE_pt->elem[i];
+		elem = PHOEBE_pt->bucket[i];
 		while (elem) {
 			intern_save_to_parameter_file (elem->par, parameter_file);
 			elem = elem->next;

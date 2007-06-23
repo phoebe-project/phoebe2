@@ -17,7 +17,7 @@ typedef struct PHOEBE_parameter_options {
 } PHOEBE_parameter_options;
 
 typedef struct PHOEBE_parameter_list {
-	struct PHOEBE_parameter *elem;
+	struct PHOEBE_parameter *par;
 	struct PHOEBE_parameter_list *next;
 } PHOEBE_parameter_list;
 
@@ -61,13 +61,8 @@ enum {
 	PHOEBE_PT_HASH_BUCKETS    = 103
 };
 
-typedef struct PHOEBE_pt_bucket {
-	PHOEBE_parameter        *par;
-	struct PHOEBE_pt_bucket *next;
-} PHOEBE_pt_bucket;
-
 typedef struct PHOEBE_parameter_table {
-	PHOEBE_pt_bucket *elem[PHOEBE_PT_HASH_BUCKETS];
+	PHOEBE_parameter_list *bucket[PHOEBE_PT_HASH_BUCKETS];
 	struct {
 		PHOEBE_parameter_list *marked_tba;
 	} lists;

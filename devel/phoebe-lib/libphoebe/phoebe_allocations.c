@@ -987,7 +987,7 @@ int read_in_adjustable_parameters (int *tba, double **values)
 	list = PHOEBE_pt->lists.marked_tba;
 	i = 0;
 	while (list) {
-		phoebe_parameter_get_value (list->elem, &(*values[i]));
+		phoebe_parameter_get_value (list->par, &(*values[i]));
 		i++; list = list->next;
 	}
 
