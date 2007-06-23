@@ -278,15 +278,23 @@ int intern_info_on_variables (scripter_ast *ast)
 
 int intern_info_on_qualifiers (scripter_ast *ast)
 {
+	/*
+	 * This internal function prints out the information (directive 'info')
+	 * for the passed AST qualifier node. Type check has already been performed
+	 * in the directive function itself, so it shouldn't be done here.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_QUALIFIER_NOT_FOUND
+	 *   SUCCESS
+	 */
+
 	int i, status;
 	scripter_ast_value val = scripter_ast_evaluate (ast);
 	char *qualifier = val.value.str;
-	const char *description;
-	PHOEBE_type type;
 
+	/* No need to check the parameter validity, it's already been checked. */
 	PHOEBE_parameter *par = phoebe_parameter_lookup (qualifier);
-	if (!par)
-		return ERROR_QUALIFIER_NOT_FOUND;
 
 	/* Qualifier, keyword and description:                                    */
 	fprintf (PHOEBE_output, "\n");
@@ -297,7 +305,7 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 	switch (par->type) {
 		case TYPE_INT: {
 			int value;
-			status = phoebe_parameter_get_value (qualifier, &value);
+			status = phoebe_parameter_get_value (par, &value);
 			if (status != SUCCESS) return status;
 			fprintf (PHOEBE_output, "  Type:           integer\n");
 			fprintf (PHOEBE_output, "  Value:          %d\n", value);
@@ -306,7 +314,7 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 		case TYPE_BOOL: {
 			bool value;
 			fprintf (PHOEBE_output, "  Type:           boolean\n");
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			if (value)
 				fprintf (PHOEBE_output, "  Value:          yes\n");
 			else
@@ -315,14 +323,14 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 		break;
 		case TYPE_DOUBLE: {
 			double value;
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "  Type:           real\n");
 			fprintf (PHOEBE_output, "  Value:          %g\n", value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "  Type:           string\n");
 			fprintf (PHOEBE_output, "  Value:          %s\n", value);
 		}
@@ -476,16 +484,24 @@ int scripter_directive_list (scripter_ast_list *args)
 
 	int i;
 	char *ident = args->elem->value.variable;
+	PHOEBE_parameter_list *list;
 
 	if (strcmp (ident, "qualifiers") == 0 ||
 		strcmp (ident, "parameters") == 0) {
-		for (i = 0; i < PHOEBE_parameters_no; i++)
-			printf ("\t%s\n", PHOEBE_parameters[i].qualifier);
+		for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+			list = PHOEBE_pt->bucket[i];
+			while (list) {
+				fprintf (PHOEBE_output, "\t%s\n", list->par->qualifier);
+				list = list->next;
+			}
+		}
 	}
 	else if (strcmp (ident, "tba") == 0) {
-		for (i = 0; i < PHOEBE_parameters_no; i++)
-			if (PHOEBE_parameters[i].tba)
-				printf ("\t%s\n", PHOEBE_parameters[i].qualifier);
+		list = phoebe_parameter_list_get_marked_tba ();
+		while (list) {
+			fprintf (PHOEBE_output, "\t%s\n", list->par->qualifier);
+			list = list->next;
+		}
 	}
 	else {
 		phoebe_scripter_output ("argument '%s' to directive 'list' unknown.\n", ident);
@@ -545,10 +561,9 @@ int scripter_directive_show (scripter_ast_list *args)
 	 *   show qualifier
 	 */
 
-	scripter_ast_value *vals;
-	char *qualifier;
 	int status;
-	PHOEBE_type type;
+	scripter_ast_value *vals;
+	PHOEBE_parameter *par;
 
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_qualifier);
 	if (status != SUCCESS) {
@@ -556,25 +571,23 @@ int scripter_directive_show (scripter_ast_list *args)
 		return status;
 	}
 
-	qualifier = vals[0].value.str;
-
-	status = phoebe_type_from_qualifier (&type, qualifier);
-	if (status != SUCCESS) {
-		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-		return status;
+	par = phoebe_parameter_lookup (vals[0].value.str);
+	if (!par) {
+		phoebe_scripter_output ("parameter %s not recognized, aborting.\n", vals[0].value.str);
+		scripter_ast_value_array_free (vals, 1);
+		return ERROR_QUALIFIER_NOT_FOUND;
 	}
 
-	switch (type) {
+	switch (par->type) {
 		case TYPE_INT: {
 			int value;
-			status = phoebe_parameter_get_value (qualifier, &value);
-			if (status != SUCCESS) return status;
+			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "\t%d\n", value);
 		}
 		break;
 		case TYPE_BOOL: {
 			bool value;
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			if (value)
 				fprintf (PHOEBE_output, "\tYES\n");
 			else
@@ -583,18 +596,18 @@ int scripter_directive_show (scripter_ast_list *args)
 		break;
 		case TYPE_DOUBLE: {
 			double value;
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "\t%g\n", value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
-			phoebe_parameter_get_value (qualifier, &value);
+			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "\t%s\n", value);
 		}
 		break;
 		case TYPE_INT_ARRAY: {
-			PHOEBE_array *array = phoebe_array_new_from_qualifier (qualifier);
+			PHOEBE_array *array = phoebe_array_new_from_qualifier (par->qualifier);
 			if (array) {
 				fprintf (PHOEBE_output, "\t");
 				phoebe_array_print (array);
@@ -606,7 +619,7 @@ int scripter_directive_show (scripter_ast_list *args)
 		}
 		break;
 		case TYPE_BOOL_ARRAY: {
-			PHOEBE_array *array = phoebe_array_new_from_qualifier (qualifier);
+			PHOEBE_array *array = phoebe_array_new_from_qualifier (par->qualifier);
 			if (array) {
 				fprintf (PHOEBE_output, "\t");
 				phoebe_array_print (array);
@@ -618,7 +631,7 @@ int scripter_directive_show (scripter_ast_list *args)
 		}
 		break;
 		case TYPE_DOUBLE_ARRAY: {
-			PHOEBE_vector *vec = phoebe_vector_new_from_qualifier (qualifier);
+			PHOEBE_vector *vec = phoebe_vector_new_from_qualifier (par->qualifier);
 			if (vec) {
 				fprintf (PHOEBE_output, "\t");
 				phoebe_vector_print (vec);
@@ -630,7 +643,7 @@ int scripter_directive_show (scripter_ast_list *args)
 		}
 		break;
 		case TYPE_STRING_ARRAY: {
-			PHOEBE_array *array = phoebe_array_new_from_qualifier (qualifier);
+			PHOEBE_array *array = phoebe_array_new_from_qualifier (par->qualifier);
 			if (array) {
 				fprintf (PHOEBE_output, "\t");
 				phoebe_array_print (array);

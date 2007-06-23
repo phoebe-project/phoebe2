@@ -139,10 +139,9 @@ int phoebe_minimizer_feedback_print (PHOEBE_minimizer_feedback *feedback)
 	fprintf (PHOEBE_output, "  CPU time:             %2.2lf seconds\n", feedback->cputime);
 
 	fprintf (PHOEBE_output, "  Adjusted parameters:  ");
-	if (feedback->indices) {
-		for (i = 0; i < feedback->indices->dim; i++) {
-			fprintf (PHOEBE_output, "%s ", PHOEBE_parameters[feedback->indices->val.iarray[i]].qualifier);
-		}
+	if (feedback->qualifiers) {
+		for (i = 0; i < feedback->qualifiers->dim; i++)
+			fprintf (PHOEBE_output, "%s ", feedback->qualifiers->val.strarray[i]);
 		fprintf (PHOEBE_output, "\n");
 	}
 	else {

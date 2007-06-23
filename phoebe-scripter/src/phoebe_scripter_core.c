@@ -102,6 +102,7 @@ int scripter_parameters_init ()
 	 * to the global parameter table.
 	 */
 
+	phoebe_parameter_add ("scripter_verbosity_level",          "The level of scripter verbosity",                   KIND_PARAMETER,  NULL,   0.0,    0.0,    0.0,  NO, TYPE_INT,          1);
 	phoebe_parameter_add ("scripter_ordinate_reversed_switch", "Reverse the direction of the ordinate on LC plots", KIND_SWITCH,     NULL,   0.0,    0.0,    0.0,  NO, TYPE_BOOL,         NO);
 
 	return SUCCESS;
