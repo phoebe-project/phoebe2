@@ -52,7 +52,7 @@ int intern_phoebe_variables_init ()
 
 	PHOEBE_pt = phoebe_malloc (sizeof (*PHOEBE_pt));
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
-		PHOEBE_pt->elem[i] = NULL;
+		PHOEBE_pt->bucket[i] = NULL;
 
 	/*
 	 * The following are global parameter variables. Since they will be dynami-
