@@ -70,12 +70,12 @@ int phoebe_fatal (const char *fmt, ...)
 	}
 
 int phoebe_scripter_output (const char *fmt, ...)
-	{
+{
 	va_list ap;
 	int r;
 	int verbosity;
 
-	phoebe_parameter_get_value ("scripter_verbosity_level", &verbosity);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("scripter_verbosity_level"), &verbosity);
 	if (verbosity == 0) return 0;
 
 	printf ("PHOEBE scripter: ");
@@ -84,4 +84,4 @@ int phoebe_scripter_output (const char *fmt, ...)
 	va_end (ap);
 
 	return r;
-	}
+}
