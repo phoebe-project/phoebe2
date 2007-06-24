@@ -1051,7 +1051,7 @@ scripter_ast_value scripter_minimize_using_nms (scripter_ast_list *args)
 	feedback = phoebe_minimizer_feedback_new ();
 
 	/* Call the downhill simplex minimizer:                                   */
-	status = find_minimum_with_nms (vals[0].value.d, vals[1].value.i, PHOEBE_output, feedback);
+	status = phoebe_minimize_using_nms (vals[0].value.d, vals[1].value.i, PHOEBE_output, feedback);
 
 	/* Return the minimizer structure value if everything was ok:             */
 	if (status == SUCCESS) {

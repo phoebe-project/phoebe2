@@ -16,8 +16,8 @@
 
 typedef struct NMS_passed_parameters {
 	int to_be_adjusted;
-	int lcno;
-	int rvno;
+	int lcno;                          /* The number of observed light curves */
+	int rvno;                             /* The number of observed RV curves */
 	bool rv1;
 	bool rv2;
 	bool color_constraint;
@@ -25,20 +25,20 @@ typedef struct NMS_passed_parameters {
 	int CALCVGA;
 	bool ASINI;
 	int CC;
-	int *indices;
-	PHOEBE_curve **obs;
+	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
 	double *weight;
 	double *average;
 	double *cindex;
-	WD_LCI_parameters **pars;
+	WD_LCI_parameters **pars;        /* Model parameters for all LC/RV curves */
 	double ***pointers;
 	PHOEBE_vector **chi2s;
 } NMS_passed_parameters;
 
 #define wd_dc(atmtab,pltab,corrs,errors,chi2s,cfval) dc_(atmtab,pltab,corrs,errors,chi2s,cfval,strlen(atmtab),strlen(pltab))
 
-int find_minimum_with_nms (double accuracy, int iter_no, FILE *nms_output, PHOEBE_minimizer_feedback *feedback);
-int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback);
+int phoebe_minimize_using_dc  (FILE *dc_output, PHOEBE_minimizer_feedback *feedback);
+int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, PHOEBE_minimizer_feedback *feedback);
+
 int kick_parameters (double sigma);
 
 #endif
