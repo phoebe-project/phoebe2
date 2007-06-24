@@ -1567,7 +1567,8 @@ int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name)
 		case PHOEBE_COLUMN_WEIGHT:       *name = phoebe_strdup ("Standard weight");    break;
 		case PHOEBE_COLUMN_INVALID:      *name = phoebe_strdup ("Invalid");            break;
 		default:
-			phoebe_lib_error ("exception handler invoked in phoebe_column_type_get_name (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked in phoebe_column_type_get_name ():\n");
+			phoebe_lib_error ("function called with numeric code %d; please report this!\n", ctype);
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}
