@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Fri Jun 22 20:42:08 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Mon Jun 25 14:53:58 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkWindow" id="phoebe_load_rv_window">
     <property name="title" translatable="yes">Load RV curve</property>
@@ -75,19 +75,45 @@
                         <property name="n_columns">2</property>
                         <property name="column_spacing">20</property>
                         <child>
-                          <widget class="GtkComboBox" id="phoebe_load_rv_column3_combobox">
+                          <widget class="GtkLabel" id="phoebe_load_rv_column1_label">
                             <property name="visible">True</property>
-                            <property name="items" translatable="yes">Weight (int)
-Weight (real)
-Absolute error
-Unavailable</property>
+                            <property name="label" translatable="yes">Column 1:</property>
+                          </widget>
+                          <packing>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_load_rv_column2_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Column 2:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_load_rv_column3_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Column 3:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkComboBox" id="phoebe_load_rv_column1_combobox">
+                            <property name="visible">True</property>
+                            <property name="items" translatable="yes">Time
+Phase</property>
                           </widget>
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                            <property name="x_options">GTK_FILL</property>
                             <property name="y_options"></property>
                           </packing>
                         </child>
@@ -107,46 +133,20 @@ Rv in 100km/h</property>
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkComboBox" id="phoebe_load_rv_column1_combobox">
+                          <widget class="GtkComboBox" id="phoebe_load_rv_column3_combobox">
                             <property name="visible">True</property>
-                            <property name="items" translatable="yes">Time
-Phase</property>
+                            <property name="items" translatable="yes">Weight (int)
+Weight (real)
+Absolute error
+Unavailable</property>
                           </widget>
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
-                            <property name="y_options"></property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_rv_column3_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 3:</property>
-                          </widget>
-                          <packing>
                             <property name="top_attach">2</property>
                             <property name="bottom_attach">3</property>
                             <property name="x_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_rv_column2_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 2:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                            <property name="x_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_rv_column1_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 1:</property>
-                          </widget>
-                          <packing>
-                            <property name="x_options">GTK_FILL</property>
+                            <property name="y_options"></property>
                           </packing>
                         </child>
                       </widget>
@@ -173,28 +173,11 @@ Phase</property>
                         <property name="column_spacing">20</property>
                         <property name="row_spacing">10</property>
                         <child>
-                          <widget class="GtkButton" id="phoebe_load_rv_filter_button">
+                          <widget class="GtkLabel" id="phoebe_load_rv_sigma_label">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Filter</property>
+                            <property name="label" translatable="yes">Sigma:</property>
                           </widget>
                           <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                            <property name="y_options"></property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkSpinButton" id="phoebe_load_rv_sigma_spinbutton">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="adjustment">0.01 0 100 1 10 10</property>
-                            <property name="digits">5</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
                             <property name="y_options"></property>
                           </packing>
                         </child>
@@ -210,11 +193,28 @@ Phase</property>
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkLabel" id="phoebe_load_rv_sigma_label">
+                          <widget class="GtkSpinButton" id="phoebe_load_rv_sigma_spinbutton">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Sigma:</property>
+                            <property name="can_focus">True</property>
+                            <property name="adjustment">0.01 0 100 0.01 0.10000000000000001 0.10000000000000001</property>
+                            <property name="digits">5</property>
                           </widget>
                           <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="y_options"></property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkButton" id="phoebe_load_rv_filter_button">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Filter</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
                             <property name="y_options"></property>
                           </packing>
                         </child>
