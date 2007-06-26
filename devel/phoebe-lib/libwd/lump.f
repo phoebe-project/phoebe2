@@ -16,7 +16,8 @@ c   Version of January 8, 2003
       common /gpoles/ gplog1,gplog2
       kompcom=komp
       IQ=(KOMP-1)*(N1+1)
-      IS=(KOMP-1)*MMSAVE(IQ)
+      IS=0
+      IF(KOMP.EQ.2) IS=MMSAVE(IQ)
       PI=3.141592653589793d0
       PIH=.5d0*PI
       TPOLE=10000.d0*TPOLL
