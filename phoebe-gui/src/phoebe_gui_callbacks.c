@@ -240,6 +240,10 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
         g_free (filename);
     }
     gtk_widget_hide (phoebe_filechooser_dialog_widget);
+
+	GladeXML 	*xml = glade_xml_new("phoebe_load_lc.glade", NULL, NULL);
+	GtkWidget 	*window = glade_xml_get_widget(xml, "phoebe_load_lc_window");
+	gtk_widget_show_all (window);
 }
 
 
