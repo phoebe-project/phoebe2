@@ -66,7 +66,7 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-mkinstalldirs = $(install_sh) -d
+mkinstalldirs = $(SHELL) $(top_srcdir)/autoconfig/mkinstalldirs
 CONFIG_HEADER = phoebe_build_config.h
 CONFIG_CLEAN_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -88,7 +88,8 @@ am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_accessories.lo \
 	libphoebe_la-phoebe_error_handling.lo \
 	libphoebe_la-phoebe_fitting.lo \
 	libphoebe_la-phoebe_fortran_interface.lo \
-	libphoebe_la-phoebe_ld.lo libphoebe_la-phoebe_parameters.lo \
+	libphoebe_la-phoebe_ld.lo libphoebe_la-phoebe_nms.lo \
+	libphoebe_la-phoebe_parameters.lo \
 	libphoebe_la-phoebe_plotting.lo \
 	libphoebe_la-phoebe_radiation.lo libphoebe_la-phoebe_roche.lo \
 	libphoebe_la-phoebe_spectra.lo libphoebe_la-phoebe_types.lo
@@ -239,6 +240,7 @@ libphoebe_la_SOURCES = \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
     phoebe_ld.c                       phoebe_ld.h                       \
+    phoebe_nms.c                      phoebe_nms.h                      \
     phoebe_parameters.c               phoebe_parameters.h               \
     phoebe_plotting.c                 phoebe_plotting.h                 \
     phoebe_radiation.c                phoebe_radiation.h                \
@@ -268,6 +270,7 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_fortran_interface.h \
                           phoebe_global.h            \
                           phoebe_ld.h                \
+                          phoebe_nms.h               \
                           phoebe_parameters.h        \
                           phoebe_plotting.h          \
                           phoebe_roche.h             \
@@ -371,6 +374,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fitting.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fortran_interface.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_ld.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_nms.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_parameters.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_plotting.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_radiation.Plo@am__quote@
@@ -468,6 +472,13 @@ libphoebe_la-phoebe_ld.lo: phoebe_ld.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_ld.c' object='libphoebe_la-phoebe_ld.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_ld.lo `test -f 'phoebe_ld.c' || echo '$(srcdir)/'`phoebe_ld.c
+
+libphoebe_la-phoebe_nms.lo: phoebe_nms.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_nms.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_nms.Tpo -c -o libphoebe_la-phoebe_nms.lo `test -f 'phoebe_nms.c' || echo '$(srcdir)/'`phoebe_nms.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_nms.Tpo $(DEPDIR)/libphoebe_la-phoebe_nms.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_nms.c' object='libphoebe_la-phoebe_nms.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_nms.lo `test -f 'phoebe_nms.c' || echo '$(srcdir)/'`phoebe_nms.c
 
 libphoebe_la-phoebe_parameters.lo: phoebe_parameters.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_parameters.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_parameters.Tpo -c -o libphoebe_la-phoebe_parameters.lo `test -f 'phoebe_parameters.c' || echo '$(srcdir)/'`phoebe_parameters.c

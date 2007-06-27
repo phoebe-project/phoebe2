@@ -78,6 +78,12 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "the cross product can be evaluated only in 3D, aborting.\n";
 		case ERROR_VECTOR_INVALID_LIMITS:
 			return "the upper limit is smaller than the lower limit, aborting.\n";
+		case ERROR_MATRIX_NOT_INITIALIZED:
+			return "matrix is not initialized, aborting.\n";
+		case ERROR_MATRIX_ALREADY_ALLOCATED:
+			return "matrix is already allocated, aborting.\n";
+		case ERROR_MATRIX_INVALID_DIMENSION:
+			return "matrix dimensions are invalid, aborting.\n";
 		case ERROR_HIST_NOT_INITIALIZED:
 			return "histogram is not initialized, aborting.\n";
 		case ERROR_HIST_NOT_ALLOCATED:

@@ -33,8 +33,8 @@ char *phoebe_type_get_name (PHOEBE_type type);
 /******************************************************************************/
 
 typedef struct PHOEBE_vector {
-	int dim;          /* Vector dimension                                     */
-	double *val;      /* An array of vector values                            */
+	int dim;          /* Vector dimension */
+	double *val;      /* An array of vector values */
 } PHOEBE_vector;
 
 PHOEBE_vector *phoebe_vector_new                ();
@@ -59,6 +59,8 @@ int            phoebe_vector_norm               (double *result, PHOEBE_vector *
 int            phoebe_vector_dim                (int *result, PHOEBE_vector *vec);
 int            phoebe_vector_randomize          (PHOEBE_vector *result, double limit);
 int            phoebe_vector_min_max            (PHOEBE_vector *vec, double *min, double *max);
+int            phoebe_vector_min_index          (PHOEBE_vector *vec, int *index);
+int            phoebe_vector_max_index          (PHOEBE_vector *vec, int *index);
 int            phoebe_vector_rescale            (PHOEBE_vector *vec, double ll, double ul);
 bool           phoebe_vector_compare            (PHOEBE_vector *vec1, PHOEBE_vector *vec2);
 int            phoebe_vector_less_than          (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2);
@@ -68,6 +70,20 @@ int            phoebe_vector_geq_than           (bool *result, PHOEBE_vector *ve
 
 int            phoebe_vector_append_element     (PHOEBE_vector *vec, double val);
 int            phoebe_vector_remove_element     (PHOEBE_vector *vec, int index);
+
+/******************************************************************************/
+
+typedef struct PHOEBE_matrix {
+	int rows;
+	int cols;
+	double **val;
+} PHOEBE_matrix;
+
+PHOEBE_matrix *phoebe_matrix_new     ();
+int            phoebe_matrix_alloc   (PHOEBE_matrix *matrix, int cols, int rows);
+int            phoebe_matrix_free    (PHOEBE_matrix *matrix);
+int            phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row);
+int            phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row);
 
 /******************************************************************************/
 
