@@ -480,6 +480,44 @@ int phoebe_vector_min_max (PHOEBE_vector *vec, double *min, double *max)
 	return SUCCESS;
 }
 
+int phoebe_vector_min_index (PHOEBE_vector *vec, int *index)
+{
+	/*
+	 * This function scans through the vector 'vec' and assigns a subscript of
+	 * the lowest value in 'vec' to the variable 'index'.
+	 */
+
+	int i;
+	double vmin = vec->val[0];
+
+	for (i = 1; i < vec->dim; i++)
+		if (vmin > vec->val[i]) {
+			vmin = vec->val[i];
+			*index = i;
+		}
+
+	return SUCCESS;
+}
+
+int phoebe_vector_max_index (PHOEBE_vector *vec, int *index)
+{
+	/*
+	 * This function scans through the vector 'vec' and assigns a subscript of
+	 * the highest value in 'vec' to the variable 'index'.
+	 */
+
+	int i;
+	double vmax = vec->val[0];
+
+	for (i = 1; i < vec->dim; i++)
+		if (vmax < vec->val[i]) {
+			vmax = vec->val[i];
+			*index = i;
+		}
+
+	return SUCCESS;
+}
+
 int phoebe_vector_rescale (PHOEBE_vector *vec, double ll, double ul)
 {
 	/*
@@ -677,6 +715,99 @@ int phoebe_vector_remove_element (PHOEBE_vector *vec, int index)
 	for (i = index; i < vec->dim; i++)
 		vec->val[i] = vec->val[i+1];
 	phoebe_vector_realloc (vec, vec->dim-1);
+	return SUCCESS;
+}
+
+/******************************************************************************/
+
+PHOEBE_matrix *phoebe_matrix_new ()
+{
+	PHOEBE_matrix *matrix = phoebe_malloc (sizeof (*matrix));
+
+	matrix->rows = 0;
+	matrix->cols = 0;
+	matrix->val = NULL;
+
+	return matrix;
+}
+
+int phoebe_matrix_alloc (PHOEBE_matrix *matrix, int cols, int rows)
+{
+	/*
+	 * This function allocates storage memory for the matrix 'matrix'. The
+	 * subscripts are such that the elements of the matrix should be accessed
+	 * by matrix[row][col].
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_MATRIX_ALREADY_ALLOCATED
+	 *   ERROR_MATRIX_INVALID_DIMENSION
+	 *   SUCCESS
+	 */
+
+	int i;
+
+	if (matrix->rows != 0 || matrix->cols != 0)
+		return ERROR_MATRIX_ALREADY_ALLOCATED;
+
+	if (rows < 1 || cols < 1)
+		return ERROR_MATRIX_INVALID_DIMENSION;
+
+	matrix->rows = rows;
+	matrix->cols = cols;
+	matrix->val = phoebe_malloc (rows * sizeof (*(matrix->val)));
+	for (i = 0; i < rows; i++)
+		matrix->val[i] = phoebe_malloc (cols * sizeof (**(matrix->val)));
+
+	return SUCCESS;
+}
+
+int phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row)
+{
+	int j;
+
+	if (!matrix) printf ("matrix problems!\n");
+	if (!vec) printf ("vector problems!\n");
+	if (row < 0 || row >= matrix->rows) printf ("row problems: %d!\n", row);
+
+	for (j = 0; j < vec->dim; j++)
+		matrix->val[row][j] = vec->val[j];
+
+	return SUCCESS;
+}
+
+int phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row)
+{
+	/*
+	 * ASSUMES VECTOR IS ALREADY ALLOCATED!
+	 */
+
+	int i;
+
+	if (!matrix) ;
+	if (row < 0 || row >= matrix->rows) ;
+
+	for (i = 0; i < matrix->cols; i++)
+		vec->val[i] = matrix->val[row][i];
+
+	return SUCCESS;
+}
+
+int phoebe_matrix_free  (PHOEBE_matrix *matrix)
+{
+	/*
+	 * This function frees the storage memory allocated for the matrix.
+	 */
+
+	int i;
+
+	if (!matrix) return SUCCESS;
+
+	for (i = 0; i < matrix->rows; i++)
+		free (matrix->val[i]);
+	free (matrix->val);
+
+	free (matrix);
 	return SUCCESS;
 }
 
