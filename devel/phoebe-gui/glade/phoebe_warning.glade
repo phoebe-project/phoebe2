@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
+<!--Generated with glade3 3.0.3 on Wed Jun  6 14:11:37 2007 by gal@brjav-->
+<glade-interface>
+  <widget class="GtkWindow" id="phoebe_warning_window">
+    <property name="title" translatable="yes">WARNING</property>
+    <property name="icon">.</property>
+    <child>
+      <widget class="GtkFrame" id="frame1">
+        <property name="visible">True</property>
+        <property name="border_width">4</property>
+        <property name="label_xalign">0</property>
+        <child>
+          <widget class="GtkVBox" id="vbox1">
+            <property name="visible">True</property>
+            <child>
+              <widget class="GtkVBox" id="vbox2">
+                <property name="visible">True</property>
+                <property name="border_width">4</property>
+                <child>
+                  <widget class="GtkLabel" id="phoebe_warning_title_label">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">TITLE</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkHSeparator" id="hseparator1">
+                    <property name="visible">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">10</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkLabel" id="phoebe_warning_warning_label">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">WARNING</property>
+                  </widget>
+                  <packing>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </widget>
+            </child>
+            <child>
+              <widget class="GtkHBox" id="hbox1">
+                <property name="visible">True</property>
+                <child>
+                  <widget class="GtkButton" id="phoebe_warning_ok_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">OK</property>
+                  </widget>
+                </child>
+                <child>
+                  <widget class="GtkButton" id="phoebe_warning_cancel_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Cacel</property>
+                  </widget>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </widget>
+        </child>
+        <child>
+          <widget class="GtkLabel" id="label1">
+            <property name="visible">True</property>
+            <property name="use_markup">True</property>
+          </widget>
+          <packing>
+            <property name="type">label_item</property>
+          </packing>
+        </child>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>
