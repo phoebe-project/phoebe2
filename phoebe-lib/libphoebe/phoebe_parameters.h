@@ -90,7 +90,8 @@ int phoebe_parameter_set_upper_limit  (PHOEBE_parameter *par, double  valmax);
 int phoebe_parameter_get_limits       (PHOEBE_parameter *par, double *valmin, double *valmax);
 int phoebe_parameter_set_limits       (PHOEBE_parameter *par, double  valmin, double  valmax);
 
-PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ();
+PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba  ();
+int                    phoebe_parameter_list_sort_marked_tba ();
 
 /* ***************************   Third light   ****************************** */
 
