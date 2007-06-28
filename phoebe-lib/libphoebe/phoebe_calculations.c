@@ -176,6 +176,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	int i;
 	int request = 1;
 	char atmcof[255], atmcofplanck[255];
+	double params[10];
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -195,10 +196,10 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val);
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
 
-	curve->L1 = 1.0;
-	curve->L2 = 1.0;
+	curve->L1 = params[1];
+	curve->L2 = params[2];
 	curve->SBR1 = 1.0;
 	curve->SBR2 = 1.0;
 	return SUCCESS;
@@ -209,6 +210,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	int i;
 	int request = 2;
 	char atmcof[255], atmcofplanck[255];
+	double params[10];
 
 	if (!rv1)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -228,7 +230,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val);
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val, params);
 
 	return SUCCESS;
 }
@@ -238,6 +240,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	int i;
 	int request = 3;
 	char atmcof[255], atmcofplanck[255];
+	double params[10];
 
 	if (!rv2)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -257,7 +260,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val);
+	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val, params);
 
 	return SUCCESS;
 }

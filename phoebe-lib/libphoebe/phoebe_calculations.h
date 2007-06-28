@@ -25,7 +25,7 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
  * below should then correspond to that prototype.
  */
 
-#define wd_lc(atmtab,pltab,request,vertno,indeps,deps) lc_(atmtab,pltab,request,vertno,indeps,deps,strlen(atmtab),strlen(pltab))
+#define wd_lc(atmtab,pltab,request,vertno,indeps,deps,params) lc_(atmtab,pltab,request,vertno,indeps,deps,params,strlen(atmtab),strlen(pltab))
 
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
 int call_wd_to_get_rv1    (PHOEBE_curve *rv1, PHOEBE_vector *indep);
