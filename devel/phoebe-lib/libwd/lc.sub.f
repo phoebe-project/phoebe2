@@ -1,4 +1,4 @@
-      subroutine lc(atmtab,pltab,request,vertno,indeps,deps)
+      subroutine lc(atmtab,pltab,request,vertno,indeps,deps,params)
 c
 c  Main program for computing light and radial velocity curves,
 c      line profiles, and images
@@ -94,9 +94,21 @@ c                       3  ..  secondary RV curve
 c       vertno   ..   number of vertices in a light/RV curve
 c       indeps   ..   an array of vertices (HJDs or phases)
 c         deps   ..   an array of computed values (fluxes or RVs)
+c       params   ..   an array of computed parameters:
+c
+c                     params( 1) = L1     star 1 passband luminosity
+c                     params( 2) = L2     star 2 passband luminosity
+c                     params( 3) = M1     star 1 mass in solar masses
+c                     params( 4) = M2     star 2 mass in solar masses
+c                     params( 5) = R1     star 1 radius in solar radii
+c                     params( 6) = R2     star 2 radius in solar radii
+c                     params( 7) = Mbol1  star 1 absolute magnitude
+c                     params( 8) = Mbol2  star 2 absolute magnitude
+c                     params( 9) = logg1  star 1 log gravity
+c                     params(10) = logg2  star 2 log gravity
 c
       integer request,vertno
-      double precision indeps(*),deps(*)
+      double precision indeps(*),deps(*),params(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -396,7 +408,22 @@ c***************************************************************
       tav2=10000.d0*tavc
       call mlrg(a,period,rm,rr1,rr2,tav1,tav2,sms1,sms2,sr1,sr2,
      $bolm1,bolm2,xlg1,xlg2)
-
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+      params( 1) = hlum
+      params( 2) = clum
+      params( 3) = sms1
+      params( 4) = sms2
+      params( 5) = sr1
+      params( 6) = sr2
+      params( 7) = bolm1
+      params( 8) = bolm2
+      params( 9) = xlg1
+      params(10) = xlg2
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call wrhead(ibef,nref,mref,ifsmv1,ifsmv2,icor1,icor2,
      $ld,jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed,hjdst,hjdsp,
      $hjdin,phstrt,phstop,phin,phn,mode,ipb,ifat1,ifat2,n1,n2,perr0,
@@ -432,12 +459,19 @@ c***************************************************************
       stopp=phstop
       step=phin
   887 continue
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
 c     do 20 phjd=start,stopp,step
 c     hjdi=phjd
 c     phasi=phjd
+c
       do 20 idx=1,vertno
       hjdi=indeps(idx)
       phasi=indeps(idx)
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call jdph(hjdi,phasi,hjd0,period,dpdt,hjdo,phaso)
       hjd=hjdi
       phas=phasi
@@ -471,11 +505,15 @@ c     phasi=phjd
       totall=totall*ranf
   348 continue
       SMAGG=-1.085736d0*dlog(TOTALL)+ZERO
-
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
       if (request.eq.1) deps(idx)=total
       if (request.eq.2) deps(idx)=vkm1
       if (request.eq.3) deps(idx)=vkm2
-
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call wrdata(hjd,phas,yskp,zskp,htt,cool,total,tot,d,smagg,
      $vsum1,vsum2,vra1,vra2,vkm1,vkm2,delv1,delwl1,wl1,fbin1,resf1,
      $delv2,delwl2,wl2,fbin2,resf2,rv,rvq,mmsave,ll1,lll1,llll1,
