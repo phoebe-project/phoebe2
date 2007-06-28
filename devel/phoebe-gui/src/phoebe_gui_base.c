@@ -10,23 +10,23 @@ int phoebe_gui_init ()
     /* ************************   Glade XML files   *************************** */
 
     /* The main window */
-	GladeXML *phoebe_window = glade_xml_new("phoebe.glade", NULL, NULL);
-	phoebe_window_widget = glade_xml_get_widget(phoebe_window, "phoebe_window");
-	glade_xml_signal_autoconnect(phoebe_window);
-    gtk_widget_show(phoebe_window_widget);
+	GladeXML *phoebe_window_xml = glade_xml_new("phoebe.glade", NULL, NULL);
+	phoebe_window = glade_xml_get_widget(phoebe_window_xml, "phoebe_window");
+	glade_xml_signal_autoconnect(phoebe_window_xml);
+    gtk_widget_show(phoebe_window);
 
-	/* The filechooser dialog */
-	GladeXML *phoebe_filechooser_dialog = glade_xml_new("phoebe_filechooser.glade", NULL, NULL);
-	phoebe_filechooser_dialog_widget = glade_xml_get_widget(phoebe_filechooser_dialog, "phoebe_filechooser_dialog");
+    /* The LC load window */
+    GladeXML *phoebe_load_lc_xml = glade_xml_new("phoebe_load_lc.glade", NULL, NULL);
+	phoebe_load_lc_window = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_window");
+	phoebe_load_lc_filechooserbutton = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
+	glade_xml_signal_autoconnect(phoebe_load_lc_xml);
+
+    gui_init_treeviews(phoebe_window_xml);
+	gui_init_widgets (phoebe_window_xml);
 
 
-    gui_init_treeviews(phoebe_window);
-	gui_init_widgets (phoebe_window);
-
-
-	g_object_unref(phoebe_window);
-	g_object_unref(phoebe_filechooser_dialog);
-
+	g_object_unref(phoebe_window_xml);
+	g_object_unref(phoebe_load_lc_xml);
 	return SUCCESS;
 }
 

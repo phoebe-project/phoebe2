@@ -213,37 +213,7 @@ void
 on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-    if (gtk_dialog_run (GTK_DIALOG (phoebe_filechooser_dialog_widget)) == GTK_RESPONSE_ACCEPT)
-    {
-        GtkTreeModel *model;
-        char *filename;
-        PHOEBE_curve *new_lc;
-
-        filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (phoebe_filechooser_dialog_widget));
-        new_lc = phoebe_curve_new_from_file(filename);
-
-        char *itype, *dtype, *wtype;
-        phoebe_column_type_get_name(new_lc->itype, &itype);
-        phoebe_column_type_get_name(new_lc->dtype, &dtype);
-        phoebe_column_type_get_name(new_lc->wtype, &wtype);
-
-        model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
-
-        GtkTreeIter iter;
-        gtk_list_store_append((GtkListStore*)model, &iter);
-        gtk_list_store_set((GtkListStore*)model, &iter, 0, new_lc->filename, 1, "Undefined", 2, itype, 3, dtype, 4, wtype, 5, new_lc->sigma, -1);
-
-        g_free(itype);
-        g_free(dtype);
-        g_free(wtype);
-
-        g_free (filename);
-    }
-    gtk_widget_hide (phoebe_filechooser_dialog_widget);
-
-	GladeXML 	*xml = glade_xml_new("phoebe_load_lc.glade", NULL, NULL);
-	GtkWidget 	*window = glade_xml_get_widget(xml, "phoebe_load_lc_window");
-	gtk_widget_show_all (window);
+    gtk_widget_show (phoebe_load_lc_window);
 }
 
 
@@ -320,33 +290,7 @@ void
 on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-    if (gtk_dialog_run (GTK_DIALOG (phoebe_filechooser_dialog_widget)) == GTK_RESPONSE_ACCEPT)
-    {
-        GtkTreeModel *model;
-        char *filename;
-        PHOEBE_curve *new_rv;
 
-        filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (phoebe_filechooser_dialog_widget));
-        new_rv = phoebe_curve_new_from_file(filename);
-
-        char *itype, *dtype, *wtype;
-        phoebe_column_type_get_name(new_rv->itype, &itype);
-        phoebe_column_type_get_name(new_rv->dtype, &dtype);
-        phoebe_column_type_get_name(new_rv->wtype, &wtype);
-
-        model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
-
-        GtkTreeIter iter;
-        gtk_list_store_append((GtkListStore*)model, &iter);
-        gtk_list_store_set((GtkListStore*)model, &iter, 0, new_rv->filename, 1, "Undefined", 2, itype, 3, dtype, 4, wtype, 5, new_rv->sigma, -1);
-
-        g_free(itype);
-        g_free(dtype);
-        g_free(wtype);
-
-        g_free (filename);
-    }
-    gtk_widget_hide (phoebe_filechooser_dialog_widget);
 }
 
 
@@ -3431,4 +3375,35 @@ on_phoebe_settings_cancel_button_clicked
                                         gpointer         user_data)
 {
 
+}
+
+
+void on_phoebe_load_lc_ok_button_clicked
+                                        (GtkButton       *button,
+                                         gpointer         user_data)
+{
+    GtkTreeModel *model;
+    char *filename;
+    PHOEBE_curve *new_lc;
+
+    filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (phoebe_load_lc_filechooserbutton));
+    new_lc = phoebe_curve_new_from_file(filename);
+
+    char *itype, *dtype, *wtype;
+    phoebe_column_type_get_name(new_lc->itype, &itype);
+    phoebe_column_type_get_name(new_lc->dtype, &dtype);
+    phoebe_column_type_get_name(new_lc->wtype, &wtype);
+
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
+
+    GtkTreeIter iter;
+    gtk_list_store_append((GtkListStore*)model, &iter);
+    gtk_list_store_set((GtkListStore*)model, &iter, 0, new_lc->filename, 1, "Undefined", 2, itype, 3, dtype, 4, wtype, 5, new_lc->sigma, -1);
+
+    g_free(itype);
+    g_free(dtype);
+    g_free(wtype);
+
+    g_free (filename);
+    gtk_widget_hide (phoebe_load_lc_window);
 }
