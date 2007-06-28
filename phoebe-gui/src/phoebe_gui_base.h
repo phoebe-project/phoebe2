@@ -8,5 +8,7 @@ int phoebe_gui_quit ();
 
 #include <gtk/gtk.h>
 
-GtkWidget *phoebe_window_widget;
-GtkWidget *phoebe_filechooser_dialog_widget;
+GtkWidget *phoebe_window;
+GtkWidget *phoebe_load_lc_window;
+GtkWidget *phoebe_load_lc_filechooserbutton;
+GtkWidget *phoebe_load_rv_window;

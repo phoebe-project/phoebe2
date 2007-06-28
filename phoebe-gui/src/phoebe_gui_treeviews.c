@@ -5,15 +5,12 @@
 int gui_init_treeviews(GladeXML *phoebe_window)
 {
     phoebe_data_lc_treeview = glade_xml_get_widget(phoebe_window, "phoebe_data_lc_treeview");
-    intern_connect_curves_view_to_model(phoebe_data_lc_treeview, intern_create_curves_model());
-
-    phoebe_data_rv_treeview = glade_xml_get_widget(phoebe_window, "phoebe_data_rv_treeview");
-    intern_connect_curves_view_to_model(phoebe_data_rv_treeview, intern_create_curves_model());
+    connect_curves_view_to_model(phoebe_data_lc_treeview, create_curves_model());
 
     return SUCCESS;
 }
 
-GtkTreeModel *intern_create_curves_model()
+GtkTreeModel *create_curves_model()
 {
     /* Creating the model:                                                               */
     GtkListStore *model = gtk_list_store_new(CURVELIST_COL_COUNT,  /* number of columns  */
@@ -26,7 +23,7 @@ GtkTreeModel *intern_create_curves_model()
     return (GtkTreeModel*)model;
 }
 
-void intern_connect_curves_view_to_model(GtkWidget *view, GtkTreeModel *model)
+void connect_curves_view_to_model(GtkWidget *view, GtkTreeModel *model)
 {
     /* Renderer tells us the type of the cell: is it text, progress-bar, toggle... */
     GtkCellRenderer     *renderer;
