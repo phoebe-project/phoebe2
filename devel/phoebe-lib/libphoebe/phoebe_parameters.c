@@ -845,12 +845,95 @@ int phoebe_parameter_get_tba (PHOEBE_parameter *par, bool *tba)
 	return SUCCESS;
 }
 
+int phoebe_parameter_list_sort_marked_tba ()
+{
+	PHOEBE_parameter_list *list, *prev = NULL, *next;
+	int i, id1, id2;
+
+	struct { int index; PHOEBE_parameter *par; } wdorder[] = {
+		{ 0, phoebe_parameter_lookup ("phoebe_spots_lat1") },
+		{ 1, phoebe_parameter_lookup ("phoebe_spots_long1")},
+		{ 2, phoebe_parameter_lookup ("phoebe_spots_rad1") },
+		{ 3, phoebe_parameter_lookup ("phoebe_spots_temp1")},
+		{ 4, phoebe_parameter_lookup ("phoebe_spots_lat2") },
+		{ 5, phoebe_parameter_lookup ("phoebe_spots_long2")},
+		{ 6, phoebe_parameter_lookup ("phoebe_spots_rad2") },
+		{ 7, phoebe_parameter_lookup ("phoebe_spots_temp2")},
+		{ 8, phoebe_parameter_lookup ("phoebe_sma")        },
+		{ 9, phoebe_parameter_lookup ("phoebe_ecc")        },
+		{10, phoebe_parameter_lookup ("phoebe_perr0")      },
+		{11, phoebe_parameter_lookup ("phoebe_f1")         },
+		{12, phoebe_parameter_lookup ("phoebe_f2")         },
+		{13, phoebe_parameter_lookup ("phoebe_pshift")     },
+		{14, phoebe_parameter_lookup ("phoebe_vga")        },
+		{15, phoebe_parameter_lookup ("phoebe_incl")       },
+		{16, phoebe_parameter_lookup ("phoebe_grb1")       },
+		{17, phoebe_parameter_lookup ("phoebe_grb2")       },
+		{18, phoebe_parameter_lookup ("phoebe_teff1")      },
+		{19, phoebe_parameter_lookup ("phoebe_teff2")      },
+		{20, phoebe_parameter_lookup ("phoebe_alb1")       },
+		{21, phoebe_parameter_lookup ("phoebe_alb2")       },
+		{22, phoebe_parameter_lookup ("phoebe_pot1")       },
+		{23, phoebe_parameter_lookup ("phoebe_pot2")       },
+		{24, phoebe_parameter_lookup ("phoebe_rm")         },
+		{25, phoebe_parameter_lookup ("phoebe_hjd0")       },
+		{26, phoebe_parameter_lookup ("phoebe_period")     },
+		{27, phoebe_parameter_lookup ("phoebe_dpdt")       },
+		{28, phoebe_parameter_lookup ("phoebe_dperdt")     },
+		{29, NULL                                          },
+		{30, phoebe_parameter_lookup ("phoebe_hla")        },
+		{31, phoebe_parameter_lookup ("phoebe_cla")        },
+		{32, phoebe_parameter_lookup ("phoebe_ld_lcx1")    },
+		{33, phoebe_parameter_lookup ("phoebe_ld_lcx2")    },
+		{34, phoebe_parameter_lookup ("phoebe_el3")        }
+	};
+
+	list = phoebe_parameter_list_get_marked_tba ();
+	if (!list) return SUCCESS;
+
+	next = list->next;
+
+	while (next) {
+		for (i = 0; i <= 34; i++)
+			if (list->par == wdorder[i].par) {
+				id1 = i;
+				break;
+			}
+		for (i = 0; i <= 34; i++)
+			if (next->par == wdorder[i].par) {
+				id2 = i;
+				break;
+			}
+		phoebe_debug ("comparing %s (%d) and %s (%d).\n", wdorder[id1].par->qualifier, id1, wdorder[id2].par->qualifier, id2);
+		if (id1 > id2) {
+			phoebe_debug ("sorting %s (%d) and %s (%d).\n", wdorder[id1].par->qualifier, id1, wdorder[id2].par->qualifier, id2);
+			list->next = next->next;
+			next->next = list;
+			if (prev)
+				prev->next = next;
+			else
+				PHOEBE_pt->lists.marked_tba = next;
+
+			prev = next;
+			next = list->next;
+		}
+		else {
+			prev = list;
+			list = list->next;
+			next = list->next;
+		}
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 {
 	/*
 	 * This is the public function for changing the passed parameter's TBA
 	 * (To Be Adjusted) bit. At the same time the function adds or removes
-	 * that parameter from the list of parameters marked for adjustment.
+	 * that parameter from the list of parameters marked for adjustment and
+	 * sorts that list in order of parameter index in WD.
 	 *
 	 * Return values:
 	 *
@@ -868,7 +951,7 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 	 * parameter table:
 	 */
 
-	list = PHOEBE_pt->lists.marked_tba;
+	list = phoebe_parameter_list_get_marked_tba ();
 	if (tba) {
 		while (list) {
 			if (list->par == par) break;
@@ -880,6 +963,7 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 			list->next = PHOEBE_pt->lists.marked_tba;
 			PHOEBE_pt->lists.marked_tba = list;
 			phoebe_debug ("Parameter %s added to the tba list.\n", list->par->qualifier);
+			phoebe_parameter_list_sort_marked_tba ();
 		}
 		else {
 			/* The parameter is already in the list, nothing to be done. */
@@ -1538,11 +1622,22 @@ int phoebe_save_parameter_file (const char *filename)
 	/* Write a version header: */
 	fprintf (parameter_file, "# Parameter file conforming to %s\n", PHOEBE_VERSION_NUMBER);
 
-	/* Traverse the parameter table and save parameters one by one: */
+	/* Traverse the parameter table and save all modifiers first: */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
 		elem = PHOEBE_pt->bucket[i];
 		while (elem) {
-			intern_save_to_parameter_file (elem->par, parameter_file);
+			if (elem->par->kind == KIND_MODIFIER)
+				intern_save_to_parameter_file (elem->par, parameter_file);
+			elem = elem->next;
+		}
+	}
+
+	/* Traverse the parameter table again and save the remaining parameters: */
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		elem = PHOEBE_pt->bucket[i];
+		while (elem) {
+			if (elem->par->kind != KIND_MODIFIER)
+				intern_save_to_parameter_file (elem->par, parameter_file);
 			elem = elem->next;
 		}
 	}
