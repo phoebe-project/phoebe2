@@ -34,6 +34,22 @@ gsl_rng *PHOEBE_randomizer;
 
 int calls_to_cf = 0;
 
+double intern_cost_function (NMS_passed_parameters *pars)
+{
+	/*
+	 * This function computes the weighted and unweighted chi2 values and a
+	 * cost function value for the passed observed data and parameter sets.
+	 *
+	 * Arguments:
+	 *
+	 *   pars  ..  a structure of all required parameters
+	 *
+	 * The function returns a weighted sum of squares of residuals.
+	 */
+
+	
+}
+
 double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 {
 	/*
@@ -1120,22 +1136,27 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 
-	for (i = 0; i < no_tba; i++) {
-		feedback->qualifiers->val.strarray[i] = strdup (marked_tba->par->qualifier);
+	i = 0;
+	while (marked_tba) {
 		if (marked_tba->par->type == TYPE_INT    ||
 			marked_tba->par->type == TYPE_BOOL   ||
 			marked_tba->par->type == TYPE_DOUBLE ||
 			marked_tba->par->type == TYPE_STRING) {
 			phoebe_parameter_get_value (marked_tba->par, &(feedback->initvals->val[i]));
+			feedback->qualifiers->val.strarray[i] = strdup (marked_tba->par->qualifier);
 			feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
 			feedback->ferrors->val[i] = errors[i];
+			i++;
 		}
-		else
+		else {
 			for (j = 0; j < marked_tba->par->value.array->dim; j++) {
 				phoebe_parameter_get_value (marked_tba->par, j, &(feedback->initvals->val[i+j]));
+				feedback->qualifiers->val.strarray[i+j] = strdup (marked_tba->par->qualifier);
 				feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
 				feedback->ferrors->val[i+j] = errors[i+j];
 			}
+			i += j;
+		}
 
 		marked_tba = marked_tba->next;
 	}
