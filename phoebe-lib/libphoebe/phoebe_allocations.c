@@ -975,7 +975,7 @@ int read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, do
 int read_in_adjustable_parameters (int *tba, double **values)
 {
 	int i;
-	PHOEBE_parameter_list *list = PHOEBE_pt->lists.marked_tba;
+	PHOEBE_parameter_list *list = phoebe_parameter_list_get_marked_tba ();
 
 	*tba = 0;
 	while (list) {
@@ -984,7 +984,8 @@ int read_in_adjustable_parameters (int *tba, double **values)
 	}
 
 	*values = phoebe_malloc (*tba * sizeof (**values));
-	list = PHOEBE_pt->lists.marked_tba;
+	list = phoebe_parameter_list_get_marked_tba ();
+
 	i = 0;
 	while (list) {
 		phoebe_parameter_get_value (list->par, &(*values[i]));
