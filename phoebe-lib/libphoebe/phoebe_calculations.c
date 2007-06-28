@@ -198,8 +198,8 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
 
-	curve->L1 = params[1];
-	curve->L2 = params[2];
+	curve->L1 = params[0];
+	curve->L2 = params[1];
 	curve->SBR1 = 1.0;
 	curve->SBR2 = 1.0;
 	return SUCCESS;
