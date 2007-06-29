@@ -117,7 +117,7 @@ int phoebe_init_parameters ()
 
 	phoebe_parameter_add ("phoebe_hla",                  "LC primary star flux leveler",               KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
 	phoebe_parameter_add ("phoebe_cla",                  "LC secondary star flux leveler",             KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
-	phoebe_parameter_add ("phoebe_opsf",                 "Third light contribution",                   KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_opsf",                 "Opacity frequency function",                 KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
 
 	phoebe_parameter_add ("phoebe_passband_mode",        "Passband treatment mode",                    KIND_MENU,       NULL,  0.0,    0.0,    0.0, NO, TYPE_STRING,        "Interpolation");
 	phoebe_parameter_add ("phoebe_atm1_switch",          "Use Kurucz's models for primary star",       KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
