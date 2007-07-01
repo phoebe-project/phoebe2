@@ -211,6 +211,9 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = libwd libphoebe ptf wd docs/reference
+
+# Enable gtk-doc during make distcheck:
+DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
              autogen.sh                              \
