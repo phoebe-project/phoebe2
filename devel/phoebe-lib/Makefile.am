@@ -26,6 +26,9 @@
 
 SUBDIRS = libwd libphoebe ptf wd docs/reference
 
+# Enable gtk-doc during make distcheck:
+DISTCHECK_CONFIGURE_FLAGS=--enable-gtk-doc
+
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
              autogen.sh                              \

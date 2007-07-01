@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-06-19 #
+#                                            Last revision: 2007-07-01 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -41,21 +41,14 @@
 # all #define statements that correspond to whatever ./configure found:
   AC_CONFIG_HEADERS([libphoebe/phoebe_build_config.h])
 
-# Define the release name, date and type:
-  AC_DEFINE(
-	PHOEBE_RELEASE_NAME,
-	[["PHOEBE 0.30 (beta release)"]],
-	[PHOEBE release name])
-  AC_DEFINE(
-	PHOEBE_RELEASE_DATE,
-	[["Feb 15, 2006"]],
-	[PHOEBE release date])
-
 # Initialize the location of the sources:
-  AC_CONFIG_SRCDIR([libphoebe/phoebe_accessories.c])
+  AC_CONFIG_SRCDIR([libphoebe/phoebe_base.c])
 
 # Initialize the location of the autoconf macros:
   AC_CONFIG_AUX_DIR(autoconfig)
+
+# Initialize the location of local autoconf macros:
+  AC_CONFIG_MACRO_DIR(autoconfig)
 
 # Initialize configure.ac for automake:
   AM_INIT_AUTOMAKE(phoebe,0.30)
@@ -63,6 +56,16 @@
 
 # Get the system type:
   AC_CANONICAL_BUILD
+
+# Define the release name, date and type:
+  AC_DEFINE(
+	PHOEBE_RELEASE_NAME,
+	[["PHOEBE 0.30RC1 (release candidate)"]],
+	[PHOEBE release name])
+  AC_DEFINE(
+	PHOEBE_RELEASE_DATE,
+	[["Sep 1, 2007"]],
+	[PHOEBE release date])
 
 # Check for system programs:
 
