@@ -251,13 +251,33 @@ int gui_init_widgets (GladeXML* phoebe_window)
 	gui_widget_add ("phoebe_params_lumins_noise_lcscatter_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_params_lumins_noise_lcscatter_combobox"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_levweight"));
 
 
-	gui_widget_add ("phoebe_params_ld_model_combobox",							glade_xml_get_widget(phoebe_window, "phoebe_params_ld_model_combobox"),							GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_model"));
+	gui_widget_add ("phoebe_params_ld_model_combobox",									glade_xml_get_widget(phoebe_window, "phoebe_params_ld_model_combobox"),									GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_model"));
+	gui_widget_add ("phoebe_params_ld_bolomcoefs_primx_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_ld_bolomcoefs_primx_spinbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_xbol1"));
+	gui_widget_add ("phoebe_params_ld_bolomcoefs_primy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_ld_bolomcoefs_primx_spinbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_ybol1"));
+	gui_widget_add ("phoebe_params_ld_bolomcoefs_secx_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_params_ld_bolomcoefs_secx_spinbutton"),					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_xbol2"));
+	gui_widget_add ("phoebe_params_ld_bolomcoefs_secy_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_params_ld_bolomcoefs_secx_spinbutton"),					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_ybol2"));
+	gui_widget_add ("phoebe_params_ld_lccoefs_primadjust_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_params_ld_lccoefs_primadjust_checkbutton"),			GUI_WIDGET_SWITCH_TBA, 	phoebe_parameter_lookup ("phoebe_ld_lcx1"));
+	gui_widget_add ("phoebe_params_ld_lccoefs_primstep_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_ld_lccoefs_primstep_spinbutton"),				GUI_WIDGET_VALUE_STEP, 	phoebe_parameter_lookup ("phoebe_ld_lcx1"));
+	gui_widget_add ("phoebe_params_ld_lccoefs_secadjust_checkbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_ld_lccoefs_secadjust_checkbutton"),				GUI_WIDGET_SWITCH_TBA, 	phoebe_parameter_lookup ("phoebe_ld_lcx2"));
+	gui_widget_add ("phoebe_params_ld_lccoefs_secstep_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_params_ld_lccoefs_secstep_spinbutton"),					GUI_WIDGET_VALUE_STEP, 	phoebe_parameter_lookup ("phoebe_ld_lcx2"));
 
 
-	//gui_widget_add ("phoebe_params_spots_primno_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_params_spots_primno_spinbutton"),					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_no1"));
-	gui_widget_add ("phoebe_params_spots_primmove_checkbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_spots_primmove_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_move1"));
-	//gui_widget_add ("phoebe_params_spots_secno_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_params_spots_secno_spinbutton"),					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_no2"));
-	gui_widget_add ("phoebe_params_spots_secmove_checkbutton",				glade_xml_get_widget(phoebe_window, "phoebe_params_spots_secmove_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_move2"));
+	gui_widget_add ("phoebe_params_spots_primmove_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_params_spots_primmove_checkbutton"),						GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_no1"));
+	gui_widget_add ("phoebe_params_spots_secmove_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_params_spots_secmove_checkbutton"),						GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_spots_no2"));
+
+
+	gui_widget_add ("phoebe_fitting_parameters_finesize1_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitting_parameters_finesize1_spinbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize1"));
+	gui_widget_add ("phoebe_fitting_parameters_finesize2_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitting_parameters_finesize2_spinbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize2"));
+	gui_widget_add ("phoebe_fitting_parameters_coarsesize1_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitting_parameters_coarsesize1_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize1"));
+	gui_widget_add ("phoebe_fitting_parameters_coarsesize2_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitting_parameters_coarsesize2_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize2"));
+	gui_widget_add ("phoebe_fitting_parameters_lambda_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_fitting_parameters_lambda_spinbutton"),					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"));
+
+
+
+	/* *************************    GUI Widgets   *************************** */
+
+	phoebe_parameter_add ("gui_load_lc_column1",                 "Column 1 of data file",                  KIND_MENU,  NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,       "Time");
+	gui_widget_add ("phoebe_load_lc_column1_combobox",								glade_xml_get_widget(phoebe_window, "phoebe_load_lc_column1_combobox"),							GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_load_lc_column1"));
 
 	return SUCCESS;
 }
