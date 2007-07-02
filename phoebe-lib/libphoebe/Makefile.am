@@ -33,6 +33,9 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_build_config.h             phoebe_global.h                   \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
+	phoebe_constraints.c              phoebe_constraints.h              \
+	phoebe_constraints.lex.c          phoebe_constraints.lex.h        \
+	phoebe_constraints.tab.c          phoebe_constraints.tab.h          \
     phoebe_data.c                     phoebe_data.h                     \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
@@ -46,6 +49,18 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_spectra.c                  phoebe_spectra.h                  \
     phoebe_types.c                    phoebe_types.h                    \
                                       phoebe.h
+
+BUILT_SOURCES =                                                         \
+	phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
+	phoebe_constraints.tab.c          phoebe_constraints.tab.h
+
+EXTRA_DIST = \
+    phoebe_constraints.lex            phoebe_constraints.y
+
+phoebe_constraints.tab.c: phoebe_constraints.y
+	$(YACC) -d phoebe_constraints.y
+phoebe_constraints.lex.c: phoebe_constraints.lex
+	$(LEX) phoebe_constraints.lex
 
 INCLUDES = \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
