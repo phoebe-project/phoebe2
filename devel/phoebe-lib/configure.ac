@@ -116,6 +116,33 @@
       exit
     fi
 
+  # Flexer (needed for PHOEBE constraints):
+    AC_PROG_LEX
+
+    if test "$LEX" == :; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs a (f)lex-compliant grammar lexer to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
+  # Parser (needed for PHOEBE constraints):
+  # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
+    AC_CHECK_PROGS(YACC, 'bison' byacc yacc, :)
+
+    if test "$YACC" == :; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs a yacc-compliant grammar parser to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
   # System type:
     AC_DEFINE_UNQUOTED(PHOEBE_SYSTEM_TYPE,"$build",[System type])
 
@@ -219,6 +246,8 @@ GTK_DOC_CHECK(1.0)
   echo "System type:                      $build"
   echo "C compiler used:                  $CC"
   echo "FORTRAN compiler used:            $F77"
+  echo "Grammar lexer used:               $LEX"
+  echo "Grammar parser used:              $YACC"
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
