@@ -8,7 +8,10 @@
 #include <stdio.h>
 
 #include "phoebe_constraints.h"
+#include "phoebe_constraints.lex.h"
 #include "phoebe_parameters.h"
+
+extern int yyerror (const char *str);
 %}
 
 %union {
@@ -39,14 +42,15 @@
 
 input:			  /* empty */
 				| input constraint {
+					phoebe_constraint_add_to_table ($2);
 					printf ("________________________________________________________________________________\n");
 					phoebe_ast_print (0, $2);
 					printf ("--------------------------------------------------------------------------------\n");
 				}
 				;
 
-constraint:		expr {
-					$$ = $1;
+constraint:		parameter '=' expr {
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_CONSTRAINT, phoebe_ast_construct_list ($1, phoebe_ast_construct_list ($3, NULL)));
 				}
 				;
 

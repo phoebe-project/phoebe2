@@ -4,6 +4,7 @@
 #include "phoebe_parameters.h"
 
 typedef enum {
+	PHOEBE_NODE_TYPE_CONSTRAINT,
 	PHOEBE_NODE_TYPE_ADD,
 	PHOEBE_NODE_TYPE_SUB,
 	PHOEBE_NODE_TYPE_MUL,
@@ -43,10 +44,19 @@ PHOEBE_ast *phoebe_ast_add_parameter (PHOEBE_parameter *par);
 PHOEBE_ast *phoebe_ast_add_node      (PHOEBE_node_type type, PHOEBE_ast_list *args);
 
 int phoebe_ast_print (int depth, PHOEBE_ast *in);
+int phoebe_ast_free (PHOEBE_ast *ast);
 
 typedef struct PHOEBE_constraint {
 	PHOEBE_ast *func;
 	struct PHOEBE_constraint *next;
 } PHOEBE_constraint;
+
+PHOEBE_constraint *PHOEBE_ct;                  /* Global table of constraints */
+
+int phoebe_constraint_new (const char *constraint);
+int phoebe_constraint_add_to_table (PHOEBE_ast *ast);
+int phoebe_free_constraints ();
+
+extern int yyparse (void);
 
 #endif /* _PHOEBE_CONSTRAINTS_H */
