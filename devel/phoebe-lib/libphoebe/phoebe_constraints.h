@@ -10,17 +10,21 @@ typedef enum {
 	PHOEBE_NODE_TYPE_MUL,
 	PHOEBE_NODE_TYPE_DIV,
 	PHOEBE_NODE_TYPE_POT,
-	PHOEBE_NODE_TYPE_BUILTIN
+	PHOEBE_NODE_TYPE_BUILTIN,
+	PHOEBE_NODE_TYPE_PARAMETER,
+	PHOEBE_NODE_TYPE_ELEMENT
 } PHOEBE_node_type;
 
 typedef struct PHOEBE_ast {
 	enum {
+		PHOEBE_AST_INDEX,
 		PHOEBE_AST_NUMVAL,
 		PHOEBE_AST_STRING,
 		PHOEBE_AST_PARAMETER,
 		PHOEBE_AST_NODE
 	} type;
 	union {
+		int    idx;
 		double numval;
 		char  *str;
 		PHOEBE_parameter *par;
@@ -38,6 +42,7 @@ typedef struct PHOEBE_ast_list {
 
 PHOEBE_ast_list *phoebe_ast_construct_list (PHOEBE_ast *ast, PHOEBE_ast_list *list);
 
+PHOEBE_ast *phoebe_ast_add_index     (int idx);
 PHOEBE_ast *phoebe_ast_add_numval    (double numval);
 PHOEBE_ast *phoebe_ast_add_builtin   (char *builtin);
 PHOEBE_ast *phoebe_ast_add_parameter (PHOEBE_parameter *par);

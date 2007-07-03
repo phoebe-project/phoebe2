@@ -49,6 +49,10 @@ _BUILTIN	sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt
 				printf ("Parameter %s not found, aborting.\n", yytext);
 			}
 			}
+"["{_INT}"]"	{
+			sscanf (yytext, "[%d]", &yylval.idx);
+			return INDEX;
+			}
 {_WSPACE}+	/* Eat whitespaces */
 .			return yytext[0];
 

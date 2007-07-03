@@ -15,6 +15,7 @@ extern int yyerror (const char *str);
 %}
 
 %union {
+	int    idx;
 	double val;
 	char  *str;
 	struct PHOEBE_parameter *par;
@@ -22,14 +23,17 @@ extern int yyerror (const char *str);
 	struct PHOEBE_ast_list *args;
 }
 
-%token <par> PARAMETER
-%type  <ast> parameter
+%token <idx> INDEX
+%type  <ast> index
+
+%token <val> NUMVAL
+%type  <ast> numval
 
 %token <str> BUILTIN
 %type  <ast> builtin
 
-%token <val> NUMVAL
-%type  <ast> numval
+%token <par> PARAMETER
+%type  <ast> parameter
 
 %type  <ast> constraint
 %type  <ast> expr
@@ -59,6 +63,11 @@ numval:			NUMVAL {
 				}
 				;
 
+index:			INDEX {
+					$$ = phoebe_ast_add_index ($1);
+				}
+				;
+
 builtin: 		BUILTIN {
 					$$ = phoebe_ast_add_builtin ($1);
 					free ($1);
@@ -66,7 +75,10 @@ builtin: 		BUILTIN {
 				;
 
 parameter:		PARAMETER {
-					$$ = phoebe_ast_add_parameter ($1);
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_PARAMETER, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), NULL));
+				}
+				| PARAMETER index {
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_ELEMENT, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), phoebe_ast_construct_list ($2, NULL)));
 				}
 				;
 
