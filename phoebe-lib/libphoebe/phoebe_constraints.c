@@ -7,6 +7,15 @@
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
 
+PHOEBE_ast *phoebe_ast_add_index (int idx)
+{
+	PHOEBE_ast *ast = phoebe_malloc (sizeof (*ast));
+	ast->type = PHOEBE_AST_INDEX;
+	ast->val.idx = idx;
+
+	return ast;
+}
+
 PHOEBE_ast *phoebe_ast_add_numval (double numval)
 {
 	PHOEBE_ast *ast = phoebe_malloc (sizeof (*ast));
@@ -53,6 +62,9 @@ int phoebe_ast_print (int depth, PHOEBE_ast *in)
 		printf ("| ");
 
 	switch (in->type) {
+		case PHOEBE_AST_INDEX:
+			printf ("| %d\n", in->val.idx);
+		break;
 		case PHOEBE_AST_NUMVAL:
 			printf ("| %lf\n", in->val.numval);
 		break;
@@ -147,6 +159,8 @@ int phoebe_ast_free (PHOEBE_ast *ast)
 	PHOEBE_ast_list *list, *next;
 
 	switch (ast->type) {
+		case PHOEBE_AST_INDEX:
+			/* Nothing to be done */
 		case PHOEBE_AST_NUMVAL:
 			/* Nothing to be done */
 		break;
