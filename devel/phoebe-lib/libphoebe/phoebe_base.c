@@ -10,6 +10,7 @@
 
 #include "phoebe_accessories.h"
 #include "phoebe_configuration.h"
+#include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fitting.h"
@@ -50,9 +51,14 @@ int intern_phoebe_variables_init ()
 
 	PHOEBE_PARAMETERS_FILENAME = strdup ("Undefined");
 
+	/* Initialize the hashed parameter table: */
+
 	PHOEBE_pt = phoebe_malloc (sizeof (*PHOEBE_pt));
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
 		PHOEBE_pt->bucket[i] = NULL;
+
+	/* Initialize the linked list of constraints: */
+	PHOEBE_ct = NULL;
 
 	/*
 	 * The following are global parameter variables. Since they will be dynami-
@@ -294,6 +300,9 @@ int phoebe_quit ()
 
 	/* Free passband list: */
 	phoebe_free_passbands ();
+
+	/* Free constraints: */
+	phoebe_free_constraints ();
 
 	#ifdef HAVE_LIBGSL
 		#ifndef PHOEBE_GSL_DISABLED

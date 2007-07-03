@@ -33,9 +33,9 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_build_config.h             phoebe_global.h                   \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
-	phoebe_constraints.c              phoebe_constraints.h              \
-	phoebe_constraints.lex.c          phoebe_constraints.lex.h        \
-	phoebe_constraints.tab.c          phoebe_constraints.tab.h          \
+    phoebe_constraints.c              phoebe_constraints.h              \
+    phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
+    phoebe_constraints.tab.c          phoebe_constraints.tab.h          \
     phoebe_data.c                     phoebe_data.h                     \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
