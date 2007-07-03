@@ -72,7 +72,7 @@ typedef enum {
 } scripter_ast_kind;
 
 typedef struct scripter_ast {
-  enum {
+	enum {
 		ast_int,
 		ast_bool,
 		ast_double,
@@ -87,7 +87,7 @@ typedef struct scripter_ast {
 	  	ast_minfeedback,
 		ast_node
 	} type;
-  union {
+	union {
 		int                        integer;
 		double                     real;
 		bool                       boolean;
