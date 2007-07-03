@@ -249,12 +249,21 @@ on_phoebe_data_lc_remove_button_clicked
 }
 
 
+void on_phoebe_data_lc_actve_checkbutton_toggled
+                                        (GtkCellRendererToggle *cell_renderer,
+                                         gchar                 *path,
+                                         gpointer               user_data)
+{
+
+}
+
+
 void
 on_phoebe_data_rv_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer         user_data)
+                                        (GtkTreeView        *treeview,
+                                         GtkTreePath        *path,
+                                         GtkTreeViewColumn  *column,
+                                         gpointer            user_data)
 {
 
 }
@@ -273,7 +282,7 @@ void
 on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+    gtk_widget_show (phoebe_load_rv_window);
 }
 
 
@@ -290,7 +299,22 @@ on_phoebe_data_rv_remove_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
+    GtkTreePath       *path;
+    GtkTreeIter        iter;
+    GtkTreeModel      *model;
 
+    /* get the selected row */
+    gtk_tree_view_get_cursor ((GtkTreeView*)phoebe_data_rv_treeview, &path, NULL);
+
+    /* get the model */
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
+
+    /* get the row from the model */
+    if (gtk_tree_model_get_iter(model, &iter, path))
+    {
+        g_print ("The row number %s will be removed.\n", gtk_tree_path_to_string(path));
+        gtk_list_store_remove((GtkListStore*)model, &iter);
+    }
 }
 
 
@@ -3307,11 +3331,11 @@ on_phoebe_plots_rv_options_x_combobox_changed
 
 }
 
-/**********************************************************************
+/* ******************************************************************** *
  *
  *                    phoebe_settings_window events
  *
- **********************************************************************/
+ * ******************************************************************** */
 
 gboolean
 on_phoebe_settings_window_delete_event (GtkWidget *widget,
@@ -3344,6 +3368,13 @@ on_phoebe_settings_cancel_button_clicked
 {
 
 }
+
+
+/* ******************************************************************** *
+ *
+ *                    phoebe_load_lc_window events
+ *
+ * ******************************************************************** */
 
 
 void on_phoebe_load_lc_ok_button_clicked
@@ -3379,10 +3410,10 @@ void on_phoebe_load_lc_ok_button_clicked
                                                     LC_COL_OPSF,        0.0,
                                                     LC_COL_EL3,         0.0,
                                                     LC_COL_EXTINCTION,  0.0,
-                                                    LC_COL_LCX1,        0.5,
-                                                    LC_COL_LCX2,        0.5,
-                                                    LC_COL_LCY1,        0.5,
-                                                    LC_COL_LCY2,        0.5, -1);
+                                                    LC_COL_X1,          0.5,
+                                                    LC_COL_X2,          0.5,
+                                                    LC_COL_Y1,          0.5,
+                                                    LC_COL_Y2,          0.5, -1);
 
     g_free(itype);
     g_free(dtype);
@@ -3398,4 +3429,60 @@ void on_phoebe_load_lc_cancel_button_clicked
                                          gpointer         user_data)
 {
     gtk_widget_hide (phoebe_load_lc_window);
+}
+
+
+/* ******************************************************************** *
+ *
+ *                    phoebe_load_rv_window events
+ *
+ * ******************************************************************** */
+
+
+void on_phoebe_load_rv_ok_button_clicked
+                                        (GtkButton       *button,
+                                         gpointer         user_data)
+{
+    GtkTreeModel *model;
+    char *filename;
+    PHOEBE_curve *new_rv;
+
+    filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (phoebe_load_rv_filechooserbutton));
+    new_rv = phoebe_curve_new_from_file(filename);
+
+    char *itype, *dtype, *wtype;
+    phoebe_column_type_get_name(new_rv->itype, &itype);
+    phoebe_column_type_get_name(new_rv->dtype, &dtype);
+    phoebe_column_type_get_name(new_rv->wtype, &wtype);
+
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
+
+    GtkTreeIter iter;
+    gtk_list_store_append((GtkListStore*)model, &iter);
+    gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
+                                                    RV_COL_FILENAME,    new_rv->filename,
+                                                    RV_COL_FILTER,      "Undefined",
+                                                    RV_COL_ITYPE,       itype,
+                                                    RV_COL_DTYPE,       dtype,
+                                                    RV_COL_WTYPE,       wtype,
+                                                    RV_COL_SIGMA,       new_rv->sigma,
+                                                    RV_COL_X1,          0.5,
+                                                    RV_COL_X2,          0.5,
+                                                    RV_COL_Y1,          0.5,
+                                                    RV_COL_Y2,          0.5, -1);
+
+    g_free(itype);
+    g_free(dtype);
+    g_free(wtype);
+
+    g_free (filename);
+    gtk_widget_hide (phoebe_load_rv_window);
+}
+
+
+void on_phoebe_load_rv_cancel_button_clicked
+                                        (GtkButton       *button,
+                                         gpointer         user_data)
+{
+    gtk_widget_hide (phoebe_load_rv_window);
 }

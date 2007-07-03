@@ -1,14 +1,20 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-/* The treeviews */
+/* *** The treeviews *** */
+
+/* LC treeviews */
 GtkWidget *phoebe_data_lc_treeview;
 GtkWidget *phoebe_para_lc_levels_treeview;
 GtkWidget *phoebe_para_lc_el3_treeview;
 GtkWidget *phoebe_para_lc_levweight_treeview;
 GtkWidget *phoebe_para_lc_ld_treeview;
 
-/* These columns make up the curve model for various treeviews */
+/* RV treeviews */
+GtkWidget *phoebe_data_rv_treeview;
+GtkWidget *phoebe_para_rv_ld_treeview;
+
+/* These columns make up the light curve model for various treeviews */
 typedef enum lc_model_columns
 {
     LC_COL_ACTIVE,
@@ -24,18 +30,41 @@ typedef enum lc_model_columns
     LC_COL_OPSF,
     LC_COL_EL3,
     LC_COL_EXTINCTION,
-    LC_COL_LCX1,
-    LC_COL_LCX2,
-    LC_COL_LCY1,
-    LC_COL_LCY2,
+    LC_COL_X1,
+    LC_COL_X2,
+    LC_COL_Y1,
+    LC_COL_Y2,
     LC_COL_COUNT,
 }lc_model_columns;
 
-/* Creates a model for storing phoebe_curves data */
+/* These columns make up the RV curve model for various treeviews */
+typedef enum rv_model_columns
+{
+    RV_COL_ACTIVE,
+    RV_COL_FILENAME,
+    RV_COL_FILTER,
+    RV_COL_ITYPE,
+    RV_COL_DTYPE,
+    RV_COL_WTYPE,
+    RV_COL_SIGMA,
+    RV_COL_X1,
+    RV_COL_X2,
+    RV_COL_Y1,
+    RV_COL_Y2,
+    RV_COL_COUNT,
+}rv_model_columns;
+
+/* Creates a model for storing light curves data */
 GtkTreeModel *lc_model_create(void);
+
+/* Creates a model for storing RV curves data */
+GtkTreeModel *rv_model_create(void);
 
 /* Initializes the treeviews */
 int gui_init_treeviews(GladeXML *parent_window);
 
-/* Initializes all LC related treeviews*/
+/* Initializes all LC related treeviews */
 int gui_init_lc_treeviews(GladeXML *parent_window);
+
+/* Initializes all RV related treeviews */
+int gui_init_rv_treeviews(GladeXML *parent_window);
