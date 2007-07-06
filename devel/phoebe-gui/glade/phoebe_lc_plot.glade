@@ -1,297 +1,36 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Mon Jul  2 22:29:50 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Tue Jul  3 15:13:09 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkWindow" id="phoebe_lc_plot_window">
-    <property name="title" translatable="yes">LC Plot</property>
+    <property name="title" translatable="yes">LC Plot - PHOEBE</property>
+    <property name="icon">ico.png</property>
     <child>
       <widget class="GtkTable" id="table1">
         <property name="visible">True</property>
         <property name="n_rows">3</property>
         <property name="n_columns">2</property>
         <child>
-          <widget class="GtkFrame" id="frame3">
+          <widget class="GtkFrame" id="frame2">
             <property name="visible">True</property>
             <property name="border_width">1</property>
             <property name="label_xalign">0</property>
             <child>
-              <widget class="GtkVBox" id="vbox3">
+              <widget class="GtkScrolledWindow" id="phoebe_plots_lc_scrolledwindow">
                 <property name="visible">True</property>
-                <property name="border_width">1</property>
+                <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+                <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+                <property name="shadow_type">GTK_SHADOW_IN</property>
                 <child>
-                  <widget class="GtkTable" id="table2">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <property name="n_rows">3</property>
-                    <property name="n_columns">3</property>
-                    <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <widget class="GtkButton" id="button4">
-                        <property name="visible">True</property>
-                        <child>
-                          <placeholder/>
-                        </child>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow4">
-                        <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_DOWN</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                        <property name="top_attach">2</property>
-                        <property name="bottom_attach">3</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow3">
-                        <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_LEFT</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow2">
-                        <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_UP</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow1">
-                        <property name="visible">True</property>
-                        <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkVBox" id="vbox4">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <child>
-                      <widget class="GtkLabel" id="label5">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Offset:</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkComboBox" id="combobox1">
-                        <property name="visible">True</property>
-                        <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">6</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkHSeparator" id="hseparator1">
-                    <property name="visible">True</property>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">4</property>
-                    <property name="position">2</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkVBox" id="vbox5">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <child>
-                      <widget class="GtkButton" id="button5">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Zoom In</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkButton" id="button6">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Zoom Out</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="position">3</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkVBox" id="vbox6">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <child>
-                      <widget class="GtkLabel" id="label6">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Offset:</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkComboBox" id="combobox2">
-                        <property name="visible">True</property>
-                        <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">6</property>
-                    <property name="position">4</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkHSeparator" id="hseparator2">
-                    <property name="visible">True</property>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">4</property>
-                    <property name="position">5</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkVBox" id="vbox7">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <child>
-                      <widget class="GtkLabel" id="label7">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Grid:</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkCheckButton" id="checkbutton1">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Coarse</property>
-                        <property name="draw_indicator">True</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkCheckButton" id="checkbutton2">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Fine</property>
-                        <property name="draw_indicator">True</property>
-                      </widget>
-                      <packing>
-                        <property name="position">2</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="position">6</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkHSeparator" id="hseparator3">
-                    <property name="visible">True</property>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">4</property>
-                    <property name="position">7</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkVBox" id="vbox8">
-                    <property name="visible">True</property>
-                    <property name="border_width">2</property>
-                    <child>
-                      <widget class="GtkRadioButton" id="radiobutton1">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Box</property>
-                        <property name="active">True</property>
-                        <property name="draw_indicator">True</property>
-                        <property name="group">radiobutton2</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkRadioButton" id="radiobutton2">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Axes</property>
-                        <property name="draw_indicator">True</property>
-                        <property name="group">radiobutton1</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="position">8</property>
-                  </packing>
+                  <placeholder/>
                 </child>
               </widget>
             </child>
             <child>
-              <widget class="GtkLabel" id="label4">
+              <widget class="GtkLabel" id="label2">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">&lt;b&gt;Controls&lt;/b&gt;</property>
+                <property name="xpad">4</property>
+                <property name="label" translatable="yes">&lt;b&gt;Plot&lt;/b&gt;</property>
                 <property name="use_markup">True</property>
               </widget>
               <packing>
@@ -300,69 +39,8 @@
             </child>
           </widget>
           <packing>
-            <property name="left_attach">1</property>
-            <property name="right_attach">2</property>
+            <property name="top_attach">1</property>
             <property name="bottom_attach">2</property>
-            <property name="x_options">GTK_FILL</property>
-          </packing>
-        </child>
-        <child>
-          <widget class="GtkHBox" id="hbox2">
-            <property name="visible">True</property>
-            <child>
-              <widget class="GtkHButtonBox" id="hbuttonbox1">
-                <property name="visible">True</property>
-                <property name="layout_style">GTK_BUTTONBOX_START</property>
-                <child>
-                  <widget class="GtkButton" id="button1">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">Plot</property>
-                  </widget>
-                </child>
-                <child>
-                  <widget class="GtkButton" id="button2">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">Plot to File</property>
-                  </widget>
-                  <packing>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
-                  <widget class="GtkButton" id="button3">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">gtk-clear</property>
-                    <property name="use_stock">True</property>
-                  </widget>
-                  <packing>
-                    <property name="position">2</property>
-                  </packing>
-                </child>
-              </widget>
-            </child>
-            <child>
-              <widget class="GtkHButtonBox" id="hbuttonbox2">
-                <property name="visible">True</property>
-                <property name="layout_style">GTK_BUTTONBOX_END</property>
-                <child>
-                  <widget class="GtkButton" id="button8">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">gtk-close</property>
-                    <property name="use_stock">True</property>
-                  </widget>
-                </child>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </widget>
-          <packing>
-            <property name="right_attach">2</property>
-            <property name="top_attach">2</property>
-            <property name="bottom_attach">3</property>
-            <property name="y_options">GTK_FILL</property>
           </packing>
         </child>
         <child>
@@ -382,14 +60,45 @@
                     <property name="column_spacing">12</property>
                     <property name="row_spacing">2</property>
                     <child>
-                      <widget class="GtkCheckButton" id="phoebe_plots_lc_options_syn_checkbutton">
+                      <widget class="GtkVBox" id="vbox2">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Synthetic</property>
-                        <property name="use_underline">True</property>
-                        <property name="active">True</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="on_phoebe_plots_lc_options_syn_checkbutton_toggled"/>
+                        <child>
+                          <widget class="GtkLabel" id="label3">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Vertices:</property>
+                          </widget>
+                        </child>
+                        <child>
+                          <widget class="GtkSpinButton" id="phoebe_plots_lc_options_vertices_no_spinbutton">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="adjustment">100 2 1000000 1 10 10</property>
+                          </widget>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkComboBox" id="phoebe_plots_lc_options_obs_combobox">
+                        <property name="width_request">100</property>
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="items" translatable="yes"></property>
+                        <signal name="changed" handler="on_phoebe_plots_lc_options_obs_combobox_changed"/>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="y_options"></property>
+                      </packing>
                     </child>
                     <child>
                       <widget class="GtkCheckButton" id="phoebe_plots_lc_options_obs_checkbutton">
@@ -405,44 +114,14 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkComboBox" id="phoebe_plots_lc_options_obs_combobox">
-                        <property name="width_request">100</property>
+                      <widget class="GtkCheckButton" id="phoebe_plots_lc_options_syn_checkbutton">
                         <property name="visible">True</property>
-                        <property name="items" translatable="yes"></property>
-                        <signal name="changed" handler="on_phoebe_plots_lc_options_obs_combobox_changed"/>
+                        <property name="label" translatable="yes">Synthetic</property>
+                        <property name="use_underline">True</property>
+                        <property name="active">True</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="on_phoebe_plots_lc_options_syn_checkbutton_toggled"/>
                       </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                        <property name="y_options"></property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkVBox" id="vbox2">
-                        <property name="visible">True</property>
-                        <child>
-                          <widget class="GtkLabel" id="label3">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Vertices:</property>
-                          </widget>
-                        </child>
-                        <child>
-                          <widget class="GtkSpinButton" id="spinbutton1">
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="adjustment">100 2 1000000 1 10 10</property>
-                          </widget>
-                          <packing>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                      </packing>
                     </child>
                   </widget>
                   <packing>
@@ -509,38 +188,71 @@
                     <property name="column_spacing">2</property>
                     <property name="row_spacing">2</property>
                     <child>
-                      <widget class="GtkLabel" id="phoebe_plots_lc_options_x_label">
+                      <widget class="GtkVSeparator" id="vseparator3">
                         <property name="visible">True</property>
-                        <property name="xpad">5</property>
-                        <property name="label" translatable="yes">X</property>
                       </widget>
                       <packing>
-                        <property name="x_options"></property>
-                        <property name="y_options"></property>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_padding">4</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="phoebe_plots_lc_options_y_label">
+                      <widget class="GtkSpinButton" id="phoebe_plots_lc_options_phend_spinbutton">
                         <property name="visible">True</property>
-                        <property name="xpad">5</property>
-                        <property name="label" translatable="yes">Y</property>
+                        <property name="can_focus">True</property>
+                        <property name="adjustment">0.59999999999999998 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                        <property name="climb_rate">0.0099999997764825821</property>
+                        <property name="digits">5</property>
+                        <signal name="value_changed" handler="on_phoebe_plots_lc_options_phend_spinbutton_value_changed"/>
+                        <signal name="editing_done" handler="on_phoebe_plots_lc_options_phend_spinbutton_editing_done"/>
                       </widget>
                       <packing>
+                        <property name="left_attach">4</property>
+                        <property name="right_attach">5</property>
                         <property name="top_attach">1</property>
                         <property name="bottom_attach">2</property>
                         <property name="y_options"></property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkComboBox" id="phoebe_plots_lc_options_x_combobox">
+                      <widget class="GtkSpinButton" id="phoebe_plots_lc_options_phstart_spinbutton">
                         <property name="visible">True</property>
-                        <property name="items" translatable="yes">Phase
-Time</property>
-                        <signal name="changed" handler="on_phoebe_plots_lc_options_x_combobox_changed"/>
+                        <property name="can_focus">True</property>
+                        <property name="adjustment">-0.59999999999999998 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                        <property name="climb_rate">0.0099999997764825821</property>
+                        <property name="digits">5</property>
+                        <signal name="value_changed" handler="on_phoebe_plots_lc_options_phstart_spinbutton_value_changed"/>
+                        <signal name="editing_done" handler="on_phoebe_plots_lc_options_phstart_spinbutton_editing_done"/>
                       </widget>
                       <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
+                        <property name="left_attach">4</property>
+                        <property name="right_attach">5</property>
+                        <property name="y_options"></property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="phoebe_plots_lc_options_phend_label">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Phase end:</property>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">3</property>
+                        <property name="right_attach">4</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="y_options"></property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="phoebe_plots_lc_options_phstart_label">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Phase start:</property>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">3</property>
+                        <property name="right_attach">4</property>
                         <property name="y_options"></property>
                       </packing>
                     </child>
@@ -564,72 +276,39 @@ Normalized flux</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="phoebe_plots_lc_options_phstart_label">
+                      <widget class="GtkComboBox" id="phoebe_plots_lc_options_x_combobox">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Phase start:</property>
+                        <property name="items" translatable="yes">Phase
+Time</property>
+                        <signal name="changed" handler="on_phoebe_plots_lc_options_x_combobox_changed"/>
                       </widget>
                       <packing>
-                        <property name="left_attach">3</property>
-                        <property name="right_attach">4</property>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
                         <property name="y_options"></property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="phoebe_plots_lc_options_phend_label">
+                      <widget class="GtkLabel" id="phoebe_plots_lc_options_y_label">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Phase end:</property>
+                        <property name="xpad">5</property>
+                        <property name="label" translatable="yes">Y</property>
                       </widget>
                       <packing>
-                        <property name="left_attach">3</property>
-                        <property name="right_attach">4</property>
                         <property name="top_attach">1</property>
                         <property name="bottom_attach">2</property>
                         <property name="y_options"></property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkSpinButton" id="phoebe_plots_lc_options_phstart_spinbutton">
+                      <widget class="GtkLabel" id="phoebe_plots_lc_options_x_label">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="adjustment">-0.59999999999999998 -1 0 1 10 10</property>
-                        <property name="climb_rate">1</property>
-                        <property name="digits">5</property>
-                        <signal name="value_changed" handler="on_phoebe_plots_lc_options_phstart_spinbutton_value_changed"/>
-                        <signal name="editing_done" handler="on_phoebe_plots_lc_options_phstart_spinbutton_editing_done"/>
+                        <property name="xpad">5</property>
+                        <property name="label" translatable="yes">X</property>
                       </widget>
                       <packing>
-                        <property name="left_attach">4</property>
-                        <property name="right_attach">5</property>
+                        <property name="x_options"></property>
                         <property name="y_options"></property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkSpinButton" id="phoebe_plots_lc_options_phend_spinbutton">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="adjustment">0.59999999999999998 0 1 1 10 10</property>
-                        <property name="climb_rate">1</property>
-                        <property name="digits">5</property>
-                        <signal name="value_changed" handler="on_phoebe_plots_lc_options_phend_spinbutton_value_changed"/>
-                        <signal name="editing_done" handler="on_phoebe_plots_lc_options_phend_spinbutton_editing_done"/>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">4</property>
-                        <property name="right_attach">5</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                        <property name="y_options"></property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkVSeparator" id="vseparator3">
-                        <property name="visible">True</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
-                        <property name="bottom_attach">2</property>
-                        <property name="x_padding">4</property>
                       </packing>
                     </child>
                   </widget>
@@ -643,6 +322,7 @@ Normalized flux</property>
             <child>
               <widget class="GtkLabel" id="label1">
                 <property name="visible">True</property>
+                <property name="xpad">4</property>
                 <property name="label" translatable="yes">&lt;b&gt;Options&lt;/b&gt;</property>
                 <property name="use_markup">True</property>
               </widget>
@@ -652,29 +332,373 @@ Normalized flux</property>
             </child>
           </widget>
           <packing>
+            <property name="right_attach">2</property>
             <property name="y_options"></property>
           </packing>
         </child>
         <child>
-          <widget class="GtkFrame" id="frame2">
+          <widget class="GtkHBox" id="hbox2">
             <property name="visible">True</property>
-            <property name="border_width">1</property>
-            <property name="label_xalign">0</property>
             <child>
-              <widget class="GtkScrolledWindow" id="scrolledwindow1">
+              <widget class="GtkHButtonBox" id="hbuttonbox1">
                 <property name="visible">True</property>
-                <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                <property name="shadow_type">GTK_SHADOW_IN</property>
+                <property name="layout_style">GTK_BUTTONBOX_START</property>
                 <child>
-                  <placeholder/>
+                  <widget class="GtkButton" id="phoebe_plots_lc_plot_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Plot</property>
+                  </widget>
+                </child>
+                <child>
+                  <widget class="GtkButton" id="phoebe_plots_lc_plottofile_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Plot to File</property>
+                  </widget>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkButton" id="phoebe_plots_lc_clear_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">gtk-clear</property>
+                    <property name="use_stock">True</property>
+                  </widget>
+                  <packing>
+                    <property name="position">2</property>
+                  </packing>
                 </child>
               </widget>
             </child>
             <child>
-              <widget class="GtkLabel" id="label2">
+              <widget class="GtkHButtonBox" id="hbuttonbox2">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">&lt;b&gt;Plot&lt;/b&gt;</property>
+                <property name="layout_style">GTK_BUTTONBOX_END</property>
+                <child>
+                  <widget class="GtkButton" id="phoebe_plots_lc_close_button">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">gtk-close</property>
+                    <property name="use_stock">True</property>
+                  </widget>
+                </child>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </widget>
+          <packing>
+            <property name="right_attach">2</property>
+            <property name="top_attach">2</property>
+            <property name="bottom_attach">3</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <widget class="GtkFrame" id="frame3">
+            <property name="visible">True</property>
+            <property name="border_width">1</property>
+            <property name="label_xalign">0</property>
+            <child>
+              <widget class="GtkVBox" id="vbox3">
+                <property name="visible">True</property>
+                <property name="border_width">1</property>
+                <child>
+                  <widget class="GtkTable" id="table2">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <property name="n_rows">3</property>
+                    <property name="n_columns">3</property>
+                    <property name="homogeneous">True</property>
+                    <child>
+                      <widget class="GtkButton" id="button4">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_left_arrow">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_LEFT</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="button3">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_down_arrow">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_DOWN</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="button2">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_right_arrow">
+                            <property name="visible">True</property>
+                            <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="button1">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_up_arrow">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_UP</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="phoebe_plots_lc_controls_reset_button">
+                        <property name="visible">True</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVBox" id="vbox4">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <child>
+                      <widget class="GtkLabel" id="label5">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Offset:</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkComboBox" id="phoebe_plots_lc_controls_offset_combobox">
+                        <property name="visible">True</property>
+                        <property name="items" translatable="yes">5%
+10%
+25%
+50%
+100%
+200%
+500%
+1000%</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">6</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkHSeparator" id="hseparator1">
+                    <property name="visible">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">4</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVBox" id="vbox5">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <child>
+                      <widget class="GtkButton" id="phoebe_plots_lc_controls_zoomin_button">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Zoom In</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="phoebe_plots_lc_controls_zoomout_button">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Zoom out</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVBox" id="vbox6">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <child>
+                      <widget class="GtkLabel" id="label6">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Zoom:</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkComboBox" id="phoebe_plots_lc_controls_zoom_combobox">
+                        <property name="visible">True</property>
+                        <property name="items" translatable="yes">5%
+10%
+25%
+50%
+100%
+200%
+500%
+1000%</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">6</property>
+                    <property name="position">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkHSeparator" id="hseparator2">
+                    <property name="visible">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">4</property>
+                    <property name="position">5</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVBox" id="vbox7">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <child>
+                      <widget class="GtkLabel" id="label7">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Grid:</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkCheckButton" id="phoebe_plots_lc_controls_coarse_checkbutton">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Coarse</property>
+                        <property name="draw_indicator">True</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkCheckButton" id="phoebe_plots_lc_controls_fine_checkbutton">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Fine</property>
+                        <property name="draw_indicator">True</property>
+                      </widget>
+                      <packing>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkHSeparator" id="hseparator3">
+                    <property name="visible">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">4</property>
+                    <property name="position">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkVBox" id="vbox8">
+                    <property name="visible">True</property>
+                    <property name="border_width">2</property>
+                    <child>
+                      <widget class="GtkRadioButton" id="phoebe_plots_lc_controls_box_radiobutton">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Box</property>
+                        <property name="active">True</property>
+                        <property name="draw_indicator">True</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkRadioButton" id="phoebe_plots_lc_controls_axes_radiobutton">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Axes</property>
+                        <property name="draw_indicator">True</property>
+                        <property name="group">phoebe_plots_lc_controls_box_radiobutton</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">8</property>
+                  </packing>
+                </child>
+              </widget>
+            </child>
+            <child>
+              <widget class="GtkLabel" id="label4">
+                <property name="visible">True</property>
+                <property name="xpad">4</property>
+                <property name="label" translatable="yes">&lt;b&gt;Controls&lt;/b&gt;</property>
                 <property name="use_markup">True</property>
               </widget>
               <packing>
@@ -683,8 +707,11 @@ Normalized flux</property>
             </child>
           </widget>
           <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
             <property name="top_attach">1</property>
             <property name="bottom_attach">2</property>
+            <property name="x_options">GTK_FILL</property>
           </packing>
         </child>
       </widget>

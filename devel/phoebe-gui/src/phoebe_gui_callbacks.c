@@ -72,6 +72,22 @@ on_phoebe_help_about_menuitem_activate (GtkMenuItem     *menuitem,
 
 
 void
+on_phoebe_lc_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
+                                        gpointer         user_data)
+{
+
+}
+
+
+void
+on_phoebe_rv_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
+                                        gpointer         user_data)
+{
+
+}
+
+
+void
 on_phoebe_fiitting_toolbutton_clicked  (GtkToolButton   *toolbutton,
                                         gpointer         user_data)
 {
