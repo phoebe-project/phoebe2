@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Mon Jul  2 22:28:24 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Fri Jul  6 16:14:02 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkWindow" id="phoebe_rv_plot_window">
     <property name="title" translatable="yes">RV Plot - PHOEBE</property>
@@ -331,6 +331,7 @@ Time</property>
             </child>
           </widget>
           <packing>
+            <property name="right_attach">2</property>
             <property name="y_options"></property>
           </packing>
         </child>
@@ -402,11 +403,12 @@ Time</property>
                 <property name="visible">True</property>
                 <property name="border_width">1</property>
                 <child>
-                  <widget class="GtkTable" id="table2">
+                  <widget class="GtkTable" id="table3">
                     <property name="visible">True</property>
                     <property name="border_width">2</property>
                     <property name="n_rows">3</property>
                     <property name="n_columns">3</property>
+                    <property name="homogeneous">True</property>
                     <child>
                       <placeholder/>
                     </child>
@@ -420,31 +422,14 @@ Time</property>
                       <placeholder/>
                     </child>
                     <child>
-                      <widget class="GtkArrow" id="arrow1">
+                      <widget class="GtkButton" id="button8">
                         <property name="visible">True</property>
-                        <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow2">
-                        <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_UP</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkArrow" id="arrow3">
-                        <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_LEFT</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_left_arrow1">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_LEFT</property>
+                          </widget>
+                        </child>
                       </widget>
                       <packing>
                         <property name="top_attach">1</property>
@@ -452,9 +437,14 @@ Time</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkArrow" id="arrow4">
+                      <widget class="GtkButton" id="button7">
                         <property name="visible">True</property>
-                        <property name="arrow_type">GTK_ARROW_DOWN</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_down_arrow1">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_DOWN</property>
+                          </widget>
+                        </child>
                       </widget>
                       <packing>
                         <property name="left_attach">1</property>
@@ -464,7 +454,39 @@ Time</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkButton" id="button4">
+                      <widget class="GtkButton" id="button6">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_right_arrow1">
+                            <property name="visible">True</property>
+                            <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="button5">
+                        <property name="visible">True</property>
+                        <child>
+                          <widget class="GtkArrow" id="phoebe_plots_lc_controls_up_arrow1">
+                            <property name="visible">True</property>
+                            <property name="arrow_type">GTK_ARROW_UP</property>
+                          </widget>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkButton" id="phoebe_plots_lc_controls_reset_button1">
                         <property name="visible">True</property>
                         <child>
                           <placeholder/>
@@ -685,6 +707,7 @@ Time</property>
           <packing>
             <property name="left_attach">1</property>
             <property name="right_attach">2</property>
+            <property name="top_attach">1</property>
             <property name="bottom_attach">2</property>
             <property name="x_options">GTK_FILL</property>
           </packing>
