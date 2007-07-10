@@ -281,6 +281,7 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_base.h              \
                           phoebe_calculations.h      \
                           phoebe_configuration.h     \
+                          phoebe_constraints.h       \
                           phoebe_data.h              \
                           phoebe_error_handling.h    \
                           phoebe_fitting.h           \

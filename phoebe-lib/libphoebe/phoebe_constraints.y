@@ -53,8 +53,11 @@ input:			  /* empty */
 				}
 				;
 
-constraint:		parameter '=' expr {
-					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_CONSTRAINT, phoebe_ast_construct_list ($1, phoebe_ast_construct_list ($3, NULL)));
+constraint:		  PARAMETER '=' expr {
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_CONSTRAINT, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), phoebe_ast_construct_list ($3, NULL)));
+				}
+				| PARAMETER index '=' expr {
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_CONSTRAINT, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), phoebe_ast_construct_list ($2, phoebe_ast_construct_list ($4, NULL))));
 				}
 				;
 
@@ -78,7 +81,7 @@ parameter:		PARAMETER {
 					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_PARAMETER, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), NULL));
 				}
 				| PARAMETER index {
-					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_ELEMENT, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), phoebe_ast_construct_list ($2, NULL)));
+					$$ = phoebe_ast_add_node (PHOEBE_NODE_TYPE_PARAMETER, phoebe_ast_construct_list (phoebe_ast_add_parameter ($1), phoebe_ast_construct_list ($2, NULL)));
 				}
 				;
 
