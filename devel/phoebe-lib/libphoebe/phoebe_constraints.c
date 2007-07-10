@@ -53,6 +53,146 @@ PHOEBE_ast *phoebe_ast_add_node (PHOEBE_node_type type, PHOEBE_ast_list *args)
 	return ast;
 }
 
+int phoebe_ast_list_length (PHOEBE_ast_list *list)
+{
+	PHOEBE_ast_list *ptr = list;
+	int i = 0;
+
+	while (ptr) {
+		i++;
+		ptr = ptr->next;
+	}
+
+	return i;
+}
+
+PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast)
+{
+	PHOEBE_ast_value val;
+
+	if (!ast) {
+		phoebe_lib_error ("the passed AST is not initialized, aborting.\n");
+		val.type = PHOEBE_AST_VALUE_VOID;
+		return val;
+	}
+
+	switch (ast->type) {
+		case PHOEBE_AST_INDEX:
+			val.type = PHOEBE_AST_VALUE_INT;
+			val.val.idx = ast->val.idx;
+		break;
+		case PHOEBE_AST_NUMVAL:
+			val.type = PHOEBE_AST_VALUE_DOUBLE;
+			val.val.numval = ast->val.numval;
+		break;
+		case PHOEBE_AST_STRING:
+			val.type = PHOEBE_AST_VALUE_STRING;
+			val.val.str = ast->val.str;
+		break;
+		case PHOEBE_AST_PARAMETER:
+			val.type = PHOEBE_AST_VALUE_PARAMETER;
+			val.val.par = ast->val.par;
+		break;
+		case PHOEBE_AST_NODE:
+			switch (ast->val.node.type) {
+				case PHOEBE_NODE_TYPE_CONSTRAINT: {
+					if (phoebe_ast_list_length (ast->val.node.args) == 2) {
+						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+						printf ("call to set %s to %lf\n", par.val.par->qualifier, expr.val.numval);
+					}
+					if (phoebe_ast_list_length (ast->val.node.args) == 3) {
+						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_ast_value idx = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->next->elem);
+						printf ("call to set %s[%d] to %lf\n", par.val.par->qualifier, idx.val.idx, expr.val.numval);
+					}
+				}
+				break;
+				case PHOEBE_NODE_TYPE_PARAMETER:
+					val.type = PHOEBE_AST_VALUE_PARAMETER;
+					if (phoebe_ast_list_length (ast->val.node.args) == 1)
+						phoebe_parameter_get_value (ast->val.node.args->elem->val.par, &val.val.numval);
+					if (phoebe_ast_list_length (ast->val.node.args) == 2)
+						phoebe_parameter_get_value (ast->val.node.args->elem->val.par, ast->val.node.args->next->elem->val.idx, &val.val.numval);
+				break;
+				case PHOEBE_NODE_TYPE_ADD: {
+					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value op2 = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					val.val.numval = op1.val.numval + op2.val.numval;
+				}
+				break;
+				case PHOEBE_NODE_TYPE_SUB: {
+					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value op2 = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					val.val.numval = op1.val.numval - op2.val.numval;
+				}
+				break;
+				case PHOEBE_NODE_TYPE_MUL: {
+					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value op2 = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					val.val.numval = op1.val.numval * op2.val.numval;
+				}
+				break;
+				case PHOEBE_NODE_TYPE_DIV: {
+					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value op2 = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					val.val.numval = op1.val.numval / op2.val.numval;
+				}
+				break;
+				case PHOEBE_NODE_TYPE_POT: {
+					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value op2 = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					val.val.numval = pow (op1.val.numval, op2.val.numval);
+				}
+				break;
+				case PHOEBE_NODE_TYPE_BUILTIN: {
+					PHOEBE_ast_value func = phoebe_ast_evaluate (ast->val.node.args->elem);
+					PHOEBE_ast_value arg  = phoebe_ast_evaluate (ast->val.node.args->next->elem);
+
+					val.type = PHOEBE_AST_VALUE_DOUBLE;
+					if (strcmp (func.val.str, "sin") == 0)
+						val.val.numval = sin (arg.val.numval);
+					if (strcmp (func.val.str, "cos") == 0)
+						val.val.numval = cos (arg.val.numval);
+					if (strcmp (func.val.str, "tan") == 0)
+						val.val.numval = tan (arg.val.numval);
+					if (strcmp (func.val.str, "asin") == 0)
+						val.val.numval = asin (arg.val.numval);
+					if (strcmp (func.val.str, "acos") == 0)
+						val.val.numval = acos (arg.val.numval);
+					if (strcmp (func.val.str, "atan") == 0)
+						val.val.numval = atan (arg.val.numval);
+					if (strcmp (func.val.str, "exp") == 0)
+						val.val.numval = exp (arg.val.numval);
+					if (strcmp (func.val.str, "ln") == 0)
+						val.val.numval = log (arg.val.numval);
+					if (strcmp (func.val.str, "log") == 0)
+						val.val.numval = log10 (arg.val.numval);
+					if (strcmp (func.val.str, "sqrt") == 0)
+						val.val.numval = sqrt (arg.val.numval);
+				}
+				break;
+				default:
+					phoebe_lib_error ("exception handler invoked in phoebe_ast_evaluate () node switch, please report this!\n");
+					val.type = PHOEBE_AST_VALUE_VOID;
+				break;
+			}
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_ast_evaluate () type switch, please report this!\n");
+			val.type = PHOEBE_AST_VALUE_VOID;
+		break;
+	}
+
+	return val;
+}
+
 int phoebe_ast_print (int depth, PHOEBE_ast *in)
 {
 	int i;

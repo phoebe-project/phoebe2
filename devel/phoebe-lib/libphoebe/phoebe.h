@@ -32,6 +32,7 @@
 #include <phoebe/phoebe_base.h>
 #include <phoebe/phoebe_calculations.h>
 #include <phoebe/phoebe_configuration.h>
+#include <phoebe/phoebe_constraints.h>
 #include <phoebe/phoebe_data.h>
 #include <phoebe/phoebe_error_handling.h>
 #include <phoebe/phoebe_fitting.h>
