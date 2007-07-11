@@ -192,6 +192,32 @@ int phoebe_init_parameters ()
 	return SUCCESS;
 }
 
+int phoebe_free_parameters ()
+{
+	/**
+	 * phoebe_free_parameters:
+	 *
+	 * Frees all parameters from the currently active parameter table pointed
+	 * to by a global variable @PHOEBE_pt.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	PHOEBE_parameter_list *elem;
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		while (PHOEBE_pt->bucket[i]) {
+			elem = PHOEBE_pt->bucket[i];
+			PHOEBE_pt->bucket[i] = elem->next;
+			phoebe_parameter_free (elem->par);
+			free (elem);
+		}
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_init_parameter_options ()
 {
 	/*
@@ -303,7 +329,6 @@ PHOEBE_parameter *phoebe_parameter_new ()
 	par->description = NULL;
 	par->menu        = NULL;
 	par->deps        = NULL;
-	par->widget      = NULL;
 
 	return par;
 }
@@ -516,28 +541,6 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	}
 
 	free (par);
-
-	return SUCCESS;
-}
-
-int phoebe_free_parameters ()
-{
-	/*
-	 * This function frees all parameters from the parameter table.
-	 */
-
-	int i;
-	PHOEBE_parameter_list *elem;
-
-	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
-		while (PHOEBE_pt->bucket[i]) {
-			elem = PHOEBE_pt->bucket[i];
-			PHOEBE_pt->bucket[i] = elem->next;
-			phoebe_parameter_free (elem->par);
-			free (elem);
-		}
-	}
-	free (PHOEBE_pt);
 
 	return SUCCESS;
 }
@@ -1148,6 +1151,158 @@ PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ()
 	 */
 
 	return PHOEBE_pt->lists.marked_tba;
+}
+
+PHOEBE_parameter_table *phoebe_parameter_table_new ()
+{
+	/**
+	 * phoebe_parameter_table_new:
+	 *
+	 * Initializes a new parameter table and adds it to the list of all
+	 * parameter tables.
+	 *
+	 * Returns: #PHOEBE_parameter_table.
+	 */
+
+	int i;
+	PHOEBE_parameter_table      *table = phoebe_malloc (sizeof (*table));
+	PHOEBE_parameter_table_list *list  = phoebe_malloc (sizeof (*list));
+
+	/* Initialize all buckets: */
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
+		table->bucket[i] = NULL;
+
+	/* Add the table to the list of tables: */
+	list->table = table;
+	list->next = PHOEBE_pt_list;
+	PHOEBE_pt_list = list;
+
+	return table;
+}
+
+PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table *table)
+{
+	/**
+	 * phoebe_parameter_table_duplicate:
+	 * @table: a #PHOEBE_parameter_table to duplicate.
+	 *
+	 * Makes a duplicate copy of the table @table.
+	 *
+	 * Returns: #PHOEBE_parameter_table
+	 */
+
+	int i, j;
+
+	PHOEBE_parameter_table *copy = phoebe_parameter_table_new ();
+	PHOEBE_parameter_list *list, *elem;
+
+	/* First pass: copy all parameters and their values. */
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		elem = table->bucket[i];
+		while (elem) {
+			list = phoebe_malloc (sizeof (*list));
+			list->par = phoebe_parameter_new ();
+
+			list->par->qualifier    = strdup (elem->par->qualifier);
+			list->par->description  = strdup (elem->par->description);
+			list->par->kind         = elem->par->kind;
+			list->par->type         = elem->par->type;
+			list->par->value        = elem->par->value;
+			list->par->min          = elem->par->min;
+			list->par->max          = elem->par->max;
+			list->par->step         = elem->par->step;
+			list->par->tba          = elem->par->tba;
+			list->par->defaultvalue = elem->par->defaultvalue;
+
+			if (elem->par->menu) {
+				list->par->menu = phoebe_malloc (sizeof (*(list->par->menu)));
+				list->par->menu->optno = elem->par->menu->optno;
+				list->par->menu->option = phoebe_malloc (list->par->menu->optno * sizeof (*(list->par->menu->option)));
+				for (j = 0; j < elem->par->menu->optno; j++)
+					list->par->menu->option[j] = strdup (elem->par->menu->option[j]);
+			}
+
+			list->next = copy->bucket[i];
+			copy->bucket[i] = list;
+			elem = elem->next;
+		}
+	}
+
+	/* Second pass: copy all dependencies and lists. */
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+	}
+
+	return copy;
+}
+
+int phoebe_parameter_table_activate (PHOEBE_parameter_table *table)
+{
+	/**
+	 * phoebe_parameter_table_activate:
+	 * @table: parameter table that should be activated.
+	 *
+	 * Sets a pointer to the currently active parameter table @PHOEBE_pt to
+	 * @table.
+	 *
+	 * Returns: #PHOEBE_error_code
+	 */
+
+	if (!table)
+		return ERROR_PARAMETER_TABLE_NOT_INITIALIZED;
+
+	PHOEBE_pt = table;
+
+	return SUCCESS;
+}
+
+int phoebe_parameter_table_print (PHOEBE_parameter_table *table)
+{
+	int i;
+	PHOEBE_parameter_list *list;
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		printf ("%3d: ", i);
+		list = table->bucket[i];
+		while (list) {
+			printf ("%s ", list->par->qualifier);
+			list = list->next;
+		}
+		printf ("\n");
+	}
+
+	return SUCCESS;
+}
+
+int phoebe_parameter_table_free (PHOEBE_parameter_table *table)
+{
+	/**
+	 * phoebe_parameter_table_free:
+	 * @table: a #PHOEBE_parameter_table to be freed.
+	 *
+	 * Frees the parameter table @table and removes it from the list of all
+	 * parameter tables. Note that this does not free the parameters contained
+	 * in the table; use phoebe_parameters_free () for that.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	PHOEBE_parameter_table_list *list = PHOEBE_pt_list, *prev = NULL;
+
+	while (list->table != table) {
+		prev = list;
+		list = list->next;
+	}
+
+	if (!prev)
+		PHOEBE_pt_list = list->next;
+	else
+		prev->next = list->next;
+
+	free (list);
+
+	free (table);
+
+	return SUCCESS;
 }
 
 int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
