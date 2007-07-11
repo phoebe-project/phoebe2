@@ -12,9 +12,14 @@
 
 char *phoebe_error (PHOEBE_error_code code)
 {
-	/*
-	 * This function takes the error code and translates it to a human-readable
-	 * string.
+	/**
+	 * phoebe_error:
+	 * @code:
+	 *
+	 * Takes the error code and translates it to a human-readable string.
+	 *
+	 * Returns:
+	 *
 	 */
 
 	switch (code) {
@@ -305,8 +310,10 @@ int phoebe_lib_warning (const char *fmt, ...)
 
 int phoebe_debug (const char *fmt, ...)
 {
-	/*
-	 * This function writes the message to stdout in case PHOEBE was compiled
+	/**
+	 * phoebe_debug:
+	 *
+	 * Writes the message to stdout in case PHOEBE was compiled
 	 * with --enable-debug switch, otherwise it just returns control to the
 	 * main program.
 	 */
@@ -325,34 +332,45 @@ int phoebe_debug (const char *fmt, ...)
 }
 
 void *phoebe_malloc (size_t size)
-	{
+{
+    /**
+     * phoebe_malloc:
+     *
+     * Allocates the space with the check whether the memory was exhausted.
+     */
 	register void *value = malloc (size);
 	if (value == 0)
-		{
+    {
 		printf ("Virtual memory exhauseted.\n");
 		exit (-1);
-		}
+    }
 	return value;
-	}
+}
 
 void *phoebe_realloc (void *ptr, size_t size)
-	{
-	/* This function reallocates the space with the check whether the memory    */
-	/* was exhausted. If the size equals 0, realloc calls free() on ptr.        */
+{
+	/**
+	 * phoebe_realloc:
+	 *
+	 * Reallocates the space with the check whether the memory
+	 * was exhausted. If the size equals 0, realloc calls free() on ptr.
+	 */
 
 	register void *value = realloc (ptr, size);
 	if ( (value == 0) && (size != 0) )
-		{
+    {
 		printf ("Virtual memory exhauseted.\n");
 		exit (-1);
-		}
+    }
 	return value;
-	}
+}
 
 bool hla_request_is_sane ()
 {
-	/*
-	 * This function tests the HLA request. If the passband levels are marked
+	/**
+	 * hla_request_is_sane:
+	 *
+	 * Tests the HLA request. If the passband levels are marked
 	 * for adjustment and for computation at the same time, FALSE is returned.
 	 * Otherwise, TRUE is returned.
 	 */
@@ -370,8 +388,10 @@ bool hla_request_is_sane ()
 
 bool vga_request_is_sane ()
 {
-	/*
-	 * This function tests the VGA request. If the center-of-mass velocity is
+	/**
+	 * vga_request_is_sane:
+	 *
+	 * Tests the VGA request. If the center-of-mass velocity is
 	 * marked for adjustment and for computation at the same time, FALSE is
 	 * returned. Otherwise, TRUE is returned.
 	 */
@@ -389,8 +409,10 @@ bool vga_request_is_sane ()
 
 bool dpdt_request_is_sane ()
 {
-	/*
-	 * This function tests whether time-dependent parameter, dP/dt, is being
+	/**
+	 * dpdt_request_is_sane:
+	 *
+	 * Tests whether time-dependent parameter, dP/dt, is being
 	 * used in time (HJD) space. If so, TRUE is returned, and if not, FALSE
 	 * is returned.
 	 */

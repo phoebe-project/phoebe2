@@ -17,9 +17,13 @@
 
 PHOEBE_vector *phoebe_vector_new ()
 {
-	/*
-	 * This function initializes a vector for allocation.
-	 */
+    /**
+     * phoebe_vector_new:
+     *
+     * Initializes a vector for allocation.
+     *
+     * Returns: A #PHOEBE_vector.
+     */
 
 	PHOEBE_vector *vec = phoebe_malloc (sizeof (*vec));
 
@@ -31,11 +35,14 @@ PHOEBE_vector *phoebe_vector_new ()
 
 PHOEBE_vector *phoebe_vector_new_from_qualifier (char *qualifier)
 {
-	/*
-	 * This function returns a newly allocated vector the values of which are
-	 * taken from the array parameter represented by its qualifier.
+	/**
+	 * phoebe_vector_new_from_qualifier:
+	 * @qualifier: The array parameter.
 	 *
-	 * If an error occured, NULL is returned.
+	 * Allocates a new #PHOEBE_vector and assigns it elements
+	 * taken from the array parameter represented by @qualifier.
+	 *
+	 * Returns: A #PHOEBE_vector, or NULL if an error occured.
 	 */
 
 	int i;
@@ -57,10 +64,15 @@ PHOEBE_vector *phoebe_vector_new_from_qualifier (char *qualifier)
 
 PHOEBE_vector *phoebe_vector_new_from_column (char *filename, int col)
 {
-	/*
-	 * This function reads in the 'col'-th column from file 'filename',
-	 * parses it and stores it into the returned vector. If a parse error
-	 * occured, NULL is returned.
+	/**
+	 * phoebe_vector_new_from_column:
+	 * @filename: The full path to the file to be read.
+	 * @col: The column to be read.
+	 *
+	 * Reads in the @col-th column from file @filename,
+	 * parses it and stores it into the returned vector.
+	 *
+	 * Returns: A #PHOEBE_vector, or NULL if an error occured.
 	 */
 
 	FILE *input;
@@ -117,8 +129,13 @@ PHOEBE_vector *phoebe_vector_new_from_column (char *filename, int col)
 
 PHOEBE_vector *phoebe_vector_duplicate (PHOEBE_vector *vec)
 {
-	/*
-	 * This function makes a duplicate copy of vector 'vec'.
+	/**
+	 * phoebe_vector_duplicate:
+	 * @vec: The #PHOEBE_vector to copy.
+	 *
+	 * Makes a duplicate copy of #PHOEBE_vector @vec.
+	 *
+	 * Returns: A #PHOEBE_vector.
 	 */
 
 	int i;
@@ -136,14 +153,15 @@ PHOEBE_vector *phoebe_vector_duplicate (PHOEBE_vector *vec)
 
 int phoebe_vector_alloc (PHOEBE_vector *vec, int dimension)
 {
-	/*
-	 * This function allocates storage memory for a vector of 'dimension'.
+	/**
+	 * phoebe_vector_alloc:
+	 * @vec:       The #PHOEBE_vector to store.
+	 * @dimension: The size of the new #PHOEBE_vector.
 	 *
-	 * Return values:
+	 * Allocates storage memory for a #PHOEBE_vector of @dimension.
 	 *
-	 *   ERROR_VECTOR_ALREADY_ALLOCATED
-	 *   ERROR_VECTOR_INVALID_DIMENSION
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_ALREADY_ALLOCATED and ERROR_VECTOR_INVALID_DIMENSION.
 	 */
 
 	if (vec->dim != 0)
@@ -159,13 +177,15 @@ int phoebe_vector_alloc (PHOEBE_vector *vec, int dimension)
 
 int phoebe_vector_realloc (PHOEBE_vector *vec, int dimension)
 {
-	/*
-	 * This function reallocates storage memory for a vector of 'dimension'.
+	/**
+	 * phoebe_vector_realloc:
+	 * @vec:       The #PHOEBE_vector to reallocate.
+	 * @dimension: The new size for @vec.
 	 *
-	 * Return values:
+	 * Reallocates storage memory for a #PHOEBE_vector of @dimension.
 	 *
-	 *   ERROR_VECTOR_INVALID_DIMENSION
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_INVALID_DIMENSION.
 	 */
 
 	if (dimension < 1)
@@ -178,8 +198,14 @@ int phoebe_vector_realloc (PHOEBE_vector *vec, int dimension)
 
 int phoebe_vector_pad (PHOEBE_vector *vec, double value)
 {
-	/*
-	 * This function pads all vector components with 'value'.
+	/**
+	 * phoebe_vector_pad:
+	 * @vec:   The #PHOEBE_vector to pad with @value.
+	 * @value: The new value for all elements of @vec.
+	 *
+	 * Pads all components of @vec with @value.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -192,8 +218,13 @@ int phoebe_vector_pad (PHOEBE_vector *vec, double value)
 
 int phoebe_vector_free (PHOEBE_vector *vec)
 {
-	/*
-	 * This function frees the storage memory allocated for vector 'vec'.
+	/**
+	 * phoebe_vector_free:
+	 * @vec: The #PHOEBE_vector to free.
+	 *
+	 * Frees the storage memory allocated for #PHOEBE_vector @vec.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	if (!vec) return SUCCESS;
@@ -204,12 +235,16 @@ int phoebe_vector_free (PHOEBE_vector *vec)
 
 int phoebe_vector_add (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function adds vectors fac1 and fac2 and returns the sum vector.
+	/**
+	 * phoebe_vector_add:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Adds #PHOEBE_vector @fac1 to @fac2 and returns the sum #PHOEBE_vector @result.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -226,14 +261,17 @@ int phoebe_vector_add (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector
 
 int phoebe_vector_subtract (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function subtracts vectors fac1 and fac2 and returns the difference
-	 * vector.
+	/**
+	 * phoebe_vector_subtract:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Subtracts #PHOEBE_vector @fac2 from @fac1 and returns the difference
+	 * #PHOEBE_vector @result.
 	 *
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -250,14 +288,17 @@ int phoebe_vector_subtract (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_v
 
 int phoebe_vector_multiply (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function multiplies vectors fac1 and fac2 and returns the product
-	 * vector.
+	/**
+	 * phoebe_vector_multiply:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Multiplies #PHOEBE_vector @fac1 with @fac2 and returns the product
+	 * #PHOEBE_vector @result.
 	 *
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -274,14 +315,17 @@ int phoebe_vector_multiply (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_v
 
 int phoebe_vector_divide (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function divides vectors fac1 and fac2 and returns the quotient
-	 * vector.
+	/**
+	 * phoebe_vector_divide:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Divides #PHOEBE_vector @fac1 with @fac2 and returns the quotient
+	 * #PHOEBE_vector @result.
 	 *
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -298,14 +342,17 @@ int phoebe_vector_divide (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vec
 
 int phoebe_vector_raise (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function raises all elements of vector fac1 to the factor of element
-	 * of the vector fac2, basically new[i] = fac1[i]^fac2[i].
+	/**
+	 * phoebe_vector_raise:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Raises all elements of #PHOEBE_vector @fac1 to the corresponding element
+	 * of #PHOEBE_vector @fac2, basically result[i] = fac1[i]^fac2[i].
 	 *
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -320,34 +367,39 @@ int phoebe_vector_raise (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vect
 	return SUCCESS;
 }
 
-int phoebe_vector_multiply_by (PHOEBE_vector *fac1, double factor)
+int phoebe_vector_multiply_by (PHOEBE_vector *vec, double factor)
 {
-	/*
-	 * This function multiplies all elements of the vector fac1 with the scalar
-	 * value 'factor'.
+	/**
+	 * phoebe_vector_multiply_by:
+	 * @vec:    The #PHOEBE_vector to be modified.
+	 * @factor: The value the elements of @vec will be multiplied with.
 	 *
-	 * Return values:
+	 * Multiplies all elements of the #PHOEBE_vector @vec with the scalar
+	 * value @factor.
 	 *
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
 
-	for (i = 0; i < fac1->dim; i++)
-		fac1->val[i] = fac1->val[i] * factor;
+	for (i = 0; i < vec->dim; i++)
+		vec->val[i] = vec->val[i] * factor;
 
 	return SUCCESS;
 }
 
 int phoebe_vector_dot_product (double *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function returns the scalar (dot) product of the two vectors.
+	/**
+	 * phoebe_vector_dot_product:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Returns the scalar (dot) product of two #PHOEBE_vectors.
 	 *
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -365,14 +417,17 @@ int phoebe_vector_dot_product (double *result, PHOEBE_vector *fac1, PHOEBE_vecto
 
 int phoebe_vector_vec_product (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2)
 {
-	/*
-	 * This function returns the vector product of the two vectors.
+	/**
+	 * phoebe_vector_vec_product:
+	 * @result: The placeholder for a return value.
+	 * @fac1:   Vector 1.
+	 * @fac2:   Vector 2.
 	 *
-	 * Return values:
+	 * Returns the vector product of the two #PHOEBE_vectors. Both @fac1 and @fac2
+	 * need to have exactly 3 elements.
 	 *
-	 *   ERROR_VECTOR_DIMENSION_NOT_THREE
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_DIMENSION_NOT_THREE, and ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	if (fac1->dim != fac2->dim)
@@ -391,9 +446,15 @@ int phoebe_vector_vec_product (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEB
 
 int phoebe_vector_submit (PHOEBE_vector *result, PHOEBE_vector *vec, double func ())
 {
-	/*
-	 * This function calculates the functional value of func() for each element
-	 * of the vector individually.
+	/**
+	 * phoebe_vector_submit:
+	 * @result: The placeholder for a return value.
+	 * @vec:    The #PHOEBE_vector to submit to @func.
+	 * @func:   A function.
+	 *
+	 * Calculates the functional value of @func for each element of @vec.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -407,12 +468,14 @@ int phoebe_vector_submit (PHOEBE_vector *result, PHOEBE_vector *vec, double func
 
 int phoebe_vector_norm (double *result, PHOEBE_vector *vec)
 {
-	/*
-	 * This function returns the norm of the vector.
+	/**
+	 * phoebe_vector_norm:
+	 * @result: The placeholder for a return value.
+	 * @vec:    The #PHOEBE_vector to norm.
 	 *
-	 * Return values:
+	 * Returns the norm of #PHOEBE_vector @vec.
 	 *
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -427,12 +490,14 @@ int phoebe_vector_norm (double *result, PHOEBE_vector *vec)
 
 int phoebe_vector_dim (int *result, PHOEBE_vector *vec)
 {
-	/*
-	 * This function returns the dimension of the vector.
+	/**
+	 * phoebe_vector_dim:
+	 * @result: The placeholder for a return value.
+	 * @vec:    The #PHOEBE_vector to examine.
 	 *
-	 * Return values:
+	 * Returns the dimension of @vec.
 	 *
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	*result = vec->dim;
@@ -441,15 +506,17 @@ int phoebe_vector_dim (int *result, PHOEBE_vector *vec)
 
 int phoebe_vector_randomize (PHOEBE_vector *result, double limit)
 {
-	/*
-	 * This function fills all vector elements with random numbers from the
-	 * interval [0, limit]. 'limit' may also be negative, then it's [limit, 0].
+	/**
+	 * phoebe_vector_randomize:
+	 * @result: The placeholder for a return value.
+	 * @limit:  The upper limit for generated numbers.
+	 *
+	 * Fills all vector elements with random numbers from the
+	 * interval [0, @limit]. @limit may also be negative, then it's [@limit, 0].
 	 * The vector must be allocated prior to calling this function.
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_VECTOR_IS_EMPTY
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_VECTOR_IS_EMPTY.
 	 */
 
 	int i;
@@ -464,9 +531,16 @@ int phoebe_vector_randomize (PHOEBE_vector *result, double limit)
 
 int phoebe_vector_min_max (PHOEBE_vector *vec, double *min, double *max)
 {
-	/*
-	 * This function scans through the dataset and assigns the minimal and the
-	 * maximal value encountered to 'min' and 'max' variables.
+	/**
+	 * phoebe_vector_min_max:
+	 * @vec: The #PHOEBE_vector to scan for minimum and maximum.
+	 * @min: The placeholder for the minimal value in @vec.
+	 * @max: The placeholder for the maximal value in @vec.
+	 *
+	 * Scans through the dataset of and assigns the minimal and the
+	 * maximal value encountered to @min and @max variables.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -482,9 +556,15 @@ int phoebe_vector_min_max (PHOEBE_vector *vec, double *min, double *max)
 
 int phoebe_vector_min_index (PHOEBE_vector *vec, int *index)
 {
-	/*
-	 * This function scans through the vector 'vec' and assigns a subscript of
-	 * the lowest value in 'vec' to the variable 'index'.
+	/**
+	 * phoebe_vector_min_index:
+	 * @vec:   The #PHOEBE_vector to scan for minimum.
+	 * @index: The placeholder for the index of the minimal value in @vec.
+	 *
+	 * Scans through the #PHOEBE_vector @vec and assigns the index of
+	 * the lowest value in @vec to @index.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -501,9 +581,15 @@ int phoebe_vector_min_index (PHOEBE_vector *vec, int *index)
 
 int phoebe_vector_max_index (PHOEBE_vector *vec, int *index)
 {
-	/*
-	 * This function scans through the vector 'vec' and assigns a subscript of
-	 * the highest value in 'vec' to the variable 'index'.
+	/**
+	 * phoebe_vector_max_index:
+	 * @vec:   The #PHOEBE_vector to scan for maximum.
+	 * @index: The placeholder for the index of the maximal value in @vec.
+	 *
+	 * Scans through the #PHOEBE_vector @vec and assigns the index of
+	 * the highest value in @vec to @index.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -520,17 +606,21 @@ int phoebe_vector_max_index (PHOEBE_vector *vec, int *index)
 
 int phoebe_vector_rescale (PHOEBE_vector *vec, double ll, double ul)
 {
-	/*
-	 * This function rescales the values of elements in the vector vec to the
-	 * [ll, ul] interval. Usually this is useful to map the weights to the
+	/**
+	 * phoebe_vector_rescale:
+	 * @vec: The #PHOEBE_vector to rescale.
+	 * @ll:  The lower limit for rescaling.
+	 * @ul:  The upper limit for rescaling.
+	 *
+	 * Rescales the values of elements in the vector vec to the
+	 * [@ll, @ul] interval. Usually this is useful to map the weights to the
 	 * [0.01, 10.0] interval that is suitable for DC.
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_IS_EMPTY
-	 *   ERROR_VECTOR_INVALID_LIMITS
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors:
+	 *   ERROR_VECTOR_NOT_INITIALIZED,
+	 *   ERROR_VECTOR_IS_EMPTY and
+	 *   ERROR_VECTOR_INVALID_LIMITS.
 	 */
 
 	int i, status;
@@ -555,10 +645,16 @@ int phoebe_vector_rescale (PHOEBE_vector *vec, double ll, double ul)
 
 bool phoebe_vector_compare (PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
-	/*
-	 * This function compares two passed vectors. It returns TRUE if all vector
+	/**
+	 * phoebe_vector_compare:
+	 * @vec1:   Vector 1.
+	 * @vec2:   Vector 2.
+	 *
+	 * Compares two passed #PHOEBE_vectors. It returns TRUE if all vector
 	 * elements are the same; it returns FALSE otherwise. The comparison is
-	 * done by comparing the difference of both elements to EPSILON.
+	 * done by comparing the difference of both elements to #PHOEBE_NUMERICAL_ACCURACY.
+	 *
+	 * Returns: A boolean indicating whether the two vectors have identical elements.
 	 */
 
 	int i;
@@ -572,16 +668,20 @@ bool phoebe_vector_compare (PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 
 int phoebe_vector_less_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
-	/*
-	 * This function tests whether *all* vector elements of vec1 are less
-	 * than their respective counterparts of vec2. If so, TRUE is returned,
-	 * otherwise FALSE is returned.
-	 * 
-	 * Return values:
+	/**
+	 * phoebe_vector_less_than:
+	 * @result: The placeholder for the result.
+	 * @vec1:   Vector 1.
+	 * @vec2:   Vector 2.
 	 *
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Tests whether *all* vector elements of @vec1 are less
+	 * than their respective counterparts of @vec2. If so, TRUE is returned,
+	 * otherwise FALSE is returned.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors:
+     *   ERROR_VECTOR_NOT_INITIALIZED and
+	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -601,16 +701,20 @@ int phoebe_vector_less_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *v
 
 int phoebe_vector_leq_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
-	/*
-	 * This function tests whether *all* vector elements of vec1 are less or
-	 * equal to their respective counterparts of vec2. If so, TRUE is returned,
-	 * otherwise FALSE is returned.
-	 * 
-	 * Return values:
+	/**
+	 * phoebe_vector_leq_than:
+	 * @result: The placeholder for the result.
+	 * @vec1:   Vector 1.
+	 * @vec2:   Vector 2.
 	 *
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH;
-	 *   SUCCESS
+	 * Tests whether *all* vector elements of @vec1 are less or
+	 * equal to their respective counterparts of @vec2. If so, TRUE is returned,
+	 * otherwise FALSE is returned.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors:
+     *   ERROR_VECTOR_NOT_INITIALIZED and
+	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -630,16 +734,20 @@ int phoebe_vector_leq_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *ve
 
 int phoebe_vector_greater_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
-	/*
-	 * This function tests whether *all* vector elements of vec1 are greater
-	 * than their respective counterparts of vec2. If so, TRUE is returned,
-	 * otherwise FALSE is returned.
-	 * 
-	 * Return values:
+	/**
+	 * phoebe_vector_greater_than:
+	 * @result: The placeholder for the result.
+	 * @vec1:   Vector 1.
+	 * @vec2:   Vector 2.
 	 *
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Tests whether *all* vector elements of @vec1 are greater
+	 * than their respective counterparts of @vec2. If so, TRUE is returned,
+	 * otherwise FALSE is returned.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors:
+     *   ERROR_VECTOR_NOT_INITIALIZED and
+	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -659,16 +767,20 @@ int phoebe_vector_greater_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector
 
 int phoebe_vector_geq_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *vec2)
 {
-	/*
-	 * This function tests whether *all* vector elements of vec1 are greater
-	 * or equal to their respective counterparts of vec2. If so, TRUE is
-	 * returned, otherwise FALSE is returned.
-	 * 
-	 * Return values:
+	/**
+	 * phoebe_vector_geq_than:
+	 * @result: The placeholder for the result.
+	 * @vec1:   Vector 1.
+	 * @vec2:   Vector 2.
 	 *
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH
-	 *   SUCCESS
+	 * Tests whether *all* vector elements of @vec1 are greater
+	 * or equal to their respective counterparts of @vec2. If so, TRUE is
+	 * returned, otherwise FALSE is returned.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors:
+     *   ERROR_VECTOR_NOT_INITIALIZED and
+	 *   ERROR_VECTOR_DIMENSIONS_MISMATCH.
 	 */
 
 	int i;
@@ -688,8 +800,14 @@ int phoebe_vector_geq_than (bool *result, PHOEBE_vector *vec1, PHOEBE_vector *ve
 
 int phoebe_vector_append_element (PHOEBE_vector *vec, double val)
 {
-	/*
-	 * This function appends an element with value 'val' to the vector 'vec'.
+	/**
+	 * phoebe_vector_append_element:
+	 * @vec: The vector to extend.
+	 * @val: The value to append.
+	 *
+	 * Appends an element with value @val to the #PHOEBE_vector @vec.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	phoebe_vector_realloc (vec, vec->dim+1);
@@ -699,13 +817,15 @@ int phoebe_vector_append_element (PHOEBE_vector *vec, double val)
 
 int phoebe_vector_remove_element (PHOEBE_vector *vec, int index)
 {
-	/*
-	 * This function removes the 'index'-th element from vector 'vec'.
+	/**
+	 * phoebe_vector_remove_element:
+	 * @vec:   The vector to shorten.
+	 * @index: The index of the element to be removed.
 	 *
-	 * Return values:
-	 * 
-	 *   ERROR_INDEX_OUT_OF_RANGE
-	 *   SUCCESS
+	 * Removes the @index-th element from #PHOEBE_vector @vec.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_INDEX_OUT_OF_RANGE.
 	 */
 
 	int i;
@@ -718,7 +838,7 @@ int phoebe_vector_remove_element (PHOEBE_vector *vec, int index)
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 PHOEBE_matrix *phoebe_matrix_new ()
 {
@@ -811,7 +931,7 @@ int phoebe_matrix_free  (PHOEBE_matrix *matrix)
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 PHOEBE_hist *phoebe_hist_new ()
 {
@@ -837,7 +957,7 @@ PHOEBE_hist *phoebe_hist_new_from_arrays (int bins, double *binarray, double *va
 
 	int i;
 	PHOEBE_hist *hist;
-	
+
 	hist = phoebe_hist_new ();
 	phoebe_hist_alloc (hist, bins);
 
@@ -1303,7 +1423,7 @@ int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type
 				} while (in->range[j] < out->range[i+1]);
 				if (in->range[j] < out->range[i+1] && j == in->bins) break;
 				j--;
-			}	
+			}
 		break;
 		default:
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
@@ -1430,7 +1550,7 @@ int phoebe_hist_correlate (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, doub
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 PHOEBE_array *phoebe_array_new (PHOEBE_type type)
 {
@@ -1645,7 +1765,7 @@ int phoebe_array_free (PHOEBE_array *array)
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 int phoebe_curve_type_get_name (PHOEBE_curve_type ctype, char **name)
 {
@@ -1838,82 +1958,82 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	PHOEBE_passband *passband;
 	char *filename;
 	double sigma;
-	
+
 	int status;
 
 	if (ctype == PHOEBE_CURVE_LC) {
-		/***********************/
-		/* 1. phoebe_lc_indep: */
+		/* ********************* */
+		/* 1. phoebe_lc_indep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/*********************/
-		/* 2. phoebe_lc_dep: */
+		/* ******************* */
+		/* 2. phoebe_lc_dep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/***************************/
-		/* 3. phoebe_lc_indweight: */
+		/* ************************* */
+		/* 3. phoebe_lc_indweight:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/**************************/
-		/* 4. phoebe_lc_filename: */
+		/* ************************ */
+		/* 4. phoebe_lc_filename:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), index, &filename);
 
-		/************************/
-		/* 5. phoebe_lc_filter: */
+		/* ********************** */
+		/* 5. phoebe_lc_filter:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband)
 			return NULL;
 
-		/***********************/
-		/* 6. phoebe_lc_sigma: */
+		/* ********************* */
+		/* 6. phoebe_lc_sigma:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), index, &sigma);
 	}
 
 	if (ctype == PHOEBE_CURVE_RV) {
-		/***********************/
-		/* 1. phoebe_rv_indep: */
+		/* ********************* */
+		/* 1. phoebe_rv_indep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/*********************/
-		/* 2. phoebe_rv_dep: */
+		/* ******************* */
+		/* 2. phoebe_rv_dep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/***************************/
-		/* 3. phoebe_rv_indweight: */
+		/* ************************* */
+		/* 3. phoebe_rv_indweight:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
 		if (status != SUCCESS)
 			return NULL;
 
-		/**************************/
-		/* 4. phoebe_lc_filename: */
+		/* ************************ */
+		/* 4. phoebe_lc_filename:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), index, &filename);
 
-		/************************/
-		/* 5. phoebe_lc_filter: */
+		/* ********************** */
+		/* 5. phoebe_lc_filter:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband)
 			return NULL;
 
-		/***********************/
-		/* 6. phoebe_lc_sigma: */
+		/* ********************* */
+		/* 6. phoebe_lc_sigma:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), index, &sigma);
 	}
 
@@ -2169,7 +2289,7 @@ int phoebe_curve_free (PHOEBE_curve *curve)
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name)
 {
@@ -2301,7 +2421,7 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 	return SUCCESS;
 }
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 char *phoebe_type_get_name (PHOEBE_type type)
 {
