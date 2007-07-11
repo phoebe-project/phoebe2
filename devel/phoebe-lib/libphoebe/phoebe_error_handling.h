@@ -11,10 +11,14 @@
 /**
  * PHOEBE_error_code:
  *
- * These are the various errors Phoebe can recognize and handle.
+ * Most PHOEBE functions are signaling the status of their execution by
+ * returning an error code to the caller. If everything went well, %SUCCESS
+ * is returned; otherwise a respective error code is returned.
+ * #PHOEBE_error_code enumerates all error codes.
  */
+
 typedef enum PHOEBE_error_code
-	{
+{
 	SUCCESS = 0,
 
 	ERROR_SIGINT,
@@ -41,6 +45,8 @@ typedef enum PHOEBE_error_code
 
 	ERROR_PARAMETER_NOT_INITIALIZED,
 	ERROR_PARAMETER_ALREADY_DECLARED,
+
+	ERROR_PARAMETER_TABLE_NOT_INITIALIZED,
 
 	ERROR_DATA_NOT_INITIALIZED,
 	ERROR_DATA_INVALID_SIZE,
@@ -178,7 +184,7 @@ typedef enum PHOEBE_error_code
 	ERROR_SPECTRA_NOT_ALIGNED,
 
 	ERROR_BROADENING_INADEQUATE_ACCURACY
-	} PHOEBE_error_code;
+} PHOEBE_error_code;
 
 char *phoebe_error       (PHOEBE_error_code code);
 int   phoebe_lib_error   (const char *fmt, ...);
