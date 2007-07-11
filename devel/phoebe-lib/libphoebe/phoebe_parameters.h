@@ -35,8 +35,40 @@ typedef struct PHOEBE_parameter
 	anytype                      defaultvalue;
 	PHOEBE_parameter_options    *menu;
 	PHOEBE_parameter_list       *deps;
-	void                        *widget;
 } PHOEBE_parameter;
+
+enum {
+	PHOEBE_PT_HASH_MULTIPLIER = 31,
+	PHOEBE_PT_HASH_BUCKETS    = 103
+};
+
+typedef struct PHOEBE_parameter_table {
+	PHOEBE_parameter_list *bucket[PHOEBE_PT_HASH_BUCKETS];
+	struct {
+		PHOEBE_parameter_list *marked_tba;
+	} lists;
+} PHOEBE_parameter_table;
+
+typedef struct PHOEBE_parameter_table_list {
+	PHOEBE_parameter_table *table;
+	struct PHOEBE_parameter_table_list *next;
+} PHOEBE_parameter_table_list;
+
+/* A global list of all parameter tables: */
+PHOEBE_parameter_table_list *PHOEBE_pt_list;
+
+/* A pointer to the currently active parameter table: */
+PHOEBE_parameter_table *PHOEBE_pt;
+
+/**************************   PARAMETER TABLE   *******************************/
+
+PHOEBE_parameter_table *phoebe_parameter_table_new       ();
+PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table *table);
+int                     phoebe_parameter_table_activate  (PHOEBE_parameter_table *table);
+int                     phoebe_parameter_table_print     (PHOEBE_parameter_table *table);
+int                     phoebe_parameter_table_free      (PHOEBE_parameter_table *table);
+
+/****************************   PARAMETERS   **********************************/
 
 PHOEBE_parameter *phoebe_parameter_new          ();
 int               phoebe_parameter_add          (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...);
@@ -53,22 +85,6 @@ int               phoebe_init_parameters        ();
 int               phoebe_free_parameters        ();
 
 int               phoebe_init_parameter_options ();
-
-/**************************   PARAMETER TABLE   *******************************/
-
-enum {
-	PHOEBE_PT_HASH_MULTIPLIER = 31,
-	PHOEBE_PT_HASH_BUCKETS    = 103
-};
-
-typedef struct PHOEBE_parameter_table {
-	PHOEBE_parameter_list *bucket[PHOEBE_PT_HASH_BUCKETS];
-	struct {
-		PHOEBE_parameter_list *marked_tba;
-	} lists;
-} PHOEBE_parameter_table;
-
-PHOEBE_parameter_table *PHOEBE_pt;
 
 /******************************************************************************/
 

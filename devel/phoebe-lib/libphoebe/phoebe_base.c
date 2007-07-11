@@ -33,8 +33,6 @@ int intern_phoebe_variables_init ()
 	 * be used fearlessly by other functions.
 	 */
 
-	int i;
-
 	/*
 	 * First things first: let's initialize PHOEBE version number and date; we
 	 * get the values from configure.ac, so this is done automatically.
@@ -52,13 +50,11 @@ int intern_phoebe_variables_init ()
 	PHOEBE_PARAMETERS_FILENAME = strdup ("Undefined");
 
 	/* Initialize the hashed parameter table: */
-
-	PHOEBE_pt = phoebe_malloc (sizeof (*PHOEBE_pt));
-	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
-		PHOEBE_pt->bucket[i] = NULL;
+	PHOEBE_pt_list = NULL;
+	PHOEBE_pt      = phoebe_parameter_table_new ();
 
 	/* Initialize the linked list of constraints: */
-	PHOEBE_ct = NULL;
+	PHOEBE_ct      = NULL;
 
 	/*
 	 * The following are global parameter variables. Since they will be dynami-
@@ -295,8 +291,11 @@ int phoebe_quit ()
 	free (PHOEBE_VERSION_DATE);
 	free (PHOEBE_PARAMETERS_FILENAME);
 
-	/* Free parameters and their options:                                     */
+	/* Free parameters and their options: */
 	phoebe_free_parameters ();
+
+	/* Free parameter table: */
+	phoebe_parameter_table_free (PHOEBE_pt);
 
 	/* Free passband list: */
 	phoebe_free_passbands ();

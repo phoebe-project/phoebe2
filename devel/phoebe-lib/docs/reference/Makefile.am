@@ -62,7 +62,7 @@ CFILE_GLOB=$(top_srcdir)/libphoebe/*.c
 
 # Header files to ignore when scanning.
 # e.g. IGNORE_HFILES=gtkdebug.h gtkintl.h
-IGNORE_HFILES=
+IGNORE_HFILES=phoebe_constraints.lex.h phoebe_constraints.tab.h
 
 # Images to copy into HTML directory.
 # e.g. HTML_IMAGES=$(top_srcdir)/gtk/stock-icons/stock_about_24.png
