@@ -13,6 +13,23 @@ typedef enum bool {
 	YES
 } bool;
 
+/**
+ * PHOEBE_type:
+ * @TYPE_INT:                The integer type.
+ * @TYPE_BOOL:               The boolean type.
+ * @TYPE_DOUBLE:             The double precision floating-point type.
+ * @TYPE_STRING:             The string type.
+ * @TYPE_INT_ARRAY:          Array of integers.
+ * @TYPE_BOOL_ARRAY:         Array of booleans.
+ * @TYPE_DOUBLE_ARRAY:       Array of doubles.
+ * @TYPE_STRING_ARRAY:       Array of strings.
+ * @TYPE_CURVE:              The #PHOEBE_curve type.
+ * @TYPE_SPECTRUM:           The #PHOEBE_spectrum type.
+ * @TYPE_MINIMIZER_FEEDBACK: The #PHOEBE_minimizer_feedback type.
+ * @TYPE_ANY:                Can be any #PHOEBE_type.
+ *
+ * Various data types used in Phoebe.
+ */
 typedef enum PHOEBE_type {
 	TYPE_INT,
 	TYPE_BOOL,
@@ -30,11 +47,16 @@ typedef enum PHOEBE_type {
 
 char *phoebe_type_get_name (PHOEBE_type type);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_vector:
+ * @dim: Vector dimension.
+ * @val: An array of vector values.
+ */
 typedef struct PHOEBE_vector {
-	int dim;          /* Vector dimension */
-	double *val;      /* An array of vector values */
+	int dim;
+	double *val;
 } PHOEBE_vector;
 
 PHOEBE_vector *phoebe_vector_new                ();
@@ -71,8 +93,14 @@ int            phoebe_vector_geq_than           (bool *result, PHOEBE_vector *ve
 int            phoebe_vector_append_element     (PHOEBE_vector *vec, double val);
 int            phoebe_vector_remove_element     (PHOEBE_vector *vec, int index);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_matrix:
+ * @rows: The horizontal dimension of the matrix.
+ * @cols: The vertical dimension of the matrix.
+ * @val:  The elements of the matrix.
+ */
 typedef struct PHOEBE_matrix {
 	int rows;
 	int cols;
@@ -85,8 +113,14 @@ int            phoebe_matrix_free    (PHOEBE_matrix *matrix);
 int            phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row);
 int            phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_array:
+ * @dim:  The size of the array.
+ * @type: The type of the array.
+ * @val:  The elements of the array.
+ */
 typedef struct PHOEBE_array {
 	int              dim;
 	PHOEBE_type     type;
@@ -105,7 +139,7 @@ PHOEBE_array  *phoebe_array_new_from_qualifier  (char *qualifier);
 PHOEBE_array  *phoebe_array_duplicate           (PHOEBE_array *array);
 int            phoebe_array_free                (PHOEBE_array *array);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 /*
  * PHOEBE histograms:
@@ -124,12 +158,31 @@ int            phoebe_array_free                (PHOEBE_array *array);
  *   logarithmically.
  */
 
+/**
+ * PHOEBE_hist:
+ * @bins:  Number of histogram bins.
+ * @range: A vector of histogram ranges.
+ * @val:   A vector of histogram values.
+ */
 typedef struct PHOEBE_hist {
-	int bins;               /* Number of histogram bins     */
-	double *range;          /* A vector of histogram ranges */
-	double *val;            /* A vector of histogram values */
+	int bins;
+	double *range;
+	double *val;
 } PHOEBE_hist;
 
+/**
+ * PHOEBE_hist_rebin_type:
+ * @PHOEBE_HIST_CONSERVE_VALUES:  When rebinning, conserve the values.
+ * @PHOEBE_HIST_CONSERVE_DENSITY: When rebinning, conserve the densities.
+ *
+ * There are two ways to rebin a histogram:
+ *   1) conserve the values and
+ *   2) conserve the value densities.
+ * The first option is better if we are degrading the histogram, and the
+ * second option is better if we are oversampling the histogram. The
+ * approach is similar yet distinct to the point that it is easier to
+ * switch on the type and do the computation completely separately.
+ */
 typedef enum PHOEBE_hist_rebin_type {
 	PHOEBE_HIST_CONSERVE_VALUES = 20,
 	PHOEBE_HIST_CONSERVE_DENSITY
@@ -155,8 +208,16 @@ int          phoebe_hist_pad             (PHOEBE_hist *hist, double val);
 int          phoebe_hist_crop            (PHOEBE_hist *hist, double ll, double ul);
 int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_passband:
+ * @id:    The ID number of the passband.
+ * @set:
+ * @name:  The human-readable name of the passband.
+ * @effwl: The effective wavelength of the passband.
+ * @tf:
+ */
 typedef struct PHOEBE_passband {
 	int          id;
 	char        *set;
@@ -165,8 +226,14 @@ typedef struct PHOEBE_passband {
 	PHOEBE_hist *tf;
 } PHOEBE_passband;
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_curve_type:
+ * @PHOEBE_CURVE_UNDEFINED: The type of the curve is unknown.
+ * @PHOEBE_CURVE_LC:        A light curve.
+ * @PHOEBE_CURVE_RV:        A radial velocity curve.
+ */
 typedef enum PHOEBE_curve_type {
 	PHOEBE_CURVE_UNDEFINED,
 	PHOEBE_CURVE_LC,
@@ -175,6 +242,11 @@ typedef enum PHOEBE_curve_type {
 
 int phoebe_curve_type_get_name (PHOEBE_curve_type ctype, char **name);
 
+/**
+ * PHOEBE_column_type:
+ *
+ * Various sorts of data that can be found in files usable by Phoebe.
+ */
 typedef enum PHOEBE_column_type {
 	PHOEBE_COLUMN_UNDEFINED,
 	PHOEBE_COLUMN_HJD,
@@ -191,6 +263,19 @@ typedef enum PHOEBE_column_type {
 int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name);
 int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
 
+/**
+ * PHOEBE_curve:
+ * @type:     Type of the curve.
+ * @passband: Passband of the curve.
+ * @indep:    Elements of the independant variable vector.
+ * @dep:      Elements of the dependant variable vector.
+ * @weight:   Elements of the weight vector.
+ * @itype:    Column type of the independant variable.
+ * @dtype:    Column type of the dependant variable.
+ * @wtype:    Column type of the weights.
+ * @filename: Absoulte path to the file containing the curve.
+ * @sigma:    Sigma value of the curve.
+ */
 typedef struct PHOEBE_curve {
 	PHOEBE_curve_type  type;
 	PHOEBE_passband   *passband;
@@ -219,9 +304,11 @@ int           phoebe_curve_transform      (PHOEBE_curve *curve, PHOEBE_column_ty
 int           phoebe_curve_set_properties (PHOEBE_curve *curve, PHOEBE_curve_type type, char *filename, PHOEBE_passband *passband, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype, double sigma);
 int           phoebe_curve_free           (PHOEBE_curve *curve);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
-/*
+/**
+ * PHOEBE_spectrum_dispersion:
+ *
  * Spectrum dispersion tells us how dx is connected to dlambda. If the
  * dispersion is linear, then dx is proportional to dlambda. If it is log,
  * dx is proportional to dlambda/lambda. If there is no dispersion function,
@@ -229,18 +316,18 @@ int           phoebe_curve_free           (PHOEBE_curve *curve);
  * to pixel space. In that case everything must be done according to histogram
  * ranges.
  */
-
 typedef enum PHOEBE_spectrum_dispersion {
 	PHOEBE_SPECTRUM_DISPERSION_LINEAR,
 	PHOEBE_SPECTRUM_DISPERSION_LOG,
 	PHOEBE_SPECTRUM_DISPERSION_NONE
 } PHOEBE_spectrum_dispersion;
 
-/*
+/**
+ * PHOEBE_spectrum:
+ *
  * The spectrum structure is defined here, but the manipulation functions
- * reside in phoebe_spectra.c/h files.
-*/
-
+ * reside in phoebe_spectra files.
+ */
 typedef struct PHOEBE_spectrum {
 	double  R;
 	double  Rs;
@@ -248,8 +335,15 @@ typedef struct PHOEBE_spectrum {
 	PHOEBE_hist *data;
 } PHOEBE_spectrum;
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * PHOEBE_minimizer_type:
+ * @PHOEBE_MINIMIZER_NMS: The Nead-Medler minimizer.
+ * @PHOEBE_MINIMIZER_DC:  The differential-corrections minimizer.
+ *
+ * The available minimizers.
+ */
 typedef enum PHOEBE_minimizer_type {
 	PHOEBE_MINIMIZER_NMS,
 	PHOEBE_MINIMIZER_DC
@@ -257,17 +351,30 @@ typedef enum PHOEBE_minimizer_type {
 
 int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name);
 
+/**
+ * PHOEBE_minimizer_feedback:
+ * @algorithm:  Minimizer (algorithm) type
+ * @cputime:    CPU time required for algorithm execution
+ * @iters:      Number of performed iterations
+ * @cfval:      Cost function value (combined chi2)
+ * @qualifiers: A list of TBA qualifiers
+ * @initvals:   A list of initial parameter values
+ * @newvals:    A list of new parameter values
+ * @ferrors:    A list of formal error estimates
+ * @chi2s:      A list of passband chi2 values
+ * @wchi2s:     A list of weighted passband chi2 values
+ */
 typedef struct PHOEBE_minimizer_feedback {
-	PHOEBE_minimizer_type algorithm; /* Minimizer (algorithm) type            */
-	double           cputime;    /* CPU time required for algorithm execution */
-	int              iters;      /* Number of performed iterations            */
-	double           cfval;      /* Cost function value (combined chi2)       */
-	PHOEBE_array    *qualifiers; /* A list of TBA qualifiers                  */
-	PHOEBE_vector   *initvals;   /* A list of initial parameter values        */
-	PHOEBE_vector   *newvals;    /* A list of new parameter values            */
-	PHOEBE_vector   *ferrors;    /* A list of formal error estimates          */
-	PHOEBE_vector   *chi2s;      /* A list of passband chi2 values            */
-	PHOEBE_vector   *wchi2s;     /* A list of weighted passband chi2 values   */
+	PHOEBE_minimizer_type algorithm;
+	double           cputime;
+	int              iters;
+	double           cfval;
+	PHOEBE_array    *qualifiers;
+	PHOEBE_vector   *initvals;
+	PHOEBE_vector   *newvals;
+	PHOEBE_vector   *ferrors;
+	PHOEBE_vector   *chi2s;
+	PHOEBE_vector   *wchi2s;
 } PHOEBE_minimizer_feedback;
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new       ();
@@ -275,7 +382,7 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 int                        phoebe_minimizer_feedback_alloc     (PHOEBE_minimizer_feedback *feedback, int tba, int cno);
 int                        phoebe_minimizer_feedback_free      (PHOEBE_minimizer_feedback *feedback);
 
-/******************************************************************************/
+/* **************************************************************************** */
 
 typedef union anytype {
 	int                        i;
@@ -289,8 +396,13 @@ typedef union anytype {
 	PHOEBE_minimizer_feedback *feedback;
 } anytype;
 
-/******************************************************************************/
+/* **************************************************************************** */
 
+/**
+ * WD_LCI_parameters:
+ *
+ * Input parameters for running the LC part of WD code.
+ */
 typedef struct WD_LCI_parameters {
 	int    MPAGE;
 	int    NREF;
@@ -378,6 +490,11 @@ typedef struct WD_LCI_parameters {
 	double *TEMSP2;
 } WD_LCI_parameters;
 
+/**
+ * WD_DCI_parameters:
+ *
+ * Input parameters for running the DC part of WD code.
+ */
 typedef struct WD_DCI_parameters {
 	bool   *tba;
 	double *step;

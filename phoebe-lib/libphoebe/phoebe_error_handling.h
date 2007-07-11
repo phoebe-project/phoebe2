@@ -8,6 +8,11 @@
 
 #include "phoebe_types.h"
 
+/**
+ * PHOEBE_error_code:
+ *
+ * These are the various errors Phoebe can recognize and handle.
+ */
 typedef enum PHOEBE_error_code
 	{
 	SUCCESS = 0,
