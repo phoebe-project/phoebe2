@@ -15,6 +15,55 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
 
+anytype phoebe_value_duplicate (PHOEBE_type type, anytype val)
+{
+	anytype copy;
+
+	switch (type) {
+		case TYPE_INT:
+			copy.i = val.i;
+		break;
+		case TYPE_BOOL:
+			copy.b = val.b;
+		break;
+		case TYPE_DOUBLE:
+			copy.d = val.d;
+		break;
+		case TYPE_STRING:
+			copy.str = strdup (val.str);
+		break;
+		case TYPE_INT_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_BOOL_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_DOUBLE_ARRAY:
+			copy.vec = phoebe_vector_duplicate (val.vec);
+		break;
+		case TYPE_STRING_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_CURVE:
+			copy.curve = phoebe_curve_duplicate (val.curve);
+		break;
+		case TYPE_SPECTRUM:
+			copy.spectrum = phoebe_spectrum_duplicate (val.spectrum);
+		break;
+		case TYPE_MINIMIZER_FEEDBACK:
+			copy.feedback = phoebe_minimizer_feedback_duplicate (val.feedback);
+		break;
+		case TYPE_ANY:
+			phoebe_lib_error ("invalid type (TYPE_ANY) passed to phoebe_value_duplicate (), aborting.\n");
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_value_duplicate (), please report this!\n");
+			return copy;
+	}
+
+	return copy;
+}
+
 PHOEBE_vector *phoebe_vector_new ()
 {
     /**
@@ -1563,7 +1612,7 @@ PHOEBE_array *phoebe_array_new (PHOEBE_type type)
 
 	if (type != TYPE_INT_ARRAY    && type != TYPE_BOOL_ARRAY &&
 		type != TYPE_DOUBLE_ARRAY && type != TYPE_STRING_ARRAY) {
-		phoebe_lib_error ("phoebe_array_new (): passed type not an array, aborting.\n");
+		phoebe_lib_error ("phoebe_array_new (): passed type %s not an array, aborting.\n", phoebe_type_get_name (type));
 		return NULL;
 	}
 
@@ -1708,29 +1757,33 @@ PHOEBE_array *phoebe_array_duplicate (PHOEBE_array *array)
 	 */
 
 	int i;
-	PHOEBE_array *new;
+	PHOEBE_array *copy;
 
 	if (!array) return NULL;
 
-	new = phoebe_array_new (array->type);
-	phoebe_array_alloc (new, array->dim);
+	copy = phoebe_array_new (array->type);
+	phoebe_array_alloc (copy, array->dim);
 
-	switch (new->type) {
+	switch (copy->type) {
 		case (TYPE_INT_ARRAY):
-			for (i = 0; i < new->dim; i++) new->val.iarray[i] = array->val.iarray[i];
+			for (i = 0; i < copy->dim; i++)
+				copy->val.iarray[i] = array->val.iarray[i];
 		break;
 		case (TYPE_BOOL_ARRAY):
-			for (i = 0; i < new->dim; i++) new->val.barray[i] = array->val.barray[i];
+			for (i = 0; i < copy->dim; i++)
+				copy->val.barray[i] = array->val.barray[i];
 		break;
 		case (TYPE_DOUBLE_ARRAY):
-			for (i = 0; i < new->dim; i++) new->val.darray[i] = array->val.darray[i];
+			for (i = 0; i < copy->dim; i++)
+				copy->val.darray[i] = array->val.darray[i];
 		break;
 		case (TYPE_STRING_ARRAY):
-			for (i = 0; i < new->dim; i++) new->val.strarray[i] = strdup (array->val.strarray[i]);
+			for (i = 0; i < copy->dim; i++)
+				copy->val.strarray[i] = strdup (array->val.strarray[i]);
 		break;
 	}
 
-	return new;
+	return copy;
 }
 
 int phoebe_array_free (PHOEBE_array *array)
