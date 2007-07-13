@@ -1,6 +1,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_treeviews.h"
+#include "phoebe_gui_callbacks.h"
 
 int gui_init_treeviews(GladeXML *phoebe_window)
 {
@@ -13,10 +14,10 @@ int gui_init_treeviews(GladeXML *phoebe_window)
 int gui_init_lc_treeviews(GladeXML *phoebe_window)
 {
     phoebe_data_lc_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_lc_treeview");
-    phoebe_para_lc_el3_treeview         = glade_xml_get_widget (phoebe_window, "phoebe_params_lumins_3rdlight_treeview");
-    phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_params_lumins_levels_treeview");
-    phoebe_para_lc_levweight_treeview   = glade_xml_get_widget (phoebe_window, "phoebe_params_lumins_weighting_treeview");
-    phoebe_para_lc_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_params_ld_lccoefs_treeview");
+    phoebe_para_lc_el3_treeview         = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_el3_treeview");
+    phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_levels_treeview");
+    phoebe_para_lc_levweight_treeview   = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_weighting_treeview");
+    phoebe_para_lc_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_lccoefs_treeview");
 
     GtkTreeModel *lc_model = lc_model_create();
 
@@ -26,6 +27,8 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", LC_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_ACTIVE);
+
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_lc_actve_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", LC_COL_FILENAME, NULL);
@@ -139,7 +142,7 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
 int gui_init_rv_treeviews(GladeXML *phoebe_window)
 {
     phoebe_data_rv_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
-    phoebe_para_rv_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_params_ld_rvcoefs_treeview");
+    phoebe_para_rv_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
 
     GtkTreeModel *rv_model = rv_model_create();
 
@@ -149,6 +152,8 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", RV_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ACTIVE);
+
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_rv_actve_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", RV_COL_FILENAME, NULL);
