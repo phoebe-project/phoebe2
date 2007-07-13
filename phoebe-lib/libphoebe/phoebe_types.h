@@ -396,6 +396,9 @@ typedef union anytype {
 	PHOEBE_minimizer_feedback *feedback;
 } anytype;
 
+extern PHOEBE_spectrum *phoebe_spectrum_duplicate (PHOEBE_spectrum *spectrum);
+anytype phoebe_value_duplicate (PHOEBE_type type, anytype val);
+
 /* **************************************************************************** */
 
 /**
