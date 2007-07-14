@@ -1,5 +1,5 @@
 # PASS_SET  HST FOC
-# PASSBAND  220W F/96
+# PASSBAND  F220W F/96
 # EFFWL     2280
 # WLFACTOR  1
 # REFERENCE Nota, A., et al 1996, FOC Instrument Handbook, version 7.0              
