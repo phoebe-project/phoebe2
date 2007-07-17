@@ -13,3 +13,4 @@ GtkWidget *phoebe_load_lc_window;
 GtkWidget *phoebe_load_lc_filechooserbutton;
 GtkWidget *phoebe_load_rv_window;
 GtkWidget *phoebe_load_rv_filechooserbutton;
+GtkWidget *phoebe_load_spots_window;
