@@ -13,6 +13,31 @@
 PHOEBE_passband **PHOEBE_passbands;
 int               PHOEBE_passbands_no;
 
+int intern_compare_passbands_by_effwl(const void *a, const void *b)
+{
+	/*
+	 * This function is needed by qsort function that sorts passbands by 
+	 * effective wavelength.
+	 */
+
+	PHOEBE_passband * const *ia = a;
+	PHOEBE_passband * const *ib = b;
+
+	return (int)((*ia)->effwl - (*ib)->effwl);
+} 
+
+int intern_compare_passbands_by_set(const void *a, const void *b)
+{
+	/*
+	 * This function is needed by qsort function that sorts passbands by set.
+	 */
+ 
+	PHOEBE_passband * const *ia = a;
+	PHOEBE_passband * const *ib = b;
+
+	return strcmp((*ia)->set, (*ib)->set);
+}
+
 PHOEBE_passband *phoebe_passband_new ()
 {
 	/*
@@ -157,7 +182,8 @@ int phoebe_read_in_passbands (char *dir_name)
 {
 	/*
 	 * This function opens the 'dir_name' directory, scans all files in that
-	 * directory and reads in all found passbands.
+	 * directory and reads in all found passbands. Finally, it sorts them first
+	 * by effective wavelength and then by set name.
 	 */
 
 	DIR *ptf_dir;
@@ -186,6 +212,9 @@ int phoebe_read_in_passbands (char *dir_name)
 			PHOEBE_passbands[PHOEBE_passbands_no-1] = passband;
 		}
 	}
+
+	qsort(PHOEBE_passbands, PHOEBE_passbands_no, sizeof(*PHOEBE_passbands), intern_compare_passbands_by_effwl);
+	qsort(PHOEBE_passbands, PHOEBE_passbands_no, sizeof(*PHOEBE_passbands), intern_compare_passbands_by_set);
 
 	phoebe_close_directory (&ptf_dir);
 
