@@ -5,14 +5,17 @@
 
 int gui_init_treeviews(GladeXML *phoebe_window)
 {
-    gui_init_lc_treeviews(phoebe_window);
-    gui_init_rv_treeviews(phoebe_window);
+    gui_init_lc_treeviews    (phoebe_window);
+    gui_init_rv_treeviews    (phoebe_window);
+    gui_init_spots_treeview  (phoebe_window);
 
     return SUCCESS;
 }
 
 int gui_init_lc_treeviews(GladeXML *phoebe_window)
 {
+    // g_print("---------- Initializing lc treeviews ---------------\n");
+
     phoebe_data_lc_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_lc_treeview");
     phoebe_para_lc_el3_treeview         = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_el3_treeview");
     phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_levels_treeview");
@@ -28,7 +31,7 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", LC_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_ACTIVE);
 
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_lc_actve_checkbutton_toggled), NULL);
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_lc_active_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", LC_COL_FILENAME, NULL);
@@ -141,8 +144,10 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
 
 int gui_init_rv_treeviews(GladeXML *phoebe_window)
 {
-    phoebe_data_rv_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
-    phoebe_para_rv_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
+    // g_print("---------- Initializing rv treeviews ---------------\n");
+
+    phoebe_data_rv_treeview    = glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
+    phoebe_para_rv_ld_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
 
     GtkTreeModel *rv_model = rv_model_create();
 
@@ -153,7 +158,7 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", RV_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ACTIVE);
 
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_rv_actve_checkbutton_toggled), NULL);
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_rv_active_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", RV_COL_FILENAME, NULL);
@@ -205,9 +210,54 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     return SUCCESS;
 }
 
+
+int gui_init_spots_treeview  (GladeXML *phoebe_window)
+{
+
+    // g_print("---------- Initializing spots treeviews ------------\n");
+
+    phoebe_para_surf_spots_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_surf_spots_treeview");
+
+    GtkTreeModel *spots_model = spots_model_create();
+
+    GtkCellRenderer     *renderer;
+    GtkTreeViewColumn   *column;
+
+    renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_ADJUST);
+
+    /*
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
+    */
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_SOURCE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LAT);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Longitude", renderer, "text", SPOTS_COL_LON, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LON);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Radius", renderer, "text", SPOTS_COL_RAD, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_RAD);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Temperature", renderer, "text", SPOTS_COL_TEMP, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_TEMP);
+
+    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_surf_spots_treeview, spots_model);
+
+    return SUCCESS;
+}
+
 GtkTreeModel *lc_model_create()
 {
-    /* Creating the model:                                                                  */
     GtkListStore *model = gtk_list_store_new(LC_COL_COUNT,          /* number of columns    */
                                              G_TYPE_BOOLEAN,        /* active               */
                                              G_TYPE_STRING,         /* filename             */
@@ -231,7 +281,6 @@ GtkTreeModel *lc_model_create()
 
 GtkTreeModel *rv_model_create()
 {
-    /* Creating the model:                                                                  */
     GtkListStore *model = gtk_list_store_new(RV_COL_COUNT,          /* number of columns    */
                                              G_TYPE_BOOLEAN,        /* active               */
                                              G_TYPE_STRING,         /* filename             */
@@ -244,5 +293,18 @@ GtkTreeModel *rv_model_create()
                                              G_TYPE_DOUBLE,         /* rvx2                 */
                                              G_TYPE_DOUBLE,         /* rvy1                 */
                                              G_TYPE_DOUBLE);        /* rvy2                 */
+    return (GtkTreeModel*)model;
+}
+
+GtkTreeModel *spots_model_create()
+{
+    GtkListStore *model = gtk_list_store_new(SPOTS_COL_COUNT,       /* number of columns    */
+                                             G_TYPE_BOOLEAN,        /* adjustable           */
+                                             G_TYPE_STRING,         /* source               */
+                                             G_TYPE_DOUBLE,         /* latitude             */
+                                             G_TYPE_DOUBLE,         /* longitude            */
+                                             G_TYPE_DOUBLE,         /* radius               */
+                                             G_TYPE_DOUBLE);        /* temperature          */
+
     return (GtkTreeModel*)model;
 }

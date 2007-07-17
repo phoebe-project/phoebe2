@@ -138,6 +138,9 @@
                 <property name="stock_id">gtk-open</property>
                 <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_save_toolbutton">
@@ -145,11 +148,18 @@
                 <property name="stock_id">gtk-save</property>
                 <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_lc_plot_toolbutton">
@@ -158,6 +168,9 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_lc_plot_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_rv_plot_toolbutton">
@@ -166,11 +179,18 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_rv_plot_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_fiitting_toolbutton">
@@ -180,6 +200,9 @@
                 <property name="stock_id">gtk-execute</property>
                 <signal name="clicked" handler="on_phoebe_fiitting_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_scripter_toolbutton">
@@ -189,11 +212,18 @@
                 <property name="stock_id">gtk-harddisk</property>
                 <signal name="clicked" handler="on_phoebe_scripter_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator2">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_settings_toolbutton">
@@ -203,11 +233,18 @@
                 <property name="stock_id">gtk-preferences</property>
                 <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator3">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_quit_toolbutton">
@@ -215,6 +252,9 @@
                 <property name="stock_id">gtk-quit</property>
                 <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
           </widget>
           <packing>
@@ -1953,15 +1993,15 @@ X-ray binary</property>
                               <widget class="GtkHBox" id="hbox7">
                                 <property name="visible">True</property>
                                 <child>
-                                  <widget class="GtkSpinButton" id="phoebe_para_eph_incl_spinbutton">
+                                  <widget class="GtkSpinButton" id="phoebe_para_sys_incl_spinbutton">
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="adjustment">80 0 10000000 1 10 10</property>
                                     <property name="climb_rate">1</property>
                                     <property name="digits">5</property>
-                                    <signal name="value_changed" handler="on_phoebe_para_eph_incl_spinbutton_value_changed"/>
-                                    <signal name="editing_done" handler="on_phoebe_para_eph_incl_spinbutton_editing_done"/>
+                                    <signal name="value_changed" handler="on_phoebe_para_sys_incl_spinbutton_value_changed"/>
+                                    <signal name="editing_done" handler="on_phoebe_para_sys_incl_spinbutton_editing_done"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1979,11 +2019,11 @@ X-ray binary</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkCheckButton" id="phoebe_para_eph_incladjust_checkbutton">
+                                  <widget class="GtkCheckButton" id="phoebe_para_sys_incladjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_eph_incladjust_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_sys_incladjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2033,14 +2073,14 @@ X-ray binary</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkSpinButton" id="phoebe_para_eph_inclstep_spinbutton">
+                                      <widget class="GtkSpinButton" id="phoebe_para_sys_inclstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
                                         <property name="digits">5</property>
-                                        <signal name="value_changed" handler="on_phoebe_para_eph_inclstep_spinbutton_value_changed"/>
-                                        <signal name="editing_done" handler="on_phoebe_para_eph_inclstep_spinbutton_editing_done"/>
+                                        <signal name="value_changed" handler="on_phoebe_para_sys_inclstep_spinbutton_value_changed"/>
+                                        <signal name="editing_done" handler="on_phoebe_para_sys_inclstep_spinbutton_editing_done"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -2049,14 +2089,14 @@ X-ray binary</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkSpinButton" id="phoebe_para_eph_inclmax_spinbutton">
+                                      <widget class="GtkSpinButton" id="phoebe_para_sys_inclmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
                                         <property name="digits">5</property>
-                                        <signal name="value_changed" handler="on_phoebe_para_eph_inclmax_spinbutton_value_changed"/>
-                                        <signal name="editing_done" handler="on_phoebe_para_eph_inclmax_spinbutton_editing_done"/>
+                                        <signal name="value_changed" handler="on_phoebe_para_sys_inclmax_spinbutton_value_changed"/>
+                                        <signal name="editing_done" handler="on_phoebe_para_sys_inclmax_spinbutton_editing_done"/>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -2067,14 +2107,14 @@ X-ray binary</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkSpinButton" id="phoebe_para_eph_inclmin_spinbutton">
+                                      <widget class="GtkSpinButton" id="phoebe_para_sys_inclmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
                                         <property name="digits">5</property>
-                                        <signal name="value_changed" handler="on_phoebe_para_eph_inclmin_spinbutton_value_changed"/>
-                                        <signal name="editing_done" handler="on_phoebe_para_eph_inclmin_spinbutton_editing_done"/>
+                                        <signal name="value_changed" handler="on_phoebe_para_sys_inclmin_spinbutton_value_changed"/>
+                                        <signal name="editing_done" handler="on_phoebe_para_sys_inclmin_spinbutton_editing_done"/>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">2</property>
@@ -2092,7 +2132,7 @@ X-ray binary</property>
                               </widget>
                             </child>
                             <child>
-                              <widget class="GtkLabel" id="phoebe_para_eph_incl_frame_label">
+                              <widget class="GtkLabel" id="phoebe_para_sys_incl_frame_label">
                                 <property name="visible">True</property>
                                 <property name="xpad">4</property>
                                 <property name="label" translatable="yes">&lt;b&gt;INCL&lt;/b&gt;</property>
@@ -4940,7 +4980,7 @@ X-ray binary</property>
                               <widget class="GtkVBox" id="phoebe_para_surf_spots_vbox">
                                 <property name="visible">True</property>
                                 <child>
-                                  <widget class="GtkHBox" id="phoebe_notebook_surf_spots_vbox">
+                                  <widget class="GtkHBox" id="phoebe_para_surf_spots_vbox">
                                     <property name="visible">True</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_surf_spots_scrolledwindow">
@@ -4950,7 +4990,7 @@ X-ray binary</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
                                         <child>
-                                          <widget class="GtkTreeView" id="phoebe_para_spots_spots_treeview">
+                                          <widget class="GtkTreeView" id="phoebe_para_surf_spots_treeview">
                                             <property name="visible">True</property>
                                           </widget>
                                         </child>
@@ -4966,6 +5006,7 @@ X-ray binary</property>
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Add</property>
                                             <property name="use_underline">True</property>
+                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_add_button_clicked"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -4978,6 +5019,7 @@ X-ray binary</property>
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_edit_button_clicked"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -4991,6 +5033,7 @@ X-ray binary</property>
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Remove</property>
                                             <property name="use_underline">True</property>
+                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_remove_button_clicked"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -5024,7 +5067,7 @@ X-ray binary</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkCheckButton" id="phoebe_para_surf_spots_secmove_checkbutton1">
+                                      <widget class="GtkCheckButton" id="phoebe_para_surf_spots_secmove_checkbutton">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Spots on secondary move along longitude</property>
                                         <property name="use_underline">True</property>
@@ -5045,7 +5088,7 @@ X-ray binary</property>
                               </widget>
                             </child>
                             <child>
-                              <widget class="GtkLabel" id="phoebe_para_spots_prim_frame_label1">
+                              <widget class="GtkLabel" id="phoebe_para_surf_spots_frame_label">
                                 <property name="visible">True</property>
                                 <property name="xpad">4</property>
                                 <property name="label" translatable="yes">&lt;b&gt;Spots&lt;/b&gt;</property>
@@ -6520,7 +6563,6 @@ Square root</property>
                                         <property name="label" translatable="yes">Spots move along longitude</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_spots_primmove_checkbutton_toggled"/>
                                       </widget>
                                       <packing>
                                         <property name="y_options">GTK_FILL</property>

@@ -14,6 +14,9 @@ GtkWidget *phoebe_para_lc_ld_treeview;
 GtkWidget *phoebe_data_rv_treeview;
 GtkWidget *phoebe_para_rv_ld_treeview;
 
+/* Spots treeview */
+GtkWidget *phoebe_para_surf_spots_treeview;
+
 /* These columns make up the light curve model for various treeviews */
 typedef enum lc_model_columns
 {
@@ -54,11 +57,26 @@ typedef enum rv_model_columns
     RV_COL_COUNT,
 }rv_model_columns;
 
+/* These columns make up the spots list model */
+typedef enum spots_model_columns
+{
+    SPOTS_COL_ADJUST,
+    SPOTS_COL_SOURCE,
+    SPOTS_COL_LAT,
+    SPOTS_COL_LON,
+    SPOTS_COL_RAD,
+    SPOTS_COL_TEMP,
+    SPOTS_COL_COUNT,
+}spots_model_columns;
+
 /* Creates a model for storing light curves data */
 GtkTreeModel *lc_model_create(void);
 
 /* Creates a model for storing RV curves data */
 GtkTreeModel *rv_model_create(void);
+
+/* Creates a model for storing spots data */
+GtkTreeModel *spots_model_create(void);
 
 /* Initializes the treeviews */
 int gui_init_treeviews(GladeXML *parent_window);
@@ -68,3 +86,6 @@ int gui_init_lc_treeviews(GladeXML *parent_window);
 
 /* Initializes all RV related treeviews */
 int gui_init_rv_treeviews(GladeXML *parent_window);
+
+/* Initializes the spots treeview */
+int gui_init_spots_treeview (GladeXML *parent_window);
