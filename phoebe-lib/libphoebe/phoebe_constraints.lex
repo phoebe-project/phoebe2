@@ -12,6 +12,7 @@
 %}
 
 %option warn
+%option prefix="pc"
 %option outfile="phoebe_constraints.lex.c"
 %option header-file="phoebe_constraints.lex.h"
 
@@ -32,17 +33,17 @@ _BUILTIN	sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt
 %%
 
 {_NUM}		{
-			yylval.val = atof (yytext);
+			pclval.val = atof (yytext);
 			return NUMVAL;
 			}
 {_BUILTIN}	{
-			yylval.str = strdup (yytext);
+			pclval.str = strdup (yytext);
 			return BUILTIN;
 			}
 {_QUAL}		{
 			PHOEBE_parameter *par = phoebe_parameter_lookup (yytext);
 			if (par) {
-				yylval.par = par;
+				pclval.par = par;
 				return PARAMETER;
 			}
 			else {
@@ -50,7 +51,7 @@ _BUILTIN	sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt
 			}
 			}
 "["{_INT}"]"	{
-			sscanf (yytext, "[%d]", &yylval.idx);
+			sscanf (yytext, "[%d]", &pclval.idx);
 			return INDEX;
 			}
 {_WSPACE}+	/* Eat whitespaces */

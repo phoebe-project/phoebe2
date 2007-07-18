@@ -109,13 +109,13 @@ expr:			  numval    { $$ = $1; }
 		
 %%
 
-int yyerror (const char *str)
+int pcerror (const char *str)
 {
 	fprintf (stderr, "error: %s\n", str);
 	return;
 }
 
-int yywrap ()
+int pcwrap ()
 {
 	return 1;
 }

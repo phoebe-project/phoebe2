@@ -46,6 +46,7 @@ typedef struct PHOEBE_parameter_table {
 	PHOEBE_parameter_list *bucket[PHOEBE_PT_HASH_BUCKETS];
 	struct {
 		PHOEBE_parameter_list *marked_tba;
+		struct PHOEBE_ast_list *constraints;
 	} lists;
 } PHOEBE_parameter_table;
 
@@ -106,8 +107,9 @@ int phoebe_parameter_set_upper_limit  (PHOEBE_parameter *par, double  valmax);
 int phoebe_parameter_get_limits       (PHOEBE_parameter *par, double *valmin, double *valmax);
 int phoebe_parameter_set_limits       (PHOEBE_parameter *par, double  valmin, double  valmax);
 
+PHOEBE_parameter_list *phoebe_parameter_list_reverse         (PHOEBE_parameter_list *c, PHOEBE_parameter_list *p);
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba  ();
-int                    phoebe_parameter_list_sort_marked_tba ();
+int                    phoebe_parameter_list_sort_marked_tba (PHOEBE_parameter_list *list);
 
 /* ***************************   Third light   ****************************** */
 

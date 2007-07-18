@@ -39,7 +39,7 @@ int phoebe_nms_simplex_free (PHOEBE_nms_simplex *simplex)
 	return SUCCESS;
 }
 
-double phoebe_nms_move_corner (double coeff, PHOEBE_nms_simplex *simplex, int corner, PHOEBE_vector *xc, double (*f) (PHOEBE_vector *))
+double phoebe_nms_move_corner (double coeff, PHOEBE_nms_simplex *simplex, int corner, PHOEBE_vector *xc, PHOEBE_nms_parameters *params, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *))
 {
   /* moves a simplex corner scaled by coeff (negative value represents 
      mirroring by the middle point of the "other" corner points)
@@ -66,10 +66,10 @@ double phoebe_nms_move_corner (double coeff, PHOEBE_nms_simplex *simplex, int co
 		xc->val[j] = mp - coeff * (mp - simplex->corners->val[corner][j]);
 	}
 
-	return f (xc);
+	return f (xc, params);
 }
 
-int phoebe_nms_contract_by_best (PHOEBE_nms_simplex *simplex, int best, PHOEBE_vector *xc, double (*f) (PHOEBE_vector *))
+int phoebe_nms_contract_by_best (PHOEBE_nms_simplex *simplex, int best, PHOEBE_vector *xc, PHOEBE_nms_parameters *params, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *))
 {
   /* Function contracts the simplex in respect to 
      best valued corner. That is, all corners besides the 
@@ -87,7 +87,7 @@ int phoebe_nms_contract_by_best (PHOEBE_nms_simplex *simplex, int best, PHOEBE_v
 
 			/* evaluate function in the new point */
 			phoebe_matrix_get_row (xc, simplex->corners, i);
-			simplex->values->val[i] = f(xc);
+			simplex->values->val[i] = f (xc, params);
 		}
 	}
 
@@ -136,7 +136,7 @@ double phoebe_nms_size (PHOEBE_nms_simplex *simplex)
 	return ss / (double) (simplex->corners->rows);
 }
 
-int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *), PHOEBE_vector *x, double *size, double *fval)
+int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *), PHOEBE_vector *x, PHOEBE_nms_parameters *params, double *size, double *fval)
 {
 	/* Simplex iteration tries to minimize function f value */
 	/* xc and xc2 vectors store tried corner point coordinates */
@@ -177,12 +177,12 @@ int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector 
 
 	/* reflect the highest value */
 
-	val = phoebe_nms_move_corner (-1.0, simplex, hi, xc, f);
+	val = phoebe_nms_move_corner (-1.0, simplex, hi, xc, params, f);
 
 	if (val < values->val[lo]) {
 		/* reflected point becomes lowest point, try expansion */
 
-		val2 = phoebe_nms_move_corner (-2.0, simplex, hi, xc2, f);
+		val2 = phoebe_nms_move_corner (-2.0, simplex, hi, xc2, params, f);
 
 		if (val2 < values->val[lo]) {
 			phoebe_matrix_set_row (corners, xc2, hi);
@@ -207,7 +207,7 @@ int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector 
 
 		/* try one dimensional contraction */
 
-		val2 = phoebe_nms_move_corner (0.5, simplex, hi, xc2, f);
+		val2 = phoebe_nms_move_corner (0.5, simplex, hi, xc2, params, f);
 
 		if (val2 <= values->val[hi]) {
 			phoebe_matrix_set_row (corners, xc2, hi);
@@ -216,7 +216,7 @@ int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector 
 		else {
 			/* contract the whole simplex in respect to the best point */
 
-			status = phoebe_nms_contract_by_best (simplex, lo, xc, f);
+			status = phoebe_nms_contract_by_best (simplex, lo, xc, params, f);
 			if (status != SUCCESS) {
 				return status;
 			}
@@ -242,14 +242,14 @@ int phoebe_nms_iterate (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector 
 	return SUCCESS;
 }
 
-int phoebe_nms_set (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *), PHOEBE_vector *x, double *size, PHOEBE_vector *step_size)
+int phoebe_nms_set (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *), PHOEBE_vector *x, PHOEBE_nms_parameters *params, double *size, PHOEBE_vector *step_size)
 {
 	int i, j;
 	double val;
 
 	/* first point is the original x0 */
 
-	val = f(x);
+	val = f (x, params);
 	phoebe_matrix_set_row (simplex->corners, x, 0);
 	simplex->values->val[0] = val;
 
@@ -261,7 +261,7 @@ int phoebe_nms_set (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *), 
 		simplex->ws1->val[i] += step_size->val[i];
 
 		phoebe_matrix_set_row (simplex->corners, simplex->ws1, i+1);
-		simplex->values->val[i+1] = f (simplex->ws1);
+		simplex->values->val[i+1] = f (simplex->ws1, params);
 	}
 
 	/* Initialize simplex size */

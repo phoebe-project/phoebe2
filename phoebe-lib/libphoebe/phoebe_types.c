@@ -2169,24 +2169,21 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	 */
 
 	int status;
-	char *readout_str;
+	char *rs1, *rs2;
 
 	phoebe_debug ("entering phoebe_curve_transform ()\n");
 
-	phoebe_column_type_get_name (curve->itype, &readout_str);
-	phoebe_debug ("* transforming %s", readout_str);
-	phoebe_column_type_get_name (itype, &readout_str);
-	phoebe_debug (" to %s\n", readout_str);
+	phoebe_column_type_get_name (curve->itype, &rs1);
+	phoebe_column_type_get_name (       itype, &rs2);
+	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
 
-	phoebe_column_type_get_name (curve->dtype, &readout_str);
-	phoebe_debug ("* transforming %s", readout_str);
-	phoebe_column_type_get_name (dtype, &readout_str);
-	phoebe_debug (" to %s\n", readout_str);
+	phoebe_column_type_get_name (curve->dtype, &rs1);
+	phoebe_column_type_get_name (       dtype, &rs2);
+	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
 
-	phoebe_column_type_get_name (curve->wtype, &readout_str);
-	phoebe_debug ("* transforming %s", readout_str);
-	phoebe_column_type_get_name (wtype, &readout_str);
-	phoebe_debug (" to %s\n", readout_str);
+	phoebe_column_type_get_name (curve->wtype, &rs1);
+	phoebe_column_type_get_name (       wtype, &rs2);
+	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
 
 	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
 		double hjd0, period, dpdt, pshift;

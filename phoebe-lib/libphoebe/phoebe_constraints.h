@@ -56,6 +56,7 @@ typedef struct PHOEBE_ast_list {
 } PHOEBE_ast_list;
 
 PHOEBE_ast_list *phoebe_ast_construct_list (PHOEBE_ast *ast, PHOEBE_ast_list *list);
+PHOEBE_ast_list *phoebe_ast_list_reverse (PHOEBE_ast_list *c, PHOEBE_ast_list *p);
 int phoebe_ast_list_length (PHOEBE_ast_list *list);
 
 PHOEBE_ast *phoebe_ast_add_index     (int idx);
@@ -64,22 +65,17 @@ PHOEBE_ast *phoebe_ast_add_builtin   (char *builtin);
 PHOEBE_ast *phoebe_ast_add_parameter (PHOEBE_parameter *par);
 PHOEBE_ast *phoebe_ast_add_node      (PHOEBE_node_type type, PHOEBE_ast_list *args);
 
+PHOEBE_ast *phoebe_ast_duplicate     (PHOEBE_ast *ast);
+
 PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast);
 
 int phoebe_ast_print (int depth, PHOEBE_ast *in);
 int phoebe_ast_free (PHOEBE_ast *ast);
 
-typedef struct PHOEBE_constraint {
-	PHOEBE_ast *func;
-	struct PHOEBE_constraint *next;
-} PHOEBE_constraint;
-
-PHOEBE_constraint *PHOEBE_ct;                  /* Global table of constraints */
-
 int phoebe_constraint_new (const char *constraint);
 int phoebe_constraint_add_to_table (PHOEBE_ast *ast);
 int phoebe_free_constraints ();
 
-extern int yyparse (void);
+extern int pcparse (void);
 
 #endif /* _PHOEBE_CONSTRAINTS_H */

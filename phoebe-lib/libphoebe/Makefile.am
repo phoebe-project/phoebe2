@@ -58,7 +58,7 @@ EXTRA_DIST = \
     phoebe_constraints.lex            phoebe_constraints.y
 
 phoebe_constraints.tab.c: phoebe_constraints.y
-	$(YACC) -d phoebe_constraints.y
+	$(YACC) -d -p pc phoebe_constraints.y
 phoebe_constraints.lex.c: phoebe_constraints.lex
 	$(LEX) phoebe_constraints.lex
 
