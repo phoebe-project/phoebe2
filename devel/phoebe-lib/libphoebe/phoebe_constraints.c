@@ -66,6 +66,59 @@ int phoebe_ast_list_length (PHOEBE_ast_list *list)
 	return i;
 }
 
+PHOEBE_ast_list *phoebe_ast_list_reverse (PHOEBE_ast_list *c, PHOEBE_ast_list *p)
+{
+	/*
+	 * When creating an AST list, the order of arguments is last element to
+	 * the first, e.g. f(x,y,z) would create z->y->x parentage. This isn't what
+	 * we want and the following function reverses this order through recursion
+	 * by calling itself. The result after that is x->y->z, as it should be.
+	 */
+
+	PHOEBE_ast_list *rev;
+
+	if (!c) return p;
+	rev = phoebe_ast_list_reverse (c->next, c);
+	c->next = p;
+
+	return rev;
+}
+
+PHOEBE_ast *phoebe_ast_duplicate (PHOEBE_ast *ast)
+{
+	PHOEBE_ast *out;
+	PHOEBE_ast_list *args;
+	PHOEBE_ast_list *argcopies = NULL;
+
+	switch (ast->type) {
+		case PHOEBE_AST_INDEX:
+			out = phoebe_ast_add_index (ast->val.idx);
+		break;
+		case PHOEBE_AST_NUMVAL:
+			out = phoebe_ast_add_numval (ast->val.numval);
+		break;
+		case PHOEBE_AST_STRING:
+			out = phoebe_ast_add_builtin (ast->val.str);
+		break;
+		case PHOEBE_AST_PARAMETER:
+			out = phoebe_ast_add_parameter (phoebe_parameter_lookup (ast->val.par->qualifier));
+		break;
+		case PHOEBE_AST_NODE:
+			args = ast->val.node.args;
+			while (args) {
+				argcopies = phoebe_ast_construct_list (phoebe_ast_duplicate (args->elem), argcopies);
+				args = args->next;
+			}
+			out = phoebe_ast_add_node (ast->val.node.type, phoebe_ast_list_reverse (argcopies, NULL));
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_ast_duplicate (), please report this.\n");
+		break;
+	}
+
+	return out;
+}
+
 PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast)
 {
 	PHOEBE_ast_value val;
@@ -95,19 +148,21 @@ PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast)
 		break;
 		case PHOEBE_AST_NODE:
 			switch (ast->val.node.type) {
-				case PHOEBE_NODE_TYPE_CONSTRAINT: {
+				case PHOEBE_NODE_TYPE_CONSTRAINT:
+					val.type = PHOEBE_AST_VALUE_VOID;
 					if (phoebe_ast_list_length (ast->val.node.args) == 2) {
 						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->elem);
-						printf ("call to set %s to %lf\n", par.val.par->qualifier, expr.val.numval);
+						printf ("setting %s to %lf\n", par.val.par->qualifier, expr.val.numval);
+						phoebe_parameter_set_value (par.val.par, expr.val.numval);
 					}
 					if (phoebe_ast_list_length (ast->val.node.args) == 3) {
 						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
 						PHOEBE_ast_value idx = phoebe_ast_evaluate (ast->val.node.args->next->elem);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->next->elem);
-						printf ("call to set %s[%d] to %lf\n", par.val.par->qualifier, idx.val.idx, expr.val.numval);
+						printf ("setting %s[%d] to %lf\n", par.val.par->qualifier, idx.val.idx, expr.val.numval);
+						phoebe_parameter_set_value (par.val.par, idx.val.idx, expr.val.numval);
 					}
-				}
 				break;
 				case PHOEBE_NODE_TYPE_PARAMETER:
 					val.type = PHOEBE_AST_VALUE_PARAMETER;
@@ -241,11 +296,11 @@ PHOEBE_ast_list *phoebe_ast_construct_list (PHOEBE_ast *ast, PHOEBE_ast_list *li
 
 int phoebe_constraint_add_to_table (PHOEBE_ast *ast)
 {
-	PHOEBE_constraint *constraint = phoebe_malloc (sizeof (*constraint));
+	PHOEBE_ast_list *constraint = phoebe_malloc (sizeof (*constraint));
 
-	constraint->func = ast;
-	constraint->next = PHOEBE_ct;
-	PHOEBE_ct = constraint;
+	constraint->elem = ast;
+	constraint->next = PHOEBE_pt->lists.constraints;
+	PHOEBE_pt->lists.constraints = constraint;
 
 	return SUCCESS;
 }
@@ -260,7 +315,7 @@ int phoebe_constraint_new (const char *cstr)
 	 * needs to be freed after a successful parse.
 	 */
 
-	YY_BUFFER_STATE state = yy_scan_string (cstr);
+	YY_BUFFER_STATE state = pc_scan_string (cstr);
 
 	/*
 	 * The following bison call initiates the parsing on that string. It
@@ -269,27 +324,28 @@ int phoebe_constraint_new (const char *cstr)
 	 * or 2 (memory exhausted).
 	 */
 
-	status = yyparse ();
+	status = pcparse ();
 
 	switch (status) {
 		case 0:
-			printf ("Parsing was successful.\n");
+			phoebe_debug ("phoebe_constraint_new (): parsing successful.\n");
 		break;
 		case 1:
-			printf ("Syntax error encountered.\n");
+			phoebe_lib_error ("phoebe_constraint_new (): syntax error encountered in \"%s\", aborting.\n", cstr);
 		break;
 		case 2:
-			printf ("Memory exhausted.\n");
+			phoebe_lib_error ("phoebe_constraint_new (): memory exhausted while parsing \"%s\".\n", cstr);
 		break;
 		default:
-			printf ("exception handler invoked.\n");
+			phoebe_lib_error ("exception handler invoked in phoebe_constraint_new (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
 	/*
 	 * Parsing is done, AST is created, we now must free the buffer.
 	 */
 
-	yy_delete_buffer (state);
+	pc_delete_buffer (state);
 
 	return SUCCESS;
 }
@@ -336,11 +392,13 @@ int phoebe_ast_free (PHOEBE_ast *ast)
 
 int phoebe_free_constraints ()
 {
-	while (PHOEBE_ct) {
-		PHOEBE_constraint *c = PHOEBE_ct->next;
-		phoebe_ast_free (PHOEBE_ct->func);
-		free (PHOEBE_ct);
-		PHOEBE_ct = c;
+	PHOEBE_ast_list *c = PHOEBE_pt->lists.constraints;
+
+	while (c) {
+		PHOEBE_pt->lists.constraints = c->next;
+		phoebe_ast_free (c->elem);
+		free (c);
+		c = PHOEBE_pt->lists.constraints;
 	}
 
 	return SUCCESS;

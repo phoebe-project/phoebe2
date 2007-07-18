@@ -53,9 +53,6 @@ int intern_phoebe_variables_init ()
 	PHOEBE_pt_list = NULL;
 	PHOEBE_pt      = phoebe_parameter_table_new ();
 
-	/* Initialize the linked list of constraints: */
-	PHOEBE_ct      = NULL;
-
 	/*
 	 * The following are global parameter variables. Since they will be dynami-
 	 * cally stored by phoebe_realloc, we need to set it to NULL.
@@ -291,17 +288,17 @@ int phoebe_quit ()
 	free (PHOEBE_VERSION_DATE);
 	free (PHOEBE_PARAMETERS_FILENAME);
 
-	/* Free parameters and their options: */
-	phoebe_free_parameters ();
-
-	/* Free parameter table: */
-	phoebe_parameter_table_free (PHOEBE_pt);
-
 	/* Free passband list: */
 	phoebe_free_passbands ();
 
 	/* Free constraints: */
 	phoebe_free_constraints ();
+
+	/* Free parameters and their options: */
+	phoebe_free_parameters ();
+
+	/* Free parameter table: */
+	phoebe_parameter_table_free (PHOEBE_pt);
 
 	#ifdef HAVE_LIBGSL
 		#ifndef PHOEBE_GSL_DISABLED

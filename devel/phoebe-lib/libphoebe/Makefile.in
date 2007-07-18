@@ -775,7 +775,7 @@ uninstall-am: uninstall-libLTLIBRARIES \
 
 
 phoebe_constraints.tab.c: phoebe_constraints.y
-	$(YACC) -d phoebe_constraints.y
+	$(YACC) -d -p pc phoebe_constraints.y
 phoebe_constraints.lex.c: phoebe_constraints.lex
 	$(LEX) phoebe_constraints.lex
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

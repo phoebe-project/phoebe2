@@ -10,11 +10,13 @@
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fitting.h"
 #include "phoebe_fortran_interface.h"
 #include "phoebe_global.h"
+#include "phoebe_nms.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
@@ -34,23 +36,7 @@ gsl_rng *PHOEBE_randomizer;
 
 int calls_to_cf = 0;
 
-double intern_cost_function (NMS_passed_parameters *pars)
-{
-	/*
-	 * This function computes the weighted and unweighted chi2 values and a
-	 * cost function value for the passed observed data and parameter sets.
-	 *
-	 * Arguments:
-	 *
-	 *   pars  ..  a structure of all required parameters
-	 *
-	 * The function returns a weighted sum of squares of residuals.
-	 */
-
-	
-}
-
-double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
+double intern_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters *params)
 {
 	/*
 	 * This function evaluates chi2 of the O-C difference and returns its value
@@ -62,41 +48,64 @@ double intern_chi2_cost_function (const gsl_vector *adjpars, void *params)
 	 * ments of *pars which are set for adjustment.
 	 */
 
-	int i, j;
+	int i, j, k;
 	double cfval;
 
-	int                  no_tba           = ((NMS_passed_parameters *) params)->no_tba;
-	int                  dim_tba          = ((NMS_passed_parameters *) params)->dim_tba;
-	int                  lcno             = ((NMS_passed_parameters *) params)->lcno;
-	int                  rvno             = ((NMS_passed_parameters *) params)->rvno;
-	PHOEBE_curve       **obs              = ((NMS_passed_parameters *) params)->obs;
-	WD_LCI_parameters  **pars             = ((NMS_passed_parameters *) params)->pars;
-	double            ***pointers         = ((NMS_passed_parameters *) params)->pointers;
+	int                    no_tba  = params->no_tba;
+	int                    dim_tba = params->dim_tba;
+	int                    lcno    = params->lcno;
+	int                    rvno    = params->rvno;
+	PHOEBE_curve         **obs     = params->obs;
+	WD_LCI_parameters    **pars    = params->pars;
+
+	PHOEBE_parameter_list *tba     = params->tba;
+
+	PHOEBE_ast_list *constraint;
 
 	calls_to_cf++;
+
 	printf ("Call to CF: #%02d:\n", calls_to_cf);
 	printf ("Number of marked parameters:    %d\n", no_tba);
 	printf ("Dimension of adjusted subspace: %d\n", dim_tba);
 	for (i = 0; i < lcno+rvno; i++)
 		printf ("curve %d: %s, %d data points.\n", i+1, obs[i]->passband->name, obs[i]->indep->dim);
 
-	for (i = 0; i < lcno; i++) {
-		PHOEBE_curve *lc = phoebe_curve_new ();
+	/*
+	 * Set the values in all parameter tables to match the current
+	 * iteration values:
+	 */
 
-		/*
-		 * Set the values in all parameter tables to match the current
-		 * iteration values:
-		 */
-
-		
-		for (j = 0; j < dim_tba; j++) {
-			printf ("parameter %lf->%lf.\n", *pointers[i][j], gsl_vector_get (adjpars, j));
-			*pointers[i][j] = gsl_vector_get (adjpars, j);
+	j = 0;
+	while (tba) {
+		switch (tba->par->type) {
+			case TYPE_DOUBLE:
+				printf ("%s: %lf -> %lf\n", tba->par->qualifier, tba->par->value.d, adjpars->val[j]);
+				phoebe_parameter_set_value (tba->par, adjpars->val[j]);
+				j++;
+			break;
+			case TYPE_DOUBLE_ARRAY:
+				for (k = 0; k < lcno; k++) {
+					printf ("%s[%d]: %lf -> %lf\n", tba->par->qualifier, k, tba->par->value.vec->val[k], adjpars->val[j]);
+					phoebe_parameter_set_value (tba->par, k, adjpars->val[j]);
+					j++;
+				}
+			break;
+			default:
+				phoebe_lib_error ("exception handler invoked in intern_cost_function (), please report this!\n");
+				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
-
-		phoebe_curve_free (lc);
+			
+		tba = tba->next;
 	}
 
+	/* Fulfill all the constraints: */
+	constraint = PHOEBE_pt->lists.constraints;
+	while (constraint) {
+		phoebe_ast_evaluate (constraint->elem);
+		constraint = constraint->next;
+	}
+
+	/* Return to the main NMS function. */
 	cfval = 0.0;
 	return cfval;
 /*
@@ -387,6 +396,8 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 	 *  SUCCESS
 	 */
 
+	PHOEBE_parameter_table *table;
+
 #if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
 
 	int status, i, j, c;
@@ -395,18 +406,18 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 	PHOEBE_parameter_list *marked_tba, *list;
 	PHOEBE_column_type indep;
 
-	NMS_passed_parameters *passed;
+	PHOEBE_nms_parameters *passed;
+
 	int lcno, rvno;
 	int no_tba, dim_tba;
 	PHOEBE_curve **obs;       
 	WD_LCI_parameters **params;
 	double ***pointers;
 
-	/* GSL infrastructure: */
-	const gsl_multimin_fminimizer_type *T;
-	gsl_multimin_fminimizer *s = NULL;
-	gsl_vector *steps, *adjpars;
-	gsl_multimin_function cf;
+	/* NMS infrastructure: */
+	PHOEBE_vector *steps, *adjpars;
+	PHOEBE_nms_simplex *s;
+	double size;
 
 	phoebe_debug ("entering downhill simplex minimizer.\n");
 
@@ -419,6 +430,12 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 
 	/* Fire up the stop watch: */
 	clock_start = clock ();
+
+	/* Create a copy of the parameter table and activate it: */
+phoebe_parameter_table_print (PHOEBE_pt);
+	table = phoebe_parameter_table_duplicate (PHOEBE_pt);
+	phoebe_parameter_table_activate (table);
+phoebe_parameter_table_print (PHOEBE_pt);
 
 	/* Get the number of LC and RV curves: */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
@@ -451,6 +468,9 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 		phoebe_debug ("%2d. qualifier:     %s\n", i+1, list->par->qualifier);
 		i++; list = list->next;
 	}
+
+phoebe_constraint_new ("phoebe_sma = 10/sin(phoebe_incl/180*3.1415926)");
+phoebe_constraint_new ("phoebe_hla[1] = 0.5*phoebe_hla[0]");
 
 	/* Will the computation be done in HJD- or in phase-space? */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
@@ -490,89 +510,40 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 		read_in_wd_lci_parameters (params[lcno+i], /* MPAGE = */ 2, i);
 	}
 
-	/*
-	 * Make an array of pointers to the values in the params array that are
-	 * marked for adjustment; these pointers will serve as a link between GSL's
-	 * vector of results and the WD_LCI_parameters structure elements.
-	 */
-
-	pointers = phoebe_malloc ( (lcno+rvno) * sizeof (*pointers));
-	for (i = 0; i < lcno+rvno; i++)
-		pointers[i] = phoebe_malloc (dim_tba * sizeof (**pointers));
-
-	list = marked_tba; i = 0;
-	while (list) {
-		for (c = 0; c < lcno + rvno; c++) {
-			if (strcmp (list->par->qualifier, "phoebe_hjd0"   ) == 0) pointers[c][i] = &(params[c]->HJD0);
-			if (strcmp (list->par->qualifier, "phoebe_period" ) == 0) pointers[c][i] = &(params[c]->PERIOD);
-			if (strcmp (list->par->qualifier, "phoebe_dpdt"   ) == 0) pointers[c][i] = &(params[c]->DPDT);
-			if (strcmp (list->par->qualifier, "phoebe_pshift" ) == 0) pointers[c][i] = &(params[c]->PSHIFT);
-			if (strcmp (list->par->qualifier, "phoebe_sma"    ) == 0) pointers[c][i] = &(params[c]->SMA);
-			if (strcmp (list->par->qualifier, "phoebe_rm"     ) == 0) pointers[c][i] = &(params[c]->RM);
-			if (strcmp (list->par->qualifier, "phoebe_incl"   ) == 0) pointers[c][i] = &(params[c]->INCL);
-			if (strcmp (list->par->qualifier, "phoebe_vga"    ) == 0) pointers[c][i] = &(params[c]->VGA);
-			if (strcmp (list->par->qualifier, "phoebe_teff1"  ) == 0) pointers[c][i] = &(params[c]->TAVH);
-			if (strcmp (list->par->qualifier, "phoebe_teff2"  ) == 0) pointers[c][i] = &(params[c]->TAVC);
-			if (strcmp (list->par->qualifier, "phoebe_pot1"   ) == 0) pointers[c][i] = &(params[c]->PHSV);
-			if (strcmp (list->par->qualifier, "phoebe_pot2"   ) == 0) pointers[c][i] = &(params[c]->PCSV);
-			if (strcmp (list->par->qualifier, "phoebe_logg1"  ) == 0) pointers[c][i] = &(params[c]->LOGG1);
-			if (strcmp (list->par->qualifier, "phoebe_logg2"  ) == 0) pointers[c][i] = &(params[c]->LOGG2);
-			if (strcmp (list->par->qualifier, "phoebe_met1"   ) == 0) pointers[c][i] = &(params[c]->MET1);
-			if (strcmp (list->par->qualifier, "phoebe_met2"   ) == 0) pointers[c][i] = &(params[c]->MET2);
-			if (strcmp (list->par->qualifier, "phoebe_ecc"    ) == 0) pointers[c][i] = &(params[c]->E);
-			if (strcmp (list->par->qualifier, "phoebe_perr0"  ) == 0) pointers[c][i] = &(params[c]->PERR0);
-			if (strcmp (list->par->qualifier, "phoebe_dperdt" ) == 0) pointers[c][i] = &(params[c]->DPERDT);
-			if (strcmp (list->par->qualifier, "phoebe_f1"     ) == 0) pointers[c][i] = &(params[c]->F1);
-			if (strcmp (list->par->qualifier, "phoebe_f2"     ) == 0) pointers[c][i] = &(params[c]->F2);
-			if (strcmp (list->par->qualifier, "phoebe_alb1"   ) == 0) pointers[c][i] = &(params[c]->ALB1);
-			if (strcmp (list->par->qualifier, "phoebe_alb2"   ) == 0) pointers[c][i] = &(params[c]->ALB2);
-			if (strcmp (list->par->qualifier, "phoebe_grb1"   ) == 0) pointers[c][i] = &(params[c]->GR1);
-			if (strcmp (list->par->qualifier, "phoebe_grb2"   ) == 0) pointers[c][i] = &(params[c]->GR2);
-			if (strcmp (list->par->qualifier, "phoebe_hla"    ) == 0) pointers[c][i] = &(params[c]->HLA);
-			if (strcmp (list->par->qualifier, "phoebe_cla"    ) == 0) pointers[c][i] = &(params[c]->CLA);
-			if (strcmp (list->par->qualifier, "phoebe_el3"    ) == 0) pointers[c][i] = &(params[c]->EL3);
-			if (strcmp (list->par->qualifier, "phoebe_opsf"   ) == 0) pointers[c][i] = &(params[c]->OPSF);
-			if (strcmp (list->par->qualifier, "phoebe_ld_lcx1") == 0) pointers[c][i] = &(params[c]->X1A);
-			if (strcmp (list->par->qualifier, "phoebe_ld_lcx2") == 0) pointers[c][i] = &(params[c]->X2A);
-		}
-		list = list->next; i++;
-	}
-
 	/* Populate the structure that will be passed to the cost function: */
 	passed = phoebe_malloc (sizeof (*passed));
 
+	passed->tba      = table->lists.marked_tba;
 	passed->no_tba   = no_tba;
 	passed->dim_tba  = dim_tba;
 	passed->lcno     = lcno;
 	passed->rvno     = rvno;
 	passed->obs      = obs;
 	passed->pars     = params;
-	passed->pointers = pointers;
-
-	/* Initialize the NMS minimizer: */
-	T = gsl_multimin_fminimizer_nmsimplex;
 
 	/* Initialize the cost function: */
+/*
 	cf.f      = &intern_chi2_cost_function;
-	cf.n      = no_tba;
+	cf.n      = dim_tba;
 	cf.params = (void *) passed;
-
+*/
 	/* Read out initial values and step sizes: */
-	adjpars = gsl_vector_alloc (no_tba);
-	steps   = gsl_vector_alloc (no_tba);
+	adjpars = phoebe_vector_new (); phoebe_vector_alloc (adjpars, dim_tba);
+	steps   = phoebe_vector_new ();	phoebe_vector_alloc (steps, dim_tba);
 
 	list = marked_tba; i = 0;
 	while (list) {
 		switch (list->par->type) {
 			case TYPE_DOUBLE:
-				gsl_vector_set (adjpars, i, list->par->value.d);
-				gsl_vector_set (steps, i, list->par->step);
+				adjpars->val[i] = list->par->value.d;
+				steps->val[i]   = list->par->step;
 				i++;
 			break;
 			case TYPE_DOUBLE_ARRAY:
 				for (j = 0; j < lcno; j++) {
-					gsl_vector_set (adjpars, i+j, list->par->value.vec->val[j]);
-					gsl_vector_set (steps, i+j, list->par->step);
+					printf ("setting parameter %s for i=%d\n", list->par->qualifier, i+j);
+					adjpars->val[i+j] = list->par->value.vec->val[j];
+					steps->val[i+j]   = list->par->step;
 				}
 				i += lcno;
 			break;
@@ -583,10 +554,11 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 		list = list->next;
 	}
 
-
 	/* Allocate the minimizer: */
-	s = gsl_multimin_fminimizer_alloc (T, no_tba);
-	gsl_multimin_fminimizer_set (s, &cf, adjpars, steps);
+	s = phoebe_nms_simplex_new ();
+	phoebe_nms_simplex_alloc (s, dim_tba);
+
+	phoebe_nms_set (s, &intern_chi2_cost_function, adjpars, passed, &size, steps);
 
 	/* Stop the clock watch: */
 	clock_stop = clock ();
@@ -603,18 +575,13 @@ int phoebe_minimize_using_nms (double accuracy, int iter_no, FILE *nms_output, P
 	free (obs);
 	free (params);
 
-	/* Free the translation table: */
-	for (i = 0; i < lcno+rvno; i++)
-		free (pointers[i]);
-	free (pointers);
-
 	/* Free the passed parameters structure: */
 	free (passed);
 
 	/* Free NMS-related parameters: */
-	gsl_multimin_fminimizer_free (s);
-	gsl_vector_free (adjpars);
-	gsl_vector_free (steps);
+	phoebe_nms_simplex_free (s);
+	phoebe_vector_free (adjpars);
+	phoebe_vector_free (steps);
 
 	phoebe_debug ("leaving downhill simplex minimizer.\n");
 
@@ -1132,10 +1099,10 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	feedback->wchi2s = NULL;
 
 	feedback->cfval = cfval;
-
+/*
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
-
+*/
 	i = 0;
 	while (marked_tba) {
 		if (marked_tba->par->type == TYPE_INT    ||

@@ -7,6 +7,7 @@
 #include "phoebe_build_config.h"
 
 #include "phoebe_accessories.h"
+#include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
@@ -439,7 +440,7 @@ int phoebe_parameter_add_option (PHOEBE_parameter *par, char *option)
 	par->menu->option = phoebe_realloc (par->menu->option, par->menu->optno * sizeof (*(par->menu->option)));
 	par->menu->option[par->menu->optno-1] = strdup (option);
 
-	phoebe_debug ("option \"%s\" added to parameter %s.\n", option, par->qualifier);
+	phoebe_debug ("  option \"%s\" added to parameter %s.\n", option, par->qualifier);
 	return SUCCESS;
 }
 
@@ -481,7 +482,7 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 		PHOEBE_pt->bucket[hash] = elem;
 	}
 
-	phoebe_debug ("parameter %s added to bucket %d.\n", par->qualifier, hash);
+	phoebe_debug ("  parameter %s added to bucket %d.\n", par->qualifier, hash);
 	return SUCCESS;
 }
 
@@ -848,9 +849,9 @@ int phoebe_parameter_get_tba (PHOEBE_parameter *par, bool *tba)
 	return SUCCESS;
 }
 
-int phoebe_parameter_list_sort_marked_tba ()
+int phoebe_parameter_list_sort_marked_tba (PHOEBE_parameter_list *list)
 {
-	PHOEBE_parameter_list *list, *prev = NULL, *next;
+	PHOEBE_parameter_list *prev = NULL, *next;
 	int i, id1, id2;
 
 	struct { int index; PHOEBE_parameter *par; } wdorder[] = {
@@ -891,7 +892,6 @@ int phoebe_parameter_list_sort_marked_tba ()
 		{34, phoebe_parameter_lookup ("phoebe_el3")        }
 	};
 
-	list = phoebe_parameter_list_get_marked_tba ();
 	if (!list) return SUCCESS;
 
 	next = list->next;
@@ -965,8 +965,8 @@ int phoebe_parameter_set_tba (PHOEBE_parameter *par, bool tba)
 			list->par = par;
 			list->next = PHOEBE_pt->lists.marked_tba;
 			PHOEBE_pt->lists.marked_tba = list;
-			phoebe_debug ("Parameter %s added to the tba list.\n", list->par->qualifier);
-			phoebe_parameter_list_sort_marked_tba ();
+			phoebe_debug ("  parameter %s added to the tba list.\n", list->par->qualifier);
+			phoebe_parameter_list_sort_marked_tba (list);
 		}
 		else {
 			/* The parameter is already in the list, nothing to be done. */
@@ -1153,6 +1153,21 @@ PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ()
 	return PHOEBE_pt->lists.marked_tba;
 }
 
+PHOEBE_parameter_list *phoebe_parameter_list_reverse (PHOEBE_parameter_list *c, PHOEBE_parameter_list *p)
+{
+	/**
+	 * 
+	 */
+
+	PHOEBE_parameter_list *rev;
+
+	if (!c) return p;
+	rev = phoebe_parameter_list_reverse (c->next, c);
+	c->next = p;
+
+	return rev;
+}
+
 PHOEBE_parameter_table *phoebe_parameter_table_new ()
 {
 	/**
@@ -1168,9 +1183,15 @@ PHOEBE_parameter_table *phoebe_parameter_table_new ()
 	PHOEBE_parameter_table      *table = phoebe_malloc (sizeof (*table));
 	PHOEBE_parameter_table_list *list  = phoebe_malloc (sizeof (*list));
 
+	phoebe_debug ("* creating a new parameter table at address %p.\n", table);
+
 	/* Initialize all buckets: */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
 		table->bucket[i] = NULL;
+
+	/* NULLify the attached lists: */
+	table->lists.marked_tba  = NULL;
+	table->lists.constraints = NULL;
 
 	/* Add the table to the list of tables: */
 	list->table = table;
@@ -1194,7 +1215,8 @@ PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table
 	int i, j;
 
 	PHOEBE_parameter_table *copy = phoebe_parameter_table_new ();
-	PHOEBE_parameter_list *list, *elem;
+	PHOEBE_parameter_list *list, *elem, *tba, *tbacopy, *deps, *depscopy;
+	PHOEBE_ast_list *constraints_src, *constraints_dest;
 
 	/* First pass: copy all parameters and their values. */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
@@ -1202,12 +1224,11 @@ PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table
 		while (elem) {
 			list = phoebe_malloc (sizeof (*list));
 			list->par = phoebe_parameter_new ();
-
 			list->par->qualifier    = strdup (elem->par->qualifier);
 			list->par->description  = strdup (elem->par->description);
 			list->par->kind         = elem->par->kind;
 			list->par->type         = elem->par->type;
-			list->par->value        = elem->par->value;
+			list->par->value        = phoebe_value_duplicate (elem->par->type, elem->par->value);
 			list->par->min          = elem->par->min;
 			list->par->max          = elem->par->max;
 			list->par->step         = elem->par->step;
@@ -1226,11 +1247,59 @@ PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table
 			copy->bucket[i] = list;
 			elem = elem->next;
 		}
+		/* The list is copied in reverse; let's fix that: */
+		copy->bucket[i] = phoebe_parameter_list_reverse (copy->bucket[i], NULL);
 	}
 
-	/* Second pass: copy all dependencies and lists. */
+	/* Second pass: copy all dependencies. */
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		elem = table->bucket[i];
+		while (elem) {
+			deps = elem->par->deps;
+			while (deps) {
+				depscopy = phoebe_malloc (sizeof (*depscopy));
+
+				/* Parameters need to be looked up in the duplicated table: */
+				list = copy->bucket[phoebe_parameter_hash (deps->par->qualifier)];
+				while (strcmp (deps->par->qualifier, list->par->qualifier) != 0)
+					list = list->next;
+
+				depscopy->par = list->par;
+				depscopy->next = elem->par->deps;
+				elem->par->deps = depscopy;
+
+				deps = deps->next;
+			}
+		elem = elem->next;
+		}
 	}
+
+	/* Final step: copy all lists. */
+	tba = table->lists.marked_tba;
+	while (tba) {
+		tbacopy = phoebe_malloc (sizeof (*tbacopy));
+		
+		/* The parameters in the list need to be in the duplicated table: */
+		list = copy->bucket[phoebe_parameter_hash (tba->par->qualifier)];
+		while (strcmp (tba->par->qualifier, list->par->qualifier) != 0)
+			list = list->next;
+
+		tbacopy->par  = list->par;
+		tbacopy->next = copy->lists.marked_tba;
+		copy->lists.marked_tba = tbacopy;
+		tba = tba->next;
+	}
+	copy->lists.marked_tba = phoebe_parameter_list_reverse (copy->lists.marked_tba, NULL);
+
+	constraints_src = table->lists.constraints;
+	while (constraints_src) {
+		constraints_dest = phoebe_malloc (sizeof (*constraints_dest));
+		constraints_dest->elem = phoebe_ast_duplicate (constraints_src->elem);
+		constraints_dest->next = copy->lists.constraints;
+		copy->lists.constraints = constraints_dest;
+		constraints_src = constraints_src->next;
+	}
+	copy->lists.constraints = phoebe_ast_list_reverse (copy->lists.constraints, NULL);
 
 	return copy;
 }
@@ -1251,6 +1320,7 @@ int phoebe_parameter_table_activate (PHOEBE_parameter_table *table)
 		return ERROR_PARAMETER_TABLE_NOT_INITIALIZED;
 
 	PHOEBE_pt = table;
+	phoebe_debug ("parameter table at address %p activated.\n", table);
 
 	return SUCCESS;
 }
@@ -1259,7 +1329,9 @@ int phoebe_parameter_table_print (PHOEBE_parameter_table *table)
 {
 	int i;
 	PHOEBE_parameter_list *list;
+	PHOEBE_ast_list *ast_list;
 
+	printf ("Parameter table:\n");
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
 		printf ("%3d: ", i);
 		list = table->bucket[i];
@@ -1268,6 +1340,21 @@ int phoebe_parameter_table_print (PHOEBE_parameter_table *table)
 			list = list->next;
 		}
 		printf ("\n");
+	}
+	printf ("Parameters that are marked for adjustment:\n");
+	list = table->lists.marked_tba;
+
+	while (list) {
+		printf ("  %s\n", list->par->qualifier);
+		list = list->next;
+	}
+
+	printf ("Constraints:\n");
+	ast_list = table->lists.constraints;
+
+	while (ast_list) {
+		phoebe_ast_print (0, ast_list->elem);
+		ast_list = ast_list->next;
 	}
 
 	return SUCCESS;
@@ -1351,7 +1438,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 	FILE *keyword_file;
 
-	phoebe_debug ("entering function 'open_parameter_file ()'\n");
+	phoebe_debug ("entering function phoebe_open_parameter_file ()\n");
 
 	/* First a checkup if everything is OK with the filename:                   */
 	if (!filename_exists ((char *) filename))               return ERROR_FILE_NOT_FOUND;
@@ -1380,11 +1467,11 @@ int phoebe_open_parameter_file (const char *filename)
 		}
 		if (version < 0.30) {
 			fclose (keyword_file);
-			phoebe_debug ("opening legacy parameter file.\n");
+			phoebe_debug ("  opening legacy parameter file.\n");
 			status = phoebe_open_legacy_parameter_file (filename);
 			return status;
 		}
-		phoebe_debug ("PHOEBE parameter file version: %2.2lf\n", version);
+		phoebe_debug ("  PHOEBE parameter file version: %2.2lf\n", version);
 	}
 
 	while (!feof (keyword_file)) {
@@ -1444,10 +1531,7 @@ int phoebe_open_parameter_file (const char *filename)
 		int   elem;
 		int   olddim;
 
-		phoebe_debug ("keyword_str: %30s %2d ", keyword_str, strlen(keyword_str));
-
 		if ( (elem_sep = strchr (keyword_str, '[')) && (field_sep = strchr (keyword_str, '.')) ) {
-			phoebe_debug ("%2d %2d ", strlen (elem_sep), strlen (field_sep));
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(elem_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(elem_sep));
 			qualifier[strlen(keyword_str)-strlen(elem_sep)] = '\0';
@@ -1455,7 +1539,6 @@ int phoebe_open_parameter_file (const char *filename)
 			field = phoebe_malloc (strlen(field_sep)*sizeof(*field));
 			strcpy (field, field_sep+1);
 			field[strlen(field_sep)-1] = '\0';
-			phoebe_debug ("%30s %2d %6s", qualifier, elem, field);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1548,12 +1631,10 @@ int phoebe_open_parameter_file (const char *filename)
 			}
 		}
 		else if (elem_sep = strchr (keyword_str, '[')) {
-			phoebe_debug ("%2d    ", strlen (elem_sep));
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(elem_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(elem_sep));
 			qualifier[strlen(keyword_str)-strlen(elem_sep)] = '\0';
 			sscanf (elem_sep, "[%d]", &elem);
-			phoebe_debug ("%30s %2d", qualifier, elem);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1609,14 +1690,12 @@ int phoebe_open_parameter_file (const char *filename)
 			}
 		}
 		else if (field_sep = strchr (keyword_str, '.')) {
-			phoebe_debug ("   %2d ", strlen (field_sep));
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(field_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(field_sep));
 			qualifier[strlen(keyword_str)-strlen(field_sep)] = '\0';
 			field = phoebe_malloc (strlen(field_sep)*sizeof(*field));
 			strcpy (field, field_sep+1);
 			field[strlen(field_sep)-1] = '\0';
-			phoebe_debug ("%30s    %6s", qualifier, field);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1638,10 +1717,8 @@ int phoebe_open_parameter_file (const char *filename)
 						phoebe_parameter_set_tba (par, atob (value_str));
 		}
 		else {
-			phoebe_debug ("      ");
 			qualifier = phoebe_malloc ((strlen(keyword_str)+1)*sizeof(*qualifier));
 			strcpy (qualifier, keyword_str);
-			phoebe_debug ("%30s   ", qualifier);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1671,7 +1748,6 @@ int phoebe_open_parameter_file (const char *filename)
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
 			}
 		}
-		phoebe_debug ("\n");
 
 		if (qualifier) { free (qualifier); qualifier = NULL; }
 		if (field)     { free (field);     field     = NULL; }
@@ -1680,7 +1756,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 	fclose (keyword_file);
 
-	phoebe_debug ("leaving function 'open_parameter_file ()'\n");
+	phoebe_debug ("leaving function phoebe_open_parameter_file ()\n");
 
 	return SUCCESS;
 }

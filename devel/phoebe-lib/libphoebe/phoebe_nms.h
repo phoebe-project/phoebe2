@@ -1,6 +1,7 @@
 #ifndef PHOEBE_NMS_H
 #define PHOEBE_NMS_H 1
 
+#include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
 typedef struct PHOEBE_nms_simplex {
@@ -10,15 +11,39 @@ typedef struct PHOEBE_nms_simplex {
 	PHOEBE_vector *ws2;                   /* workspace 2                      */
 } PHOEBE_nms_simplex;
 
+/* These are typedeffed structs used for passing arguments to minimizers: */
+
+typedef struct PHOEBE_nms_parameters {
+	PHOEBE_parameter_list *tba;
+	int no_tba;             /* The number of parameters marked for adjustment */
+	int dim_tba;       /* The dimension of the subspace marked for adjustment */
+	int lcno;                          /* The number of observed light curves */
+	int rvno;                             /* The number of observed RV curves */
+	bool rv1;
+	bool rv2;
+	bool color_constraint;
+	int CALCHLA;
+	int CALCVGA;
+	bool ASINI;
+	int CC;
+	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
+	double *weight;
+	double *average;
+	double *cindex;
+	WD_LCI_parameters **pars;        /* Model parameters for all LC/RV curves */
+	double ***pointers;           /* Translation table between GSL and PHOEBE */
+	PHOEBE_vector **chi2s;
+} PHOEBE_nms_parameters;
+
 PHOEBE_nms_simplex *phoebe_nms_simplex_new      ();
 int                 phoebe_nms_simplex_alloc    (PHOEBE_nms_simplex *simplex, int n);
 int                 phoebe_nms_simplex_free     (PHOEBE_nms_simplex *simplex);
 
-int                 phoebe_nms_set              (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *), PHOEBE_vector *x, double *size, PHOEBE_vector *step_size);
-int                 phoebe_nms_iterate          (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *), PHOEBE_vector *x, double *size, double *fval);
+int                 phoebe_nms_set              (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *), PHOEBE_vector *x, PHOEBE_nms_parameters *params, double *size, PHOEBE_vector *step_size);
+int                 phoebe_nms_iterate          (PHOEBE_nms_simplex *simplex, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *), PHOEBE_vector *x, PHOEBE_nms_parameters *params, double *size, double *fval);
 double              phoebe_nms_size             (PHOEBE_nms_simplex *simplex);
-double              phoebe_nms_move_corner      (double coeff, PHOEBE_nms_simplex *simplex, int corner, PHOEBE_vector *xc, double (*f) (PHOEBE_vector *));
-int                 phoebe_nms_contract_by_best (PHOEBE_nms_simplex *simplex, int best, PHOEBE_vector *xc, double (*f) (PHOEBE_vector *));
+double              phoebe_nms_move_corner      (double coeff, PHOEBE_nms_simplex *simplex, int corner, PHOEBE_vector *xc, PHOEBE_nms_parameters *params, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *));
+int                 phoebe_nms_contract_by_best (PHOEBE_nms_simplex *simplex, int best, PHOEBE_vector *xc, PHOEBE_nms_parameters *params, double (*f) (PHOEBE_vector *, PHOEBE_nms_parameters *));
 int                 phoebe_nms_calc_center      (const PHOEBE_nms_simplex *simplex, PHOEBE_vector *mp);
 
 #endif
