@@ -1304,11 +1304,6 @@ on_phoebe_para_surf_spots_remove_button_clicked
                                         gpointer         user_data);
 
 void
-on_phoebe_para_surf_spots_move_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data);
-
-void
 on_phoebe_para_lum_levels_treeview_row_activated
                                         (GtkTreeView     *treeview,
                                         GtkTreePath     *path,
@@ -1564,11 +1559,4 @@ on_phoebe_para_ld_lccoefs_secadjust_checkbutton_toggled
 void
 on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
                                         (GtkToggleButton *togglebutton,
-                                        gpointer         user_data);
-
-void
-on_phoebe_para_ld_rvcoefs_treeview_row_collapsed
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
                                         gpointer         user_data);

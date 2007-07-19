@@ -214,7 +214,7 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 int gui_init_spots_treeview  (GladeXML *phoebe_window)
 {
 
-    // g_print("---------- Initializing spots treeviews ------------\n");
+    // g_print("---------- Initializing spots treeview -------------\n");
 
     phoebe_para_surf_spots_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_surf_spots_treeview");
 
@@ -227,9 +227,7 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_ADJUST);
 
-    /*
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
-    */
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE, NULL);
@@ -302,9 +300,25 @@ GtkTreeModel *spots_model_create()
                                              G_TYPE_BOOLEAN,        /* adjustable           */
                                              G_TYPE_STRING,         /* source               */
                                              G_TYPE_DOUBLE,         /* latitude             */
+                                             G_TYPE_BOOLEAN,        /* latitude    adjust   */
+                                             G_TYPE_DOUBLE,         /* latitude    step     */
+                                             G_TYPE_DOUBLE,         /* latitude    min      */
+                                             G_TYPE_DOUBLE,         /* latitude    max      */
                                              G_TYPE_DOUBLE,         /* longitude            */
+                                             G_TYPE_BOOLEAN,        /* longitude   adjust   */
+                                             G_TYPE_DOUBLE,         /* longitude   step     */
+                                             G_TYPE_DOUBLE,         /* longitude   min      */
+                                             G_TYPE_DOUBLE,         /* longitude   max      */
                                              G_TYPE_DOUBLE,         /* radius               */
-                                             G_TYPE_DOUBLE);        /* temperature          */
+                                             G_TYPE_BOOLEAN,        /* radius      adjust   */
+                                             G_TYPE_DOUBLE,         /* radius      step     */
+                                             G_TYPE_DOUBLE,         /* radius      min      */
+                                             G_TYPE_DOUBLE,         /* radius      max      */
+                                             G_TYPE_DOUBLE,         /* temperature          */
+                                             G_TYPE_BOOLEAN,        /* temperature adjust   */
+                                             G_TYPE_DOUBLE,         /* temperature step     */
+                                             G_TYPE_DOUBLE,         /* temperature min      */
+                                             G_TYPE_DOUBLE);        /* temperature max      */
 
     return (GtkTreeModel*)model;
 }
