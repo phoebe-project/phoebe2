@@ -15,7 +15,6 @@ typedef struct PHOEBE_nms_simplex {
 
 typedef struct PHOEBE_nms_parameters {
 	PHOEBE_parameter_list *tba;
-	int no_tba;             /* The number of parameters marked for adjustment */
 	int dim_tba;       /* The dimension of the subspace marked for adjustment */
 	int lcno;                          /* The number of observed light curves */
 	int rvno;                             /* The number of observed RV curves */
@@ -27,12 +26,10 @@ typedef struct PHOEBE_nms_parameters {
 	bool ASINI;
 	int CC;
 	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
-	double *weight;
 	double *average;
 	double *cindex;
-	WD_LCI_parameters **pars;        /* Model parameters for all LC/RV curves */
-	double ***pointers;           /* Translation table between GSL and PHOEBE */
-	PHOEBE_vector **chi2s;
+	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
+	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 } PHOEBE_nms_parameters;
 
 PHOEBE_nms_simplex *phoebe_nms_simplex_new      ();
