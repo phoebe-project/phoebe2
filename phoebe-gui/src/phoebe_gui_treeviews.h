@@ -105,3 +105,15 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
+
+/* Cell data functions for transforming the results of combobox selections (integers)
+   into human readable strings that should appear in treevies.
+   All the functions have the same signature, and many have even the same implementation! */
+void lc_itype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void lc_dtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void lc_wtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void rv_itype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void rv_dtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void rv_wtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+void spots_source_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+

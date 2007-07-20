@@ -78,16 +78,25 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", LC_COL_ITYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 1");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_ITYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, lc_itype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 2", renderer, "text", LC_COL_DTYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 2");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_DTYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, lc_dtype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", LC_COL_WTYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 3");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_WTYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, lc_wtype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", LC_COL_SIGMA, NULL);
@@ -173,16 +182,25 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", RV_COL_ITYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 1");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ITYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, rv_itype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 2", renderer, "text", RV_COL_DTYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 2");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_DTYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, rv_dtype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", RV_COL_WTYPE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Col. 3");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_WTYPE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, rv_wtype_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", RV_COL_SIGMA, NULL);
@@ -230,8 +248,11 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE, NULL);
+    column      = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Source");
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_SOURCE);
+    gtk_tree_view_column_pack_start(column, renderer, TRUE);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, spots_source_cell_data_func, NULL, NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
@@ -260,9 +281,9 @@ GtkTreeModel *lc_model_create()
                                              G_TYPE_BOOLEAN,        /* active               */
                                              G_TYPE_STRING,         /* filename             */
                                              G_TYPE_STRING,         /* passband             */
-                                             G_TYPE_STRING,         /* itype                */
-                                             G_TYPE_STRING,         /* dtype                */
-                                             G_TYPE_STRING,         /* wtype                */
+                                             G_TYPE_INT,            /* itype                */
+                                             G_TYPE_INT,            /* dtype                */
+                                             G_TYPE_INT,            /* wtype                */
                                              G_TYPE_DOUBLE,         /* sigma                */
                                              G_TYPE_STRING,         /* level weighting      */
                                              G_TYPE_DOUBLE,         /* hla                  */
@@ -283,9 +304,9 @@ GtkTreeModel *rv_model_create()
                                              G_TYPE_BOOLEAN,        /* active               */
                                              G_TYPE_STRING,         /* filename             */
                                              G_TYPE_STRING,         /* passband             */
-                                             G_TYPE_STRING,         /* itype                */
-                                             G_TYPE_STRING,         /* dtype                */
-                                             G_TYPE_STRING,         /* wtype                */
+                                             G_TYPE_INT,            /* itype                */
+                                             G_TYPE_INT,            /* dtype                */
+                                             G_TYPE_INT,            /* wtype                */
                                              G_TYPE_DOUBLE,         /* sigma                */
                                              G_TYPE_DOUBLE,         /* rvx1                 */
                                              G_TYPE_DOUBLE,         /* rvx2                 */
@@ -298,7 +319,7 @@ GtkTreeModel *spots_model_create()
 {
     GtkListStore *model = gtk_list_store_new(SPOTS_COL_COUNT,       /* number of columns    */
                                              G_TYPE_BOOLEAN,        /* adjustable           */
-                                             G_TYPE_STRING,         /* source               */
+                                             G_TYPE_INT,            /* source               */
                                              G_TYPE_DOUBLE,         /* latitude             */
                                              G_TYPE_BOOLEAN,        /* latitude    adjust   */
                                              G_TYPE_DOUBLE,         /* latitude    step     */
@@ -321,4 +342,198 @@ GtkTreeModel *spots_model_create()
                                              G_TYPE_DOUBLE);        /* temperature max      */
 
     return (GtkTreeModel*)model;
+}
+
+void lc_itype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   itype;
+    char *itype_str;
+
+    gtk_tree_model_get(model, iter, LC_COL_ITYPE, &itype, -1);
+
+    switch(itype)
+    {
+        case 0:
+            itype_str = "Time";
+            break;
+        case 1:
+            itype_str = "Phase";
+            break;
+        default:
+            itype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", itype_str, NULL);
+}
+
+void rv_itype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   itype;
+    char *itype_str;
+
+    gtk_tree_model_get(model, iter, RV_COL_ITYPE, &itype, -1);
+
+    switch(itype)
+    {
+        case 0:
+            itype_str = "Time";
+            break;
+        case 1:
+            itype_str = "Phase";
+            break;
+        default:
+            itype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", itype_str, NULL);
+}
+
+void lc_dtype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   dtype;
+    char *dtype_str;
+
+    gtk_tree_model_get(model, iter, LC_COL_DTYPE, &dtype, -1);
+
+    switch(dtype)
+    {
+        case 0:
+            dtype_str = "Flux";
+            break;
+        case 1:
+            dtype_str = "Magnitude";
+            break;
+        default:
+            dtype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", dtype_str, NULL);
+}
+
+void rv_dtype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   dtype;
+    char *dtype_str;
+
+    gtk_tree_model_get(model, iter, RV_COL_DTYPE, &dtype, -1);
+
+    switch(dtype)
+    {
+        case 0:
+            dtype_str = "RV [km/s]";
+            break;
+        case 1:
+            dtype_str = "RV [100 km/s]";
+            break;
+        default:
+            dtype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", dtype_str, NULL);
+}
+
+void lc_wtype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   wtype;
+    char *wtype_str;
+
+    gtk_tree_model_get(model, iter, LC_COL_DTYPE, &wtype, -1);
+
+    switch(wtype)
+    {
+        case 0:
+            wtype_str = "Weight (int)";
+            break;
+        case 1:
+            wtype_str = "Weight (real)";
+            break;
+        case 2:
+            wtype_str = "Absolute error";
+            break;
+        case 3:
+            wtype_str = "Unavailable";
+            break;
+        default:
+            wtype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", wtype_str, NULL);
+}
+
+void rv_wtype_cell_data_func(GtkTreeViewColumn   *column,
+                             GtkCellRenderer     *renderer,
+                             GtkTreeModel        *model,
+                             GtkTreeIter         *iter,
+                             gpointer             data)
+{
+    int   wtype;
+    char *wtype_str;
+
+    gtk_tree_model_get(model, iter, RV_COL_DTYPE, &wtype, -1);
+
+    switch(wtype)
+    {
+        case 0:
+            wtype_str = "Weight (int)";
+            break;
+        case 1:
+            wtype_str = "Weight (real)";
+            break;
+        case 2:
+            wtype_str = "Absolute error";
+            break;
+        case 3:
+            wtype_str = "Unavailable";
+            break;
+        default:
+            wtype_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", wtype_str, NULL);
+}
+
+void spots_source_cell_data_func(GtkTreeViewColumn   *column,
+                                 GtkCellRenderer     *renderer,
+                                 GtkTreeModel        *model,
+                                 GtkTreeIter         *iter,
+                                 gpointer             data)
+{
+    int   source;
+    char *source_str;
+
+    gtk_tree_model_get(model, iter, SPOTS_COL_SOURCE, &source, -1);
+
+    switch(source)
+    {
+        case 0:
+            source_str = "Primary star";
+            break;
+        case 1:
+            source_str = "Secondary star";
+            break;
+        default:
+            source_str = "";
+            break;
+    }
+    g_object_set(renderer, "text", source_str, NULL);
 }
