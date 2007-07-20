@@ -434,10 +434,6 @@ typedef struct WD_LCI_parameters {
 	int    IPB;
 	int    CALCHLA;
 	int    CALCVGA;
-	bool   MSC1;
-	bool   MSC2;
-	bool   ASINI;
-	bool   CINDEX;
 	int    IFAT1;
 	int    IFAT2;
 	int    N1;
