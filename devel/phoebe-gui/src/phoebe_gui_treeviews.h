@@ -24,8 +24,11 @@ typedef enum lc_model_columns
     LC_COL_FILENAME,
     LC_COL_FILTER,
     LC_COL_ITYPE,
+    LC_COL_ITYPE_STR,
     LC_COL_DTYPE,
+    LC_COL_DTYPE_STR,
     LC_COL_WTYPE,
+    LC_COL_WTYPE_STR,
     LC_COL_SIGMA,
     LC_COL_LEVWEIGHT,
     LC_COL_HLA,
@@ -47,8 +50,11 @@ typedef enum rv_model_columns
     RV_COL_FILENAME,
     RV_COL_FILTER,
     RV_COL_ITYPE,
+    RV_COL_ITYPE_STR,
     RV_COL_DTYPE,
+    RV_COL_DTYPE_STR,
     RV_COL_WTYPE,
+    RV_COL_WTYPE_STR,
     RV_COL_SIGMA,
     RV_COL_X1,
     RV_COL_X2,
@@ -106,14 +112,7 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
 
-/* Cell data functions for transforming the results of combobox selections (integers)
-   into human readable strings that should appear in treevies.
-   All the functions have the same signature, and many have even the same implementation! */
-void lc_itype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-void lc_dtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-void lc_wtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-void rv_itype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-void rv_dtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-void rv_wtype_cell_data_func    (GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+/* Cell data function for transforming the result of combobox selection (integer)
+   into human readable strings that should appear in the spots treeview. */
 void spots_source_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 
