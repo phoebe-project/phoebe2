@@ -38,17 +38,6 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_rvno",                 "Number of observed RV curves",               KIND_MODIFIER,   NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,          0);
 	phoebe_parameter_add ("phoebe_spno",                 "Number of observed spectra",                 KIND_MODIFIER,   NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,          0);
 
-	/* **********************   Model constraints   ************************* */
-
-	phoebe_parameter_add ("phoebe_asini_switch",         "(a sin i) is kept constant",                 KIND_SWITCH,     NULL,   0.0,    0.0,    0.0,  NO, TYPE_BOOL,         NO);
-	phoebe_parameter_add ("phoebe_asini",                "(a sin i) constant",                         KIND_PARAMETER,  NULL,   0.0,   1E10,    0.0,  NO, TYPE_DOUBLE,       10.0);
-
-	phoebe_parameter_add ("phoebe_cindex_switch",        "Use the color-index constraint",             KIND_SWITCH,     NULL,   0.0,    0.0,    0.0,  NO, TYPE_BOOL,         NO);
-	phoebe_parameter_add ("phoebe_cindex",               "Color-index values",                         KIND_PARAMETER,  "phoebe_lcno",  -100,    100,   1e-2,  NO, TYPE_DOUBLE_ARRAY, 1.0);
-
-	phoebe_parameter_add ("phoebe_msc1_switch",          "Main-sequence constraint for star 1",        KIND_PARAMETER,  NULL,     0,      0,      0,  NO, TYPE_BOOL,         NO);
-	phoebe_parameter_add ("phoebe_msc2_switch",          "Main-sequence constraint for star 2",        KIND_PARAMETER,  NULL,     0,      0,      0,  NO, TYPE_BOOL,         NO);
-
 	/* ***********************   Data parameters   ************************** */
 
 	phoebe_parameter_add ("phoebe_lc_filename",          "Observed LC data filename",                  KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");

@@ -810,9 +810,6 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		}
 
 		passed_pars.pars[curve] = &params[curve];
-
-		phoebe_parameter_get_value ("phoebe_cindex", curve, &(cindex[curve]));
-
 		status = calculate_weighted_average (&(average[curve]), obs[curve]->dep, obs[curve]->weight);
 	}
 */

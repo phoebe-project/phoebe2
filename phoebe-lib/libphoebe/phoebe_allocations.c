@@ -278,15 +278,10 @@ int read_in_wd_lci_parameters (WD_LCI_parameters *params, int MPAGE, int curve)
 	if (strcmp (readout_str, "Semi-detached binary, secondary star fills Roche lobe") == 0) params->MODE =  5;
 	if (strcmp (readout_str, "Double contact binary"                                ) == 0) params->MODE =  6;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_msc1_switch"), &(params->MSC1));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_msc2_switch"), &(params->MSC2));
-
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &readout_bool);
 	if (readout_bool && lcno > 0) params->CALCHLA = 1; else params->CALCHLA = 0;
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &readout_bool);
 	if (readout_bool && rvno > 0) params->CALCVGA = 1; else params->CALCVGA = 0;
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_asini_switch"), &(params->ASINI));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cindex_switch"), &(params->CINDEX));
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_usecla_switch"), &readout_bool);
 	if (readout_bool) params->IPB = 1; else params->IPB  = 0;
