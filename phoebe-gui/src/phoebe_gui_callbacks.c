@@ -62,13 +62,20 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
+            PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
+            PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
+            PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
+
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                             LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
                                                             LC_COL_FILTER,      "Undefined", /* TODO: get the filter */
                                                             LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
+                                                            LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
                                                             LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
+                                                            LC_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox)]),
                                                             LC_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox),
+                                                            LC_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox)]),
                                                             LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton),
                                                             LC_COL_LEVWEIGHT,   "Poissonian scatter",
                                                             LC_COL_HLA,         12.566371,
@@ -142,6 +149,10 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
         }
 
+        PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
+        PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
+        PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
+
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
         switch (result)
         {
@@ -150,8 +161,11 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                                 LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
                                                                 LC_COL_FILTER,      "Undefined", /* TODO: get the filter */
                                                                 LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
+                                                                LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
                                                                 LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
+                                                                LC_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox)]),
                                                                 LC_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox),
+                                                                LC_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox)]),
                                                                 LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton),
                                                                 LC_COL_LEVWEIGHT,   "Poissonian scatter",
                                                                 LC_COL_HLA,         12.566371,
@@ -264,13 +278,20 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
+            PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
+            PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
+            PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
+
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
                                                             RV_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton),
                                                             RV_COL_FILTER,      "Undefined",
                                                             RV_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox),
+                                                            RV_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]),
                                                             RV_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox),
+                                                            RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
                                                             RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
+                                                            RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
                                                             RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
                                                             RV_COL_X1,          0.5,
                                                             RV_COL_X2,          0.5,
@@ -338,12 +359,22 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         switch (result)
         {
             case GTK_RESPONSE_OK:
+
+                result++;
+
+                PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
+                PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
+                PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
+
                 gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
                                                                 RV_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton),
                                                                 RV_COL_FILTER,      "Undefined",
                                                                 RV_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox),
+                                                                RV_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]),
                                                                 RV_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox),
+                                                                RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
                                                                 RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
+                                                                RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
                                                                 RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
                                                                 RV_COL_X1,          0.5,
                                                                 RV_COL_X2,          0.5,
