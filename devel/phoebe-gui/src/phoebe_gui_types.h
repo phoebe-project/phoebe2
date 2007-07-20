@@ -24,6 +24,7 @@ GUI_widget 	   *gui_widget_new 		();
 int 				gui_widget_add 		(char *name, GtkWidget *gtk, GUI_widget_type type, PHOEBE_parameter *par);
 unsigned int	gui_widget_hash 		(char *name);
 int 				gui_widget_hookup 	(GUI_widget *widget, GtkWidget *gtk, GUI_widget_type type, char *name, PHOEBE_parameter *par);
+GUI_widget 		*gui_widget_lookup 	(char *name);
 int 				gui_widget_commit 	(GUI_widget *widget);
 int 				gui_widget_free     	(GUI_widget *widget);
 

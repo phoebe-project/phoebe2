@@ -3,6 +3,8 @@
 #include "phoebe_gui_base.h"
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_global.h"
+#include "phoebe_gui_types.h"
 
 
 /* ******************************************************************** *
@@ -50,7 +52,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_lc_e_spinbutton          = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_e_spinbutton");
     GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
 
-    g_object_unref(phoebe_load_lc_xml);
+	g_object_unref(phoebe_load_lc_xml);
 
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -3644,4 +3646,45 @@ on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
                                         gpointer         user_data)
 {
 
+}
+
+/* ******************************************************************** *
+ *
+ *                    phoebe_window sidesheet events
+ *
+ * ******************************************************************** */
+
+void
+on_phoebe_sidesheet_detach_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+	GtkWidget *window;
+
+	GUI_widget *gui_box = gui_widget_lookup ("phoebe_sidesheet_vbox");
+	GtkWidget *box = gui_box->gtk;
+	GUI_widget *gui_container = gui_widget_lookup ("phoebe_hbox");
+	GtkWidget *container = gui_container->gtk;
+	
+	if(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED)
+	{
+		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+
+		gtk_window_set_title (GTK_WINDOW (window),"Data sheets");
+		gtk_widget_reparent(box, window);
+		gtk_widget_set_size_request (window, 200, 600);
+		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);
+		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+		gtk_widget_show_all (window);
+		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
+	}	
+
+	else
+	{
+		window = gtk_widget_get_parent(box);
+
+		gtk_widget_reparent(box, container);
+		gtk_widget_destroy(window);
+		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
+	}
 }
