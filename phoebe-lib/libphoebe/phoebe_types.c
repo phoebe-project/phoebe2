@@ -891,6 +891,14 @@ int phoebe_vector_remove_element (PHOEBE_vector *vec, int index)
 
 PHOEBE_matrix *phoebe_matrix_new ()
 {
+    /**
+     * phoebe_matrix_new:
+     *
+     * Initializes an unallocated #PHOEBE_matrix.
+     *
+     * Returns: An empty #PHOEBE_matrix.
+     */
+
 	PHOEBE_matrix *matrix = phoebe_malloc (sizeof (*matrix));
 
 	matrix->rows = 0;
@@ -902,16 +910,18 @@ PHOEBE_matrix *phoebe_matrix_new ()
 
 int phoebe_matrix_alloc (PHOEBE_matrix *matrix, int cols, int rows)
 {
-	/*
-	 * This function allocates storage memory for the matrix 'matrix'. The
-	 * subscripts are such that the elements of the matrix should be accessed
-	 * by matrix[row][col].
+	/**
+	 * phoebe_matrix_alloc:
+	 * @matrix: A #PHOEBE_matrix to allocate.
+	 * @cols:   The number of columns for @matrix.
+	 * @rows:   The number of rows for @matrix.
 	 *
-	 * Return values:
+	 * Allocates storage memory for @matrix. The
+	 * subscripts are such that the elements of @matrix should be accessed
+	 * by @matrix[@row][@col].
 	 *
-	 *   ERROR_MATRIX_ALREADY_ALLOCATED
-	 *   ERROR_MATRIX_INVALID_DIMENSION
-	 *   SUCCESS
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Possible errors: ERROR_MATRIX_ALREADY_ALLOCATED and ERROR_MATRIX_INVALID_DIMENSION.
 	 */
 
 	int i;
@@ -933,6 +943,17 @@ int phoebe_matrix_alloc (PHOEBE_matrix *matrix, int cols, int rows)
 
 int phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row)
 {
+    /**
+     * phoebe_matrix_set_row:
+     * @matrix: A #PHOEBE_matrix to modify.
+     * @vec:    The #PHOEBE_vector to be placed in @matrix.
+     * @row:    The row of @matrix to be replaced with @vec.
+     *
+     * Sets the elements of @row of @matrix to the values of elements in @vec.
+     *
+     * Returns: A #PHOEBE_error_code indicating the success of the operation.
+     */
+
 	int j;
 
 	if (!matrix) printf ("matrix problems!\n");
@@ -947,8 +968,16 @@ int phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row)
 
 int phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row)
 {
-	/*
-	 * ASSUMES VECTOR IS ALREADY ALLOCATED!
+	/**
+	 * phoebe_matrix_get_row:
+	 * @vec:    The #PHOEBE_vector to store the values from @row.
+	 * @matrix: The #PHOEBE_matrix to read @row from.
+	 * @row:    The row of @matrix to be copied to @vec.
+	 *
+	 * Copies the contents of @row of @matrix to @vec, assuming that @vec is already
+	 * allocated.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
@@ -964,8 +993,13 @@ int phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row)
 
 int phoebe_matrix_free  (PHOEBE_matrix *matrix)
 {
-	/*
-	 * This function frees the storage memory allocated for the matrix.
+	/**
+	 * phoebe_matrix_free:
+	 * @matrix: The #PHOEBE_matrix to be freed.
+	 *
+	 * Frees the storage memory allocated for @matrix.
+	 *
+	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
 	 */
 
 	int i;
