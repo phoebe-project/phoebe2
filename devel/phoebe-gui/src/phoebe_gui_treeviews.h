@@ -101,7 +101,7 @@ GtkTreeModel *rv_model_create(void);
 GtkTreeModel *spots_model_create(void);
 
 /* Initializes the treeviews */
-int gui_init_treeviews(GladeXML *parent_window);
+int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
 
 /* Initializes all LC related treeviews */
 int gui_init_lc_treeviews(GladeXML *parent_window);
@@ -111,6 +111,8 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
+
+int gui_init_filter_combobox (GladeXML *parent_window);
 
 /* Cell data function for transforming the result of combobox selection (integer)
    into human readable strings that should appear in the spots treeview. */

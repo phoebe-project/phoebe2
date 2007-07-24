@@ -848,8 +848,8 @@ on_phoebe_save_toolbutton_clicked      (GtkToolButton   *toolbutton,
 
 
 void
-on_phoebe_data_star_name_entry_editing_done
-                                        (GtkCellEditable *celleditable,
+on_phoebe_data_star_name_entry_changed
+                                        (GtkEditable *editable,
                                         gpointer         user_data)
 {
 
@@ -3661,30 +3661,27 @@ on_phoebe_sidesheet_detach_button_clicked
 {
 	GtkWidget *window;
 
-	GUI_widget *gui_box = gui_widget_lookup ("phoebe_sidesheet_vbox");
-	GtkWidget *box = gui_box->gtk;
-	GUI_widget *gui_container = gui_widget_lookup ("phoebe_hbox");
-	GtkWidget *container = gui_container->gtk;
+	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
+	GUI_widget *container = gui_widget_lookup ("phoebe_sidesheet_table");
 	
-	if(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED)
+	if(PHOEBE_WINDOW_SIDESHEET_IS_DETACHED)
+	{
+		window = gtk_widget_get_parent(box->gtk);
+
+		gtk_widget_reparent(box->gtk, container->gtk);
+		gtk_widget_destroy(window);
+		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
+	}
+	else
 	{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
 		gtk_window_set_title (GTK_WINDOW (window),"Data sheets");
-		gtk_widget_reparent(box, window);
+		gtk_widget_reparent(box->gtk, window);
 		gtk_widget_set_size_request (window, 200, 600);
 		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 		gtk_widget_show_all (window);
 		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
 	}	
-
-	else
-	{
-		window = gtk_widget_get_parent(box);
-
-		gtk_widget_reparent(box, container);
-		gtk_widget_destroy(window);
-		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
-	}
 }

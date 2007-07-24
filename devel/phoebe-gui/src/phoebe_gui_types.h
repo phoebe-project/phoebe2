@@ -31,6 +31,9 @@ int 				gui_widget_free     	(GUI_widget *widget);
 int				gui_init_widgets		(GladeXML *phoebe_window);
 int 				gui_free_widgets 		();
 
+int				gui_get_value_from_widget 		(GUI_widget *widget);
+int 				gui_get_values_from_widgets 	();
+
 /***************************   WIDGET TABLE   ********************************/
 
 enum {
