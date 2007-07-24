@@ -71,14 +71,14 @@ int                     phoebe_parameter_table_free      (PHOEBE_parameter_table
 
 /****************************   PARAMETERS   **********************************/
 
-PHOEBE_parameter *phoebe_parameter_new          ();
-int               phoebe_parameter_add          (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...);
-unsigned int      phoebe_parameter_hash         (char *qualifier);
-PHOEBE_parameter *phoebe_parameter_lookup       (char *qualifier);
-int               phoebe_parameter_commit       (PHOEBE_parameter *par);
-int               phoebe_parameter_add_option   (PHOEBE_parameter *par, char *option);
-int               phoebe_parameter_update_deps  (PHOEBE_parameter *par, int oldval);
-int               phoebe_parameter_free         (PHOEBE_parameter *par);
+PHOEBE_parameter *phoebe_parameter_new            ();
+int               phoebe_parameter_add            (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...);
+unsigned int      phoebe_parameter_hash           (char *qualifier);
+PHOEBE_parameter *phoebe_parameter_lookup         (char *qualifier);
+int               phoebe_parameter_commit         (PHOEBE_parameter *par);
+int               phoebe_parameter_add_option     (PHOEBE_parameter *par, char *option);
+int               phoebe_parameter_update_deps    (PHOEBE_parameter *par, int oldval);
+int               phoebe_parameter_free           (PHOEBE_parameter *par);
 
 bool              phoebe_parameter_menu_option_is_valid (char *qualifier, char *option);
 
@@ -86,6 +86,8 @@ int               phoebe_init_parameters        ();
 int               phoebe_free_parameters        ();
 
 int               phoebe_init_parameter_options ();
+
+bool              phoebe_qualifier_is_constrained (char *qualifier);
 
 /******************************************************************************/
 

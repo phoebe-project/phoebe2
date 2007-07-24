@@ -81,6 +81,7 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  johnson.U                   \
                  johnson.B                   \
                  johnson.V                   \
+                 johnson.I                   \
                  johnson.H                   \
                  stromgren_1956_b.txt        \
                  stromgren_1956_hbnarrow.txt \

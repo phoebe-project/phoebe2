@@ -12,6 +12,7 @@
 #include "phoebe_parameters.h"
 
 extern int yyerror (const char *str);
+extern int intern_constraint_add_to_table (PHOEBE_ast *ast);
 %}
 
 %union {
@@ -46,7 +47,7 @@ extern int yyerror (const char *str);
 
 input:			  /* empty */
 				| input constraint {
-					phoebe_constraint_add_to_table ($2);
+					intern_constraint_add_to_table ($2);
 					printf ("________________________________________________________________________________\n");
 					phoebe_ast_print (0, $2);
 					printf ("--------------------------------------------------------------------------------\n");

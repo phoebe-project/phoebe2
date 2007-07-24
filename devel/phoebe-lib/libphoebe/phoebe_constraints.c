@@ -294,7 +294,7 @@ PHOEBE_ast_list *phoebe_ast_construct_list (PHOEBE_ast *ast, PHOEBE_ast_list *li
 	return out;
 }
 
-int phoebe_constraint_add_to_table (PHOEBE_ast *ast)
+int intern_constraint_add_to_table (PHOEBE_ast *ast)
 {
 	PHOEBE_ast_list *constraint = phoebe_malloc (sizeof (*constraint));
 
@@ -348,6 +348,27 @@ int phoebe_constraint_new (const char *cstr)
 	pc_delete_buffer (state);
 
 	return SUCCESS;
+}
+
+char *phoebe_constraint_get_qualifier (PHOEBE_ast *constraint)
+{
+	/**
+	 * phoebe_constraint_get_qualifier
+	 *
+	 * Returns a newly allocated qualifier that appears in the constraint.
+	 */
+
+	char *qualifier;
+	PHOEBE_parameter *par = constraint->val.node.args->elem->val.par;
+
+	if (par->type == TYPE_DOUBLE)
+		qualifier = strdup (par->qualifier);
+	else {
+		qualifier = phoebe_malloc ((strlen(par->qualifier)+5)*sizeof (*qualifier));
+		sprintf (qualifier, "%s[%d]", par->qualifier, constraint->val.node.args->next->elem->val.idx);
+	}
+
+	return qualifier;
 }
 
 int phoebe_ast_free (PHOEBE_ast *ast)

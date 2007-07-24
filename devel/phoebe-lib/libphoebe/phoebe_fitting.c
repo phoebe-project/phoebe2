@@ -420,12 +420,13 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	int status, i, j;
 	char *readout_str;
 	clock_t clock_start, clock_stop;
-	PHOEBE_parameter_list *marked_tba, *list;
+	PHOEBE_parameter_list *tba;
 	PHOEBE_column_type indep;
 
 	PHOEBE_nms_parameters *passed;
 
 	int lcno, rvno;
+	char *qualifier, **qualifiers = NULL;
 	int dim_tba;
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
@@ -455,43 +456,69 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	if (lcno + rvno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
 	/* Get a list of parameters marked for adjustment: */
-	marked_tba = phoebe_parameter_list_get_marked_tba ();
-	if (!marked_tba) return ERROR_MINIMIZER_NO_PARAMS;
+	tba = phoebe_parameter_list_get_marked_tba ();
+	if (!tba) return ERROR_MINIMIZER_NO_PARAMS;
+
+	/*
+	 * Count the number of parameters marked for adjustment; dim_tba will hold
+	 * the dimension of the subspace that will be adjusted rather than the
+	 * actual number of parameters. It will also cross-check if any of the
+	 * parameters marked for adjustment are constrained; if so, they will
+	 * be skipped silently. It is up to the calling function to do error
+	 * handling if desireable.
+	 */
+
+	dim_tba = 0;
+	while (tba) {
+		if (tba->par->type == TYPE_DOUBLE) {
+			qualifier = strdup (tba->par->qualifier);
+			if (phoebe_qualifier_is_constrained (qualifier)) {
+				phoebe_debug ("parameter %s is constrained, skipping.\n", qualifier);
+				free (qualifier);
+			}
+			else {
+				/* Add the qualifier to the list of qualifiers: */
+				dim_tba++;
+				qualifiers = phoebe_realloc (qualifiers, dim_tba * sizeof (*qualifiers));
+				qualifiers[dim_tba-1] = qualifier;
+			}
+		}
+		else /* if (tba->par->type == TYPE_DOUBLE_ARRAY) */ {
+			for (i = 0; i < lcno; i++) {
+				qualifier = phoebe_malloc ((strlen(tba->par->qualifier)+5)*sizeof(*qualifier));
+				sprintf (qualifier, "%s[%d]", tba->par->qualifier, i+1);
+				if (phoebe_qualifier_is_constrained (qualifier)) {
+					printf ("parameter %s is constrained, skipping.\n", qualifier);
+					free (qualifier);
+				}
+				else {
+					/* Add the qualifier to the list of qualifiers: */
+					dim_tba++;
+					qualifiers = phoebe_realloc (qualifiers, dim_tba * sizeof (*qualifiers));
+					qualifiers[dim_tba-1] = qualifier;
+				}
+			}
+		}
+
+		tba = tba->next;
+	}
+
+	if (dim_tba == 0)
+		return ERROR_MINIMIZER_NO_PARAMS;
 
 	/* Create a copy of the parameter table and activate it: */
 	table = phoebe_parameter_table_duplicate (PHOEBE_pt);
 	phoebe_parameter_table_activate (table);
 
-	/*
-	 * Count the number of parameters marked for adjustment; dim_tba will hold
-	 * the dimension of the subspace that will be adjusted rather than the
-	 * actual number of parameters.
-	 */
-
-	list = marked_tba; dim_tba = 0;
-	while (list) {
-		if (list->par->type == TYPE_DOUBLE) dim_tba++;
-		else dim_tba += lcno;
-		list = list->next;
-	}
+	/* Remove all constrained parameters from the pool of marked parameters: */
+	tba = phoebe_parameter_list_get_marked_tba ();
 
 	/* Allocate the memory for the feedback structure: */
 	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
 
-	phoebe_debug ("Parameters set for adjustment:\n");
-	list = marked_tba; i = 0;
-	while (list) {
-		phoebe_debug ("%2d. qualifier:     %s\n", i+1, list->par->qualifier);
-		i++; list = list->next;
-	}
-
-	/*
-	 * If there are any constraints that need to be set, that would be done
-	 * here. For example:
-	 *
-	 * phoebe_constraint_new ("phoebe_sma = 10/sin(phoebe_incl/180*3.1415926)");
-	 * phoebe_constraint_new ("phoebe_hla[1] = 0.5*phoebe_hla[0]");
-	 */
+	phoebe_debug ("* parameters set for adjustment:\n");
+	for (i = 0; i < dim_tba; i++)
+		phoebe_debug ("  %d: %s\n", i+1, qualifiers[i]);
 
 	/* Will the computation be done in HJD- or in phase-space? */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
@@ -535,7 +562,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	/* Populate the structure that will be passed to the cost function: */
 	passed = phoebe_malloc (sizeof (*passed));
 
-	passed->tba      = table->lists.marked_tba;
+	passed->tba      = phoebe_parameter_list_get_marked_tba ();
 	passed->dim_tba  = dim_tba;
 	passed->lcno     = lcno;
 	passed->rvno     = rvno;
@@ -550,22 +577,23 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	steps   = phoebe_vector_new ();
 	phoebe_vector_alloc (steps, dim_tba);
 
-	list = marked_tba; i = 0;
-	while (list) {
-		switch (list->par->type) {
+	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
+	while (tba) {
+		switch (tba->par->type) {
 			case TYPE_DOUBLE:
-				feedback->qualifiers->val.strarray[i] = strdup (list->par->qualifier);
-				feedback->initvals->val[i] = list->par->value.d;
-				adjpars->val[i] = list->par->value.d;
-				steps->val[i]   = list->par->step;
+				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
+				feedback->initvals->val[i] = tba->par->value.d;
+				adjpars->val[i] = tba->par->value.d;
+				steps->val[i]   = tba->par->step;
 				i++;
 			break;
 			case TYPE_DOUBLE_ARRAY:
 				for (j = 0; j < lcno; j++) {
-					feedback->qualifiers->val.strarray[i+j] = strdup (list->par->qualifier);
-					feedback->initvals->val[i+j] = list->par->value.vec->val[j];
-					adjpars->val[i+j] = list->par->value.vec->val[j];
-					steps->val[i+j]   = list->par->step;
+					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
+					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, j+1);
+					feedback->initvals->val[i+j] = tba->par->value.vec->val[j];
+					adjpars->val[i+j] = tba->par->value.vec->val[j];
+					steps->val[i+j]   = tba->par->step;
 				}
 				i += lcno;
 			break;
@@ -573,7 +601,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 				phoebe_lib_error ("exception handler invoked in phoebe_minimize_using_nms (), please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
-		list = list->next;
+		tba = tba->next;
 	}
 
 	/* Allocate the minimizer: */
