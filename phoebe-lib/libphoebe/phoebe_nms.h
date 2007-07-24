@@ -20,14 +20,10 @@ typedef struct PHOEBE_nms_parameters {
 	int rvno;                             /* The number of observed RV curves */
 	bool rv1;
 	bool rv2;
-	bool color_constraint;
 	int CALCHLA;
 	int CALCVGA;
-	bool ASINI;
-	int CC;
 	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
 	double *average;
-	double *cindex;
 	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
 	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 } PHOEBE_nms_parameters;

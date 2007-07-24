@@ -72,9 +72,9 @@ PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast);
 int phoebe_ast_print (int depth, PHOEBE_ast *in);
 int phoebe_ast_free (PHOEBE_ast *ast);
 
-int phoebe_constraint_new (const char *constraint);
-int phoebe_constraint_add_to_table (PHOEBE_ast *ast);
-int phoebe_free_constraints ();
+int   phoebe_constraint_new (const char *constraint);
+char *phoebe_constraint_get_qualifier (PHOEBE_ast *constraint);
+int   phoebe_free_constraints ();
 
 extern int pcparse (void);
 

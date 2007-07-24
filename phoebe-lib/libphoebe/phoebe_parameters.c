@@ -433,6 +433,27 @@ int phoebe_parameter_add_option (PHOEBE_parameter *par, char *option)
 	return SUCCESS;
 }
 
+bool phoebe_qualifier_is_constrained (char *qualifier)
+{
+	/**
+	 * phoebe_qualifier_is_constrained
+	 *
+	 * This function checks whether a passed qualifier also appears in the
+	 * list of constraints. If so, it returns true; else it returns false.
+	 */
+
+	PHOEBE_ast_list *constraint = PHOEBE_pt->lists.constraints;
+
+	while (constraint) {
+		printf ("comparing %s and %s\n", phoebe_constraint_get_qualifier (constraint->elem), qualifier);
+		if (strcmp (phoebe_constraint_get_qualifier (constraint->elem), qualifier) == 0)
+			return TRUE;
+		constraint = constraint->next;
+	}
+
+	return FALSE;
+}
+
 unsigned int phoebe_parameter_hash (char *qualifier)
 {
 	/*
@@ -1484,19 +1505,17 @@ int phoebe_open_parameter_file (const char *filename)
 		 * in an incomplete readout.
 		 */
 
-		if (sscanf (readout_str, "%s = %*s", keyword_str) != 1) {
-			phoebe_lib_error ("line %d of the parameter file is invalid, skipping.\n", lineno);
-			continue;
-		}
-
 		value_str = strchr (readout_str, '=');
 		if (value_str == NULL) {
 			/* If the keyword doesn't have '=', it will be skipped.                 */
 			phoebe_lib_error ("qualifier %s initialization (line %d) is invalid.\n", keyword_str, lineno);
 			continue;
 		}
+		strncpy (keyword_str, readout_str, strlen(readout_str)-strlen(value_str)+1);
+		keyword_str[strlen(readout_str)-strlen(value_str)] = '\0';
+		while (keyword_str[strlen(keyword_str)-1] == ' ' || keyword_str[strlen(keyword_str)-1] == '\t') keyword_str[strlen(keyword_str)-1] = '\0';
 
-		/* value_str now points to '=', we need the next character:               */
+		/* value_str now points to '=', we need the next character: */
 		value_str++;
 
 		/* Eat all empty spaces and quotes at the beginning and at the end: */
@@ -1528,6 +1547,8 @@ int phoebe_open_parameter_file (const char *filename)
 			field = phoebe_malloc (strlen(field_sep)*sizeof(*field));
 			strcpy (field, field_sep+1);
 			field[strlen(field_sep)-1] = '\0';
+
+			phoebe_debug ("qualifier: %s; curve: %d; field: %s\n", qualifier, elem, field);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1625,6 +1646,8 @@ int phoebe_open_parameter_file (const char *filename)
 			qualifier[strlen(keyword_str)-strlen(elem_sep)] = '\0';
 			sscanf (elem_sep, "[%d]", &elem);
 
+			phoebe_debug ("qualifier: %s; curve: %d\n", qualifier, elem);
+
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
 				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
@@ -1682,9 +1705,12 @@ int phoebe_open_parameter_file (const char *filename)
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(field_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(field_sep));
 			qualifier[strlen(keyword_str)-strlen(field_sep)] = '\0';
+
 			field = phoebe_malloc (strlen(field_sep)*sizeof(*field));
 			strcpy (field, field_sep+1);
 			field[strlen(field_sep)-1] = '\0';
+
+			phoebe_debug ("qualifier: %s; field: %s\n", qualifier, field);
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
@@ -1696,14 +1722,14 @@ int phoebe_open_parameter_file (const char *filename)
 
 			if (strcmp (field,  "VAL") == 0)
 				phoebe_parameter_set_value (par, atof (value_str));
-					if (strcmp (field,  "MIN") == 0)
-						phoebe_parameter_set_lower_limit (par, atof (value_str));
-					if (strcmp (field,  "MAX") == 0)
-						phoebe_parameter_set_upper_limit (par, atof (value_str));
-					if (strcmp (field, "STEP") == 0)
-						phoebe_parameter_set_step (par, atof (value_str));
-					if (strcmp (field,  "ADJ") == 0)
-						phoebe_parameter_set_tba (par, atob (value_str));
+			if (strcmp (field,  "MIN") == 0)
+				phoebe_parameter_set_lower_limit (par, atof (value_str));
+			if (strcmp (field,  "MAX") == 0)
+				phoebe_parameter_set_upper_limit (par, atof (value_str));
+			if (strcmp (field, "STEP") == 0)
+				phoebe_parameter_set_step (par, atof (value_str));
+			if (strcmp (field,  "ADJ") == 0)
+				phoebe_parameter_set_tba (par, atob (value_str));
 		}
 		else {
 			qualifier = phoebe_malloc ((strlen(keyword_str)+1)*sizeof(*qualifier));
