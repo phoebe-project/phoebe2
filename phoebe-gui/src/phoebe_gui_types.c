@@ -392,32 +392,10 @@ int gui_init_widgets (GladeXML* phoebe_window)
 	gui_widget_add ("phoebe_rv_plot_scrolledwindow",						glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_scrolledwindow"),				GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_lc_plot_scrolledwindow",						glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_scrolledwindow"),				GUI_WIDGET_VALUE, 		NULL);
 
-	gui_widget_add ("phoebe_hbox",												glade_xml_get_widget(phoebe_window, "phoebe_hbox"),										GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_sidesheet_table",									glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_table"),										GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_sidesheet_vbox",									glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_vbox"),							GUI_WIDGET_VALUE, 		NULL);
 
 
-	return SUCCESS;
-}
-
-int gui_get_value_from_widget (GUI_widget *widget)
-{
-	PHOEBE_parameter *par = widget->par;
-
-	switch(widget->type)
-	{
-		case GUI_WIDGET_VALUE:
- 			//phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
-			break;
-		case GUI_WIDGET_VALUE_MIN:
-			//phoebe_parameter_set_tba (par, bool tba)
-			break;
-    }
-
-	return SUCCESS;
-}
-
-int gui_get_values_from_widgets ()
-{
 	return SUCCESS;
 }
 
@@ -564,6 +542,59 @@ int gui_free_widgets ()
 		}
 	}
 	free (GUI_wt);
+
+	return SUCCESS;
+}
+
+int gui_get_value_from_widget (GUI_widget *widget)
+{
+	PHOEBE_parameter *par = widget->par;
+
+	if (GTK_IS_SPIN_BUTTON(widget->gtk)){
+		switch (par->type) {
+			case TYPE_INT: {
+				phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(widget->gtk)));
+			}
+			break;
+			case TYPE_DOUBLE: {
+				phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON(widget->gtk)));
+			}
+			break;
+		}
+	}
+	
+	else if (GTK_IS_ENTRY(widget->gtk)){
+		phoebe_parameter_set_value (widget->par, gtk_entry_get_text (GTK_ENTRY(widget->gtk)));
+	}
+
+	else if (GTK_IS_CHECK_BUTTON(widget->gtk)){
+		switch (widget->type) {
+			case GUI_WIDGET_VALUE: {
+				phoebe_parameter_set_value (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(widget->gtk)));
+			}
+			break;
+			case GUI_WIDGET_SWITCH_TBA: {
+				phoebe_parameter_set_tba (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(widget->gtk)));
+			}
+			break;
+		}
+	}
+
+	return SUCCESS;
+}
+
+int gui_get_values_from_widgets ()
+{
+	int i;
+	GUI_wt_bucket *bucket;
+
+	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
+		while (GUI_wt->bucket[i]) {
+			bucket = GUI_wt->bucket[i];
+			GUI_wt->bucket[i] = bucket->next;
+			gui_get_value_from_widget (bucket->widget);
+		}
+	}
 
 	return SUCCESS;
 }

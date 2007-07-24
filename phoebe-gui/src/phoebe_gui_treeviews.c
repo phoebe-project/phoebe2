@@ -3,11 +3,13 @@
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_callbacks.h"
 
-int gui_init_treeviews(GladeXML *phoebe_window)
+int gui_init_treeviews(GladeXML *phoebe_window, GladeXML *phoebe_load_lc_dialog)
 {
     gui_init_lc_treeviews    (phoebe_window);
     gui_init_rv_treeviews    (phoebe_window);
     gui_init_spots_treeview  (phoebe_window);
+
+	 gui_init_filter_combobox (phoebe_load_lc_dialog);
 
     return SUCCESS;
 }
@@ -255,6 +257,52 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_surf_spots_treeview, spots_model);
 
     return SUCCESS;
+}
+
+int gui_init_filter_combobox (GladeXML *phoebe_load_lc_dialog)
+{
+	GtkWidget *combo_box = glade_xml_get_widget(phoebe_load_lc_dialog, "phoebe_load_lc_filter_combobox");
+
+	GtkTreeStore 		*store;
+	GtkTreeIter 		 toplevel, child;
+	GtkCellRenderer 	*renderer;
+
+	int i;
+
+	char par[255] = "";
+	char set[255];
+	char name[255];
+
+	store = gtk_tree_store_new (1, G_TYPE_STRING);
+
+	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_box), GTK_TREE_MODEL (store));
+
+	renderer = gtk_cell_renderer_text_new ();
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(combo_box), renderer, TRUE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(combo_box), renderer, "text", 0);
+
+	for(i=0;i<PHOEBE_passbands_no;i++){
+		sprintf(set, "%s",(PHOEBE_passbands[i])->set);
+		sprintf(name, "%s  (%.0lfnm)",(PHOEBE_passbands[i])->name, (PHOEBE_passbands[i])->effwl/10.);
+
+		if(strcmp(par, set)){
+			strcpy(par, set);
+			gtk_tree_store_append (store, &toplevel, NULL);
+			gtk_tree_store_set (store, &toplevel, 0, par,  -1);
+			gtk_tree_store_append (store, &child, &toplevel);
+			gtk_tree_store_set (store, &child, 0, name,  -1);
+
+		}
+		else
+		{		
+			gtk_tree_store_append (store, &child, &toplevel);
+			gtk_tree_store_set (store, &child, 0, name,  -1);
+		}
+	}
+	
+	g_object_unref (store);
+
+	return SUCCESS;
 }
 
 GtkTreeModel *lc_model_create()
