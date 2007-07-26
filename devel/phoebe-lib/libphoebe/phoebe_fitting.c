@@ -582,7 +582,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		switch (tba->par->type) {
 			case TYPE_DOUBLE:
 				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
-				feedback->initvals->val[i] = tba->par->value.d;
+				phoebe_parameter_get_value (tba->par, &(feedback->initvals->val[i]));
 				adjpars->val[i] = tba->par->value.d;
 				steps->val[i]   = tba->par->step;
 				i++;
@@ -591,7 +591,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 				for (j = 0; j < lcno; j++) {
 					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
 					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, j+1);
-					feedback->initvals->val[i+j] = tba->par->value.vec->val[j];
+					phoebe_parameter_get_value (tba->par, j, &(feedback->initvals->val[i+j]));
 					adjpars->val[i+j] = tba->par->value.vec->val[j];
 					steps->val[i+j]   = tba->par->step;
 				}
@@ -1098,7 +1098,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	clock_t clock_start, clock_stop;
 	char atmcof[255], atmcofplanck[255];
 	WD_DCI_parameters *params;
-	PHOEBE_parameter_list *marked_tba;
+	PHOEBE_parameter_list *marked_tba, *tba;
 	int no_tba;
 	int lcno = 0, rvno = 0;
 	bool calchla = FALSE, calcvga = FALSE;
@@ -1174,29 +1174,32 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 */
-	i = 0;
-	while (marked_tba) {
-		if (marked_tba->par->type == TYPE_INT    ||
-			marked_tba->par->type == TYPE_BOOL   ||
-			marked_tba->par->type == TYPE_DOUBLE ||
-			marked_tba->par->type == TYPE_STRING) {
-			phoebe_parameter_get_value (marked_tba->par, &(feedback->initvals->val[i]));
-			feedback->qualifiers->val.strarray[i] = strdup (marked_tba->par->qualifier);
-			feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
-			feedback->ferrors->val[i] = errors[i];
-			i++;
-		}
-		else {
-			for (j = 0; j < marked_tba->par->value.array->dim; j++) {
-				phoebe_parameter_get_value (marked_tba->par, j, &(feedback->initvals->val[i+j]));
-				feedback->qualifiers->val.strarray[i+j] = strdup (marked_tba->par->qualifier);
-				feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
-				feedback->ferrors->val[i+j] = errors[i+j];
-			}
-			i += j;
-		}
 
-		marked_tba = marked_tba->next;
+	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
+	while (tba) {
+		switch (tba->par->type) {
+			case TYPE_DOUBLE:
+				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
+				phoebe_parameter_get_value (tba->par, &(feedback->initvals->val[i]));
+				feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
+				feedback->ferrors->val[i] = errors[i];
+				i++;
+			break;
+			case TYPE_DOUBLE_ARRAY:
+				for (j = 0; j < lcno; j++) {
+					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
+					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, j+1);
+					phoebe_parameter_get_value (tba->par, j, &(feedback->initvals->val[i+j]));
+					feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
+					feedback->ferrors->val[i+j] = errors[i+j];
+				}
+				i += lcno;
+			break;
+			default:
+				phoebe_lib_error ("exception handler invoked in phoebe_minimize_using_nms (), please report this!\n");
+				return ERROR_EXCEPTION_HANDLER_INVOKED;
+		}
+		tba = tba->next;
 	}
 
 	/* Free all the allocated structures: */
