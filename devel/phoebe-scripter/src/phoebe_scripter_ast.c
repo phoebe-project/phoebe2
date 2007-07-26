@@ -524,6 +524,10 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 					out.type = type_curve;
 					out.value.curve = phoebe_curve_duplicate (s->link->value.curve);
 				break;
+				case ast_qualifier:
+					out.type = type_qualifier;
+					out.value.str = strdup (s->link->value.qualifier);
+				break;
 				case ast_spectrum:
 					out.type = type_spectrum;
 					out.value.spectrum = phoebe_spectrum_duplicate (s->link->value.spectrum);
@@ -1925,6 +1929,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						break;
 						case type_vector:
 							arguments = scripter_ast_construct_list (scripter_ast_add_vector (val.value.vec), arguments);
+						break;
+						case type_qualifier:
+							arguments = scripter_ast_construct_list (scripter_ast_add_qualifier (val.value.str), arguments);
 						break;
 						case type_spectrum:
 							arguments = scripter_ast_construct_list (scripter_ast_add_spectrum (val.value.spectrum), arguments);
