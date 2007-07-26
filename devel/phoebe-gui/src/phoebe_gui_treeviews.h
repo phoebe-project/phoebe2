@@ -112,7 +112,8 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
 
-int gui_init_filter_combobox (GladeXML *parent_window);
+/* Initialzes filter comboboxes */
+int gui_init_filter_combobox (GtkWidget *combo_box);
 
 /* Cell data function for transforming the result of combobox selection (integer)
    into human readable strings that should appear in the spots treeview. */

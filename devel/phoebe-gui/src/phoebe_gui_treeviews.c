@@ -9,8 +9,6 @@ int gui_init_treeviews(GladeXML *phoebe_window, GladeXML *phoebe_load_lc_dialog)
     gui_init_rv_treeviews    (phoebe_window);
     gui_init_spots_treeview  (phoebe_window);
 
-	 gui_init_filter_combobox (phoebe_load_lc_dialog);
-
     return SUCCESS;
 }
 
@@ -259,9 +257,11 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     return SUCCESS;
 }
 
-int gui_init_filter_combobox (GladeXML *phoebe_load_lc_dialog)
+int gui_init_filter_combobox (GtkWidget *combo_box)
 {
+    /*
 	GtkWidget *combo_box = glade_xml_get_widget(phoebe_load_lc_dialog, "phoebe_load_lc_filter_combobox");
+    */
 
 	GtkTreeStore 		*store;
 	GtkTreeIter 		 toplevel, child;
@@ -294,12 +294,12 @@ int gui_init_filter_combobox (GladeXML *phoebe_load_lc_dialog)
 
 		}
 		else
-		{		
+		{
 			gtk_tree_store_append (store, &child, &toplevel);
 			gtk_tree_store_set (store, &child, 0, name,  -1);
 		}
 	}
-	
+
 	g_object_unref (store);
 
 	return SUCCESS;

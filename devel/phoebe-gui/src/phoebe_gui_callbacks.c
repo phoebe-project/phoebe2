@@ -46,23 +46,25 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
     GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
     GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-    GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
     GtkWidget *phoebe_load_lc_reddening_checkbutton = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_reddening_checkbutton");
     GtkWidget *pphoebe_load_lc_r_spinbutton         = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_r_spinbutton");
     GtkWidget *phoebe_load_lc_e_spinbutton          = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_e_spinbutton");
     GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
 
-	g_object_unref(phoebe_load_lc_xml);
+    GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
+    gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
 
-    GtkTreeModel *model;
-    GtkTreeIter iter;
+	g_object_unref(phoebe_load_lc_xml);
 
     int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
     switch (result)
     {
         case GTK_RESPONSE_OK:
+        {
+            GtkTreeModel *model;
+            GtkTreeIter iter;
 
-            model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
+            model        = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
             PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
             PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
@@ -71,7 +73,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                             LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
-                                                            LC_COL_FILTER,      "Undefined", /* TODO: get the filter */
+                                                            LC_COL_FILTER,      "Undefined",
                                                             LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
                                                             LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
                                                             LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
@@ -90,6 +92,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                                             LC_COL_Y1,          0.5,
                                                             LC_COL_Y2,          0.5, -1);
             break;
+        }
         case GTK_RESPONSE_CANCEL:
             break;
     }
@@ -116,11 +119,13 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
         GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
         GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-        GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
         GtkWidget *phoebe_load_lc_reddening_checkbutton = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_reddening_checkbutton");
         GtkWidget *pphoebe_load_lc_r_spinbutton         = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_r_spinbutton");
         GtkWidget *phoebe_load_lc_e_spinbutton          = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_e_spinbutton");
         GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
+
+        GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
+        gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
 
         g_object_unref(phoebe_load_lc_xml);
 
@@ -143,22 +148,21 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                 LC_COL_SIGMA,    &sigma, -1);
 
             gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
-            /* TODO: filter */
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
             gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
-
         }
-
-        PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
-        PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
-        PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
         switch (result)
         {
             case GTK_RESPONSE_OK:
+            {
+                PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
+                PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
+                PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
+
                 gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                                 LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
                                                                 LC_COL_FILTER,      "Undefined", /* TODO: get the filter */
@@ -180,6 +184,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                                 LC_COL_Y1,          0.5,
                                                                 LC_COL_Y2,          0.5, -1);
                 break;
+            }
             case GTK_RESPONSE_CANCEL:
                 break;
         }
@@ -265,8 +270,10 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
     GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
     GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-    GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
     GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+
+    GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
+    gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
     g_object_unref(phoebe_load_rv_xml);
 
@@ -326,8 +333,11 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
         GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
         GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-        GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
         GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+
+        GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
+        gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
+
 
         g_object_unref(phoebe_load_rv_xml);
 
@@ -680,8 +690,8 @@ void on_phoebe_para_surf_spots_adjust_checkbutton_toggled
                                          gpointer               user_data)
 {
     GtkTreeModel *model;
-    GtkTreeIter iter;
-    int active;
+    GtkTreeIter   iter;
+    int           active;
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
@@ -689,8 +699,14 @@ void on_phoebe_para_surf_spots_adjust_checkbutton_toggled
     {
         g_object_get(renderer, "active", &active, NULL);
 
-        if(active) gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
-        else       gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, TRUE, -1);
+        if(active)
+        {
+            gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
+        }
+        else
+        {
+            gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, TRUE, -1);
+        }
     }
 }
 
@@ -3663,7 +3679,7 @@ on_phoebe_sidesheet_detach_button_clicked
 
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
 	GUI_widget *container = gui_widget_lookup ("phoebe_sidesheet_table");
-	
+
 	if(PHOEBE_WINDOW_SIDESHEET_IS_DETACHED)
 	{
 		window = gtk_widget_get_parent(box->gtk);
@@ -3683,5 +3699,5 @@ on_phoebe_sidesheet_detach_button_clicked
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 		gtk_widget_show_all (window);
 		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
-	}	
+	}
 }
