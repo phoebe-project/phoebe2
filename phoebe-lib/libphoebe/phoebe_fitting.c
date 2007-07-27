@@ -382,16 +382,6 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		phoebe_curve_free (rv2curve);
 	}
 */
-	/* We're through with computing synthetic data. Now we calculate chi2:      */
-/*
-	phoebe_join_chi2 (&chi2, *chi2s, chi2weights);
-*/
-	/* Free the chi2 containers:                                                */
-/*
-	phoebe_vector_free (chi2weights);
-
-	return chi2;
-*/
 }
 #endif
 #endif
@@ -608,7 +598,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	simplex = phoebe_nms_simplex_new ();
 	phoebe_nms_simplex_alloc (simplex, dim_tba);
 
-	phoebe_nms_set (simplex, &phoebe_chi2_cost_function, adjpars, passed, &step, steps);
+	phoebe_nms_set (simplex, phoebe_chi2_cost_function, adjpars, passed, &step, steps);
 
 	do {
 		iter++;
