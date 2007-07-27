@@ -36,7 +36,7 @@ gsl_rng *PHOEBE_randomizer;
 
 int calls_to_cf = 0;
 
-double intern_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters *params)
+double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters *params)
 {
 	/*
 	 * This function evaluates chi2 of the O-C difference and returns its value
@@ -87,7 +87,7 @@ double intern_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 				}
 			break;
 			default:
-				phoebe_lib_error ("exception handler invoked in intern_cost_function (), please report this!\n");
+				phoebe_lib_error ("exception handler invoked in phoebe_cost_function (), please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 
@@ -608,11 +608,11 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	simplex = phoebe_nms_simplex_new ();
 	phoebe_nms_simplex_alloc (simplex, dim_tba);
 
-	phoebe_nms_set (simplex, &intern_chi2_cost_function, adjpars, passed, &step, steps);
+	phoebe_nms_set (simplex, &phoebe_chi2_cost_function, adjpars, passed, &step, steps);
 
 	do {
 		iter++;
-		status = phoebe_nms_iterate (simplex, intern_chi2_cost_function, adjpars, passed, &step, &cfval);
+		status = phoebe_nms_iterate (simplex, phoebe_chi2_cost_function, adjpars, passed, &step, &cfval);
 		if (status != SUCCESS) {
 			printf ("no success, breaking!\n");
 			break;
