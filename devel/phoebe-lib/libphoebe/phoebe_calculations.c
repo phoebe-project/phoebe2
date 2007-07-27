@@ -1103,7 +1103,7 @@ int calculate_synthetic_scatter_seed (double *seed)
 
 double intern_interstellar_extinction_coefficient_a (double lambda)
 {
-	double a;
+	double a = sqrt(-1);
 	double x = 10000./lambda;
 	double y = x - 1.82;
 
@@ -1120,7 +1120,7 @@ double intern_interstellar_extinction_coefficient_a (double lambda)
 
 double intern_interstellar_extinction_coefficient_b (double lambda)
 {
-	double b;
+	double b = sqrt(-1);
 	double x = 10000./lambda;
 	double y = x - 1.82;
 
