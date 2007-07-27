@@ -2087,7 +2087,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			/* Read in the observed curve: */
 			obs = phoebe_curve_new_from_file ((char *) filename);
 			phoebe_curve_set_properties (obs, PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
-			phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+			phoebe_curve_transform (obs, itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
 			/* Synthesize a theoretical curve: */
 			syncurve = phoebe_curve_new ();
@@ -2113,7 +2113,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			/* Read in the observed curve: */
 			obs = phoebe_curve_new_from_file ((char *) filename);
 			phoebe_curve_set_properties (obs, PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, 1.0);
-			phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, obs->dtype, PHOEBE_COLUMN_WEIGHT);
+			phoebe_curve_transform (obs, itype, obs->dtype, PHOEBE_COLUMN_WEIGHT);
 
 			syncurve = phoebe_curve_new ();
 			read_in_synthetic_data (syncurve, obs->indep, index-lcno-1, obs->dtype);
