@@ -64,7 +64,16 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
             GtkTreeModel *model;
             GtkTreeIter iter;
 
+				GtkTreeIter filter_iter;
+				gint 			filter_number;
+				gchar 		filter_selected[255]="Undefined";
+
             model        = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
+
+				if(gtk_combo_box_get_active_iter (GTK_COMBO_BOX(phoebe_load_lc_filter_combobox), &filter_iter)){
+					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
+					sprintf(filter_selected, "%s  (%.0lfnm)", PHOEBE_passbands[filter_number]->name, PHOEBE_passbands[filter_number]->effwl/10.);
+				}
 
             PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
             PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
@@ -73,7 +82,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                             LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
-                                                            LC_COL_FILTER,      "Undefined",
+                                                            LC_COL_FILTER,      filter_selected,
                                                             LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
                                                             LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
                                                             LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),

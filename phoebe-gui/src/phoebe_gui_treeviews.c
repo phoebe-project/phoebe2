@@ -257,6 +257,16 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     return SUCCESS;
 }
 
+static void cell_data_func (GtkCellLayout *cell_layout,
+                            GtkCellRenderer *renderer,
+                            GtkTreeModel *model,
+                            GtkTreeIter *iter,
+                            gpointer data)
+{
+	if(gtk_tree_model_iter_has_child(model, iter)) g_object_set(renderer, "sensitive", FALSE, NULL);
+	else g_object_set(renderer, "sensitive", TRUE, NULL);
+}
+
 int gui_init_filter_combobox (GtkWidget *combo_box)
 {
     /*
@@ -273,13 +283,15 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 	char set[255];
 	char name[255];
 
-	store = gtk_tree_store_new (1, G_TYPE_STRING);
+	store = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_INT);
 
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_box), GTK_TREE_MODEL (store));
 
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(combo_box), renderer, TRUE);
 	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(combo_box), renderer, "text", 0);
+
+	gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo_box), renderer, cell_data_func, NULL, NULL);
 
 	for(i=0;i<PHOEBE_passbands_no;i++){
 		sprintf(set, "%s",(PHOEBE_passbands[i])->set);
@@ -288,15 +300,15 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 		if(strcmp(par, set)){
 			strcpy(par, set);
 			gtk_tree_store_append (store, &toplevel, NULL);
-			gtk_tree_store_set (store, &toplevel, 0, par,  -1);
+			gtk_tree_store_set (store, &toplevel, 0, par, 1, i, -1);
 			gtk_tree_store_append (store, &child, &toplevel);
-			gtk_tree_store_set (store, &child, 0, name,  -1);
+			gtk_tree_store_set (store, &child, 0, name, 1, i, -1);
 
 		}
 		else
 		{
 			gtk_tree_store_append (store, &child, &toplevel);
-			gtk_tree_store_set (store, &child, 0, name,  -1);
+			gtk_tree_store_set (store, &child, 0, name, 1, i, -1);
 		}
 	}
 
