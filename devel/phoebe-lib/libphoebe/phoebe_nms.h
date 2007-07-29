@@ -14,18 +14,17 @@ typedef struct PHOEBE_nms_simplex {
 /* These are typedeffed structs used for passing arguments to minimizers: */
 
 typedef struct PHOEBE_nms_parameters {
-	PHOEBE_parameter_list *tba;
-	int dim_tba;       /* The dimension of the subspace marked for adjustment */
+	PHOEBE_array *qualifiers;           /* A list of unconstrained qualifiers */
 	int lcno;                          /* The number of observed light curves */
 	int rvno;                             /* The number of observed RV curves */
+	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
+	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
+	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 	bool rv1;
 	bool rv2;
 	int CALCHLA;
 	int CALCVGA;
-	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
 	double *average;
-	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
-	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 } PHOEBE_nms_parameters;
 
 PHOEBE_nms_simplex *phoebe_nms_simplex_new      ();

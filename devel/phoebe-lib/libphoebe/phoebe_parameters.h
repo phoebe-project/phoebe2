@@ -87,6 +87,7 @@ int               phoebe_free_parameters        ();
 
 int               phoebe_init_parameter_options ();
 
+int               phoebe_qualifier_string_parse   (char *input, char **qualifier, int *element);
 bool              phoebe_qualifier_is_constrained (char *qualifier);
 
 /******************************************************************************/

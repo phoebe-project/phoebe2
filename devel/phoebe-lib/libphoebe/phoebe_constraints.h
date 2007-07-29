@@ -26,7 +26,6 @@ typedef struct PHOEBE_ast {
 		int    idx;
 		double numval;
 		char  *str;
-		PHOEBE_parameter *par;
 		struct {
 			PHOEBE_node_type        type;
 			struct PHOEBE_ast_list *args;
@@ -46,7 +45,6 @@ typedef struct PHOEBE_ast_value {
 		int               idx;
 		double            numval;
 		char             *str;
-		PHOEBE_parameter *par;
 	} val;
 } PHOEBE_ast_value;
 
@@ -62,7 +60,7 @@ int phoebe_ast_list_length (PHOEBE_ast_list *list);
 PHOEBE_ast *phoebe_ast_add_index     (int idx);
 PHOEBE_ast *phoebe_ast_add_numval    (double numval);
 PHOEBE_ast *phoebe_ast_add_builtin   (char *builtin);
-PHOEBE_ast *phoebe_ast_add_parameter (PHOEBE_parameter *par);
+PHOEBE_ast *phoebe_ast_add_parameter (char *qualifier);
 PHOEBE_ast *phoebe_ast_add_node      (PHOEBE_node_type type, PHOEBE_ast_list *args);
 
 PHOEBE_ast *phoebe_ast_duplicate     (PHOEBE_ast *ast);

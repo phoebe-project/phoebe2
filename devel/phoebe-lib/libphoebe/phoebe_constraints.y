@@ -15,11 +15,19 @@ extern int yyerror (const char *str);
 extern int intern_constraint_add_to_table (PHOEBE_ast *ast);
 %}
 
+/*
+ * You might be tempted to add a (PHOEBE_parameter *) field to the union
+ * below instead of using qualifiers; don't. The reason is that the pointers
+ * to parameters that would be set for the constraints would point to the
+ * parameter in the parameter table that was active at the time of constraint
+ * generation, which would be wrong: we need the pointer to the currently
+ * active table.
+ */
+
 %union {
 	int    idx;
 	double val;
 	char  *str;
-	struct PHOEBE_parameter *par;
 	struct PHOEBE_ast *ast;
 	struct PHOEBE_ast_list *args;
 }
@@ -33,7 +41,7 @@ extern int intern_constraint_add_to_table (PHOEBE_ast *ast);
 %token <str> BUILTIN
 %type  <ast> builtin
 
-%token <par> PARAMETER
+%token <str> PARAMETER
 %type  <ast> parameter
 
 %type  <ast> constraint
