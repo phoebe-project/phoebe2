@@ -380,6 +380,7 @@ typedef struct PHOEBE_minimizer_feedback {
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new       ();
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer_feedback *feedback);
 int                        phoebe_minimizer_feedback_alloc     (PHOEBE_minimizer_feedback *feedback, int tba, int cno);
+int                        phoebe_minimizer_feedback_accept    (PHOEBE_minimizer_feedback *feedback);
 int                        phoebe_minimizer_feedback_free      (PHOEBE_minimizer_feedback *feedback);
 
 /* **************************************************************************** */

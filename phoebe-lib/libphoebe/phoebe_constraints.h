@@ -72,6 +72,7 @@ int phoebe_ast_free (PHOEBE_ast *ast);
 
 int   phoebe_constraint_new (const char *constraint);
 char *phoebe_constraint_get_qualifier (PHOEBE_ast *constraint);
+int   phoebe_constraint_satisfy_all ();
 int   phoebe_free_constraints ();
 
 extern int pcparse (void);

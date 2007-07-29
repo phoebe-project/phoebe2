@@ -121,7 +121,7 @@ expr:			  numval    { $$ = $1; }
 int pcerror (const char *str)
 {
 	fprintf (stderr, "error: %s\n", str);
-	return;
+	return 1;
 }
 
 int pcwrap ()

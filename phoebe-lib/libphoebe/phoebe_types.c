@@ -7,6 +7,7 @@
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
@@ -2482,6 +2483,39 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
 
 	return dup;
+}
+
+int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
+{
+	/**
+	 * phoebe_minimizer_feedback_accept:
+	 * @feedback: minimizer feedback with new values of parameters.
+	 *
+	 * Traverses through all the parameters stored in the feedback structure
+	 * and copies the values to the currently active parameter table. After
+	 * all the values have been updated, the function satisfies all constraints
+	 * as well.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, index;
+	char *qualifier;
+
+	for (i = 0; i < feedback->qualifiers->dim; i++) {
+		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
+		if (index == 0)
+			phoebe_parameter_set_value (phoebe_parameter_lookup (qualifier), feedback->newvals->val[i]);
+		else
+			phoebe_parameter_set_value (phoebe_parameter_lookup (qualifier), index-1, feedback->newvals->val[i]);
+
+		free (qualifier);
+	}
+
+	/* Satisfy all the constraints: */
+	phoebe_constraint_satisfy_all ();
+
+	return SUCCESS;
 }
 
 int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
