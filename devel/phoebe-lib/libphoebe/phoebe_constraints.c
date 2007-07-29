@@ -448,6 +448,19 @@ int phoebe_ast_free (PHOEBE_ast *ast)
 	return SUCCESS;
 }
 
+int phoebe_constraint_satisfy_all ()
+{
+	PHOEBE_ast_list *constraint;
+
+	constraint = PHOEBE_pt->lists.constraints;
+	while (constraint) {
+		phoebe_ast_evaluate (constraint->elem);
+		constraint = constraint->next;
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_free_constraints ()
 {
 	PHOEBE_ast_list *c = PHOEBE_pt->lists.constraints;

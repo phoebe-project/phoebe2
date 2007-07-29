@@ -77,23 +77,19 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	for (i = 0; i < qualifiers->dim; i++) {
 		status = phoebe_qualifier_string_parse (qualifiers->val.strarray[i], &qualifier, &index);
 		par = phoebe_parameter_lookup (qualifier);
-		if (status == SUCCESS) {
-			printf ("    %s[%d]: %lf -> %lf\n", par->qualifier, index, par->value.vec->val[index-1], adjpars->val[i]);
-			phoebe_parameter_set_value (par, index-1, adjpars->val[i]);
-		}
-		else {
+		if (index == 0) {
 			printf ("    %s: %lf -> %lf\n", par->qualifier, par->value.d, adjpars->val[i]);
 			phoebe_parameter_set_value (par, adjpars->val[i]);
+		}
+		else {
+			printf ("    %s[%d]: %lf -> %lf\n", par->qualifier, index, par->value.vec->val[index-1], adjpars->val[i]);
+			phoebe_parameter_set_value (par, index-1, adjpars->val[i]);
 		}
 		free (qualifier);
 	}
 
-	/* Fulfill all the constraints: */
-	constraint = PHOEBE_pt->lists.constraints;
-	while (constraint) {
-		phoebe_ast_evaluate (constraint->elem);
-		constraint = constraint->next;
-	}
+	/* Satisfy all the constraints: */
+	phoebe_constraint_satisfy_all ();
 
 	/* Read in model parameters for each curve/passband: */
 	lcipars = phoebe_malloc ( (lcno+rvno) * sizeof (*lcipars));
@@ -552,10 +548,10 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 
 		status = phoebe_qualifier_string_parse (qualifiers->val.strarray[i], &qualifier, &index);
 		par = phoebe_parameter_lookup (qualifier);
-		if (status == SUCCESS)
-			phoebe_parameter_get_value (par, index-1, &(adjpars->val[i]));
-		else
+		if (index == 0)
 			phoebe_parameter_get_value (par, &(adjpars->val[i]));
+		else
+			phoebe_parameter_get_value (par, index-1, &(adjpars->val[i]));
 
 		phoebe_parameter_get_step (par, &(steps->val[i]));
 printf ("par: %s\tinitval: %lf\n", qualifier, adjpars->val[i]);

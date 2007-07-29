@@ -433,19 +433,20 @@ int phoebe_parameter_add_option (PHOEBE_parameter *par, char *option)
 	return SUCCESS;
 }
 
-int phoebe_qualifier_string_parse (char *input, char **qualifier, int *element)
+int phoebe_qualifier_string_parse (char *input, char **qualifier, int *index)
 {
 	/**
 	 * phoebe_qualifier_string_parse:
 	 * @input: the string of the form "qualifier[element]" to be parsed.
 	 * @qualifier: the newly allocated string that holds the qualifier.
-	 * @element: the qualifier index.
+	 * @index: the qualifier index.
 	 *
-	 * Parses the input string of the form qualifier[element]. The tokens
-	 * are assigned to the passed arguments 'qualifier' (which is allocated)
-	 * and 'element'. The allocated string needs to be freed by the calling
-	 * function. Also, this function merely parses a passed string, it does
-	 * not check for the qualifier and element validity.
+	 * Parses the input string of the form qualifier[index]. The tokens are
+	 * assigned to the passed arguments @qualifier (which is allocated) and
+	 * @index. The allocated string needs to be freed by the calling function.
+	 * Also, this function merely parses a passed string, it does not check
+	 * for the qualifier and element validity. If the qualifier is a scalar,
+	 * @index is set to 0.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -458,8 +459,10 @@ int phoebe_qualifier_string_parse (char *input, char **qualifier, int *element)
 		return ERROR_QUALIFIER_STRING_IS_NULL;
 
 	if ( !(delim = strchr (input, '[')) ) {
+		/* The qualifier is a scalar. */
 		*qualifier = strdup (input);
-		return ERROR_QUALIFIER_STRING_MALFORMED;
+		*index = 0;
+		return SUCCESS;
 	}
 
 	length = strlen(input)-strlen(delim);
@@ -468,7 +471,7 @@ int phoebe_qualifier_string_parse (char *input, char **qualifier, int *element)
 	strncpy (*qualifier, input, length);
 	(*qualifier)[length] = '\0';
 
-	if ( (sscanf (delim, "[%d]", element)) != 1)
+	if ( (sscanf (delim, "[%d]", index)) != 1)
 		return ERROR_QUALIFIER_STRING_MALFORMED;
 
 	return SUCCESS;
