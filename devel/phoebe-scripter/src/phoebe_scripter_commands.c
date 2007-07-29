@@ -1141,11 +1141,7 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 	 *   adopt_minimizer_results (feedback)
 	 */
 
-	int status, i;
-	PHOEBE_minimizer_feedback *feedback;
-	PHOEBE_parameter *par;
-	char *qualifier;
-	int index, length;
+	int status;
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
@@ -1155,46 +1151,10 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_minfeedback);
 	if (status != SUCCESS) return out;
 
-	feedback = vals[0].value.feedback;
-	for (i = 0; i < feedback->qualifiers->dim; i++) {
-		/*
-		 * We have to parse the string stored in the variable
-		 * feedback->qualifiers->val.strarray[i], because it contains the
-		 * passband index for passband dependent parameters, i.e. phoebe_hla[1]
-		 * etc.
-		 */
-
-		char *index_str = strchr (feedback->qualifiers->val.strarray[i], '[');
-		if (!index_str)
-			qualifier = strdup (feedback->qualifiers->val.strarray[i]);
-		else {
-			length = strlen(feedback->qualifiers->val.strarray[i])-strlen(index_str)+1;
-			qualifier = phoebe_malloc ( length * sizeof (*qualifier) );
-			strncpy (qualifier, feedback->qualifiers->val.strarray[i], length);
-			qualifier[length-1] = '\0';
-			sscanf (index_str, "[%d]", &index);
-		}
-		par = phoebe_parameter_lookup (qualifier);
-		if (!par) {
-			phoebe_scripter_output ("parameter %s not recognized, aborting.\n", feedback->qualifiers->val.strarray[i]);
-			scripter_ast_value_array_free (vals, 1);
-			free (qualifier);
-			return out;
-		}
-		if (!index_str) {
-			status = phoebe_parameter_set_value (par, feedback->newvals->val[i]);
-			phoebe_debug ("parameter %s set to %lf\n", par->qualifier, feedback->newvals->val[i]);
-		}
-		else {
-			status = phoebe_parameter_set_value (par, index-1, feedback->newvals->val[i]);
-			phoebe_debug ("parameter %s[%d] set to %lf\n", par->qualifier, index, feedback->newvals->val[i]);
-		}
-	}
-
+	status = phoebe_minimizer_feedback_accept (vals[0].value.feedback);
 	if (status != SUCCESS)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
-	free (qualifier);
 	scripter_ast_value_array_free (vals, 1);
 	out.type = type_void;
 	return out;
