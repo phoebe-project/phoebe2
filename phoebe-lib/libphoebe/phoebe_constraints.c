@@ -7,6 +7,40 @@
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
 
+char *phoebe_ast_node_type_get_name (PHOEBE_node_type type)
+{
+	switch (type) {
+		case PHOEBE_NODE_TYPE_CONSTRAINT:
+			return "constraint";
+		break;
+		case PHOEBE_NODE_TYPE_PARAMETER:
+			return "parameter";
+		break;
+		case PHOEBE_NODE_TYPE_ADD:
+			return "+";
+		break;
+		case PHOEBE_NODE_TYPE_SUB:
+			return "-";
+		break;
+		case PHOEBE_NODE_TYPE_MUL:
+			return "*";
+		break;
+		case PHOEBE_NODE_TYPE_DIV:
+			return "/";
+		break;
+		case PHOEBE_NODE_TYPE_POT:
+			return "^";
+		break;
+		case PHOEBE_NODE_TYPE_BUILTIN:
+			return "func";
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_ast_node_type_get_name (), please report this!\n");
+	}
+
+	return NULL;
+}
+
 PHOEBE_ast *phoebe_ast_add_index (int idx)
 {
 	PHOEBE_ast *ast = phoebe_malloc (sizeof (*ast));
@@ -34,11 +68,11 @@ PHOEBE_ast *phoebe_ast_add_builtin (char *builtin)
 	return ast;
 }
 
-PHOEBE_ast *phoebe_ast_add_parameter (PHOEBE_parameter *par)
+PHOEBE_ast *phoebe_ast_add_parameter (char *qualifier)
 {
 	PHOEBE_ast *ast    = phoebe_malloc (sizeof (*ast));
 	ast->type          = PHOEBE_AST_PARAMETER;
-	ast->val.par       = par;
+	ast->val.str       = strdup (qualifier);
 
 	return ast;
 }
@@ -101,7 +135,7 @@ PHOEBE_ast *phoebe_ast_duplicate (PHOEBE_ast *ast)
 			out = phoebe_ast_add_builtin (ast->val.str);
 		break;
 		case PHOEBE_AST_PARAMETER:
-			out = phoebe_ast_add_parameter (phoebe_parameter_lookup (ast->val.par->qualifier));
+			out = phoebe_ast_add_parameter (ast->val.str);
 		break;
 		case PHOEBE_AST_NODE:
 			args = ast->val.node.args;
@@ -113,6 +147,7 @@ PHOEBE_ast *phoebe_ast_duplicate (PHOEBE_ast *ast)
 		break;
 		default:
 			phoebe_lib_error ("exception handler invoked in phoebe_ast_duplicate (), please report this.\n");
+			out = NULL;
 		break;
 	}
 
@@ -144,32 +179,34 @@ PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast)
 		break;
 		case PHOEBE_AST_PARAMETER:
 			val.type = PHOEBE_AST_VALUE_PARAMETER;
-			val.val.par = ast->val.par;
+			val.val.str = ast->val.str;
 		break;
 		case PHOEBE_AST_NODE:
 			switch (ast->val.node.type) {
 				case PHOEBE_NODE_TYPE_CONSTRAINT:
 					val.type = PHOEBE_AST_VALUE_VOID;
 					if (phoebe_ast_list_length (ast->val.node.args) == 2) {
-						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_ast_value parv = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_parameter *par = phoebe_parameter_lookup (parv.val.str);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->elem);
-						printf ("setting %s to %lf\n", par.val.par->qualifier, expr.val.numval);
-						phoebe_parameter_set_value (par.val.par, expr.val.numval);
+						printf ("    setting %s to %lf\n", par->qualifier, expr.val.numval);
+						phoebe_parameter_set_value (par, expr.val.numval);
 					}
 					if (phoebe_ast_list_length (ast->val.node.args) == 3) {
-						PHOEBE_ast_value par = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_ast_value parv = phoebe_ast_evaluate (ast->val.node.args->elem);
+						PHOEBE_parameter *par = phoebe_parameter_lookup (parv.val.str);
 						PHOEBE_ast_value idx = phoebe_ast_evaluate (ast->val.node.args->next->elem);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->next->elem);
-						printf ("setting %s[%d] to %lf\n", par.val.par->qualifier, idx.val.idx, expr.val.numval);
-						phoebe_parameter_set_value (par.val.par, idx.val.idx, expr.val.numval);
+						printf ("    setting %s[%d] to %lf\n", par->qualifier, idx.val.idx, expr.val.numval);
+						phoebe_parameter_set_value (par, idx.val.idx-1, expr.val.numval);
 					}
 				break;
 				case PHOEBE_NODE_TYPE_PARAMETER:
 					val.type = PHOEBE_AST_VALUE_PARAMETER;
 					if (phoebe_ast_list_length (ast->val.node.args) == 1)
-						phoebe_parameter_get_value (ast->val.node.args->elem->val.par, &val.val.numval);
+						phoebe_parameter_get_value (phoebe_parameter_lookup (ast->val.node.args->elem->val.str), &val.val.numval);
 					if (phoebe_ast_list_length (ast->val.node.args) == 2)
-						phoebe_parameter_get_value (ast->val.node.args->elem->val.par, ast->val.node.args->next->elem->val.idx, &val.val.numval);
+						phoebe_parameter_get_value (phoebe_parameter_lookup (ast->val.node.args->elem->val.str), ast->val.node.args->next->elem->val.idx-1, &val.val.numval);
 				break;
 				case PHOEBE_NODE_TYPE_ADD: {
 					PHOEBE_ast_value op1 = phoebe_ast_evaluate (ast->val.node.args->elem);
@@ -267,11 +304,11 @@ int phoebe_ast_print (int depth, PHOEBE_ast *in)
 			printf ("| \"%s\"\n", in->val.str);
 		break;
 		case PHOEBE_AST_PARAMETER:
-			printf ("| %s\n", in->val.par->qualifier);
+			printf ("| %s\n", in->val.str);
 		break;
 		case PHOEBE_AST_NODE:
 			depth += 1;
-			printf ("| %d\n", in->val.node.type);
+			printf ("| %s\n", phoebe_ast_node_type_get_name (in->val.node.type));
 			args = in->val.node.args;
 			while (args) {
 				phoebe_ast_print (depth, args->elem);
@@ -359,7 +396,7 @@ char *phoebe_constraint_get_qualifier (PHOEBE_ast *constraint)
 	 */
 
 	char *qualifier;
-	PHOEBE_parameter *par = constraint->val.node.args->elem->val.par;
+	PHOEBE_parameter *par = phoebe_parameter_lookup (constraint->val.node.args->elem->val.str);
 
 	if (par->type == TYPE_DOUBLE)
 		qualifier = strdup (par->qualifier);

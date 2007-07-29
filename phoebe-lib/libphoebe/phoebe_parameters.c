@@ -433,6 +433,47 @@ int phoebe_parameter_add_option (PHOEBE_parameter *par, char *option)
 	return SUCCESS;
 }
 
+int phoebe_qualifier_string_parse (char *input, char **qualifier, int *element)
+{
+	/**
+	 * phoebe_qualifier_string_parse:
+	 * @input: the string of the form "qualifier[element]" to be parsed.
+	 * @qualifier: the newly allocated string that holds the qualifier.
+	 * @element: the qualifier index.
+	 *
+	 * Parses the input string of the form qualifier[element]. The tokens
+	 * are assigned to the passed arguments 'qualifier' (which is allocated)
+	 * and 'element'. The allocated string needs to be freed by the calling
+	 * function. Also, this function merely parses a passed string, it does
+	 * not check for the qualifier and element validity.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	char *delim;
+
+	int length;
+
+	if (!input)
+		return ERROR_QUALIFIER_STRING_IS_NULL;
+
+	if ( !(delim = strchr (input, '[')) ) {
+		*qualifier = strdup (input);
+		return ERROR_QUALIFIER_STRING_MALFORMED;
+	}
+
+	length = strlen(input)-strlen(delim);
+
+	*qualifier = phoebe_malloc ( (length+1) * sizeof (**qualifier));
+	strncpy (*qualifier, input, length);
+	(*qualifier)[length] = '\0';
+
+	if ( (sscanf (delim, "[%d]", element)) != 1)
+		return ERROR_QUALIFIER_STRING_MALFORMED;
+
+	return SUCCESS;
+}
+
 bool phoebe_qualifier_is_constrained (char *qualifier)
 {
 	/**
@@ -445,7 +486,7 @@ bool phoebe_qualifier_is_constrained (char *qualifier)
 	PHOEBE_ast_list *constraint = PHOEBE_pt->lists.constraints;
 
 	while (constraint) {
-		printf ("comparing %s and %s\n", phoebe_constraint_get_qualifier (constraint->elem), qualifier);
+		phoebe_debug ("comparing %s and %s\n", phoebe_constraint_get_qualifier (constraint->elem), qualifier);
 		if (strcmp (phoebe_constraint_get_qualifier (constraint->elem), qualifier) == 0)
 			return TRUE;
 		constraint = constraint->next;
@@ -1219,7 +1260,7 @@ PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table
 	 *
 	 * Makes a duplicate copy of the table @table.
 	 *
-	 * Returns: #PHOEBE_parameter_table
+	 * Returns: #PHOEBE_parameter_table.
 	 */
 
 	int i, j;
@@ -1323,7 +1364,7 @@ int phoebe_parameter_table_activate (PHOEBE_parameter_table *table)
 	 * Sets a pointer to the currently active parameter table @PHOEBE_pt to
 	 * @table.
 	 *
-	 * Returns: #PHOEBE_error_code
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	if (!table)

@@ -48,15 +48,18 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	 * ments of *pars which are set for adjustment.
 	 */
 
-	int i, j, k;
+	int status, i;
 	double cfval;
+	char *qualifier;
+	PHOEBE_parameter *par;
+	int index;
 
-	int                    lcno    = params->lcno;
-	int                    rvno    = params->rvno;
-	PHOEBE_curve         **obs     = params->obs;
-	PHOEBE_parameter_list *tba     = params->tba;
-	PHOEBE_vector         *chi2s   = params->chi2s;
-	PHOEBE_vector         *weights = params->weights;
+	PHOEBE_array          *qualifiers = params->qualifiers;
+	int                    lcno       = params->lcno;
+	int                    rvno       = params->rvno;
+	PHOEBE_curve         **obs        = params->obs;
+	PHOEBE_vector         *chi2s      = params->chi2s;
+	PHOEBE_vector         *weights    = params->weights;
 
 	WD_LCI_parameters    **lcipars;
 	PHOEBE_ast_list *constraint;
@@ -70,28 +73,19 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	 * iteration values:
 	 */
 
-	phoebe_debug ("  assigning new parameter values:\n");
-	j = 0;
-	while (tba) {
-		switch (tba->par->type) {
-			case TYPE_DOUBLE:
-				phoebe_debug ("    %s: %lf -> %lf\n", tba->par->qualifier, tba->par->value.d, adjpars->val[j]);
-				phoebe_parameter_set_value (tba->par, adjpars->val[j]);
-				j++;
-			break;
-			case TYPE_DOUBLE_ARRAY:
-				for (k = 0; k < lcno; k++) {
-					phoebe_debug ("    %s[%d]: %lf -> %lf\n", tba->par->qualifier, k, tba->par->value.vec->val[k], adjpars->val[j]);
-					phoebe_parameter_set_value (tba->par, k, adjpars->val[j]);
-					j++;
-				}
-			break;
-			default:
-				phoebe_lib_error ("exception handler invoked in phoebe_cost_function (), please report this!\n");
-				return ERROR_EXCEPTION_HANDLER_INVOKED;
+	printf ("  assigning new parameter values:\n");
+	for (i = 0; i < qualifiers->dim; i++) {
+		status = phoebe_qualifier_string_parse (qualifiers->val.strarray[i], &qualifier, &index);
+		par = phoebe_parameter_lookup (qualifier);
+		if (status == SUCCESS) {
+			printf ("    %s[%d]: %lf -> %lf\n", par->qualifier, index, par->value.vec->val[index-1], adjpars->val[i]);
+			phoebe_parameter_set_value (par, index-1, adjpars->val[i]);
 		}
-
-		tba = tba->next;
+		else {
+			printf ("    %s: %lf -> %lf\n", par->qualifier, par->value.d, adjpars->val[i]);
+			phoebe_parameter_set_value (par, adjpars->val[i]);
+		}
+		free (qualifier);
 	}
 
 	/* Fulfill all the constraints: */
@@ -112,7 +106,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		read_in_wd_lci_parameters (lcipars[lcno+i], /* MPAGE = */ 2, i);
 	}
 
-	/* Compute synthetic light curves: */
+	/* Compute theoretical light curves: */
 	for (i = 0; i < lcno + rvno; i++) {
 		PHOEBE_curve *curve = phoebe_curve_new ();
 
@@ -129,13 +123,9 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 
 	return cfval;
 /*
-	int status, i, curve;
-	PHOEBE_vector *chi2weights;
-
 	PHOEBE_el3_units el3units;
 	double A;
 
-	double          chi2             = 0.0;
 	bool            rv1present       = (*(NMS_passed_parameters *) params).rv1;
 	bool            rv2present       = (*(NMS_passed_parameters *) params).rv2;
 	bool            color_constraint = (*(NMS_passed_parameters *) params).color_constraint;
@@ -149,18 +139,6 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	double         *average          = (*(NMS_passed_parameters *) params).average;
 	double         *cindex           = (*(NMS_passed_parameters *) params).cindex;
 	double       ***pointers         = (*(NMS_passed_parameters *) params).pointers;
-*/
-	/*
-	 * During this function we'll store chi2 values of individual datasets to
-	 * the vector chi2s and their respective weights to chi2weights. So let us
-	 * initialize these two vectors and allocate the data for them:
-	 */
-/*
-	*chi2s = phoebe_vector_new ();
-	phoebe_vector_alloc (*chi2s, lcno + rvno);
-
-	chi2weights = phoebe_vector_new ();
-	phoebe_vector_alloc (chi2weights, lcno + rvno);
 */
 	/*
 	 * 1st step: impose value constraints for parameters marked for adjustment.
@@ -407,17 +385,19 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 
 	PHOEBE_parameter_table *table;
 
-	int status, i, j;
+	int status, i, j, index;
 	char *readout_str;
 	clock_t clock_start, clock_stop;
 	PHOEBE_parameter_list *tba;
+	PHOEBE_parameter *par;
 	PHOEBE_column_type indep;
 
 	PHOEBE_nms_parameters *passed;
 
 	int lcno, rvno;
-	char *qualifier, **qualifiers = NULL;
+	char *qualifier;
 	int dim_tba;
+	PHOEBE_array *qualifiers;
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
 	PHOEBE_vector *weights;
@@ -454,11 +434,12 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	 * the dimension of the subspace that will be adjusted rather than the
 	 * actual number of parameters. It will also cross-check if any of the
 	 * parameters marked for adjustment are constrained; if so, they will
-	 * be skipped silently. It is up to the calling function to do error
-	 * handling if desireable.
+	 * be removed from the queue.
 	 */
 
+	qualifiers = phoebe_array_new (TYPE_STRING_ARRAY);
 	dim_tba = 0;
+
 	while (tba) {
 		if (tba->par->type == TYPE_DOUBLE) {
 			qualifier = strdup (tba->par->qualifier);
@@ -469,8 +450,8 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 			else {
 				/* Add the qualifier to the list of qualifiers: */
 				dim_tba++;
-				qualifiers = phoebe_realloc (qualifiers, dim_tba * sizeof (*qualifiers));
-				qualifiers[dim_tba-1] = qualifier;
+				phoebe_array_realloc (qualifiers, dim_tba);
+				qualifiers->val.strarray[dim_tba-1] = qualifier;
 			}
 		}
 		else /* if (tba->par->type == TYPE_DOUBLE_ARRAY) */ {
@@ -484,8 +465,8 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 				else {
 					/* Add the qualifier to the list of qualifiers: */
 					dim_tba++;
-					qualifiers = phoebe_realloc (qualifiers, dim_tba * sizeof (*qualifiers));
-					qualifiers[dim_tba-1] = qualifier;
+					phoebe_array_realloc (qualifiers, dim_tba);
+					qualifiers->val.strarray[dim_tba-1] = qualifier;
 				}
 			}
 		}
@@ -493,22 +474,21 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		tba = tba->next;
 	}
 
-	if (dim_tba == 0)
+	if (dim_tba == 0) {
+		phoebe_array_free (qualifiers);
 		return ERROR_MINIMIZER_NO_PARAMS;
+	}
 
 	/* Create a copy of the parameter table and activate it: */
 	table = phoebe_parameter_table_duplicate (PHOEBE_pt);
 	phoebe_parameter_table_activate (table);
 
-	/* Remove all constrained parameters from the pool of marked parameters: */
-	tba = phoebe_parameter_list_get_marked_tba ();
+	phoebe_debug ("* parameters set for adjustment:\n");
+	for (i = 0; i < dim_tba; i++)
+		printf ("  %d: %s\n", i+1, qualifiers->val.strarray[i]);
 
 	/* Allocate the memory for the feedback structure: */
 	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
-
-	phoebe_debug ("* parameters set for adjustment:\n");
-	for (i = 0; i < dim_tba; i++)
-		phoebe_debug ("  %d: %s\n", i+1, qualifiers[i]);
 
 	/* Will the computation be done in HJD- or in phase-space? */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
@@ -552,13 +532,12 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	/* Populate the structure that will be passed to the cost function: */
 	passed = phoebe_malloc (sizeof (*passed));
 
-	passed->tba      = phoebe_parameter_list_get_marked_tba ();
-	passed->dim_tba  = dim_tba;
-	passed->lcno     = lcno;
-	passed->rvno     = rvno;
-	passed->obs      = obs;
-	passed->chi2s    = chi2s;
-	passed->weights  = weights;
+	passed->qualifiers = qualifiers;
+	passed->lcno       = lcno;
+	passed->rvno       = rvno;
+	passed->obs        = obs;
+	passed->chi2s      = chi2s;
+	passed->weights    = weights;
 
 	/* Read out initial values and step sizes: */
 
@@ -567,31 +546,20 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	steps   = phoebe_vector_new ();
 	phoebe_vector_alloc (steps, dim_tba);
 
-	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
-	while (tba) {
-		switch (tba->par->type) {
-			case TYPE_DOUBLE:
-				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
-				phoebe_parameter_get_value (tba->par, &(feedback->initvals->val[i]));
-				adjpars->val[i] = tba->par->value.d;
-				steps->val[i]   = tba->par->step;
-				i++;
-			break;
-			case TYPE_DOUBLE_ARRAY:
-				for (j = 0; j < lcno; j++) {
-					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
-					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, j+1);
-					phoebe_parameter_get_value (tba->par, j, &(feedback->initvals->val[i+j]));
-					adjpars->val[i+j] = tba->par->value.vec->val[j];
-					steps->val[i+j]   = tba->par->step;
-				}
-				i += lcno;
-			break;
-			default:
-				phoebe_lib_error ("exception handler invoked in phoebe_minimize_using_nms (), please report this!\n");
-				return ERROR_EXCEPTION_HANDLER_INVOKED;
-		}
-		tba = tba->next;
+	/* Read out initial values and step sizes: */
+	for (i = 0; i < dim_tba; i++) {
+		feedback->qualifiers->val.strarray[i] = strdup (qualifiers->val.strarray[i]);
+
+		status = phoebe_qualifier_string_parse (qualifiers->val.strarray[i], &qualifier, &index);
+		par = phoebe_parameter_lookup (qualifier);
+		if (status == SUCCESS)
+			phoebe_parameter_get_value (par, index-1, &(adjpars->val[i]));
+		else
+			phoebe_parameter_get_value (par, &(adjpars->val[i]));
+
+		phoebe_parameter_get_step (par, &(steps->val[i]));
+printf ("par: %s\tinitval: %lf\n", qualifier, adjpars->val[i]);
+		feedback->initvals->val[i] = adjpars->val[i];
 	}
 
 	/* Allocate the minimizer: */
@@ -637,9 +605,10 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		phoebe_curve_free (obs[i]);
 	free (obs);
 
-	/* Free passband vectors: */
+	/* Free the placeholder memory: */
 	phoebe_vector_free (chi2s);
 	phoebe_vector_free (weights);
+	phoebe_array_free (qualifiers);
 
 	/* Free the passed parameters structure: */
 	free (passed);
@@ -911,7 +880,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 
 	phoebe_debug ("GSL exit status: %d\n", status);
 	if (status != GSL_SUCCESS && iter == iter_no) status = SUCCESS;
-
+*/
 	/* Allocate the feedback structure and fill in its contents:              */
 /*
 	phoebe_debug ("allocated fields for feedback: %d + %d*%d + %d = %d\n", to_be_adjusted, CALCHLA, lcno, CALCVGA, to_be_adjusted+CALCHLA*lcno+CALCVGA);
@@ -1062,6 +1031,7 @@ int kick_parameters (double sigma)
 	phoebe_lib_error ("GSL library not present, cannot kick parameters.\n");
 	return ERROR_GSL_NOT_INSTALLED;
 */
+	return SUCCESS;
 }
 
 int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)

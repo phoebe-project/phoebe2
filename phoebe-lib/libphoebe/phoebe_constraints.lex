@@ -41,13 +41,14 @@ _BUILTIN	sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt
 			return BUILTIN;
 			}
 {_QUAL}		{
+			/* Check if the parameter exists; if not, warn about it. */
 			PHOEBE_parameter *par = phoebe_parameter_lookup (yytext);
 			if (par) {
-				pclval.par = par;
+				pclval.str = strdup (yytext);
 				return PARAMETER;
 			}
 			else {
-				printf ("Parameter %s not found, aborting.\n", yytext);
+				phoebe_lib_error ("parameter %s not found, ignoring.\n", yytext);
 			}
 			}
 "["{_INT}"]"	{

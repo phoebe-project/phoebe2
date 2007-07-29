@@ -235,6 +235,10 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "passband transmission function not found, skipping.\n";
 		case ERROR_PASSBAND_INVALID:
 			return "the passband is not set or is invalid, aborting.\n";
+		case ERROR_QUALIFIER_STRING_IS_NULL:
+			return "the string passed for the qualifier is null, aborting.\n";
+		case ERROR_QUALIFIER_STRING_MALFORMED:
+			return "the string passed as a qualifier element is malformed, aborting.\n";
 		case ERROR_QUALIFIER_NOT_FOUND:
 			return "the passed qualifier doesn't exist, aborting.\n";
 		case ERROR_QUALIFIER_NOT_ADJUSTABLE:
