@@ -771,20 +771,19 @@ int phoebe_parameter_get_value (PHOEBE_parameter *par, ...)
 
 int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 {
-	/*
-	 * This is the public function for changing the passed parameter's value.
-	 * It is the only function that should be used for this purpose, all other
-	 * functions should be regarded internal and should not be used.
+	/**
+	 * phoebe_parameter_set_value:
+	 * @par: #PHOEBE_parameter to be set.
+	 * @...: an optional curve index and an #anytype value.
+	 *
+	 * This is the public function for changing the value of the passed
+	 * parameter @par. The function also satisfies all constraints.
 	 *
 	 * Synopsis:
 	 *
-	 *   phoebe_parameter_set_value (qualifier, [curve, ] value)
+	 *   phoebe_parameter_set_value (qualifier, [index, ] value)
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_QUALIFIER_NOT_FOUND
-	 *   ERROR_INDEX_OUT_OF_RANGE
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int index = 0;
@@ -881,6 +880,9 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 		break;
 	}
 	va_end (args);
+
+	/* Satisfy all constraints: */
+	phoebe_constraint_satisfy_all ();
 
 	return SUCCESS;
 }

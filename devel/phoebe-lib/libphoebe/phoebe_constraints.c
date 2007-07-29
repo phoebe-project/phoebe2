@@ -189,16 +189,26 @@ PHOEBE_ast_value phoebe_ast_evaluate (PHOEBE_ast *ast)
 						PHOEBE_ast_value parv = phoebe_ast_evaluate (ast->val.node.args->elem);
 						PHOEBE_parameter *par = phoebe_parameter_lookup (parv.val.str);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->elem);
-						printf ("    setting %s to %lf\n", par->qualifier, expr.val.numval);
-						phoebe_parameter_set_value (par, expr.val.numval);
+						phoebe_debug ("    constraining %s to %lf\n", par->qualifier, expr.val.numval);
+						/*
+						 * Do not use phoebe_parameter_set_value () here,
+						 * access the table element directly; otherwise there
+						 * would be an infinite recursion.
+						 */
+						par->value.d = expr.val.numval;
 					}
 					if (phoebe_ast_list_length (ast->val.node.args) == 3) {
 						PHOEBE_ast_value parv = phoebe_ast_evaluate (ast->val.node.args->elem);
 						PHOEBE_parameter *par = phoebe_parameter_lookup (parv.val.str);
 						PHOEBE_ast_value idx = phoebe_ast_evaluate (ast->val.node.args->next->elem);
 						PHOEBE_ast_value expr = phoebe_ast_evaluate (ast->val.node.args->next->next->elem);
-						printf ("    setting %s[%d] to %lf\n", par->qualifier, idx.val.idx, expr.val.numval);
-						phoebe_parameter_set_value (par, idx.val.idx-1, expr.val.numval);
+						phoebe_debug ("    constraining %s[%d] to %lf\n", par->qualifier, idx.val.idx, expr.val.numval);
+						/*
+						 * Do not use phoebe_parameter_set_value () here,
+						 * access the table element directly; otherwise there
+						 * would be an infinite recursion.
+						 */
+						par->value.vec->val[idx.val.idx-1] = expr.val.numval;
 					}
 				break;
 				case PHOEBE_NODE_TYPE_PARAMETER:
