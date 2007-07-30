@@ -292,6 +292,8 @@ typedef struct PHOEBE_curve {
 	double             L2;
 	double             SBR1;
 	double             SBR2;
+	double             R1;
+	double             R2;
 	/* ***************** */
 } PHOEBE_curve;
 

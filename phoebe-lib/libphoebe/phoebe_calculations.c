@@ -176,7 +176,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	int i;
 	int request = 1;
 	char atmcof[255], atmcofplanck[255];
-	double params[10];
+	double params[12];
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -200,8 +200,11 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	curve->L1 = params[0];
 	curve->L2 = params[1];
-	curve->SBR1 = 1.0;
-	curve->SBR2 = 1.0;
+	curve->R1 = params[4];
+	curve->R2 = params[5];
+	curve->SBR1 = params[10];
+	curve->SBR2 = params[11];
+
 	return SUCCESS;
 }
 
@@ -210,7 +213,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	int i;
 	int request = 2;
 	char atmcof[255], atmcofplanck[255];
-	double params[10];
+	double params[12];
 
 	if (!rv1)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -240,7 +243,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	int i;
 	int request = 3;
 	char atmcof[255], atmcofplanck[255];
-	double params[10];
+	double params[12];
 
 	if (!rv2)
 		return ERROR_CURVE_NOT_INITIALIZED;
