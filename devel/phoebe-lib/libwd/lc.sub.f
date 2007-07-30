@@ -106,6 +106,8 @@ c                     params( 7) = Mbol1  star 1 absolute magnitude
 c                     params( 8) = Mbol2  star 2 absolute magnitude
 c                     params( 9) = logg1  star 1 log gravity
 c                     params(10) = logg2  star 2 log gravity
+c                     params(11) = SBR1   star 1 polar surface brightness
+c                     params(12) = SBR2   star 2 polar surface brightness
 c
       integer request,vertno
       double precision indeps(*),deps(*),params(*)
@@ -422,6 +424,8 @@ c
       params( 8) = bolm2
       params( 9) = xlg1
       params(10) = xlg2
+      params(11) = sbrh
+      params(12) = sbrc
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call wrhead(ibef,nref,mref,ifsmv1,ifsmv2,icor1,icor2,

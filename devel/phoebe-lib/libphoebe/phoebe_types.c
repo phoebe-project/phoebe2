@@ -2154,6 +2154,8 @@ PHOEBE_curve *phoebe_curve_duplicate (PHOEBE_curve *curve)
 	new->wtype    = curve->wtype;
 	new->L1       = curve->L1;
 	new->L2       = curve->L2;
+	new->R1       = curve->R1;
+	new->R2       = curve->R2;
 	new->SBR1     = curve->SBR1;
 	new->SBR2     = curve->SBR2;
 
