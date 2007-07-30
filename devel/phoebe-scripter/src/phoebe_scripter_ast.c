@@ -1145,6 +1145,16 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 								out.value.d = curve->L2;
 								return out;
 							}
+							if (strcmp (field, "R1") == 0) {
+								out.type = type_double;
+								out.value.d = curve->R1;
+								return out;
+							}
+							if (strcmp (field, "R2") == 0) {
+								out.type = type_double;
+								out.value.d = curve->R2;
+								return out;
+							}
 							if (strcmp (field, "SBR1") == 0) {
 								out.type = type_double;
 								out.value.d = curve->SBR1;
