@@ -279,7 +279,7 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
     GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
     GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-    GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+    GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
 
     GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
     gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
@@ -342,7 +342,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
         GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
         GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-        GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+        GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
 
         GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
         gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
