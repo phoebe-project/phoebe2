@@ -57,7 +57,7 @@ c
       parameter (igsmax=  8331)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
-      parameter (iptmax= 10000)
+      parameter (iptmax= 50000)
       parameter (ncmax=     50)
       parameter (ipmax=     50)
 c
@@ -839,7 +839,7 @@ c***************************************************************
       IF(LCV.GT.NVC.and.jdphs.eq.2) WRITE(6,10)
       IF(LCV.LE.NVC.and.jdphs.eq.1) WRITE(6,755)
       IF(LCV.GT.NVC.and.jdphs.eq.1) WRITE(6,756)
-      DO 74 I=NS,7000
+      DO 74 I=NS,iptmax
       ifirst=nppl*(i-1)+NY+1
       last=ifirst+nppl-1
       READ(5,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
