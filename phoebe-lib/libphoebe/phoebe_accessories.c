@@ -246,20 +246,22 @@ char *resolve_relative_filename (char *filename)
 }
 
 int list_directory_contents (char *dir)
-	{
+{
 	DIR *directory;
 	struct dirent *direntry;
 	
 	directory = opendir (dir);
 	if (directory)
 		{
-		while (direntry = readdir (directory))
+		while ( (direntry = readdir (directory)) )
 			puts (direntry->d_name);
 		closedir (directory);
 		}
 	else
 		phoebe_lib_error ("Error reading current directory contents.\n");
-	}
+
+	return SUCCESS;
+}
 
 char *concatenate_strings (const char *str, ...)
 {
@@ -277,7 +279,7 @@ char *concatenate_strings (const char *str, ...)
 	strcpy (out, str);
 
 	va_start (args, str);
-	while ( s = va_arg (args, char *) )  {
+	while ( (s = va_arg (args, char *)) )  {
 		out = phoebe_realloc (out, strlen (out) + strlen (s) + 1);
 		change = &out[strlen(out)];
 		strcpy (change, s);
