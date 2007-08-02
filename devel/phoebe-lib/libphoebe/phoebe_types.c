@@ -2016,13 +2016,14 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 			free (in);
 			continue;
 		} else {
-			phoebe_vector_realloc (out->indep, i+1);
-			phoebe_vector_realloc (out->dep,   i+1);
-			out->indep->val[i] = x; out->dep->val[i] = y;
-			if (no_of_columns == 3) {
-				phoebe_vector_realloc (out->weight, i+1);
+			phoebe_curve_realloc (out, i+1);
+
+			out->indep->val[i] = x;
+			out->dep->val[i] = y;
+			if (no_of_columns == 3)
 				out->weight->val[i] = z;
-			}
+			else
+				out->weight->val[i] = 1.0;
 		}
 
 		free (in);
@@ -2110,18 +2111,18 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 			return NULL;
 
 		/* ************************ */
-		/* 4. phoebe_lc_filename:   */
+		/* 4. phoebe_rv_filename:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), index, &filename);
 
 		/* ********************** */
-		/* 5. phoebe_lc_filter:   */
+		/* 5. phoebe_rv_filter:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband)
 			return NULL;
 
 		/* ********************* */
-		/* 6. phoebe_lc_sigma:   */
+		/* 6. phoebe_rv_sigma:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), index, &sigma);
 	}
 
@@ -2191,10 +2192,42 @@ int phoebe_curve_alloc (PHOEBE_curve *curve, int dim)
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
+	if (dim < 1)
+		return ERROR_CURVE_INVALID_DIMENSION;
 
 	phoebe_vector_alloc (curve->indep, dim);
 	phoebe_vector_alloc (curve->dep, dim);
 	phoebe_vector_alloc (curve->weight, dim);
+
+	return SUCCESS;
+}
+
+int phoebe_curve_realloc (PHOEBE_curve *curve, int dim)
+{
+	/**
+	 * phoebe_curve_realloc:
+	 * @curve: #PHOEBE_curve to reallocate.
+	 * @dim: the new size of @curve.
+	 *
+	 * Reallocates storage memory for #PHOEBE_curve @curve.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 *
+	 * Error codes:
+	 *
+	 *   #ERROR_CURVE_INVALID_DIMENSION
+	 *   #SUCCESS
+	 */
+
+	if (!curve)
+		return ERROR_CURVE_NOT_INITIALIZED;
+	if (dim < 1)
+		return ERROR_CURVE_INVALID_DIMENSION;
+
+	curve->dim = dim;
+	curve->indep  = phoebe_realloc (curve->indep,  sizeof (*(curve->indep))  * dim);
+	curve->dep    = phoebe_realloc (curve->dep,    sizeof (*(curve->dep))    * dim);
+	curve->weight = phoebe_realloc (curve->weight, sizeof (*(curve->weight)) * dim);
 
 	return SUCCESS;
 }
