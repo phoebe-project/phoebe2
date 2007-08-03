@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="phoebe-gui" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="all">
+				<Option output="cb/phoebe-gui" prefix_auto="1" extension_auto="1" />
+				<Option object_output="cb/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="src/phoebe_gui_base.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_base.h" />
+		<Unit filename="src/phoebe_gui_callbacks.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_callbacks.h" />
+		<Unit filename="src/phoebe_gui_global.h" />
+		<Unit filename="src/phoebe_gui_main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_main.h" />
+		<Unit filename="src/phoebe_gui_treeviews.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_treeviews.h" />
+		<Unit filename="src/phoebe_gui_types.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_types.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
