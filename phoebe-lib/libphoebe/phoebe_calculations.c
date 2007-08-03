@@ -268,7 +268,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	return SUCCESS;
 }
 
-int calculate_model_level (double *level, int curve, PHOEBE_vector *indep)
+int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep)
 {
 	/*
 	 * This function generates a synthetic curve and calculates the average.
@@ -283,7 +283,7 @@ int calculate_model_level (double *level, int curve, PHOEBE_vector *indep)
 
 	syncurve = phoebe_curve_new ();
 
-	status = read_in_synthetic_data (syncurve, indep, curve, PHOEBE_COLUMN_FLUX);
+	status = read_in_synthetic_data (syncurve, indep, curve, itype, PHOEBE_COLUMN_FLUX);
 	if (status != SUCCESS) return status;
 
 	status = calculate_average (level, syncurve->dep);
@@ -295,7 +295,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	/*
 	 * This function generates synthetic RV curves and calculates the average.
 	 */
-
+/*
 	int status;
 	double rv1average, rv2average;
 	PHOEBE_curve *syncurve;
@@ -353,6 +353,7 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	       (double) rv2ptsno / (rv1ptsno + rv2ptsno) * rv2average;
 
 	return SUCCESS;
+*/
 }
 
 double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
@@ -471,27 +472,38 @@ int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc)
 	return SUCCESS;
 }
 
-int calculate_chi2 (PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obsweight, PHOEBE_cost_function cf, double *chi2)
+int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obssig, double scale)
 {
-	/*
-	 * This is a simple chi2 calculation function. It has been heavily simpli-
-	 * fied with respect to the 0.2x version, since the synthetic readout func-
-	 * tion now makes sure that no interpolation is necessary. The user has to
-	 * make sure that the passed sigmas for weighted chi2 is indeed standard
-	 * deviation and not standard weight.
+	/**
+	 * phoebe_compute_cf:
+	 * @cfval: the computed cost function value.
+	 * @cf: a #PHOEBE_cost_function to be evaluated.
+	 * @syndep: a #PHOEBE_vector of the model data.
+	 * @obsdep: a #PHOEBE_vector of the observed data.
+	 * @obssig: a #PHOEBE_vector of standard deviations.
+	 * @scale: a scaling constant for computing the residuals.
 	 *
-	 * Cost function may be one of the following:
+	 * Computes the cost function value @cfval of the passed cost function
+	 * @cf. The residuals are computed from vectors @syndep and @obsdep. If
+	 * the cost function is weighted, each residual is multiplied by the
+	 * inverse square of the individual @obsweight value. Since the residuals
+	 * for different curves are usually compared, a scaling constant @scale
+	 * can be used to renormalize the data. The @scale is usually computed as
+	 * 4\pi/(L1+L2+4\piL3).
 	 *
-	 *   PHOEBE_CF_STANDARD_DEVIATION
-	 *   PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION
-	 *   PHOEBE_CF_SUM_OF_SQUARES
-	 *   PHOEBE_CF_CHI2
+	 * Cost function @cf is of the following:
 	 *
-	 * Return values:
+	 *   #PHOEBE_CF_STANDARD_DEVIATION
 	 *
-	 *   ERROR_CHI2_INVALID_DATA
-	 *   ERROR_CHI2_DIFFERENT_SIZES
-	 *   SUCCESS
+	 *   #PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION
+	 *
+	 *   #PHOEBE_CF_SUM_OF_SQUARES
+	 *
+	 *   #PHOEBE_CF_EXPECTATION_CHI2
+	 *
+	 *   #PHOEBE_CF_CHI2
+	 *
+	 * Returns: a #PHOEBE_error_code.
 	 */
 
 	int i;
@@ -502,13 +514,13 @@ int calculate_chi2 (PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector 
 	if (!syndep || !obsdep || syndep->dim <= 1 || obsdep->dim <= 1)
 		return ERROR_CHI2_INVALID_DATA;
 
-	if ( (cf == PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION || cf == PHOEBE_CF_CHI2) && !obsweight )
+	if ( (cf == PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION || cf == PHOEBE_CF_CHI2) && !obssig )
 		return ERROR_CHI2_INVALID_DATA;
 
 	if (syndep->dim != obsdep->dim)
 		return ERROR_CHI2_DIFFERENT_SIZES;
 
-	if ( (cf == PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION || cf == PHOEBE_CF_CHI2) && (syndep->dim != obsdep->dim || obsdep->dim != obsweight->dim) )
+	if ( (cf == PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION || cf == PHOEBE_CF_CHI2) && (syndep->dim != obsdep->dim || obsdep->dim != obssig->dim) )
 		return ERROR_CHI2_DIFFERENT_SIZES;
 
 	switch (cf) {
@@ -516,53 +528,65 @@ int calculate_chi2 (PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector 
 			/*
 			 * Standard deviation without weighting applied:
 			 *
-			 *    \sigma^2 = 1/(N-1) \sum_i (x_calc - x_obs)^2
+			 *    cfval = \sqrt {1/(N-1) \sum_i (x_calc-x_obs)^2}
 			 */
 
 			for (i = 0; i < syndep->dim; i++)
 				c2 += (syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
-			*chi2 = sqrt (c2 / (obsdep->dim - 1));
-			return SUCCESS;
+			*cfval = scale * sqrt (c2 / (obsdep->dim-1));
+		break;
 		case PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION:
 			/*
 			 * Standard deviation with weighting applied:
 			 *
-			 *    \sigma^2 = 1/(\sum w_i - 1) \sum_i w_i (x_calc - x_obs)^2
+			 *    cfval = \sqrt {1/(\sum w_i - 1) \sum_i w_i (x_calc-x_obs)^2}
 			 */
 
 			for (i = 0; i < syndep->dim; i++) {
-				 w += obsweight->val[i];
-				c2 += obsweight->val[i] * (syndep->val[i]-obsdep->val[i]) * (syndep->val[i]-obsdep->val[i]);
+				 w += 1./obssig->val[i]/obssig->val[i];
+				c2 += 1./obssig->val[i]/obssig->val[i] * (syndep->val[i]-obsdep->val[i]) * (syndep->val[i]-obsdep->val[i]);
 			}
-			*chi2 = sqrt (c2 / (w - 1));
-			return SUCCESS;
+			*cfval = scale * sqrt (c2 / (w-1));
+		break;
 		case PHOEBE_CF_SUM_OF_SQUARES:
 			/*
 			 * Sum of squares:
 			 *
-			 *   \chi^2 = \sum_i (x_calc - x_obs)^2
+			 *   cfval = \sum_i (x_calc - x_obs)^2
 			 */
 
 			for (i = 0; i < syndep->dim; i++)
 				c2 += (syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
-			*chi2 = c2;
-			return SUCCESS;
-		case PHOEBE_CF_CHI2:
+			*cfval = scale*scale * c2;
+		break;
+		case PHOEBE_CF_EXPECTATION_CHI2:
 			/*
-			 * Standard chi2:
+			 * Expectation chi2:
 			 *
-			 *   \chi^2 = \sum_i (x_calc - x_obs)^2 / \sigma_i^2
-			 *            \sum_i w_i (x_calc - x_obs)^2
+			 *   cfval = \sum_i (x_calc-x_obs)^2 / x_calc
 			 */
 
 			for (i = 0; i < syndep->dim; i++)
-				c2 += obsweight->val[i] * (obsdep->val[i]-syndep->val[i])*(obsdep->val[i]-syndep->val[i]);
-			*chi2 = c2;
-			return SUCCESS;
+				c2 += (obsdep->val[i]-syndep->val[i])*(obsdep->val[i]-syndep->val[i])/syndep->val[i];
+			*cfval = scale * c2;
+		break;
+		case PHOEBE_CF_CHI2:
+			/*
+			 * Standard (sometimes called reduced) chi2:
+			 *
+			 *   cfval = \sum_i (x_calc-x_obs)^2 / \sigma_i^2
+			 */
+
+			for (i = 0; i < syndep->dim; i++)
+				c2 += 1./obssig->val[i]/obssig->val[i] * (obsdep->val[i]-syndep->val[i])*(obsdep->val[i]-syndep->val[i]);
+			*cfval = c2;
+		break;
 		default:
-			phoebe_lib_error ("exception handler invoked in calculate_chi2 (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked in phoebe_cf_compute (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
+
+	return SUCCESS;
 }
 
 int phoebe_join_chi2 (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weights)
@@ -943,9 +967,11 @@ int transform_magnitude_sigma_to_flux_sigma (PHOEBE_vector *weights, PHOEBE_vect
 }
 
 int transform_flux_to_magnitude (PHOEBE_vector *vec, double mnorm)
-	{
-	/* This function transforms dependent data contents from flux to magnitudes */
-	/* with respect to the user-defined mnorm value.                            */
+{
+	/*
+	 * This function transforms dependent data contents from flux to magnitudes
+	 * with respect to the user-defined mnorm value.
+	 */
 
 	int i;
 
@@ -953,7 +979,7 @@ int transform_flux_to_magnitude (PHOEBE_vector *vec, double mnorm)
 		vec->val[i] = mnorm - 5./2. * log10 (vec->val[i]);
 
 	return SUCCESS;
-	}
+}
 
 int transform_sigma_to_weight (PHOEBE_vector *vec)
 {

@@ -2055,22 +2055,28 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		/* 1. phoebe_lc_indep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ******************* */
 		/* 2. phoebe_lc_dep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ************************* */
 		/* 3. phoebe_lc_indweight:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ************************ */
 		/* 4. phoebe_lc_filename:   */
@@ -2080,8 +2086,10 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		/* 5. phoebe_lc_filter:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
-		if (!passband)
+		if (!passband) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ********************* */
 		/* 6. phoebe_lc_sigma:   */
@@ -2093,22 +2101,28 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		/* 1. phoebe_rv_indep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), index, &param);
 		status = phoebe_column_get_type (&itype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ******************* */
 		/* 2. phoebe_rv_dep:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), index, &param);
 		status = phoebe_column_get_type (&dtype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ************************* */
 		/* 3. phoebe_rv_indweight:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), index, &param);
 		status = phoebe_column_get_type (&wtype, param);
-		if (status != SUCCESS)
+		if (status != SUCCESS) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ************************ */
 		/* 4. phoebe_rv_filename:   */
@@ -2118,8 +2132,10 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		/* 5. phoebe_rv_filter:   */
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
-		if (!passband)
+		if (!passband) {
+			phoebe_lib_error ("%s", phoebe_error (status));
 			return NULL;
+		}
 
 		/* ********************* */
 		/* 6. phoebe_rv_sigma:   */
@@ -2224,10 +2240,9 @@ int phoebe_curve_realloc (PHOEBE_curve *curve, int dim)
 	if (dim < 1)
 		return ERROR_CURVE_INVALID_DIMENSION;
 
-	curve->dim = dim;
-	curve->indep  = phoebe_realloc (curve->indep,  sizeof (*(curve->indep))  * dim);
-	curve->dep    = phoebe_realloc (curve->dep,    sizeof (*(curve->dep))    * dim);
-	curve->weight = phoebe_realloc (curve->weight, sizeof (*(curve->weight)) * dim);
+	phoebe_vector_realloc (curve->indep,  dim);
+	phoebe_vector_realloc (curve->dep,    dim);
+	phoebe_vector_realloc (curve->weight, dim);
 
 	return SUCCESS;
 }
@@ -2272,26 +2287,37 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	}
 
 	if (curve->dtype == PHOEBE_COLUMN_MAGNITUDE && dtype == PHOEBE_COLUMN_FLUX) {
- 		double mnorm;
+ 		double mnorm, mean;
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
-
-		/*
-		 * If weights need to be transformed, we need to transform them *after*
-		 * we transform magnitudes to fluxes, because the transformation funcion
-		 * uses fluxes and not magnitudes.
-		 */
 
  		status = transform_magnitude_to_flux (curve->dep, mnorm);
 		if (status != SUCCESS) return status;
+
+		/*
+		 * Next we need to transform the standard deviation of the curve; it
+		 * takes fluxes, so it must be called after the magnitudes have been
+		 * transformed to fluxes.
+		 */
+
+		calculate_average (&mean, curve->dep);
+		curve->sigma = 0.5 * mean * (pow (10, 2./5.*curve->sigma) - pow (10, -2./5.*curve->sigma));
+
+		/*
+		 * If weights need to be transformed, we need to transform them *after*
+		 * we transform magnitudes to fluxes, because the transformation
+		 * function takes fluxes and not magnitudes.
+		 */
+
 		if (curve->wtype == PHOEBE_COLUMN_SIGMA && wtype != PHOEBE_COLUMN_UNDEFINED) {
 			status = transform_magnitude_sigma_to_flux_sigma (curve->weight, curve->dep);
 			if (status != SUCCESS) return status;
 		}
+
 		curve->dtype = dtype;
 	}
 
 	if (curve->dtype == PHOEBE_COLUMN_FLUX && dtype == PHOEBE_COLUMN_MAGNITUDE) {
-		double mnorm;
+		double mnorm, mean;
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
 
 		/*
@@ -2304,6 +2330,16 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 			status = transform_flux_sigma_to_magnitude_sigma (curve->weight, curve->dep);
 			if (status != SUCCESS) return status;
 		}
+
+		/*
+		 * Next we need to transform the standard deviation of the curve; it
+		 * takes fluxes, so it must be called before the fluxes are transformed
+		 * to magnitudes.
+		 */
+
+		calculate_average (&mean, curve->dep);
+		curve->sigma = -5./2. * log10 (1.0 + curve->sigma/mean);
+
 		status = transform_flux_to_magnitude (curve->dep, mnorm);
 		if (status != SUCCESS) return status;
 		curve->dtype = dtype;
@@ -2322,25 +2358,13 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	}
 
 	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_SIGMA) {
-		if (curve->weight && curve->weight->dim == 0) {
-			phoebe_vector_alloc (curve->weight, curve->dep->dim);
-			phoebe_vector_pad (curve->weight, 0.01);
-			curve->wtype = wtype;
-		}
-		else {
-			phoebe_lib_error ("weight column contents undefined, ignoring.\n");
-		}
+		phoebe_vector_pad (curve->weight, curve->sigma);
+		curve->wtype = wtype;
 	}
 
 	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_WEIGHT) {
-		if (curve->weight && curve->weight->dim == 0) {
-			phoebe_vector_alloc (curve->weight, curve->dep->dim);
-			phoebe_vector_pad (curve->weight, 1.00);
-			curve->wtype = wtype;
-		}
-		else {
-			phoebe_lib_error ("weight column contents undefined, ignoring.\n");
-		}
+		phoebe_vector_pad (curve->weight, 1.00);
+		curve->wtype = wtype;
 	}
 
 	phoebe_debug ("leaving phoebe_curve_transform ()\n");

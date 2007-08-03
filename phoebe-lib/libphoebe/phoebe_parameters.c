@@ -119,9 +119,9 @@ int phoebe_init_parameters ()
 
 	/* ********************   Extrinsic parameters   ************************ */
 
-	phoebe_parameter_add ("phoebe_el3_units",            "Units of third light",                       KIND_MENU,       NULL,  0.0,    0.0,    0.0, NO, TYPE_STRING,        "Total light");
-	phoebe_parameter_add ("phoebe_el3",                  "Third light contribution",                   KIND_ADJUSTABLE, NULL,  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
-	phoebe_parameter_add ("phoebe_extinction",           "Interstellar extinction coefficient",        KIND_ADJUSTABLE, NULL,  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_el3_units",            "Units of third light",                       KIND_MENU,       NULL,           0.0,    0.0,    0.0, NO, TYPE_STRING,        "Total light");
+	phoebe_parameter_add ("phoebe_el3",                  "Third light contribution",                   KIND_ADJUSTABLE, NULL,           0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_extinction",           "Interstellar extinction coefficient",        KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
 
 	/* *********************   Fitting parameters   ************************* */
 

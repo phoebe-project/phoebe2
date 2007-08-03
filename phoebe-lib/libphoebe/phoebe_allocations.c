@@ -64,7 +64,33 @@ char *parse_data_line (char *in)
 	return value;
 }
 
-int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_column_type dtype)
+int phoebe_compute_lc (PHOEBE_curve *curve, PHOEBE_vector *nodes, char *lciname, WD_LCI_parameters *params)
+{
+	PHOEBE_parameter *par;
+	bool state;
+
+	create_lci_file (lciname, params);
+	call_wd_to_get_fluxes (curve, nodes);
+
+	par = phoebe_parameter_lookup ("phoebe_ie_switch");
+	phoebe_parameter_get_value (par, &state);
+
+	if (state == TRUE) {
+		int i, lcno;
+		double A;
+
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+		for (i = 0; i < lcno; i++) {
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), &A);
+			apply_extinction_correction (curve, A);
+		}
+
+	}
+
+	return SUCCESS;
+}
+
+int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_column_type itype, PHOEBE_column_type dtype)
 {
 	/*
 	 * This function creates a WD input file 'lcin.active' and calls LC to
@@ -77,6 +103,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 
 	int i;
 	int mpage;
+	int jdphs;
 	int status;
 
 	char *filename;
@@ -91,6 +118,18 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 		return ERROR_CURVE_NOT_INITIALIZED;
 	if (!indep)
 		return ERROR_VECTOR_NOT_INITIALIZED;
+
+	switch (itype) {
+		case PHOEBE_COLUMN_HJD:
+			jdphs = 1;
+		break;
+		case PHOEBE_COLUMN_PHASE:
+			jdphs = 2;
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked by itype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+	}
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_FLUX:
@@ -110,12 +149,15 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 			curve->type = PHOEBE_CURVE_RV;
 		break;
 		default:
-			return ERROR_INVALID_DEP;
+			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}
 
 	status = read_in_wd_lci_parameters (&params, mpage, curve_index);
 	if (status != SUCCESS) return status;
+
+	params.JDPHS = jdphs;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), curve_index, &A);
 /*
@@ -125,7 +167,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	phoebe_parameter_get_value ("phoebe_el3", curve_index, &el3value);
 */
 	filename = resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, params);
+	create_lci_file (filename, &params);
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:

@@ -8,6 +8,7 @@ typedef enum PHOEBE_cost_function {
 	PHOEBE_CF_STANDARD_DEVIATION,
 	PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION,
 	PHOEBE_CF_SUM_OF_SQUARES,
+	PHOEBE_CF_EXPECTATION_CHI2,
 	PHOEBE_CF_CHI2
 } PHOEBE_cost_function;
 
@@ -17,6 +18,9 @@ double frac (double x);
 int    diff (const void *a, const void *b);
 
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...);
+
+int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obsweight, double scale);
+int phoebe_join_chi2  (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weights);
 
 /*
  * The following define statements have been derived from f2c prototypes.
@@ -31,7 +35,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
 int call_wd_to_get_rv1    (PHOEBE_curve *rv1, PHOEBE_vector *indep);
 int call_wd_to_get_rv2    (PHOEBE_curve *rv2, PHOEBE_vector *indep);
 
-int calculate_model_level (double *level, int curve, PHOEBE_vector *indep);
+int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep);
 int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep);
 
 double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
@@ -49,9 +53,6 @@ int calculate_weighted_average (double *average, PHOEBE_vector *dep, PHOEBE_vect
 int calculate_weighted_sigma   (double *sigma,   PHOEBE_vector *dep, PHOEBE_vector *weight);
 
 double intern_calculate_phase_from_ephemeris (double hjd, double hjd0, double period, double dpdt, double pshift);
-
-int calculate_chi2 (PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obsweight, PHOEBE_cost_function cf, double *chi2);
-int phoebe_join_chi2 (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weights);
 
 double calculate_vga (PHOEBE_vector *rv1, PHOEBE_vector *rv2, double rv1avg, double rv2avg, double origvga);
 

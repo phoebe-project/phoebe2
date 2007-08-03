@@ -6,7 +6,7 @@
 
 char  *parse_data_line               (char *in);
 
-int    read_in_synthetic_data        (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_column_type dtype);
+int    read_in_synthetic_data        (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve_index, PHOEBE_column_type itype, PHOEBE_column_type dtype);
 int    read_in_ephemeris_parameters  (double *hjd0, double *period, double *dpdt, double *pshift);
 int    read_in_adjustable_parameters (int *tba, double **values);
 

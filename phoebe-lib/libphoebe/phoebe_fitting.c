@@ -106,10 +106,10 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	for (i = 0; i < lcno + rvno; i++) {
 		PHOEBE_curve *curve = phoebe_curve_new ();
 
-		create_lci_file ("lcin.active", *lcipars[i]);
+		create_lci_file ("lcin.active", lcipars[i]);
 		call_wd_to_get_fluxes (curve, obs[i]->indep);
 
-		calculate_chi2 (curve->dep, obs[i]->dep, obs[i]->weight, PHOEBE_CF_CHI2, &(chi2s->val[i]));
+		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_CHI2, curve->dep, obs[i]->dep, obs[i]->weight, 1.0);
 
 		phoebe_curve_free (curve);
 	}
