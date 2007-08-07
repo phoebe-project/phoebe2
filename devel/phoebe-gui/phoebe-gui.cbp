@@ -3,13 +3,15 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="phoebe-gui" />
+		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="all">
-				<Option output="cb/phoebe-gui" prefix_auto="1" extension_auto="1" />
-				<Option object_output="cb/" />
-				<Option type="1" />
+				<Option output="src/phoebe_gui" prefix_auto="0" extension_auto="0" />
+				<Option working_dir="src/" />
+				<Option object_output="src/" />
+				<Option type="0" />
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
@@ -41,8 +43,8 @@
 		</Unit>
 		<Unit filename="src/phoebe_gui_types.h" />
 		<Extensions>
-			<code_completion />
 			<envvars />
+			<code_completion />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

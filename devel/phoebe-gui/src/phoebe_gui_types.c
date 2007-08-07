@@ -283,7 +283,7 @@ int gui_init_widgets (GladeXML* phoebe_window)
 	gui_widget_add ("phoebe_para_ld_lccoefs_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secadjust_checkbutton"),		GUI_WIDGET_SWITCH_TBA,	par);
 	gui_widget_add ("phoebe_para_ld_lccoefs_secstep_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secstep_spinbutton"),			GUI_WIDGET_VALUE_STEP,	par);
 
-	/* SPOTS */	
+	/* SPOTS */
 
 	/* ***********************    Fitting Widgets   ************************* */
 
@@ -304,10 +304,10 @@ int gui_init_widgets (GladeXML* phoebe_window)
 
 	phoebe_parameter_add ("gui_lc_plot_synthetic",			"Plot synthetic LC",						KIND_SWITCH,		NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	gui_widget_add ("phoebe_lc_plot_options_syn_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_syn_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_synthetic"));
-	
+
 	phoebe_parameter_add ("gui_lc_plot_observed",			"Plot observed LC",						KIND_SWITCH,		NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	gui_widget_add ("phoebe_lc_plot_options_obs_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_observed"));
-	
+
 	phoebe_parameter_add ("gui_lc_plot_verticesno",			"Number of vertices for LC",			KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	gui_widget_add ("phoebe_lc_plot_options_vertices_no_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_vertices_no_spinbutton"),		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_verticesno"));
 
@@ -343,13 +343,13 @@ int gui_init_widgets (GladeXML* phoebe_window)
 
 	phoebe_parameter_add ("gui_lc_plot_fine",					"Coarse grid",								KIND_SWITCH,		NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	gui_widget_add ("phoebe_lc_plot_controls_fine_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_fine_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_fine"));
-	
+
 	phoebe_parameter_add ("gui_rv_plot_synthetic",			"Plot synthetic RV curve",				KIND_SWITCH,		NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	gui_widget_add ("phoebe_rv_plot_options_syn_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_syn_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_synthetic"));
-	
+
 	phoebe_parameter_add ("gui_rv_plot_observed",			"Plot observed RV curve",				KIND_SWITCH,		NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	gui_widget_add ("phoebe_rv_plot_options_obs_checkbutton",						glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_checkbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_observed"));
-	
+
 	phoebe_parameter_add ("gui_rv_plot_verticesno",			"Number of vertices for RV curve",	KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	gui_widget_add ("phoebe_rv_plot_options_vertices_no_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"),		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_verticesno"));
 
@@ -562,8 +562,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
 			break;
 		}
 	}
-	
-	else if (GTK_IS_ENTRY(widget->gtk)){
+
+	if (GTK_IS_ENTRY(widget->gtk)){
 		phoebe_parameter_set_value (widget->par, gtk_entry_get_text (GTK_ENTRY(widget->gtk)));
 	}
 
@@ -578,6 +578,96 @@ int gui_get_value_from_widget (GUI_widget *widget)
 			}
 			break;
 		}
+
+
+	}
+
+	else if (GTK_IS_TREE_VIEW_COLUMN(widget->gtk))
+	{
+        GtkTreeViewColumn *column;
+        int column_id;
+        GtkTreeView *view;
+        GtkTreeModel *model;
+
+        column = (GtkTreeViewColumn*)widget->gtk;
+        column_id = GPOINTER_TO_UINT(g_object_get_data((GObject*)column, "column_id"));
+        view = g_object_get_data((GObject*)column, "parent_tree");
+        model = gtk_tree_view_get_model(view);
+
+        GtkTreeIter *iter;
+        int valid = gtk_tree_model_get_iter_first(model, iter);
+        int index = 0;
+
+        PHOEBE_parameter *par = widget->par;
+
+        switch (par->type)
+        {
+            case TYPE_INT_ARRAY:
+                while(valid)
+                {
+                    if (index < 0 || index > par->value.array->dim-1)
+                        return ERROR_INDEX_OUT_OF_RANGE;
+
+                    int value;
+                    gtk_tree_model_get(model, iter, column_id, &value);
+                    par->value.array->val.iarray[index] = value;
+
+                    index++;
+                    valid = gtk_tree_model_iter_next(model, iter);
+                }
+            break;
+            case TYPE_BOOL_ARRAY:
+                while(valid)
+                {
+                    if (index < 0 || index > par->value.array->dim-1)
+                        return ERROR_INDEX_OUT_OF_RANGE;
+
+                    bool value;
+                    gtk_tree_model_get(model, iter, column_id, &value);
+                    par->value.array->val.barray[index] = value;
+
+                    index++;
+                    valid = gtk_tree_model_iter_next(model, iter);
+                }
+            break;
+            case TYPE_DOUBLE_ARRAY:
+                while(valid)
+                {
+                    if (index < 0 || index > par->value.vec->dim-1)
+                        return ERROR_INDEX_OUT_OF_RANGE;
+
+                    double value;
+                    gtk_tree_model_get(model, iter, column_id, &value);
+                    par->value.vec->val[index] = value;
+
+                    index++;
+                    valid = gtk_tree_model_iter_next(model, iter);
+                }
+            break;
+            case TYPE_STRING_ARRAY:
+                while(valid)
+                {
+                    if (index < 0 || index > par->value.array->dim-1)
+                        return ERROR_INDEX_OUT_OF_RANGE;
+
+                    char *value;
+                    gtk_tree_model_get(model, iter, column_id, value);
+                    free (par->value.array->val.strarray[index]);
+                    par->value.array->val.strarray[index] = phoebe_malloc (strlen (value) + 1);
+                    strcpy (par->value.array->val.strarray[index], value);
+
+                    if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (par->qualifier, (char *) value))
+                        phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
+
+                    index++;
+                    valid = gtk_tree_model_iter_next(model, iter);
+                }
+            break;
+        }
+
+        g_object_unref(iter);
+        g_object_unref(model);
+        g_object_unref(column);
 	}
 
 	return SUCCESS;
