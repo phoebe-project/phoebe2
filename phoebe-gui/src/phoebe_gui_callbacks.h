@@ -1,6 +1,11 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
+void on_phoebe_sidesheet_data_tba_checkbutton_toggled
+                                        (GtkCellRendererToggle *renderer,
+                                         gchar                 *path,
+                                         gpointer               user_data);
+
 void
 on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
                                         gpointer         user_data);

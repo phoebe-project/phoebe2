@@ -16,6 +16,21 @@ on_phoebe_test_toolbutton_clicked      (GtkToolButton   *toolbutton,
 
 /* ******************************************************************** *
  *
+ *                    phoebe_sidesheet_data_treeview events
+ *
+ * ******************************************************************** */
+
+
+void on_phoebe_sidesheet_data_tba_checkbutton_toggled
+                                        (GtkCellRendererToggle *renderer,
+                                         gchar                 *path,
+                                         gpointer               user_data)
+{
+}
+
+
+/* ******************************************************************** *
+ *
  *                    phoebe_data_lc_treeview events
  *
  * ******************************************************************** */
