@@ -6,6 +6,13 @@
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_types.h"
 
+void
+on_phoebe_test_toolbutton_clicked      (GtkToolButton   *toolbutton,
+                                        gpointer         user_data)
+{
+    gui_get_values_from_widgets();
+}
+
 
 /* ******************************************************************** *
  *
