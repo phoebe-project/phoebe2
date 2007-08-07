@@ -1,21 +1,12 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-/* *** The treeviews *** */
-
 /* LC treeviews */
 GtkWidget *phoebe_data_lc_treeview;
 GtkWidget *phoebe_para_lc_levels_treeview;
 GtkWidget *phoebe_para_lc_el3_treeview;
 GtkWidget *phoebe_para_lc_levweight_treeview;
 GtkWidget *phoebe_para_lc_ld_treeview;
-
-/* RV treeviews */
-GtkWidget *phoebe_data_rv_treeview;
-GtkWidget *phoebe_para_rv_ld_treeview;
-
-/* Spots treeview */
-GtkWidget *phoebe_para_surf_spots_treeview;
 
 /* These columns make up the light curve model for various treeviews */
 typedef enum lc_model_columns
@@ -43,6 +34,10 @@ typedef enum lc_model_columns
     LC_COL_COUNT,
 }lc_model_columns;
 
+/* RV treeviews */
+GtkWidget *phoebe_data_rv_treeview;
+GtkWidget *phoebe_para_rv_ld_treeview;
+
 /* These columns make up the RV curve model for various treeviews */
 typedef enum rv_model_columns
 {
@@ -62,6 +57,9 @@ typedef enum rv_model_columns
     RV_COL_Y2,
     RV_COL_COUNT,
 }rv_model_columns;
+
+/* Spots treeview */
+GtkWidget *phoebe_para_surf_spots_treeview;
 
 /* These columns make up the spots list model */
 typedef enum spots_model_columns
@@ -91,6 +89,23 @@ typedef enum spots_model_columns
     SPOTS_COL_COUNT,
 }spots_model_columns;
 
+/* Data sheet treevies */
+GtkWidget *phoebe_sidesheet_fitt_treeview;
+GtkWidget *phoebe_sidesheet_data_treeview;
+
+/* These columns make up the data sheet model */
+typedef enum datasheet_model_columns
+{
+    DS_COL_PARAM_TBA,
+    DS_COL_PARAM_NAME,
+    DS_COL_PARAM_VALUE,
+    DS_COL_PARAM_ERROR,
+    DS_COL_PARAM_STEP,
+    DS_COL_PARAM_MIN,
+    DS_COL_PARAM_MAX,
+    DS_COL_COUNT,
+}datasheet_model_columns;
+
 /* Creates a model for storing light curves data */
 GtkTreeModel *lc_model_create(void);
 
@@ -99,6 +114,9 @@ GtkTreeModel *rv_model_create(void);
 
 /* Creates a model for storing spots data */
 GtkTreeModel *spots_model_create(void);
+
+/* Creates a model for storing data sheet lists */
+GtkTreeModel *datasheets_model_create(void);
 
 /* Initializes the treeviews */
 int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
@@ -111,6 +129,9 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
+
+/* Initializes the data sheets treeviews */
+int gui_init_datasheets_treeviews (GladeXML *parent_window);
 
 /* Initialzes filter comboboxes */
 int gui_init_filter_combobox (GtkWidget *combo_box);
