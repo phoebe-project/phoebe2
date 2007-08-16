@@ -385,6 +385,7 @@ int fill_datasheets()
 	PHOEBE_parameter_list *list;
 
 	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_data_treeview);
+	gtk_list_store_clear((GtkListStore*)model);
 
 	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
 	{
@@ -402,6 +403,7 @@ int fill_datasheets()
 	}
 
 	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_fitt_treeview);
+	gtk_list_store_clear((GtkListStore*)model);
 
 	list = PHOEBE_pt->lists.marked_tba;
 	while (list)
