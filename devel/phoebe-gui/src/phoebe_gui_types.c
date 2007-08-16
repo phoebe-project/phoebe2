@@ -665,9 +665,9 @@ int gui_get_value_from_widget (GUI_widget *widget)
             break;
         }
 
-        g_object_unref(iter);
-        g_object_unref(model);
-        g_object_unref(column);
+//        g_object_unref(iter);
+//        g_object_unref(model);
+//        g_object_unref(column);
 	}
 
 	return SUCCESS;

@@ -131,7 +131,7 @@ int gui_init_rv_treeviews(GladeXML *parent_window);
 int gui_init_spots_treeview (GladeXML *parent_window);
 
 /* Initializes the data sheets treeviews */
-int gui_init_datasheets_treeviews (GladeXML *parent_window);
+int gui_init_datasheets (GladeXML *parent_window);
 
 /* Initialzes filter comboboxes */
 int gui_init_filter_combobox (GtkWidget *combo_box);
