@@ -8,7 +8,7 @@ int gui_init_treeviews(GladeXML *phoebe_window, GladeXML *phoebe_load_lc_dialog)
     gui_init_lc_treeviews         (phoebe_window);
     gui_init_rv_treeviews         (phoebe_window);
     gui_init_spots_treeview       (phoebe_window);
-    gui_init_datasheets_treeviews (phoebe_window);
+    gui_init_datasheets           (phoebe_window);
 
     return SUCCESS;
 }
@@ -260,7 +260,6 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 
 int gui_init_spots_treeview  (GladeXML *phoebe_window)
 {
-
     // g_print("---------- Initializing spots treeview -------------\n");
 
     phoebe_para_surf_spots_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_surf_spots_treeview");
@@ -316,12 +315,13 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     return SUCCESS;
 }
 
-int gui_init_datasheets_treeviews(GladeXML *phoebe_window)
+int gui_init_datasheets(GladeXML *phoebe_window)
 {
     phoebe_sidesheet_data_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_data_treeview");
     phoebe_sidesheet_fitt_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_fitt_treeview");
 
-    GtkTreeModel *datasheets_model = datasheets_model_create();
+    GtkTreeModel *data_model = datasheets_model_create();
+    GtkTreeModel *fitt_model = datasheets_model_create();
 
     GtkCellRenderer     *renderer;
     GtkTreeViewColumn   *column;
@@ -368,10 +368,56 @@ int gui_init_datasheets_treeviews(GladeXML *phoebe_window)
     column      = gtk_tree_view_column_new_with_attributes("Max", renderer, "text", DS_COL_PARAM_MAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_MAX);
 
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_data_treeview, datasheets_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, datasheets_model);
+    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_data_treeview, data_model);
+    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, fitt_model);
+
+    fill_datasheets();
 
     return SUCCESS;
+}
+
+int fill_datasheets()
+{
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    int i;
+	PHOEBE_parameter_list *list;
+
+	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_data_treeview);
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
+	{
+		list = PHOEBE_pt->bucket[i];
+		while (list)
+		{
+            gtk_list_store_append((GtkListStore*)model, &iter);
+            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_TBA,   list->par->tba,
+                                                            DS_COL_PARAM_NAME,  list->par->qualifier,
+                                                            DS_COL_PARAM_VALUE, list->par->value,
+                                                            DS_COL_PARAM_ERROR, 0.0, -1);
+
+			list = list->next;
+		}
+	}
+
+	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_fitt_treeview);
+
+	list = PHOEBE_pt->lists.marked_tba;
+	while (list)
+		{
+            gtk_list_store_append((GtkListStore*)model, &iter);
+            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_NAME,  list->par->qualifier,
+                                                            DS_COL_PARAM_VALUE, list->par->value,
+                                                            DS_COL_PARAM_ERROR, 0.0,
+                                                            DS_COL_PARAM_STEP,  list->par->step,
+                                                            DS_COL_PARAM_MIN,   list->par->min,
+                                                            DS_COL_PARAM_MAX,   list->par->max, -1);
+
+			list = list->next;
+		}
+
+	return SUCCESS;
 }
 
 static void cell_data_func (GtkCellLayout *cell_layout,
@@ -512,10 +558,10 @@ GtkTreeModel *spots_model_create()
 GtkTreeModel *datasheets_model_create()
 {
     GtkListStore *model = gtk_list_store_new(DS_COL_COUNT,          /* number of columns    */
+                                             G_TYPE_BOOLEAN,        /* parameter tba        */
                                              G_TYPE_STRING ,        /* parameter name       */
                                              G_TYPE_DOUBLE,         /* parameter value      */
                                              G_TYPE_DOUBLE,         /* parameter error      */
-                                             G_TYPE_BOOLEAN,        /* parameter tba        */
                                              G_TYPE_DOUBLE,         /* parameter step       */
                                              G_TYPE_DOUBLE,         /* parameter min        */
                                              G_TYPE_DOUBLE);        /* parameter max        */
