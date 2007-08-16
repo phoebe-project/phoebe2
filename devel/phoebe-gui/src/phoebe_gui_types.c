@@ -289,8 +289,8 @@ int gui_init_widgets (GladeXML* phoebe_window)
 
 	gui_widget_add ("phoebe_fitt_parameters_finesize1_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_finesize1_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize1"));
 	gui_widget_add ("phoebe_fitt_parameters_finesize2_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_finesize2_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize2"));
-	gui_widget_add ("phoebe_fitt_parameters_coarsize1_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize1_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsize1"));
-	gui_widget_add ("phoebe_fitt_parameters_coarsize2_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize2_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsize2"));
+	gui_widget_add ("phoebe_fitt_parameters_coarsize1_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize1_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize1"));
+	gui_widget_add ("phoebe_fitt_parameters_coarsize2_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize2_spinbutton"),			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize2"));
 	gui_widget_add ("phoebe_fitt_parameters_lambda_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_lambda_spinbutton"),				GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"));
 
 
@@ -563,8 +563,12 @@ int gui_get_value_from_widget (GUI_widget *widget)
 		}
 	}
 
-	if (GTK_IS_ENTRY(widget->gtk)){
+	else if (GTK_IS_ENTRY(widget->gtk)){
 		phoebe_parameter_set_value (widget->par, gtk_entry_get_text (GTK_ENTRY(widget->gtk)));
+	}
+
+	else if (GTK_IS_RADIO_BUTTON(widget->gtk))
+	{
 	}
 
 	else if (GTK_IS_CHECK_BUTTON(widget->gtk)){
@@ -578,8 +582,10 @@ int gui_get_value_from_widget (GUI_widget *widget)
 			}
 			break;
 		}
+	}
 
-
+	else if (GTK_IS_COMBO_BOX(widget->gtk))
+	{
 	}
 
 	else if (GTK_IS_TREE_VIEW_COLUMN(widget->gtk))
