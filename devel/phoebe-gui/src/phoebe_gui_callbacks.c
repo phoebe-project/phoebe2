@@ -11,6 +11,7 @@ on_phoebe_test_toolbutton_clicked      (GtkToolButton   *toolbutton,
                                         gpointer         user_data)
 {
     gui_get_values_from_widgets();
+    fill_datasheets();
 }
 
 
