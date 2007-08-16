@@ -451,6 +451,7 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 	store = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_INT);
 
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_box), GTK_TREE_MODEL (store));
+	gtk_cell_layout_clear (GTK_CELL_LAYOUT (combo_box));
 
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(combo_box), renderer, TRUE);
