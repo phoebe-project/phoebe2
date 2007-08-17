@@ -198,7 +198,7 @@ int phoebe_read_in_passbands (char *dir_name)
 	if (status != SUCCESS)
 		return status;
 
-	while (ptf_file = readdir (ptf_dir)) {
+	while ( (ptf_file = readdir (ptf_dir)) ) {
 		sprintf (filename, "%s/%s", dir_name, ptf_file->d_name);
 
 		if (filename_is_directory (filename)) continue;

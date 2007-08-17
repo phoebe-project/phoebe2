@@ -60,7 +60,7 @@ int query_spectra_repository (char *rep_name, PHOEBE_specrep *spec)
 	/* Initialize the spectra database:                                       */
 	spec->no = 0; spec->prop = NULL;
 
-	while (filelist = readdir (repository)) {
+	while ( (filelist = readdir (repository)) ) {
 		if (sscanf (filelist->d_name, "F%4d%dV000-R%d%c%dT%dG%dK2NOVER.ASC", &LAMIN, &LAMAX, &RES, &METSIGN, &MET, &TEMP, &LOGG) != 7) continue;
 		if (METSIGN == 'M') MET = -MET;
 		spec->no++;
@@ -118,10 +118,10 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 		if (feof (input)) break;
 
 		/* Remove empty lines:                                                */
-		if ( strptr = strchr (line, '\n') ) *strptr = '\0';
+		if ( (strptr = strchr (line, '\n')) ) *strptr = '\0';
 
 		/* Remove comments (if any):                                          */
-		if ( strptr = strchr (line, '#') ) *strptr = '\0';
+		if ( (strptr = strchr (line, '#')) ) *strptr = '\0';
 
 		if (sscanf (line, "%lf %lf", &wl, &flux) == 2) {
 			phoebe_vector_realloc (bin_centers, bin_centers->dim + 1);
@@ -211,6 +211,9 @@ PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_
 				spectrum->data->val[i] = 0.0;
 			}
 			spectrum->data->range[N] = q * spectrum->data->range[N-1];
+		break;
+		default:
+			/* fall through for PHOEBE_SPECTRUM_DISPERSION_NONE */
 		break;
 	}
 
@@ -433,7 +436,7 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	char Mlostr[5], Mhistr[5];
 
 	double square, minsquare;
-	int    minindex;
+	int    minindex = 0;
 	int    status;
 
 	/* 3-D interpolation requires 2^3 = 8 nodes: */
@@ -647,6 +650,9 @@ int phoebe_spectrum_apply_doppler_shift (PHOEBE_spectrum **dest, PHOEBE_spectrum
 		case PHOEBE_SPECTRUM_DISPERSION_LINEAR:
 			for (i = 0; i < src->data->bins+1; i++)
 				src->data->range[i] += velocity / 299791.0;
+		break;
+		default:
+			/* fall through for PHOEBE_SPECTRUM_DISPERSION_NONE */
 		break;
 	}
 

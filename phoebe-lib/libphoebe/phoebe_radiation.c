@@ -76,5 +76,6 @@ int compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist
 	return SUCCESS;
 #endif
 	phoebe_lib_warning ("GSL support needed to compute passband intensity, aborting.\n");
+	return SUCCESS;
 }
 

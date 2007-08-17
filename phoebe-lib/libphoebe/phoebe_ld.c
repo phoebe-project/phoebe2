@@ -33,6 +33,8 @@ int phoebe_ld_table_free ()
 		free (PHOEBE_ld_table[i].filename);
 	}
 	free (PHOEBE_ld_table);
+
+	return SUCCESS;
 }
 
 int read_in_ld_nodes (char *dir)
@@ -75,7 +77,7 @@ int read_in_ld_nodes (char *dir)
 	if (status != SUCCESS)
 		return status;
 
-	while (file = readdir (dirlist)) {
+	while ( (file = readdir (dirlist)) ) {
 		sprintf (LDfile, "%s/%s", dir, file->d_name);
 
 		/* Skip directories and 'ld_availability.data' file:                  */

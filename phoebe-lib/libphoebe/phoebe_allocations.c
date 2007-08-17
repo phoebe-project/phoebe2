@@ -111,9 +111,6 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 
 	double A;
 
-	PHOEBE_el3_units el3units;
-	double           el3value;
-
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
 	if (!indep)
@@ -151,7 +148,6 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 		default:
 			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
-		break;
 	}
 
 	status = read_in_wd_lci_parameters (&params, mpage, curve_index);
@@ -181,11 +177,14 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_PRIMARY_RV:
-			call_wd_to_get_rv1    (curve, indep);
+			call_wd_to_get_rv1 (curve, indep);
 		break;
 		case PHOEBE_COLUMN_SECONDARY_RV:
-			call_wd_to_get_rv2    (curve, indep);
+			call_wd_to_get_rv2 (curve, indep);
 		break;
+		default:
+			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
 	remove (filename);
