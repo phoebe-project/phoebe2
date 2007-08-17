@@ -15,8 +15,6 @@ int create_lci_file (char *filename, WD_LCI_parameters *param)
 	 * WD library to create the LC input file.
 	 */
 
-	int i;
-
 	double vunit = 100.0;
 	double mzero = 0.0;
 	double  tavh = param->TAVH/10000.0;

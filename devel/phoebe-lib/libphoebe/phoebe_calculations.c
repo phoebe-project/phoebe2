@@ -149,6 +149,8 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 					for (k = 0; k < fv.s[j]->data->bins; k++)
 						fv.s[j]->data->val[k] += (x[N-i-1]-n[j][N-i-1])/(n[j+powers[N-i-1]][N-i-1]-n[j][N-i-1])*(fv.s[j+powers[N-i-1]]->data->val[k]-fv.s[j]->data->val[k]);
 				break;
+				default:
+					return ERROR_INVALID_TYPE;
 			}
 
 	for (j = 0; j < powers[N]; j++)
@@ -352,8 +354,8 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	*vga = (double) rv1ptsno / (rv1ptsno + rv2ptsno) * rv1average +
 	       (double) rv2ptsno / (rv1ptsno + rv2ptsno) * rv2average;
 
-	return SUCCESS;
 */
+	return SUCCESS;
 }
 
 double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)

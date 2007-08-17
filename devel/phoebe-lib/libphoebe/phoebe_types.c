@@ -1661,6 +1661,9 @@ PHOEBE_array *phoebe_array_new (PHOEBE_type type)
 		case TYPE_DOUBLE_ARRAY: array->val.darray   = NULL; break;
 		case TYPE_BOOL_ARRAY:   array->val.barray   = NULL; break;
 		case TYPE_STRING_ARRAY: array->val.strarray = NULL; break;
+		default:
+			/* for suppressing compiler warning only. */
+		break;
 	}
 
 	return array;
@@ -1694,6 +1697,9 @@ int phoebe_array_alloc (PHOEBE_array *array, int dimension)
 		case TYPE_DOUBLE_ARRAY: array->  val.darray = phoebe_malloc (sizeof (*(array->  val.darray)) * dimension); break;
 		case TYPE_BOOL_ARRAY:   array->  val.barray = phoebe_malloc (sizeof (*(array->  val.barray)) * dimension); break;
 		case TYPE_STRING_ARRAY: array->val.strarray = phoebe_malloc (sizeof (*(array->val.strarray)) * dimension); break;
+		default:
+			/* for suppressing compiler warning only */
+		break;
 	}
 
 	return SUCCESS;
@@ -1729,6 +1735,9 @@ int phoebe_array_realloc (PHOEBE_array *array, int dimension)
 			array->val.strarray = phoebe_realloc (array->val.strarray, dimension * sizeof (*(array->val.strarray)));
 			for (i = olddim; i < dimension; i++)
 				array->val.strarray[i] = NULL;
+		break;
+		default:
+			/* for suppressing compiler warning only */
 		break;
 	}
 
@@ -1816,6 +1825,9 @@ PHOEBE_array *phoebe_array_duplicate (PHOEBE_array *array)
 			for (i = 0; i < copy->dim; i++)
 				copy->val.strarray[i] = strdup (array->val.strarray[i]);
 		break;
+		default:
+			/* for suppressing compiler warning only */
+		break;
 	}
 
 	return copy;
@@ -1847,6 +1859,9 @@ int phoebe_array_free (PHOEBE_array *array)
 					free (array->val.strarray[i]);
 				free (array->val.strarray);
 			}
+		break;
+		default:
+			/* for suppressing compiler warning only */
 		break;
 	}
 	free (array);
@@ -2044,7 +2059,7 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	char *param;
 	PHOEBE_curve *curve;
 	PHOEBE_column_type itype, dtype, wtype;
-	PHOEBE_passband *passband;
+	PHOEBE_passband *passband = NULL;
 	char *filename;
 	double sigma;
 

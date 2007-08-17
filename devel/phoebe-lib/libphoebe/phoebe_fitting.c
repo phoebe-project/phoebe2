@@ -62,7 +62,6 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_vector         *weights    = params->weights;
 
 	WD_LCI_parameters    **lcipars;
-	PHOEBE_ast_list *constraint;
 
 	calls_to_cf++;
 

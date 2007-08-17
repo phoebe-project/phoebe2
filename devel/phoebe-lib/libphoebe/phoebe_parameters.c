@@ -386,6 +386,8 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 			par->defaultvalue.str = strdup (str);
 		}
 		break;
+		default:
+			phoebe_lib_error ("type %s not supported for parameters, aborting.\n", phoebe_type_get_name (par->type));
 	}
 	va_end (args);
 
@@ -646,6 +648,9 @@ int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 					for (j = oldval; j < dim; j++)
 						list->par->value.array->val.strarray[j] = strdup (list->par->defaultvalue.str);
 				break;
+				default:
+					phoebe_lib_error ("dependent parameter is not an array, aborting.\n");
+					return ERROR_INVALID_TYPE;
 		}
 
 		list = list->next;
@@ -878,6 +883,9 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
 			}
 		break;
+		default:
+			phoebe_lib_error ("parameter type %s is not supported, aborting.\n", phoebe_type_get_name (par->type));
+			return ERROR_INVALID_TYPE;
 	}
 	va_end (args);
 
@@ -908,7 +916,7 @@ int phoebe_parameter_get_tba (PHOEBE_parameter *par, bool *tba)
 int phoebe_parameter_list_sort_marked_tba (PHOEBE_parameter_list *list)
 {
 	PHOEBE_parameter_list *prev = NULL, *next;
-	int i, id1, id2;
+	int i, id1 = 0, id2 = 0;
 
 	struct { int index; PHOEBE_parameter *par; } wdorder[] = {
 		{ 0, phoebe_parameter_lookup ("phoebe_spots_lat1") },
@@ -1684,9 +1692,12 @@ int phoebe_open_parameter_file (const char *filename)
 					if (strcmp (field,  "ADJ") == 0)
 						phoebe_parameter_set_tba (par, atob (value_str));
 				break;
+				default:
+					phoebe_lib_error ("dependent parameter is not an array, aborting.\n");
+					return ERROR_INVALID_TYPE;
 			}
 		}
-		else if (elem_sep = strchr (keyword_str, '[')) {
+		else if ( (elem_sep = strchr (keyword_str, '[')) ) {
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(elem_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(elem_sep));
 			qualifier[strlen(keyword_str)-strlen(elem_sep)] = '\0';
@@ -1745,9 +1756,12 @@ int phoebe_open_parameter_file (const char *filename)
 					}
 					phoebe_parameter_set_value (par, elem-1, value_str);
 				break;
+				default:
+					phoebe_lib_error ("dependent parameter is not an array, aborting.\n");
+					return ERROR_INVALID_TYPE;
 			}
 		}
-		else if (field_sep = strchr (keyword_str, '.')) {
+		else if ( (field_sep = strchr (keyword_str, '.')) ) {
 			qualifier = phoebe_malloc ( (strlen(keyword_str)-strlen(field_sep)+1)*sizeof(*qualifier) );
 			strncpy (qualifier, keyword_str, strlen(keyword_str)-strlen(field_sep));
 			qualifier[strlen(keyword_str)-strlen(field_sep)] = '\0';
