@@ -66,6 +66,8 @@
 
   # C compiler:
     AC_PROG_CC
+# Do we really need this?
+  AM_PROG_CC_C_O
 
     if test -z $CC; then
       echo ""

@@ -564,28 +564,28 @@ int gui_get_value_from_widget (GUI_widget *widget)
 						case TYPE_INT_ARRAY:
 						{
 							int value;
-							gtk_tree_model_get(model, iter, column_id, &value);
+							gtk_tree_model_get(model, iter, column_id, &value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
 						case TYPE_DOUBLE_ARRAY:
 						{
 							double value;
-							gtk_tree_model_get(model, iter, column_id, &value);
+							gtk_tree_model_get(model, iter, column_id, &value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
 						case TYPE_STRING_ARRAY:
 						{
 							char *value;
-							gtk_tree_model_get(model, iter, column_id, &value);
+							gtk_tree_model_get(model, iter, column_id, value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
 						case TYPE_BOOL_ARRAY:
 						{
 							bool value;
-							gtk_tree_model_get(model, iter, column_id, &value);
+							gtk_tree_model_get(model, iter, column_id, &value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
@@ -595,28 +595,28 @@ int gui_get_value_from_widget (GUI_widget *widget)
                 case GUI_WIDGET_SWITCH_TBA:
                 {
                     bool tba;
-                    gtk_tree_model_get(model, iter, column_id, &tba);
+                    gtk_tree_model_get(model, iter, column_id, &tba, -1);
                     phoebe_parameter_set_tba (widget->par, tba);
                 }
                 break;
                 case GUI_WIDGET_VALUE_STEP:
                 {
                     double value;
-                    gtk_tree_model_get(model, iter, column_id, &value);
+                    gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_step (widget->par, value);
                 }
                 break;
                 case GUI_WIDGET_VALUE_MIN:
                 {
                     double value;
-                    gtk_tree_model_get(model, iter, column_id, &value);
+                    gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_lower_limit (widget->par, value);
                 }
                 break;
                 case GUI_WIDGET_VALUE_MAX:
                 {
                     double value;
-                    gtk_tree_model_get(model, iter, column_id, &value);
+                    gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_upper_limit (widget->par, value);
                 }
                 break;
