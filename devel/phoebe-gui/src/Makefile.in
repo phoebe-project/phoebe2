@@ -44,13 +44,15 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_phoebe_gui_OBJECTS = phoebe_gui_main.$(OBJEXT) \
-	phoebe_gui_callbacks.$(OBJEXT) phoebe_gui_types.$(OBJEXT) \
-	phoebe_gui_base.$(OBJEXT) phoebe_gui_treeviews.$(OBJEXT)
+am_phoebe_gui_OBJECTS = phoebe_gui-phoebe_gui_main.$(OBJEXT) \
+	phoebe_gui-phoebe_gui_callbacks.$(OBJEXT) \
+	phoebe_gui-phoebe_gui_types.$(OBJEXT) \
+	phoebe_gui-phoebe_gui_base.$(OBJEXT) \
+	phoebe_gui-phoebe_gui_treeviews.$(OBJEXT)
 phoebe_gui_OBJECTS = $(am_phoebe_gui_OBJECTS)
 phoebe_gui_DEPENDENCIES =
-phoebe_gui_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(phoebe_gui_LDFLAGS) \
-	$(LDFLAGS) -o $@
+phoebe_gui_LINK = $(CCLD) $(phoebe_gui_CFLAGS) $(CFLAGS) \
+	$(phoebe_gui_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/autoconfig/depcomp
 am__depfiles_maybe = depfiles
@@ -171,6 +173,7 @@ phoebe_gui_SOURCES = \
 	phoebe_gui_treeviews.h  phoebe_gui_treeviews.c	\
 	phoebe_gui_global.h
 
+phoebe_gui_CFLAGS = -Wall -g
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
 EXTRA_DIST = phoebe.glade
@@ -258,11 +261,11 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_base.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_callbacks.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_treeviews.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui_types.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui-phoebe_gui_base.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui-phoebe_gui_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_gui-phoebe_gui_types.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -277,6 +280,76 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+phoebe_gui-phoebe_gui_main.o: phoebe_gui_main.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_main.o -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_main.Tpo -c -o phoebe_gui-phoebe_gui_main.o `test -f 'phoebe_gui_main.c' || echo '$(srcdir)/'`phoebe_gui_main.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_main.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_main.c' object='phoebe_gui-phoebe_gui_main.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_main.o `test -f 'phoebe_gui_main.c' || echo '$(srcdir)/'`phoebe_gui_main.c
+
+phoebe_gui-phoebe_gui_main.obj: phoebe_gui_main.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_main.obj -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_main.Tpo -c -o phoebe_gui-phoebe_gui_main.obj `if test -f 'phoebe_gui_main.c'; then $(CYGPATH_W) 'phoebe_gui_main.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_main.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_main.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_main.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_main.c' object='phoebe_gui-phoebe_gui_main.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_main.obj `if test -f 'phoebe_gui_main.c'; then $(CYGPATH_W) 'phoebe_gui_main.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_main.c'; fi`
+
+phoebe_gui-phoebe_gui_callbacks.o: phoebe_gui_callbacks.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_callbacks.o -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Tpo -c -o phoebe_gui-phoebe_gui_callbacks.o `test -f 'phoebe_gui_callbacks.c' || echo '$(srcdir)/'`phoebe_gui_callbacks.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_callbacks.c' object='phoebe_gui-phoebe_gui_callbacks.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_callbacks.o `test -f 'phoebe_gui_callbacks.c' || echo '$(srcdir)/'`phoebe_gui_callbacks.c
+
+phoebe_gui-phoebe_gui_callbacks.obj: phoebe_gui_callbacks.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_callbacks.obj -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Tpo -c -o phoebe_gui-phoebe_gui_callbacks.obj `if test -f 'phoebe_gui_callbacks.c'; then $(CYGPATH_W) 'phoebe_gui_callbacks.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_callbacks.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_callbacks.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_callbacks.c' object='phoebe_gui-phoebe_gui_callbacks.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_callbacks.obj `if test -f 'phoebe_gui_callbacks.c'; then $(CYGPATH_W) 'phoebe_gui_callbacks.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_callbacks.c'; fi`
+
+phoebe_gui-phoebe_gui_types.o: phoebe_gui_types.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_types.o -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_types.Tpo -c -o phoebe_gui-phoebe_gui_types.o `test -f 'phoebe_gui_types.c' || echo '$(srcdir)/'`phoebe_gui_types.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_types.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_types.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_types.c' object='phoebe_gui-phoebe_gui_types.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_types.o `test -f 'phoebe_gui_types.c' || echo '$(srcdir)/'`phoebe_gui_types.c
+
+phoebe_gui-phoebe_gui_types.obj: phoebe_gui_types.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_types.obj -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_types.Tpo -c -o phoebe_gui-phoebe_gui_types.obj `if test -f 'phoebe_gui_types.c'; then $(CYGPATH_W) 'phoebe_gui_types.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_types.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_types.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_types.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_types.c' object='phoebe_gui-phoebe_gui_types.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_types.obj `if test -f 'phoebe_gui_types.c'; then $(CYGPATH_W) 'phoebe_gui_types.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_types.c'; fi`
+
+phoebe_gui-phoebe_gui_base.o: phoebe_gui_base.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_base.o -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_base.Tpo -c -o phoebe_gui-phoebe_gui_base.o `test -f 'phoebe_gui_base.c' || echo '$(srcdir)/'`phoebe_gui_base.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_base.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_base.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_base.c' object='phoebe_gui-phoebe_gui_base.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_base.o `test -f 'phoebe_gui_base.c' || echo '$(srcdir)/'`phoebe_gui_base.c
+
+phoebe_gui-phoebe_gui_base.obj: phoebe_gui_base.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_base.obj -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_base.Tpo -c -o phoebe_gui-phoebe_gui_base.obj `if test -f 'phoebe_gui_base.c'; then $(CYGPATH_W) 'phoebe_gui_base.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_base.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_base.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_base.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_base.c' object='phoebe_gui-phoebe_gui_base.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_base.obj `if test -f 'phoebe_gui_base.c'; then $(CYGPATH_W) 'phoebe_gui_base.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_base.c'; fi`
+
+phoebe_gui-phoebe_gui_treeviews.o: phoebe_gui_treeviews.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_treeviews.o -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Tpo -c -o phoebe_gui-phoebe_gui_treeviews.o `test -f 'phoebe_gui_treeviews.c' || echo '$(srcdir)/'`phoebe_gui_treeviews.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_treeviews.c' object='phoebe_gui-phoebe_gui_treeviews.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_treeviews.o `test -f 'phoebe_gui_treeviews.c' || echo '$(srcdir)/'`phoebe_gui_treeviews.c
+
+phoebe_gui-phoebe_gui_treeviews.obj: phoebe_gui_treeviews.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -MT phoebe_gui-phoebe_gui_treeviews.obj -MD -MP -MF $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Tpo -c -o phoebe_gui-phoebe_gui_treeviews.obj `if test -f 'phoebe_gui_treeviews.c'; then $(CYGPATH_W) 'phoebe_gui_treeviews.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_treeviews.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Tpo $(DEPDIR)/phoebe_gui-phoebe_gui_treeviews.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_gui_treeviews.c' object='phoebe_gui-phoebe_gui_treeviews.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_gui_CFLAGS) $(CFLAGS) -c -o phoebe_gui-phoebe_gui_treeviews.obj `if test -f 'phoebe_gui_treeviews.c'; then $(CYGPATH_W) 'phoebe_gui_treeviews.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_gui_treeviews.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
