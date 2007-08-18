@@ -544,16 +544,14 @@ int gui_get_value_from_widget (GUI_widget *widget)
 
 	else if (GTK_IS_TREE_VIEW_COLUMN(widget->gtk))
 	{
-        GtkTreeViewColumn *column;
-        int column_id;
-        GtkTreeModel *model;
-
-        column = (GtkTreeViewColumn*)widget->gtk;
-        column_id = GPOINTER_TO_UINT(g_object_get_data((GObject*)column, "column_id"));
-        model = gtk_tree_view_get_model(g_object_get_data((GObject*)column, "parent_tree"));
+        GtkTreeViewColumn *column = (GtkTreeViewColumn*)widget->gtk;
+        int column_id = GPOINTER_TO_INT(g_object_get_data((GObject*)column, "column_id"));
+        GtkTreeModel *model = gtk_tree_view_get_model((GtkTreeView*)g_object_get_data((GObject*)column, "parent_tree"));
 
         GtkTreeIter *iter;
         int valid = gtk_tree_model_get_iter_first(model, iter);
+
+		g_print("%s \n", par->qualifier);
 
         while(valid)
         {
@@ -561,9 +559,37 @@ int gui_get_value_from_widget (GUI_widget *widget)
             {
                 case GUI_WIDGET_VALUE:
                 {
-                    anytype value;
-                    gtk_tree_model_get(model, iter, column_id, &value);
-                    phoebe_parameter_set_value (widget->par, value);
+					switch (par->type)
+					{
+						case TYPE_INT_ARRAY:
+						{
+							int value;
+							gtk_tree_model_get(model, iter, column_id, &value);
+                    		phoebe_parameter_set_value (widget->par, value);
+						}
+						break;
+						case TYPE_DOUBLE_ARRAY:
+						{
+							double value;
+							gtk_tree_model_get(model, iter, column_id, &value);
+                    		phoebe_parameter_set_value (widget->par, value);
+						}
+						break;
+						case TYPE_STRING_ARRAY:
+						{
+							char *value;
+							gtk_tree_model_get(model, iter, column_id, &value);
+                    		phoebe_parameter_set_value (widget->par, value);
+						}
+						break;
+						case TYPE_BOOL_ARRAY:
+						{
+							bool value;
+							gtk_tree_model_get(model, iter, column_id, &value);
+                    		phoebe_parameter_set_value (widget->par, value);
+						}
+						break;
+					}
                 }
                 break;
                 case GUI_WIDGET_SWITCH_TBA:
@@ -597,6 +623,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
             }
             valid = gtk_tree_model_iter_next(model, iter);
         }
+	g_object_unref(model);
+	g_object_unref(column);
 	}
 
 	return SUCCESS;
