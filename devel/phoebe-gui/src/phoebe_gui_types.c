@@ -504,7 +504,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 {
 	PHOEBE_parameter *par = widget->par;
 
-	if (GTK_IS_SPIN_BUTTON(widget->gtk)){
+	if (GTK_IS_SPIN_BUTTON (widget->gtk)) {
 		switch (par->type) {
 			case TYPE_INT: {
 				phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(widget->gtk)));
@@ -514,18 +514,21 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON(widget->gtk)));
 			}
 			break;
+			default:
+				/* change to phoebe_gui_error! */
+				printf ("exception handler invoked in gui_get_value_from_widget (), please report this!\n");
+				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 	}
 
-	else if (GTK_IS_ENTRY(widget->gtk)){
+	else if (GTK_IS_ENTRY (widget->gtk)) {
 		phoebe_parameter_set_value (widget->par, gtk_entry_get_text (GTK_ENTRY(widget->gtk)));
 	}
 
-	else if (GTK_IS_RADIO_BUTTON(widget->gtk))
-	{
+	else if (GTK_IS_RADIO_BUTTON (widget->gtk)) {
 	}
 
-	else if (GTK_IS_CHECK_BUTTON(widget->gtk)){
+	else if (GTK_IS_CHECK_BUTTON (widget->gtk)) {
 		switch (widget->type) {
 			case GUI_WIDGET_VALUE: {
 				phoebe_parameter_set_value (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(widget->gtk)));
@@ -535,15 +538,17 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				phoebe_parameter_set_tba (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(widget->gtk)));
 			}
 			break;
+			default:
+				/* change to phoebe_gui_error! */
+				printf ("exception handler invoked in gui_get_value_from_widget (), please report this!\n");
+				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 	}
 
-	else if (GTK_IS_COMBO_BOX(widget->gtk))
-	{
+	else if (GTK_IS_COMBO_BOX(widget->gtk)) {
 	}
 
-	else if (GTK_IS_TREE_VIEW_COLUMN(widget->gtk))
-	{
+	else if (GTK_IS_TREE_VIEW_COLUMN (widget->gtk)) {
         GtkTreeViewColumn *column = (GtkTreeViewColumn*)widget->gtk;
         int column_id = GPOINTER_TO_INT(g_object_get_data((GObject*)column, "column_id"));
         GtkTreeModel *model = gtk_tree_view_get_model((GtkTreeView*)g_object_get_data((GObject*)column, "parent_tree"));
@@ -553,73 +558,69 @@ int gui_get_value_from_widget (GUI_widget *widget)
 
 		g_print("%s \n", par->qualifier);
 
-        while(valid)
-        {
-            switch (widget->type)
-            {
-                case GUI_WIDGET_VALUE:
-                {
-					switch (par->type)
-					{
-						case TYPE_INT_ARRAY:
-						{
+        while (valid) {
+			switch (widget->type) {
+				case GUI_WIDGET_VALUE: {
+					switch (par->type) {
+						case TYPE_INT_ARRAY: {
 							int value;
 							gtk_tree_model_get(model, iter, column_id, &value, -1);
-                    		phoebe_parameter_set_value (widget->par, value);
+							phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
-						case TYPE_DOUBLE_ARRAY:
-						{
+						case TYPE_DOUBLE_ARRAY: {
 							double value;
 							gtk_tree_model_get(model, iter, column_id, &value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
-						case TYPE_STRING_ARRAY:
-						{
+						case TYPE_STRING_ARRAY: {
 							char *value;
 							gtk_tree_model_get(model, iter, column_id, value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
-						case TYPE_BOOL_ARRAY:
-						{
+						case TYPE_BOOL_ARRAY: {
 							bool value;
 							gtk_tree_model_get(model, iter, column_id, &value, -1);
                     		phoebe_parameter_set_value (widget->par, value);
 						}
 						break;
+						default:
+							/* change to phoebe_gui_error! */
+							printf ("exception handler invoked in gui_get_value_from_widget (), please report this!\n");
+							return ERROR_EXCEPTION_HANDLER_INVOKED;
 					}
                 }
                 break;
-                case GUI_WIDGET_SWITCH_TBA:
-                {
+                case GUI_WIDGET_SWITCH_TBA: {
                     bool tba;
                     gtk_tree_model_get(model, iter, column_id, &tba, -1);
                     phoebe_parameter_set_tba (widget->par, tba);
                 }
                 break;
-                case GUI_WIDGET_VALUE_STEP:
-                {
+                case GUI_WIDGET_VALUE_STEP: {
                     double value;
                     gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_step (widget->par, value);
                 }
                 break;
-                case GUI_WIDGET_VALUE_MIN:
-                {
+                case GUI_WIDGET_VALUE_MIN: {
                     double value;
                     gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_lower_limit (widget->par, value);
                 }
                 break;
-                case GUI_WIDGET_VALUE_MAX:
-                {
+                case GUI_WIDGET_VALUE_MAX: {
                     double value;
                     gtk_tree_model_get(model, iter, column_id, &value, -1);
                     phoebe_parameter_set_upper_limit (widget->par, value);
                 }
                 break;
+				default:
+					/* change to phoebe_gui_error! */
+					printf ("exception handler invoked in gui_get_value_from_widget (), please report this!\n");
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
             }
             valid = gtk_tree_model_iter_next(model, iter);
         }
@@ -639,7 +640,7 @@ int gui_get_values_from_widgets ()
 		bucket = GUI_wt->bucket[i];
 		while (bucket) {
 			status = gui_get_value_from_widget (bucket->widget);
-			printf ("processing widget %s (%s)\n", bucket->widget->name, phoebe_error (status));
+			printf ("processing widget %s: %s", bucket->widget->name, phoebe_error (status));
 			bucket = bucket->next;
 		}
 	}
