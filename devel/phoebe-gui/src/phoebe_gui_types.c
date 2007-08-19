@@ -632,14 +632,15 @@ int gui_get_value_from_widget (GUI_widget *widget)
 
 int gui_get_values_from_widgets ()
 {
-	int i;
+	int i, status;
 	GUI_wt_bucket *bucket;
 
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
-		while (GUI_wt->bucket[i]) {
-			bucket = GUI_wt->bucket[i];
-			GUI_wt->bucket[i] = bucket->next;
-			gui_get_value_from_widget (bucket->widget);
+		bucket = GUI_wt->bucket[i];
+		while (bucket) {
+			status = gui_get_value_from_widget (bucket->widget);
+			printf ("processing widget %s (%s)\n", bucket->widget->name, phoebe_error (status));
+			bucket = bucket->next;
 		}
 	}
 
