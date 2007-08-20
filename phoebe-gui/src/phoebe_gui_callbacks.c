@@ -27,6 +27,7 @@ void on_phoebe_sidesheet_data_tba_checkbutton_toggled
                                          gchar                 *path,
                                          gpointer               user_data)
 {
+
 }
 
 
@@ -80,10 +81,8 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 	g_object_unref (phoebe_load_lc_xml);
 
     int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
-    switch (result)
-    {
-        case GTK_RESPONSE_OK:
-        {
+    switch (result){
+        case GTK_RESPONSE_OK:{
             GtkTreeModel *model;
             GtkTreeIter iter;
 
@@ -125,10 +124,19 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                 LC_COL_Y1,          0.5,
                                 LC_COL_Y2,          0.5,
 								-1);
-            break;
+
+            PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+            int lcno;
+
+            phoebe_parameter_get_value(par, &lcno);
+            phoebe_parameter_set_value(par, lcno + 1);
+
+            printf("Number of light curves: %d\n", lcno + 1);
         }
+        break;
+
         case GTK_RESPONSE_CANCEL:
-            break;
+        break;
     }
 
     gtk_widget_destroy (phoebe_load_lc_dialog);
@@ -144,10 +152,8 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
-    if(gtk_tree_model_get_iter_first(model, &iter))
-    {
+    if(gtk_tree_model_get_iter_first(model, &iter)){
         GladeXML  *phoebe_load_lc_xml                   = glade_xml_new       ("../glade/phoebe_load_lc.glade", NULL, NULL);
-
         GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_dialog");
         GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
         GtkWidget *phoebe_load_lc_column1_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column1_combobox");
@@ -173,8 +179,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
         GtkTreeSelection *selection;
         selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
-        if (gtk_tree_selection_get_selected(selection, &model, &iter))
-        {
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
             gtk_tree_model_get(model, &iter,    LC_COL_FILENAME, &filename,
                                                 LC_COL_FILTER,   &filter,
                                                 LC_COL_ITYPE,    &itype,
@@ -190,10 +195,8 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
         }
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
-        switch (result)
-        {
-            case GTK_RESPONSE_OK:
-            {
+        switch (result){
+            case GTK_RESPONSE_OK:{
                 PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
                 PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
                 PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
@@ -218,10 +221,11 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                                 LC_COL_X2,          0.5,
                                                                 LC_COL_Y1,          0.5,
                                                                 LC_COL_Y2,          0.5, -1);
-                break;
             }
+            break;
+
             case GTK_RESPONSE_CANCEL:
-                break;
+            break;
         }
         gtk_widget_destroy (phoebe_load_lc_dialog);
     }
@@ -238,9 +242,16 @@ on_phoebe_data_lc_remove_button_clicked
     GtkTreeIter       iter;
 
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter))
-    {
+    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         gtk_list_store_remove((GtkListStore*)model, &iter);
+
+        PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+        int lcno;
+
+        phoebe_parameter_get_value(par, &lcno);
+        phoebe_parameter_set_value(par, lcno - 1);
+
+        printf("Number of light curves: %d\n", lcno - 1);
     }
 }
 
@@ -256,12 +267,13 @@ void on_phoebe_data_lc_active_checkbutton_toggled
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
-    if(gtk_tree_model_get_iter_from_string(model, &iter, path))
-    {
+    if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
         g_object_get(renderer, "active", &active, NULL);
 
-        if(active) gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE, FALSE, -1);
-        else       gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE, TRUE, -1);
+        if(active)
+            gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE, FALSE, -1);
+        else
+            gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE, TRUE, -1);
     }
 }
 
@@ -316,9 +328,8 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
     GtkTreeIter iter;
 
     int result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
-    switch (result)
-    {
-        case GTK_RESPONSE_OK:
+    switch (result){
+        case GTK_RESPONSE_OK:{
 
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
@@ -341,9 +352,19 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
                                                             RV_COL_X2,          0.5,
                                                             RV_COL_Y1,          0.5,
                                                             RV_COL_Y2,          0.5, -1);
-            break;
+
+            PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+            int rvno;
+
+            phoebe_parameter_get_value(par, &rvno);
+            phoebe_parameter_set_value(par, rvno + 1);
+
+            printf("Number of RV curves: %d\n", rvno + 1);
+        }
+        break;
+
         case GTK_RESPONSE_CANCEL:
-            break;
+        break;
     }
     gtk_widget_destroy (phoebe_load_rv_dialog);
 }
@@ -358,10 +379,8 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
-    if(gtk_tree_model_get_iter_first(model, &iter))
-    {
+    if(gtk_tree_model_get_iter_first(model, &iter)){
         GladeXML  *phoebe_load_rv_xml                   = glade_xml_new       ("../glade/phoebe_load_rv.glade", NULL, NULL);
-
         GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_dialog");
         GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
         GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
@@ -385,8 +404,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 
         GtkTreeSelection *selection;
         selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview);
-        if (gtk_tree_selection_get_selected(selection, &model, &iter))
-        {
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
             gtk_tree_model_get(model, &iter,    RV_COL_FILENAME, &filename,
                                                 RV_COL_FILTER,   &filter,
                                                 RV_COL_ITYPE,    &itype,
@@ -395,7 +413,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                 RV_COL_SIGMA,    &sigma, -1);
 
             gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, filename);
-            /* TODO: filter */
+            /* What about RV filters? */
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  wtype);
@@ -403,10 +421,8 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         }
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
-        switch (result)
-        {
-            case GTK_RESPONSE_OK:
-
+        switch (result){
+            case GTK_RESPONSE_OK:{
                 result++;
 
                 PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
@@ -427,9 +443,11 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                                 RV_COL_X2,          0.5,
                                                                 RV_COL_Y1,          0.5,
                                                                 RV_COL_Y2,          0.5, -1);
-                break;
+            }
+            break;
+
             case GTK_RESPONSE_CANCEL:
-                break;
+            break;
         }
         gtk_widget_destroy (phoebe_load_rv_dialog);
     }
@@ -446,9 +464,16 @@ on_phoebe_data_rv_remove_button_clicked
     GtkTreeIter       iter;
 
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter))
-    {
+    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         gtk_list_store_remove((GtkListStore*)model, &iter);
+
+        PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+        int rvno;
+
+        phoebe_parameter_get_value(par, &rvno);
+        phoebe_parameter_set_value(par, rvno - 1);
+
+        printf("Number of RV curves: %d\n", rvno - 1);
     }
 }
 
@@ -464,12 +489,13 @@ void on_phoebe_data_rv_active_checkbutton_toggled
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
-    if(gtk_tree_model_get_iter_from_string(model, &iter, path))
-    {
+    if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
         g_object_get(renderer, "active", &active, NULL);
 
-        if(active) gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE, FALSE, -1);
-        else       gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE, TRUE, -1);
+        if(active)
+            gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE, FALSE, -1);
+        else
+            gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE, TRUE, -1);
     }
 }
 
@@ -535,15 +561,18 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
     GtkTreeIter iter;
 
 	int result = gtk_dialog_run ((GtkDialog*)phoebe_load_spots_dialog);
-	switch (result)
-	{
-	    case GTK_RESPONSE_OK:
+	switch (result)	{
+	    case GTK_RESPONSE_OK:{
 
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
+            /* source gets set separately because 1 is for primary, and 2 for secondary, while the
+               combo returns 0 for primary and 1 for secondary; and, we need it later */
+            int source = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
+
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       FALSE,
-                                                            SPOTS_COL_SOURCE,       gtk_combo_box_get_active    ((GtkComboBox*)    phoebe_load_spots_source_combobox),
+                                                            SPOTS_COL_SOURCE,       source,
                                                             SPOTS_COL_LAT,          gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_lat_spinbutton),
                                                             SPOTS_COL_LATADJUST,    gtk_toggle_button_get_active((GtkToggleButton*)phoebe_load_spots_latadjust_checkbutton),
                                                             SPOTS_COL_LATSTEP,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_latstep_spinbutton),
@@ -564,9 +593,29 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
                                                             SPOTS_COL_TEMPSTEP,     gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempstep_spinbutton),
                                                             SPOTS_COL_TEMPMIN,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmin_spinbutton),
                                                             SPOTS_COL_TEMPMAX,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmax_spinbutton), -1);
-            break;
+
+            PHOEBE_parameter *par;
+            int spots_no;
+
+            if (source == 1){
+                /* the primary */
+                par = phoebe_parameter_lookup("phoebe_spots_no1");
+                phoebe_parameter_get_value(par, &spots_no);
+                phoebe_parameter_set_value(par, spots_no + 1);
+                printf("Number of spots on the primary: %d\n", spots_no + 1);
+            }
+            else{
+                /* the secondary */
+                par = phoebe_parameter_lookup("phoebe_spots_no2");
+                phoebe_parameter_get_value(par, &spots_no);
+                phoebe_parameter_set_value(par, spots_no + 1);
+                printf("Number of spots on the secondary: %d\n", spots_no + 1);
+            }
+	    }
+        break;
+
         case GTK_RESPONSE_CANCEL:
-            break;
+        break;
 	}
 
     gtk_widget_destroy (phoebe_load_spots_dialog);
@@ -582,8 +631,7 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
-    if(gtk_tree_model_get_iter_first(model, &iter))
-    {
+    if(gtk_tree_model_get_iter_first(model, &iter)){
         GladeXML  *phoebe_load_spots_xml                    = glade_xml_new       ("../glade/phoebe_load_spots.glade", NULL, NULL);
 
         GtkWidget *phoebe_load_spots_dialog                 = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_dialog");
@@ -616,13 +664,12 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
         double rad, radstep, radmin, radmax;
         double temp, tempstep, tempmin, tempmax;
         bool latadjust, lonadjust, radadjust, tempadjust;
-        int source;
+        int source_old, source_new;
 
         GtkTreeSelection *selection;
         selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_surf_spots_treeview);
-        if (gtk_tree_selection_get_selected(selection, &model, &iter))
-        {
-            gtk_tree_model_get(model, &iter,    SPOTS_COL_SOURCE,       &source,
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+            gtk_tree_model_get(model, &iter,    SPOTS_COL_SOURCE,       &source_old,
                                                 SPOTS_COL_LAT,          &lat,
                                                 SPOTS_COL_LATADJUST,    &latadjust,
                                                 SPOTS_COL_LATSTEP,      &latstep,
@@ -644,7 +691,7 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
                                                 SPOTS_COL_TEMPMIN,      &tempmin,
                                                 SPOTS_COL_TEMPMAX,      &tempmax, -1);
 
-            gtk_combo_box_set_active    ((GtkComboBox*)     phoebe_load_spots_source_combobox,          source);
+            gtk_combo_box_set_active    ((GtkComboBox*)     phoebe_load_spots_source_combobox,          source_old - 1);
             gtk_toggle_button_set_active((GtkToggleButton*) phoebe_load_spots_latadjust_checkbutton,    latadjust);
             gtk_spin_button_set_value   ((GtkSpinButton*)   phoebe_load_spots_lat_spinbutton,           lat);
             gtk_spin_button_set_value   ((GtkSpinButton*)   phoebe_load_spots_latstep_spinbutton,       latstep);
@@ -668,11 +715,15 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
         }
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_spots_dialog);
-        switch (result)
-        {
-            case GTK_RESPONSE_OK:
+        switch (result){
+            case GTK_RESPONSE_OK:{
+
+                /* source gets set separately because 1 is for primary, and 2 for secondary, while the
+                   combo returns 0 for primary and 1 for secondary; and, we need it later */
+                source_new = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
+
                 gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       FALSE,
-                                                                SPOTS_COL_SOURCE,       gtk_combo_box_get_active    ((GtkComboBox*)    phoebe_load_spots_source_combobox),
+                                                                SPOTS_COL_SOURCE,       source_new,
                                                                 SPOTS_COL_LAT,          gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_lat_spinbutton),
                                                                 SPOTS_COL_LATADJUST,    gtk_toggle_button_get_active((GtkToggleButton*)phoebe_load_spots_latadjust_checkbutton),
                                                                 SPOTS_COL_LATSTEP,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_latstep_spinbutton),
@@ -693,9 +744,42 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
                                                                 SPOTS_COL_TEMPSTEP,     gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempstep_spinbutton),
                                                                 SPOTS_COL_TEMPMIN,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmin_spinbutton),
                                                                 SPOTS_COL_TEMPMAX,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmax_spinbutton), -1);
-                break;
+
+                /* source of the spot has been changed, so the spots_nos have to be changed as well */
+                if(source_old != source_new){
+                    PHOEBE_parameter *par;
+                    int spots_no;
+
+                    if (source_old == 1){
+                        /* the spot USED to be on the primary, and now it's on the secondary */
+                        par = phoebe_parameter_lookup("phoebe_spots_no1");
+                        phoebe_parameter_get_value(par, &spots_no);
+                        phoebe_parameter_set_value(par, spots_no - 1);
+                        printf("Number of spots on the primary: %d\n", spots_no - 1);
+
+                        par = phoebe_parameter_lookup("phoebe_spots_no2");
+                        phoebe_parameter_get_value(par, &spots_no);
+                        phoebe_parameter_set_value(par, spots_no + 1);
+                        printf("Number of spots on the secondary: %d\n", spots_no + 1);
+                    }
+                    else{
+                        /* the spot USED to be on the secondary, and now it's on the primary */
+                        par = phoebe_parameter_lookup("phoebe_spots_no2");
+                        phoebe_parameter_get_value(par, &spots_no);
+                        phoebe_parameter_set_value(par, spots_no - 1);
+                        printf("Number of spots on the secondary: %d\n", spots_no - 1);
+
+                        par = phoebe_parameter_lookup("phoebe_spots_no1");
+                        phoebe_parameter_get_value(par, &spots_no);
+                        phoebe_parameter_set_value(par, spots_no + 1);
+                        printf("Number of spots on the primary: %d\n", spots_no + 1);
+                    }
+                }
+            }
+            break;
+
             case GTK_RESPONSE_CANCEL:
-                break;
+            break;
         }
         gtk_widget_destroy (phoebe_load_spots_dialog);
     }
@@ -712,9 +796,29 @@ on_phoebe_para_surf_spots_remove_button_clicked
     GtkTreeIter       iter;
 
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_surf_spots_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter))
-    {
+    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+        int source;
+        gtk_tree_model_get(model, &iter, SPOTS_COL_SOURCE, &source, -1);
+
         gtk_list_store_remove((GtkListStore*)model, &iter);
+
+        PHOEBE_parameter *par;
+        int spots_no;
+
+        if (source == 1){
+            /* the primary */
+            par = phoebe_parameter_lookup("phoebe_spots_no1");
+            phoebe_parameter_get_value(par, &spots_no);
+            phoebe_parameter_set_value(par, spots_no - 1);
+            printf("Number of spots on the primary: %d\n", spots_no - 1);
+        }
+        else{
+            /* the secondary */
+            par = phoebe_parameter_lookup("phoebe_spots_no2");
+            phoebe_parameter_get_value(par, &spots_no);
+            phoebe_parameter_set_value(par, spots_no - 1);
+            printf("Number of spots on the secondary: %d\n", spots_no - 1);
+        }
     }
 }
 
@@ -730,18 +834,13 @@ void on_phoebe_para_surf_spots_adjust_checkbutton_toggled
 
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
-    if(gtk_tree_model_get_iter_from_string(model, &iter, path))
-    {
+    if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
         g_object_get(renderer, "active", &active, NULL);
 
         if(active)
-        {
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
-        }
         else
-        {
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, TRUE, -1);
-        }
     }
 }
 
@@ -759,6 +858,7 @@ on_phoebe_window_delete_event          (GtkWidget *widget,
                                         gpointer   user_data)
 {
     gtk_main_quit();
+    return FALSE;
 }
 
 
@@ -3715,16 +3815,14 @@ on_phoebe_sidesheet_detach_button_clicked
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
 	GUI_widget *container = gui_widget_lookup ("phoebe_sidesheet_table");
 
-	if(PHOEBE_WINDOW_SIDESHEET_IS_DETACHED)
-	{
+	if(PHOEBE_WINDOW_SIDESHEET_IS_DETACHED){
 		window = gtk_widget_get_parent(box->gtk);
 
 		gtk_widget_reparent(box->gtk, container->gtk);
 		gtk_widget_destroy(window);
-		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
+		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = (!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
 	}
-	else
-	{
+	else{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
 		gtk_window_set_title (GTK_WINDOW (window),"Data sheets");
@@ -3733,6 +3831,6 @@ on_phoebe_sidesheet_detach_button_clicked
 		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 		gtk_widget_show_all (window);
-		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED=(!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
+		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = (!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
 	}
 }
