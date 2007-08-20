@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Wed Jun  6 14:11:37 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Mon Aug 20 13:21:50 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkWindow" id="phoebe_warning_window">
+    <property name="width_request">350</property>
     <property name="title" translatable="yes">WARNING</property>
     <property name="icon">.</property>
     <child>
       <widget class="GtkFrame" id="frame1">
         <property name="visible">True</property>
-        <property name="border_width">4</property>
+        <property name="border_width">1</property>
         <property name="label_xalign">0</property>
         <child>
           <widget class="GtkVBox" id="vbox1">
@@ -48,18 +49,32 @@
               </widget>
             </child>
             <child>
-              <widget class="GtkHBox" id="hbox1">
+              <widget class="GtkHSeparator" id="hseparator2">
                 <property name="visible">True</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="padding">4</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkHButtonBox" id="hbuttonbox1">
+                <property name="visible">True</property>
+                <property name="spacing">6</property>
+                <property name="layout_style">GTK_BUTTONBOX_END</property>
                 <child>
                   <widget class="GtkButton" id="phoebe_warning_ok_button">
                     <property name="visible">True</property>
-                    <property name="label" translatable="yes">OK</property>
+                    <property name="label" translatable="yes">gtk-ok</property>
+                    <property name="use_stock">True</property>
                   </widget>
                 </child>
                 <child>
                   <widget class="GtkButton" id="phoebe_warning_cancel_button">
                     <property name="visible">True</property>
-                    <property name="label" translatable="yes">Cacel</property>
+                    <property name="label" translatable="yes">gtk-cancel</property>
+                    <property name="use_stock">True</property>
                   </widget>
                   <packing>
                     <property name="position">1</property>
@@ -68,7 +83,7 @@
               </widget>
               <packing>
                 <property name="expand">False</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </widget>
