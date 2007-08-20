@@ -284,7 +284,8 @@ char *phoebe_error (PHOEBE_error_code code)
 		case ERROR_BROADENING_INADEQUATE_ACCURACY:
 			return "rotational broadening cannot be accurately applied for |vsini| < 5km/s, aborting.\n";
 		default:
-			return "exception handler invoked in phoebe_error (), please report this!\n";
+			phoebe_lib_error ("exception handler invoked in phoebe_error () by code %d, please report this!\n", code);
+			return "exception handler invoked.\n";
 	}
 }
 

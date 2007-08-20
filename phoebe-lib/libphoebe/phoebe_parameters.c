@@ -751,7 +751,7 @@ int phoebe_parameter_get_value (PHOEBE_parameter *par, ...)
 			index = va_arg (args, int);
 			{
 			double *value = va_arg (args, double *);
-			if (index < 0 || index > par->value.array->dim-1)
+			if (index < 0 || index > par->value.vec->dim-1)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			*value = par->value.vec->val[index];
 			}
@@ -781,7 +781,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 	 * @par: #PHOEBE_parameter to be set.
 	 * @...: an optional curve index and an #anytype value.
 	 *
-	 * This is the public function for changing the value of the passed
+	 * This is a public function for changing the value of the passed
 	 * parameter @par. The function also satisfies all constraints.
 	 *
 	 * Synopsis:
