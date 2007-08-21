@@ -1565,3 +1565,6 @@ void
 on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
                                         (GtkToggleButton *togglebutton,
                                         gpointer         user_data);
+
+void on_phoebe_load_lc_filechooserbutton_selection_changed 
+(GtkFileChooserButton *filechooserbutton, gpointer user_data);

@@ -76,7 +76,12 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
     GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
 
+	gtk_window_set_icon (GTK_WINDOW(phoebe_load_lc_dialog), gdk_pixbuf_new_from_file("ico.png", NULL));
+	gtk_window_set_title (GTK_WINDOW(phoebe_load_lc_dialog), "PHOEBE - Load LC Data");
+
 	gui_init_filter_combobox (phoebe_load_lc_filter_combobox);
+
+	g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed), (gpointer) phoebe_load_lc_preview_textview);
 
 	g_object_unref (phoebe_load_lc_xml);
 
@@ -3833,4 +3838,32 @@ on_phoebe_sidesheet_detach_button_clicked
 		gtk_widget_show_all (window);
 		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = (!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
 	}
+}
+
+void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
+{
+	GtkTextBuffer *text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (text_view));
+	GtkTextIter iter;
+
+	FILE *file = fopen(filename, "r");
+	char line[255];
+	int i=1;
+	int maxlines=50;
+
+	fgets (line, 255, file);
+	gtk_text_buffer_set_text (text_buffer, line, -1);	
+
+	gtk_text_buffer_get_iter_at_line (text_buffer, &iter, i);
+		while(!feof (file) && i<maxlines){
+			fgets (line, 255, file);	
+			gtk_text_buffer_insert (text_buffer, &iter, line, -1);
+			i++;
+		}
+
+	fclose(file);
+}
+
+void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
+{
+	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
