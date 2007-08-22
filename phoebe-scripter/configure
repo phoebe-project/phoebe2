@@ -1745,12 +1745,12 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 # Define the release name, date and type:
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_SCRIPTER_RELEASE_NAME "PHOEBE scripter 0.30pre5 (beta release)"
+#define PHOEBE_SCRIPTER_RELEASE_NAME "PHOEBE scripter 0.30RC1 (release candidate)"
 _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_SCRIPTER_RELEASE_DATE "Jul 15, 2006"
+#define PHOEBE_SCRIPTER_RELEASE_DATE "Sep 1, 2007"
 _ACEOF
 
 
@@ -3369,7 +3369,7 @@ fi
       exit
     fi
 
-  # Flexer:
+  # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
 
 for ac_prog in flex lex
 do
@@ -3575,13 +3575,23 @@ fi
 rm -f conftest.l $LEX_OUTPUT_ROOT.c
 
 fi
-
-    if test "$LEX" == :; then
+    if test "$LEX" != flex; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE needs a (f)lex-compliant grammar lexer to build."
-      echo "Please install it and run the ./configure script again."
+      echo "PHOEBE needs the GNU flex 2.5.33 or later to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
+    # Check for 2.5.33 version:
+    if ! flex --version | grep 2.5.[3-9][0-9] > /dev/null 2>&1; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs GNU flex 2.5.33 or later to build."
+      echo "Please install it and run ./configure script again."
       echo ""
       exit
     fi
