@@ -1332,9 +1332,6 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 	int status;
 	int lcno, curve;
 
-	const char *filename;
-	const char *readout_str;
-
 	int index = 0;
 
 	PHOEBE_curve **lc             = NULL;
@@ -1361,37 +1358,8 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 
 	/* Is observational data to be plotted?                                   */
 	if (vals[1].value.b) {
-		PHOEBE_column_type itype, dtype, wtype;
-		char *passband;
-		PHOEBE_passband *passband_ptr;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), curve-1, &filename);
-		if (!filename_exists (filename)) {
-			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
-			scripter_ast_value_array_free (vals, 3);
-			return out;
-		}
-
-		/* Check passband; if invalid, no biggie, but warn that it's missing. */
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), curve-1, &passband);
-		passband_ptr = phoebe_passband_lookup (passband);
-		if (!passband_ptr)
-			phoebe_warning ("passband for observational data not set or invalid!\n");
-
-		/* Get column contents: */
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), curve-1, &readout_str);
-		phoebe_column_get_type (&itype, readout_str);
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), curve-1, &readout_str);
-		phoebe_column_get_type (&dtype, readout_str);
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), vals[0].value.i-1, &readout_str);
-		phoebe_column_get_type (&wtype, readout_str);
-
 		lc = phoebe_malloc (sizeof (*lc));
-
-		lc[index] = phoebe_curve_new_from_file ((char *) filename);
-		phoebe_curve_set_properties (lc[index], PHOEBE_CURVE_LC, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
+		lc[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, curve-1);
 		phoebe_curve_transform (lc[index], PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_UNDEFINED);
 		alias_phase_points (lc[index]->indep, lc[index]->dep, NULL, -0.6, 0.6);
 
@@ -1486,7 +1454,6 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	int index = 0;
 	int curve, rvno;
 
-	const char *filename;
 	const char *readout_str;
 
 	PHOEBE_curve **rv             = NULL;
@@ -1513,37 +1480,8 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 	/* Is observational data to be plotted?                                   */
 	if (vals[1].value.b) {
-		PHOEBE_column_type itype, dtype, wtype;
-		char *passband;
-		PHOEBE_passband *passband_ptr;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), curve-1, &filename);
-		if (!filename_exists (filename)) {
-			phoebe_scripter_output ("observed data file cannot be found, aborting.\n");
-			scripter_ast_value_array_free (vals, 3);
-			return out;
-		}
-
-		/* Check passband; if invalid, no biggie, but warn that it's missing. */
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), curve-1, &passband);
-		passband_ptr = phoebe_passband_lookup (passband);
-		if (!passband_ptr)
-			phoebe_warning ("passband for observational data not set or invalid!\n");
-
-		/* Get column contents: */
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), curve-1, &readout_str);
-		phoebe_column_get_type (&itype, readout_str);
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), curve-1, &readout_str);
-		phoebe_column_get_type (&dtype, readout_str);
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), curve-1, &readout_str);
-		phoebe_column_get_type (&wtype, readout_str);
-
 		rv = phoebe_malloc (sizeof (*rv));
-
-		rv[index] = phoebe_curve_new_from_file ((char *) filename);
-		phoebe_curve_set_properties (rv[index], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, 0.01);
+		rv[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, curve-1);
 		phoebe_curve_transform (rv[index], PHOEBE_COLUMN_PHASE, rv[index]->dtype, PHOEBE_COLUMN_UNDEFINED);
 		alias_phase_points (rv[index]->indep, rv[index]->dep, NULL, -0.6, 0.6);
 
