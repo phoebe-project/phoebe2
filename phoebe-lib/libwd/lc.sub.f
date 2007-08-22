@@ -195,7 +195,6 @@ c      25     'HIP'    Hipparcos catalog
 c
 
       ot=1.d0/3.d0
-      KH=17
       pi=dacos(-1.d0)
       clight=2.99792458d5
       en0=6.0254d23
@@ -252,6 +251,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       nf1=1
       nf2=1
       DO 1000 IT=1,1000
+      KH=17
       call rddata(mpage,nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld,
      $jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed,hjdst,hjdsp,hjdin,
      $phstrt,phstop,phin,phn,mode,ipb,ifat1,ifat2,n1,n2,perr0,dperdt,

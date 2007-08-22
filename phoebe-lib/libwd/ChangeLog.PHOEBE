@@ -1,5 +1,10 @@
 ChangeLog:
 
+2007-08-21:
+
+* Syncing with upstream removes a bug that causes all X-ray light curves
+  after the first one to fail.
+
 2007-05-25:
 
 * Arguments atmtab and pltab added to lc.sub.f (). These are the links to
