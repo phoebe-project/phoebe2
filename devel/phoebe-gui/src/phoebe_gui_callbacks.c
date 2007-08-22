@@ -1,5 +1,6 @@
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_accessories.h"
 #include "phoebe_gui_base.h"
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_callbacks.h"
@@ -147,6 +148,10 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
     gtk_widget_destroy (phoebe_load_lc_dialog);
 }
 
+void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
+{
+	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
+}
 
 void
 on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
@@ -3806,7 +3811,7 @@ on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
 
 /* ******************************************************************** *
  *
- *                    phoebe_window sidesheet events
+ *                    phoebe_window detach events
  *
  * ******************************************************************** */
 
@@ -3815,32 +3820,41 @@ on_phoebe_sidesheet_detach_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
-	GtkWidget *window;
-
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
-	GUI_widget *container = gui_widget_lookup ("phoebe_sidesheet_table");
+	GUI_widget *parent = gui_widget_lookup ("phoebe_sidesheet_parent_table");
 
-	if(PHOEBE_WINDOW_SIDESHEET_IS_DETACHED){
-		window = gtk_widget_get_parent(box->gtk);
-
-		gtk_widget_reparent(box->gtk, container->gtk);
-		gtk_widget_destroy(window);
-		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = (!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
-	}
-	else{
-		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-
-		gtk_window_set_title (GTK_WINDOW (window),"Data sheets");
-		gtk_widget_reparent(box->gtk, window);
-		gtk_widget_set_size_request (window, 200, 600);
-		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);
-		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-		gtk_widget_show_all (window);
-		PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = (!PHOEBE_WINDOW_SIDESHEET_IS_DETACHED);
-	}
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
 }
 
-void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
+void
+on_phoebe_lc_plot_detach_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
 {
-	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
+	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
+	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
+
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 700, 600);
+}
+
+void
+on_phoebe_rv_plot_detach_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
+	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
+
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 700, 600);
+}
+
+void
+on_phoebe_fitt_fitting_detach_button_clicked
+                                        (GtkButton       *button,
+                                        gpointer         user_data)
+{
+	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_fitting_frame");
+	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_fitting_parent_table");
+
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }

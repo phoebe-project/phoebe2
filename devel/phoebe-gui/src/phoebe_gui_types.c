@@ -362,9 +362,17 @@ int gui_init_widgets (GladeXML* phoebe_window)
 
 	gui_widget_add ("phoebe_lc_plot_scrolledwindow",					glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_scrolledwindow"),									GUI_WIDGET_VALUE, 		NULL);
 
-	gui_widget_add ("phoebe_sidesheet_table",							glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_table"),											GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_sidesheet_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_parent_table"),									GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_sidesheet_vbox",							glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_vbox"),											GUI_WIDGET_VALUE, 		NULL);
 
+	gui_widget_add ("phoebe_lc_plot_table",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_table"),											GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_lc_plot_parent_table",						glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_parent_table"),										GUI_WIDGET_VALUE, 		NULL);
+
+	gui_widget_add ("phoebe_rv_plot_table",								glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_table"),											GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_rv_plot_parent_table",						glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_parent_table"),										GUI_WIDGET_VALUE, 		NULL);
+
+	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								GUI_WIDGET_VALUE, 		NULL);
 
 	return SUCCESS;
 }
