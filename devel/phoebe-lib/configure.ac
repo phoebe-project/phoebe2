@@ -117,8 +117,8 @@
     fi
 
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
-    AC_CHECK_PROG(flex_check_passed,flex,yes,no)
-    if test "x$flex_check_passed" = "xno"; then
+    AC_PROG_LEX
+    if test "$LEX" != flex; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -127,19 +127,17 @@
       echo ""
       exit
     fi
-    if test "x$flex_check_passed" = "xyes"; then
-      # Check for 2.5.33 version:
-      if ! flex --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
-        echo ""
-        echo "       *** PHOEBE configuration failure ***"
-        echo ""
-        echo "PHOEBE needs GNU flex 2.5.33 or later to build."
-        echo "Please install it and run ./configure script again."
-        echo ""
-        exit
-      fi
+
+    # Check for 2.5.33 version:
+    if ! flex --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs GNU flex 2.5.33 or later to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
     fi
-    LEX=flex
 
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
