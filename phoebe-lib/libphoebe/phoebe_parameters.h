@@ -8,7 +8,8 @@ typedef enum PHOEBE_parameter_kind {
 	KIND_MODIFIER,
 	KIND_ADJUSTABLE,
 	KIND_SWITCH,
-	KIND_MENU
+	KIND_MENU,
+	KIND_COMPUTED
 } PHOEBE_parameter_kind;
 
 typedef struct PHOEBE_parameter_options {

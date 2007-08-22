@@ -1,21 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*             ADDING NUMERICAL ALGORIGHMS TO PHOEBE_CALCULATIONS             */
-/*            ----------------------------------------------------            */
-/*                                                                            */
-/*                                                                            */
-/*   When adding new algorithms to this part of the program, one should use   */
-/*   GSL (GNU Scientific Library) if available. Thus definition switches      */
-/*   are provided in config.h by which the presence of GSL may be checked:    */
-/*   HAVE_LIBGSL and HAVE_LIBGSLCBLAS. Optionally, the user may disable GSL   */
-/*   usage although it is installed on his system by the explicit disable     */
-/*   switch passed to ./configure: --disable-gsl. In this case the two de-    */
-/*   finitions mentioned before remain defined, but also another definition   */
-/*   is declared: PHOEBE_GSL_DISABLED. So to properly code the GSL depen-     */
-/*   dent algorithm, it is necessary to check against *both* definitions.     */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "phoebe_build_config.h"
 #include "../libwd/wd.h"
 
@@ -163,16 +145,22 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 {
-	/*
-	 * This function uses WD's LC code through a FORTRAN wrapper to obtain the
-	 * fluxes. Structure PHOEBE_curve must not be allocated, only initialized.
+	/**
+	 * call_wd_to_get_fluxes:
 	 *
-	 * Return values:
+	 * @curve: a pointer to #PHOEBE_curve structure that will hold computed
+	 * fluxes;
 	 *
-	 *   ERROR_CURVE_NOT_INITIALIZED
-	 *   ERROR_VECTOR_NOT_INITIALIZED
-	 *   ERROR_VECTOR_IS_EMPTY
-	 *   SUCCESS
+	 * @indep: an array of independent variable values (HJDs or phases);
+	 *
+	 * @compars: a pointer to #PHOEBE_computed_params structure. This structure
+	 * must be allocated in the calling function. Alternatively %NULL can be
+	 * passed for @compars if the computed parameters should not be stored.
+	 *
+	 * Uses WD's LC code through a FORTRAN wrapper to obtain the fluxes.
+	 * Structure PHOEBE_curve must not be allocated, only initialized.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;
@@ -200,12 +188,16 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
 
-	curve->L1 = params[0];
-	curve->L2 = params[1];
-	curve->R1 = params[4];
-	curve->R2 = params[5];
-	curve->SBR1 = params[10];
-	curve->SBR2 = params[11];
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
 
 	return SUCCESS;
 }
@@ -237,6 +229,17 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val, params);
 
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
 	return SUCCESS;
 }
 
@@ -267,6 +270,17 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val, params);
 
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
 	return SUCCESS;
 }
 
@@ -277,6 +291,9 @@ int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, P
 	 * It checks for sanity of the indep vector.
 	 */
 
+	phoebe_lib_warning ("function calculate_model_level () disabled for review.\n");
+	return SUCCESS;	
+/*
 	int status;
 	PHOEBE_curve *syncurve;
 
@@ -290,6 +307,7 @@ int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, P
 
 	status = calculate_average (level, syncurve->dep);
 	return status;
+*/
 }
 
 int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep)

@@ -51,5 +51,5 @@ CLEANFILES = \
 EXTRA_DIST = \
     phoebe_scripter_grammar.lex       phoebe_scripter_grammar.y
 
-phoebe_scripter_CFLAGS = -Wimplicit -Wformat -Wunused
+AM_CFLAGS = -Wall
 phoebe_scripter_LDADD = -lphoebe

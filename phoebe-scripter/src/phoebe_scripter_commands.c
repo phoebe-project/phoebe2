@@ -1841,7 +1841,6 @@ scripter_ast_value scripter_compute_lc (scripter_ast_list *args)
 
 	curve = phoebe_curve_new ();
 	status = read_in_synthetic_data (curve, vals[0].value.vec, vals[1].value.i-1, itype, PHOEBE_COLUMN_FLUX);
-
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		phoebe_curve_free (curve);
