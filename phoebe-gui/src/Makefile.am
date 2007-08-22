@@ -11,6 +11,7 @@ phoebe_gui_SOURCES =                               \
 	phoebe_gui_types.h	    phoebe_gui_types.c     \
 	phoebe_gui_base.h	    phoebe_gui_base.c       	\
 	phoebe_gui_treeviews.h  phoebe_gui_treeviews.c	\
+	phoebe_gui_accessories.h  phoebe_gui_accessories.c	\
 	phoebe_gui_global.h
 
 phoebe_gui_CFLAGS = -Wall -g
