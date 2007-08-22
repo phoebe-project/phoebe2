@@ -116,6 +116,19 @@
       exit
     fi
 
+  # g2c library:
+    g2c_check_passed=yes
+    AC_CHECK_LIB(g2c,main,,g2c_check_passed=no)
+    if test "x$g2c_check_passed" = "xno"; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs a libg2c library (part of g77) to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
     if test "$LEX" != flex; then
