@@ -1571,6 +1571,11 @@ on_phoebe_load_lc_filechooserbutton_selection_changed
 										(GtkFileChooserButton *filechooserbutton, 
 										gpointer user_data);
 
+void 
+on_phoebe_load_rv_filechooserbutton_selection_changed 
+										(GtkFileChooserButton *filechooserbutton, 
+										gpointer user_data);
+
 void
 on_phoebe_lc_plot_detach_button_clicked
                                         (GtkButton       *button,

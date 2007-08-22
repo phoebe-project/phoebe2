@@ -178,6 +178,8 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
         gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
 
+		g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed), (gpointer) phoebe_load_lc_preview_textview);
+
         g_object_unref(phoebe_load_lc_xml);
 
         char *filename;
@@ -197,11 +199,14 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                 LC_COL_WTYPE,    &wtype,
                                                 LC_COL_SIGMA,    &sigma, -1);
 
-            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
             gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
+
+			if(filename){
+	            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
+			}
         }
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
@@ -332,6 +337,8 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
     gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
+	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), (gpointer) phoebe_load_rv_preview_textview);
+
     g_object_unref(phoebe_load_rv_xml);
 
     GtkTreeModel *model;
@@ -379,6 +386,10 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
     gtk_widget_destroy (phoebe_load_rv_dialog);
 }
 
+void on_phoebe_load_rv_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
+{
+	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
+}
 
 void
 on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
@@ -402,6 +413,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
         gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
+	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), (gpointer) phoebe_load_rv_preview_textview);
 
         g_object_unref(phoebe_load_rv_xml);
 
@@ -422,12 +434,15 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                 RV_COL_WTYPE,    &wtype,
                                                 RV_COL_SIGMA,    &sigma, -1);
 
-            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, filename);
             /* What about RV filters? */
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  wtype);
             gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_rv_sigma_spinbutton,  sigma);
+
+			if(filename){
+	            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, filename);
+			}
         }
 
         int result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
