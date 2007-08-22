@@ -79,7 +79,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 	"$(DESTDIR)$(library_includedir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libwd_la_DEPENDENCIES =
+libwd_la_LIBADD =
 am__objects_1 = atmx.lo bbl.lo binnum.lo cloud.lo conjph.lo dgmprd.lo \
 	dminv.lo dura.lo ellone.lo fourls.lo gabs.lo jdph.lo kepler.lo \
 	lcr.lo legendre.lo light.lo linpro.lo lum.lo lump.lo mlrg.lo \
@@ -253,10 +253,10 @@ EXTRA_DIST = \
 CLEANFILES = \
 	$(BUILT_SOURCES)
 
-libwd_la_LDFLAGS = -release 2007-05-24
+libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
-libwd_la_LIBADD = -lg2c
+#libwd_la_LIBADD = -lg2c
 library_includedir = $(includedir)/phoebe
 library_include_HEADERS = wd.h
 all: $(BUILT_SOURCES)
