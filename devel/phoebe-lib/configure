@@ -874,9 +874,7 @@ am__fastdepCXX_FALSE
 CXXCPP
 LIBTOOL
 f2c_check_passed
-LEX
-LEX_OUTPUT_ROOT
-LEXLIB
+flex_check_passed
 YACC
 GNUPLOT
 HTML_DIR
@@ -4659,7 +4657,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4662 "configure"' > conftest.$ac_ext
+  echo '#line 4660 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7130,11 +7128,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7133: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7131: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7137: \$? = $ac_status" >&5
+   echo "$as_me:7135: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7398,11 +7396,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7401: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7399: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7405: \$? = $ac_status" >&5
+   echo "$as_me:7403: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7502,11 +7500,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7505: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7503: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:7509: \$? = $ac_status" >&5
+   echo "$as_me:7507: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -9799,7 +9797,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9802 "configure"
+#line 9800 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9899,7 +9897,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9902 "configure"
+#line 9900 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12235,11 +12233,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12238: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12236: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:12242: \$? = $ac_status" >&5
+   echo "$as_me:12240: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12339,11 +12337,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12342: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12340: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12346: \$? = $ac_status" >&5
+   echo "$as_me:12344: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -13900,11 +13898,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13903: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13901: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13907: \$? = $ac_status" >&5
+   echo "$as_me:13905: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14004,11 +14002,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14007: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14005: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14011: \$? = $ac_status" >&5
+   echo "$as_me:14009: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16191,11 +16189,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16194: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16192: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16198: \$? = $ac_status" >&5
+   echo "$as_me:16196: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16459,11 +16457,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16462: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16460: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16466: \$? = $ac_status" >&5
+   echo "$as_me:16464: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16563,11 +16561,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16566: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16564: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16570: \$? = $ac_status" >&5
+   echo "$as_me:16568: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -19378,18 +19376,16 @@ fi
       exit
     fi
 
-  # Flexer (needed for PHOEBE constraints):
-    for ac_prog in flex lex
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
+  # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
+    # Extract the first word of "flex", so it can be a program name with args.
+set dummy flex; ac_word=$2
 { echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_prog_LEX+set}" = set; then
+if test "${ac_cv_prog_flex_check_passed+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  if test -n "$LEX"; then
-  ac_cv_prog_LEX="$LEX" # Let the user override the test.
+  if test -n "$flex_check_passed"; then
+  ac_cv_prog_flex_check_passed="$flex_check_passed" # Let the user override the test.
 else
 as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
 for as_dir in $PATH
@@ -19398,7 +19394,7 @@ do
   test -z "$as_dir" && as_dir=.
   for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_prog_LEX="$ac_prog"
+    ac_cv_prog_flex_check_passed="yes"
     echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -19406,193 +19402,41 @@ done
 done
 IFS=$as_save_IFS
 
+  test -z "$ac_cv_prog_flex_check_passed" && ac_cv_prog_flex_check_passed="no"
 fi
 fi
-LEX=$ac_cv_prog_LEX
-if test -n "$LEX"; then
-  { echo "$as_me:$LINENO: result: $LEX" >&5
-echo "${ECHO_T}$LEX" >&6; }
+flex_check_passed=$ac_cv_prog_flex_check_passed
+if test -n "$flex_check_passed"; then
+  { echo "$as_me:$LINENO: result: $flex_check_passed" >&5
+echo "${ECHO_T}$flex_check_passed" >&6; }
 else
   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 fi
 
 
-  test -n "$LEX" && break
-done
-test -n "$LEX" || LEX=":"
-
-if test "x$LEX" != "x:"; then
-  cat >conftest.l <<_ACEOF
-%%
-a { ECHO; }
-b { REJECT; }
-c { yymore (); }
-d { yyless (1); }
-e { yyless (input () != 0); }
-f { unput (yytext[0]); }
-. { BEGIN INITIAL; }
-%%
-#ifdef YYTEXT_POINTER
-extern char *yytext;
-#endif
-int
-main (void)
-{
-  return ! yylex () + ! yywrap ();
-}
-_ACEOF
-{ (ac_try="$LEX conftest.l"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$LEX conftest.l") 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }
-{ echo "$as_me:$LINENO: checking lex output file root" >&5
-echo $ECHO_N "checking lex output file root... $ECHO_C" >&6; }
-if test "${ac_cv_prog_lex_root+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-
-if test -f lex.yy.c; then
-  ac_cv_prog_lex_root=lex.yy
-elif test -f lexyy.c; then
-  ac_cv_prog_lex_root=lexyy
-else
-  { { echo "$as_me:$LINENO: error: cannot find output from $LEX; giving up" >&5
-echo "$as_me: error: cannot find output from $LEX; giving up" >&2;}
-   { (exit 1); exit 1; }; }
-fi
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_prog_lex_root" >&5
-echo "${ECHO_T}$ac_cv_prog_lex_root" >&6; }
-LEX_OUTPUT_ROOT=$ac_cv_prog_lex_root
-
-if test -z "${LEXLIB+set}"; then
-  { echo "$as_me:$LINENO: checking lex library" >&5
-echo $ECHO_N "checking lex library... $ECHO_C" >&6; }
-if test "${ac_cv_lib_lex+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-
-    ac_save_LIBS=$LIBS
-    ac_cv_lib_lex='none needed'
-    for ac_lib in '' -lfl -ll; do
-      LIBS="$ac_lib $ac_save_LIBS"
-      cat >conftest.$ac_ext <<_ACEOF
-`cat $LEX_OUTPUT_ROOT.c`
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_lex=$ac_lib
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-      test "$ac_cv_lib_lex" != 'none needed' && break
-    done
-    LIBS=$ac_save_LIBS
-
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_lex" >&5
-echo "${ECHO_T}$ac_cv_lib_lex" >&6; }
-  test "$ac_cv_lib_lex" != 'none needed' && LEXLIB=$ac_cv_lib_lex
-fi
-
-
-{ echo "$as_me:$LINENO: checking whether yytext is a pointer" >&5
-echo $ECHO_N "checking whether yytext is a pointer... $ECHO_C" >&6; }
-if test "${ac_cv_prog_lex_yytext_pointer+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  # POSIX says lex can declare yytext either as a pointer or an array; the
-# default is implementation-dependent.  Figure out which it is, since
-# not all implementations provide the %pointer and %array declarations.
-ac_cv_prog_lex_yytext_pointer=no
-ac_save_LIBS=$LIBS
-LIBS="$LEXLIB $ac_save_LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-#define YYTEXT_POINTER 1
-`cat $LEX_OUTPUT_ROOT.c`
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_prog_lex_yytext_pointer=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_save_LIBS
-
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_prog_lex_yytext_pointer" >&5
-echo "${ECHO_T}$ac_cv_prog_lex_yytext_pointer" >&6; }
-if test $ac_cv_prog_lex_yytext_pointer = yes; then
-
-cat >>confdefs.h <<\_ACEOF
-#define YYTEXT_POINTER 1
-_ACEOF
-
-fi
-rm -f conftest.l $LEX_OUTPUT_ROOT.c
-
-fi
-
-    if test "$LEX" == :; then
+    if test "x$flex_check_passed" = "xno"; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE needs a (f)lex-compliant grammar lexer to build."
+      echo "PHOEBE needs the GNU flex 2.5.33 or later to build."
       echo "Please install it and run ./configure script again."
       echo ""
       exit
     fi
+    if test "x$flex_check_passed" = "xyes"; then
+      # Check for 2.5.33 version:
+      if ! flex --version | grep 2.5.[3-9][0-9] > /dev/null 2>&1; then
+        echo ""
+        echo "       *** PHOEBE configuration failure ***"
+        echo ""
+        echo "PHOEBE needs GNU flex 2.5.33 or later to build."
+        echo "Please install it and run ./configure script again."
+        echo ""
+        exit
+      fi
+    fi
+    LEX=flex
 
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
@@ -23093,9 +22937,7 @@ am__fastdepCXX_FALSE!$am__fastdepCXX_FALSE$ac_delim
 CXXCPP!$CXXCPP$ac_delim
 LIBTOOL!$LIBTOOL$ac_delim
 f2c_check_passed!$f2c_check_passed$ac_delim
-LEX!$LEX$ac_delim
-LEX_OUTPUT_ROOT!$LEX_OUTPUT_ROOT$ac_delim
-LEXLIB!$LEXLIB$ac_delim
+flex_check_passed!$flex_check_passed$ac_delim
 YACC!$YACC$ac_delim
 GNUPLOT!$GNUPLOT$ac_delim
 HTML_DIR!$HTML_DIR$ac_delim
@@ -23109,7 +22951,7 @@ FLIBS!$FLIBS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 22; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 20; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
