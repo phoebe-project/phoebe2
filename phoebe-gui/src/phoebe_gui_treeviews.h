@@ -14,6 +14,7 @@ typedef enum lc_model_columns
     LC_COL_ACTIVE,
     LC_COL_FILENAME,
     LC_COL_FILTER,
+	LC_COL_FILTERNO,
     LC_COL_ITYPE,
     LC_COL_ITYPE_STR,
     LC_COL_DTYPE,

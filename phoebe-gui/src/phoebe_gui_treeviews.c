@@ -489,6 +489,7 @@ GtkTreeModel *lc_model_create()
                                              G_TYPE_BOOLEAN,        /* active               */
                                              G_TYPE_STRING,         /* filename             */
                                              G_TYPE_STRING,         /* passband             */
+                                             G_TYPE_INT,	        /* passband number      */
                                              G_TYPE_INT,            /* itype                */
                                              G_TYPE_STRING,         /* itype as string      */
                                              G_TYPE_INT,            /* dtype                */

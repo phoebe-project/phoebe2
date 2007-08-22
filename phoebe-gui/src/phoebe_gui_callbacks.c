@@ -89,6 +89,11 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 					  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed), 
 					  (gpointer) phoebe_load_lc_preview_textview);
 
+	/* Default values for column combo boxes: */
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  0);
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  0);
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  0);	
+
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
     switch (result){
         case GTK_RESPONSE_OK:{
@@ -115,6 +120,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 								LC_COL_ACTIVE,      TRUE,
 								LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
 								LC_COL_FILTER,      filter_selected,
+								LC_COL_FILTERNO,	filter_number,
                                 LC_COL_ITYPE,       gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_lc_column1_combobox),
                                 LC_COL_ITYPE_STR,   strdup (indep->menu->option[gtk_combo_box_get_active((GtkComboBox*) phoebe_load_lc_column1_combobox)]),
                                 LC_COL_DTYPE,       gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_lc_column2_combobox),
@@ -141,6 +147,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
             phoebe_parameter_set_value(par, lcno + 1);
 
             printf("Number of light curves: %d\n", lcno + 1);
+			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
         }
         break;
 
@@ -363,12 +370,20 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 
     gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
-	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), (gpointer) phoebe_load_rv_preview_textview);
+	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), 
+					  "selection_changed", 
+					  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), 
+					  (gpointer) phoebe_load_rv_preview_textview);
 
     g_object_unref(phoebe_load_rv_xml);
 
     GtkTreeModel *model;
     GtkTreeIter iter;
+
+	/* Default values for column combo boxes: */
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);	
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
     switch (result){
@@ -412,6 +427,7 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
             phoebe_parameter_set_value(par, rvno + 1);
 
             printf("Number of RV curves: %d\n", rvno + 1);
+			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
         }
         break;
 
@@ -462,7 +478,10 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 
         gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
-		g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), "selection_changed", G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), (gpointer) phoebe_load_rv_preview_textview);
+		g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), 
+						  "selection_changed", 
+						  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), 
+					 	  (gpointer) phoebe_load_rv_preview_textview);
 
         g_object_unref(phoebe_load_rv_xml);
 
@@ -476,7 +495,6 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                 RV_COL_WTYPE,    &wtype,
                                                 RV_COL_SIGMA,    &sigma, -1);
 
-            /* What about RV filters? */
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  wtype);
