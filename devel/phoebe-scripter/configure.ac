@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2006-07-11 #
+#                                            Last revision: 2007-08-21 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -45,11 +45,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_NAME,
-	[["PHOEBE scripter 0.30pre5 (beta release)"]],
+	[["PHOEBE scripter 0.30RC1 (release candidate)"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["Jul 15, 2006"]],
+	[["Sep 1, 2007"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
@@ -77,15 +77,25 @@
       exit
     fi
 
-  # Flexer:
+  # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
-
-    if test "$LEX" == :; then
+    if test "$LEX" != flex; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE needs a (f)lex-compliant grammar lexer to build."
-      echo "Please install it and run the ./configure script again."
+      echo "PHOEBE needs the GNU flex 2.5.33 or later to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
+    # Check for 2.5.33 version:
+    if ! flex --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs GNU flex 2.5.33 or later to build."
+      echo "Please install it and run ./configure script again."
       echo ""
       exit
     fi
