@@ -40,9 +40,9 @@
   219 format(5x,'JD start',9x,'JD stop',6x,'JD incr',6x,
      $'Ph start',4x,'Ph. stop',5x,'Ph incr',5x,'Ph norm')
   218 format(f14.6,f16.6,f14.6,4f12.6)
-   10 format('MODE   IPB  IFAT1 IFAT2  N1  N2',4x,'Arg. Per',7x,'dPerdt
-     $',4x,'Th e',4x,'V UNIT(km/s)    V FAC')
-   33 format(I4,I5,I6,I6,I6,I4,f13.6,d14.5,f9.5,f10.2,d16.4)
+   10 format('MODE   IPB  IFAT1 IFAT2   N1   N2',4x,'Arg. Per',7x,'dPerd
+     $t',4x,'Th e',4x,'V UNIT(km/s)    V FAC')
+   33 format(I4,I5,I6,I6,I7,I5,f13.6,d14.5,f9.5,f10.2,d16.4)
    48 format('  ecc',5x,'s-m axis',7x,'F1',9x,'F2',7x,'Vgam',7x,
      $'Incl',6x,'g1',6x,'g2  Nspot1 Nspot 2',4x,'[M/H]')
     5 format(F6.5,d13.6,2F11.4,F11.4,F10.3,2f8.3,i5,i7,f10.2)
