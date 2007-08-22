@@ -210,6 +210,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
             gtk_tree_model_get(model, &iter,    LC_COL_FILENAME, &filename,
                                                 LC_COL_FILTER,   &filter,
+												LC_COL_FILTERNO, &filter_number,
                                                 LC_COL_ITYPE,    &itype,
                                                 LC_COL_DTYPE,    &dtype,
                                                 LC_COL_WTYPE,    &wtype,
@@ -243,6 +244,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                 gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                                 LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
                                                                 LC_COL_FILTER,      filter_selected,
+																LC_COL_FILTERNO,	filter_number,
                                                                 LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
                                                                 LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
                                                                 LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
@@ -1027,7 +1029,7 @@ on_phoebe_lc_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 700, 600);
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 700, 550);
 }
 
 
@@ -1038,7 +1040,7 @@ on_phoebe_rv_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 700, 600);
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 700, 550);
 }
 
 
@@ -3926,7 +3928,7 @@ on_phoebe_lc_plot_detach_button_clicked
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 700, 600);
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 700, 550);
 }
 
 void
@@ -3937,7 +3939,7 @@ on_phoebe_rv_plot_detach_button_clicked
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 700, 600);
+	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 700, 550);
 }
 
 void
