@@ -86,8 +86,6 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_teff2",                "Secondary star effective temperature in K",  KIND_ADJUSTABLE, NULL,  3500,  50000,     10, NO, TYPE_DOUBLE,     6000.0);
 	phoebe_parameter_add ("phoebe_pot1",                 "Primary star surface potential",             KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
 	phoebe_parameter_add ("phoebe_pot2",                 "Secondary star surface potential",           KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
-	phoebe_parameter_add ("phoebe_logg1",                "Primary star surface potential",             KIND_ADJUSTABLE, NULL,   0.0,   10.0,   0.01, NO, TYPE_DOUBLE,        4.3);
-	phoebe_parameter_add ("phoebe_logg2",                "Primary star surface potential",             KIND_ADJUSTABLE, NULL,   0.0,   10.0,   0.01, NO, TYPE_DOUBLE,        4.3);
 	phoebe_parameter_add ("phoebe_met1",                 "Primary star metallicity",                   KIND_ADJUSTABLE, NULL, -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
 	phoebe_parameter_add ("phoebe_met2",                 "Secondary star metallicity",                 KIND_ADJUSTABLE, NULL, -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
 	phoebe_parameter_add ("phoebe_f1",                   "Primary star synchronicity parameter",       KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        1.0);
@@ -168,16 +166,29 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_spots_rad1",           "Radius of the spot on primary star",                 KIND_PARAMETER,  "phoebe_spots_no1",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.2);
 	phoebe_parameter_add ("phoebe_spots_temp1",          "Temperature of the spot on primary star",            KIND_PARAMETER,  "phoebe_spots_no1",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.9);
 	phoebe_parameter_add ("phoebe_spots_lat2",           "Latitude of the spot on secondary star",             KIND_PARAMETER,  "phoebe_spots_no2",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
-	phoebe_parameter_add ("phoebe_spots_long2",          "Longitude of the spot on secondary star",            KIND_PARAMETER,  "phoebe_spots_no2",   0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
+	phoebe_parameter_add ("phoebe_spots_long2",          "Longitude of the spot on secondary star",            KIND_PARAMETER,  "phoebe_spots_no2",  0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
 	phoebe_parameter_add ("phoebe_spots_rad2",           "Radius of the spot on secondary star",               KIND_PARAMETER,  "phoebe_spots_no2",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.2);
 	phoebe_parameter_add ("phoebe_spots_temp2",          "Temperature of the spot on secondary star",          KIND_PARAMETER,  "phoebe_spots_no2",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.9);
 
 	/* *********************   Utilities parameters   *********************** */
 
-	phoebe_parameter_add ("phoebe_synscatter_switch",    "Synthetic scatter",                                  KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,          NO);
-	phoebe_parameter_add ("phoebe_synscatter_sigma",     "Synthetic scatter standard deviation",               KIND_PARAMETER,  NULL,  0.0,  100.0,   0.01, NO, TYPE_DOUBLE,      0.01);
-	phoebe_parameter_add ("phoebe_synscatter_seed",      "Synthetic scatter seed",                             KIND_PARAMETER,  NULL,  1E8,    1E9,      1, NO, TYPE_DOUBLE,     1.5E8);
-	phoebe_parameter_add ("phoebe_synscatter_levweight", "Synthetic scatter weighting",                        KIND_MENU,       NULL,    0,      0,      0, NO, TYPE_STRING, "Poissonian scatter");
+	phoebe_parameter_add ("phoebe_synscatter_switch",    "Synthetic scatter",                                  KIND_SWITCH,     NULL,                  0,      0,      0, NO, TYPE_BOOL,         NO);
+	phoebe_parameter_add ("phoebe_synscatter_sigma",     "Synthetic scatter standard deviation",               KIND_PARAMETER,  NULL,                0.0,  100.0,   0.01, NO, TYPE_DOUBLE,       0.01);
+	phoebe_parameter_add ("phoebe_synscatter_seed",      "Synthetic scatter seed",                             KIND_PARAMETER,  NULL,                1E8,    1E9,      1, NO, TYPE_DOUBLE,       1.5E8);
+	phoebe_parameter_add ("phoebe_synscatter_levweight", "Synthetic scatter weighting",                        KIND_MENU,       NULL,                  0,      0,      0, NO, TYPE_STRING,       "Poissonian scatter");
+
+	/* **********************   Computed parameters   *********************** */
+
+	phoebe_parameter_add ("phoebe_mass1",                "Primary star mass",                                  KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_mass2",                "Secondary star mass",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_radius1",              "Primary star radius",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_radius2",              "Secondary star radius",                              KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_mbol1",                "Primary star absolute bolometric magnitude",         KIND_COMPUTED,   NULL,               -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
+	phoebe_parameter_add ("phoebe_mbol2",                "Secondary star absolute bolometric magnitude",       KIND_COMPUTED,   NULL,               -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
+	phoebe_parameter_add ("phoebe_logg1",                "Primary star surface gravity",                       KIND_COMPUTED,   NULL,                0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
+	phoebe_parameter_add ("phoebe_logg2",                "Secondary star surface gravity",                     KIND_COMPUTED,   NULL,                0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
+	phoebe_parameter_add ("phoebe_sbr1",                 "Primary star polar surface brightness",              KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_sbr2",                 "Secondary star polar surface brightness",            KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
 
 	return SUCCESS;
 }

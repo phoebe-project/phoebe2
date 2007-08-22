@@ -119,6 +119,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "curve is already allocated, aborting.\n";
 		case ERROR_CURVE_INVALID_DIMENSION:
 			return "curve dimension is invalid, aborting.\n";
+		case ERROR_COMPUTED_PARAMS_NOT_INITIALIZED:
+			return "the structure for computed parameters not initialized, aborting.\n";
 		case ERROR_SPECTRUM_NOT_INITIALIZED:
 			return "spectrum is not initialized, aborting.\n";
 		case ERROR_SPECTRUM_NOT_ALLOCATED:

@@ -66,6 +66,10 @@ char *parse_data_line (char *in)
 
 int phoebe_compute_lc (PHOEBE_curve *curve, PHOEBE_vector *nodes, char *lciname, WD_LCI_parameters *params)
 {
+	/*
+	 *
+	 */
+
 	PHOEBE_parameter *par;
 	bool state;
 

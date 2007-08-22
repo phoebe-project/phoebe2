@@ -66,21 +66,18 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_phoebe_scripter_OBJECTS = phoebe_scripter-main.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_arithmetics.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_ast.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_commands.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_core.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_directives.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_error_handling.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_grammar.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_grammar.tab.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_io.$(OBJEXT) \
-	phoebe_scripter-phoebe_scripter_types.$(OBJEXT)
+am_phoebe_scripter_OBJECTS = main.$(OBJEXT) \
+	phoebe_scripter_arithmetics.$(OBJEXT) \
+	phoebe_scripter_ast.$(OBJEXT) \
+	phoebe_scripter_commands.$(OBJEXT) \
+	phoebe_scripter_core.$(OBJEXT) \
+	phoebe_scripter_directives.$(OBJEXT) \
+	phoebe_scripter_error_handling.$(OBJEXT) \
+	phoebe_scripter_grammar.$(OBJEXT) \
+	phoebe_scripter_grammar.tab.$(OBJEXT) \
+	phoebe_scripter_io.$(OBJEXT) phoebe_scripter_types.$(OBJEXT)
 phoebe_scripter_OBJECTS = $(am_phoebe_scripter_OBJECTS)
 phoebe_scripter_DEPENDENCIES =
-phoebe_scripter_LINK = $(CCLD) $(phoebe_scripter_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/autoconfig/depcomp
 am__depfiles_maybe = depfiles
@@ -207,7 +204,7 @@ CLEANFILES = \
 EXTRA_DIST = \
     phoebe_scripter_grammar.lex       phoebe_scripter_grammar.y
 
-phoebe_scripter_CFLAGS = -Wimplicit -Wformat -Wunused
+AM_CFLAGS = -Wall
 phoebe_scripter_LDADD = -lphoebe
 all: $(BUILT_SOURCES) phoebe_scripter_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -285,7 +282,7 @@ clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 phoebe_scripter$(EXEEXT): $(phoebe_scripter_OBJECTS) $(phoebe_scripter_DEPENDENCIES) 
 	@rm -f phoebe_scripter$(EXEEXT)
-	$(phoebe_scripter_LINK) $(phoebe_scripter_OBJECTS) $(phoebe_scripter_LDADD) $(LIBS)
+	$(LINK) $(phoebe_scripter_OBJECTS) $(phoebe_scripter_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -293,17 +290,17 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_arithmetics.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_ast.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_commands.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_core.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_directives.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_error_handling.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.tab.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_io.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_types.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -318,160 +315,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
-
-phoebe_scripter-main.o: main.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-main.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-main.Tpo -c -o phoebe_scripter-main.o `test -f 'main.c' || echo '$(srcdir)/'`main.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-main.Tpo $(DEPDIR)/phoebe_scripter-main.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='main.c' object='phoebe_scripter-main.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-main.o `test -f 'main.c' || echo '$(srcdir)/'`main.c
-
-phoebe_scripter-main.obj: main.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-main.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-main.Tpo -c -o phoebe_scripter-main.obj `if test -f 'main.c'; then $(CYGPATH_W) 'main.c'; else $(CYGPATH_W) '$(srcdir)/main.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-main.Tpo $(DEPDIR)/phoebe_scripter-main.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='main.c' object='phoebe_scripter-main.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-main.obj `if test -f 'main.c'; then $(CYGPATH_W) 'main.c'; else $(CYGPATH_W) '$(srcdir)/main.c'; fi`
-
-phoebe_scripter-phoebe_scripter_arithmetics.o: phoebe_scripter_arithmetics.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_arithmetics.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Tpo -c -o phoebe_scripter-phoebe_scripter_arithmetics.o `test -f 'phoebe_scripter_arithmetics.c' || echo '$(srcdir)/'`phoebe_scripter_arithmetics.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_arithmetics.c' object='phoebe_scripter-phoebe_scripter_arithmetics.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_arithmetics.o `test -f 'phoebe_scripter_arithmetics.c' || echo '$(srcdir)/'`phoebe_scripter_arithmetics.c
-
-phoebe_scripter-phoebe_scripter_arithmetics.obj: phoebe_scripter_arithmetics.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_arithmetics.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Tpo -c -o phoebe_scripter-phoebe_scripter_arithmetics.obj `if test -f 'phoebe_scripter_arithmetics.c'; then $(CYGPATH_W) 'phoebe_scripter_arithmetics.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_arithmetics.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_arithmetics.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_arithmetics.c' object='phoebe_scripter-phoebe_scripter_arithmetics.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_arithmetics.obj `if test -f 'phoebe_scripter_arithmetics.c'; then $(CYGPATH_W) 'phoebe_scripter_arithmetics.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_arithmetics.c'; fi`
-
-phoebe_scripter-phoebe_scripter_ast.o: phoebe_scripter_ast.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_ast.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Tpo -c -o phoebe_scripter-phoebe_scripter_ast.o `test -f 'phoebe_scripter_ast.c' || echo '$(srcdir)/'`phoebe_scripter_ast.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_ast.c' object='phoebe_scripter-phoebe_scripter_ast.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_ast.o `test -f 'phoebe_scripter_ast.c' || echo '$(srcdir)/'`phoebe_scripter_ast.c
-
-phoebe_scripter-phoebe_scripter_ast.obj: phoebe_scripter_ast.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_ast.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Tpo -c -o phoebe_scripter-phoebe_scripter_ast.obj `if test -f 'phoebe_scripter_ast.c'; then $(CYGPATH_W) 'phoebe_scripter_ast.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_ast.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_ast.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_ast.c' object='phoebe_scripter-phoebe_scripter_ast.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_ast.obj `if test -f 'phoebe_scripter_ast.c'; then $(CYGPATH_W) 'phoebe_scripter_ast.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_ast.c'; fi`
-
-phoebe_scripter-phoebe_scripter_commands.o: phoebe_scripter_commands.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_commands.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Tpo -c -o phoebe_scripter-phoebe_scripter_commands.o `test -f 'phoebe_scripter_commands.c' || echo '$(srcdir)/'`phoebe_scripter_commands.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_commands.c' object='phoebe_scripter-phoebe_scripter_commands.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_commands.o `test -f 'phoebe_scripter_commands.c' || echo '$(srcdir)/'`phoebe_scripter_commands.c
-
-phoebe_scripter-phoebe_scripter_commands.obj: phoebe_scripter_commands.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_commands.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Tpo -c -o phoebe_scripter-phoebe_scripter_commands.obj `if test -f 'phoebe_scripter_commands.c'; then $(CYGPATH_W) 'phoebe_scripter_commands.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_commands.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_commands.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_commands.c' object='phoebe_scripter-phoebe_scripter_commands.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_commands.obj `if test -f 'phoebe_scripter_commands.c'; then $(CYGPATH_W) 'phoebe_scripter_commands.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_commands.c'; fi`
-
-phoebe_scripter-phoebe_scripter_core.o: phoebe_scripter_core.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_core.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Tpo -c -o phoebe_scripter-phoebe_scripter_core.o `test -f 'phoebe_scripter_core.c' || echo '$(srcdir)/'`phoebe_scripter_core.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_core.c' object='phoebe_scripter-phoebe_scripter_core.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_core.o `test -f 'phoebe_scripter_core.c' || echo '$(srcdir)/'`phoebe_scripter_core.c
-
-phoebe_scripter-phoebe_scripter_core.obj: phoebe_scripter_core.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_core.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Tpo -c -o phoebe_scripter-phoebe_scripter_core.obj `if test -f 'phoebe_scripter_core.c'; then $(CYGPATH_W) 'phoebe_scripter_core.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_core.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_core.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_core.c' object='phoebe_scripter-phoebe_scripter_core.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_core.obj `if test -f 'phoebe_scripter_core.c'; then $(CYGPATH_W) 'phoebe_scripter_core.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_core.c'; fi`
-
-phoebe_scripter-phoebe_scripter_directives.o: phoebe_scripter_directives.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_directives.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Tpo -c -o phoebe_scripter-phoebe_scripter_directives.o `test -f 'phoebe_scripter_directives.c' || echo '$(srcdir)/'`phoebe_scripter_directives.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_directives.c' object='phoebe_scripter-phoebe_scripter_directives.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_directives.o `test -f 'phoebe_scripter_directives.c' || echo '$(srcdir)/'`phoebe_scripter_directives.c
-
-phoebe_scripter-phoebe_scripter_directives.obj: phoebe_scripter_directives.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_directives.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Tpo -c -o phoebe_scripter-phoebe_scripter_directives.obj `if test -f 'phoebe_scripter_directives.c'; then $(CYGPATH_W) 'phoebe_scripter_directives.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_directives.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_directives.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_directives.c' object='phoebe_scripter-phoebe_scripter_directives.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_directives.obj `if test -f 'phoebe_scripter_directives.c'; then $(CYGPATH_W) 'phoebe_scripter_directives.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_directives.c'; fi`
-
-phoebe_scripter-phoebe_scripter_error_handling.o: phoebe_scripter_error_handling.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_error_handling.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Tpo -c -o phoebe_scripter-phoebe_scripter_error_handling.o `test -f 'phoebe_scripter_error_handling.c' || echo '$(srcdir)/'`phoebe_scripter_error_handling.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_error_handling.c' object='phoebe_scripter-phoebe_scripter_error_handling.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_error_handling.o `test -f 'phoebe_scripter_error_handling.c' || echo '$(srcdir)/'`phoebe_scripter_error_handling.c
-
-phoebe_scripter-phoebe_scripter_error_handling.obj: phoebe_scripter_error_handling.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_error_handling.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Tpo -c -o phoebe_scripter-phoebe_scripter_error_handling.obj `if test -f 'phoebe_scripter_error_handling.c'; then $(CYGPATH_W) 'phoebe_scripter_error_handling.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_error_handling.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_error_handling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_error_handling.c' object='phoebe_scripter-phoebe_scripter_error_handling.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_error_handling.obj `if test -f 'phoebe_scripter_error_handling.c'; then $(CYGPATH_W) 'phoebe_scripter_error_handling.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_error_handling.c'; fi`
-
-phoebe_scripter-phoebe_scripter_grammar.o: phoebe_scripter_grammar.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_grammar.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Tpo -c -o phoebe_scripter-phoebe_scripter_grammar.o `test -f 'phoebe_scripter_grammar.c' || echo '$(srcdir)/'`phoebe_scripter_grammar.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_grammar.c' object='phoebe_scripter-phoebe_scripter_grammar.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_grammar.o `test -f 'phoebe_scripter_grammar.c' || echo '$(srcdir)/'`phoebe_scripter_grammar.c
-
-phoebe_scripter-phoebe_scripter_grammar.obj: phoebe_scripter_grammar.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_grammar.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Tpo -c -o phoebe_scripter-phoebe_scripter_grammar.obj `if test -f 'phoebe_scripter_grammar.c'; then $(CYGPATH_W) 'phoebe_scripter_grammar.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_grammar.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_grammar.c' object='phoebe_scripter-phoebe_scripter_grammar.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_grammar.obj `if test -f 'phoebe_scripter_grammar.c'; then $(CYGPATH_W) 'phoebe_scripter_grammar.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_grammar.c'; fi`
-
-phoebe_scripter-phoebe_scripter_grammar.tab.o: phoebe_scripter_grammar.tab.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_grammar.tab.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Tpo -c -o phoebe_scripter-phoebe_scripter_grammar.tab.o `test -f 'phoebe_scripter_grammar.tab.c' || echo '$(srcdir)/'`phoebe_scripter_grammar.tab.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_grammar.tab.c' object='phoebe_scripter-phoebe_scripter_grammar.tab.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_grammar.tab.o `test -f 'phoebe_scripter_grammar.tab.c' || echo '$(srcdir)/'`phoebe_scripter_grammar.tab.c
-
-phoebe_scripter-phoebe_scripter_grammar.tab.obj: phoebe_scripter_grammar.tab.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_grammar.tab.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Tpo -c -o phoebe_scripter-phoebe_scripter_grammar.tab.obj `if test -f 'phoebe_scripter_grammar.tab.c'; then $(CYGPATH_W) 'phoebe_scripter_grammar.tab.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_grammar.tab.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_grammar.tab.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_grammar.tab.c' object='phoebe_scripter-phoebe_scripter_grammar.tab.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_grammar.tab.obj `if test -f 'phoebe_scripter_grammar.tab.c'; then $(CYGPATH_W) 'phoebe_scripter_grammar.tab.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_grammar.tab.c'; fi`
-
-phoebe_scripter-phoebe_scripter_io.o: phoebe_scripter_io.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_io.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Tpo -c -o phoebe_scripter-phoebe_scripter_io.o `test -f 'phoebe_scripter_io.c' || echo '$(srcdir)/'`phoebe_scripter_io.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_io.c' object='phoebe_scripter-phoebe_scripter_io.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_io.o `test -f 'phoebe_scripter_io.c' || echo '$(srcdir)/'`phoebe_scripter_io.c
-
-phoebe_scripter-phoebe_scripter_io.obj: phoebe_scripter_io.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_io.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Tpo -c -o phoebe_scripter-phoebe_scripter_io.obj `if test -f 'phoebe_scripter_io.c'; then $(CYGPATH_W) 'phoebe_scripter_io.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_io.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_io.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_io.c' object='phoebe_scripter-phoebe_scripter_io.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_io.obj `if test -f 'phoebe_scripter_io.c'; then $(CYGPATH_W) 'phoebe_scripter_io.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_io.c'; fi`
-
-phoebe_scripter-phoebe_scripter_types.o: phoebe_scripter_types.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_types.o -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Tpo -c -o phoebe_scripter-phoebe_scripter_types.o `test -f 'phoebe_scripter_types.c' || echo '$(srcdir)/'`phoebe_scripter_types.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_types.c' object='phoebe_scripter-phoebe_scripter_types.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_types.o `test -f 'phoebe_scripter_types.c' || echo '$(srcdir)/'`phoebe_scripter_types.c
-
-phoebe_scripter-phoebe_scripter_types.obj: phoebe_scripter_types.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -MT phoebe_scripter-phoebe_scripter_types.obj -MD -MP -MF $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Tpo -c -o phoebe_scripter-phoebe_scripter_types.obj `if test -f 'phoebe_scripter_types.c'; then $(CYGPATH_W) 'phoebe_scripter_types.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_types.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Tpo $(DEPDIR)/phoebe_scripter-phoebe_scripter_types.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_scripter_types.c' object='phoebe_scripter-phoebe_scripter_types.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(phoebe_scripter_CFLAGS) $(CFLAGS) -c -o phoebe_scripter-phoebe_scripter_types.obj `if test -f 'phoebe_scripter_types.c'; then $(CYGPATH_W) 'phoebe_scripter_types.c'; else $(CYGPATH_W) '$(srcdir)/phoebe_scripter_types.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
