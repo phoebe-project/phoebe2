@@ -104,6 +104,8 @@ int symbol_table_print (scripter_symbol_table *table)
 		}
 	}
 	fprintf (PHOEBE_output, "------------------------------------------------------\n");
+
+	return SUCCESS;
 }
 
 /******************************************************************************/

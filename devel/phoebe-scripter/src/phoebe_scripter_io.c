@@ -237,6 +237,8 @@ int propagate_int_to_bool (scripter_ast_value *val)
 
 	val->type = type_bool;
 	val->value.b = new;
+
+	return SUCCESS;
 }
 
 int propagate_int_to_menu_item (scripter_ast_value *val, char *qualifier)
@@ -258,6 +260,7 @@ int propagate_int_to_menu_item (scripter_ast_value *val, char *qualifier)
 	
 	val->type = type_string;
 	val->value.str = strdup (par->menu->option[val->value.i-1]);
+
 	return SUCCESS;
 }
 
@@ -273,4 +276,6 @@ int propagate_int_to_vector (scripter_ast_value *val, int dim)
 	
 	val->type = type_vector;
 	val->value.vec = new;
+
+	return SUCCESS;
 }

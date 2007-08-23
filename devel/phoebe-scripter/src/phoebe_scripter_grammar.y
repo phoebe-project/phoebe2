@@ -408,6 +408,7 @@ idexpr
 int yyerror (const char *str)
 {
     phoebe_scripter_output ("%s\n", str);
+	return SUCCESS;
 }
 
 int yywrap ()
