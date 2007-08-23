@@ -8,6 +8,9 @@ GtkWidget *phoebe_para_lc_el3_treeview;
 GtkWidget *phoebe_para_lc_levweight_treeview;
 GtkWidget *phoebe_para_lc_ld_treeview;
 
+/* Initializes the treeviews */
+int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
+
 /* These columns make up the light curve model for various treeviews */
 typedef enum lc_model_columns
 {
@@ -35,6 +38,12 @@ typedef enum lc_model_columns
     LC_COL_COUNT,
 }lc_model_columns;
 
+/* Creates a model for storing light curves data */
+GtkTreeModel *lc_model_create(void);
+
+/* Initializes all LC related treeviews */
+int gui_init_lc_treeviews(GladeXML *parent_window);
+
 /* RV treeviews */
 GtkWidget *phoebe_data_rv_treeview;
 GtkWidget *phoebe_para_rv_ld_treeview;
@@ -59,6 +68,12 @@ typedef enum rv_model_columns
     RV_COL_COUNT,
 }rv_model_columns;
 
+/* Creates a model for storing RV curves data */
+GtkTreeModel *rv_model_create(void);
+
+/* Initializes all RV related treeviews */
+int gui_init_rv_treeviews(GladeXML *parent_window);
+
 /* Spots treeview */
 GtkWidget *phoebe_para_surf_spots_treeview;
 
@@ -67,6 +82,7 @@ typedef enum spots_model_columns
 {
     SPOTS_COL_ADJUST,
     SPOTS_COL_SOURCE,
+    SPOTS_COL_SOURCE_STR,
     SPOTS_COL_LAT,
     SPOTS_COL_LATADJUST,
     SPOTS_COL_LATSTEP,
@@ -90,57 +106,41 @@ typedef enum spots_model_columns
     SPOTS_COL_COUNT,
 }spots_model_columns;
 
-/* Data sheet treevies */
-GtkWidget *phoebe_sidesheet_fitt_treeview;
-GtkWidget *phoebe_sidesheet_data_treeview;
-
-/* These columns make up the data sheet model */
-typedef enum datasheet_model_columns
-{
-    DS_COL_PARAM_TBA,
-    DS_COL_PARAM_NAME,
-    DS_COL_PARAM_VALUE,
-    DS_COL_PARAM_ERROR,
-    DS_COL_PARAM_STEP,
-    DS_COL_PARAM_MIN,
-    DS_COL_PARAM_MAX,
-    DS_COL_COUNT,
-}datasheet_model_columns;
-
-/* Creates a model for storing light curves data */
-GtkTreeModel *lc_model_create(void);
-
-/* Creates a model for storing RV curves data */
-GtkTreeModel *rv_model_create(void);
-
 /* Creates a model for storing spots data */
 GtkTreeModel *spots_model_create(void);
-
-/* Creates a model for storing data sheet lists */
-GtkTreeModel *datasheets_model_create(void);
-
-/* Initializes the treeviews */
-int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
-
-/* Initializes all LC related treeviews */
-int gui_init_lc_treeviews(GladeXML *parent_window);
-
-/* Initializes all RV related treeviews */
-int gui_init_rv_treeviews(GladeXML *parent_window);
 
 /* Initializes the spots treeview */
 int gui_init_spots_treeview (GladeXML *parent_window);
 
-/* Initializes the data sheets treeviews */
-int gui_init_datasheets (GladeXML *parent_window);
+/* Cell data function for transforming the result of combobox selection (integer)
+   into human readable strings that should appear in the spots treeview. */
+void spots_source_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 
-/* Fills both data sheets */
-int fill_datasheets();
+///* Data sheet treevies */
+//GtkWidget *phoebe_sidesheet_fitt_treeview;
+//GtkWidget *phoebe_sidesheet_data_treeview;
+//
+///* These columns make up the data sheet model */
+//typedef enum datasheet_model_columns
+//{
+//    DS_COL_PARAM_TBA,
+//    DS_COL_PARAM_NAME,
+//    DS_COL_PARAM_VALUE,
+//    DS_COL_PARAM_ERROR,
+//    DS_COL_PARAM_STEP,
+//    DS_COL_PARAM_MIN,
+//    DS_COL_PARAM_MAX,
+//    DS_COL_COUNT,
+//}datasheet_model_columns;
+//
+///* Creates a model for storing data sheet lists */
+//GtkTreeModel *datasheets_model_create(void);
+//
+///* Initializes the data sheets treeviews */
+//int gui_init_datasheets (GladeXML *parent_window);
 
 /* Initialzes filter comboboxes */
 int gui_init_filter_combobox (GtkWidget *combo_box);
 
-/* Cell data function for transforming the result of combobox selection (integer)
-   into human readable strings that should appear in the spots treeview. */
-void spots_source_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+
 
