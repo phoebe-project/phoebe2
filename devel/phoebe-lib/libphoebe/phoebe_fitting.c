@@ -20,20 +20,6 @@
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
-/* At this point we should check whether GSL is available; if it isn't, then  */
-/* we don't have much to compile here.                                        */
-
-#ifdef HAVE_LIBGSL
-#ifndef PHOEBE_GSL_DISABLED
-
-#include <gsl/gsl_min.h>
-#include <gsl/gsl_multimin.h>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_siman.h>
-
-gsl_rng *PHOEBE_randomizer;
-
 int calls_to_cf = 0;
 
 double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters *params)
@@ -356,13 +342,11 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	}
 */
 }
-#endif
-#endif
 
 int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
-	 * This is a GSL simplex function that we use for multi-D minimization. All
+	 * This is a N&M simplex function that we use for multi-D minimization. All
 	 * parameters are passed through an array of structs.
 	 *
 	 * Error codes:
