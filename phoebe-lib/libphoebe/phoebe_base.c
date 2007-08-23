@@ -243,14 +243,6 @@ int phoebe_init ()
 		}
 	}
 
-	/* Initialize PHOEBE randomizer:                                            */
-	#ifdef HAVE_LIBGSL
-		#ifndef PHOEBE_GSL_DISABLED
-			PHOEBE_randomizer = gsl_rng_alloc (gsl_rng_mt19937);
-			gsl_rng_set (PHOEBE_randomizer, time (0));
-		#endif
-	#endif
-
 	return SUCCESS;
 }
 
@@ -299,12 +291,6 @@ int phoebe_quit ()
 
 	/* Free parameter table: */
 	phoebe_parameter_table_free (PHOEBE_pt);
-
-	#ifdef HAVE_LIBGSL
-		#ifndef PHOEBE_GSL_DISABLED
-			gsl_rng_free (PHOEBE_randomizer);
-		#endif
-	#endif
 
 	exit (0);
 }

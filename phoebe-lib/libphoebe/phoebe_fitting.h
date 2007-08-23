@@ -3,13 +3,6 @@
 
 #include <stdarg.h>
 
-#ifdef HAVE_LIBGSL
-	#ifndef PHOEBE_GSL_DISABLED
-		#include <gsl/gsl_rng.h>
-		extern gsl_rng *PHOEBE_randomizer;
-	#endif
-#endif
-
 #include "phoebe_nms.h"
 #include "phoebe_types.h"
 
