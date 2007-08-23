@@ -7,6 +7,7 @@ GtkWidget *phoebe_para_lc_levels_treeview;
 GtkWidget *phoebe_para_lc_el3_treeview;
 GtkWidget *phoebe_para_lc_levweight_treeview;
 GtkWidget *phoebe_para_lc_ld_treeview;
+GtkWidget *phoebe_plot_lc_observed_combobox;
 
 /* Initializes the treeviews */
 int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
@@ -47,6 +48,7 @@ int gui_init_lc_treeviews(GladeXML *parent_window);
 /* RV treeviews */
 GtkWidget *phoebe_data_rv_treeview;
 GtkWidget *phoebe_para_rv_ld_treeview;
+GtkWidget *phoebe_plot_rv_observed_combobox;
 
 /* These columns make up the RV curve model for various treeviews */
 typedef enum rv_model_columns
