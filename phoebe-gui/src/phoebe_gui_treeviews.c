@@ -51,26 +51,18 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_el3_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_el3_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_levels_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_levels_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_levweight_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_levweight_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
 
 	renderer = gtk_cell_renderer_text_new ();
@@ -207,8 +199,6 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_FILTER);
 
 	renderer = gtk_cell_renderer_text_new ();
