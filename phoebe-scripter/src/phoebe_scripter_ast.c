@@ -1135,36 +1135,6 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 								out.value.vec = phoebe_vector_duplicate (curve->dep);
 								return out;
 							}
-							if (strcmp (field, "L1") == 0) {
-								out.type = type_double;
-								out.value.d = curve->L1;
-								return out;
-							}
-							if (strcmp (field, "L2") == 0) {
-								out.type = type_double;
-								out.value.d = curve->L2;
-								return out;
-							}
-							if (strcmp (field, "R1") == 0) {
-								out.type = type_double;
-								out.value.d = curve->R1;
-								return out;
-							}
-							if (strcmp (field, "R2") == 0) {
-								out.type = type_double;
-								out.value.d = curve->R2;
-								return out;
-							}
-							if (strcmp (field, "SBR1") == 0) {
-								out.type = type_double;
-								out.value.d = curve->SBR1;
-								return out;
-							}
-							if (strcmp (field, "SBR2") == 0) {
-								out.type = type_double;
-								out.value.d = curve->SBR2;
-								return out;
-							}
 							phoebe_scripter_output ("field '%s' is not contained in this structure, aborting.\n", field);
 						}
 						break;

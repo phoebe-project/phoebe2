@@ -108,10 +108,10 @@ int phoebe_curve_print (PHOEBE_curve *curve)
 	fprintf (PHOEBE_output, "\n");
 	phoebe_curve_type_get_name (curve->type, &type);
 	fprintf (PHOEBE_output, "  curve type:           %s\n", type);
-	fprintf (PHOEBE_output, "  star 1 luminosity:    %lf\n", curve->L1);
-	fprintf (PHOEBE_output, "  star 2 luminosity:    %lf\n", curve->L2);
-	fprintf (PHOEBE_output, "  star 1 SBR:           %lf\n", curve->SBR1);
-	fprintf (PHOEBE_output, "  star 2 SBR:           %lf\n", curve->SBR2);
+	if (curve->passband)
+		fprintf (PHOEBE_output, "  passband:             %s %s\n", curve->passband->set, curve->passband->name);
+	else
+		fprintf (PHOEBE_output, "  passband:             undefined\n");
 	fprintf (PHOEBE_output, "  data points:          %d\n", curve->indep->dim);
 
 	free (type);

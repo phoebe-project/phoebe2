@@ -110,6 +110,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 	int jdphs;
 	int status;
 
+	char *filter;
 	char *filename;
 	WD_LCI_parameters params;
 
@@ -153,6 +154,9 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), curve_index, &filter);
+	curve->passband = phoebe_passband_lookup (filter);
 
 	status = read_in_wd_lci_parameters (&params, mpage, curve_index);
 	if (status != SUCCESS) return status;
