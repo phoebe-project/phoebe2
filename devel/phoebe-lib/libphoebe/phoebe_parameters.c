@@ -179,6 +179,8 @@ int phoebe_init_parameters ()
 
 	/* **********************   Computed parameters   *********************** */
 
+	phoebe_parameter_add ("phoebe_plum1",                "Primary star active passband luminosity",            KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_plum2",                "Secondary star active passband luminosity",          KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
 	phoebe_parameter_add ("phoebe_mass1",                "Primary star mass",                                  KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
 	phoebe_parameter_add ("phoebe_mass2",                "Secondary star mass",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
 	phoebe_parameter_add ("phoebe_radius1",              "Primary star radius",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);

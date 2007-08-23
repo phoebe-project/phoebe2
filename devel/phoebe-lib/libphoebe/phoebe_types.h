@@ -288,14 +288,6 @@ typedef struct PHOEBE_curve {
 	PHOEBE_column_type wtype;
 	char              *filename;
 	double             sigma;
-	/* Temporary fields: */
-	double             L1;
-	double             L2;
-	double             SBR1;
-	double             SBR2;
-	double             R1;
-	double             R2;
-	/* ***************** */
 } PHOEBE_curve;
 
 PHOEBE_curve *phoebe_curve_new            ();

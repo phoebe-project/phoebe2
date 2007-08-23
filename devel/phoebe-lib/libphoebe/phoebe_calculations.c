@@ -188,6 +188,8 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
 
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
@@ -229,6 +231,8 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val, params);
 
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
@@ -270,6 +274,8 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val, params);
 
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
@@ -1208,12 +1214,15 @@ int apply_third_light_correction (PHOEBE_curve *curve, PHOEBE_el3_units el3units
 
 	switch (el3units) {
 		case PHOEBE_EL3_UNITS_TOTAL_LIGHT: {
-			double el3flux;
+			double L1, L2, el3flux;
+
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum1"), &L1);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum2"), &L2);
 
 			if (el3value > 1.0-PHOEBE_NUMERICAL_ACCURACY)
 				return ERROR_INVALID_EL3_VALUE;
 
-			el3flux = el3value*(curve->L1+curve->L2)/4.0/3.1415926/(1.0-el3value);
+			el3flux = el3value*(L1+L2)/4.0/3.1415926/(1.0-el3value);
 
 			for (i = 0; i < curve->dep->dim; i++)
 				curve->dep->val[i] += el3flux;
