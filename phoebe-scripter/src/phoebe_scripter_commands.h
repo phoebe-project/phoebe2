@@ -13,7 +13,6 @@ scripter_ast_value scripter_set_parameter_step            (scripter_ast_list *ar
 scripter_ast_value scripter_mark_for_adjustment           (scripter_ast_list *args);
 scripter_ast_value scripter_add_constraint                (scripter_ast_list *args);
 scripter_ast_value scripter_create_wd_lci_file            (scripter_ast_list *args);
-scripter_ast_value scripter_kick_parameters               (scripter_ast_list *args);
 scripter_ast_value scripter_plot_lc_using_gnuplot         (scripter_ast_list *args);
 scripter_ast_value scripter_plot_rv_using_gnuplot         (scripter_ast_list *args);
 scripter_ast_value scripter_plot_spectrum_using_gnuplot   (scripter_ast_list *args);
