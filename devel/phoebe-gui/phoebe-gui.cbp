@@ -21,6 +21,10 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="src/phoebe_gui_accessories.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_accessories.h" />
 		<Unit filename="src/phoebe_gui_base.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -45,6 +49,7 @@
 		<Extensions>
 			<envvars />
 			<code_completion />
+			<debugger />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

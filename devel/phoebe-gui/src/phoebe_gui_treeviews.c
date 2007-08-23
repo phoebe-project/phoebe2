@@ -8,7 +8,7 @@ int gui_init_treeviews(GladeXML *phoebe_window, GladeXML *phoebe_load_lc_dialog)
     gui_init_lc_treeviews         (phoebe_window);
     gui_init_rv_treeviews         (phoebe_window);
     gui_init_spots_treeview       (phoebe_window);
-    gui_init_datasheets           (phoebe_window);
+//    gui_init_datasheets           (phoebe_window);
 
     return SUCCESS;
 }
@@ -278,13 +278,10 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new();
+    column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_SOURCE));
-    gtk_tree_view_column_set_title(column, "Source");
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_SOURCE);
-    gtk_tree_view_column_pack_start(column, renderer, TRUE);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, spots_source_cell_data_func, NULL, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_SOURCE_STR);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
@@ -315,112 +312,112 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
     return SUCCESS;
 }
 
-int gui_init_datasheets(GladeXML *phoebe_window)
-{
-    phoebe_sidesheet_data_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_data_treeview");
-    phoebe_sidesheet_fitt_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_fitt_treeview");
-
-    GtkTreeModel *data_model = datasheets_model_create();
-    GtkTreeModel *fitt_model = datasheets_model_create();
-
-    GtkCellRenderer     *renderer;
-    GtkTreeViewColumn   *column;
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", DS_COL_PARAM_NAME, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_NAME);
-
-    renderer    = gtk_cell_renderer_toggle_new ();
-    column      = gtk_tree_view_column_new_with_attributes("TBA", renderer, "active", DS_COL_PARAM_TBA, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_TBA);
-
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_sidesheet_data_tba_checkbutton_toggled), NULL);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", DS_COL_PARAM_NAME, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_NAME);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", DS_COL_PARAM_VALUE, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_VALUE);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", DS_COL_PARAM_VALUE, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_VALUE);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Error", renderer, "text", DS_COL_PARAM_ERROR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_ERROR);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Error", renderer, "text", DS_COL_PARAM_ERROR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_ERROR);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Step", renderer, "text", DS_COL_PARAM_STEP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_STEP);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Min", renderer, "text", DS_COL_PARAM_MIN, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_MIN);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Max", renderer, "text", DS_COL_PARAM_MAX, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_MAX);
-
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_data_treeview, data_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, fitt_model);
-
-    fill_datasheets();
-
-    return SUCCESS;
-}
-
-int fill_datasheets()
-{
-    GtkTreeModel *model;
-    GtkTreeIter iter;
-
-    int i;
-	PHOEBE_parameter_list *list;
-
-	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_data_treeview);
-	gtk_list_store_clear((GtkListStore*)model);
-
-	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
-	{
-		list = PHOEBE_pt->bucket[i];
-		while (list)
-		{
-            gtk_list_store_append((GtkListStore*)model, &iter);
-            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_TBA,   list->par->tba,
-                                                            DS_COL_PARAM_NAME,  list->par->qualifier,
-                                                            DS_COL_PARAM_VALUE, list->par->value,
-                                                            DS_COL_PARAM_ERROR, 0.0, -1);
-
-			list = list->next;
-		}
-	}
-
-	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_fitt_treeview);
-	gtk_list_store_clear((GtkListStore*)model);
-
-	list = PHOEBE_pt->lists.marked_tba;
-	while (list)
-		{
-            gtk_list_store_append((GtkListStore*)model, &iter);
-            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_NAME,  list->par->qualifier,
-                                                            DS_COL_PARAM_VALUE, list->par->value,
-                                                            DS_COL_PARAM_ERROR, 0.0,
-                                                            DS_COL_PARAM_STEP,  list->par->step,
-                                                            DS_COL_PARAM_MIN,   list->par->min,
-                                                            DS_COL_PARAM_MAX,   list->par->max, -1);
-
-			list = list->next;
-		}
-
-	return SUCCESS;
-}
+//int gui_init_datasheets(GladeXML *phoebe_window)
+//{
+//    phoebe_sidesheet_data_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_data_treeview");
+//    phoebe_sidesheet_fitt_treeview = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_fitt_treeview");
+//
+//    GtkTreeModel *data_model = datasheets_model_create();
+//    GtkTreeModel *fitt_model = datasheets_model_create();
+//
+//    GtkCellRenderer     *renderer;
+//    GtkTreeViewColumn   *column;
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", DS_COL_PARAM_NAME, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_NAME);
+//
+//    renderer    = gtk_cell_renderer_toggle_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("TBA", renderer, "active", DS_COL_PARAM_TBA, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_TBA);
+//
+//    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_sidesheet_data_tba_checkbutton_toggled), NULL);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", DS_COL_PARAM_NAME, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_NAME);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", DS_COL_PARAM_VALUE, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_VALUE);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", DS_COL_PARAM_VALUE, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_VALUE);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Error", renderer, "text", DS_COL_PARAM_ERROR, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_ERROR);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Error", renderer, "text", DS_COL_PARAM_ERROR, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_data_treeview, column, DS_COL_PARAM_ERROR);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Step", renderer, "text", DS_COL_PARAM_STEP, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_STEP);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Min", renderer, "text", DS_COL_PARAM_MIN, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_MIN);
+//
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Max", renderer, "text", DS_COL_PARAM_MAX, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, column, DS_COL_PARAM_MAX);
+//
+//    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_data_treeview, data_model);
+//    gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_fitt_treeview, fitt_model);
+//
+//    fill_datasheets();
+//
+//    return SUCCESS;
+//}
+//
+//int fill_datasheets()
+//{
+//    GtkTreeModel *model;
+//    GtkTreeIter iter;
+//
+//    int i;
+//	PHOEBE_parameter_list *list;
+//
+//	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_data_treeview);
+//	gtk_list_store_clear((GtkListStore*)model);
+//
+//	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++)
+//	{
+//		list = PHOEBE_pt->bucket[i];
+//		while (list)
+//		{
+//            gtk_list_store_append((GtkListStore*)model, &iter);
+//            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_TBA,   list->par->tba,
+//                                                            DS_COL_PARAM_NAME,  list->par->qualifier,
+//                                                            DS_COL_PARAM_VALUE, list->par->value,
+//                                                            DS_COL_PARAM_ERROR, 0.0, -1);
+//
+//			list = list->next;
+//		}
+//	}
+//
+//	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_sidesheet_fitt_treeview);
+//	gtk_list_store_clear((GtkListStore*)model);
+//
+//	list = PHOEBE_pt->lists.marked_tba;
+//	while (list)
+//		{
+//            gtk_list_store_append((GtkListStore*)model, &iter);
+//            gtk_list_store_set((GtkListStore*)model, &iter, DS_COL_PARAM_NAME,  list->par->qualifier,
+//                                                            DS_COL_PARAM_VALUE, list->par->value,
+//                                                            DS_COL_PARAM_ERROR, 0.0,
+//                                                            DS_COL_PARAM_STEP,  list->par->step,
+//                                                            DS_COL_PARAM_MIN,   list->par->min,
+//                                                            DS_COL_PARAM_MAX,   list->par->max, -1);
+//
+//			list = list->next;
+//		}
+//
+//	return SUCCESS;
+//}
 
 static void cell_data_func (GtkCellLayout *cell_layout,
                             GtkCellRenderer *renderer,
@@ -434,10 +431,6 @@ static void cell_data_func (GtkCellLayout *cell_layout,
 
 int gui_init_filter_combobox (GtkWidget *combo_box)
 {
-    /*
-	GtkWidget *combo_box = glade_xml_get_widget(phoebe_load_lc_dialog, "phoebe_load_lc_filter_combobox");
-    */
-
 	GtkTreeStore 		*store;
 	GtkTreeIter 		 toplevel, child;
 	GtkCellRenderer 	*renderer;
@@ -469,7 +462,6 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 			gtk_tree_store_set (store, &toplevel, 0, par, 1, i, -1);
 			gtk_tree_store_append (store, &child, &toplevel);
 			gtk_tree_store_set (store, &child, 0, name, 1, i, -1);
-
 		}
 		else
 		{
@@ -535,6 +527,7 @@ GtkTreeModel *spots_model_create()
     GtkListStore *model = gtk_list_store_new(SPOTS_COL_COUNT,       /* number of columns    */
                                              G_TYPE_BOOLEAN,        /* adjustable           */
                                              G_TYPE_INT,            /* source               */
+                                             G_TYPE_STRING,			/* source as string		*/
                                              G_TYPE_DOUBLE,         /* latitude             */
                                              G_TYPE_BOOLEAN,        /* latitude    adjust   */
                                              G_TYPE_DOUBLE,         /* latitude    step     */
@@ -559,41 +552,15 @@ GtkTreeModel *spots_model_create()
     return (GtkTreeModel*)model;
 }
 
-GtkTreeModel *datasheets_model_create()
-{
-    GtkListStore *model = gtk_list_store_new(DS_COL_COUNT,          /* number of columns    */
-                                             G_TYPE_BOOLEAN,        /* parameter tba        */
-                                             G_TYPE_STRING ,        /* parameter name       */
-                                             G_TYPE_DOUBLE,         /* parameter value      */
-                                             G_TYPE_DOUBLE,         /* parameter error      */
-                                             G_TYPE_DOUBLE,         /* parameter step       */
-                                             G_TYPE_DOUBLE,         /* parameter min        */
-                                             G_TYPE_DOUBLE);        /* parameter max        */
-    return (GtkTreeModel*)model;
-}
-
-void spots_source_cell_data_func(GtkTreeViewColumn   *column,
-                                 GtkCellRenderer     *renderer,
-                                 GtkTreeModel        *model,
-                                 GtkTreeIter         *iter,
-                                 gpointer             data)
-{
-    int   source;
-    char *source_str;
-
-    gtk_tree_model_get(model, iter, SPOTS_COL_SOURCE, &source, -1);
-
-    switch(source)
-    {
-        case 0:
-            source_str = "Primary star";
-            break;
-        case 1:
-            source_str = "Secondary star";
-            break;
-        default:
-            source_str = "";
-            break;
-    }
-    g_object_set(renderer, "text", source_str, NULL);
-}
+//GtkTreeModel *datasheets_model_create()
+//{
+//    GtkListStore *model = gtk_list_store_new(DS_COL_COUNT,          /* number of columns    */
+//                                             G_TYPE_BOOLEAN,        /* parameter tba        */
+//                                             G_TYPE_STRING ,        /* parameter name       */
+//                                             G_TYPE_DOUBLE,         /* parameter value      */
+//                                             G_TYPE_DOUBLE,         /* parameter error      */
+//                                             G_TYPE_DOUBLE,         /* parameter step       */
+//                                             G_TYPE_DOUBLE,         /* parameter min        */
+//                                             G_TYPE_DOUBLE);        /* parameter max        */
+//    return (GtkTreeModel*)model;
+//}

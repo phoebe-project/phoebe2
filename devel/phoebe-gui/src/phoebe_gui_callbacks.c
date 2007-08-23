@@ -12,7 +12,6 @@ on_phoebe_test_toolbutton_clicked      (GtkToolButton   *toolbutton,
                                         gpointer         user_data)
 {
     gui_get_values_from_widgets();
-    fill_datasheets();
 }
 
 
@@ -84,15 +83,15 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 
 	gui_init_filter_combobox (phoebe_load_lc_filter_combobox);
 
-	g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton), 
+	g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton),
 					  "selection_changed",
-					  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed), 
+					  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed),
 					  (gpointer) phoebe_load_lc_preview_textview);
 
 	/* Default values for column combo boxes: */
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  0);	
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  0);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
     switch (result){
@@ -200,9 +199,9 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
         gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
 
-		g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton), 
-						  "selection_changed", 
-						  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed), 
+		g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton),
+						  "selection_changed",
+						  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed),
 						  (gpointer) phoebe_load_lc_preview_textview);
 
         GtkTreeSelection *selection;
@@ -220,7 +219,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
             gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
-			
+
 			sprintf(filter_selected, "%s", filter);
 
 			if(filename){
@@ -372,9 +371,9 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 
     gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
-	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), 
-					  "selection_changed", 
-					  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), 
+	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton),
+					  "selection_changed",
+					  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed),
 					  (gpointer) phoebe_load_rv_preview_textview);
 
     g_object_unref(phoebe_load_rv_xml);
@@ -385,7 +384,7 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 	/* Default values for column combo boxes: */
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);	
+	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
     switch (result){
@@ -463,7 +462,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
         GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
         GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
-	
+
 		gchar *filename;
         gint itype;
         gint dtype;
@@ -480,9 +479,9 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 
         gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
 
-		g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton), 
-						  "selection_changed", 
-						  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed), 
+		g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton),
+						  "selection_changed",
+						  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed),
 					 	  (gpointer) phoebe_load_rv_preview_textview);
 
         g_object_unref(phoebe_load_rv_xml);
@@ -664,10 +663,15 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
             /* source gets set separately because 1 is for primary, and 2 for secondary, while the
                combo returns 0 for primary and 1 for secondary; and, we need it later */
             int source = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
+            char *source_str;
+
+            if(source == 1)source_str = "Primary";
+            else source_str = "Secondary";
 
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       FALSE,
                                                             SPOTS_COL_SOURCE,       source,
+															SPOTS_COL_SOURCE_STR,   source_str,
                                                             SPOTS_COL_LAT,          gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_lat_spinbutton),
                                                             SPOTS_COL_LATADJUST,    gtk_toggle_button_get_active((GtkToggleButton*)phoebe_load_spots_latadjust_checkbutton),
                                                             SPOTS_COL_LATSTEP,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_latstep_spinbutton),
@@ -816,9 +820,14 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
                 /* source gets set separately because 1 is for primary, and 2 for secondary, while the
                    combo returns 0 for primary and 1 for secondary; and, we need it later */
                 source_new = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
+                char *source_str;
+
+				if(source_new == 1)source_str = "Primary";
+				else source_str = "Secondary";
 
                 gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       FALSE,
                                                                 SPOTS_COL_SOURCE,       source_new,
+                                                                SPOTS_COL_SOURCE_STR,   source_str,
                                                                 SPOTS_COL_LAT,          gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_lat_spinbutton),
                                                                 SPOTS_COL_LATADJUST,    gtk_toggle_button_get_active((GtkToggleButton*)phoebe_load_spots_latadjust_checkbutton),
                                                                 SPOTS_COL_LATSTEP,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_latstep_spinbutton),
