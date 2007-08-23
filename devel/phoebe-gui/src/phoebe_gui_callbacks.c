@@ -3961,3 +3961,29 @@ on_phoebe_fitt_fitting_detach_button_clicked
 
 	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
+
+/* ******************************************************************** *
+ *
+ *                    phoebe_window plot events
+ *
+ * ******************************************************************** */
+
+void
+on_phoebe_lc_plot_options_obs_checkbutton_toggled
+                                        (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+	GUI_widget *combobox = gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox");
+	gtk_widget_set_sensitive (combobox->gtk, gtk_toggle_button_get_active(togglebutton));
+	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
+}
+
+void
+on_phoebe_rv_plot_options_obs_checkbutton_toggled
+                                        (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+	GUI_widget *combobox = gui_widget_lookup ("phoebe_rv_plot_options_obs_combobox");
+	gtk_widget_set_sensitive (combobox->gtk, gtk_toggle_button_get_active(togglebutton));
+	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
+}

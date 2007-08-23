@@ -22,6 +22,7 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_levels_treeview");
     phoebe_para_lc_levweight_treeview   = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_weighting_treeview");
     phoebe_para_lc_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_lccoefs_treeview");
+	phoebe_plot_lc_observed_combobox	= glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox");
 
     GtkTreeModel *lc_model = lc_model_create();
 
@@ -71,6 +72,11 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
+
+	renderer = gtk_cell_renderer_text_new ();
+	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox));
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(phoebe_plot_lc_observed_combobox), renderer, TRUE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(phoebe_plot_lc_observed_combobox), renderer, "text", LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", LC_COL_ITYPE_STR, NULL);
@@ -161,6 +167,7 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_levels_treeview,     lc_model);
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_levweight_treeview,  lc_model);
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_ld_treeview,         lc_model);
+	gtk_combo_box_set_model ((GtkComboBox*)phoebe_plot_lc_observed_combobox,   lc_model);
 
     return SUCCESS;
 }
@@ -171,6 +178,7 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 
     phoebe_data_rv_treeview    = glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
     phoebe_para_rv_ld_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
+	phoebe_plot_rv_observed_combobox	= glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox");
 
     GtkTreeModel *rv_model = rv_model_create();
 
@@ -202,6 +210,11 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_FILTER));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_FILTER);
+
+	renderer = gtk_cell_renderer_text_new ();
+	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_rv_observed_combobox));
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(phoebe_plot_rv_observed_combobox), renderer, TRUE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(phoebe_plot_rv_observed_combobox), renderer, "text", RV_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", RV_COL_ITYPE_STR, NULL);
@@ -253,6 +266,7 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_data_rv_treeview,            rv_model);
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_rv_ld_treeview,         rv_model);
+	gtk_combo_box_set_model ((GtkComboBox*)phoebe_plot_rv_observed_combobox,   rv_model);
 
     return SUCCESS;
 }
