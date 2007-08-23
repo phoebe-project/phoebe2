@@ -51,7 +51,6 @@ int scripter_register_all_commands ()
 	scripter_command_register ("minimize_using_nms",           scripter_minimize_using_nms);
 	scripter_command_register ("minimize_using_dc",            scripter_minimize_using_dc);
 	scripter_command_register ("adopt_minimizer_results",      scripter_adopt_minimizer_results);
-	scripter_command_register ("kick_parameters",              scripter_kick_parameters);
 
 	/* Commands for handling spectral energy distributions (SED):             */
 	scripter_command_register ("set_spectra_repository",       scripter_set_spectra_repository);
@@ -1000,34 +999,6 @@ scripter_ast_value scripter_add_constraint (scripter_ast_list *args)
 	status = phoebe_constraint_new (vals[0].value.str);
 	if (status != SUCCESS)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
-
-	scripter_ast_value_array_free (vals, 1);
-	return out;
-}
-
-scripter_ast_value scripter_kick_parameters (scripter_ast_list *args)
-{
-	/*
-	 * This function calls the 'kicker'. Its purpose is to kick the solution
-	 * obtained by e.g. NMS stochastically using the Gaussian PDF. This helps
-	 * the overall minimization process to escape from local minima.
-	 *
-	 * Synopsis:
-	 *
-	 *    kick_parameters (sigma)
-	 */
-
-	scripter_ast_value out;
-	scripter_ast_value *vals;
-	int status;
-
-	out.type = type_void;
-
-	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_double);
-	if (status != SUCCESS) return out;
-
-	status = kick_parameters (vals[0].value.d);
-	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 1);
 	return out;

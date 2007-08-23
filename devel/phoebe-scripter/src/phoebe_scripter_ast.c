@@ -285,6 +285,8 @@ int scripter_ast_print (int depth, scripter_ast *in)
 			fprintf (PHOEBE_output, "exception handler invoked in scripter_ast_print (), please report this.\n");
 		break;
 	}
+
+	return SUCCESS;
 }
 
 scripter_ast *scripter_ast_duplicate (scripter_ast *in)
@@ -338,6 +340,7 @@ scripter_ast *scripter_ast_duplicate (scripter_ast *in)
 			out = scripter_ast_add_node (in->value.node.kind, scripter_ast_reverse_list (argcopies, NULL));
 		break;
 		default:
+			out = NULL;
 			fprintf (PHOEBE_output, "exception handler invoked in scripter_ast_duplicate (), please report this.\n");
 		break;
 	}
@@ -392,6 +395,8 @@ int scripter_ast_free (scripter_ast *in)
 		break;
 	}
 	free (in);
+
+	return SUCCESS;
 }
 
 int scripter_ast_list_free (scripter_ast_list *list)
@@ -2396,7 +2401,10 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				}
 			}
  		}
-	}
+
+	out.type = type_void;
+	return out;
+}
 
 int scripter_ast_value_print (scripter_ast_value val)
 {
