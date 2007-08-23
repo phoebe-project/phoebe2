@@ -1362,7 +1362,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		for (i = 0; i < 300; i++) indep->val[i] = -0.6 + 1.2 * (double) i/299;
 
 		/* Read in synthetic data: */
-		status = read_in_synthetic_data (lc[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX);
+		status = phoebe_curve_compute (lc[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX);
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_array_free (vals, 3);
@@ -1489,9 +1489,9 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 		/* Read in synthetic data:                                            */
 		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
-			status = read_in_synthetic_data (rv[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_PRIMARY_RV);
+			status = phoebe_curve_compute (rv[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_PRIMARY_RV);
 		else
-			status = read_in_synthetic_data (rv[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_SECONDARY_RV);
+			status = phoebe_curve_compute (rv[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_SECONDARY_RV);
 
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -1749,7 +1749,7 @@ scripter_ast_value scripter_compute_lc (scripter_ast_list *args)
 	}
 
 	curve = phoebe_curve_new ();
-	status = read_in_synthetic_data (curve, vals[0].value.vec, vals[1].value.i-1, itype, PHOEBE_COLUMN_FLUX);
+	status = phoebe_curve_compute (curve, vals[0].value.vec, vals[1].value.i-1, itype, PHOEBE_COLUMN_FLUX);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		phoebe_curve_free (curve);
@@ -1891,7 +1891,7 @@ scripter_ast_value scripter_compute_rv (scripter_ast_list *args)
 	}
 
 	curve = phoebe_curve_new ();
-	status = read_in_synthetic_data (curve, vals[0].value.vec, vals[1].value.i-1, itype, dtype);
+	status = phoebe_curve_compute (curve, vals[0].value.vec, vals[1].value.i-1, itype, dtype);
 
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -1963,14 +1963,14 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 
 			/* Synthesize a theoretical curve: */
 			syncurve = phoebe_curve_new ();
-			read_in_synthetic_data (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
+			phoebe_curve_compute (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
 		}
 		else {
 			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, index-lcno-1);
 			phoebe_curve_transform (obs, obs->itype, obs->dtype, PHOEBE_COLUMN_SIGMA);
 
 			syncurve = phoebe_curve_new ();
-			read_in_synthetic_data (syncurve, obs->indep, index-lcno-1, obs->itype, obs->dtype);
+			phoebe_curve_compute (syncurve, obs->indep, index-lcno-1, obs->itype, obs->dtype);
 		}
 
 		status = phoebe_cf_compute (&chi2, PHOEBE_CF_CHI2, syncurve->dep, obs->dep, obs->weight, 1.0);
