@@ -10,6 +10,7 @@
 #include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
+#include "phoebe_fortran_interface.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
@@ -2252,6 +2253,131 @@ int phoebe_curve_realloc (PHOEBE_curve *curve, int dim)
 	phoebe_vector_realloc (curve->indep,  dim);
 	phoebe_vector_realloc (curve->dep,    dim);
 	phoebe_vector_realloc (curve->weight, dim);
+
+	return SUCCESS;
+}
+
+int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, PHOEBE_column_type itype, PHOEBE_column_type dtype)
+{
+	/**
+	 * phoebe_curve_compute:
+	 *
+	 * @curve: a pointer to the initialized #PHOEBE_curve
+	 * @nodes: a vector of nodes in which the curve should be computed
+	 * @index: curve index
+	 * @itype: requested independent data type (see #PHOEBE_column_type)
+	 * @dtype: requested dependent data type (see #PHOEBE_column_type)
+	 *
+	 * Computes the @index-th model light curve or RV curve in @nodes.
+	 * The computation is governed by the enumerated choices of @itype
+	 * and @dtype.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	int mpage;
+	int jdphs;
+	int status;
+
+	char *filter;
+	char *filename;
+	WD_LCI_parameters params;
+
+	double A;
+
+	if (!curve)
+		return ERROR_CURVE_NOT_INITIALIZED;
+	if (!nodes)
+		return ERROR_VECTOR_NOT_INITIALIZED;
+
+	switch (itype) {
+		case PHOEBE_COLUMN_HJD:
+			jdphs = 1;
+		break;
+		case PHOEBE_COLUMN_PHASE:
+			jdphs = 2;
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked by itype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+	}
+
+	switch (dtype) {
+		case PHOEBE_COLUMN_FLUX:
+			mpage = 1;
+			curve->type = PHOEBE_CURVE_LC;
+		break;
+		case PHOEBE_COLUMN_MAGNITUDE:
+			mpage = 1;
+			curve->type = PHOEBE_CURVE_LC;
+		break;
+		case PHOEBE_COLUMN_PRIMARY_RV:
+			mpage = 2;
+			curve->type = PHOEBE_CURVE_RV;
+		break;
+		case PHOEBE_COLUMN_SECONDARY_RV:
+			mpage = 2;
+			curve->type = PHOEBE_CURVE_RV;
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+	}
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &filter);
+	curve->passband = phoebe_passband_lookup (filter);
+
+	status = read_in_wd_lci_parameters (&params, mpage, index);
+	if (status != SUCCESS) return status;
+
+	params.JDPHS = jdphs;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
+/*
+	status = phoebe_el3_units_id (&el3units);
+	if (status != SUCCESS) return status;
+
+	phoebe_parameter_get_value ("phoebe_el3", index, &el3value);
+*/
+	filename = resolve_relative_filename ("lcin.active");
+	create_lci_file (filename, &params);
+
+	switch (dtype) {
+		case PHOEBE_COLUMN_MAGNITUDE:
+			call_wd_to_get_fluxes (curve, nodes);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
+			apply_extinction_correction (curve, A);
+		break;
+		case PHOEBE_COLUMN_FLUX:
+			call_wd_to_get_fluxes (curve, nodes);
+/*			apply_third_light_correction (curve, el3units, el3value);*/
+			apply_extinction_correction (curve, A);
+		break;
+		case PHOEBE_COLUMN_PRIMARY_RV:
+			call_wd_to_get_rv1 (curve, nodes);
+		break;
+		case PHOEBE_COLUMN_SECONDARY_RV:
+			call_wd_to_get_rv2 (curve, nodes);
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+	}
+
+	remove (filename);
+	free (filename);
+
+	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
+		double mnorm;
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
+		transform_flux_to_magnitude (curve->dep, mnorm);
+	}
+
+	if (dtype == PHOEBE_COLUMN_PRIMARY_RV || dtype == PHOEBE_COLUMN_SECONDARY_RV) {
+		for (i = 0; i < curve->dep->dim; i++)
+			curve->dep->val[i] *= 100.0;
+	}
 
 	return SUCCESS;
 }
