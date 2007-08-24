@@ -248,20 +248,6 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_comp_met2max_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_comp_met2max_spinbutton"), 							GUI_WIDGET_VALUE_MAX, 	par);
 	gui_widget_add ("phoebe_para_comp_met2min_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_comp_met2min_spinbutton"), 							GUI_WIDGET_VALUE_MIN, 	par);
 
-	par = phoebe_parameter_lookup ("phoebe_logg1");
-	gui_widget_add ("phoebe_para_comp_logg1_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg1_spinbutton"), 								GUI_WIDGET_VALUE, 		par);
-	gui_widget_add ("phoebe_para_comp_logg1adjust_checkbutton", 		glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg1adjust_checkbutton"), 						GUI_WIDGET_SWITCH_TBA, 	par);
-	gui_widget_add ("phoebe_para_comp_logg1step_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg1step_spinbutton"), 							GUI_WIDGET_VALUE_STEP, 	par);
-	gui_widget_add ("phoebe_para_comp_logg1max_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg1max_spinbutton"), 							GUI_WIDGET_VALUE_MAX, 	par);
-	gui_widget_add ("phoebe_para_comp_logg1min_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg1min_spinbutton"), 							GUI_WIDGET_VALUE_MIN, 	par);
-
-	par = phoebe_parameter_lookup ("phoebe_logg2");
-	gui_widget_add ("phoebe_para_comp_logg2_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg2_spinbutton"), 								GUI_WIDGET_VALUE, 		par);
-	gui_widget_add ("phoebe_para_comp_logg2adjust_checkbutton", 		glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg2adjust_checkbutton"), 						GUI_WIDGET_SWITCH_TBA, 	par);
-	gui_widget_add ("phoebe_para_comp_logg2step_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg2step_spinbutton"), 							GUI_WIDGET_VALUE_STEP, 	par);
-	gui_widget_add ("phoebe_para_comp_logg2max_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg2max_spinbutton"), 							GUI_WIDGET_VALUE_MAX, 	par);
-	gui_widget_add ("phoebe_para_comp_logg2min_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_comp_logg2min_spinbutton"), 							GUI_WIDGET_VALUE_MIN, 	par);
-
 	par = phoebe_parameter_lookup ("phoebe_alb1");
 	gui_widget_add ("phoebe_para_surf_alb1_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_surf_alb1_spinbutton"), 								GUI_WIDGET_VALUE, 		par);
 	gui_widget_add ("phoebe_para_surf_alb1adjust_checkbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_surf_alb1adjust_checkbutton"), 						GUI_WIDGET_SWITCH_TBA, 	par);
