@@ -1,6 +1,14 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
+void
+on_phoebe_test_toolbutton_0_clicked      (GtkToolButton   *toolbutton,
+                                        	gpointer         user_data);
+
+void
+on_phoebe_test_toolbutton_1_clicked      (GtkToolButton   *toolbutton,
+                                        	gpointer         user_data);
+
 void on_phoebe_sidesheet_data_tba_checkbutton_toggled
                                         (GtkCellRendererToggle *renderer,
                                          gchar                 *path,
@@ -1566,14 +1574,14 @@ on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
                                         (GtkToggleButton *togglebutton,
                                         gpointer         user_data);
 
-void 
-on_phoebe_load_lc_filechooserbutton_selection_changed 
-										(GtkFileChooserButton *filechooserbutton, 
+void
+on_phoebe_load_lc_filechooserbutton_selection_changed
+										(GtkFileChooserButton *filechooserbutton,
 										gpointer user_data);
 
-void 
-on_phoebe_load_rv_filechooserbutton_selection_changed 
-										(GtkFileChooserButton *filechooserbutton, 
+void
+on_phoebe_load_rv_filechooserbutton_selection_changed
+										(GtkFileChooserButton *filechooserbutton,
 										gpointer user_data);
 
 void

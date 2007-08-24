@@ -8,12 +8,18 @@
 #include "phoebe_gui_types.h"
 
 void
-on_phoebe_test_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+on_phoebe_test_toolbutton_0_clicked      (GtkToolButton   *toolbutton,
+                                        	gpointer         user_data)
 {
     gui_get_values_from_widgets();
 }
 
+void
+on_phoebe_test_toolbutton_1_clicked      (GtkToolButton   *toolbutton,
+                                        	gpointer         user_data)
+{
+    gui_set_values_to_widgets();
+}
 
 /* ******************************************************************** *
  *
@@ -428,6 +434,19 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
             phoebe_parameter_set_value(par, rvno + 1);
 
             printf("Number of RV curves: %d\n", rvno + 1);
+
+            char *indep_str = strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]);
+            printf("RV indep given to model when adding: %s\n", indep_str);
+			gtk_tree_model_get(model, &iter, RV_COL_ITYPE_STR, &indep_str, -1);
+			int status = phoebe_parameter_set_value(indep, 0, indep_str);
+			printf ("%s", phoebe_error (status));
+
+			char *dep_str = strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]);
+            printf("RV dep given to model when adding: %s\n", dep_str);
+			gtk_tree_model_get(model, &iter, RV_COL_DTYPE_STR, &dep_str, -1);
+			status = phoebe_parameter_set_value(dep, 0, dep_str);
+			printf ("%s", phoebe_error (status));
+
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
         }
         break;
