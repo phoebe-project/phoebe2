@@ -212,17 +212,23 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_ITYPE_STR));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ITYPE_STR);
 
+    printf("RV indep column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
+
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 2", renderer, "text", RV_COL_DTYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_DTYPE_STR));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_DTYPE_STR);
 
+    printf("RV dep column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
+
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", RV_COL_WTYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_WTYPE_STR));
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_WTYPE_STR);
+
+    printf("RV inweight column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", RV_COL_SIGMA, NULL);
