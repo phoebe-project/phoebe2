@@ -592,6 +592,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
         GtkTreeModel *model = gtk_tree_view_get_model ((GtkTreeView*) g_object_get_data ((GObject*) column, "parent_tree"));
 
         GtkTreeIter iter;
+        int index = 0;
         int valid = gtk_tree_model_get_iter_first (model, &iter);
 
         while (valid) {
@@ -601,25 +602,25 @@ int gui_get_value_from_widget (GUI_widget *widget)
 						case TYPE_INT_ARRAY: {
 							int value;
 							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-							status = phoebe_parameter_set_value (widget->par, valid-1, value);
+							status = phoebe_parameter_set_value (widget->par, index, value);
 						}
 						break;
 						case TYPE_DOUBLE_ARRAY: {
 							double value;
 							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-                    		status = phoebe_parameter_set_value (widget->par, valid-1, value);
+                    		status = phoebe_parameter_set_value (widget->par, index, value);
 						}
 						break;
 						case TYPE_STRING_ARRAY: {
 							char *value;
 							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-                    		status = phoebe_parameter_set_value (widget->par, valid-1, value);
+                    		status = phoebe_parameter_set_value (widget->par, index, value);
 						}
 						break;
 						case TYPE_BOOL_ARRAY: {
 							bool value;
 							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-                    		status = phoebe_parameter_set_value (widget->par, valid-1, value);
+                    		status = phoebe_parameter_set_value (widget->par, index, value);
 						}
 						break;
 						default:
@@ -661,6 +662,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
             }
 			valid = gtk_tree_model_iter_next (model, &iter);
+			index ++;
         }
 		return status;
 	}
@@ -769,6 +771,7 @@ int gui_set_value_to_widget(GUI_widget *widget)
         GtkTreeModel *model = gtk_tree_view_get_model ((GtkTreeView*) g_object_get_data ((GObject*) column, "parent_tree"));
 
         GtkTreeIter iter;
+        int index = 0;
         int valid = gtk_tree_model_get_iter_first (model, &iter);
 
         while (valid) {
@@ -777,25 +780,25 @@ int gui_set_value_to_widget(GUI_widget *widget)
 					switch (widget->par->type) {
 						case TYPE_INT_ARRAY: {
 							int value;
-							status = phoebe_parameter_get_value (widget->par, valid-1, &value);
+							status = phoebe_parameter_get_value (widget->par, index, &value);
 							gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
 						}
 						break;
 						case TYPE_DOUBLE_ARRAY: {
 							double value;
-							status = phoebe_parameter_get_value (widget->par, valid-1, &value);
+							status = phoebe_parameter_get_value (widget->par, index, &value);
                     		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
 						}
 						break;
 						case TYPE_STRING_ARRAY: {
 							char *value;
-							status = phoebe_parameter_get_value (widget->par, valid-1, &value);
+							status = phoebe_parameter_get_value (widget->par, index, &value);
                     		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
 						}
 						break;
 						case TYPE_BOOL_ARRAY: {
 							bool value;
-							status = phoebe_parameter_get_value (widget->par, valid-1, &value);
+							status = phoebe_parameter_get_value (widget->par, index, &value);
                     		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
 						}
 						break;
@@ -838,6 +841,7 @@ int gui_set_value_to_widget(GUI_widget *widget)
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
             }
 			valid = gtk_tree_model_iter_next (model, &iter);
+			index ++;
         }
 		return status;
 	}
