@@ -1,9 +1,8 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
-#include "phoebe_gui_base.h"
-#include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_types.h"
 
@@ -109,6 +108,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 			gint 		filter_number;
 			gchar 		filter_selected[255] = "Undefined";
 
+			GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
 			if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
@@ -171,6 +171,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
+	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
@@ -287,6 +288,7 @@ on_phoebe_data_lc_remove_button_clicked
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
+	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
     if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         gtk_list_store_remove((GtkListStore*)model, &iter);
@@ -311,6 +313,7 @@ void on_phoebe_data_lc_active_checkbutton_toggled
     GtkTreeIter iter;
     int active;
 
+	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
     if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
@@ -400,6 +403,7 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 			gint 		filter_number;
 			gchar 		filter_selected[255] = "Undefined";
 
+			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
 			if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_rv_filter_combobox), &filter_iter)) {
@@ -469,6 +473,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
     GtkTreeModel *model;
     GtkTreeIter iter;
 
+	GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
@@ -576,6 +581,7 @@ on_phoebe_data_rv_remove_button_clicked
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
+	GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview);
     if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         gtk_list_store_remove((GtkListStore*)model, &iter);
@@ -600,6 +606,7 @@ void on_phoebe_data_rv_active_checkbutton_toggled
     GtkTreeIter iter;
     int active;
 
+	GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
     if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
@@ -677,6 +684,7 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
 	switch (result)	{
 	    case GTK_RESPONSE_OK:{
 
+			GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
             /* source gets set separately because 1 is for primary, and 2 for secondary, while the
@@ -747,6 +755,7 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
     GtkTreeModel *model;
     GtkTreeIter iter;
 
+	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
@@ -918,6 +927,7 @@ on_phoebe_para_surf_spots_remove_button_clicked
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
+	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
     selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_surf_spots_treeview);
     if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         int source;
@@ -955,6 +965,7 @@ void on_phoebe_para_surf_spots_adjust_checkbutton_toggled
     GtkTreeIter   iter;
     int           active;
 
+	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
     if(gtk_tree_model_get_iter_from_string(model, &iter, path)){

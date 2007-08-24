@@ -2,27 +2,33 @@
 
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_types.h"
 
-int gui_init_treeviews(GladeXML *phoebe_window, GladeXML *phoebe_load_lc_dialog)
+int gui_init_treeviews()
 {
-    gui_init_lc_treeviews         (phoebe_window);
-    gui_init_rv_treeviews         (phoebe_window);
-    gui_init_spots_treeview       (phoebe_window);
+    gui_init_lc_treeviews	();
+    gui_init_rv_treeviews   ();
+    gui_init_spots_treeview ();
 //    gui_init_datasheets           (phoebe_window);
 
     return SUCCESS;
 }
 
-int gui_init_lc_treeviews(GladeXML *phoebe_window)
+int gui_init_lc_treeviews()
 {
-    // g_print("---------- Initializing lc treeviews ---------------\n");
+	GtkWidget *phoebe_data_lc_treeview 				= gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_levels_treeview 		= gui_widget_lookup("phoebe_para_lc_levels_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_el3_treeview 			= gui_widget_lookup("phoebe_para_lc_el3_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_levweight_treeview 	= gui_widget_lookup("phoebe_para_lc_levweight_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_ld_treeview 			= gui_widget_lookup("phoebe_para_lc_ld_treeview")->gtk;
+	GtkWidget *phoebe_plot_lc_observed_combobox 	= gui_widget_lookup("phoebe_plot_lc_observed_combobox")->gtk;
 
-    phoebe_data_lc_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_lc_treeview");
-    phoebe_para_lc_el3_treeview         = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_el3_treeview");
-    phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_levels_treeview");
-    phoebe_para_lc_levweight_treeview   = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_weighting_treeview");
-    phoebe_para_lc_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_lccoefs_treeview");
-	phoebe_plot_lc_observed_combobox	= glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox");
+//    phoebe_data_lc_treeview             = glade_xml_get_widget (phoebe_window, "phoebe_data_lc_treeview");
+//    phoebe_para_lc_el3_treeview         = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_el3_treeview");
+//    phoebe_para_lc_levels_treeview      = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_levels_treeview");
+//    phoebe_para_lc_levweight_treeview   = glade_xml_get_widget (phoebe_window, "phoebe_para_lum_weighting_treeview");
+//    phoebe_para_lc_ld_treeview          = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_lccoefs_treeview");
+//	  phoebe_plot_lc_observed_combobox	  = glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox");
 
     GtkTreeModel *lc_model = lc_model_create();
 
@@ -164,13 +170,15 @@ int gui_init_lc_treeviews(GladeXML *phoebe_window)
     return SUCCESS;
 }
 
-int gui_init_rv_treeviews(GladeXML *phoebe_window)
+int gui_init_rv_treeviews()
 {
-    // g_print("---------- Initializing rv treeviews ---------------\n");
+	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
+	GtkWidget *phoebe_para_rv_ld_treeview 		= gui_widget_lookup("phoebe_para_rv_ld_treeview")->gtk;
+	GtkWidget *phoebe_plot_rv_observed_combobox = gui_widget_lookup("phoebe_plot_rv_observed_combobox")->gtk;
 
-    phoebe_data_rv_treeview    = glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
-    phoebe_para_rv_ld_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
-	phoebe_plot_rv_observed_combobox	= glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox");
+//    phoebe_data_rv_treeview    			= glade_xml_get_widget (phoebe_window, "phoebe_data_rv_treeview");
+//    phoebe_para_rv_ld_treeview 			= glade_xml_get_widget (phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
+//	  phoebe_plot_rv_observed_combobox	= glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox");
 
     GtkTreeModel *rv_model = rv_model_create();
 
@@ -268,11 +276,11 @@ int gui_init_rv_treeviews(GladeXML *phoebe_window)
 }
 
 
-int gui_init_spots_treeview  (GladeXML *phoebe_window)
+int gui_init_spots_treeview  ()
 {
-    // g_print("---------- Initializing spots treeview -------------\n");
+	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
 
-    phoebe_para_surf_spots_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_surf_spots_treeview");
+//    phoebe_para_surf_spots_treeview = glade_xml_get_widget (phoebe_window, "phoebe_para_surf_spots_treeview");
 
     GtkTreeModel *spots_model = spots_model_create();
 
@@ -429,11 +437,11 @@ int gui_init_spots_treeview  (GladeXML *phoebe_window)
 //	return SUCCESS;
 //}
 
-static void cell_data_func (GtkCellLayout *cell_layout,
-                            GtkCellRenderer *renderer,
-                            GtkTreeModel *model,
-                            GtkTreeIter *iter,
-                            gpointer data)
+static void filter_cell_data_func  (GtkCellLayout *cell_layout,
+                            		GtkCellRenderer *renderer,
+                            		GtkTreeModel *model,
+                            		GtkTreeIter *iter,
+                            		gpointer data)
 {
 	if(gtk_tree_model_iter_has_child(model, iter)) g_object_set(renderer, "sensitive", FALSE, NULL);
 	else g_object_set(renderer, "sensitive", TRUE, NULL);
@@ -460,7 +468,7 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(combo_box), renderer, TRUE);
 	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(combo_box), renderer, "text", 0);
 
-	gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo_box), renderer, cell_data_func, NULL, NULL);
+	gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo_box), renderer, filter_cell_data_func, NULL, NULL);
 
 	for(i=0;i<PHOEBE_passbands_no;i++){
 		sprintf(set, "%s",(PHOEBE_passbands[i])->set);

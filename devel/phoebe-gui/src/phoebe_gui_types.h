@@ -28,7 +28,7 @@ GUI_widget 		*gui_widget_lookup 	(char *name);
 int 			gui_widget_commit 	(GUI_widget *widget);
 int 			gui_widget_free     (GUI_widget *widget);
 
-int				gui_init_widgets	(GladeXML *phoebe_window);
+int				gui_init_widgets	();
 int 			gui_free_widgets 	();
 
 int				gui_get_value_from_widget 		(GUI_widget *widget);

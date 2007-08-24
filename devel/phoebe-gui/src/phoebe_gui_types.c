@@ -5,19 +5,21 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_treeviews.h"
 
-int gui_init_widgets (GladeXML* phoebe_window)
+int gui_init_widgets ()
 {
 	/*
 	 * This function hooks all widgets to the parameters and adds them to the
 	 * widget hash table.
 	 */
 
-	int i;
-
-	PHOEBE_parameter *par;
+	GladeXML  *phoebe_window = glade_xml_new("../glade/phoebe.glade", NULL, NULL);
+	glade_xml_signal_autoconnect(phoebe_window);
 
 	GUI_wt = phoebe_malloc(sizeof(GUI_widget_table));
+	int i;
 	for(i=0; i<GUI_WT_HASH_BUCKETS; i++)GUI_wt->bucket[i]=NULL;
+
+	PHOEBE_parameter *par;
 
 	/* *************************** GUI Parameters **************************** */
 
@@ -51,6 +53,36 @@ int gui_init_widgets (GladeXML* phoebe_window)
 	phoebe_parameter_add ("gui_rv_plot_zoom",			"Zoom level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_rv_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_rv_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+
+	/* *************************** Main Window    **************************** */
+
+	gui_widget_add ("phoebe_window",									glade_xml_get_widget(phoebe_window, "phoebe_window"),													GUI_WIDGET_VALUE,		NULL);
+
+	/* ************************    GUI Treeviews   ************************* */
+
+	GtkWidget *phoebe_data_lc_treeview 									= glade_xml_get_widget(phoebe_window, "phoebe_data_lc_treeview");
+	GtkWidget *phoebe_para_lc_levels_treeview 							= glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_treeview");
+	GtkWidget *phoebe_para_lc_el3_treeview 								= glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_treeview");
+	GtkWidget *phoebe_para_lc_levweight_treeview 						= glade_xml_get_widget(phoebe_window, "phoebe_para_lum_weighting_treeview");
+	GtkWidget *phoebe_para_lc_ld_treeview 								= glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_treeview");
+	GtkWidget *phoebe_data_rv_treeview 									= glade_xml_get_widget(phoebe_window, "phoebe_data_rv_treeview");
+	GtkWidget *phoebe_para_rv_ld_treeview 								= glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
+	GtkWidget *phoebe_para_surf_spots_treeview 							= glade_xml_get_widget(phoebe_window, "phoebe_para_surf_spots_treeview");
+
+	gui_widget_add ("phoebe_data_lc_treeview", 							phoebe_data_lc_treeview,																				GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_para_lc_levels_treeview",					phoebe_para_lc_levels_treeview,																			GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_levweight_treeview",				phoebe_para_lc_levweight_treeview,																		GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_para_lc_ld_treeview",						phoebe_para_lc_ld_treeview,																				GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_plot_lc_observed_combobox",					glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_combobox"),								GUI_WIDGET_VALUE,		NULL);
+
+	gui_widget_add ("phoebe_data_rv_treeview", 							phoebe_data_rv_treeview, 																				GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_rv_ld_treeview",						phoebe_para_rv_ld_treeview,																				GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_plot_rv_observed_combobox", 				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								GUI_WIDGET_VALUE,		NULL);
+
+	gui_widget_add ("phoebe_para_surf_spots_treeview",					phoebe_para_surf_spots_treeview,																		GUI_WIDGET_VALUE, 		NULL);
+
+	gui_init_treeviews();
 
 	/* *************************    Data Widgets   **************************** */
 
@@ -373,6 +405,10 @@ int gui_init_widgets (GladeXML* phoebe_window)
 
 	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								GUI_WIDGET_VALUE, 		NULL);
+
+	g_object_unref(phoebe_window);
+
+	gtk_widget_show(gui_widget_lookup("phoebe_window")->gtk);
 
 	return SUCCESS;
 }
