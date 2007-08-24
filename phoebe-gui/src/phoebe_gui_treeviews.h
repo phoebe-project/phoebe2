@@ -1,16 +1,8 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-/* LC treeviews */
-GtkWidget *phoebe_data_lc_treeview;
-GtkWidget *phoebe_para_lc_levels_treeview;
-GtkWidget *phoebe_para_lc_el3_treeview;
-GtkWidget *phoebe_para_lc_levweight_treeview;
-GtkWidget *phoebe_para_lc_ld_treeview;
-GtkWidget *phoebe_plot_lc_observed_combobox;
-
 /* Initializes the treeviews */
-int gui_init_treeviews(GladeXML *parent_window, GladeXML *phoebe_load_lc_dialog);
+int gui_init_treeviews();
 
 /* These columns make up the light curve model for various treeviews */
 typedef enum lc_model_columns
@@ -43,12 +35,7 @@ typedef enum lc_model_columns
 GtkTreeModel *lc_model_create(void);
 
 /* Initializes all LC related treeviews */
-int gui_init_lc_treeviews(GladeXML *parent_window);
-
-/* RV treeviews */
-GtkWidget *phoebe_data_rv_treeview;
-GtkWidget *phoebe_para_rv_ld_treeview;
-GtkWidget *phoebe_plot_rv_observed_combobox;
+int gui_init_lc_treeviews();
 
 /* These columns make up the RV curve model for various treeviews */
 typedef enum rv_model_columns
@@ -74,10 +61,7 @@ typedef enum rv_model_columns
 GtkTreeModel *rv_model_create(void);
 
 /* Initializes all RV related treeviews */
-int gui_init_rv_treeviews(GladeXML *parent_window);
-
-/* Spots treeview */
-GtkWidget *phoebe_para_surf_spots_treeview;
+int gui_init_rv_treeviews();
 
 /* These columns make up the spots list model */
 typedef enum spots_model_columns
@@ -112,11 +96,7 @@ typedef enum spots_model_columns
 GtkTreeModel *spots_model_create(void);
 
 /* Initializes the spots treeview */
-int gui_init_spots_treeview (GladeXML *parent_window);
-
-/* Cell data function for transforming the result of combobox selection (integer)
-   into human readable strings that should appear in the spots treeview. */
-void spots_source_cell_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+int gui_init_spots_treeview ();
 
 ///* Data sheet treevies */
 //GtkWidget *phoebe_sidesheet_fitt_treeview;

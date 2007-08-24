@@ -7,5 +7,3 @@ int phoebe_gui_quit ();
 #endif
 
 #include <gtk/gtk.h>
-
-GtkWidget *phoebe_window;
