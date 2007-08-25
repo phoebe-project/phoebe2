@@ -102,8 +102,13 @@ scripter_ast_value scripter_open_parameter_file (scripter_ast_list *args)
 
 	status = phoebe_open_parameter_file (vals[0].value.str);
 
-	if (status != SUCCESS)
-		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+	switch (status) {
+		case ERROR_FILE_NOT_FOUND:
+			phoebe_scripter_output ("cannot open %s - file not found.\n", vals[0].value.str);
+		break;
+		default:
+			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+	}
 
 	scripter_ast_value_array_free (vals, 1);
 
