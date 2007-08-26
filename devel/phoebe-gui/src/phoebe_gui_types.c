@@ -68,6 +68,8 @@ int gui_init_widgets ()
 	GtkWidget *phoebe_data_rv_treeview 									= glade_xml_get_widget(phoebe_window, "phoebe_data_rv_treeview");
 	GtkWidget *phoebe_para_rv_ld_treeview 								= glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_treeview");
 	GtkWidget *phoebe_para_surf_spots_treeview 							= glade_xml_get_widget(phoebe_window, "phoebe_para_surf_spots_treeview");
+	GtkWidget *phoebe_sidesheet_res_treeview							= glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_res_treeview");
+	GtkWidget *phoebe_sidesheet_fit_treeview							= glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_fit_treeview");
 
 	gui_widget_add ("phoebe_data_lc_treeview", 							phoebe_data_lc_treeview,																				GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			GUI_WIDGET_VALUE,		NULL);
@@ -81,6 +83,9 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_plot_rv_observed_combobox", 				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								GUI_WIDGET_VALUE,		NULL);
 
 	gui_widget_add ("phoebe_para_surf_spots_treeview",					phoebe_para_surf_spots_treeview,																		GUI_WIDGET_VALUE, 		NULL);
+
+	gui_widget_add ("phoebe_sidesheet_res_treeview",					phoebe_sidesheet_res_treeview,																			GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_sidesheet_fit_treeview",					phoebe_sidesheet_fit_treeview,																			GUI_WIDGET_VALUE,		NULL);
 
 	gui_init_treeviews();
 
