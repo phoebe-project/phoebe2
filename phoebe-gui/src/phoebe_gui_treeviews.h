@@ -1,12 +1,8 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-/* Initializes the treeviews */
-int gui_init_treeviews();
-
 /* These columns make up the light curve model for various treeviews */
-typedef enum lc_model_columns
-{
+typedef enum lc_model_columns{
     LC_COL_ACTIVE,
     LC_COL_FILENAME,
     LC_COL_FILTER,
@@ -31,15 +27,8 @@ typedef enum lc_model_columns
     LC_COL_COUNT,
 }lc_model_columns;
 
-/* Creates a model for storing light curves data */
-GtkTreeModel *lc_model_create(void);
-
-/* Initializes all LC related treeviews */
-int gui_init_lc_treeviews();
-
 /* These columns make up the RV curve model for various treeviews */
-typedef enum rv_model_columns
-{
+typedef enum rv_model_columns{
     RV_COL_ACTIVE,
     RV_COL_FILENAME,
     RV_COL_FILTER,
@@ -57,15 +46,8 @@ typedef enum rv_model_columns
     RV_COL_COUNT,
 }rv_model_columns;
 
-/* Creates a model for storing RV curves data */
-GtkTreeModel *rv_model_create(void);
-
-/* Initializes all RV related treeviews */
-int gui_init_rv_treeviews();
-
 /* These columns make up the spots list model */
-typedef enum spots_model_columns
-{
+typedef enum spots_model_columns{
     SPOTS_COL_ADJUST,
     SPOTS_COL_SOURCE,
     SPOTS_COL_SOURCE_STR,
@@ -92,37 +74,29 @@ typedef enum spots_model_columns
     SPOTS_COL_COUNT,
 }spots_model_columns;
 
-/* Creates a model for storing spots data */
-GtkTreeModel *spots_model_create(void);
+/* These columns make up the results sidesheet model */
+typedef enum sidesheet_results_model_columns{
+    RS_COL_PARAM_NAME,
+    RS_COL_PARAM_VALUE,
+    RS_COL_COUNT,
+}sidesheet_results_model_columns;
 
-/* Initializes the spots treeview */
-int gui_init_spots_treeview ();
+/* These columns make up the fitting sidesheet model */
+typedef enum sidesheet_fitting_model_columns{
+    FS_COL_PARAM_NAME,
+    FS_COL_PARAM_VALUE,
+    FS_COL_PARAM_STEP,
+    FS_COL_PARAM_MIN,
+    FS_COL_PARAM_MAX,
+    FS_COL_COUNT,
+}sidesheet_fitting_model_columns;
 
-///* Data sheet treevies */
-//GtkWidget *phoebe_sidesheet_fitt_treeview;
-//GtkWidget *phoebe_sidesheet_data_treeview;
-//
-///* These columns make up the data sheet model */
-//typedef enum datasheet_model_columns
-//{
-//    DS_COL_PARAM_TBA,
-//    DS_COL_PARAM_NAME,
-//    DS_COL_PARAM_VALUE,
-//    DS_COL_PARAM_ERROR,
-//    DS_COL_PARAM_STEP,
-//    DS_COL_PARAM_MIN,
-//    DS_COL_PARAM_MAX,
-//    DS_COL_COUNT,
-//}datasheet_model_columns;
-//
-///* Creates a model for storing data sheet lists */
-//GtkTreeModel *datasheets_model_create(void);
-//
-///* Initializes the data sheets treeviews */
-//int gui_init_datasheets (GladeXML *parent_window);
-
-/* Initialzes filter comboboxes */
-int gui_init_filter_combobox (GtkWidget *combo_box);
-
-
-
+int gui_init_treeviews				();
+int gui_init_lc_treeviews			();
+int gui_init_rv_treeviews			();
+int gui_init_spots_treeview 		();
+int gui_init_sidesheet_res_treeview	();
+int gui_init_sidesheet_fit_treeview ();
+int gui_fill_sidesheet_res_treeview ();
+int gui_fill_sidesheet_fit_treeview ();
+int gui_init_filter_combobox 		(GtkWidget *combo_box);
