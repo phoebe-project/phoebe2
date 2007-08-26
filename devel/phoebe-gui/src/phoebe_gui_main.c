@@ -1,5 +1,5 @@
 #ifdef HAVE_CONFIG_H
-#  include <phoebe_gui_build_config.h>
+#  include "phoebe_gui_build_config.h"
 #endif
 
 #include <phoebe/phoebe.h>
