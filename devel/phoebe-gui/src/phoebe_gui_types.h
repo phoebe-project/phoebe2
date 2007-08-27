@@ -14,27 +14,28 @@ typedef enum GUI_widget_type {
 } GUI_widget_type;
 
 typedef struct GUI_widget {
-	char             *name;
-	GUI_widget_type   type;
-	PHOEBE_parameter *par;
-	GtkWidget        *gtk;
+	char             *name;       /* Widget qualifier                         */
+	GUI_widget_type   type;       /* Widget type; do we really need this?     */
+	PHOEBE_parameter *par;        /* Link to the parameter table              */
+	GtkWidget        *gtk;        /* Pointer to the widget                    */
+	int               aux;        /* Auxiliary data, such as the column index */
 } GUI_widget;
 
-GUI_widget 	   *gui_widget_new 		();
-int 			gui_widget_add 		(char *name, GtkWidget *gtk, GUI_widget_type type, PHOEBE_parameter *par);
-unsigned int	gui_widget_hash 	(char *name);
-int 			gui_widget_hookup 	(GUI_widget *widget, GtkWidget *gtk, GUI_widget_type type, char *name, PHOEBE_parameter *par);
-GUI_widget 		*gui_widget_lookup 	(char *name);
-int 			gui_widget_commit 	(GUI_widget *widget);
-int 			gui_widget_free     (GUI_widget *widget);
+GUI_widget		*gui_widget_new		();
+int 			 gui_widget_add		(char *name, GtkWidget *gtk, int aux, GUI_widget_type type, PHOEBE_parameter *par);
+unsigned int	 gui_widget_hash 	(char *name);
+int 			 gui_widget_hookup 	(GUI_widget *widget, GtkWidget *gtk, int aux, GUI_widget_type type, char *name, PHOEBE_parameter *par);
+GUI_widget		*gui_widget_lookup 	(char *name);
+int 			 gui_widget_commit 	(GUI_widget *widget);
+int 			 gui_widget_free	(GUI_widget *widget);
 
-int				gui_init_widgets	();
-int 			gui_free_widgets 	();
+int				 gui_init_widgets	();
+int 			 gui_free_widgets	();
 
-int				gui_get_value_from_widget 		(GUI_widget *widget);
-int 		    gui_set_value_to_widget 		(GUI_widget *widget);
-int 			gui_get_values_from_widgets 	();
-int				gui_set_values_to_widgets 		();
+int				 gui_get_value_from_widget		(GUI_widget *widget);
+int 		     gui_set_value_to_widget		(GUI_widget *widget);
+int 			 gui_get_values_from_widgets	();
+int				 gui_set_values_to_widgets		();
 
 /***************************   WIDGET TABLE   ********************************/
 
