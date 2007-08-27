@@ -4,7 +4,7 @@
 #include "phoebe_gui_callbacks.h"
 #include "phoebe_gui_types.h"
 
-int gui_init_treeviews()
+int gui_init_treeviews ()
 {
     gui_init_lc_treeviews			();
     gui_init_rv_treeviews   		();
@@ -26,7 +26,7 @@ int gui_init_lc_treeviews ()
 	GtkWidget *phoebe_para_lc_ld_treeview 			= gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
 	GtkWidget *phoebe_plot_lc_observed_combobox 	= gui_widget_lookup ("phoebe_plot_lc_observed_combobox")->gtk;
 
-    GtkTreeModel *lc_model = (GtkTreeModel*) gtk_list_store_new (
+    GtkTreeModel *lc_model = (GtkTreeModel *) gtk_list_store_new (
 		LC_COL_COUNT,          /* number of columns    */
 		G_TYPE_BOOLEAN,        /* active               */
 		G_TYPE_STRING,         /* filename             */
@@ -55,44 +55,43 @@ int gui_init_lc_treeviews ()
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Active", renderer, "active", LC_COL_ACTIVE, NULL);
-    g_object_set_data ((GObject*) column, "parent_tree", phoebe_data_lc_treeview);
-    g_object_set_data ((GObject*) column, "column_id",   GUINT_TO_POINTER (LC_COL_ACTIVE));
-    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, LC_COL_ACTIVE);
-
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_lc_active_checkbutton_toggled), NULL);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", LC_COL_FILENAME, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_data_lc_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILENAME));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_FILENAME);
+    g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
+    g_object_set_data ((GObject *) column, "column_id",   GUINT_TO_POINTER (LC_COL_ACTIVE));
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_ACTIVE);
+    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (on_phoebe_data_lc_active_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    g_object_set_data((GObject*)column, "parent_tree", phoebe_data_lc_treeview);
-    g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_FILTER));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_FILTER);
+    column      = gtk_tree_view_column_new_with_attributes ("Filename", renderer, "text", LC_COL_FILENAME, NULL);
+    g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
+    g_object_set_data ((GObject *) column, "column_id", GUINT_TO_POINTER (LC_COL_FILENAME));
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_FILENAME);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_el3_treeview, column, LC_COL_FILTER);
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
+    g_object_set_data ((GObject *) column, "column_id", GUINT_TO_POINTER (LC_COL_FILTER));
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_FILTER);
+/*
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_levels_treeview, column, LC_COL_FILTER);
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_levweight_treeview, column, LC_COL_FILTER);
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
-
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
+*/
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox));
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(phoebe_plot_lc_observed_combobox), renderer, TRUE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(phoebe_plot_lc_observed_combobox), renderer, "text", LC_COL_FILTER);
+	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox), renderer, TRUE);
+	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox), renderer, "text", LC_COL_FILTER);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Col. 1", renderer, "text", LC_COL_ITYPE_STR, NULL);
@@ -178,21 +177,21 @@ int gui_init_lc_treeviews ()
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_Y2));
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_Y2);
 
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_data_lc_treeview,            lc_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_el3_treeview,        lc_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_levels_treeview,     lc_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_levweight_treeview,  lc_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_lc_ld_treeview,         lc_model);
-	gtk_combo_box_set_model ((GtkComboBox*)phoebe_plot_lc_observed_combobox,   lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_data_lc_treeview,            lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_el3_treeview,        lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_levels_treeview,     lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_levweight_treeview,  lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_ld_treeview,         lc_model);
+	gtk_combo_box_set_model ((GtkComboBox *) phoebe_plot_lc_observed_combobox,   lc_model);
 
     return SUCCESS;
 }
 
-int gui_init_rv_treeviews()
+int gui_init_rv_treeviews ()
 {
-	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
-	GtkWidget *phoebe_para_rv_ld_treeview 		= gui_widget_lookup("phoebe_para_rv_ld_treeview")->gtk;
-	GtkWidget *phoebe_plot_rv_observed_combobox = gui_widget_lookup("phoebe_plot_rv_observed_combobox")->gtk;
+	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup ("phoebe_data_rv_treeview")->gtk;
+	GtkWidget *phoebe_para_rv_ld_treeview 		= gui_widget_lookup ("phoebe_para_rv_ld_treeview")->gtk;
+	GtkWidget *phoebe_plot_rv_observed_combobox = gui_widget_lookup ("phoebe_plot_rv_observed_combobox")->gtk;
 
     GtkTreeModel *rv_model = (GtkTreeModel*)gtk_list_store_new(
 		RV_COL_COUNT,          /* number of columns    */

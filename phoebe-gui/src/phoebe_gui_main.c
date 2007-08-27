@@ -4,35 +4,23 @@
 
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_base.h"
 #include "phoebe_gui_callbacks.h"
 #include "phoebe_gui_main.h"
 
 int main (int argc, char *argv[])
 {
-	gtk_set_locale();
-	gtk_init(&argc, &argv);
-	glade_init();
+	gtk_set_locale ();
+	gtk_init (&argc, &argv);
+	glade_init ();
 
-	phoebe_init();
-	phoebe_gui_init();
+	phoebe_init ();
 
-	gtk_main();
+	phoebe_gui_init ();
+	gtk_main ();
+	phoebe_gui_quit ();
 
-	phoebe_gui_quit();
 	phoebe_quit ();
 
 	return SUCCESS;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
