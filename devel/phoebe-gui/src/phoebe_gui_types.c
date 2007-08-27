@@ -12,11 +12,10 @@ int gui_init_widgets ()
 	 * widget hash table.
 	 */
 
+	int i;
+
 	PHOEBE_parameter *par;
 	GladeXML  *phoebe_window = glade_xml_new ("../glade/phoebe.glade", NULL, NULL);
-
-	GUI_wt = phoebe_malloc(sizeof(GUI_widget_table));
-	int i;
 
 	GtkWidget *phoebe_data_lc_treeview,       *phoebe_para_lc_levels_treeview,
               *phoebe_para_lc_el3_treeview,   *phoebe_para_lc_levweight_treeview,
@@ -25,6 +24,8 @@ int gui_init_widgets ()
 		      *phoebe_sidesheet_res_treeview, *phoebe_sidesheet_fit_treeview;
 		
 	glade_xml_signal_autoconnect (phoebe_window);
+
+	GUI_wt = phoebe_malloc (sizeof (GUI_widget_table));
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++)
 		GUI_wt->bucket[i] = NULL;
 
@@ -94,28 +95,28 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_sidesheet_res_treeview",					phoebe_sidesheet_res_treeview,																			GUI_WIDGET_VALUE,		NULL);
 	gui_widget_add ("phoebe_sidesheet_fit_treeview",					phoebe_sidesheet_fit_treeview,																			GUI_WIDGET_VALUE,		NULL);
 
-	gui_init_treeviews();
+	gui_init_treeviews ();
 
 	/* *************************    Data Widgets   **************************** */
 
 	gui_widget_add ("phoebe_data_star_name_entry", 						glade_xml_get_widget(phoebe_window, "phoebe_data_star_name_entry"), 									GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_name"));
 	gui_widget_add ("phoebe_data_star_model_combobox", 					glade_xml_get_widget(phoebe_window, "phoebe_data_star_model_combobox"), 								GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_model"));
 
-	gui_widget_add ("phoebe_data_lc_filename",							(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_FILENAME), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filename"));
-	gui_widget_add ("phoebe_data_lc_sigma",								(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_SIGMA), 	  		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_sigma"));
-	gui_widget_add ("phoebe_data_lc_filter",							(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_FILTER), 			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filter"));
-	gui_widget_add ("phoebe_data_lc_indep",								(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_ITYPE_STR), 	  	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indep"));
-	gui_widget_add ("phoebe_data_lc_dep",								(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_DTYPE_STR), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_dep"));
-	gui_widget_add ("phoebe_data_lc_wtype",								(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_WTYPE_STR), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indweight"));
-	gui_widget_add ("phoebe_data_lc_active",							(GtkWidget*) gtk_tree_view_get_column ((GtkTreeView*) phoebe_data_lc_treeview, LC_COL_ACTIVE), 			GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_active"));
+	gui_widget_add ("phoebe_data_lc_filename",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_FILENAME), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filename"));
+	gui_widget_add ("phoebe_data_lc_sigma",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_SIGMA), 	  	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_sigma"));
+	gui_widget_add ("phoebe_data_lc_filter",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_FILTER), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filter"));
+	gui_widget_add ("phoebe_data_lc_indep",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_ITYPE_STR), 	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indep"));
+	gui_widget_add ("phoebe_data_lc_dep",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_DTYPE_STR), 	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_dep"));
+	gui_widget_add ("phoebe_data_lc_wtype",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_WTYPE_STR), 	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indweight"));
+	gui_widget_add ("phoebe_data_lc_active",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_lc_treeview, LC_COL_ACTIVE), 		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_active"));
 
-	gui_widget_add ("phoebe_data_rv_filename",							(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_FILENAME),			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filename"));
-	gui_widget_add ("phoebe_data_rv_sigma",								(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_SIGMA),				GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_sigma"));
-	gui_widget_add ("phoebe_data_rv_filter",							(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_FILTER),				GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filter"));
-	gui_widget_add ("phoebe_data_rv_indep",								(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_ITYPE_STR),			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indep"));
-	gui_widget_add ("phoebe_data_rv_dep",								(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_DTYPE_STR),			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_dep"));
-	gui_widget_add ("phoebe_data_rv_wtype",								(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_WTYPE_STR),			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indweight"));
-	gui_widget_add ("phoebe_data_rv_active",							(GtkWidget*)gtk_tree_view_get_column((GtkTreeView*)phoebe_data_rv_treeview, RV_COL_ACTIVE),				GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_active"));
+	gui_widget_add ("phoebe_data_rv_filename",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_FILENAME),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filename"));
+	gui_widget_add ("phoebe_data_rv_sigma",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_SIGMA),			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_sigma"));
+	gui_widget_add ("phoebe_data_rv_filter",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_FILTER),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filter"));
+	gui_widget_add ("phoebe_data_rv_indep",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_ITYPE_STR),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indep"));
+	gui_widget_add ("phoebe_data_rv_dep",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_DTYPE_STR),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_dep"));
+	gui_widget_add ("phoebe_data_rv_wtype",								(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_WTYPE_STR),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indweight"));
+	gui_widget_add ("phoebe_data_rv_active",							(GtkWidget *) gtk_tree_view_get_column ((GtkTreeView *) phoebe_data_rv_treeview, RV_COL_ACTIVE),		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_active"));
 
 	gui_widget_add ("phoebe_data_options_time_radiobutton", 			glade_xml_get_widget(phoebe_window, "phoebe_data_options_time_radiobutton"), 							GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_indep"));
 	gui_widget_add ("phoebe_data_options_bins_checkbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_data_options_bins_checkbutton"), 							GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_bins_switch"));
@@ -408,6 +409,20 @@ int gui_init_widgets ()
 
 	gtk_widget_show (gui_widget_lookup ("phoebe_window")->gtk);
 
+	{
+		int _i;
+		GUI_wt_bucket *elem;
+
+		for (_i = 0; _i < GUI_WT_HASH_BUCKETS; _i++) {
+			elem = GUI_wt->bucket[_i];
+			while (elem) {
+				printf ("%50s", elem->widget->name);
+				elem = elem->next;
+			}
+			printf ("\n");
+		}
+	}
+
 	return SUCCESS;
 }
 
@@ -461,17 +476,24 @@ GUI_widget *gui_widget_lookup (char *name)
 		bucket = bucket->next;
 	}
 
-	if (!bucket) return NULL;
+	if (!bucket) {
+		printf ("*** widget lookup failure: %s not found.\n", name);
+		return NULL;
+	}
+
 	return bucket->widget;
 }
 
 int gui_widget_add (char *name, GtkWidget *gtk, GUI_widget_type type, PHOEBE_parameter *par)
 {
-	GUI_widget *widget = gui_widget_new();
+	GUI_widget *widget;
 
-	if (!gtk)
+	if (!gtk) {
+		printf ("*** widget %s passed to gui_widget_add () is NULL!\n", name);
 		return -1;
+	}
 
+	widget = gui_widget_new ();
 	gui_widget_hookup (widget, gtk, type, name, par);
 
 	gui_widget_commit (widget);
@@ -509,7 +531,7 @@ int gui_widget_commit (GUI_widget *widget)
 		return SUCCESS;
 	}
 
-	else{
+	else {
 		bucket = phoebe_malloc (sizeof (*bucket));
 
 		bucket->widget = widget;
