@@ -2,7 +2,7 @@
 #include <glade/glade.h>
 
 /* These columns make up the light curve model for various treeviews */
-typedef enum lc_model_columns{
+typedef enum lc_model_columns {
     LC_COL_ACTIVE,
     LC_COL_FILENAME,
     LC_COL_FILTER,
@@ -24,11 +24,11 @@ typedef enum lc_model_columns{
     LC_COL_X2,
     LC_COL_Y1,
     LC_COL_Y2,
-    LC_COL_COUNT,
-}lc_model_columns;
+    LC_COL_COUNT
+} lc_model_columns;
 
 /* These columns make up the RV curve model for various treeviews */
-typedef enum rv_model_columns{
+typedef enum rv_model_columns {
     RV_COL_ACTIVE,
     RV_COL_FILENAME,
     RV_COL_FILTER,
@@ -43,11 +43,11 @@ typedef enum rv_model_columns{
     RV_COL_X2,
     RV_COL_Y1,
     RV_COL_Y2,
-    RV_COL_COUNT,
-}rv_model_columns;
+    RV_COL_COUNT
+} rv_model_columns;
 
 /* These columns make up the spots list model */
-typedef enum spots_model_columns{
+typedef enum spots_model_columns {
     SPOTS_COL_ADJUST,
     SPOTS_COL_SOURCE,
     SPOTS_COL_SOURCE_STR,
@@ -71,25 +71,25 @@ typedef enum spots_model_columns{
     SPOTS_COL_TEMPSTEP,
     SPOTS_COL_TEMPMIN,
     SPOTS_COL_TEMPMAX,
-    SPOTS_COL_COUNT,
-}spots_model_columns;
+    SPOTS_COL_COUNT
+} spots_model_columns;
 
 /* These columns make up the results sidesheet model */
-typedef enum sidesheet_results_model_columns{
+typedef enum sidesheet_results_model_columns {
     RS_COL_PARAM_NAME,
     RS_COL_PARAM_VALUE,
-    RS_COL_COUNT,
-}sidesheet_results_model_columns;
+    RS_COL_COUNT
+} sidesheet_results_model_columns;
 
 /* These columns make up the fitting sidesheet model */
-typedef enum sidesheet_fitting_model_columns{
+typedef enum sidesheet_fitting_model_columns {
     FS_COL_PARAM_NAME,
     FS_COL_PARAM_VALUE,
     FS_COL_PARAM_STEP,
     FS_COL_PARAM_MIN,
     FS_COL_PARAM_MAX,
-    FS_COL_COUNT,
-}sidesheet_fitting_model_columns;
+    FS_COL_COUNT
+} sidesheet_fitting_model_columns;
 
 int gui_init_treeviews				();
 int gui_init_lc_treeviews			();
