@@ -57,36 +57,36 @@ int gui_init_lc_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes ("Active", renderer, "active", LC_COL_ACTIVE, NULL);
     g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data ((GObject *) column, "column_id",   GUINT_TO_POINTER (LC_COL_ACTIVE));
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_ACTIVE);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
     g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (on_phoebe_data_lc_active_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filename", renderer, "text", LC_COL_FILENAME, NULL);
     g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data ((GObject *) column, "column_id", GUINT_TO_POINTER (LC_COL_FILENAME));
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_FILENAME);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
     g_object_set_data ((GObject *) column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data ((GObject *) column, "column_id", GUINT_TO_POINTER (LC_COL_FILTER));
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, LC_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 /*
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, LC_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, LC_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, LC_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, LC_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
 */
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox));
@@ -97,85 +97,85 @@ int gui_init_lc_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes ("Col. 1", renderer, "text", LC_COL_ITYPE_STR, NULL);
     g_object_set_data ((GObject*) column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data ((GObject*) column, "column_id", GUINT_TO_POINTER (LC_COL_ITYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, LC_COL_ITYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Col. 2", renderer, "text", LC_COL_DTYPE_STR, NULL);
     g_object_set_data((GObject*) column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data((GObject*) column, "column_id", GUINT_TO_POINTER (LC_COL_DTYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, LC_COL_DTYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", LC_COL_WTYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_WTYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_WTYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", LC_COL_SIGMA, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_lc_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_SIGMA));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, LC_COL_SIGMA);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Level weighting", renderer, "text", LC_COL_LEVWEIGHT, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_levweight_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_LEVWEIGHT));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levweight_treeview, column, LC_COL_LEVWEIGHT);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levweight_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Primary levels", renderer, "text", LC_COL_HLA, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_levels_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_HLA));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, LC_COL_HLA);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_levels_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_CLA));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, LC_COL_CLA);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Opacity function", renderer, "text", LC_COL_OPSF, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_el3_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_OPSF));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, LC_COL_OPSF);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Third light", renderer, "text", LC_COL_EL3, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_el3_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_EL3));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, LC_COL_EL3);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Extinction", renderer, "text", LC_COL_EXTINCTION, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_el3_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_EXTINCTION));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, LC_COL_EXTINCTION);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X1", renderer, "text", LC_COL_X1, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_X1));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_X1);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X2", renderer, "text", LC_COL_X2, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_X2));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_X2);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y1", renderer, "text", LC_COL_Y1, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_Y1));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_Y1);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y2", renderer, "text", LC_COL_Y2, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_lc_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(LC_COL_Y2));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, LC_COL_Y2);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
 
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_data_lc_treeview,            lc_model);
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_el3_treeview,        lc_model);
@@ -217,7 +217,7 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", RV_COL_ACTIVE, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_ACTIVE));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ACTIVE);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_data_rv_active_checkbutton_toggled), NULL);
 
@@ -225,17 +225,17 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", RV_COL_FILENAME, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_FILENAME));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_FILENAME);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_FILTER));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_FILTER);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_rv_observed_combobox));
@@ -246,7 +246,7 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", RV_COL_ITYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_ITYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_ITYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     printf("RV indep column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
 
@@ -254,7 +254,7 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Col. 2", renderer, "text", RV_COL_DTYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_DTYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_DTYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     printf("RV dep column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
 
@@ -262,7 +262,7 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", RV_COL_WTYPE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_WTYPE_STR));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_WTYPE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     printf("RV inweight column number upon creation: %d\n", GPOINTER_TO_UINT(g_object_get_data ((GObject*) column, "column_id")));
 
@@ -270,31 +270,31 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", RV_COL_SIGMA, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_data_rv_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_SIGMA));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, RV_COL_SIGMA);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X1", renderer, "text", RV_COL_X1, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_X1));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_X1);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X2", renderer, "text", RV_COL_X2, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_X2));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_X2);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y1", renderer, "text", RV_COL_Y1, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_Y1));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_Y1);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y2", renderer, "text", RV_COL_Y2, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_rv_ld_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RV_COL_Y2));
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, RV_COL_Y2);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_data_rv_treeview,            rv_model);
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_rv_ld_treeview,         rv_model);
@@ -341,7 +341,7 @@ int gui_init_spots_treeview  ()
     column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_ADJUST));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_ADJUST);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
 
@@ -349,103 +349,103 @@ int gui_init_spots_treeview  ()
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_SOURCE));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_SOURCE_STR);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LAT));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LAT);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. step", renderer, "text", SPOTS_COL_LATSTEP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LATSTEP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LATSTEP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. min", renderer, "text", SPOTS_COL_LATMIN, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LATMIN));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LATMIN);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. max", renderer, "text", SPOTS_COL_LATMAX, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LATMAX));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LATMAX);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Longitude", renderer, "text", SPOTS_COL_LON, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LON));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LON);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. step", renderer, "text", SPOTS_COL_LONSTEP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LONSTEP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LONSTEP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. min", renderer, "text", SPOTS_COL_LONMIN, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LONMIN));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LONMIN);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. max", renderer, "text", SPOTS_COL_LONMAX, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_LONMAX));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_LONMAX);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Radius", renderer, "text", SPOTS_COL_RAD, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_RAD));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_RAD);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. step", renderer, "text", SPOTS_COL_RADSTEP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_RADSTEP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_RADSTEP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. min", renderer, "text", SPOTS_COL_RADMIN, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_RADMIN));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_RADMIN);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. max", renderer, "text", SPOTS_COL_RADMAX, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_RADMAX));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_RADMAX);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temperature", renderer, "text", SPOTS_COL_TEMP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_TEMP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_TEMP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. step", renderer, "text", SPOTS_COL_TEMPSTEP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_TEMPSTEP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_TEMPSTEP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. min", renderer, "text", SPOTS_COL_TEMPMIN, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_TEMPMIN));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_TEMPMIN);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. max", renderer, "text", SPOTS_COL_TEMPMAX, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_para_surf_spots_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(SPOTS_COL_TEMPMAX));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, SPOTS_COL_TEMPMAX);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_surf_spots_treeview, spots_model);
 
@@ -468,13 +468,13 @@ int gui_init_sidesheet_res_treeview()
     column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", RS_COL_PARAM_NAME, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_res_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RS_COL_PARAM_NAME));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, RS_COL_PARAM_NAME);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", RS_COL_PARAM_VALUE, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_res_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(RS_COL_PARAM_VALUE));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, RS_COL_PARAM_VALUE);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_res_treeview, model);
 
@@ -500,31 +500,31 @@ int gui_init_sidesheet_fit_treeview()
     column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", FS_COL_PARAM_NAME, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_fit_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(FS_COL_PARAM_NAME));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, FS_COL_PARAM_NAME);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", FS_COL_PARAM_VALUE, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_fit_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(FS_COL_PARAM_VALUE));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, FS_COL_PARAM_VALUE);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Step", renderer, "text", FS_COL_PARAM_STEP, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_fit_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(FS_COL_PARAM_STEP));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, FS_COL_PARAM_STEP);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Min", renderer, "text", FS_COL_PARAM_MIN, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_fit_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(FS_COL_PARAM_MIN));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, FS_COL_PARAM_MIN);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Max", renderer, "text", FS_COL_PARAM_MAX, NULL);
     g_object_set_data((GObject*)column, "parent_tree", phoebe_sidesheet_fit_treeview);
     g_object_set_data((GObject*)column, "column_id", GUINT_TO_POINTER(FS_COL_PARAM_MAX));
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, FS_COL_PARAM_MAX);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
 
     gtk_tree_view_set_model((GtkTreeView*)phoebe_sidesheet_fit_treeview, model);
 
