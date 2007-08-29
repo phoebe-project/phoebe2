@@ -67,7 +67,8 @@ void
 on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-    GladeXML  *phoebe_load_lc_xml                   = glade_xml_new        ("../glade/phoebe_load_lc.glade", NULL, NULL);
+    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
+    GladeXML  *phoebe_load_lc_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
     GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_dialog");
 	GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
@@ -175,7 +176,9 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
-        GladeXML  *phoebe_load_lc_xml                   = glade_xml_new       ("../glade/phoebe_load_lc.glade", NULL, NULL);
+        gchar     *glade_xml_file                       = g_build_filename    (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
+        GladeXML  *phoebe_load_lc_xml                   = glade_xml_new       (glade_xml_file, NULL, NULL);
+
         GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_dialog");
         GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
         GtkWidget *phoebe_load_lc_column1_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column1_combobox");
@@ -363,15 +366,16 @@ void
 on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
-    GladeXML  *phoebe_load_rv_xml                   = glade_xml_new       ("../glade/phoebe_load_rv.glade", NULL, NULL);
+    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
+    GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
-    GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_dialog");
-	GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
-    GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
-    GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
-    GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
-    GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-    GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+    GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_dialog");
+	GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
+    GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
+    GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
+    GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
+    GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
+    GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
 
     GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
 
@@ -439,18 +443,6 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 
             printf("Number of RV curves: %d\n", rvno + 1);
 
-            char *indep_str = strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]);
-            printf("RV indep given to model when adding: %s\n", indep_str);
-			gtk_tree_model_get(model, &iter, RV_COL_ITYPE_STR, &indep_str, -1);
-			int status = phoebe_parameter_set_value(indep, 0, indep_str);
-			printf ("%s", phoebe_error (status));
-
-			char *dep_str = strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]);
-            printf("RV dep given to model when adding: %s\n", dep_str);
-			gtk_tree_model_get(model, &iter, RV_COL_DTYPE_STR, &dep_str, -1);
-			status = phoebe_parameter_set_value(dep, 0, dep_str);
-			printf ("%s", phoebe_error (status));
-
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
         }
         break;
@@ -477,15 +469,16 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
-        GladeXML  *phoebe_load_rv_xml                   = glade_xml_new       ("../glade/phoebe_load_rv.glade", NULL, NULL);
-        GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_dialog");
-        GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
-        GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
-        GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
-        GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
-        GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-        GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
-        GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
+        gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
+        GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
+        GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_dialog");
+        GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
+        GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
+        GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
+        GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
+        GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
+        GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
+        GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
 
 		gchar *filename;
         gint itype;
@@ -650,30 +643,31 @@ void
 on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
                                                 gpointer         user_data)
 {
-    GladeXML  *phoebe_load_spots_xml                    = glade_xml_new       ("../glade/phoebe_load_spots.glade", NULL, NULL);
+    gchar     *glade_xml_file                           = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_spots.glade", NULL);
+    GladeXML  *phoebe_load_spots_xml                    = glade_xml_new        (glade_xml_file, NULL, NULL);
 
-	GtkWidget *phoebe_load_spots_dialog                 = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_dialog");
-	GtkWidget *phoebe_load_spots_lat_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lat_spinbutton");
-	GtkWidget *phoebe_load_spots_latadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latadjust_checkbutton");
-	GtkWidget *phoebe_load_spots_latstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latstep_spinbutton");
-	GtkWidget *phoebe_load_spots_latmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latmax_spinbutton");
-	GtkWidget *phoebe_load_spots_latmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latmin_spinbutton");
-	GtkWidget *phoebe_load_spots_lon_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lon_spinbutton");
-	GtkWidget *phoebe_load_spots_lonadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonadjust_checkbutton");
-	GtkWidget *phoebe_load_spots_lonstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonstep_spinbutton");
-	GtkWidget *phoebe_load_spots_lonmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonmax_spinbutton");
-	GtkWidget *phoebe_load_spots_lonmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonmin_spinbutton");
-	GtkWidget *phoebe_load_spots_rad_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_rad_spinbutton");
-	GtkWidget *phoebe_load_spots_radadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radadjust_checkbutton");
-	GtkWidget *phoebe_load_spots_radstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radstep_spinbutton");
-	GtkWidget *phoebe_load_spots_radmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radmax_spinbutton");
-	GtkWidget *phoebe_load_spots_radmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radmin_spinbutton");
-	GtkWidget *phoebe_load_spots_temp_spinbutton        = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_temp_spinbutton");
-	GtkWidget *phoebe_load_spots_tempadjust_checkbutton = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempadjust_checkbutton");
-	GtkWidget *phoebe_load_spots_tempstep_spinbutton    = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempstep_spinbutton");
-	GtkWidget *phoebe_load_spots_tempmax_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempmax_spinbutton");
-	GtkWidget *phoebe_load_spots_tempmin_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempmin_spinbutton");
-	GtkWidget *phoebe_load_spots_source_combobox        = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_source_combobox");
+	GtkWidget *phoebe_load_spots_dialog                 = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_dialog");
+	GtkWidget *phoebe_load_spots_lat_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lat_spinbutton");
+	GtkWidget *phoebe_load_spots_latadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latadjust_checkbutton");
+	GtkWidget *phoebe_load_spots_latstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latstep_spinbutton");
+	GtkWidget *phoebe_load_spots_latmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latmax_spinbutton");
+	GtkWidget *phoebe_load_spots_latmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latmin_spinbutton");
+	GtkWidget *phoebe_load_spots_lon_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lon_spinbutton");
+	GtkWidget *phoebe_load_spots_lonadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonadjust_checkbutton");
+	GtkWidget *phoebe_load_spots_lonstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonstep_spinbutton");
+	GtkWidget *phoebe_load_spots_lonmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonmax_spinbutton");
+	GtkWidget *phoebe_load_spots_lonmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonmin_spinbutton");
+	GtkWidget *phoebe_load_spots_rad_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_rad_spinbutton");
+	GtkWidget *phoebe_load_spots_radadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radadjust_checkbutton");
+	GtkWidget *phoebe_load_spots_radstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radstep_spinbutton");
+	GtkWidget *phoebe_load_spots_radmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radmax_spinbutton");
+	GtkWidget *phoebe_load_spots_radmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radmin_spinbutton");
+	GtkWidget *phoebe_load_spots_temp_spinbutton        = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_temp_spinbutton");
+	GtkWidget *phoebe_load_spots_tempadjust_checkbutton = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempadjust_checkbutton");
+	GtkWidget *phoebe_load_spots_tempstep_spinbutton    = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempstep_spinbutton");
+	GtkWidget *phoebe_load_spots_tempmax_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempmax_spinbutton");
+	GtkWidget *phoebe_load_spots_tempmin_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempmin_spinbutton");
+	GtkWidget *phoebe_load_spots_source_combobox        = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_source_combobox");
 
 	g_object_unref(phoebe_load_spots_xml);
 
@@ -750,7 +744,7 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
 
 void
 on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
-                                        gpointer         user_data)
+                                                gpointer         user_data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -759,30 +753,31 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
     model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
-        GladeXML  *phoebe_load_spots_xml                    = glade_xml_new       ("../glade/phoebe_load_spots.glade", NULL, NULL);
+        gchar     *glade_xml_file                           = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_spots.glade", NULL);
+        GladeXML  *phoebe_load_spots_xml                    = glade_xml_new        (glade_xml_file, NULL, NULL);
 
-        GtkWidget *phoebe_load_spots_dialog                 = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_dialog");
-        GtkWidget *phoebe_load_spots_lat_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lat_spinbutton");
-        GtkWidget *phoebe_load_spots_latadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latadjust_checkbutton");
-        GtkWidget *phoebe_load_spots_latstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latstep_spinbutton");
-        GtkWidget *phoebe_load_spots_latmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latmax_spinbutton");
-        GtkWidget *phoebe_load_spots_latmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_latmin_spinbutton");
-        GtkWidget *phoebe_load_spots_lon_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lon_spinbutton");
-        GtkWidget *phoebe_load_spots_lonadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonadjust_checkbutton");
-        GtkWidget *phoebe_load_spots_lonstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonstep_spinbutton");
-        GtkWidget *phoebe_load_spots_lonmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonmax_spinbutton");
-        GtkWidget *phoebe_load_spots_lonmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_lonmin_spinbutton");
-        GtkWidget *phoebe_load_spots_rad_spinbutton         = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_rad_spinbutton");
-        GtkWidget *phoebe_load_spots_radadjust_checkbutton  = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radadjust_checkbutton");
-        GtkWidget *phoebe_load_spots_radstep_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radstep_spinbutton");
-        GtkWidget *phoebe_load_spots_radmax_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radmax_spinbutton");
-        GtkWidget *phoebe_load_spots_radmin_spinbutton      = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_radmin_spinbutton");
-        GtkWidget *phoebe_load_spots_temp_spinbutton        = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_temp_spinbutton");
-        GtkWidget *phoebe_load_spots_tempadjust_checkbutton = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempadjust_checkbutton");
-        GtkWidget *phoebe_load_spots_tempstep_spinbutton    = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempstep_spinbutton");
-        GtkWidget *phoebe_load_spots_tempmax_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempmax_spinbutton");
-        GtkWidget *phoebe_load_spots_tempmin_spinbutton     = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_tempmin_spinbutton");
-        GtkWidget *phoebe_load_spots_source_combobox        = glade_xml_get_widget(phoebe_load_spots_xml, "phoebe_load_spots_source_combobox");
+        GtkWidget *phoebe_load_spots_dialog                 = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_dialog");
+        GtkWidget *phoebe_load_spots_lat_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lat_spinbutton");
+        GtkWidget *phoebe_load_spots_latadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latadjust_checkbutton");
+        GtkWidget *phoebe_load_spots_latstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latstep_spinbutton");
+        GtkWidget *phoebe_load_spots_latmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latmax_spinbutton");
+        GtkWidget *phoebe_load_spots_latmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_latmin_spinbutton");
+        GtkWidget *phoebe_load_spots_lon_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lon_spinbutton");
+        GtkWidget *phoebe_load_spots_lonadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonadjust_checkbutton");
+        GtkWidget *phoebe_load_spots_lonstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonstep_spinbutton");
+        GtkWidget *phoebe_load_spots_lonmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonmax_spinbutton");
+        GtkWidget *phoebe_load_spots_lonmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_lonmin_spinbutton");
+        GtkWidget *phoebe_load_spots_rad_spinbutton         = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_rad_spinbutton");
+        GtkWidget *phoebe_load_spots_radadjust_checkbutton  = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radadjust_checkbutton");
+        GtkWidget *phoebe_load_spots_radstep_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radstep_spinbutton");
+        GtkWidget *phoebe_load_spots_radmax_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radmax_spinbutton");
+        GtkWidget *phoebe_load_spots_radmin_spinbutton      = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_radmin_spinbutton");
+        GtkWidget *phoebe_load_spots_temp_spinbutton        = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_temp_spinbutton");
+        GtkWidget *phoebe_load_spots_tempadjust_checkbutton = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempadjust_checkbutton");
+        GtkWidget *phoebe_load_spots_tempstep_spinbutton    = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempstep_spinbutton");
+        GtkWidget *phoebe_load_spots_tempmax_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempmax_spinbutton");
+        GtkWidget *phoebe_load_spots_tempmin_spinbutton     = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_tempmin_spinbutton");
+        GtkWidget *phoebe_load_spots_source_combobox        = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_source_combobox");
 
         g_object_unref(phoebe_load_spots_xml);
 
