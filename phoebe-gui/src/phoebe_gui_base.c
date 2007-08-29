@@ -2,11 +2,47 @@
 
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_base.h"
+#include "phoebe_gui_global.h"
 
 #include "phoebe_gui_treeviews.h"
 
+gchar *PHOEBE_GLADE_XML_DIR;
+
 int phoebe_gui_init ()
 {
+	/*
+	 *
+	 */
+
+	/*
+	 * Initialize a global PHOEBE_GLADE_XML_DIR string to point to a valid
+	 * directory. Try the global installation directory first (contained in
+	 * the GLADE_XML_DIR shell variable), then handle the invocation from src/,
+	 * and finally the invocation from the top-level phoebe-gui/ dir. If
+	 * all fails, print the error and exit.
+	 */
+
+	gchar *glade_xml_file;
+
+	PHOEBE_GLADE_XML_DIR = g_strdup (GLADE_XML_DIR);
+	glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
+
+	if (!g_file_test (glade_xml_file, G_FILE_TEST_EXISTS)) {
+		g_free (PHOEBE_GLADE_XML_DIR); g_free (glade_xml_file);
+		PHOEBE_GLADE_XML_DIR = g_build_filename ("../glade", NULL);
+		glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, NULL);
+		if (!g_file_test (glade_xml_file, G_FILE_TEST_EXISTS)) {
+			g_free (PHOEBE_GLADE_XML_DIR); g_free (glade_xml_file);
+			PHOEBE_GLADE_XML_DIR = g_build_filename ("glade", NULL);
+			glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, NULL);
+			if (!g_file_test (glade_xml_file, G_FILE_TEST_EXISTS)) {
+#warning DO_PROPER_ERROR_HANDLING_HERE
+				printf ("*** Glade files cannot be found, aborting.\n");
+				exit (-1);
+			}
+		}
+	}
+
 	gui_init_widgets ();
 
 	return SUCCESS;

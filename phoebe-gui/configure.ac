@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-04-03 #
+#                                            Last revision: 2007-08-28 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT([PHOEBE GUI],[0.30],[gal.matijevic@fmf.uni-lj.si],[phoebe-gui])
+  AC_INIT([PHOEBE GUI],[0.30],[phoebe-devel@fmf.uni-lj.si],[phoebe-gui])
 
 # Create a dedicated header file phoebe_scripter_build_config.h that will
 # contain all #define statements that correspond to whatever ./configure
@@ -45,11 +45,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_GUI_RELEASE_NAME,
-	[["PHOEBE GUI 0.30 (beta release)"]],
+	[["PHOEBE GUI 0.30RC1"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_GUI_RELEASE_DATE,
-	[["Jun 01, 2007"]],
+	[["Sep 01, 2007"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
@@ -66,8 +66,6 @@
 
   # C compiler:
     AC_PROG_CC
-# Do we really need this?
-  AM_PROG_CC_C_O
 
     if test -z $CC; then
       echo ""
@@ -165,6 +163,7 @@
 # Finally, write everything to Makefiles:
   AC_CONFIG_FILES([
                   Makefile
+                  glade/Makefile
                   src/Makefile
                   ])
 

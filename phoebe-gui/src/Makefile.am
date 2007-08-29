@@ -14,7 +14,8 @@ phoebe_gui_SOURCES =                               \
 	phoebe_gui_accessories.h  phoebe_gui_accessories.c	\
 	phoebe_gui_global.h
 
-phoebe_gui_CFLAGS = -Wall -g
+AM_CFLAGS = -Wall -g -DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\"
+
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
 
