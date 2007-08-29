@@ -29,6 +29,8 @@ GUI_widget		*gui_widget_lookup 	(char *name);
 int 			 gui_widget_commit 	(GUI_widget *widget);
 int 			 gui_widget_free	(GUI_widget *widget);
 
+int gui_init_parameter_options		();
+
 int				 gui_init_widgets	();
 int 			 gui_free_widgets	();
 
