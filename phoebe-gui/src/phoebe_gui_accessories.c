@@ -1,6 +1,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
+#include "phoebe_gui_types.h"
 
 void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 {
@@ -20,15 +21,15 @@ void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 		int maxlines=50;
 
 		fgets (line, 255, file);
-		gtk_text_buffer_set_text (text_buffer, line, -1);	
-	
+		gtk_text_buffer_set_text (text_buffer, line, -1);
+
 		gtk_text_buffer_get_iter_at_line (text_buffer, &iter, i);
 			while(!feof (file) && i<maxlines){
-				fgets (line, 255, file);	
+				fgets (line, 255, file);
 				gtk_text_buffer_insert (text_buffer, &iter, line, -1);
 				i++;
 			}
-	
+
 		if(!feof (file))gtk_text_buffer_insert (text_buffer, &iter, "...", -1);
 
 		fclose(file);
@@ -64,4 +65,55 @@ void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, 
 		gtk_widget_show_all (window);
 		*flag = !(*flag);
 	}
+}
+
+int gui_open_parameter_file()
+{
+	GtkWidget *dialog;
+	int status = 0;
+
+	dialog = gtk_file_chooser_dialog_new ("Open PHOEBE parameter file",
+										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
+										  GTK_FILE_CHOOSER_ACTION_OPEN,
+										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+										  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+										  NULL);
+
+
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+		char *filename;
+
+		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		status = phoebe_open_parameter_file(filename);
+		g_free (filename);
+	}
+
+	gtk_widget_destroy (dialog);
+
+	return status;
+}
+
+int gui_save_parameter_file()
+{
+	GtkWidget *dialog;
+	int status = 0;
+
+	dialog = gtk_file_chooser_dialog_new ("Save PHOEBE parameter file",
+										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
+										  GTK_FILE_CHOOSER_ACTION_SAVE,
+										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+										  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+										  NULL);
+
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+		char *filename;
+
+		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		status = phoebe_save_parameter_file(filename);
+		g_free (filename);
+	}
+
+	gtk_widget_destroy (dialog);
+
+	return status;
 }
