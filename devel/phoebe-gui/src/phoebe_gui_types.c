@@ -22,7 +22,7 @@ int gui_init_widgets ()
 		      *phoebe_para_lc_ld_treeview,    *phoebe_data_rv_treeview,
 		      *phoebe_para_rv_ld_treeview,    *phoebe_para_surf_spots_treeview,
 		      *phoebe_sidesheet_res_treeview, *phoebe_sidesheet_fit_treeview;
-		
+
 	glade_xml_signal_autoconnect (phoebe_window);
 
 	GUI_wt = phoebe_malloc (sizeof (GUI_widget_table));
@@ -403,6 +403,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										0,					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								0,					GUI_WIDGET_VALUE, 		NULL);
 
+	gui_init_parameter_options();
+
 	g_object_unref (phoebe_window);
 
 	gtk_widget_show (gui_widget_lookup ("phoebe_window")->gtk);
@@ -422,6 +424,42 @@ int gui_init_widgets ()
 	}
 
 	return SUCCESS;
+}
+
+int gui_init_parameter_options()
+{
+	PHOEBE_parameter *par;
+	int status = 0;
+
+	par = phoebe_parameter_lookup("gui_fitt_method");
+	phoebe_parameter_add_option (par, "Differential Corrections");
+	phoebe_parameter_add_option (par, "Nelder & Mead's Simplex");
+
+	par = phoebe_parameter_lookup("gui_lc_plot_x");
+	phoebe_parameter_add_option (par, "Phase");
+	phoebe_parameter_add_option (par, "Time (HJD)");
+
+	par = phoebe_parameter_lookup("gui_lc_plot_y");
+	phoebe_parameter_add_option (par, "Magnitude");
+	phoebe_parameter_add_option (par, "Primary flux");
+	phoebe_parameter_add_option (par, "Secondary flux");
+	phoebe_parameter_add_option (par, "Total flux");
+	phoebe_parameter_add_option (par, "Normalized flux");
+
+	par = phoebe_parameter_lookup("gui_rv_plot_x");
+	phoebe_parameter_add_option (par, "Phase");
+	phoebe_parameter_add_option (par, "Time (HJD)");
+
+	par = phoebe_parameter_lookup("gui_rv_plot_y");
+	phoebe_parameter_add_option (par, "Primary RV");
+	phoebe_parameter_add_option (par, "Secondary RV");
+	phoebe_parameter_add_option (par, "Both RVs");
+	phoebe_parameter_add_option (par, "Primary normalized RV");
+	phoebe_parameter_add_option (par, "Secondary normalized RV");
+	phoebe_parameter_add_option (par, "Primary EC corrections");
+	phoebe_parameter_add_option (par, "Secondary EC correction");
+
+	return status;
 }
 
 GUI_widget *gui_widget_new ()
@@ -623,10 +661,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
 					printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_TREE_VIEW_COLUMN block, GUI_WIDGET_VALUE block; please report this!\n");
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
 			}
-
 			state = gtk_tree_model_iter_next (model, &iter);
 		}
-
 		return SUCCESS;
 	}
 
@@ -662,12 +698,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				}
 			break;
 			case TYPE_DOUBLE_ARRAY:
-				printf ("\t*** handler not yet implemented.\n");
-/*
 				switch (widget->type) {
-					case GUI_WIDGET_VALUE:
-						status = phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
 					case GUI_WIDGET_VALUE_STEP:
 						status = phoebe_parameter_set_step (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 					break;
@@ -678,10 +709,10 @@ int gui_get_value_from_widget (GUI_widget *widget)
 						status = phoebe_parameter_set_upper_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 					break;
 					default:
+						/* change to phoebe_gui_error! */
 						printf ("exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
 						return ERROR_EXCEPTION_HANDLER_INVOKED;
 				}
-*/
 			break;
 			default:
 				/* change to phoebe_gui_error! */
@@ -716,7 +747,6 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				status = phoebe_parameter_set_tba (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget->gtk)));
 			break;
 			default:
-				/* change to phoebe_gui_error! */
 				printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_CHECK_BUTTON block, widget->type switch; please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
@@ -724,97 +754,16 @@ int gui_get_value_from_widget (GUI_widget *widget)
 	}
 
 	if (GTK_IS_COMBO_BOX (widget->gtk)) {
-		printf ("\t*** handler not yet implemented.\n");
-		return SUCCESS;
-	}
-
-	if (GTK_IS_TREE_VIEW_COLUMN (widget->gtk)) {
-		printf ("\twidget type: column\n");
-        GtkTreeViewColumn *column = (GtkTreeViewColumn*) widget->gtk;
-        int column_id = GPOINTER_TO_UINT (g_object_get_data ((GObject*) column, "column_id"));
-        GtkTreeModel *model = gtk_tree_view_get_model ((GtkTreeView*) g_object_get_data ((GObject*) column, "parent_tree"));
-
-        GtkTreeIter iter;
-        int index = 0;
-        int valid = gtk_tree_model_get_iter_first (model, &iter);
-
-        while (valid) {
-			switch (widget->type) {
-				case GUI_WIDGET_VALUE:
-					switch (widget->par->type) {
-						case TYPE_INT_ARRAY: {
-							int value;
-							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-							printf ("\tsetting value %d to %d\n", index, value);
-							status = phoebe_parameter_set_value (widget->par, index, value);
-						}
-						break;
-						case TYPE_BOOL_ARRAY: {
-							bool value;
-							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-							printf ("\tsetting value %d to %d\n", index, value);
-                    		status = phoebe_parameter_set_value (widget->par, index, value);
-						}
-						break;
-						case TYPE_DOUBLE_ARRAY: {
-							double value;
-							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-							printf ("\tsetting value %d to %lf\n", index, value);
-                    		status = phoebe_parameter_set_value (widget->par, index, value);
-						}
-						break;
-						case TYPE_STRING_ARRAY: {
-							char *value;
-							gtk_tree_model_get (model, &iter, column_id, &value, -1);
-							printf ("\tsetting value %d to %s\n", index, value);
-                    		status = phoebe_parameter_set_value (widget->par, index, value);
-						}
-						break;
-						default:
-							/* change to phoebe_gui_error! */
-							printf ("\t*** I'm not supposed to be here!\n");
-							printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_TREE_VIEW_COLUMN block, GUI_WIDGET_VALUE block; please report this!\n");
-							return ERROR_EXCEPTION_HANDLER_INVOKED;
-					}
-                break;
-                case GUI_WIDGET_SWITCH_TBA: {
-                    bool tba;
-                    gtk_tree_model_get (model, &iter, column_id, &tba, -1);
-					printf ("\tsetting tba to %d\n", tba);
-                    status = phoebe_parameter_set_tba (widget->par, tba);
-                }
-                break;
-                case GUI_WIDGET_VALUE_STEP: {
-                    double value;
-                    gtk_tree_model_get (model, &iter, column_id, &value, -1);
-					printf ("\tsetting step to %lf\n", value);
-                    status = phoebe_parameter_set_step (widget->par, value);
-                }
-                break;
-                case GUI_WIDGET_VALUE_MIN: {
-                    double value;
-                    gtk_tree_model_get(model, &iter, column_id, &value, -1);
-					printf ("\tsetting min to %lf\n", value);
-                    status = phoebe_parameter_set_lower_limit (widget->par, value);
-                }
-                break;
-                case GUI_WIDGET_VALUE_MAX: {
-                    double value;
-                    gtk_tree_model_get (model, &iter, column_id, &value, -1);
-					printf ("\tsetting max to %lf\n", value);
-                    status = phoebe_parameter_set_upper_limit (widget->par, value);
-                }
-                break;
-				default:
-					/* change to phoebe_gui_error! */
-					printf ("\t*** I'm not supposed to be here!\n");
-					printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_TREE_VIEW_COLUMN block, widget->type switch; please report this!\n");
-					return ERROR_EXCEPTION_HANDLER_INVOKED;
-            }
-			valid = gtk_tree_model_iter_next (model, &iter);
-			index ++;
-        }
-		return status;
+		printf ("\twidget type: combo box\n");
+		if (gtk_combo_box_get_active((GtkComboBox*) widget->gtk) >= 0){
+			printf ("\tsetting option to index %d, value %s\n", gtk_combo_box_get_active((GtkComboBox*) widget->gtk), strdup (widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]));
+			status = phoebe_parameter_set_value (widget->par, strdup (widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]));
+			return status;
+		}
+		else{
+			printf ("\t*** nothing selected in combo.\n");
+			return SUCCESS;
+		}
 	}
 
 	if (GTK_IS_WIDGET (widget->gtk)) {
@@ -822,7 +771,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
 		return SUCCESS;
 	}
 
-	printf ("\tI got where I am not supposed to be!!\n");
+	printf ("\t*** I got where I am not supposed to be!!\n");
+	printf ("\t*** exception handler invoked in gui_get_value_from_widget (); please report this!\n");
 	return SUCCESS;
 }
 
@@ -830,14 +780,71 @@ int gui_set_value_to_widget (GUI_widget *widget)
 {
 	int status = 0;
 
-	printf ("\tparameter: %s\n", widget->par->qualifier);
+	if (widget->par)
+		printf ("\tparameter type: %s\n", phoebe_type_get_name (widget->par->type));
+	else
+		printf ("\tparameter type: n/a\n");
+
+	if (GTK_IS_TREE_MODEL (widget->gtk)) {
+		GtkTreeModel *model = GTK_TREE_MODEL (widget->gtk);
+		GtkTreeIter iter;
+		int index;
+		bool state;
+
+		printf ("\twidget type: tree model\n");
+
+		state = gtk_tree_model_get_iter_first (model, &iter);
+
+		while (state) {
+			index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
+			switch (widget->par->type) {
+				case TYPE_INT_ARRAY: {
+					int value;
+					status = phoebe_parameter_get_value (widget->par, index, &value);
+					printf ("\tsetting value %d to %d\n", index, value);
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter, widget->aux, value, -1);
+				}
+				break;
+				case TYPE_BOOL_ARRAY: {
+					bool value;
+					status = phoebe_parameter_get_value (widget->par, index, &value);
+					printf ("\tsetting value %d to %d\n", index, value);
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter, widget->aux, value, -1);
+				}
+				break;
+				case TYPE_DOUBLE_ARRAY: {
+					double value;
+					status = phoebe_parameter_get_value (widget->par, index, &value);
+					printf ("\tsetting value %d to %lf\n", index, value);
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter, widget->aux, value, -1);
+				}
+				break;
+				case TYPE_STRING_ARRAY: {
+					char *value;
+					status = phoebe_parameter_get_value (widget->par, index, &value);
+					printf ("\tsetting value %d to %s\n", index, value);
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter, widget->aux, value, -1);
+				}
+				break;
+				default:
+					/* change to phoebe_gui_error! */
+					printf ("\t*** I'm not supposed to be here!\n");
+					printf ("\t*** exception handler invoked in gui_set_value_from_widget (), GTK_IS_TREE_MODEL block, GUI_WIDGET_VALUE block; please report this!\n");
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
+			}
+			state = gtk_tree_model_iter_next (model, &iter);
+		}
+		return SUCCESS;
+	}
 
 	if (GTK_IS_SPIN_BUTTON (widget->gtk)) {
+		printf ("\twidget type: spin button\n");
 		switch (widget->par->type) {
 			case TYPE_INT: {
 				int value;
 				printf ("\ttype: int\n");
 				status = phoebe_parameter_get_value (widget->par, &value);
+				printf ("\tsetting value to %d\n", value);
 				gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 			}
 			break;
@@ -845,10 +852,13 @@ int gui_set_value_to_widget (GUI_widget *widget)
 				double value;
 				printf ("\ttype: double\n");
 				status = phoebe_parameter_get_value (widget->par, &value);
+				printf ("\tsetting value to %lf\n", value);
 				gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
-			break;
 			}
+			break;
 			case TYPE_DOUBLE_ARRAY: {
+				printf ("\ttype: double array\n");
+				printf ("\t*** handler not yet implemented.\n");
 				double value;
 				printf ("\ttype: double array\n");
 				switch (widget->type) {
@@ -873,7 +883,6 @@ int gui_set_value_to_widget (GUI_widget *widget)
 					}
 					break;
 					default:
-						/* change to phoebe_gui_error! */
 						printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
 						return ERROR_EXCEPTION_HANDLER_INVOKED;
 				}
@@ -881,137 +890,67 @@ int gui_set_value_to_widget (GUI_widget *widget)
 			break;
 			default:
 				/* change to phoebe_gui_error! */
-				printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_SPIN_BUTTON block, widget->par->type switch; please report this!\n");
+				printf ("\t*** I'm not supposed to be here!\n");
+				printf ("\t*** exception handler invoked in gui_set_value_from_widget (), GTK_IS_TREE_MODEL block, GUI_WIDGET_VALUE block; please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 		return status;
 	}
 
 	if (GTK_IS_ENTRY (widget->gtk)){
+		printf ("\twidget type: entry\n");
 		char *value;
 		status = phoebe_parameter_get_value(widget->par, &value);
+		printf ("\tsetting value to %s\n", value);
 		gtk_entry_set_text(GTK_ENTRY(widget->gtk), value);
 		return status;
 	}
 
 	if (GTK_IS_RADIO_BUTTON (widget->gtk)){
-		printf ("not supported yet!\n");
+		printf ("\twidget type: radio button\n");
+		printf ("\t*** handler not yet implemented.\n");
 		return status;
 	}
 
 	if (GTK_IS_CHECK_BUTTON (widget->gtk)){
+		printf ("\twidget type: check button\n");
 		switch(widget->type){
 			bool value;
 			case GUI_WIDGET_VALUE: {
 				status = phoebe_parameter_get_value(widget->par, &value);
+				printf ("\tsetting value to %d\n", value);
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget->gtk), value);
 			}
 			break;
 			case GUI_WIDGET_SWITCH_TBA: {
 				status = phoebe_parameter_get_tba(widget->par, &value);
+				printf ("\tsetting value to %d\n", value);
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget->gtk), value);
 			}
 			break;
 			default:
 				/* change to phoebe_gui_error! */
-				printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_CHECK_BUTTON block, widget->type switch; please report this!\n");
+				printf ("\t*** exception handler invoked in sui_set_value_to_widget (), GTK_IS_CHECK_BUTTON block, widget->type switch; please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 		return status;
 	}
 
 	if (GTK_IS_COMBO_BOX(widget->gtk)) {
-		printf ("not supported yet!\n");
-		return status;
-	}
-
-	if (GTK_IS_TREE_VIEW_COLUMN (widget->gtk)) {
-		GtkTreeViewColumn *column = (GtkTreeViewColumn*) widget->gtk;
-        int column_id = GPOINTER_TO_UINT (g_object_get_data ((GObject*) column, "column_id"));
-        GtkTreeModel *model = gtk_tree_view_get_model ((GtkTreeView*) g_object_get_data ((GObject*) column, "parent_tree"));
-
-        GtkTreeIter iter;
-        int index = 0;
-        int valid = gtk_tree_model_get_iter_first (model, &iter);
-
-        while (valid) {
-			switch (widget->type) {
-				case GUI_WIDGET_VALUE: {
-					switch (widget->par->type) {
-						case TYPE_INT_ARRAY: {
-							int value;
-							status = phoebe_parameter_get_value (widget->par, index, &value);
-							gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-						}
-						break;
-						case TYPE_DOUBLE_ARRAY: {
-							double value;
-							status = phoebe_parameter_get_value (widget->par, index, &value);
-                    		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-						}
-						break;
-						case TYPE_STRING_ARRAY: {
-							char *value;
-							status = phoebe_parameter_get_value (widget->par, index, &value);
-                    		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-						}
-						break;
-						case TYPE_BOOL_ARRAY: {
-							bool value;
-							status = phoebe_parameter_get_value (widget->par, index, &value);
-                    		gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-						}
-						break;
-						default:
-							/* change to phoebe_gui_error! */
-							printf ("I'm not supposed to be here!\n");
-							printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_TREE_VIEW_COLUMN block, GUI_WIDGET_VALUE block; please report this!\n");
-							return ERROR_EXCEPTION_HANDLER_INVOKED;
-					}
-                }
-                break;
-                case GUI_WIDGET_SWITCH_TBA: {
-                    bool tba;
-                    status = phoebe_parameter_get_tba (widget->par, &tba);
-					gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, tba, -1);
-                }
-                break;
-                case GUI_WIDGET_VALUE_STEP: {
-                    double value;
-                    status = phoebe_parameter_get_step (widget->par, &value);
-					gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-                }
-                break;
-                case GUI_WIDGET_VALUE_MIN: {
-                    double value;
-                    status = phoebe_parameter_get_lower_limit (widget->par, &value);
-					gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-                }
-                break;
-                case GUI_WIDGET_VALUE_MAX: {
-                    double value;
-                    status = phoebe_parameter_get_upper_limit (widget->par, &value);
-					gtk_list_store_set (GTK_LIST_STORE(model), &iter, column_id, value, -1);
-                }
-                break;
-				default:
-					/* change to phoebe_gui_error! */
-					printf ("I'm not supposed to be here!\n");
-					printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_TREE_VIEW_COLUMN block, widget->type switch; please report this!\n");
-					return ERROR_EXCEPTION_HANDLER_INVOKED;
-            }
-			valid = gtk_tree_model_iter_next (model, &iter);
-			index ++;
-        }
+		printf ("\twidget type: combo box\n");
+		char *value;
+		status = phoebe_parameter_get_value(widget->par, &value);
+		printf ("\tsetting option to %s\n", value);
 		return status;
 	}
 
 	if(GTK_IS_WIDGET(widget->gtk)){
-		printf ("I'm a widget without a parameter.\n");
+		printf ("\tI'm a widget without a parameter.\n");
 		return status;
 	}
 
-	printf ("I got where I am not supposed to be!!\n");
+	printf ("\t*** I got where I am not supposed to be!!\n");
+	printf ("\t*** exception handler invoked in gui_set_value_to_widget (); please report this!\n");
 	return SUCCESS;
 }
 
@@ -1031,13 +970,12 @@ int gui_get_values_from_widgets ()
 			bucket = bucket->next;
 		}
 	}
-
 	return SUCCESS;
 }
 
 int gui_set_values_to_widgets ()
 {
-	printf("\n\n******** Entering gui_set_values_to_widgets!******* \n\n");
+	printf("\n\n ******* Entering gui_set_values_to_widgets!******* \n\n");
 
 	int i, status;
 	GUI_wt_bucket *bucket;
@@ -1045,7 +983,7 @@ int gui_set_values_to_widgets ()
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
 		bucket = GUI_wt->bucket[i];
 		while (bucket) {
-			printf ("processing widget %s: ", bucket->widget->name);
+			printf ("processing widget %s: \n", bucket->widget->name);
 			status = gui_set_value_to_widget (bucket->widget);
 			printf ("%s", phoebe_error (status));
 			bucket = bucket->next;
