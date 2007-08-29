@@ -473,19 +473,6 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 	return SUCCESS;
 }
 
-int gui_init_fitt_method_combobox()
-{
-	GtkWidget *gui_fitt_method_combobox = gui_widget_lookup("gui_fitt_method_combobox")->gtk;
-
-	GtkListStore *store = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_INT);
-
-	gtk_combo_box_set_model (GTK_COMBO_BOX(gui_fitt_method_combobox), GTK_TREE_MODEL (store));
-
-	g_object_unref(store);
-
-	return SUCCESS;
-}
-
 int gui_fill_sidesheet_res_treeview()
 {
 	int status = 0;
