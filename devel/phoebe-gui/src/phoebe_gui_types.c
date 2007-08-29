@@ -2,8 +2,14 @@
 #include <gtk/gtk.h>
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_global.h"
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_treeviews.h"
+
+gboolean PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = FALSE;
+gboolean PHOEBE_WINDOW_LC_PLOT_IS_DETACHED   = FALSE;
+gboolean PHOEBE_WINDOW_RV_PLOT_IS_DETACHED   = FALSE;
+gboolean PHOEBE_WINDOW_FITTING_IS_DETACHED   = FALSE;
 
 int gui_init_widgets ()
 {
@@ -15,7 +21,8 @@ int gui_init_widgets ()
 	int i;
 
 	PHOEBE_parameter *par;
-	GladeXML  *phoebe_window = glade_xml_new ("../glade/phoebe.glade", NULL, NULL);
+	gchar *glade_xml_file;
+	GladeXML  *phoebe_window;
 
 	GtkWidget *phoebe_data_lc_treeview,       *phoebe_para_lc_levels_treeview,
               *phoebe_para_lc_el3_treeview,   *phoebe_para_lc_levweight_treeview,
@@ -23,6 +30,11 @@ int gui_init_widgets ()
 		      *phoebe_para_rv_ld_treeview,    *phoebe_para_surf_spots_treeview,
 		      *phoebe_sidesheet_res_treeview, *phoebe_sidesheet_fit_treeview;
 
+	/* Read in the main PHOEBE window: */
+	glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
+	phoebe_window = glade_xml_new (glade_xml_file, NULL, NULL);
+	g_free (glade_xml_file);
+	
 	glade_xml_signal_autoconnect (phoebe_window);
 
 	GUI_wt = phoebe_malloc (sizeof (GUI_widget_table));
