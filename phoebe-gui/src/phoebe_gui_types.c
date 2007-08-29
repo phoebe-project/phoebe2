@@ -34,7 +34,7 @@ int gui_init_widgets ()
 	glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
 	phoebe_window = glade_xml_new (glade_xml_file, NULL, NULL);
 	g_free (glade_xml_file);
-	
+
 	glade_xml_signal_autoconnect (phoebe_window);
 
 	GUI_wt = phoebe_malloc (sizeof (GUI_widget_table));
@@ -434,6 +434,8 @@ int gui_init_widgets ()
 			printf ("\n");
 		}
 	}
+
+	gui_set_values_to_widgets();
 
 	return SUCCESS;
 }
@@ -869,8 +871,6 @@ int gui_set_value_to_widget (GUI_widget *widget)
 			}
 			break;
 			case TYPE_DOUBLE_ARRAY: {
-				printf ("\ttype: double array\n");
-				printf ("\t*** handler not yet implemented.\n");
 				double value;
 				printf ("\ttype: double array\n");
 				switch (widget->type) {
