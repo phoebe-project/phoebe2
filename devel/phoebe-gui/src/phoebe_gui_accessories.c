@@ -1,6 +1,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
+#include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_types.h"
 
 void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
@@ -116,4 +117,60 @@ int gui_save_parameter_file()
 	gtk_widget_destroy (dialog);
 
 	return status;
+}
+
+int gui_lc_obsmenu_update()
+{
+	GUI_widget *obsmenu = gui_widget_lookup("phoebe_lc_plot_options_obs_combobox");
+
+	GtkTreeModel *obsmenu_model = gtk_combo_box_get_model(GTK_COMBO_BOX(obsmenu->gtk));
+	GtkTreeIter obsmenu_iter;
+	char *option;
+
+	GtkTreeModel *lc_model = GTK_TREE_MODEL(gui_widget_lookup("phoebe_data_lc_filter")->gtk);
+	GtkTreeIter lc_iter;
+	int state = gtk_tree_model_get_iter_first(lc_model, &lc_iter);
+
+	gtk_list_store_clear((GtkListStore*) obsmenu_model);
+
+	while(state){
+		gtk_tree_model_get(lc_model, &lc_iter, LC_COL_FILTER, &option, -1);
+
+		gtk_list_store_append ((GtkListStore*) obsmenu_model, &obsmenu_iter);
+		gtk_list_store_set ((GtkListStore*) obsmenu_model, &obsmenu_iter, 0, option, -1);
+
+		phoebe_parameter_add_option(obsmenu->par, option);
+
+		state = gtk_tree_model_iter_next(lc_model, &lc_iter);
+	}
+
+	return SUCCESS;
+}
+
+int gui_rv_obsmenu_update()
+{
+	GUI_widget *obsmenu = gui_widget_lookup("phoebe_rv_plot_options_obs_combobox");
+
+	GtkTreeModel *obsmenu_model = gtk_combo_box_get_model(GTK_COMBO_BOX(obsmenu->gtk));
+	GtkTreeIter obsmenu_iter;
+	char *option;
+
+	GtkTreeModel *rv_model = GTK_TREE_MODEL(gui_widget_lookup("phoebe_data_rv_filter")->gtk);
+	GtkTreeIter rv_iter;
+	int state = gtk_tree_model_get_iter_first(rv_model, &rv_iter);
+
+	gtk_list_store_clear((GtkListStore*) obsmenu_model);
+
+	while(state){
+		gtk_tree_model_get(rv_model, &rv_iter, RV_COL_FILTER, &option, -1);
+
+		gtk_list_store_append ((GtkListStore*) obsmenu_model, &obsmenu_iter);
+		gtk_list_store_set ((GtkListStore*) obsmenu_model, &obsmenu_iter, 0, option, -1);
+
+		phoebe_parameter_add_option(obsmenu->par, option);
+
+		state = gtk_tree_model_iter_next(rv_model, &rv_iter);
+	}
+
+	return SUCCESS;
 }

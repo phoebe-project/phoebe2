@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_accessories.h"
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_treeviews.h"
@@ -44,15 +45,15 @@ int gui_init_widgets ()
 	/* *************************** GUI Parameters *************************** */
 
 	phoebe_parameter_add ("gui_ld_model_autoupdate",	"Automatically update LD model",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
+	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Diferential Corrections");
 	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	phoebe_parameter_add ("gui_lc_plot_obsmenu",		"Select observed LC",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_aliasing",		"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
-	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
+	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
+	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Magnitude");
 	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_lc_plot_offset",			"Offset level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
@@ -65,8 +66,8 @@ int gui_init_widgets ()
 	phoebe_parameter_add ("gui_rv_plot_obsmenu",		"Select observed RV curve",			KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_rv_plot_alias",			"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_rv_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_x",				"X-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
-	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
+	phoebe_parameter_add ("gui_rv_plot_x",				"X-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
+	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Both RVs");
 	phoebe_parameter_add ("gui_rv_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_rv_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_rv_plot_offset",			"Offset level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
@@ -76,7 +77,7 @@ int gui_init_widgets ()
 
 	/* *************************** Main Window    **************************** */
 
-	gui_widget_add ("phoebe_window",									glade_xml_get_widget (phoebe_window, "phoebe_window"), 													0, GUI_WIDGET_VALUE, NULL);
+	gui_widget_add ("phoebe_window",									glade_xml_get_widget (phoebe_window, "phoebe_window"), 													0, 					GUI_WIDGET_VALUE, 		NULL);
 
 	/* ************************    GUI Treeviews   ************************* */
 
@@ -91,16 +92,16 @@ int gui_init_widgets ()
 	phoebe_sidesheet_res_treeview     = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_res_treeview");
 	phoebe_sidesheet_fit_treeview     = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_fit_treeview");
 
-	gui_widget_add ("phoebe_data_lc_treeview",							phoebe_data_lc_treeview,																				0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_lc_levels_treeview",					phoebe_para_lc_levels_treeview,																			0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_lc_levweight_treeview",				phoebe_para_lc_levweight_treeview,																		0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_lc_ld_treeview",						phoebe_para_lc_ld_treeview,																				0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_data_rv_treeview",							phoebe_data_rv_treeview, 																				0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_rv_ld_treeview",						phoebe_para_rv_ld_treeview,																				0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_para_surf_spots_treeview",					phoebe_para_surf_spots_treeview,																		0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_sidesheet_res_treeview",					phoebe_sidesheet_res_treeview,																			0, GUI_WIDGET_VALUE, NULL);
-	gui_widget_add ("phoebe_sidesheet_fit_treeview",					phoebe_sidesheet_fit_treeview,																			0, GUI_WIDGET_VALUE, NULL);
+	gui_widget_add ("phoebe_data_lc_treeview",							phoebe_data_lc_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_levels_treeview",					phoebe_para_lc_levels_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_levweight_treeview",				phoebe_para_lc_levweight_treeview,																		0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_lc_ld_treeview",						phoebe_para_lc_ld_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_data_rv_treeview",							phoebe_data_rv_treeview, 																				0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_rv_ld_treeview",						phoebe_para_rv_ld_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_para_surf_spots_treeview",					phoebe_para_surf_spots_treeview,																		0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_sidesheet_res_treeview",					phoebe_sidesheet_res_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_sidesheet_fit_treeview",					phoebe_sidesheet_fit_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL);
 
 	gui_widget_add ("phoebe_plot_lc_observed_combobox",					glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		NULL);
 	gui_widget_add ("phoebe_plot_rv_observed_combobox",					glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		NULL);
@@ -112,29 +113,33 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_data_star_name_entry", 						glade_xml_get_widget (phoebe_window, "phoebe_data_star_name_entry"), 									0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_name"));
 	gui_widget_add ("phoebe_data_star_model_combobox", 					glade_xml_get_widget (phoebe_window, "phoebe_data_star_model_combobox"), 								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_model"));
 
-	gui_widget_add ("phoebe_data_lc_filename",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_FILENAME,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filename"));
-	gui_widget_add ("phoebe_data_lc_sigma",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 	  	LC_COL_SIGMA,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_sigma"));
-	gui_widget_add ("phoebe_data_lc_filter",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_FILTER,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filter"));
-	gui_widget_add ("phoebe_data_lc_indep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_ITYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indep"));
-	gui_widget_add ("phoebe_data_lc_dep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_DTYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_dep"));
-	gui_widget_add ("phoebe_data_lc_wtype",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_WTYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indweight"));
-	gui_widget_add ("phoebe_data_lc_active",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 		LC_COL_ACTIVE,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_active"));
+	gui_widget_add ("phoebe_data_lc_filename",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_FILENAME,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filename"));
+	gui_widget_add ("phoebe_data_lc_sigma",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 	  					LC_COL_SIGMA,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_sigma"));
+	gui_widget_add ("phoebe_data_lc_filter",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_FILTER,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_filter"));
+	gui_widget_add ("phoebe_data_lc_indep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_ITYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indep"));
+	gui_widget_add ("phoebe_data_lc_dep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_DTYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_dep"));
+	gui_widget_add ("phoebe_data_lc_wtype",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_WTYPE_STR,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_indweight"));
+	gui_widget_add ("phoebe_data_lc_active",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_ACTIVE,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_active"));
 
-	gui_widget_add ("phoebe_data_rv_filename",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_FILENAME,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filename"));
-	gui_widget_add ("phoebe_data_rv_sigma",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_SIGMA,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_sigma"));
-	gui_widget_add ("phoebe_data_rv_filter",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_FILTER,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filter"));
-	gui_widget_add ("phoebe_data_rv_indep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_ITYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indep"));
-	gui_widget_add ("phoebe_data_rv_dep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_DTYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_dep"));
-	gui_widget_add ("phoebe_data_rv_wtype",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_WTYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indweight"));
-	gui_widget_add ("phoebe_data_rv_active",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),		RV_COL_ACTIVE,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_active"));
+	gui_widget_add ("phoebe_data_rv_filename",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_FILENAME,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filename"));
+	gui_widget_add ("phoebe_data_rv_sigma",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_SIGMA,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_sigma"));
+	gui_widget_add ("phoebe_data_rv_filter",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_FILTER,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filter"));
+	gui_widget_add ("phoebe_data_rv_indep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_ITYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indep"));
+	gui_widget_add ("phoebe_data_rv_dep",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_DTYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_dep"));
+	gui_widget_add ("phoebe_data_rv_wtype",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_WTYPE_STR,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_indweight"));
+	gui_widget_add ("phoebe_data_rv_active",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_ACTIVE,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_active"));
 
-	gui_widget_add ("phoebe_data_options_time_radiobutton", 			glade_xml_get_widget(phoebe_window, "phoebe_data_options_time_radiobutton"), 							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_indep"));
+	gui_widget_add ("phoebe_data_options_indep_combobox",	 			glade_xml_get_widget(phoebe_window, "phoebe_data_options_indep_combobox"), 								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_indep"));
+
 	gui_widget_add ("phoebe_data_options_bins_checkbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_data_options_bins_checkbutton"), 							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_bins_switch"));
 	gui_widget_add ("phoebe_data_options_binsno_spinbutton", 	   		glade_xml_get_widget(phoebe_window, "phoebe_data_options_binsno_spinbutton"), 							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_bins"));
 
 	gui_widget_add ("phoebe_data_lcoptions_mag_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_data_lcoptions_mag_spinbutton"), 							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_mnorm"));
+
 	gui_widget_add ("phoebe_data_rvoptions_psepe_checkbutton", 	   		glade_xml_get_widget(phoebe_window, "phoebe_data_rvoptions_psepe_checkbutton"), 						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_proximity_rv1_switch"));
 	gui_widget_add ("phoebe_data_rvoptions_ssepe_checkbutton", 	   		glade_xml_get_widget(phoebe_window, "phoebe_data_rvoptions_ssepe_checkbutton"), 						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_proximity_rv2_switch"));
+
+	gui_widget_add ("phoebe_data_options_filtermode_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_data_options_filtermode_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_passband_mode"));
 
 	/* **********************    Parameters Widgets   ************************* */
 
@@ -299,31 +304,31 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_surf_gr2max_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_surf_gr2max_spinbutton"), 								0,					GUI_WIDGET_VALUE_MAX, 	par);
 	gui_widget_add ("phoebe_para_surf_gr2min_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_surf_gr2min_spinbutton"), 								0,					GUI_WIDGET_VALUE_MIN, 	par);
 
-    gui_widget_add ("phoebe_para_lum_levels_levweight", 				(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 	LC_COL_LEVWEIGHT,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_levweight"));
+    gui_widget_add ("phoebe_para_lum_levels_levweight", 				(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 				LC_COL_LEVWEIGHT,	GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_levweight"));
 
     par = phoebe_parameter_lookup ("phoebe_hla");
-    gui_widget_add ("phoebe_para_lum_levels_prim",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 	LC_COL_HLA,			GUI_WIDGET_VALUE, 		par);
+    gui_widget_add ("phoebe_para_lum_levels_prim",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 				LC_COL_HLA,			GUI_WIDGET_VALUE, 		par);
 	gui_widget_add ("phoebe_para_lum_levels_primadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA, 	par);
 	gui_widget_add ("phoebe_para_lum_levels_primstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par);
 
 	par = phoebe_parameter_lookup ("phoebe_cla");
-	gui_widget_add ("phoebe_para_lum_levels_sec",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 	LC_COL_CLA,			GUI_WIDGET_VALUE, 		par);
+	gui_widget_add ("phoebe_para_lum_levels_sec",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 				LC_COL_CLA,			GUI_WIDGET_VALUE, 		par);
 	gui_widget_add ("phoebe_para_lum_levels_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA, 	par);
 	gui_widget_add ("phoebe_para_lum_levels_secstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par);
 
     par = phoebe_parameter_lookup ("phoebe_el3");
-    gui_widget_add ("phoebe_para_lum_el3",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),		LC_COL_EL3,			GUI_WIDGET_VALUE,		par);
+    gui_widget_add ("phoebe_para_lum_el3",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_EL3,			GUI_WIDGET_VALUE,		par);
 	gui_widget_add ("phoebe_para_lum_el3ajdust_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3ajdust_checkbutton"),							0,					GUI_WIDGET_SWITCH_TBA, 	par);
 	gui_widget_add ("phoebe_para_lum_el3step_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3step_spinbutton"),								0,					GUI_WIDGET_VALUE_STEP, 	par);
-	gui_widget_add ("phoebe_para_lum_el3_percent_radiobutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_percent_radiobutton"),							0,					GUI_WIDGET_VALUE, 		par);
+	gui_widget_add ("phoebe_para_lum_el3units_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3units_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup("phoebe_el3_units"));
 
 	par = phoebe_parameter_lookup ("phoebe_opsf");
-	gui_widget_add ("phoebe_para_lum_el3_opacity",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),		LC_COL_OPSF,		GUI_WIDGET_VALUE,		par);
+	gui_widget_add ("phoebe_para_lum_el3_opacity",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_OPSF,		GUI_WIDGET_VALUE,		par);
 	gui_widget_add ("phoebe_para_lum_el3_opacityadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacityadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,  par);
 	gui_widget_add ("phoebe_para_lum_el3_opacitystep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacitystep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par);
 
 	par = phoebe_parameter_lookup ("phoebe_extinction");
-	gui_widget_add ("phoebe_para_lum_el3_ext",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),		LC_COL_EXTINCTION,	GUI_WIDGET_VALUE,		par);
+	gui_widget_add ("phoebe_para_lum_el3_ext",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_EXTINCTION,	GUI_WIDGET_VALUE,		par);
 	gui_widget_add ("phoebe_para_lum_el3_extadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extadjust_checkbutton"),						0,					GUI_WIDGET_SWITCH_TBA,  par);
 	gui_widget_add ("phoebe_para_lum_el3_extstep_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extstep_spinbutton"),							0,					GUI_WIDGET_VALUE_STEP,  par);
 
@@ -346,14 +351,14 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_ld_bolcoefs_secy_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_bolcoefs_secx_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_ybol2"));
 
 	par = phoebe_parameter_lookup ("phoebe_ld_lcx1");
-	gui_widget_add ("phoebe_para_ld_lccoefs_primx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),				LC_COL_X1,			GUI_WIDGET_VALUE,		par);
-	gui_widget_add ("phoebe_para_ld_lccoefs_primy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),				LC_COL_Y1,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_lcy1"));
+	gui_widget_add ("phoebe_para_ld_lccoefs_primx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),						LC_COL_X1,			GUI_WIDGET_VALUE,		par);
+	gui_widget_add ("phoebe_para_ld_lccoefs_primy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),						LC_COL_Y1,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_lcy1"));
 	gui_widget_add ("phoebe_para_ld_lccoefs_primadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_primadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,	par);
 	gui_widget_add ("phoebe_para_ld_lccoefs_primstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_primstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP,	par);
 
 	par = phoebe_parameter_lookup ("phoebe_ld_lcx2");
-	gui_widget_add ("phoebe_para_ld_lccoefs_secx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),				LC_COL_X2,			GUI_WIDGET_VALUE,		par);
-	gui_widget_add ("phoebe_para_ld_lccoefs_secy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),				LC_COL_Y2,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_lcy2"));
+	gui_widget_add ("phoebe_para_ld_lccoefs_secx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),						LC_COL_X2,			GUI_WIDGET_VALUE,		par);
+	gui_widget_add ("phoebe_para_ld_lccoefs_secy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_ld_treeview),						LC_COL_Y2,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_lcy2"));
 	gui_widget_add ("phoebe_para_ld_lccoefs_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,	par);
 	gui_widget_add ("phoebe_para_ld_lccoefs_secstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP,	par);
 
@@ -377,8 +382,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_options_residuals_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_residuals_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_residuals"));
 	gui_widget_add ("phoebe_lc_plot_options_x_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_x_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_x"));
 	gui_widget_add ("phoebe_lc_plot_options_y_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_y_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_y"));
-	gui_widget_add ("phoebe_lc_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "gui_phoebe_lc_plot_options_phstart_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phstart"));
-	gui_widget_add ("phoebe_lc_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "gui_phoebe_lc_plot_options_phend_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phend"));
+	gui_widget_add ("phoebe_lc_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phstart_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phstart"));
+	gui_widget_add ("phoebe_lc_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phend"));
 	gui_widget_add ("phoebe_lc_plot_controls_offset_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_offset_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_offset"));
 	gui_widget_add ("phoebe_lc_plot_controls_zoom_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_zoom_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_zoom"));
 	gui_widget_add ("phoebe_lc_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_coarse"));
@@ -391,8 +396,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_options_residuals_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_residuals"));
 	gui_widget_add ("phoebe_rv_plot_options_x_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_x_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_x"));
 	gui_widget_add ("phoebe_rv_plot_options_y_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_y_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_y"));
-	gui_widget_add ("phoebe_rv_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "gui_phoebe_rv_plot_options_phstart_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phstart"));
-	gui_widget_add ("phoebe_rv_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "gui_phoebe_rv_plot_options_phend_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phend"));
+	gui_widget_add ("phoebe_rv_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phstart_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phstart"));
+	gui_widget_add ("phoebe_rv_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phend"));
 	gui_widget_add ("phoebe_rv_plot_controls_offset_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_offset_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_offset"));
 	gui_widget_add ("phoebe_rv_plot_scrolledwindow",					glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_scrolledwindow"),									0,					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_rv_plot_controls_zoom_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_zoom_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_zoom"));
@@ -415,7 +420,9 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										0,					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								0,					GUI_WIDGET_VALUE, 		NULL);
 
-	gui_init_parameter_options();
+	gui_init_parameter_options		();
+	gui_init_lc_obsmenu_combobox	();
+    gui_init_rv_obsmenu_combobox	();
 
 	g_object_unref (phoebe_window);
 
@@ -446,12 +453,12 @@ int gui_init_parameter_options()
 	int status = 0;
 
 	par = phoebe_parameter_lookup("gui_fitt_method");
-	phoebe_parameter_add_option (par, "Differential Corrections");
+	phoebe_parameter_add_option (par, "Diferential Corrections");
 	phoebe_parameter_add_option (par, "Nelder & Mead's Simplex");
 
 	par = phoebe_parameter_lookup("gui_lc_plot_x");
 	phoebe_parameter_add_option (par, "Phase");
-	phoebe_parameter_add_option (par, "Time (HJD)");
+	phoebe_parameter_add_option (par, "Time");
 
 	par = phoebe_parameter_lookup("gui_lc_plot_y");
 	phoebe_parameter_add_option (par, "Magnitude");
@@ -462,7 +469,7 @@ int gui_init_parameter_options()
 
 	par = phoebe_parameter_lookup("gui_rv_plot_x");
 	phoebe_parameter_add_option (par, "Phase");
-	phoebe_parameter_add_option (par, "Time (HJD)");
+	phoebe_parameter_add_option (par, "Time");
 
 	par = phoebe_parameter_lookup("gui_rv_plot_y");
 	phoebe_parameter_add_option (par, "Primary RV");
@@ -682,52 +689,38 @@ int gui_get_value_from_widget (GUI_widget *widget)
 
 	if (GTK_IS_SPIN_BUTTON (widget->gtk)) {
 		printf ("\twidget type: spin button\n");
-		switch (widget->par->type) {
-			case TYPE_INT:
-				printf ("\tsetting value to %d\n", gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget->gtk)));
-				status = phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget->gtk)));
-			break;
-			case TYPE_DOUBLE:
-				switch (widget->type) {
-					case GUI_WIDGET_VALUE:
+		switch (widget->type) {
+			case GUI_WIDGET_VALUE: {
+				switch (widget->par->type) {
+					case TYPE_INT:
+						printf ("\tsetting value to %d\n", gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget->gtk)));
+						status = phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget->gtk)));
+					break;
+					case TYPE_DOUBLE:
 						printf ("\tsetting value to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 						status = phoebe_parameter_set_value (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 					break;
-					case GUI_WIDGET_VALUE_STEP:
-						printf ("\tsetting step to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-						status = phoebe_parameter_set_step (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
-					case GUI_WIDGET_VALUE_MIN:
-						printf ("\tsetting min to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-						status = phoebe_parameter_set_lower_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
-					case GUI_WIDGET_VALUE_MAX:
-						printf ("\tsetting max to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-						status = phoebe_parameter_set_upper_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
 					default:
 						/* change to phoebe_gui_error! */
-						printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
+						printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->par->type switch; please report this!\n");
 						return ERROR_EXCEPTION_HANDLER_INVOKED;
 				}
+			}
 			break;
-			case TYPE_DOUBLE_ARRAY:
-				switch (widget->type) {
-					case GUI_WIDGET_VALUE_STEP:
-						status = phoebe_parameter_set_step (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
-					case GUI_WIDGET_VALUE_MIN:
-						status = phoebe_parameter_set_lower_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
-					case GUI_WIDGET_VALUE_MAX:
-						status = phoebe_parameter_set_upper_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					break;
-					default:
-						/* change to phoebe_gui_error! */
-						printf ("exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
-						return ERROR_EXCEPTION_HANDLER_INVOKED;
-				}
+			case GUI_WIDGET_VALUE_MIN: {
+				printf ("\tsetting min to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+				status = phoebe_parameter_set_lower_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+			}
 			break;
+			case GUI_WIDGET_VALUE_MAX: {
+				printf ("\tsetting max to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+				status = phoebe_parameter_set_upper_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+			}
+			break;
+			case GUI_WIDGET_VALUE_STEP: {
+				printf ("\tsetting step to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+				status = phoebe_parameter_set_step (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+			}
 			default:
 				/* change to phoebe_gui_error! */
 				printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, par->type switch; please report this!\n");
@@ -854,57 +847,58 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 	if (GTK_IS_SPIN_BUTTON (widget->gtk)) {
 		printf ("\twidget type: spin button\n");
-		switch (widget->par->type) {
-			case TYPE_INT: {
-				int value;
-				printf ("\ttype: int\n");
-				status = phoebe_parameter_get_value (widget->par, &value);
-				printf ("\tsetting value to %d\n", value);
-				gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
-			}
-			break;
-			case TYPE_DOUBLE: {
-				double value;
-				printf ("\ttype: double\n");
-				status = phoebe_parameter_get_value (widget->par, &value);
-				printf ("\tsetting value to %lf\n", value);
-				gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
-			}
-			break;
-			case TYPE_DOUBLE_ARRAY: {
-				double value;
-				printf ("\ttype: double array\n");
-				switch (widget->type) {
-					case GUI_WIDGET_VALUE: {
+		switch (widget->type){
+			case GUI_WIDGET_VALUE: {
+				switch (widget->par->type) {
+					case TYPE_INT: {
+						int value;
+						printf ("\tpar->type: int, widget->type: value\n");
 						status = phoebe_parameter_get_value (widget->par, &value);
+						printf ("\tsetting value to %d\n", value);
 						gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 					}
 					break;
-					case GUI_WIDGET_VALUE_STEP: {
-						status = phoebe_parameter_get_step(widget->par, &value);
-						gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
-					}
-					break;
-					case GUI_WIDGET_VALUE_MIN: {
-						status = phoebe_parameter_get_lower_limit(widget->par, &value);
-						gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
-					}
-					break;
-					case GUI_WIDGET_VALUE_MAX: {
-						status = phoebe_parameter_get_upper_limit(widget->par, &value);
-						gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+					case TYPE_DOUBLE: {
+						double value;
+						printf ("\tpar->type: double, widget->type: value\n");
+						status = phoebe_parameter_get_value (widget->par, &value);
+						printf ("\tsetting value to %lf\n", value);
+						gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 					}
 					break;
 					default:
-						printf ("exception handler invoked in gui_set_value_to_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
-						return ERROR_EXCEPTION_HANDLER_INVOKED;
+					/* change to phoebe_gui_error! */
+					printf ("\t*** I'm not supposed to be here!\n");
+					printf ("\t*** exception handler invoked in gui_set_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->par->type switch; please report this!\n");
+					return ERROR_EXCEPTION_HANDLER_INVOKED;
 				}
+			}
+			break;
+			case GUI_WIDGET_VALUE_MIN: {
+				double value;
+				status = phoebe_parameter_get_lower_limit(widget->par, &value);
+				printf("\tsetting min to %lf\n", value);
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+			}
+			break;
+			case GUI_WIDGET_VALUE_MAX: {
+				double value;
+				status = phoebe_parameter_get_upper_limit(widget->par, &value);
+				printf("\tsetting max to %lf\n", value);
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+			}
+			break;
+			case GUI_WIDGET_VALUE_STEP: {
+				double value;
+				status = phoebe_parameter_get_step(widget->par, &value);
+				printf("\tsetting step to %lf\n", value);
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
 			}
 			break;
 			default:
 				/* change to phoebe_gui_error! */
 				printf ("\t*** I'm not supposed to be here!\n");
-				printf ("\t*** exception handler invoked in gui_set_value_from_widget (), GTK_IS_TREE_MODEL block, GUI_WIDGET_VALUE block; please report this!\n");
+				printf ("\t*** exception handler invoked in gui_set_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->type switch; please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 		return status;
@@ -950,11 +944,23 @@ int gui_set_value_to_widget (GUI_widget *widget)
 	}
 
 	if (GTK_IS_COMBO_BOX(widget->gtk)) {
-		printf ("\twidget type: combo box\n");
-		char *value;
-		status = phoebe_parameter_get_value(widget->par, &value);
-		printf ("\tsetting option to %s\n", value);
-		return status;
+		if (widget->par){
+			printf ("\twidget type: combo box\n");
+			char *value;
+			status = phoebe_parameter_get_value(widget->par, &value);
+			// go through all the values in the combo, compare with value; when same, set it!
+			if(strlen(value) > 0){
+				int i;
+				for (i = 0; i < widget->par->menu->optno; i++){
+					gtk_combo_box_set_active(GTK_COMBO_BOX(widget->gtk), i);
+					if ( strcmp(gtk_combo_box_get_active_text(GTK_COMBO_BOX(widget->gtk)), value ) == 0 ){
+						printf ("\tsetting option to %s\n", value);
+						break;
+					}
+				}
+			}
+			return status;
+		}
 	}
 
 	if(GTK_IS_WIDGET(widget->gtk)){
@@ -1010,6 +1016,9 @@ int gui_set_values_to_widgets ()
 
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_sidesheet_res_treeview ();
+
+	gui_lc_obsmenu_update();
+	gui_rv_obsmenu_update();
 
 	return SUCCESS;
 }
