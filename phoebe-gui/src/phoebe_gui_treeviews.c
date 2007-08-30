@@ -174,12 +174,12 @@ int gui_reinit_lc_treeviews ()
 
 	gtk_list_store_clear(store);
 
-	phoebe_parameter_get_value(par, &lcno);
+	status = phoebe_parameter_get_value(par, &lcno);
 	for(i = 0; i < lcno; i++){
 		gtk_list_store_append(store, &iter);
 	}
 
-	return SUCCESS;
+	return status;
 }
 
 int gui_init_rv_treeviews ()
@@ -273,6 +273,7 @@ int gui_reinit_rv_treeviews ()
 {
 	int i;
 	int rvno;
+	int status = 0;
 
 	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
 	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_data_rv_treeview")->gtk)));
@@ -280,12 +281,12 @@ int gui_reinit_rv_treeviews ()
 
 	gtk_list_store_clear(store);
 
-	phoebe_parameter_get_value(par, &rvno);
+	status = phoebe_parameter_get_value(par, &rvno);
 	for(i = 0; i < rvno; i++){
 		gtk_list_store_append(store, &iter);
 	}
 
-	return SUCCESS;
+	return status;
 }
 
 int gui_init_spots_treeview  ()
@@ -650,6 +651,30 @@ int gui_fill_sidesheet_fit_treeview()
 														FS_COL_PARAM_MAX, max, -1);
 		pars_tba = pars_tba->next;
 	}
+
+	return status;
+}
+
+int gui_init_lc_obsmenu_combobox()
+{
+	int status = 0;
+
+	GtkWidget *obsmenu_combobox = gui_widget_lookup("phoebe_lc_plot_options_obs_combobox")->gtk;
+	GtkListStore *store = gtk_list_store_new (1, G_TYPE_STRING);
+
+	gtk_combo_box_set_model(GTK_COMBO_BOX(obsmenu_combobox), GTK_TREE_MODEL(store));
+
+	return status;
+}
+
+int gui_init_rv_obsmenu_combobox()
+{
+	int status = 0;
+
+	GtkWidget *obsmenu_combobox = gui_widget_lookup("phoebe_rv_plot_options_obs_combobox")->gtk;
+	GtkListStore *store = gtk_list_store_new (1, G_TYPE_STRING);
+
+	gtk_combo_box_set_model(GTK_COMBO_BOX(obsmenu_combobox), GTK_TREE_MODEL(store));
 
 	return status;
 }

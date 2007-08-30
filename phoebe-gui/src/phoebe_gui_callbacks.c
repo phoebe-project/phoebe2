@@ -143,6 +143,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                 LC_COL_Y2,          0.5,
 								-1);
 
+			/* Update the number of light curves parameter: */
             PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
             int lcno;
 
@@ -150,7 +151,12 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
             phoebe_parameter_set_value(par, lcno + 1);
 
             printf("Number of light curves: %d\n", lcno + 1);
+
+            /* Select the new row in the list: */
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
+
+			/* Update the lc_plot_obsmenu */
+			gui_lc_obsmenu_update();
         }
         break;
 
@@ -160,7 +166,6 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 
     gtk_widget_destroy (phoebe_load_lc_dialog);
 }
-
 
 void
 on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
@@ -265,6 +270,8 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                                 LC_COL_X2,          0.5,
                                                                 LC_COL_Y1,          0.5,
                                                                 LC_COL_Y2,          0.5, -1);
+				/* Update the lc_plot_obsmenu */
+				gui_lc_obsmenu_update();
             }
             break;
 
@@ -297,6 +304,9 @@ on_phoebe_data_lc_remove_button_clicked
         phoebe_parameter_set_value(par, lcno - 1);
 
         printf("Number of light curves: %d\n", lcno - 1);
+
+        /* Update the lc_plot_obsmenu */
+		gui_lc_obsmenu_update();
     }
 }
 
@@ -438,6 +448,9 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
             printf("Number of RV curves: %d\n", rvno + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
+
+			/* Update the rv_plot_obsmenu */
+			gui_rv_obsmenu_update();
         }
         break;
 
@@ -548,6 +561,8 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                                 RV_COL_X2,          0.5,
                                                                 RV_COL_Y1,          0.5,
                                                                 RV_COL_Y2,          0.5, -1);
+				/* Update the rv_plot_obsmenu */
+				gui_rv_obsmenu_update();
             }
             break;
 
@@ -580,6 +595,9 @@ on_phoebe_data_rv_remove_button_clicked
         phoebe_parameter_set_value(par, rvno - 1);
 
         printf("Number of RV curves: %d\n", rvno - 1);
+
+        /* Update the rv_plot_obsmenu */
+		gui_rv_obsmenu_update();
     }
 }
 
