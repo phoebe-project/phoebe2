@@ -787,6 +787,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 
 	printf ("\t*** I got where I am not supposed to be!!\n");
 	printf ("\t*** exception handler invoked in gui_get_value_from_widget (); please report this!\n");
+
 	return SUCCESS;
 }
 
@@ -963,6 +964,7 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 	printf ("\t*** I got where I am not supposed to be!!\n");
 	printf ("\t*** exception handler invoked in gui_set_value_to_widget (); please report this!\n");
+
 	return SUCCESS;
 }
 
@@ -982,6 +984,10 @@ int gui_get_values_from_widgets ()
 			bucket = bucket->next;
 		}
 	}
+
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_sidesheet_res_treeview ();
+
 	return SUCCESS;
 }
 
@@ -1001,6 +1007,9 @@ int gui_set_values_to_widgets ()
 			bucket = bucket->next;
 		}
 	}
+
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_sidesheet_res_treeview ();
 
 	return SUCCESS;
 }

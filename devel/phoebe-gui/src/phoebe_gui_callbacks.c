@@ -1005,8 +1005,11 @@ on_phoebe_file_open_menuitem_activate  (GtkMenuItem     *menuitem,
 {
 	int status = gui_open_parameter_file ();
 
-	if( status == SUCCESS )
+	if( status == SUCCESS ){
 		printf("Parameter file successfuly open.\n");
+		gui_reinit_treeviews();
+		gui_set_values_to_widgets();
+	}
 	else
 		printf ("%s", phoebe_error (status));
 }
@@ -1134,8 +1137,11 @@ on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
 {
 	int status = gui_open_parameter_file ();
 
-	if( status == SUCCESS )
+	if( status == SUCCESS ){
 		printf("Parameter file successfuly open.\n");
+		gui_reinit_treeviews();
+		gui_set_values_to_widgets();
+	}
 	else
 		printf ("%s", phoebe_error (status));
 }
