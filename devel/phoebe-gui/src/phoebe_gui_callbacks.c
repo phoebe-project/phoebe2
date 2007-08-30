@@ -76,9 +76,6 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
     GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
     GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
     GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-    GtkWidget *phoebe_load_lc_reddening_checkbutton = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_reddening_checkbutton");
-    GtkWidget *phoebe_load_lc_r_spinbutton			= glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_r_spinbutton");
-    GtkWidget *phoebe_load_lc_e_spinbutton          = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_e_spinbutton");
     GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
     GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
 
@@ -185,9 +182,6 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
         GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
         GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
         GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-        GtkWidget *phoebe_load_lc_reddening_checkbutton = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_reddening_checkbutton");
-        GtkWidget *phoebe_load_lc_r_spinbutton			= glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_r_spinbutton");
-        GtkWidget *phoebe_load_lc_e_spinbutton          = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_e_spinbutton");
         GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
         GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
 
