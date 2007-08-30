@@ -87,9 +87,13 @@ typedef enum sidesheet_fitting_model_columns {
 } sidesheet_fitting_model_columns;
 
 int gui_init_treeviews				();
+int gui_reinit_treeviews			();
 int gui_init_lc_treeviews			();
+int gui_reinit_lc_treeviews			();
 int gui_init_rv_treeviews			();
+int gui_reinit_rv_treeviews			();
 int gui_init_spots_treeview 		();
+int gui_reinit_spots_treeview		();
 int gui_init_sidesheet_res_treeview	();
 int gui_init_sidesheet_fit_treeview ();
 int gui_fill_sidesheet_res_treeview ();

@@ -17,6 +17,15 @@ int gui_init_treeviews ()
     return SUCCESS;
 }
 
+int gui_reinit_treeviews()
+{
+	gui_reinit_lc_treeviews		();
+	gui_reinit_rv_treeviews		();
+	gui_reinit_spots_treeview	();
+
+	return SUCCESS;
+}
+
 int gui_init_lc_treeviews ()
 {
 	GtkWidget *phoebe_data_lc_treeview 				= gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
@@ -153,6 +162,26 @@ int gui_init_lc_treeviews ()
     return SUCCESS;
 }
 
+int gui_reinit_lc_treeviews ()
+{
+	int i;
+	int lcno;
+	int status = 0;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_data_lc_treeview")->gtk)));
+	GtkTreeIter iter;
+
+	gtk_list_store_clear(store);
+
+	phoebe_parameter_get_value(par, &lcno);
+	for(i = 0; i < lcno; i++){
+		gtk_list_store_append(store, &iter);
+	}
+
+	return SUCCESS;
+}
+
 int gui_init_rv_treeviews ()
 {
 	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup ("phoebe_data_rv_treeview")->gtk;
@@ -240,6 +269,24 @@ int gui_init_rv_treeviews ()
     return SUCCESS;
 }
 
+int gui_reinit_rv_treeviews ()
+{
+	int i;
+	int rvno;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_data_rv_treeview")->gtk)));
+	GtkTreeIter iter;
+
+	gtk_list_store_clear(store);
+
+	phoebe_parameter_get_value(par, &rvno);
+	for(i = 0; i < rvno; i++){
+		gtk_list_store_append(store, &iter);
+	}
+
+	return SUCCESS;
+}
 
 int gui_init_spots_treeview  ()
 {
@@ -350,6 +397,30 @@ int gui_init_spots_treeview  ()
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_surf_spots_treeview, spots_model);
 
     return SUCCESS;
+}
+
+int gui_reinit_spots_treeview ()
+{
+//	int i;
+//	int spots_no1, spots_no2;
+//
+//	PHOEBE_parameter *par;
+//	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk)));
+//	GtkTreeIter iter;
+//
+//	gtk_list_store_clear(store);
+//
+//	par = phoebe_parameter_lookup("phoebe_spots_no1");
+//	phoebe_parameter_get_value(par, &spots_no1);
+//
+//	par = phoebe_parameter_lookup("phoebe_spots_no2");
+//	phoebe_parameter_get_value(par, &spots_no2);
+//
+//	for(i = 0; i < spots_no1 + spots_no2; i++){
+//		gtk_list_store_append(store, &iter);
+//	}
+
+	return SUCCESS;
 }
 
 int gui_init_sidesheet_res_treeview()
