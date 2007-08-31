@@ -5533,7 +5533,7 @@ fi
 
 
 # Finally, write everything to Makefiles:
-  ac_config_files="$ac_config_files Makefile glade/Makefile src/Makefile"
+  ac_config_files="$ac_config_files Makefile glade/Makefile pixmaps/Makefile src/Makefile"
 
 
 # Conclude:
@@ -6125,6 +6125,7 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "glade/Makefile") CONFIG_FILES="$CONFIG_FILES glade/Makefile" ;;
+    "pixmaps/Makefile") CONFIG_FILES="$CONFIG_FILES pixmaps/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
 
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5

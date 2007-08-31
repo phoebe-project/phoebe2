@@ -1,9 +1,5 @@
 ########################################################################
 #                                                                      #
-#                           PHOEBE 0.30RC1 GUI                         #
-#                                                                      #
-########################################################################
-#                                                                      #
 #    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
 #                                                                      #
 ########################################################################
@@ -24,15 +20,8 @@
 #                                                                      #
 ########################################################################
 
-SUBDIRS = glade pixmaps src
+guipixmapsdir = $(datarootdir)/phoebe/gui/pixmaps
+guipixmaps_DATA = ico.png          \
+                  detach.png
 
-EXTRA_DIST = ACKNOWLEDGEMENTS                        \
-             SPECS                                   \
-             autogen.sh                              \
-             autoconfig/compile                      \
-             autoconfig/config.guess                 \
-             autoconfig/config.sub                   \
-             autoconfig/depcomp                      \
-             autoconfig/install-sh                   \
-             autoconfig/ltmain.sh                    \
-             autoconfig/missing
+EXTRA_DIST = $(guipixmaps_DATA)

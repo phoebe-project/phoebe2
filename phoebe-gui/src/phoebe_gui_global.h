@@ -4,6 +4,7 @@
 /* Detached windows flags */
 
 extern gchar *PHOEBE_GLADE_XML_DIR;
+extern gchar *PHOEBE_GLADE_PIXMAP_DIR;
 
 extern gboolean PHOEBE_WINDOW_SIDESHEET_IS_DETACHED;
 extern gboolean PHOEBE_WINDOW_LC_PLOT_IS_DETACHED;
