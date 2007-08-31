@@ -33,7 +33,7 @@ int gui_init_lc_treeviews ()
 	GtkWidget *phoebe_para_lc_el3_treeview 			= gui_widget_lookup ("phoebe_para_lc_el3_treeview")->gtk;
 	GtkWidget *phoebe_para_lc_levweight_treeview 	= gui_widget_lookup ("phoebe_para_lc_levweight_treeview")->gtk;
 	GtkWidget *phoebe_para_lc_ld_treeview 			= gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
-	GtkWidget *phoebe_plot_lc_observed_combobox 	= gui_widget_lookup ("phoebe_plot_lc_observed_combobox")->gtk;
+	GtkWidget *phoebe_plot_lc_observed_combobox 	= gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox")->gtk;
 
     GtkTreeModel *lc_model = (GtkTreeModel *) gtk_list_store_new (
 		LC_COL_COUNT,          /* number of columns    */
@@ -186,7 +186,7 @@ int gui_init_rv_treeviews ()
 {
 	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup ("phoebe_data_rv_treeview")->gtk;
 	GtkWidget *phoebe_para_rv_ld_treeview 		= gui_widget_lookup ("phoebe_para_rv_ld_treeview")->gtk;
-	GtkWidget *phoebe_plot_rv_observed_combobox = gui_widget_lookup ("phoebe_plot_rv_observed_combobox")->gtk;
+	GtkWidget *phoebe_plot_rv_observed_combobox = gui_widget_lookup ("phoebe_rv_plot_options_obs_combobox")->gtk;
 
     GtkTreeModel *rv_model = (GtkTreeModel*)gtk_list_store_new(
 		RV_COL_COUNT,          /* number of columns    */
@@ -651,30 +651,6 @@ int gui_fill_sidesheet_fit_treeview()
 														FS_COL_PARAM_MAX, max, -1);
 		pars_tba = pars_tba->next;
 	}
-
-	return status;
-}
-
-int gui_init_lc_obsmenu_combobox()
-{
-	int status = 0;
-
-	GtkWidget *obsmenu_combobox = gui_widget_lookup("phoebe_lc_plot_options_obs_combobox")->gtk;
-	GtkListStore *store = gtk_list_store_new (1, G_TYPE_STRING);
-
-	gtk_combo_box_set_model(GTK_COMBO_BOX(obsmenu_combobox), GTK_TREE_MODEL(store));
-
-	return status;
-}
-
-int gui_init_rv_obsmenu_combobox()
-{
-	int status = 0;
-
-	GtkWidget *obsmenu_combobox = gui_widget_lookup("phoebe_rv_plot_options_obs_combobox")->gtk;
-	GtkListStore *store = gtk_list_store_new (1, G_TYPE_STRING);
-
-	gtk_combo_box_set_model(GTK_COMBO_BOX(obsmenu_combobox), GTK_TREE_MODEL(store));
 
 	return status;
 }

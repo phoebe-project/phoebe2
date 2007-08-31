@@ -154,9 +154,6 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 
             /* Select the new row in the list: */
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
-
-			/* Update the lc_plot_obsmenu */
-			gui_lc_obsmenu_update();
         }
         break;
 
@@ -270,8 +267,6 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
                                                                 LC_COL_X2,          0.5,
                                                                 LC_COL_Y1,          0.5,
                                                                 LC_COL_Y2,          0.5, -1);
-				/* Update the lc_plot_obsmenu */
-				gui_lc_obsmenu_update();
             }
             break;
 
@@ -304,9 +299,6 @@ on_phoebe_data_lc_remove_button_clicked
         phoebe_parameter_set_value(par, lcno - 1);
 
         printf("Number of light curves: %d\n", lcno - 1);
-
-        /* Update the lc_plot_obsmenu */
-		gui_lc_obsmenu_update();
     }
 }
 
@@ -448,9 +440,6 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
             printf("Number of RV curves: %d\n", rvno + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
-
-			/* Update the rv_plot_obsmenu */
-			gui_rv_obsmenu_update();
         }
         break;
 
@@ -561,8 +550,6 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
                                                                 RV_COL_X2,          0.5,
                                                                 RV_COL_Y1,          0.5,
                                                                 RV_COL_Y2,          0.5, -1);
-				/* Update the rv_plot_obsmenu */
-				gui_rv_obsmenu_update();
             }
             break;
 
@@ -595,9 +582,6 @@ on_phoebe_data_rv_remove_button_clicked
         phoebe_parameter_set_value(par, rvno - 1);
 
         printf("Number of RV curves: %d\n", rvno - 1);
-
-        /* Update the rv_plot_obsmenu */
-		gui_rv_obsmenu_update();
     }
 }
 
@@ -4077,7 +4061,7 @@ int gui_plot_lc_using_gnuplot()
 	gboolean plot_obs;
 	gboolean plot_syn;
 	gint vertices = 100;
-	gint index = 0;				
+	gint index = 0;
 
 	GUI_widget *plot_image				= gui_widget_lookup ("phoebe_lc_plot_image");
 	GUI_widget *syn_checkbutton 		= gui_widget_lookup ("phoebe_lc_plot_options_syn_checkbutton");
@@ -4088,8 +4072,8 @@ int gui_plot_lc_using_gnuplot()
 	GUI_widget *y_combobox				= gui_widget_lookup ("phoebe_lc_plot_options_y_combobox");
 
 	plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton->gtk));
-	plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton->gtk));		
-	
+	plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton->gtk));
+
 	if(1){
 		printf("%d\n",index);
 		/*index = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox->gtk))-1; problems with function w->p*/
@@ -4128,7 +4112,7 @@ int gui_plot_lc_using_gnuplot()
 			write(sfd, line, strlen(line));
 		}
 		close(sfd) ;
-	
+
 
 	//----------------
 
@@ -4136,7 +4120,7 @@ int gui_plot_lc_using_gnuplot()
 	pfd = mkstemp (pname);
 
 	sprintf(cname, "%s/phoebe-com-XXXXXX", PHOEBE_TEMP_DIR);
-	cfd = mkstemp (cname);	
+	cfd = mkstemp (cname);
 
 	sprintf(line, "set terminal png truecolor nocrop enhanced small size 614,336\n");
 	write(cfd, line, strlen(line));
@@ -4144,7 +4128,7 @@ int gui_plot_lc_using_gnuplot()
 	write(cfd, line, strlen(line));
 	sprintf(line, "set offsets 0.05, 0.05, 0, 0\n");
 	write(cfd, line, strlen(line));
-	
+
 	sprintf(line, "set mxtics\n");
 	write(cfd, line, strlen(line));
 	sprintf(line, "set mytics\n");
@@ -4170,7 +4154,7 @@ int gui_plot_lc_using_gnuplot()
 
 	system(line);
 
-	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image->gtk), gdk_pixbuf_new_from_file(pname, NULL));	
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image->gtk), gdk_pixbuf_new_from_file(pname, NULL));
 
 
 	remove(oname);
@@ -4194,15 +4178,15 @@ on_phoebe_lc_plot_plot_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
-	int lcno;	
+	int lcno;
 
 	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
 	phoebe_parameter_get_value(par, &lcno);
 
 	if(lcno > 0){
-		gui_get_values_from_widgets();	
+		gui_get_values_from_widgets();
 		gui_plot_lc_using_gnuplot();
 	}
 
-	else printf("Nothing to plot...\n");	
+	else printf("Nothing to plot...\n");
 }

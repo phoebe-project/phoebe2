@@ -103,8 +103,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_sidesheet_res_treeview",					phoebe_sidesheet_res_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_sidesheet_fit_treeview",					phoebe_sidesheet_fit_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL);
 
-	gui_widget_add ("phoebe_plot_lc_observed_combobox",					glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		NULL);
-	gui_widget_add ("phoebe_plot_rv_observed_combobox",					glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		NULL);
+	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"));
+	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"));
 
 	gui_init_treeviews ();
 
@@ -377,7 +377,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_options_syn_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_syn_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_synthetic"));
 	gui_widget_add ("phoebe_lc_plot_options_obs_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_observed"));
 	gui_widget_add ("phoebe_lc_plot_options_vertices_no_spinbutton",	glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_vertices_no_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_verticesno"));
-	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_obsmenu"));
+//	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_obsmenu"));
 	gui_widget_add ("phoebe_lc_plot_options_alias_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_alias_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_aliasing"));
 	gui_widget_add ("phoebe_lc_plot_options_residuals_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_residuals_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_residuals"));
 	gui_widget_add ("phoebe_lc_plot_options_x_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_x_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_x"));
@@ -391,7 +391,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_options_syn_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_syn_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_synthetic"));
 	gui_widget_add ("phoebe_rv_plot_options_obs_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_observed"));
 	gui_widget_add ("phoebe_rv_plot_options_vertices_no_spinbutton",	glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_verticesno"));
-	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_obsmenu"));
+//	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_obsmenu"));
 	gui_widget_add ("phoebe_rv_plot_options_alias_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_alias"));
 	gui_widget_add ("phoebe_rv_plot_options_residuals_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_residuals"));
 	gui_widget_add ("phoebe_rv_plot_options_x_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_x_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_x"));
@@ -421,8 +421,6 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								0,					GUI_WIDGET_VALUE, 		NULL);
 
 	gui_init_parameter_options		();
-	gui_init_lc_obsmenu_combobox	();
-    gui_init_rv_obsmenu_combobox	();
 
 	g_object_unref (phoebe_window);
 
@@ -1016,9 +1014,6 @@ int gui_set_values_to_widgets ()
 
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_sidesheet_res_treeview ();
-
-	gui_lc_obsmenu_update();
-	gui_rv_obsmenu_update();
 
 	return SUCCESS;
 }
