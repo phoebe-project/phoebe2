@@ -164,6 +164,7 @@
   AC_CONFIG_FILES([
                   Makefile
                   glade/Makefile
+                  pixmaps/Makefile
                   src/Makefile
                   ])
 

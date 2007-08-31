@@ -68,7 +68,9 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
     gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
-    GladeXML  *phoebe_load_lc_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_load_lc_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
     GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_dialog");
 	GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
@@ -81,7 +83,7 @@ on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
 
 	g_object_unref (phoebe_load_lc_xml);
 
-	gtk_window_set_icon (GTK_WINDOW(phoebe_load_lc_dialog), gdk_pixbuf_new_from_file("ico.png", NULL));
+	gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_load_lc_dialog), "PHOEBE - Add LC Data");
 
 	gui_init_filter_combobox (phoebe_load_lc_filter_combobox);
@@ -176,6 +178,8 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
         gchar     *glade_xml_file                       = g_build_filename    (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
+		gchar     *glade_pixmap_file                    = g_build_filename    (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
         GladeXML  *phoebe_load_lc_xml                   = glade_xml_new       (glade_xml_file, NULL, NULL);
 
         GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_dialog");
@@ -200,7 +204,7 @@ on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
 
         g_object_unref(phoebe_load_lc_xml);
 
-		gtk_window_set_icon (GTK_WINDOW(phoebe_load_lc_dialog), gdk_pixbuf_new_from_file("ico.png", NULL));
+		gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW(phoebe_load_lc_dialog), "PHOEBE - Edit LC Data");
 
         gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
@@ -363,7 +367,9 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data)
 {
     gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
-    GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
     GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_dialog");
 	GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
@@ -375,7 +381,7 @@ on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
 
     GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
 
-	gtk_window_set_icon (GTK_WINDOW(phoebe_load_rv_dialog), gdk_pixbuf_new_from_file("ico.png", NULL));
+	gtk_window_set_icon (GTK_WINDOW (phoebe_load_rv_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_load_rv_dialog), "PHOEBE - Add RV Data");
 
     gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
@@ -466,6 +472,8 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
         gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
+		gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
         GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
         GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_dialog");
         GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
@@ -487,7 +495,7 @@ on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
 		gint filter_number;
 		GtkTreeIter filter_iter;
 
-		gtk_window_set_icon (GTK_WINDOW(phoebe_load_rv_dialog), gdk_pixbuf_new_from_file("ico.png", NULL));
+		gtk_window_set_icon (GTK_WINDOW (phoebe_load_rv_dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW(phoebe_load_rv_dialog), "PHOEBE - Edit RV Data");
 
         gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
