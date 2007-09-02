@@ -598,10 +598,12 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	}
 
 	if (par->type == TYPE_INT_ARRAY    ||
-		par->type == TYPE_BOOL_ARRAY   ||
-		par->type == TYPE_DOUBLE_ARRAY) {
+		par->type == TYPE_BOOL_ARRAY)  {
 		phoebe_array_free (par->value.array);
 	}
+
+	if (par->type == TYPE_DOUBLE_ARRAY)
+		phoebe_vector_free (par->value.vec);
 
 	/* Free linked list elements, but not stored parameters: */
 	while (par->deps) {
@@ -617,15 +619,17 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 
 int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 {
-	/*
-	 * This function is called whenever the dimension of parameter arrays must
-	 * be changed. Typically this happens when the number of observed data cur-
-	 * ves is changed, the number of spots is changed etc.
+	/**
+	 * phoebe_parameter_update_deps:
 	 *
-	 * Return values:
+	 * @par: #PHOEBE_parameter that has been changed
+	 * @oldval: original value of the parameter @par
 	 *
-	 *   ERROR_QUALIFIER_NOT_FOUND
-	 *   SUCCESS
+	 * Called whenever the dimension of parameter arrays must be changed.
+	 * Typically this happens when the number of observed data curves
+	 * changed, the number of spots is changed etc.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	PHOEBE_parameter_list *list = par->deps;
@@ -641,7 +645,8 @@ int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 
 		switch (list->par->type) {
 				case TYPE_INT_ARRAY:
-					phoebe_array_realloc (list->par->value.array, dim);
+					status = phoebe_array_realloc (list->par->value.array, dim);
+					if (status != SUCCESS) phoebe_lib_error ("%s", phoebe_error (status));
 					for (j = oldval; j < dim; j++)
 						list->par->value.array->val.iarray[j] = list->par->defaultvalue.i;
 				break;
@@ -652,12 +657,14 @@ int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 						list->par->value.array->val.barray[j] = list->par->defaultvalue.b;
 				break;
 				case TYPE_DOUBLE_ARRAY:
-					phoebe_vector_realloc (list->par->value.vec, dim);
+					status = phoebe_vector_realloc (list->par->value.vec, dim);
+					if (status != SUCCESS) phoebe_lib_error ("%s", phoebe_error (status));
 					for (j = oldval; j < dim; j++)
 						list->par->value.vec->val[j] = list->par->defaultvalue.d;
 				break;
 				case TYPE_STRING_ARRAY:
-					phoebe_array_realloc (list->par->value.array, dim);
+					status = phoebe_array_realloc (list->par->value.array, dim);
+					if (status != SUCCESS) phoebe_lib_error ("%s", phoebe_error (status));
 					for (j = oldval; j < dim; j++)
 						list->par->value.array->val.strarray[j] = strdup (list->par->defaultvalue.str);
 				break;
