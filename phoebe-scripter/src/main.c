@@ -5,6 +5,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_scripter_ast.h"
+#include "phoebe_scripter_configuration.h"
 #include "phoebe_scripter_core.h"
 #include "phoebe_scripter_error_handling.h"
 #include "phoebe_scripter_grammar.h"
@@ -27,7 +28,7 @@ int main (int argc, char *argv[])
 
 	if (PHOEBE_args.CONFIGURE_SWITCH == 1) {
 		phoebe_debug ("  found a '-c' switch, proceeding to configuration mode.\n");
-		phoebe_create_configuration_file ();
+		scripter_create_config_file ();
 	}
 	if (PHOEBE_args.SCRIPT_SWITCH == 1) {
 		FILE *in = fopen (PHOEBE_args.SCRIPT_NAME, "r");

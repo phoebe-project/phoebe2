@@ -85,16 +85,13 @@ int phoebe_init ()
 	/* This function initializes all core parameters.                         */
 
 	int status;
+	char *pathname;
+	int switch_state;
 
 	char working_string[255];
 	char *working_str = working_string;
 
-	char keyword_string[255];
-	char *keyword_str = keyword_string;
-
-	FILE *config_file;
-
-	/* Welcome to PHOEBE! :) Let's initialize all the variables first:        */
+	/* Welcome to PHOEBE! :) Let's initialize all the variables first: */
 	intern_phoebe_variables_init ();
 
 	/*
@@ -126,96 +123,35 @@ int phoebe_init ()
 	if (!filename_has_full_permissions (USER_HOME_DIR))
 		return ERROR_HOME_HAS_NO_PERMISSIONS;
 
-	/* Everything OK, let's initialize PHOEBE environment file:               */
+	/* Everything OK, let's initialize PHOEBE environment file: */
 	sprintf (working_str, "%s/.phoebe2", USER_HOME_DIR);
 	PHOEBE_HOME_DIR = strdup (working_str);
 	sprintf (working_str, "%s/phoebe.config", PHOEBE_HOME_DIR);
 	PHOEBE_CONFIG = strdup (working_str);
 
-	/* Let's presume there's no config file. If there is, we'll set it to 1:  */
-	PHOEBE_CONFIG_EXISTS = 0;
-
-	/* Read out the configuration from the config file.                       */
-	if (filename_exists (PHOEBE_CONFIG)) {
-		PHOEBE_CONFIG_EXISTS = 1;
-		config_file = fopen (PHOEBE_CONFIG, "r");
-
-		while (!feof (config_file)) {
-			/*
-			 * The following line reads the line from the input file and checks
-			 * if everything went OK; if en error occured (e.g. EoF reached),
-			 * it breaks the loop.
-			 */
-
-			if (!fgets (keyword_str, 254, config_file)) break;
-
-			if (strstr (keyword_str, "PHOEBE_BASE_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_BASE_DIR %s", working_str) != 1) PHOEBE_BASE_DIR = strdup ("");
-				else PHOEBE_BASE_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_SOURCE_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_SOURCE_DIR %s", working_str) != 1) PHOEBE_SOURCE_DIR = strdup ("");
-				else PHOEBE_SOURCE_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_DEFAULTS_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_DEFAULTS_DIR %s", working_str) != 1) PHOEBE_DEFAULTS_DIR = strdup ("");
-				else PHOEBE_DEFAULTS_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_TEMP_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_TEMP_DIR %s", working_str) != 1) PHOEBE_TEMP_DIR = strdup ("");
-				else PHOEBE_TEMP_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_DATA_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_DATA_DIR %s", working_str) != 1) PHOEBE_DATA_DIR = strdup ("");
-				else PHOEBE_DATA_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_PTF_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_PTF_DIR %s", working_str) != 1) PHOEBE_PTF_DIR = strdup ("");
-				else PHOEBE_PTF_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_PLOTTING_PACKAGE")) {
-				if (sscanf (keyword_str, "PHOEBE_PLOTTING_PACKAGE %s", working_str) != 1) PHOEBE_PLOTTING_PACKAGE = strdup ("");
-				else PHOEBE_PLOTTING_PACKAGE = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_LD_SWITCH"))
-				if (sscanf (keyword_str, "PHOEBE_LD_SWITCH %d", &PHOEBE_LD_SWITCH) != 1) PHOEBE_LD_SWITCH = 0;
-			if (strstr (keyword_str, "PHOEBE_LD_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_LD_DIR %s", working_str) != 1) PHOEBE_LD_DIR = strdup ("");
-				else PHOEBE_LD_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_KURUCZ_SWITCH"))
-				if (sscanf (keyword_str, "PHOEBE_KURUCZ_SWITCH %d", &PHOEBE_KURUCZ_SWITCH) != 1) PHOEBE_KURUCZ_SWITCH = 0;
-			if (strstr (keyword_str, "PHOEBE_KURUCZ_DIR")) {
-				if (sscanf (keyword_str, "PHOEBE_KURUCZ_DIR %s", working_str) != 1) PHOEBE_KURUCZ_DIR = strdup ("");
-				else PHOEBE_KURUCZ_DIR = strdup (working_str);
-			}
-			if (strstr (keyword_str, "PHOEBE_3D_PLOT_CALLBACK_OPTION"))
-				if (sscanf (keyword_str, "PHOEBE_3D_PLOT_CALLBACK_OPTION %d", &PHOEBE_3D_PLOT_CALLBACK_OPTION) != 1) PHOEBE_3D_PLOT_CALLBACK_OPTION = 0;
-			if (strstr (keyword_str, "PHOEBE_CONFIRM_ON_SAVE"))
-				if (sscanf (keyword_str, "PHOEBE_CONFIRM_ON_SAVE %d", &PHOEBE_CONFIRM_ON_SAVE) != 1) PHOEBE_CONFIRM_ON_SAVE = 1;
-			if (strstr (keyword_str, "PHOEBE_CONFIRM_ON_QUIT"))
-				if (sscanf (keyword_str, "PHOEBE_CONFIRM_ON_QUIT %d", &PHOEBE_CONFIRM_ON_QUIT) != 1) PHOEBE_CONFIRM_ON_QUIT = 1;
-			if (strstr (keyword_str, "PHOEBE_WARN_ON_SYNTHETIC_SCATTER"))
-				if (sscanf (keyword_str, "PHOEBE_WARN_ON_SYNTHETIC_SCATTER %d", &PHOEBE_WARN_ON_SYNTHETIC_SCATTER) != 1) PHOEBE_WARN_ON_SYNTHETIC_SCATTER = 1;
-		}
-		fclose (config_file);
-	}
-
-	if (!filename_exists (PHOEBE_CONFIG)) {
-		phoebe_create_configuration_file ();
-	}
+	/* Initialize all configuration parameters: */
+	phoebe_debug ("* declaring configuration options...\n");
+	phoebe_init_config_entries ();
 
 	/*
-	 * All PHOEBE parameters are referenced globally, so we have to initialize
-	 * them before they could be used:
+	 * Read out the configuration file; the function also sets
+	 * PHOEBE_CONFIG_EXISTS to 1 or 0 if it is found or not, respectively.
+	 * If the file is not found, defaults are assumed.
 	 */
 
+	phoebe_debug ("* looking for a configuration file...\n");
+	phoebe_config_load (PHOEBE_CONFIG);
+	if (!PHOEBE_CONFIG_EXISTS)
+		phoebe_lib_warning ("  PHOEBE configuration file not found, assuming defaults.\n");
+
+	/* Initialize all parameters: */
 	phoebe_debug ("* declaring parameters...\n");
 	phoebe_init_parameters ();
 
 	/* Read in all supported passbands and their transmission functions:      */
 	phoebe_debug ("* reading in passbands:\n");
-	phoebe_read_in_passbands (PHOEBE_PTF_DIR);
+	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
+	phoebe_read_in_passbands (pathname);
 	phoebe_debug ("  %d passbands read in.\n", PHOEBE_passbands_no);
 
 	/* Add options to all KIND_MENU parameters:                               */
@@ -235,11 +171,13 @@ int phoebe_init ()
 	PHOEBE_INTERRUPT = FALSE;
 
 	/* If LD tables are present, do the readout:                              */
-	if (PHOEBE_LD_SWITCH == 1) {
-		status = read_in_ld_nodes (PHOEBE_LD_DIR);
+	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &switch_state);
+	if (switch_state == 1) {
+		phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
+		status = read_in_ld_nodes (pathname);
 		if (status != SUCCESS) {
 			phoebe_lib_error ("reading LD table coefficients failed, disabling readouts.\n");
-		PHOEBE_LD_SWITCH = 0;
+			phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
 		}
 	}
 
@@ -248,16 +186,21 @@ int phoebe_init ()
 
 int phoebe_quit ()
 {
-	/*
-	 * This function restores the state of the machine to pre-PHOEBE circum-
-	 * stances and frees all memory for an elegant exit.
+	/**
+	 * phoebe_quit:
+	 *
+	 * Restores the state of the machine to pre-PHOEBE circumstances and
+	 * frees all memory for an elegant exit.
 	 */
 
-	/* Restore the original locale of the system:                             */
+	int   state;
+
+	/* Restore the original locale of the system: */
 	setlocale (LC_NUMERIC, PHOEBE_INPUT_LOCALE);
 
 	/* Free the LD table:                                                     */
-	if (PHOEBE_LD_SWITCH == 1) {
+	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &state);
+	if (state) {
 		phoebe_ld_table_free ();
 	}
 
@@ -267,15 +210,7 @@ int phoebe_quit ()
 	free (USER_HOME_DIR);
 	free (PHOEBE_HOME_DIR);
 	free (PHOEBE_CONFIG);
-	free (PHOEBE_BASE_DIR);
-	free (PHOEBE_SOURCE_DIR);
-	free (PHOEBE_DEFAULTS_DIR);
-	free (PHOEBE_TEMP_DIR);
-	free (PHOEBE_DATA_DIR);
-	free (PHOEBE_PTF_DIR);
 	free (PHOEBE_PLOTTING_PACKAGE);
-	free (PHOEBE_LD_DIR);
-	free (PHOEBE_KURUCZ_DIR);
 	free (PHOEBE_VERSION_NUMBER);
 	free (PHOEBE_VERSION_DATE);
 	free (PHOEBE_PARAMETERS_FILENAME);

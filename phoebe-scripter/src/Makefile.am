@@ -26,13 +26,14 @@ phoebe_scripter_SOURCES =                                               \
     phoebe_scripter_arithmetics.c     phoebe_scripter_arithmetics.h     \
     phoebe_scripter_ast.c             phoebe_scripter_ast.h             \
     phoebe_scripter_commands.c        phoebe_scripter_commands.h        \
+    phoebe_scripter_configuration.c   phoebe_scripter_configuration.h   \
     phoebe_scripter_core.c            phoebe_scripter_core.h            \
     phoebe_scripter_directives.c      phoebe_scripter_directives.h      \
     phoebe_scripter_error_handling.c  phoebe_scripter_error_handling.h  \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
     phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
-    phoebe_scripter_types.c           phoebe_scripter_types.h
+    phoebe_scripter_types.c           phoebe_scripter_types.h           
 
 BUILT_SOURCES = \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \

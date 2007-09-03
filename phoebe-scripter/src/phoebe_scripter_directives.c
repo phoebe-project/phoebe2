@@ -265,7 +265,7 @@ int intern_info_on_variables (scripter_ast *ast)
 			fprintf (PHOEBE_output, "  Variable type:       minimizer feedback\n");
 		break;
 		default:
-			phoebe_scripter_output ("exception handler invoked in intern_info_on_variables, please report this!\n");
+			phoebe_scripter_output ("exception handler invoked in intern_info_on_variables (code %d), please report this!\n", val.type);
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}

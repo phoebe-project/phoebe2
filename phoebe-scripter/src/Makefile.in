@@ -70,6 +70,7 @@ am_phoebe_scripter_OBJECTS = main.$(OBJEXT) \
 	phoebe_scripter_arithmetics.$(OBJEXT) \
 	phoebe_scripter_ast.$(OBJEXT) \
 	phoebe_scripter_commands.$(OBJEXT) \
+	phoebe_scripter_configuration.$(OBJEXT) \
 	phoebe_scripter_core.$(OBJEXT) \
 	phoebe_scripter_directives.$(OBJEXT) \
 	phoebe_scripter_error_handling.$(OBJEXT) \
@@ -184,13 +185,14 @@ phoebe_scripter_SOURCES = \
     phoebe_scripter_arithmetics.c     phoebe_scripter_arithmetics.h     \
     phoebe_scripter_ast.c             phoebe_scripter_ast.h             \
     phoebe_scripter_commands.c        phoebe_scripter_commands.h        \
+    phoebe_scripter_configuration.c   phoebe_scripter_configuration.h   \
     phoebe_scripter_core.c            phoebe_scripter_core.h            \
     phoebe_scripter_directives.c      phoebe_scripter_directives.h      \
     phoebe_scripter_error_handling.c  phoebe_scripter_error_handling.h  \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
     phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
-    phoebe_scripter_types.c           phoebe_scripter_types.h
+    phoebe_scripter_types.c           phoebe_scripter_types.h           
 
 BUILT_SOURCES = \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
@@ -294,6 +296,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_arithmetics.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_ast.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_commands.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_configuration.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_core.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_directives.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_error_handling.Po@am__quote@
