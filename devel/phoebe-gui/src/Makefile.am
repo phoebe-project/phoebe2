@@ -12,6 +12,7 @@ phoebe_gui_SOURCES =                                    \
 	phoebe_gui_base.h	    phoebe_gui_base.c       	\
 	phoebe_gui_treeviews.h  phoebe_gui_treeviews.c      \
 	phoebe_gui_accessories.h  phoebe_gui_accessories.c	\
+	phoebe_gui_plotting.h	phoebe_gui_plotting.c		\
 	phoebe_gui_global.h
 
 AM_CFLAGS = -Wall -g \
