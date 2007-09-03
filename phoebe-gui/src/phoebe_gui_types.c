@@ -23,6 +23,7 @@ int gui_init_widgets ()
 
 	PHOEBE_parameter *par;
 	gchar *glade_xml_file;
+    gchar *glade_pixmap_file;
 	GladeXML  *phoebe_window;
 
 	GtkWidget *phoebe_data_lc_treeview,       *phoebe_para_lc_levels_treeview,
@@ -32,7 +33,8 @@ int gui_init_widgets ()
 		      *phoebe_sidesheet_res_treeview, *phoebe_sidesheet_fit_treeview;
 
 	/* Read in the main PHOEBE window: */
-	glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
+	glade_xml_file    = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
+	glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 	phoebe_window = glade_xml_new (glade_xml_file, NULL, NULL);
 	g_free (glade_xml_file);
 
@@ -105,6 +107,10 @@ int gui_init_widgets ()
 
 	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"));
 	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"));
+
+	gui_widget_add ("phoebe_fitt_first_treeview",                       glade_xml_get_widget(phoebe_window, "phoebe_fitt_first_treeview"),                                      0,                  GUI_WIDGET_VALUE,       NULL);
+	gui_widget_add ("phoebe_fitt_second_treeview",                      glade_xml_get_widget(phoebe_window, "phoebe_fitt_second_treeview"),                                     0,                  GUI_WIDGET_VALUE,       NULL);
+	gui_widget_add ("phoebe_fitt_third_treeview",                       glade_xml_get_widget(phoebe_window, "phoebe_fitt_third_treeview"),                                      0,                  GUI_WIDGET_VALUE,       NULL);
 
 	gui_init_treeviews ();
 
@@ -404,9 +410,14 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_coarse"));
 	gui_widget_add ("phoebe_rv_plot_controls_fine_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_fine_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_fine"));
 
+	gui_widget_add ("phoebe_sidesheet_detach_button",                   glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_detach_button"),                                  0,                  GUI_WIDGET_VALUE,       NULL);
+	gui_widget_add ("phoebe_fitt_detach_button",                        glade_xml_get_widget(phoebe_window, "phoebe_fitt_detach_button"),                                       0,                  GUI_WIDGET_VALUE,       NULL);
+	gui_widget_add ("phoebe_lc_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL);
+	gui_widget_add ("phoebe_rv_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL);
+
 	/* ************************    GUI Containers   ************************* */
 
-	gui_widget_add ("phoebe_lc_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_image"),									0,					GUI_WIDGET_VALUE, 		NULL);
+	gui_widget_add ("phoebe_lc_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL);
 
 	gui_widget_add ("phoebe_sidesheet_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_parent_table"),									0,					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_sidesheet_vbox",							glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_vbox"),											0,					GUI_WIDGET_VALUE, 		NULL);
@@ -420,11 +431,12 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										0,					GUI_WIDGET_VALUE, 		NULL);
 	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								0,					GUI_WIDGET_VALUE, 		NULL);
 
-	gui_init_parameter_options		();
-
 	g_object_unref (phoebe_window);
 
+	gui_init_parameter_options ();
+
 	gtk_widget_show (gui_widget_lookup ("phoebe_window")->gtk);
+	gtk_window_set_icon (GTK_WINDOW(gui_widget_lookup ("phoebe_window")->gtk), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
 	{
 		int _i;
