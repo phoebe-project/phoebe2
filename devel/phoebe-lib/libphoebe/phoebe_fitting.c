@@ -10,6 +10,7 @@
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_configuration.h"
 #include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
@@ -965,6 +966,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	int status, i, j;
 	clock_t clock_start, clock_stop;
+	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	WD_DCI_parameters *params;
 	PHOEBE_parameter_list *marked_tba, *tba;
@@ -1012,8 +1014,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	create_dci_file ("dcin.active", params);
 
 	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
 	/* Run one DC iteration and store the results in the allocated arrays: */
 	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s, &cfval);

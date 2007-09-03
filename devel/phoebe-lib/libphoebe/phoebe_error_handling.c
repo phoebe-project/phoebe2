@@ -30,9 +30,19 @@ char *phoebe_error (PHOEBE_error_code code)
 		case ERROR_EXCEPTION_HANDLER_INVOKED:
 			return "exception handler invoked, please report this!\n";
 		case ERROR_HOME_ENV_NOT_DEFINED:
-			return "Environment variable $HOME is not defined. PHOEBE needs this variable\n              to install its configuration files. Please define it with e.g.:\n\n                export HOME=/home/user\n\n              and restart PHOEBE.\n";
+			return "environment variable $HOME is not defined. PHOEBE needs this variable\n              to install its configuration files. Please define it with e.g.:\n\n                export HOME=/home/user\n\n              and restart PHOEBE.\n";
 		case ERROR_HOME_HAS_NO_PERMISSIONS:
-			return "Your home directory (defined by $HOME variable) doesn't exist or it doesn't\n              have proper permissions set (e.g. 755). Please correct this and restart\n              PHOEBE.\n";
+			return "your home directory (defined by $HOME variable) doesn't exist or it doesn't\n              have proper permissions set (e.g. 755). Please correct this and restart\n              PHOEBE.\n";
+		case ERROR_PHOEBE_CONFIG_ENTRY_INVALID_TYPE:
+			return "invalid type encountered in phoebe_config_entry_add ().\n";
+		case ERROR_PHOEBE_CONFIG_NOT_FOUND:
+			return "PHOEBE configuration file not found.\n";
+		case ERROR_PHOEBE_CONFIG_OPEN_FAILED:
+			return "PHOEBE configuration file failed to open.\n";
+		case ERROR_PHOEBE_CONFIG_INVALID_LINE:
+			return "invalid line encountered in the configuration file, skipping.\n";
+		case ERROR_PHOEBE_CONFIG_INVALID_KEYWORD:
+			return "invalid keyword encountered in the configuration file, skipping.\n";
 		case ERROR_FILE_NOT_FOUND:
 			return "the file doesn't exist.\n";
 		case ERROR_FILE_NOT_REGULAR:

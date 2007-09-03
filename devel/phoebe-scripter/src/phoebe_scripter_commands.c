@@ -2104,10 +2104,9 @@ scripter_ast_value scripter_set_spectra_repository (scripter_ast_list *args)
 		return out;
 	}
 
-	if (PHOEBE_KURUCZ_DIR) free (PHOEBE_KURUCZ_DIR);
-	PHOEBE_KURUCZ_DIR = strdup (vals[0].value.str);
+	phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR", vals[0].value.str);
 
-	phoebe_scripter_output ("repository %s:\n", PHOEBE_KURUCZ_DIR);
+	phoebe_scripter_output ("repository %s:\n", vals[0].value.str);
 	phoebe_scripter_output ("%d spectra found.\n", specrep.no);
 
 	scripter_ast_value_array_free (vals, 1);

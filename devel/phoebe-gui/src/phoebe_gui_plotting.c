@@ -10,6 +10,7 @@ int gui_plot_lc_using_gnuplot ()
 
 	PHOEBE_vector *indep;
 
+	gchar *tmpdir;
 	gchar oname[255];	/* observed curve filename  */
 	gchar sname[255]; 	/* synthetic curve filename */
 	gchar cname[255];	/* gnuplot command filename */
@@ -37,6 +38,8 @@ int gui_plot_lc_using_gnuplot ()
 	plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton->gtk));
 	plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton->gtk));
 
+	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", tmpdir);
+
 	if(1){
 		printf("%d\n",index);
 		/*index = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox->gtk))-1; problems with function w->p*/
@@ -49,7 +52,7 @@ int gui_plot_lc_using_gnuplot ()
 		phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
 		/* Write first curve data to the temporary file */
-		sprintf(oname, "%s/phoebe-lc-XXXXXX", PHOEBE_TEMP_DIR);
+		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);
 
 		for (i=0;i<obs->indep->dim;i++) {
@@ -67,7 +70,7 @@ int gui_plot_lc_using_gnuplot ()
 		status = phoebe_curve_compute (syn, indep, index, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX);
 		phoebe_vector_free (indep);
 
-		sprintf(sname, "%s/phoebe-lc-XXXXXX", PHOEBE_TEMP_DIR);
+		sprintf(sname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		sfd = mkstemp (sname);
 
 		for (i=0;i<syn->indep->dim;i++) {
@@ -79,10 +82,10 @@ int gui_plot_lc_using_gnuplot ()
 
 	//----------------
 
-	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", PHOEBE_TEMP_DIR);
+	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
 	pfd = mkstemp (pname);
 
-	sprintf(cname, "%s/phoebe-com-XXXXXX", PHOEBE_TEMP_DIR);
+	sprintf(cname, "%s/phoebe-com-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
 	sprintf(line, "set terminal png truecolor nocrop enhanced small size 614,336\n");

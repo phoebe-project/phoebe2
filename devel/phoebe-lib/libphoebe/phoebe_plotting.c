@@ -9,6 +9,7 @@
 
 #include "phoebe_accessories.h"
 #include "phoebe_build_config.h"
+#include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
 #include "phoebe_plotting.h"
@@ -32,6 +33,7 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 
 	char buffer[1024];
 	char command_line[255];
+	char *tmpdir;
 
 	char **temp_files = phoebe_malloc (dim * sizeof (*temp_files));
 	FILE **data_files = phoebe_malloc (dim * sizeof (*data_files));
@@ -43,7 +45,8 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	for (i = 0; i < dim; i++)
 		{
 		temp_files[i] = phoebe_malloc (255 * sizeof (**temp_files));
-		sprintf (temp_files[i], "%s/phoebe_tmp_XXXXXX", PHOEBE_TEMP_DIR);
+		phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
+		sprintf (temp_files[i], "%s/phoebe_tmp_XXXXXX", tmpdir);
 		status = mkstemp (temp_files[i]);
 		error = errno;
 

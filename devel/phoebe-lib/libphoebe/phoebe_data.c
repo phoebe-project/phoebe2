@@ -5,6 +5,7 @@
 #include <dirent.h>
 
 #include "phoebe_accessories.h"
+#include "phoebe_configuration.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
@@ -74,6 +75,7 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 	PHOEBE_passband *passband;
 	char *full_filename = NULL;
 
+	char *ptfdir;
 	char line[255], keyword[255];
 	char *ptr;
 
@@ -95,7 +97,8 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 		ptf_file = fopen (filename, "r");
 
 		if (!ptf_file) {
-			full_filename = concatenate_strings (PHOEBE_PTF_DIR, "/", filename, NULL);
+			phoebe_config_entry_get ("PHOEBE_PTF_DIR", &ptfdir);
+			full_filename = concatenate_strings (ptfdir, "/", filename, NULL);
 			ptf_file = fopen (full_filename, "r");
 			
 			if (!ptf_file) return NULL;

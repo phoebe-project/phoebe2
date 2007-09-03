@@ -9,6 +9,7 @@
 #include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_spectra.h"
 #include "phoebe_types.h"
@@ -435,6 +436,8 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	int Tlow, Thigh, Mlow, Mhigh, glow, ghigh;
 	char Mlostr[5], Mhistr[5];
 
+	char *kuruczdir;
+
 	double square, minsquare;
 	int    minindex = 0;
 	int    status;
@@ -446,12 +449,13 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 
 	PHOEBE_specrep spec;
 
-	status = query_spectra_repository (PHOEBE_KURUCZ_DIR, &spec);
+	phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &kuruczdir);
+	status = query_spectra_repository (kuruczdir, &spec);
 	if (status != SUCCESS)
 		return status;
 
 	phoebe_debug ("\n");
-	phoebe_debug ("Repository location: %s\n", PHOEBE_KURUCZ_DIR);
+	phoebe_debug ("Repository location: %s\n", kuruczdir);
 	phoebe_debug ("Synthetic spectra in the repository: %d\n\n", spec.no);
 
 	/*
@@ -581,21 +585,21 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 		sprintf (Mhistr, "P%02d", Mhigh);
 
 	/* Node  0: (0, 0, 0) */
-		sprintf (filename[ 0], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mlostr, Tlow, glow);
+		sprintf (filename[ 0], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Tlow, glow);
 	/* Node  1: (1, 0, 0) */
-		sprintf (filename[ 1], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mlostr, Thigh, glow);
+		sprintf (filename[ 1], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Thigh, glow);
 	/* Node  2: (0, 1, 0) */
-		sprintf (filename[ 2], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mlostr, Tlow, ghigh);
+		sprintf (filename[ 2], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Tlow, ghigh);
 	/* Node  3: (1, 1, 0) */
-		sprintf (filename[ 3], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mlostr, Thigh, ghigh);
+		sprintf (filename[ 3], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Thigh, ghigh);
 	/* Node  4: (0, 0, 1) */
-		sprintf (filename[ 4], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mhistr, Tlow, glow);
+		sprintf (filename[ 4], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Tlow, glow);
 	/* Node  5: (1, 0, 1) */
-		sprintf (filename[ 5], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mhistr, Thigh, glow);
+		sprintf (filename[ 5], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Thigh, glow);
 	/* Node  6: (0, 1, 1) */
-		sprintf (filename[ 6], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mhistr, Tlow, ghigh);
+		sprintf (filename[ 6], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Tlow, ghigh);
 	/* Node  7: (1, 1, 1) */
-		sprintf (filename[ 7], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", PHOEBE_KURUCZ_DIR, Mhistr, Thigh, ghigh);
+		sprintf (filename[ 7], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Thigh, ghigh);
 
 	/* Read in the node spectra; if readout fails, free memory and abort.     */
 	for (i = 0; i < 8; i++) {

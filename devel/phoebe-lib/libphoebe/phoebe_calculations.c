@@ -8,6 +8,7 @@
 
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
+#include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
 #include "phoebe_parameters.h"
@@ -165,6 +166,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	int i;
 	int request = 1;
+	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
@@ -183,8 +185,9 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	phoebe_vector_alloc (curve->dep, indep->dim);
 
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
 
@@ -208,6 +211,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 {
 	int i;
 	int request = 2;
+	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
@@ -226,8 +230,9 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 	phoebe_vector_alloc (rv1->dep, indep->dim);
 
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val, params);
 
@@ -251,6 +256,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 {
 	int i;
 	int request = 3;
+	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
@@ -269,8 +275,9 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 
 	phoebe_vector_alloc (rv2->dep, indep->dim);
 
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       PHOEBE_BASE_DIR);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", PHOEBE_BASE_DIR);
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
 	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val, params);
 
