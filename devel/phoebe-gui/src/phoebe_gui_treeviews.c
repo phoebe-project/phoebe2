@@ -34,6 +34,7 @@ int gui_init_lc_treeviews ()
 	GtkWidget *phoebe_para_lc_levweight_treeview 	= gui_widget_lookup ("phoebe_para_lc_levweight_treeview")->gtk;
 	GtkWidget *phoebe_para_lc_ld_treeview 			= gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
 	GtkWidget *phoebe_plot_lc_observed_combobox 	= gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox")->gtk;
+	GtkWidget *phoebe_fitt_third_treeview           = gui_widget_lookup ("phoebe_fitt_third_treeview")->gtk;
 
     GtkTreeModel *lc_model = (GtkTreeModel *) gtk_list_store_new (
 		LC_COL_COUNT,          /* number of columns    */
@@ -91,6 +92,10 @@ int gui_init_lc_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
 
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
+
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox));
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox), renderer, TRUE);
@@ -121,8 +126,16 @@ int gui_init_lc_treeviews ()
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Primary levels", renderer, "text", LC_COL_HLA, NULL);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Opacity function", renderer, "text", LC_COL_OPSF, NULL);
@@ -131,6 +144,10 @@ int gui_init_lc_treeviews ()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Third light", renderer, "text", LC_COL_EL3, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Third light", renderer, "text", LC_COL_EL3, NULL);
+    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Extinction", renderer, "text", LC_COL_EXTINCTION, NULL);
@@ -159,6 +176,7 @@ int gui_init_lc_treeviews ()
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_levels_treeview,     lc_model);
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_levweight_treeview,  lc_model);
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_ld_treeview,         lc_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_fitt_third_treeview,         lc_model);
 	gtk_combo_box_set_model ((GtkComboBox *) phoebe_plot_lc_observed_combobox,   lc_model);
 
     return SUCCESS;

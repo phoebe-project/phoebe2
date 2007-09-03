@@ -2,6 +2,7 @@
 
 #include "phoebe_gui_accessories.h"
 #include "phoebe_gui_types.h"
+#include "phoebe_gui_global.h"
 
 void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 {
@@ -45,6 +46,7 @@ void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, 
 	 */
 
 	GtkWidget *window;
+	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
 	if(*flag){
 		window = gtk_widget_get_parent(box);
@@ -56,7 +58,7 @@ void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, 
 	else{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
-		gtk_window_set_icon (GTK_WINDOW(window), gdk_pixbuf_new_from_file("ico.png", NULL));
+		gtk_window_set_icon (GTK_WINDOW(window), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
 		gtk_widget_reparent(box, window);
 		gtk_widget_set_size_request (window, x, y);
@@ -70,6 +72,7 @@ void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, 
 int gui_open_parameter_file()
 {
 	GtkWidget *dialog;
+	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 	int status = 0;
 
 	dialog = gtk_file_chooser_dialog_new ("Open PHOEBE parameter file",
@@ -79,6 +82,7 @@ int gui_open_parameter_file()
 										  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 										  NULL);
 
+    gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
 		char *filename;
@@ -96,6 +100,7 @@ int gui_open_parameter_file()
 int gui_save_parameter_file()
 {
 	GtkWidget *dialog;
+	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 	int status = 0;
 
 	dialog = gtk_file_chooser_dialog_new ("Save PHOEBE parameter file",
@@ -104,6 +109,8 @@ int gui_save_parameter_file()
 										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 										  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  NULL);
+
+    gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
 		char *filename;
