@@ -33,13 +33,13 @@ int phoebe_init_config_entries ()
 	/**
 	 * phoebe_init_config_entries:
 	 *
-	 * Initializes all configuration keywords and their default values.
+	 * Initializes all configuration keywords and their default values and
+	 * adds them to the global #PHOEBE_config_table. All drivers need to
+	 * implement their own *_init_config_entries () function analogous to
+	 * this function.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
-
-	PHOEBE_config_table = NULL;
-	PHOEBE_config_table_size = 0;
 
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      "/usr/local/share/phoebe");
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    "/usr/local/src/phoebe");
@@ -65,8 +65,38 @@ int phoebe_init_config_entries ()
 	return SUCCESS;
 }
 
+int phoebe_free_config_entries ()
+{
+	/**
+	 * phoebe_free_config_entries:
+	 *
+	 * Frees all configuration entries in the global #PHOEBE_config_table.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+
+	for (i = 0; i < PHOEBE_config_table_size; i++)
+		phoebe_config_entry_free (PHOEBE_config_table[i]);
+
+	free (PHOEBE_config_table);
+
+	return SUCCESS;
+}
+
 PHOEBE_config_entry *phoebe_config_entry_new ()
 {
+	/**
+	 * phoebe_config_entry_new:
+	 *
+	 * Initializes memory for #PHOEBE_config_entry and NULLifies all structure
+	 * pointers. The memory should be freed by phoebe_config_entry_free() once
+	 * the entry is no longer necessary.
+	 *
+	 * Returns: a newly allocated #PHOEBE_config_entry.
+	 */
+
 	PHOEBE_config_entry *entry = phoebe_malloc (sizeof (*entry));
 
 	entry->keyword = NULL;
@@ -78,6 +108,29 @@ PHOEBE_config_entry *phoebe_config_entry_new ()
 
 int phoebe_config_entry_add (PHOEBE_type type, char *keyword, ...)
 {
+	/**
+	 * phoebe_config_entry_add:
+	 * @type: a #PHOEBE_type of the configuration entry; %TYPE_INT, %TYPE_BOOL,
+	 *        %TYPE_DOUBLE and %TYPE_STRING are supported.
+	 * @keyword: a string identifying the configuration entry.
+	 * @...: the default value of the configuration entry; the type of the
+	 *       argument should match @type.
+	 *
+	 * Adds a new configuration entry to the #PHOEBE_config_table and bumps
+	 * the number of configuration entries #PHOEBE_config_table_size (a
+	 * global variable) by 1. phoebe_config_entry_add() is the only function
+	 * that should be used to add entries to the configuration table.
+	 *
+	 * Examples:
+	 *
+	 * |[
+	 * status = phoebe_config_entry_add (PHOEBE_STRING, "PHOEBE_BASE_DIR", "/usr/local/share/phoebe");
+	 * status = phoebe_config_entry_add (PHOEBE_BOOL,   "PHOEBE_LD_SWITCH", 1); 
+	 * ]|
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	va_list arg;
 	PHOEBE_config_entry *entry = phoebe_config_entry_new ();
 
@@ -119,6 +172,23 @@ int phoebe_config_entry_add (PHOEBE_type type, char *keyword, ...)
 
 int phoebe_config_entry_set (char *keyword, ...)
 {
+	/**
+	 * phoebe_config_entry_set:
+	 * @keyword: a string identifying the configuration entry.
+	 * @...: a value of the type that matches @keyword type.
+	 *
+	 * Sets the configuration option @keyword to the passed value.
+	 *
+	 * Example:
+	 *
+	 * |[
+	 * status = phoebe_config_entry_set ("PHOEBE_TEMP_DIR", "/tmp");
+	 * status = phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
+	 * ]|
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	va_list arg;
 
@@ -133,8 +203,10 @@ int phoebe_config_entry_set (char *keyword, ...)
 
 	va_start (arg, keyword);
 
-	if (!PHOEBE_config_table[i]->value)
+	if (!PHOEBE_config_table[i]->value) {
 		PHOEBE_config_table[i]->value = phoebe_malloc (sizeof (*(PHOEBE_config_table[i]->value)));
+		PHOEBE_config_table[i]->value->str = NULL;
+	}
 
 	switch (PHOEBE_config_table[i]->type) {
 		case TYPE_INT:
@@ -165,6 +237,29 @@ int phoebe_config_entry_set (char *keyword, ...)
 
 int phoebe_config_entry_get (char *keyword, ...)
 {
+	/**
+	 * phoebe_config_entry_get:
+	 * @keyword: a string identifying the configuration entry.
+	 * @...: a reference to the value of the type that matches @keyword type.
+	 *
+	 * Assigns the configuration option @keyword to the passed value.
+	 *
+	 * Example:
+	 *
+	 * |[
+	 * char *tmpdir;
+	 * int ldstate;
+	 *
+	 * status = phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
+	 * status = phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &ldstate);
+	 * ]|
+	 *
+	 * Do not free the contents of so-assigned strings - these merely point
+	 * to the actual values in the configuration table.
+	 * 
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	va_list arg;
 
@@ -215,13 +310,50 @@ int phoebe_config_entry_get (char *keyword, ...)
 
 int phoebe_config_entry_free (PHOEBE_config_entry *entry)
 {
+	/**
+	 * phoebe_config_entry_free:
+	 * @entry: a pointer to the configuration entry that should be freed.
+	 *
+	 * Frees the memory occupied by the configuration entry @entry.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	if (!entry)
 		return SUCCESS;
 
 	if (entry->keyword)
 		free (entry->keyword);
 
-#warning SWITCH_ON_ANYTYPE_FIELDS_FOR_VALUE_AND_DEFVAL_HERE
+	switch (entry->type) {
+		case TYPE_INT:
+			if (entry->value)  free (entry->value);
+			if (entry->defval) free (entry->defval);
+		break;
+		case TYPE_BOOL:
+			if (entry->value)  free (entry->value);
+			if (entry->defval) free (entry->defval);
+		break;
+		case TYPE_DOUBLE:
+			if (entry->value)  free (entry->value);
+			if (entry->defval) free (entry->defval);
+		break;
+		case TYPE_STRING:
+			if (entry->value) {
+				if (entry->value->str)
+					free (entry->value->str);
+				free (entry->value);
+			}
+			if (entry->defval) {
+				if (entry->defval->str)
+					free (entry->defval->str);
+				free (entry->defval);
+			}
+		break;
+		default:
+			phoebe_lib_error ("invalid type encountered in phoebe_config_entry_free ().\n");
+			return ERROR_PHOEBE_CONFIG_ENTRY_INVALID_TYPE;
+	}
 
 	free (entry);
 
@@ -230,6 +362,13 @@ int phoebe_config_entry_free (PHOEBE_config_entry *entry)
 
 int intern_config_parse (char *line)
 {
+	/*
+	 * This is the internal function that parses the line read from the
+	 * configuration file. It also sets the value of corresponding keywords.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	char *entry, *delim, *keyword;
 
@@ -306,8 +445,7 @@ int intern_config_parse (char *line)
 int phoebe_config_load (char *filename)
 {
 	/**
-	 * phoebe_configuration_load:
-	 *
+	 * phoebe_config_load:
 	 * @filename: configuration filename.
 	 *
 	 * Opens a configuration file @filename and reads out all configuration
@@ -336,7 +474,7 @@ int phoebe_config_load (char *filename)
 
 	while (!feof (config)) {
 		if (!fgets (keyword_str, 254, config)) break;
-
+printf ("line: ->%s<-\n", keyword_str);
 		status = intern_config_parse (keyword_str);
 		if (status != SUCCESS) {
 			phoebe_lib_error ("%s", phoebe_error (status));
@@ -351,6 +489,16 @@ int phoebe_config_load (char *filename)
 
 int phoebe_config_save (char *filename)
 {
+	/**
+	 * phoebe_config_save:
+	 * @filename: configuration filename.
+	 *
+	 * Saves all entries in the global configuration table #PHOEBE_config_table
+	 * to a configuration file @filename.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	FILE *config;
 
@@ -398,10 +546,26 @@ int phoebe_config_save (char *filename)
 
 int phoebe_config_import ()
 {
+	/**
+	 * phoebe_config_import:
+	 *
+	 * NOT IMPLEMENTED!
+	 *
+	 * Should read in pre-0.30 configuration files.
+	 */
+
 	return SUCCESS;
 }
 
 int phoebe_config_check ()
 {
+	/**
+	 * phoebe_config_check:
+	 *
+	 * NOT IMPLEMENTED!
+	 *
+	 * Should check for keywords in the configuration file.
+	 */
+
 	return SUCCESS;
 }

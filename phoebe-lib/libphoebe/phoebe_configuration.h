@@ -20,8 +20,7 @@ int                  phoebe_config_entry_set  (char *keyword, ...);
 int                  phoebe_config_entry_free (PHOEBE_config_entry *entry);
 
 int                  phoebe_init_config_entries ();
-
-int phoebe_create_configuration_file ();
+int                  phoebe_free_config_entries ();
 
 int phoebe_config_load   (char *filename);
 int phoebe_config_save   (char *filename);

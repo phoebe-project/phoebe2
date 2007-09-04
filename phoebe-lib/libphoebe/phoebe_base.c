@@ -33,19 +33,19 @@ int intern_phoebe_variables_init ()
 	 * be used fearlessly by other functions.
 	 */
 
-	/*
-	 * First things first: let's initialize PHOEBE version number and date; we
-	 * get the values from configure.ac, so this is done automatically.
-	 */
+	/* First things first: let's initialize PHOEBE version number and date;   */
+	/* we get the values from configure.ac, so this is done automatically.    */
 
 	phoebe_debug ("  setting version number and version date.\n");
 	PHOEBE_VERSION_NUMBER = strdup (PHOEBE_RELEASE_NAME);
 	PHOEBE_VERSION_DATE   = strdup (PHOEBE_RELEASE_DATE);
 
-	/*
-	 * Let's declare a global parameter filename string to "Undefined". This is
-	 * needed for command line parameter filename loading.
-	 */
+	/* Initialize configuration table: */
+	PHOEBE_config_table = NULL;
+	PHOEBE_config_table_size = 0;
+
+	/* Let's declare a global parameter filename string to "Undefined". This  */
+	/* is needed for command line parameter filename loading.                 */
 
 	PHOEBE_PARAMETERS_FILENAME = strdup ("Undefined");
 
@@ -53,10 +53,8 @@ int intern_phoebe_variables_init ()
 	PHOEBE_pt_list = NULL;
 	PHOEBE_pt      = phoebe_parameter_table_new ();
 
-	/*
-	 * The following are global parameter variables. Since they will be dynami-
-	 * cally stored by phoebe_realloc, we need to set it to NULL.
-	 */
+	/* The following are global parameter variables. Since they will be dyna- */
+	/* mically stored by phoebe_realloc, we need to set it to NULL.           */
 
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;
@@ -223,6 +221,9 @@ int phoebe_quit ()
 
 	/* Free parameters and their options: */
 	phoebe_free_parameters ();
+
+	/* Free configuration entries: */
+	phoebe_free_config_entries ();
 
 	/* Free parameter table: */
 	phoebe_parameter_table_free (PHOEBE_pt);
