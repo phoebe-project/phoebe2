@@ -382,7 +382,7 @@ int                        phoebe_minimizer_feedback_free      (PHOEBE_minimizer
 
 /* **************************************************************************** */
 
-typedef union anytype {
+typedef union PHOEBE_value {
 	int                        i;
 	double                     d;
 	bool                       b;
@@ -392,10 +392,10 @@ typedef union anytype {
 	PHOEBE_curve              *curve;
 	PHOEBE_spectrum           *spectrum;
 	PHOEBE_minimizer_feedback *feedback;
-} anytype;
+} PHOEBE_value;
 
 extern PHOEBE_spectrum *phoebe_spectrum_duplicate (PHOEBE_spectrum *spectrum);
-anytype phoebe_value_duplicate (PHOEBE_type type, anytype val);
+PHOEBE_value phoebe_value_duplicate (PHOEBE_type type, PHOEBE_value val);
 
 /* **************************************************************************** */
 

@@ -799,7 +799,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 	/**
 	 * phoebe_parameter_set_value:
 	 * @par: #PHOEBE_parameter to be set.
-	 * @...: an optional curve index and an #anytype value.
+	 * @...: an optional curve index and an #PHOEBE_value value.
 	 *
 	 * This is a public function for changing the value of the passed
 	 * parameter @par. The function also satisfies all constraints.
