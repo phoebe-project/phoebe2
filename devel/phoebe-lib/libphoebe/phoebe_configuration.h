@@ -6,8 +6,8 @@
 typedef struct PHOEBE_config_entry {
 	PHOEBE_type type;
 	char       *keyword;
-	anytype    *value;
-	anytype    *defval;
+	PHOEBE_value    *value;
+	PHOEBE_value    *defval;
 } PHOEBE_config_entry;
 
 PHOEBE_config_entry **PHOEBE_config_table;

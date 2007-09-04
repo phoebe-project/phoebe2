@@ -127,7 +127,7 @@ typedef struct scripter_ast_value {
 		type_any,
 		type_void
 	} type;
-	anytype value;
+	PHOEBE_value value;
 } scripter_ast_value;
 
 char              *scripter_ast_kind_name        (scripter_ast_kind kind);

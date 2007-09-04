@@ -17,9 +17,9 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
 
-anytype phoebe_value_duplicate (PHOEBE_type type, anytype val)
+PHOEBE_value phoebe_value_duplicate (PHOEBE_type type, PHOEBE_value val)
 {
-	anytype copy;
+	PHOEBE_value copy;
 
 	switch (type) {
 		case TYPE_INT:

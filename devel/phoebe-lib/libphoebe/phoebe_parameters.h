@@ -28,12 +28,12 @@ typedef struct PHOEBE_parameter
 	char                        *description;
 	PHOEBE_parameter_kind        kind;
 	PHOEBE_type                  type;
-	anytype                      value;
+	PHOEBE_value                      value;
 	double                       min;
 	double                       max;
 	double                       step;
 	bool                         tba;
-	anytype                      defaultvalue;
+	PHOEBE_value                      defaultvalue;
 	PHOEBE_parameter_options    *menu;
 	PHOEBE_parameter_list       *deps;
 } PHOEBE_parameter;
