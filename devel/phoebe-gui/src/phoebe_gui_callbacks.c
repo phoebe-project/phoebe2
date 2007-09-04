@@ -3474,7 +3474,69 @@ on_phoebe_para_lum_levels_edit_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+ 	int lcno;
+	phoebe_parameter_get_value(par, &lcno);
 
+	if(lcno>0){
+
+		GtkTreeModel     *model;
+		GtkTreeIter       iter;
+		GtkTreeSelection *selection;
+
+		gchar *passband;
+		gdouble hla;
+		gdouble cla;
+
+		GtkWidget *treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
+		model = gtk_tree_view_get_model((GtkTreeView*)treeview);
+
+		treeview = gui_widget_lookup("phoebe_para_lc_levels_treeview")->gtk;
+
+        selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
+       	if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+        	gtk_tree_model_get(model, &iter,    LC_COL_FILTER,	&passband,
+                                                LC_COL_HLA,  	&hla,
+												LC_COL_CLA, 	&cla, -1);
+        
+
+    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_levels.glade", NULL);
+			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+			GladeXML  *phoebe_levels_xml	              	= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+   			GtkWidget *phoebe_levels_dialog                	= glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_dialog");
+			GtkWidget *phoebe_levels_passband_label		    = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_passband_label");
+    		GtkWidget *phoebe_levels_primary_spinbutton     = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_primary_spinbutton");
+    		GtkWidget *phoebe_levels_secondary_spinbutton   = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_secondary_spinbutton");
+
+			g_object_unref (phoebe_levels_xml);
+
+			gtk_window_set_icon (GTK_WINDOW (phoebe_levels_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+			gtk_window_set_title (GTK_WINDOW(phoebe_levels_dialog), "PHOEBE - Edit Levels");
+
+			gtk_label_set_text (GTK_LABEL (phoebe_levels_passband_label), passband);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_levels_primary_spinbutton), hla);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_levels_secondary_spinbutton), cla);
+
+    		gint result = gtk_dialog_run ((GtkDialog*)phoebe_levels_dialog);
+   			switch (result){
+        		case GTK_RESPONSE_OK:{
+			             		gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_HLA, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_levels_primary_spinbutton)),
+                    															LC_COL_CLA, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_levels_secondary_spinbutton)), -1);
+            		}
+        		
+        		break;
+
+       			case GTK_RESPONSE_CANCEL:{
+					printf("cancel\n");
+				}
+       			break;
+   			}
+
+    		gtk_widget_destroy (phoebe_levels_dialog);
+		}
+	}
 }
 
 
@@ -3604,6 +3666,77 @@ on_phoebe_para_lum_el3step_spinbutton_value_changed
 }
 
 
+void on_phoebe_para_lum_el3_edit_button_clicked
+										(GtkButton       *button,
+                                        gpointer         user_data)
+{
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+ 	int lcno;
+	phoebe_parameter_get_value(par, &lcno);
+
+	if(lcno>0){
+
+		GtkTreeModel     *model;
+		GtkTreeIter       iter;
+		GtkTreeSelection *selection;
+
+		gchar *passband;
+		gdouble el3;
+		gdouble opsf;
+		gdouble extinction;
+
+		GtkWidget *treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
+		model = gtk_tree_view_get_model((GtkTreeView*)treeview);
+
+		treeview = gui_widget_lookup("phoebe_para_lc_el3_treeview")->gtk;
+
+        selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
+       	if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+        	gtk_tree_model_get(model, &iter,    LC_COL_FILTER,		&passband,
+                                                LC_COL_EL3,  		&el3,
+                                                LC_COL_OPSF,  		&opsf,
+												LC_COL_EXTINCTION, 	&extinction, -1);
+        
+
+    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_third_light.glade", NULL);
+			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+			GladeXML  *phoebe_third_light_xml	              	= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+   			GtkWidget *phoebe_third_light_dialog                = glade_xml_get_widget (phoebe_third_light_xml, "phoebe_third_light_dialog");
+			GtkWidget *phoebe_third_light_passband_label		= glade_xml_get_widget (phoebe_third_light_xml, "phoebe_third_light_passband_label");
+    		GtkWidget *phoebe_third_light_opacity_spinbutton    = glade_xml_get_widget (phoebe_third_light_xml, "phoebe_third_light_opacity_spinbutton");
+    		GtkWidget *phoebe_third_light_el3_spinbutton   		= glade_xml_get_widget (phoebe_third_light_xml, "phoebe_third_light_el3_spinbutton");
+    		GtkWidget *phoebe_third_light_extinction_spinbutton = glade_xml_get_widget (phoebe_third_light_xml, "phoebe_third_light_extinction_spinbutton");
+
+			g_object_unref (phoebe_third_light_xml);
+
+			gtk_window_set_icon (GTK_WINDOW (phoebe_third_light_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+			gtk_window_set_title (GTK_WINDOW(phoebe_third_light_dialog), "PHOEBE - Edit Third Light");
+
+			gtk_label_set_text (GTK_LABEL (phoebe_third_light_passband_label), passband);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_third_light_opacity_spinbutton), opsf);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_third_light_el3_spinbutton), el3);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_third_light_extinction_spinbutton), extinction);
+
+    		gint result = gtk_dialog_run ((GtkDialog*)phoebe_third_light_dialog);
+   			switch (result){
+        		case GTK_RESPONSE_OK:{
+			             		gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_EL3, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_third_light_el3_spinbutton)),
+																				LC_COL_OPSF, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_third_light_opacity_spinbutton)),
+                    															LC_COL_EXTINCTION, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_third_light_extinction_spinbutton)), -1);
+            		}
+        		break;
+
+       			case GTK_RESPONSE_CANCEL:
+       			break;
+   			}
+
+    		gtk_widget_destroy (phoebe_third_light_dialog);
+		}
+	}
+}
+
 /* ******************************************************************** *
  *
  *                    phoebe_para_lum_weighting events
@@ -3627,7 +3760,54 @@ on_phoebe_para_lum_weighting_edit_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+ 	int lcno;
+	phoebe_parameter_get_value(par, &lcno);
 
+	if(lcno>0){
+
+		GtkTreeModel     *model;
+		GtkTreeIter       iter;
+		GtkTreeSelection *selection;
+
+		gchar *passband;
+
+		GtkWidget *treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
+		model = gtk_tree_view_get_model((GtkTreeView*)treeview);
+
+		treeview = gui_widget_lookup("phoebe_para_lc_levweight_treeview")->gtk;
+
+        selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+			gtk_tree_model_get(model, &iter,    LC_COL_FILTER,		&passband, -1);
+
+    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_weighting.glade", NULL);
+			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+			GladeXML  *phoebe_weighting_xml	             	= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+   			GtkWidget *phoebe_weighting_dialog              = glade_xml_get_widget (phoebe_weighting_xml, "phoebe_weighting_dialog");
+			GtkWidget *phoebe_weighting_passband_label		= glade_xml_get_widget (phoebe_weighting_xml, "phoebe_weighting_passband_label");
+
+			g_object_unref (phoebe_weighting_xml);
+
+			gtk_window_set_icon (GTK_WINDOW (phoebe_weighting_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+			gtk_window_set_title (GTK_WINDOW(phoebe_weighting_dialog), "PHOEBE - Edit Third Light");
+
+			gtk_label_set_text (GTK_LABEL (phoebe_weighting_passband_label), passband);
+
+    		gint result = gtk_dialog_run ((GtkDialog*)phoebe_weighting_dialog);
+   			switch (result){
+        		case GTK_RESPONSE_OK:
+        		break;
+
+       			case GTK_RESPONSE_CANCEL:
+       			break;
+   			}
+
+    		gtk_widget_destroy (phoebe_weighting_dialog);
+		}
+	}
 }
 
 
