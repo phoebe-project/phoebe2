@@ -22,9 +22,10 @@ int                  phoebe_config_entry_free (PHOEBE_config_entry *entry);
 int                  phoebe_init_config_entries ();
 int                  phoebe_free_config_entries ();
 
+int phoebe_config_peek   (char *filename);
 int phoebe_config_load   (char *filename);
 int phoebe_config_save   (char *filename);
-int phoebe_config_import ();
+int phoebe_config_import (char *filename);
 int phoebe_config_check  ();
 
 #endif
