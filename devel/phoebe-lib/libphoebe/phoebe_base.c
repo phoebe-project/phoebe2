@@ -121,26 +121,44 @@ int phoebe_init ()
 	if (!filename_has_full_permissions (USER_HOME_DIR))
 		return ERROR_HOME_HAS_NO_PERMISSIONS;
 
-	/* Everything OK, let's initialize PHOEBE environment file: */
+	/* Initialize all configuration parameters: */
+
+	phoebe_debug ("* declaring configuration options...\n");
+	phoebe_init_config_entries ();
+
+	/* Read out configuration; first try ~/.phoebe2 and then ~/.phoebe. If    */
+	/* a valid configuration file is found open it, if it is a legacy file,   */
+	/* import it, otherwise assume defaults.                                  */
+
 	sprintf (working_str, "%s/.phoebe2", USER_HOME_DIR);
 	PHOEBE_HOME_DIR = strdup (working_str);
 	sprintf (working_str, "%s/phoebe.config", PHOEBE_HOME_DIR);
 	PHOEBE_CONFIG = strdup (working_str);
 
-	/* Initialize all configuration parameters: */
-	phoebe_debug ("* declaring configuration options...\n");
-	phoebe_init_config_entries ();
-
-	/*
-	 * Read out the configuration file; the function also sets
-	 * PHOEBE_CONFIG_EXISTS to 1 or 0 if it is found or not, respectively.
-	 * If the file is not found, defaults are assumed.
-	 */
-
-	phoebe_debug ("* looking for a configuration file...\n");
-	phoebe_config_load (PHOEBE_CONFIG);
-	if (!PHOEBE_CONFIG_EXISTS)
-		phoebe_lib_warning ("  PHOEBE configuration file not found, assuming defaults.\n");
+	status = phoebe_config_peek (PHOEBE_CONFIG);
+	if (status == SUCCESS)
+		phoebe_config_load (PHOEBE_CONFIG);
+	else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+		phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+		phoebe_config_import (PHOEBE_CONFIG);
+	}
+	else {
+		/* An alternative PHOEBE_HOME_DIR: */
+		free (PHOEBE_HOME_DIR); free (PHOEBE_CONFIG);
+		sprintf (working_str, "%s/.phoebe", USER_HOME_DIR);
+		PHOEBE_HOME_DIR = strdup (working_str);
+		sprintf (working_str, "%s/phoebe.config", PHOEBE_HOME_DIR);
+		PHOEBE_CONFIG = strdup (working_str);
+		status = phoebe_config_peek (PHOEBE_CONFIG);
+		if (status == SUCCESS)
+			phoebe_config_load (PHOEBE_CONFIG);
+		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (PHOEBE_CONFIG);
+		}
+		else
+			phoebe_lib_warning ("PHOEBE configuration file cannot be opened, assuming defaults.\n");
+	}
 
 	/* Initialize all parameters: */
 	phoebe_debug ("* declaring parameters...\n");

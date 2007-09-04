@@ -374,7 +374,7 @@ int intern_config_parse (char *line)
 
 	delim = strchr (line, '=');
 	if (!delim)
-		return ERROR_PHOEBE_CONFIG_INVALID_LINE;
+		return ERROR_PHOEBE_CONFIG_LEGACY_FILE;
 
 	entry = line;
 	while (entry[0] == ' ' || entry[0] == '\t') entry++;
@@ -442,6 +442,41 @@ int intern_config_parse (char *line)
 	return SUCCESS;
 }
 
+int phoebe_config_peek (char *filename)
+{
+	/**
+	 * phoebe_config_peek:
+	 * @filename: configuration filename
+	 *
+	 * Use this function to peek into the configuration file. The function
+	 * returns #SUCCESS if the configuration file exists and conforms to the
+	 * current version specs, #ERROR_PHOEBE_CONFIG_LEGACY_FILE if the file
+	 * exists but conforms to the earlier (legacy) versions of PHOEBE, and it
+	 * returns #ERROR_PHOEBE_CONFIG_NOT_FOUND or #ERROR_PHOEBE_CONFIG_OPEN_FAILED
+	 * if the file is not found or cannot be opened.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	FILE *config;
+	char entry[255];
+
+	if (!filename_exists (filename))
+		return ERROR_PHOEBE_CONFIG_NOT_FOUND;
+
+	config = fopen (filename, "r");
+	if (!config)
+		return ERROR_PHOEBE_CONFIG_OPEN_FAILED;
+
+	fgets (entry, 255, config);
+	if (!strchr (entry, '='))
+		return ERROR_PHOEBE_CONFIG_LEGACY_FILE;
+
+	fclose (config);
+
+	return SUCCESS;
+}
+
 int phoebe_config_load (char *filename)
 {
 	/**
@@ -449,7 +484,8 @@ int phoebe_config_load (char *filename)
 	 * @filename: configuration filename.
 	 *
 	 * Opens a configuration file @filename and reads out all configuration
-	 * fields.
+	 * fields. The file has to conform to the current PHOEBE version (0.30)
+	 * specifications, namely KEYWORD = VALUE entries.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -474,8 +510,8 @@ int phoebe_config_load (char *filename)
 
 	while (!feof (config)) {
 		if (!fgets (keyword_str, 254, config)) break;
-printf ("line: ->%s<-\n", keyword_str);
 		status = intern_config_parse (keyword_str);
+
 		if (status != SUCCESS) {
 			phoebe_lib_error ("%s", phoebe_error (status));
 			continue;
@@ -544,15 +580,97 @@ int phoebe_config_save (char *filename)
 	return SUCCESS;
 }
 
-int phoebe_config_import ()
+int phoebe_config_import (char *filename)
 {
 	/**
 	 * phoebe_config_import:
 	 *
-	 * NOT IMPLEMENTED!
+	 * Opens a pre-0.30 configuration file and reads out the entries. The
+	 * configuration file had a hard-coded set of keywords that we check for
+	 * one by one.
 	 *
-	 * Should read in pre-0.30 configuration files.
+	 * Returns: #PHOEBE_error_code.
 	 */
+
+	FILE *config;
+	char keyword_str[255];
+	char working_str[255];
+	int readint;
+
+	if (!filename_exists (filename)) {
+		PHOEBE_CONFIG_EXISTS = 0;
+		return ERROR_PHOEBE_CONFIG_NOT_FOUND;
+	}
+
+	config = fopen (filename, "r");
+	if (!config) {
+		PHOEBE_CONFIG_EXISTS = 0;
+		return ERROR_PHOEBE_CONFIG_OPEN_FAILED;
+	}
+
+	PHOEBE_CONFIG_EXISTS = 1;
+
+	while (!feof (config)) {
+		if (!fgets (keyword_str, 254, config)) break;
+
+		if (strstr (keyword_str, "PHOEBE_BASE_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_BASE_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_BASE_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_SOURCE_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_SOURCE_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_SOURCE_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_DEFAULTS_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_DEFAULTS_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_TEMP_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_TEMP_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_TEMP_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_DATA_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_DATA_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_DATA_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_PTF_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_PTF_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_PTF_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_FF_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_FF_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_PTF_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_LD_SWITCH"))
+			if (sscanf (keyword_str, "PHOEBE_LD_SWITCH %d", &readint) == 1)
+				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", readint);
+
+		if (strstr (keyword_str, "PHOEBE_LD_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_LD_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_LD_DIR", working_str);
+
+		if (strstr (keyword_str, "PHOEBE_KURUCZ_SWITCH"))
+			if (sscanf (keyword_str, "PHOEBE_KURUCZ_SWITCH %d", &readint) == 1)
+				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", readint);
+
+		if (strstr (keyword_str, "PHOEBE_KURUCZ_DIR"))
+			if (sscanf (keyword_str, "PHOEBE_KURUCZ_DIR %s", working_str) == 1)
+				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR", working_str);
+
+		/*
+		 * The following obsolete entries are ignored; please handle them
+		 * properly within suitable drivers.
+		 *
+		 *   PHOEBE_LC_DIR
+		 *   PHOEBE_DC_DIR
+		 *   PHOEBE_PLOTTING_PACKAGE
+		 *   PHOEBE_3D_PLOT_CALLBACK_OPTION
+		 *   PHOEBE_CONFIRM_ON_SAVE
+		 *   PHOEBE_CONFIRM_ON_QUIT
+		 *   PHOEBE_WARN_ON_SYNTHETIC_SCATTER
+		 */
+	}
+	fclose (config);
 
 	return SUCCESS;
 }
