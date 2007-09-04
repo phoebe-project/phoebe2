@@ -674,16 +674,3 @@ int phoebe_config_import (char *filename)
 
 	return SUCCESS;
 }
-
-int phoebe_config_check ()
-{
-	/**
-	 * phoebe_config_check:
-	 *
-	 * NOT IMPLEMENTED!
-	 *
-	 * Should check for keywords in the configuration file.
-	 */
-
-	return SUCCESS;
-}
