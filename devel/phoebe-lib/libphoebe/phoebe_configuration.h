@@ -26,6 +26,5 @@ int phoebe_config_peek   (char *filename);
 int phoebe_config_load   (char *filename);
 int phoebe_config_save   (char *filename);
 int phoebe_config_import (char *filename);
-int phoebe_config_check  ();
 
 #endif
