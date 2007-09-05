@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Tue Sep  4 13:49:37 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Wed Sep  5 09:50:52 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkDialog" id="phoebe_weighting_dialog">
     <property name="width_request">340</property>
@@ -24,7 +24,7 @@
                 <child>
                   <widget class="GtkHBox" id="hbox1">
                     <property name="visible">True</property>
-                    <property name="homogeneous">True</property>
+                    <property name="border_width">4</property>
                     <child>
                       <widget class="GtkLabel" id="label2">
                         <property name="visible">True</property>
@@ -67,6 +67,9 @@
                     <child>
                       <widget class="GtkComboBox" id="phoebe_weighting_combobox">
                         <property name="visible">True</property>
+                        <property name="items" translatable="yes">No level-dependent weighting
+Poissonian scatter
+Low light scatter</property>
                       </widget>
                       <packing>
                         <property name="left_attach">1</property>
@@ -107,6 +110,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-ok</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-5</property>
               </widget>
             </child>
             <child>
@@ -114,6 +118,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-cancel</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-6</property>
               </widget>
               <packing>
                 <property name="position">1</property>
