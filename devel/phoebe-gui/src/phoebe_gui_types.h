@@ -14,17 +14,18 @@ typedef enum GUI_widget_type {
 } GUI_widget_type;
 
 typedef struct GUI_widget {
-	char             *name;       /* Widget qualifier                         */
-	GUI_widget_type   type;       /* Widget type; do we really need this?     */
-	PHOEBE_parameter *par;        /* Link to the parameter table              */
-	GtkWidget        *gtk;        /* Pointer to the widget                    */
-	int               aux;        /* Auxiliary data, such as the column index */
+	char             	*name;		/* Widget qualifier                         	*/
+	GUI_widget_type   	 type;      /* Widget type; do we really need this?     	*/
+	PHOEBE_parameter 	*par;		/* Link to the parameter table              	*/
+	GtkWidget        	*gtk;		/* Pointer to the widget                    	*/
+	int               	 aux;       /* Auxiliary data, such as the column index 	*/
+	struct GUI_widget	*dep;		/* A GUI_widget that this instance depends on	*/
 } GUI_widget;
 
 GUI_widget		*gui_widget_new		();
-int 			 gui_widget_add		(char *name, GtkWidget *gtk, int aux, GUI_widget_type type, PHOEBE_parameter *par);
+int 			 gui_widget_add		(char *name, GtkWidget *gtk, int aux, GUI_widget_type type, PHOEBE_parameter *par, GUI_widget *dep);
 unsigned int	 gui_widget_hash 	(char *name);
-int 			 gui_widget_hookup 	(GUI_widget *widget, GtkWidget *gtk, int aux, GUI_widget_type type, char *name, PHOEBE_parameter *par);
+int 			 gui_widget_hookup 	(GUI_widget *widget, GtkWidget *gtk, int aux, GUI_widget_type type, char *name, PHOEBE_parameter *par, GUI_widget *dep);
 GUI_widget		*gui_widget_lookup 	(char *name);
 int 			 gui_widget_commit 	(GUI_widget *widget);
 int 			 gui_widget_free	(GUI_widget *widget);

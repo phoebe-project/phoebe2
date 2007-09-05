@@ -38,6 +38,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/phoebe_gui_main.h" />
+		<Unit filename="src/phoebe_gui_plotting.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_plotting.h" />
 		<Unit filename="src/phoebe_gui_treeviews.c">
 			<Option compilerVar="CC" />
 		</Unit>

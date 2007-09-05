@@ -99,6 +99,8 @@ int gui_init_sidesheet_fit_treeview ();
 int gui_fill_sidesheet_res_treeview ();
 int gui_fill_sidesheet_fit_treeview ();
 int gui_init_filter_combobox 		(GtkWidget *combo_box);
+int gui_init_lc_obs_combobox		();
+int gui_init_rv_obs_combobox		();
 
 void on_lc_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
 void on_rv_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
