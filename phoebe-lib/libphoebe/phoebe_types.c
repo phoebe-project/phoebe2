@@ -2149,7 +2149,7 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &param);
 		passband = phoebe_passband_lookup (param);
 		if (!passband) {
-			phoebe_lib_error ("%s", phoebe_error (status));
+			phoebe_lib_error ("passband lookup failed, please review your settings.\n");
 			return NULL;
 		}
 
@@ -2159,6 +2159,11 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	}
 
 	curve = phoebe_curve_new_from_file (filename);
+	if (!curve) {
+		phoebe_lib_error ("filename %s cannot be opened, aborting.\n", filename);
+		return NULL;
+	}
+
 	phoebe_curve_set_properties (curve, ctype, filename, passband, itype, dtype, wtype, sigma);
 	return curve;
 }
