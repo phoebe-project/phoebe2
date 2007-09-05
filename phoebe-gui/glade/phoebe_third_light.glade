@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Tue Sep  4 13:21:29 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Wed Sep  5 09:34:57 2007 by gal@brjav-->
 <glade-interface>
   <widget class="GtkDialog" id="phoebe_third_light_dialog">
     <property name="width_request">340</property>
@@ -57,33 +57,7 @@
                     <property name="n_rows">3</property>
                     <property name="n_columns">2</property>
                     <child>
-                      <widget class="GtkLabel" id="label4">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Opacity function:</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="label5">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Third light:</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="label6">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Extinction:</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">2</property>
-                        <property name="bottom_attach">3</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkSpinButton" id="phoebe_third_light_opacity_spinbutton">
+                      <widget class="GtkSpinButton" id="phoebe_third_light_extinction_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="adjustment">0 0 100 0.10000000000000001 1 1</property>
@@ -92,6 +66,8 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
                       </packing>
                     </child>
                     <child>
@@ -109,7 +85,7 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkSpinButton" id="phoebe_third_light_extinction_spinbutton">
+                      <widget class="GtkSpinButton" id="phoebe_third_light_opacity_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="adjustment">0 0 100 0.10000000000000001 1 1</property>
@@ -118,9 +94,33 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label6">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Extinction:</property>
+                      </widget>
+                      <packing>
                         <property name="top_attach">2</property>
                         <property name="bottom_attach">3</property>
                       </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label5">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Third light:</property>
+                      </widget>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label4">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Opacity function:</property>
+                      </widget>
                     </child>
                   </widget>
                   <packing>
@@ -156,6 +156,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-ok</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-5</property>
               </widget>
             </child>
             <child>
@@ -163,6 +164,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-cancel</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-6</property>
               </widget>
               <packing>
                 <property name="position">1</property>

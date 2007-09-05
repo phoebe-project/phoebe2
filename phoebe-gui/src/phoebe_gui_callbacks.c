@@ -3528,9 +3528,7 @@ on_phoebe_para_lum_levels_edit_button_clicked
         		
         		break;
 
-       			case GTK_RESPONSE_CANCEL:{
-					printf("cancel\n");
-				}
+       			case GTK_RESPONSE_CANCEL:
        			break;
    			}
 
@@ -3771,6 +3769,7 @@ on_phoebe_para_lum_weighting_edit_button_clicked
 		GtkTreeSelection *selection;
 
 		gchar *passband;
+		gchar *levweight;
 
 		GtkWidget *treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
 		model = gtk_tree_view_get_model((GtkTreeView*)treeview);
@@ -3779,7 +3778,8 @@ on_phoebe_para_lum_weighting_edit_button_clicked
 
         selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-			gtk_tree_model_get(model, &iter,    LC_COL_FILTER,		&passband, -1);
+			gtk_tree_model_get(model, &iter,    LC_COL_FILTER,		&passband, 
+												LC_COL_LEVWEIGHT,	&levweight, -1);
 
     		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_weighting.glade", NULL);
 			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
@@ -3788,6 +3788,7 @@ on_phoebe_para_lum_weighting_edit_button_clicked
 
    			GtkWidget *phoebe_weighting_dialog              = glade_xml_get_widget (phoebe_weighting_xml, "phoebe_weighting_dialog");
 			GtkWidget *phoebe_weighting_passband_label		= glade_xml_get_widget (phoebe_weighting_xml, "phoebe_weighting_passband_label");
+			GtkWidget *phoebe_weighting_combobox			= glade_xml_get_widget (phoebe_weighting_xml, "phoebe_weighting_combobox");
 
 			g_object_unref (phoebe_weighting_xml);
 
@@ -3796,9 +3797,14 @@ on_phoebe_para_lum_weighting_edit_button_clicked
 
 			gtk_label_set_text (GTK_LABEL (phoebe_weighting_passband_label), passband);
 
+			if(strcmp(levweight, "No level-dependent weighting")==0) gtk_combo_box_set_active (GTK_COMBO_BOX (phoebe_weighting_combobox), 0);
+			if(strcmp(levweight, "Poissonian scatter")==0) gtk_combo_box_set_active (GTK_COMBO_BOX (phoebe_weighting_combobox), 1);
+			if(strcmp(levweight, "Low light scatter")==0) gtk_combo_box_set_active (GTK_COMBO_BOX (phoebe_weighting_combobox), 2);
+
     		gint result = gtk_dialog_run ((GtkDialog*)phoebe_weighting_dialog);
    			switch (result){
         		case GTK_RESPONSE_OK:
+					gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_LEVWEIGHT, gtk_combo_box_get_active_text (GTK_COMBO_BOX (phoebe_weighting_combobox)), -1);
         		break;
 
        			case GTK_RESPONSE_CANCEL:
