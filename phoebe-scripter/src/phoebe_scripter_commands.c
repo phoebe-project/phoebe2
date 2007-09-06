@@ -599,7 +599,7 @@ scripter_ast_value scripter_create_wd_lci_file (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 3, 3, type_string, type_int, type_int);
 	if (status != SUCCESS) return out;
 
-	status = read_in_wd_lci_parameters (&params, vals[1].value.i, vals[2].value.i-1);
+	status = wd_lci_parameters_get (&params, vals[1].value.i, vals[2].value.i-1);
 	if (status != SUCCESS) printf ("%s", phoebe_scripter_error (status));
 	else {
 		status = create_lci_file (vals[0].value.str, &params);

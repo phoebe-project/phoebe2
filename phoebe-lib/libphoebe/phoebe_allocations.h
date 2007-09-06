@@ -2,7 +2,7 @@
 	#define PHOEBE_ALLOCATIONS_H
 
 #include "phoebe_global.h"
-#include "phoebe_types.h"
+#include "phoebe_fortran_interface.h"
 
 char  *parse_data_line               (char *in);
 
@@ -11,11 +11,5 @@ int    read_in_adjustable_parameters (int *tba, double **values);
 
 int    get_passband_id               (const char *passband);
 int    get_level_weighting_id        (const char *type);
-
-int    read_in_wd_lci_parameters     (WD_LCI_parameters *params, int MPAGE, int curve);
-int    read_in_wd_dci_parameters     (WD_DCI_parameters *params, int *marked_tba);
-
-WD_DCI_parameters *wd_dci_parameters_new  ();
-int                wd_dci_parameters_free (WD_DCI_parameters *params);
 
 #endif

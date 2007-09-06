@@ -2336,7 +2336,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &filter);
 	curve->passband = phoebe_passband_lookup (filter);
 
-	status = read_in_wd_lci_parameters (&params, mpage, index);
+	status = wd_lci_parameters_get (&params, mpage, index);
 	if (status != SUCCESS) return status;
 
 	params.JDPHS = jdphs;

@@ -1,5 +1,4 @@
 #include "phoebe_build_config.h"
-#include "../libwd/wd.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +13,8 @@
 #include "phoebe_parameters.h"
 #include "phoebe_spectra.h"
 #include "phoebe_types.h"
+
+#include "../libwd/wd.h"
 
 double frac (double x)
 {
