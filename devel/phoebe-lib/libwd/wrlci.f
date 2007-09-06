@@ -40,7 +40,7 @@
    10 format(F4.0)
    11 format(I1)
 
-      open(unit=1, file=FN, status='UNKNOWN')
+      open(unit=1,file=FN,status='UNKNOWN')
 
       write(1,1) MPAGE,NREF,MREF,IFSMV1,IFSMV2,ICOR1,ICOR2,LD
       write(1,2) JDPHS,HJD0,PERIOD,DPDT,PSHIFT,STDDEV,NOISE,SEED

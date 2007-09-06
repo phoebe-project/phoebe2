@@ -51,7 +51,7 @@ EXTRA_DIST = \
 	$(SOURCES)
 
 $(libwd_la_SOURCES):
-	f2c $(SOURCES)
+	f2c -A -R $(SOURCES)
 
 CLEANFILES = \
 	$(BUILT_SOURCES)
