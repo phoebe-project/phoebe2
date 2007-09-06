@@ -41,7 +41,6 @@
 #include <phoebe/phoebe_ld.h>
 #include <phoebe/phoebe_nms.h>
 #include <phoebe/phoebe_parameters.h>
-#include <phoebe/phoebe_plotting.h>
 #include <phoebe/phoebe_roche.h>
 #include <phoebe/phoebe_spectra.h>
 #include <phoebe/phoebe_types.h>

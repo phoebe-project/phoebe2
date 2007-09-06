@@ -86,6 +86,9 @@
 /* Define if verbose debugging is required: */
 #undef PHOEBE_DEBUG_SUPPORT
 
+/* Define if GNUPlot is supported: */
+#undef PHOEBE_GNUPLOT_SUPPORT
+
 /* Define if GNU readline should be disabled: */
 #undef PHOEBE_READLINE_DISABLED
 

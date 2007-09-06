@@ -33,6 +33,7 @@ phoebe_scripter_SOURCES =                                               \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
     phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
+    phoebe_scripter_plotting.c        phoebe_scripter_plotting.h        \
     phoebe_scripter_types.c           phoebe_scripter_types.h           
 
 BUILT_SOURCES = \

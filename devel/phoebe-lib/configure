@@ -878,7 +878,6 @@ LEX
 LEX_OUTPUT_ROOT
 LEXLIB
 YACC
-GNUPLOT
 HTML_DIR
 PKG_CONFIG
 ENABLE_GTK_DOC_TRUE
@@ -1493,7 +1492,6 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --enable-gsl            Use GNU Scientific Library (default=yes)
-  --enable-gnuplot        Enable gnuplot for drawing graphs (default=yes)
   --enable-gtk-doc        use gtk-doc to build documentation default=no
   --enable-debug          Use verbose debugging mode (default=no)
 
@@ -2529,7 +2527,7 @@ _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_RELEASE_DATE "Sep 1, 2007"
+#define PHOEBE_RELEASE_DATE "Oct 15, 2007"
 _ACEOF
 
 
@@ -4659,7 +4657,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 4662 "configure"' > conftest.$ac_ext
+  echo '#line 4660 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7130,11 +7128,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7133: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7131: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7137: \$? = $ac_status" >&5
+   echo "$as_me:7135: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7398,11 +7396,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7401: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7399: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7405: \$? = $ac_status" >&5
+   echo "$as_me:7403: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7502,11 +7500,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7505: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7503: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:7509: \$? = $ac_status" >&5
+   echo "$as_me:7507: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -9799,7 +9797,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9802 "configure"
+#line 9800 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9899,7 +9897,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9902 "configure"
+#line 9900 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12235,11 +12233,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12238: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12236: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:12242: \$? = $ac_status" >&5
+   echo "$as_me:12240: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12339,11 +12337,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12342: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12340: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12346: \$? = $ac_status" >&5
+   echo "$as_me:12344: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -13900,11 +13898,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13903: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13901: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13907: \$? = $ac_status" >&5
+   echo "$as_me:13905: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14004,11 +14002,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14007: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14005: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14011: \$? = $ac_status" >&5
+   echo "$as_me:14009: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16191,11 +16189,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16194: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16192: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16198: \$? = $ac_status" >&5
+   echo "$as_me:16196: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16459,11 +16457,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16462: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16460: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16466: \$? = $ac_status" >&5
+   echo "$as_me:16464: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16563,11 +16561,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16566: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16564: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16570: \$? = $ac_status" >&5
+   echo "$as_me:16568: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -19903,61 +19901,6 @@ _ACEOF
 
     fi
 
-  # GNUPlot support:
-    # Check whether --enable-gnuplot was given.
-if test "${enable_gnuplot+set}" = set; then
-  enableval=$enable_gnuplot; ac_enable_gnuplot=yes
-else
-  ac_enable_gnuplot=yes
-fi
-
-
-    # Extract the first word of "gnuplot", so it can be a program name with args.
-set dummy gnuplot; ac_word=$2
-{ echo "$as_me:$LINENO: checking for $ac_word" >&5
-echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_prog_GNUPLOT+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  if test -n "$GNUPLOT"; then
-  ac_cv_prog_GNUPLOT="$GNUPLOT" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-  for ac_exec_ext in '' $ac_executable_extensions; do
-  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_prog_GNUPLOT="yes"
-    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-done
-IFS=$as_save_IFS
-
-fi
-fi
-GNUPLOT=$ac_cv_prog_GNUPLOT
-if test -n "$GNUPLOT"; then
-  { echo "$as_me:$LINENO: result: $GNUPLOT" >&5
-echo "${ECHO_T}$GNUPLOT" >&6; }
-else
-  { echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6; }
-fi
-
-
-    if test "$GNUPLOT" == yes; then
-
-cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_GNUPLOT_SUPPORT 1
-_ACEOF
-
-      gnuplot="gnuplot"
-    fi
-
   # gtk-doc support; sorry for the silly formatting, gtkdocize requires it:
     gtkdocstate="no"
 
@@ -20068,12 +20011,6 @@ fi
     if test "$enable_gtk_doc" == "yes"; then
       gtkdocstate="yes"
     fi
-
-# Concatenate all supporting plotting programs into $plotters:
-  plotters=$gnuplot
-  if test x$plotters = x; then
-    plotters="none"
-  fi
 
 # Optional debugging support:
   debugstate="no"
@@ -23186,7 +23123,6 @@ LEX!$LEX$ac_delim
 LEX_OUTPUT_ROOT!$LEX_OUTPUT_ROOT$ac_delim
 LEXLIB!$LEXLIB$ac_delim
 YACC!$YACC$ac_delim
-GNUPLOT!$GNUPLOT$ac_delim
 HTML_DIR!$HTML_DIR$ac_delim
 PKG_CONFIG!$PKG_CONFIG$ac_delim
 ENABLE_GTK_DOC_TRUE!$ENABLE_GTK_DOC_TRUE$ac_delim
@@ -23198,7 +23134,7 @@ FLIBS!$FLIBS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 22; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 21; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
@@ -23811,7 +23747,6 @@ fi
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
-  echo "Supported plotting packages:      $plotters"
   echo "Build API documentation:          $gtkdocstate"
   echo "Verbose debugging messages:       $debugstate"
   echo ""

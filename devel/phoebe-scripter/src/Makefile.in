@@ -76,7 +76,9 @@ am_phoebe_scripter_OBJECTS = main.$(OBJEXT) \
 	phoebe_scripter_error_handling.$(OBJEXT) \
 	phoebe_scripter_grammar.$(OBJEXT) \
 	phoebe_scripter_grammar.tab.$(OBJEXT) \
-	phoebe_scripter_io.$(OBJEXT) phoebe_scripter_types.$(OBJEXT)
+	phoebe_scripter_io.$(OBJEXT) \
+	phoebe_scripter_plotting.$(OBJEXT) \
+	phoebe_scripter_types.$(OBJEXT)
 phoebe_scripter_OBJECTS = $(am_phoebe_scripter_OBJECTS)
 phoebe_scripter_DEPENDENCIES =
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -110,6 +112,7 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+GNUPLOT = @GNUPLOT@
 GREP = @GREP@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -192,6 +195,7 @@ phoebe_scripter_SOURCES = \
     phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
     phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
+    phoebe_scripter_plotting.c        phoebe_scripter_plotting.h        \
     phoebe_scripter_types.c           phoebe_scripter_types.h           
 
 BUILT_SOURCES = \
@@ -303,6 +307,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.tab.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_io.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_plotting.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_types.Po@am__quote@
 
 .c.o:

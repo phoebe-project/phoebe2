@@ -617,6 +617,44 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	return SUCCESS;
 }
 
+int phoebe_parameter_option_get_index (PHOEBE_parameter *par, char *option, int *index)
+{
+	/**
+	 * phoebe_parameter_option_get_index:
+	 * @par: #PHOEBE_parameter being queried
+	 * @option: the option to be looked up
+	 * @index: a pointer to the index to be assigned
+	 *
+	 * Scans through all the options of the #PHOEBE_parameter @par and returns
+	 * the index of the @option. The @par's kind must be #KIND_MENU. If the
+	 * option is not found, the @index is set to -1 and
+	 * #ERROR_PARAMETER_OPTION_DOES_NOT_EXIST is returned.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+
+	if (!par)
+		return ERROR_PARAMETER_NOT_INITIALIZED;
+
+	if (par->kind != KIND_MENU)
+		return ERROR_PARAMETER_KIND_NOT_MENU;
+
+	for (i = 0; i <= par->menu->optno; i++) {
+		if (i == par->menu->optno) {
+			*index = -1;
+			return ERROR_PARAMETER_OPTION_DOES_NOT_EXIST;
+		}
+		if (strcmp (par->menu->option[i], option) == 0) {
+			*index = i;
+			return SUCCESS;
+		}
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 {
 	/**
@@ -679,7 +717,7 @@ int phoebe_parameter_update_deps (PHOEBE_parameter *par, int oldval)
 	return SUCCESS;
 }
 
-bool phoebe_parameter_menu_option_is_valid (char *qualifier, char *option)
+bool phoebe_parameter_option_is_valid (char *qualifier, char *option)
 {
 	/*
 	 * This function is a boolean test for parameter menu options. It returns
@@ -852,7 +890,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 			 * anyway.
 			 */
 
-			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (par->qualifier, (char *) value))
+			if (par->kind == KIND_MENU && !phoebe_parameter_option_is_valid (par->qualifier, (char *) value))
 				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
 		}
 		break;
@@ -899,7 +937,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 			 * anyway.
 			 */
 
-			if (par->kind == KIND_MENU && !phoebe_parameter_menu_option_is_valid (par->qualifier, (char *) value))
+			if (par->kind == KIND_MENU && !phoebe_parameter_option_is_valid (par->qualifier, (char *) value))
 				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
 			}
 		break;

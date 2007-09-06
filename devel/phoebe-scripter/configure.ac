@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                        PHOEBE 0.30pre5 scripter                      #
+#                         PHOEBE 0.30RC1 scripter                      #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-08-21 #
+#                                            Last revision: 2007-09-05 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -49,7 +49,7 @@
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["Sep 1, 2007"]],
+	[["Oct 15, 2007"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
@@ -128,6 +128,23 @@
      exit
     fi
 
+# GNUPlot support:
+  AC_ARG_ENABLE(gnuplot,
+      [  --enable-gnuplot        Enable gnuplot for drawing graphs (default=yes)],
+      [ac_enable_gnuplot=yes], [ac_enable_gnuplot=yes])
+  AC_DEFUN([AC_PROG_GNUPLOT], [AC_CHECK_PROG(GNUPLOT,gnuplot,yes)])
+  AC_PROG_GNUPLOT
+  if test "$GNUPLOT" == yes; then
+    AC_DEFINE(PHOEBE_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
+    gnuplot="gnuplot"
+  fi
+
+# Concatenate all supporting plotting programs into $plotters:
+  plotters=$gnuplot
+  if test x$plotters = x; then
+    plotters="none"
+  fi
+
 # Readline support for scripter line editing capability:
 
   AC_ARG_ENABLE(readline,
@@ -200,6 +217,7 @@
   echo "Top-level install directory:      $prefix"
   echo "Scripter binary goes to:          $prefix/bin"
   echo "Scripter help files go to:        $prefix/share/phoebe_scripter"
+  echo "Supported plotting packages:      $plotters"
   echo "GNU readline library present:     $readlinesupport"
   echo "Verbose debugging messages:       $debugstate"
   echo ""

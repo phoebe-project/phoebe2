@@ -81,7 +81,8 @@ int               phoebe_parameter_add_option     (PHOEBE_parameter *par, char *
 int               phoebe_parameter_update_deps    (PHOEBE_parameter *par, int oldval);
 int               phoebe_parameter_free           (PHOEBE_parameter *par);
 
-bool              phoebe_parameter_menu_option_is_valid (char *qualifier, char *option);
+int               phoebe_parameter_option_get_index (PHOEBE_parameter *par, char *option, int *index);
+bool              phoebe_parameter_option_is_valid (char *qualifier, char *option);
 
 int               phoebe_init_parameters        ();
 int               phoebe_free_parameters        ();
