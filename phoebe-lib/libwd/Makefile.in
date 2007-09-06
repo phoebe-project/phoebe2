@@ -603,7 +603,7 @@ uninstall-am: uninstall-libLTLIBRARIES \
 
 
 $(libwd_la_SOURCES):
-	f2c $(SOURCES)
+	f2c -A -R $(SOURCES)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
