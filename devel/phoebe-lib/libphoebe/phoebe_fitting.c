@@ -1,9 +1,8 @@
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-#include "../libwd/wd.h"
 
 #include "phoebe_build_config.h"
 
@@ -20,6 +19,8 @@
 #include "phoebe_nms.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
+
+#include "../libwd/wd.h"
 
 int calls_to_cf = 0;
 
@@ -81,11 +82,11 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	lcipars = phoebe_malloc ( (lcno+rvno) * sizeof (*lcipars));
 	for (i = 0; i < lcno; i++) {
 		lcipars[i] = phoebe_malloc (sizeof (**lcipars));
-		read_in_wd_lci_parameters (lcipars[i], /* MPAGE = */ 1, i);
+		wd_lci_parameters_get (lcipars[i], /* MPAGE = */ 1, i);
 	}
 	for (i = 0; i < rvno; i++) {
 		lcipars[lcno+i] = phoebe_malloc (sizeof (**lcipars));
-		read_in_wd_lci_parameters (lcipars[lcno+i], /* MPAGE = */ 2, i);
+		wd_lci_parameters_get (lcipars[lcno+i], /* MPAGE = */ 2, i);
 	}
 
 	/* Compute theoretical light curves: */
