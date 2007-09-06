@@ -166,10 +166,11 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	 */
 
 	int i;
-	int request = 1;
 	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
+
+	integer request, nodes;
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -190,7 +191,10 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), curve->indep->val, curve->dep->val, params);
+	request = 1;
+	nodes = (integer) indep->dim;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, curve->indep->val, curve->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -211,10 +215,11 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 {
 	int i;
-	int request = 2;
 	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
+
+	integer request, nodes;
 
 	if (!rv1)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -235,7 +240,10 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv1->dep->val, params);
+	request = 2;
+	nodes = (integer) indep->dim;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, indep->val, rv1->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -256,10 +264,11 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 {
 	int i;
-	int request = 3;
 	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
+
+	integer request, nodes;
 
 	if (!rv2)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -280,7 +289,10 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
-	wd_lc (atmcof, atmcofplanck, &request, &(indep->dim), indep->val, rv2->dep->val, params);
+	request = 3;
+	nodes = (integer) indep->dim;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, indep->val, rv2->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
