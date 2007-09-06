@@ -25,8 +25,6 @@
 #endif
 #endif
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
-#define max(a,b) ((a) > (b) ? (a) : (b))
 #define pdif(a)  ((a) > 0 ? (a) : 0)
 
 int query_spectra_repository (char *rep_name, PHOEBE_specrep *spec)
