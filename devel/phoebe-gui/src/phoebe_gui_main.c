@@ -2,6 +2,7 @@
 #  include "phoebe_gui_build_config.h"
 #endif
 
+#include <stdlib.h>
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_base.h"
