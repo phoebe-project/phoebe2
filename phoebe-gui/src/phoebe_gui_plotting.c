@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_plotting.h"

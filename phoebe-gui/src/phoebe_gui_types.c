@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <glade/glade.h>
 #include <gtk/gtk.h>
 #include <phoebe/phoebe.h>
