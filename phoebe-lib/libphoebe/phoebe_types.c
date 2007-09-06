@@ -14,8 +14,12 @@
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
-#define max(a,b) ((a) > (b) ? (a) : (b))
+#ifndef min
+	#define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+	#define max(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 PHOEBE_value phoebe_value_duplicate (PHOEBE_type type, PHOEBE_value val)
 {
