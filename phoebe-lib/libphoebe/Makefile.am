@@ -43,7 +43,6 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_ld.c                       phoebe_ld.h                       \
     phoebe_nms.c                      phoebe_nms.h                      \
     phoebe_parameters.c               phoebe_parameters.h               \
-    phoebe_plotting.c                 phoebe_plotting.h                 \
     phoebe_radiation.c                phoebe_radiation.h                \
     phoebe_roche.c                    phoebe_roche.h                    \
     phoebe_spectra.c                  phoebe_spectra.h                  \
@@ -88,7 +87,6 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_ld.h                \
                           phoebe_nms.h               \
                           phoebe_parameters.h        \
-                          phoebe_plotting.h          \
                           phoebe_roche.h             \
                           phoebe_spectra.h           \
                           phoebe_types.h

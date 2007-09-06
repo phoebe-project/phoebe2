@@ -11,6 +11,7 @@
 #include "phoebe_scripter_grammar.h"
 #include "phoebe_scripter_grammar.tab.h"
 #include "phoebe_scripter_io.h"
+#include "phoebe_scripter_plotting.h"
 #include "phoebe_scripter_types.h"
 
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
@@ -1310,8 +1311,8 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 
 	int index = 0;
 
-	PHOEBE_curve **lc             = NULL;
-	PHOEBE_plot_properties *props = NULL;
+	PHOEBE_curve **lc = NULL;
+	scripter_plot_properties *props = NULL;
 
 	PHOEBE_vector **indeps, **deps;
 
@@ -1432,8 +1433,8 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 	const char *readout_str;
 
-	PHOEBE_curve **rv             = NULL;
-	PHOEBE_plot_properties *props = NULL;
+	PHOEBE_curve **rv = NULL;
+	scripter_plot_properties *props = NULL;
 
 	PHOEBE_vector **indeps, **deps;
 
@@ -1565,7 +1566,7 @@ scripter_ast_value scripter_plot_spectrum_using_gnuplot (scripter_ast_list *args
 	double ll, ul;
 	int dim;
 
-	PHOEBE_plot_properties *props;
+	scripter_plot_properties *props;
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
@@ -1638,9 +1639,9 @@ scripter_ast_value scripter_plot_using_gnuplot (scripter_ast_list *args)
 
 	int status;
 
-	PHOEBE_vector        **indeps = NULL;
-	PHOEBE_vector          **deps = NULL;
-	PHOEBE_plot_properties *props = NULL;
+	PHOEBE_vector          **indeps = NULL;
+	PHOEBE_vector            **deps = NULL;
+	scripter_plot_properties *props = NULL;
 
 	int dim = 0;
 

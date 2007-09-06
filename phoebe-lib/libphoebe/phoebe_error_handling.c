@@ -77,6 +77,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "parameter is not initialized, aborting.\n";
 		case ERROR_PARAMETER_ALREADY_DECLARED:
 			return "parameter has already been declared, aborting.\n";
+		case ERROR_PARAMETER_OPTION_DOES_NOT_EXIST:
+			return "parameter option does not exist, aborting.\n";
 		case ERROR_PARAMETER_TABLE_NOT_INITIALIZED:
 			return "parameter table is not initialized, aborting.\n";
 		case ERROR_DATA_NOT_INITIALIZED:

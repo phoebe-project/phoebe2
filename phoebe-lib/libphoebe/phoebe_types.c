@@ -2266,7 +2266,6 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 {
 	/**
 	 * phoebe_curve_compute:
-	 *
 	 * @curve: a pointer to the initialized #PHOEBE_curve
 	 * @nodes: a vector of nodes in which the curve should be computed
 	 * @index: curve index

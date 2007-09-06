@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-08-21 #
+#                                            Last revision: 2007-09-05 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -64,7 +64,7 @@
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_RELEASE_DATE,
-	[["Sep 1, 2007"]],
+	[["Oct 15, 2007"]],
 	[PHOEBE release date])
 
 # Check for system programs:
@@ -186,29 +186,12 @@
       AC_DEFINE(PHOEBE_GSL_DISABLED, 1, Define if GSL should be disabled:)
     fi
 
-  # GNUPlot support:
-    AC_ARG_ENABLE(gnuplot,
-        [  --enable-gnuplot        Enable gnuplot for drawing graphs (default=yes)],
-        [ac_enable_gnuplot=yes], [ac_enable_gnuplot=yes])
-    AC_DEFUN([AC_PROG_GNUPLOT], [AC_CHECK_PROG(GNUPLOT,gnuplot,yes)])
-    AC_PROG_GNUPLOT
-    if test "$GNUPLOT" == yes; then
-      AC_DEFINE(PHOEBE_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
-      gnuplot="gnuplot"
-    fi
-
   # gtk-doc support; sorry for the silly formatting, gtkdocize requires it:
     gtkdocstate="no"
 GTK_DOC_CHECK(1.0)
     if test "$enable_gtk_doc" == "yes"; then
       gtkdocstate="yes"
     fi
-
-# Concatenate all supporting plotting programs into $plotters:
-  plotters=$gnuplot
-  if test x$plotters = x; then
-    plotters="none"
-  fi
 
 # Optional debugging support:
   debugstate="no"
@@ -274,7 +257,6 @@ GTK_DOC_CHECK(1.0)
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
-  echo "Supported plotting packages:      $plotters"
   echo "Build API documentation:          $gtkdocstate"
   echo "Verbose debugging messages:       $debugstate"
   echo ""

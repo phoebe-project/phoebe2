@@ -29,7 +29,7 @@ int create_lci_file (char *filename, WD_LCI_parameters *param)
 			  param->E, param->SMA, param->F1, param->F2, vga, param->INCL, param->GR1, param->GR2, param->MET1,
 			  tavh, tavc, param->ALB1, param->ALB2, param->PHSV, param->PCSV, param->RM, param->XBOL1, param->XBOL2, param->YBOL1, param->YBOL2,
 			  param->IBAND, param->HLA, param->CLA, param->X1A, param->X2A, param->Y1A, param->Y2A, param->EL3, param->OPSF, mzero, param->FACTOR, wla,
-			  param->SPRIM,param->XLAT1,param->XLONG1,param->RADSP1,param->TEMSP1,param->SSEC,param->XLAT2, param->XLONG2, param->RADSP2, param->TEMSP2);
+			  param->SPRIM, param->XLAT1, param->XLONG1, param->RADSP1, param->TEMSP1, param->SSEC, param->XLAT2, param->XLONG2, param->RADSP2, param->TEMSP2);
 
 	return SUCCESS;
 }
