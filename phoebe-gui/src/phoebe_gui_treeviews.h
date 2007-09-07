@@ -104,3 +104,6 @@ int gui_init_rv_obs_combobox		();
 
 void on_lc_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
 void on_rv_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+
+int gui_edit_data_lc_treeview();
+int gui_edit_data_rv_treeview();
