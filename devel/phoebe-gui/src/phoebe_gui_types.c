@@ -966,8 +966,10 @@ int gui_set_value_to_widget (GUI_widget *widget)
 		if (widget->par){
 			printf ("\twidget type: combo box\n");
 			char *value;
+			int index;
 			status = phoebe_parameter_get_value(widget->par, &value);
-			gtk_combo_box_set_active(GTK_COMBO_BOX(widget->gtk), 0);
+			status = phoebe_parameter_option_get_index(widget->par, value, &index);
+			gtk_combo_box_set_active(GTK_COMBO_BOX(widget->gtk), index);
 			return status;
 		}
 	}
