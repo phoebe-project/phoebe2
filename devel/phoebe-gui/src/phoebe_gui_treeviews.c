@@ -335,111 +335,63 @@ int gui_reinit_rv_treeviews ()
 
 int gui_init_spots_treeview  ()
 {
-	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
 
     GtkTreeModel *spots_model = (GtkTreeModel*)gtk_list_store_new(
-		SPOTS_COL_COUNT,       /* number of columns    */
-		G_TYPE_BOOLEAN,        /* adjustable           */
-		G_TYPE_INT,            /* source               */
+		SPOTS_COL_COUNT,       	/* number of columns    */
+		G_TYPE_BOOLEAN,        	/* adjustable           */
+		G_TYPE_INT,            	/* source               */
 		G_TYPE_STRING,			/* source as string		*/
-		G_TYPE_DOUBLE,         /* latitude             */
-		G_TYPE_BOOLEAN,        /* latitude    adjust   */
-		G_TYPE_DOUBLE,         /* latitude    step     */
-		G_TYPE_DOUBLE,         /* latitude    min      */
-		G_TYPE_DOUBLE,         /* latitude    max      */
-		G_TYPE_DOUBLE,         /* longitude            */
-		G_TYPE_BOOLEAN,        /* longitude   adjust   */
-		G_TYPE_DOUBLE,         /* longitude   step     */
-		G_TYPE_DOUBLE,         /* longitude   min      */
-		G_TYPE_DOUBLE,         /* longitude   max      */
-		G_TYPE_DOUBLE,         /* radius               */
-		G_TYPE_BOOLEAN,        /* radius      adjust   */
-		G_TYPE_DOUBLE,         /* radius      step     */
-		G_TYPE_DOUBLE,         /* radius      min      */
-		G_TYPE_DOUBLE,         /* radius      max      */
-		G_TYPE_DOUBLE,         /* temperature          */
-		G_TYPE_BOOLEAN,        /* temperature adjust   */
-		G_TYPE_DOUBLE,         /* temperature step     */
-		G_TYPE_DOUBLE,         /* temperature min      */
-		G_TYPE_DOUBLE);        /* temperature max      */
+		G_TYPE_DOUBLE,         	/* latitude             */
+		G_TYPE_BOOLEAN,        	/* latitude    adjust   */
+		G_TYPE_DOUBLE,         	/* latitude    step     */
+		G_TYPE_DOUBLE,         	/* latitude    min      */
+		G_TYPE_DOUBLE,         	/* latitude    max      */
+		G_TYPE_DOUBLE,         	/* longitude            */
+		G_TYPE_BOOLEAN,        	/* longitude   adjust   */
+		G_TYPE_DOUBLE,         	/* longitude   step 	*/
+		G_TYPE_DOUBLE,         	/* longitude   min 	    */
+		G_TYPE_DOUBLE,         	/* longitude   max	    */
+		G_TYPE_DOUBLE,         	/* radius               */
+		G_TYPE_BOOLEAN,        	/* radius 	   adjust   */
+		G_TYPE_DOUBLE,         	/* radius      step     */
+		G_TYPE_DOUBLE,         	/* radius      min      */
+		G_TYPE_DOUBLE,         	/* radius      max      */
+		G_TYPE_DOUBLE,         	/* temperature          */
+		G_TYPE_BOOLEAN,       	/* temperature adjust   */
+		G_TYPE_DOUBLE,         	/* temperature step     */
+		G_TYPE_DOUBLE,         	/* temperature min      */
+		G_TYPE_DOUBLE);        	/* temperature max      */
 
     GtkCellRenderer     *renderer;
     GtkTreeViewColumn   *column;
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_surf_spots_adjust_checkbutton_toggled), NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_adjust_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lat. step", renderer, "text", SPOTS_COL_LATSTEP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lat. min", renderer, "text", SPOTS_COL_LATMIN, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lat. max", renderer, "text", SPOTS_COL_LATMAX, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Longitude", renderer, "text", SPOTS_COL_LON, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lon. step", renderer, "text", SPOTS_COL_LONSTEP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lon. min", renderer, "text", SPOTS_COL_LONMIN, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Lon. max", renderer, "text", SPOTS_COL_LONMAX, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Radius", renderer, "text", SPOTS_COL_RAD, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Rad. step", renderer, "text", SPOTS_COL_RADSTEP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Rad. min", renderer, "text", SPOTS_COL_RADMIN, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Rad. max", renderer, "text", SPOTS_COL_RADMAX, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temperature", renderer, "text", SPOTS_COL_TEMP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Temp. step", renderer, "text", SPOTS_COL_TEMPSTEP, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Temp. min", renderer, "text", SPOTS_COL_TEMPMIN, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Temp. max", renderer, "text", SPOTS_COL_TEMPMAX, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_surf_spots_treeview, column, -1);
-
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_surf_spots_treeview, spots_model);
+    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_spots_treeview, spots_model);
 
     return SUCCESS;
 }
@@ -605,62 +557,62 @@ int gui_fill_sidesheet_res_treeview()
 	par = phoebe_parameter_lookup("phoebe_plum1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "P. Lum. 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_plum2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "P. Lum. 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mass1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mass 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mass2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mass 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_radius1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Radius 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_radius2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Radius 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mbol1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mbol 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mbol2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mbol 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "log(g) 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "log(g) 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_sbr1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Surf. Bright. 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_sbr2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, par->qualifier, RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Surf. Bright. 2", RS_COL_PARAM_VALUE, value, -1);
 
 	return status;
 }

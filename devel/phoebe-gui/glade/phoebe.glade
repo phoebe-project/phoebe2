@@ -3,6 +3,8 @@
 <!--*- mode: xml -*-->
 <glade-interface>
   <widget class="GtkWindow" id="phoebe_window">
+    <property name="width_request">900</property>
+    <property name="height_request">660</property>
     <property name="title" translatable="yes">PHOEBE</property>
     <property name="default_width">800</property>
     <property name="default_height">600</property>
@@ -137,6 +139,9 @@
                 <property name="stock_id">gtk-open</property>
                 <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_save_toolbutton">
@@ -144,11 +149,18 @@
                 <property name="stock_id">gtk-save</property>
                 <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_lc_plot_toolbutton">
@@ -157,6 +169,9 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_lc_plot_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_rv_plot_toolbutton">
@@ -165,11 +180,18 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_rv_plot_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_fiitting_toolbutton">
@@ -179,6 +201,9 @@
                 <property name="stock_id">gtk-execute</property>
                 <signal name="clicked" handler="on_phoebe_fiitting_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_scripter_toolbutton">
@@ -188,11 +213,18 @@
                 <property name="stock_id">gtk-harddisk</property>
                 <signal name="clicked" handler="on_phoebe_scripter_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator2">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_settings_toolbutton">
@@ -202,11 +234,18 @@
                 <property name="stock_id">gtk-preferences</property>
                 <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator3">
                 <property name="visible">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_quit_toolbutton">
@@ -214,12 +253,19 @@
                 <property name="stock_id">gtk-quit</property>
                 <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="Separator">
                 <property name="visible">True</property>
                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_test_toolbutton_0">
@@ -228,6 +274,9 @@
                 <property name="label">w-&gt;p</property>
                 <signal name="clicked" handler="on_phoebe_test_toolbutton_0_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_test_toolbutton_1">
@@ -236,6 +285,9 @@
                 <property name="label">p-&gt;w</property>
                 <signal name="clicked" handler="on_phoebe_test_toolbutton_1_clicked"/>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+              </packing>
             </child>
           </widget>
           <packing>
@@ -248,6 +300,7 @@
             <property name="visible">True</property>
             <child>
               <widget class="GtkNotebook" id="phoebe_notebook">
+                <property name="width_request">600</property>
                 <property name="visible">True</property>
                 <property name="border_width">4</property>
                 <property name="tab_vborder">1</property>
@@ -319,7 +372,7 @@ Double contact binary</property>
                                   <packing>
                                     <property name="left_attach">4</property>
                                     <property name="right_attach">5</property>
-                                    <property name="x_options">GTK_SHRINK</property>
+                                    <property name="x_options">GTK_SHRINK | GTK_FILL</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -370,6 +423,7 @@ Double contact binary</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_data_lc_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -392,6 +446,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Add</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_lc_add_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -405,6 +460,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_lc_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -419,6 +475,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Remove</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_lc_remove_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -461,6 +518,7 @@ Double contact binary</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_data_rv_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -484,6 +542,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Add</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_add_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -497,6 +556,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -511,6 +571,7 @@ Double contact binary</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Remove</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_remove_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -641,6 +702,7 @@ Interpolation
                               </widget>
                               <packing>
                                 <property name="expand">False</property>
+                                <property name="padding">2</property>
                                 <property name="position">2</property>
                               </packing>
                             </child>
@@ -654,6 +716,7 @@ Interpolation
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">Bin input data</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -713,7 +776,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="xpad">4</property>
                                     <property name="ypad">4</property>
-                                    <property name="label" translatable="yes">Mag normalization:</property>
+                                    <property name="label" translatable="yes">Mag. norm.:</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -761,6 +824,7 @@ Interpolation
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">PSEPE</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -773,6 +837,7 @@ Interpolation
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">SSEPE</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -865,6 +930,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_hjd0adjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -919,7 +985,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">4</property>
+                                        <property name="digits">10</property>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -933,7 +999,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">4</property>
+                                        <property name="digits">10</property>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -949,7 +1015,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">4</property>
+                                        <property name="digits">10</property>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">2</property>
@@ -1021,6 +1087,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_periodadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1184,6 +1251,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_dpdtadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_eph_dpdtadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1345,6 +1413,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_eph_pshiftadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1400,7 +1469,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">5</property>
+                                        <property name="digits">10</property>
                                         <signal name="value_changed" handler="on_phoebe_para_eph_pshiftstep_spinbutton_value_changed"/>
                                         <signal name="editing_done" handler="on_phoebe_para_eph_pshiftstep_spinbutton_editing_done"/>
                                       </widget>
@@ -1416,7 +1485,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">5</property>
+                                        <property name="digits">10</property>
                                         <signal name="value_changed" handler="on_phoebe_para_eph_pshiftmax_spinbutton_value_changed"/>
                                         <signal name="editing_done" handler="on_phoebe_para_eph_pshiftmax_spinbutton_editing_done"/>
                                       </widget>
@@ -1434,7 +1503,7 @@ Interpolation
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
                                         <property name="climb_rate">1</property>
-                                        <property name="digits">5</property>
+                                        <property name="digits">10</property>
                                         <signal name="value_changed" handler="on_phoebe_para_eph_pshiftmin_spinbutton_value_changed"/>
                                         <signal name="editing_done" handler="on_phoebe_para_eph_pshiftmin_spinbutton_editing_done"/>
                                       </widget>
@@ -1538,6 +1607,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_smaadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1701,6 +1771,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_rmadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1865,6 +1936,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_vgaadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2024,6 +2096,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_sys_incladjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2221,6 +2294,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_eph_perr0adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2383,6 +2457,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_eph_dperdtadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2545,6 +2620,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2703,6 +2779,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2861,6 +2938,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3048,6 +3126,7 @@ Interpolation
                                   <widget class="GtkCheckButton" id="phoebe_para_comp_tavhadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_tavh_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3205,6 +3284,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_tavcadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3364,6 +3444,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_phsvadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3526,6 +3607,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_pcsvadjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3688,6 +3770,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_met1adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3850,6 +3933,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_comp_met2adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4000,6 +4084,18 @@ Interpolation
                         <property name="n_rows">8</property>
                         <property name="n_columns">1</property>
                         <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
                           <widget class="GtkFrame" id="phoebe_para_surf_alb1_frame">
                             <property name="visible">True</property>
                             <property name="label_xalign">0</property>
@@ -4036,6 +4132,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_surf_alb1adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4197,6 +4294,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_surf_alb2adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4360,6 +4458,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_surf_gr1adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4523,6 +4622,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_surf_gr2adjust_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4649,138 +4749,6 @@ Interpolation
                             <property name="y_options">GTK_FILL</property>
                           </packing>
                         </child>
-                        <child>
-                          <widget class="GtkFrame" id="phoebe_para_surf_spots_frame">
-                            <property name="visible">True</property>
-                            <property name="label_xalign">0</property>
-                            <child>
-                              <widget class="GtkVBox" id="phoebe_para_surf_spots_vbox">
-                                <property name="visible">True</property>
-                                <child>
-                                  <widget class="GtkHBox" id="phoebe_para_surf_spots_vbox">
-                                    <property name="visible">True</property>
-                                    <child>
-                                      <widget class="GtkScrolledWindow" id="phoebe_para_surf_spots_scrolledwindow">
-                                        <property name="visible">True</property>
-                                        <property name="border_width">4</property>
-                                        <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                                        <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                                        <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
-                                        <child>
-                                          <widget class="GtkTreeView" id="phoebe_para_surf_spots_treeview">
-                                            <property name="visible">True</property>
-                                          </widget>
-                                        </child>
-                                      </widget>
-                                    </child>
-                                    <child>
-                                      <widget class="GtkVButtonBox" id="phoebe_notebook_surf_spots_buttons_vbuttonbox">
-                                        <property name="visible">True</property>
-                                        <property name="layout_style">GTK_BUTTONBOX_START</property>
-                                        <child>
-                                          <widget class="GtkButton" id="phoebe_para_surf_spots_add_button">
-                                            <property name="visible">True</property>
-                                            <property name="border_width">4</property>
-                                            <property name="label" translatable="yes">Add</property>
-                                            <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_add_button_clicked"/>
-                                          </widget>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <widget class="GtkButton" id="phoebe_para_surf_spots_edit_button">
-                                            <property name="visible">True</property>
-                                            <property name="border_width">4</property>
-                                            <property name="label" translatable="yes">Edit</property>
-                                            <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_edit_button_clicked"/>
-                                          </widget>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <widget class="GtkButton" id="phoebe_para_surf_spots_remove_button">
-                                            <property name="visible">True</property>
-                                            <property name="border_width">4</property>
-                                            <property name="label" translatable="yes">Remove</property>
-                                            <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_surf_spots_remove_button_clicked"/>
-                                          </widget>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">2</property>
-                                          </packing>
-                                        </child>
-                                      </widget>
-                                      <packing>
-                                        <property name="expand">False</property>
-                                        <property name="fill">False</property>
-                                        <property name="position">1</property>
-                                      </packing>
-                                    </child>
-                                  </widget>
-                                </child>
-                                <child>
-                                  <widget class="GtkTable" id="phoebe_para_surf_spots_longitude_table">
-                                    <property name="visible">True</property>
-                                    <property name="n_rows">1</property>
-                                    <property name="n_columns">2</property>
-                                    <child>
-                                      <widget class="GtkCheckButton" id="phoebe_para_surf_spots_primmove_checkbutton">
-                                        <property name="visible">True</property>
-                                        <property name="label" translatable="yes">Spots on primary move along longitude</property>
-                                        <property name="use_underline">True</property>
-                                        <property name="draw_indicator">True</property>
-                                      </widget>
-                                      <packing>
-                                        <property name="y_options">GTK_FILL</property>
-                                      </packing>
-                                    </child>
-                                    <child>
-                                      <widget class="GtkCheckButton" id="phoebe_para_surf_spots_secmove_checkbutton">
-                                        <property name="visible">True</property>
-                                        <property name="label" translatable="yes">Spots on secondary move along longitude</property>
-                                        <property name="use_underline">True</property>
-                                        <property name="draw_indicator">True</property>
-                                      </widget>
-                                      <packing>
-                                        <property name="left_attach">1</property>
-                                        <property name="right_attach">2</property>
-                                        <property name="y_options">GTK_FILL</property>
-                                      </packing>
-                                    </child>
-                                  </widget>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                              </widget>
-                            </child>
-                            <child>
-                              <widget class="GtkLabel" id="phoebe_para_surf_spots_frame_label">
-                                <property name="visible">True</property>
-                                <property name="xpad">4</property>
-                                <property name="label" translatable="yes">&lt;b&gt;Spots&lt;/b&gt;</property>
-                                <property name="use_markup">True</property>
-                              </widget>
-                              <packing>
-                                <property name="type">label_item</property>
-                              </packing>
-                            </child>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">4</property>
-                            <property name="bottom_attach">8</property>
-                          </packing>
-                        </child>
                       </widget>
                       <packing>
                         <property name="position">4</property>
@@ -4820,6 +4788,7 @@ Interpolation
                                       <widget class="GtkScrolledWindow" id="phoebe_para_lum_levels_scrolledwindow">
                                         <property name="height_request">100</property>
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -4837,6 +4806,7 @@ Interpolation
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_lum_levels_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -4855,6 +4825,7 @@ Interpolation
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Primary levels</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_lum_levels_primadjust_checkbutton_toggled"/>
                                           </widget>
@@ -4868,6 +4839,7 @@ Interpolation
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Secondary levels</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_lum_levels_secadjust_checkbutton_toggled"/>
                                           </widget>
@@ -4978,6 +4950,7 @@ Interpolation
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_lum_el3_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -4995,6 +4968,7 @@ Interpolation
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_lum_el3_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -5063,6 +5037,7 @@ Flux</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Extinction</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -5077,6 +5052,7 @@ Flux</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Opacity function</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_lum_el3_opacityadjust_checkbutton_toggled"/>
                                           </widget>
@@ -5125,6 +5101,7 @@ Flux</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Third light</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_lum_el3ajdust_checkbutton_toggled"/>
                                           </widget>
@@ -5211,6 +5188,7 @@ Flux</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_lum_weighting_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -5228,6 +5206,7 @@ Flux</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_lum_weighting_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -5270,6 +5249,7 @@ Flux</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Atmosphere model for primary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_atmospheres_prim_checkbutton_toggled"/>
                                       </widget>
@@ -5282,6 +5262,7 @@ Flux</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Atmosphere model for secondary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_atmospheres_sec_checkbutton_toggled"/>
                                       </widget>
@@ -5296,6 +5277,7 @@ Flux</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Gravity acceleration from model</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_atmospheres_grav_checkbutton_toggled"/>
                                       </widget>
@@ -5341,10 +5323,16 @@ Flux</property>
                                   <widget class="GtkTable" id="phoebe_para_lum_noise_table">
                                     <property name="visible">True</property>
                                     <property name="border_width">4</property>
-                                    <property name="n_rows">3</property>
+                                    <property name="n_rows">4</property>
                                     <property name="n_columns">2</property>
                                     <property name="column_spacing">4</property>
                                     <property name="row_spacing">2</property>
+                                    <child>
+                                      <placeholder/>
+                                    </child>
+                                    <child>
+                                      <placeholder/>
+                                    </child>
                                     <child>
                                       <widget class="GtkLabel" id="phoebe_para_lum_noise_seed_label">
                                         <property name="visible">True</property>
@@ -5374,6 +5362,7 @@ Flux</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Generate</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_para_lum_noise_seedgen_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -5424,6 +5413,7 @@ Flux</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Add LC scatter</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_noise_lcscatter_checkbutton_toggled"/>
                                       </widget>
@@ -5442,7 +5432,7 @@ Low light scatter</property>
                                       <packing>
                                         <property name="left_attach">1</property>
                                         <property name="right_attach">2</property>
-                                        <property name="x_options">GTK_FILL</property>
+                                        <property name="x_options"></property>
                                       </packing>
                                     </child>
                                   </widget>
@@ -5482,6 +5472,7 @@ Low light scatter</property>
                                         <property name="can_focus">True</property>
                                         <property name="label" translatable="yes">Reflection effect with</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_options_reflections_checkbutton_toggled"/>
                                       </widget>
@@ -5497,6 +5488,7 @@ Low light scatter</property>
                                         <property name="label" translatable="yes">Decouple secondary luminosities 
 from temperatures</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_lum_options_decouple_checkbutton_toggled"/>
                                       </widget>
@@ -5779,6 +5771,7 @@ from temperatures</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Auto update</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_ld_model_autoupdate_checkbutton_toggled"/>
                                       </widget>
@@ -5822,6 +5815,7 @@ Square root law</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Claret (2001)</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_ld_model_tables_claret_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -5839,6 +5833,7 @@ Square root law</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Van Hamme (1993)</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_ld_model_tables_vanhamme_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -5899,6 +5894,7 @@ Square root law</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_ld_lccoefs_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">4</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -5921,6 +5917,7 @@ Square root law</property>
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -6010,6 +6007,7 @@ Square root law</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Adjust secondary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_ld_lccoefs_secadjust_checkbutton_toggled"/>
                                       </widget>
@@ -6025,6 +6023,7 @@ Square root law</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Adjust primary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled"/>
                                       </widget>
@@ -6068,6 +6067,7 @@ Square root law</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_para_ld_rvcoefs_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="border_width">4</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6089,6 +6089,7 @@ Square root law</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -6134,6 +6135,870 @@ Square root law</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">6</property>
+                        <property name="tab_expand">False</property>
+                        <property name="tab_fill">False</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkFrame" id="phoebe_para_spots_frame">
+                        <property name="visible">True</property>
+                        <property name="label_xalign">0</property>
+                        <child>
+                          <widget class="GtkVBox" id="phoebe_para_spots_vbox3">
+                            <property name="visible">True</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <widget class="GtkHBox" id="phoebe_para_spots_vbox4">
+                                <property name="visible">True</property>
+                                <child>
+                                  <widget class="GtkScrolledWindow" id="phoebe_para_spots_scrolledwindow">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="border_width">4</property>
+                                    <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+                                    <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+                                    <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
+                                    <child>
+                                      <widget class="GtkTreeView" id="phoebe_para_spots_treeview">
+                                        <property name="visible">True</property>
+                                        <signal name="cursor_changed" handler="on_phoebe_para_spots_treeview_cursor_changed"/>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkVButtonBox" id="phoebe_notebook_spots_buttons_vbuttonbox">
+                                    <property name="visible">True</property>
+                                    <property name="layout_style">GTK_BUTTONBOX_START</property>
+                                    <child>
+                                      <widget class="GtkButton" id="phoebe_para_spots_add_button">
+                                        <property name="visible">True</property>
+                                        <property name="border_width">4</property>
+                                        <property name="label" translatable="yes">Add a spot to the primary</property>
+                                        <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_add_button_clicked"/>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkButton" id="phoebe_para_spots_edit_button">
+                                        <property name="visible">True</property>
+                                        <property name="border_width">4</property>
+                                        <property name="label" translatable="yes">Add a spot to the secondary</property>
+                                        <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_edit_button_clicked"/>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkButton" id="phoebe_para_spots_remove_button">
+                                        <property name="visible">True</property>
+                                        <property name="border_width">4</property>
+                                        <property name="label" translatable="yes">Remove selected spot</property>
+                                        <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_remove_button_clicked"/>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                            </child>
+                            <child>
+                              <widget class="GtkCheckButton" id="phoebe_para_spots_primmove_checkbutton">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">Spots on primary move along longitude</property>
+                                <property name="use_underline">True</property>
+                                <property name="response_id">0</property>
+                                <property name="draw_indicator">True</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkCheckButton" id="phoebe_para_spots_secmove_checkbutton">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">Spots on secondary move along longitude</property>
+                                <property name="use_underline">True</property>
+                                <property name="response_id">0</property>
+                                <property name="draw_indicator">True</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkFrame" id="phoebe_para_spots_lat_frame">
+                                <property name="visible">True</property>
+                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                <property name="label_xalign">0</property>
+                                <child>
+                                  <widget class="GtkAlignment" id="alignment1">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="left_padding">12</property>
+                                    <child>
+                                      <widget class="GtkHBox" id="hbox20">
+                                        <property name="visible">True</property>
+                                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox6">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label18">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Value:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_lat_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lat_spinbutton_value_changed"/>
+                                                <signal name="changed" handler="on_phoebe_para_spots_lat_spinbutton_changed"/>
+                                                <signal name="editing_done" handler="on_phoebe_para_spots_lat_spinbutton_editing_done"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator35">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkCheckButton" id="phoebe_para_spots_latadjust_checkbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
+                                            <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_latadjust_checkbutton_toggled"/>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator36">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox17">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label20">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Step:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_latstep_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latstep_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">4</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox18">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label21">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Min:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_latmin_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmin_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">5</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox19">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label22">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Max:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_latmax_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmax_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">6</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_spots_lat_frame_label">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Latitude of &lt;i&gt;selected spot&lt;/i&gt;&lt;/b&gt;</property>
+                                    <property name="use_markup">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="type">label_item</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkFrame" id="phoebe_para_spots_lon_frame">
+                                <property name="visible">True</property>
+                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                <property name="label_xalign">0</property>
+                                <child>
+                                  <widget class="GtkAlignment" id="alignment4">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="left_padding">12</property>
+                                    <child>
+                                      <widget class="GtkHBox" id="hbox35">
+                                        <property name="visible">True</property>
+                                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox25">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label28">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Value:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_lon_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lon_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator47">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkCheckButton" id="phoebe_para_spots_lonadjust_checkbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
+                                            <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_lonadjust_checkbutton_toggled"/>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator49">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox26">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label29">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Step:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_lonstep_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonstep_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">4</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox27">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label30">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Min:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_lonmin_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmin_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">5</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox28">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label31">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Max:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_lonmax_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmax_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">6</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_spots_lon_frame_label">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Longitude of &lt;i&gt;selected spot&lt;/i&gt;&lt;/b&gt;</property>
+                                    <property name="use_markup">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="type">label_item</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkFrame" id="phoebe_para_spots_rad_frame">
+                                <property name="visible">True</property>
+                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                <property name="label_xalign">0</property>
+                                <child>
+                                  <widget class="GtkAlignment" id="alignment5">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="left_padding">12</property>
+                                    <child>
+                                      <widget class="GtkHBox" id="hbox36">
+                                        <property name="visible">True</property>
+                                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox29">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label33">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Value:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_rad_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_rad_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator50">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkCheckButton" id="phoebe_para_spots_radadjust_checkbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
+                                            <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_radadjust_checkbutton_toggled"/>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator51">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox30">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label34">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Step:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_radstep_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radstep_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">4</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox31">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label35">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Min:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_radmin_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmin_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">5</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox32">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label36">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Max:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_radmax_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmax_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">6</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_spots_rad_frame_label">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Radius of &lt;i&gt;selected spot&lt;/i&gt;&lt;/b&gt;</property>
+                                    <property name="use_markup">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="type">label_item</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkFrame" id="phoebe_para_spots_temp_frame">
+                                <property name="visible">True</property>
+                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                <property name="label_xalign">0</property>
+                                <child>
+                                  <widget class="GtkAlignment" id="alignment6">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="left_padding">12</property>
+                                    <child>
+                                      <widget class="GtkHBox" id="hbox37">
+                                        <property name="visible">True</property>
+                                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox33">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label38">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Value:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_temp_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_temp_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator52">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkCheckButton" id="phoebe_para_spots_tempadjust_checkbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
+                                            <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_tempadjust_checkbutton_toggled"/>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVSeparator" id="vseparator53">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="padding">5</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox34">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label39">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Step:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_tempstep_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempstep_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">4</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox35">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label40">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Min:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_tempmin_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmin_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">5</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkVBox" id="vbox36">
+                                            <property name="visible">True</property>
+                                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <child>
+                                              <widget class="GtkLabel" id="label41">
+                                                <property name="visible">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="label" translatable="yes">Max:</property>
+                                              </widget>
+                                            </child>
+                                            <child>
+                                              <widget class="GtkSpinButton" id="phoebe_para_spots_tempmax_spinbutton">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">True</property>
+                                                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="adjustment">0 0 100 1 10 10</property>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmax_spinbutton_value_changed"/>
+                                              </widget>
+                                              <packing>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </widget>
+                                          <packing>
+                                            <property name="position">6</property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_spots_temp_frame_label">
+                                    <property name="visible">True</property>
+                                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Temperature of &lt;i&gt;selected spot&lt;/i&gt;&lt;/b&gt;</property>
+                                    <property name="use_markup">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="type">label_item</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">6</property>
+                              </packing>
+                            </child>
+                          </widget>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_para_spots_frame_label2">
+                            <property name="visible">True</property>
+                            <property name="xpad">4</property>
+                            <property name="label" translatable="yes">&lt;b&gt;Spots&lt;/b&gt;</property>
+                            <property name="use_markup">True</property>
+                          </widget>
+                          <packing>
+                            <property name="type">label_item</property>
+                          </packing>
+                        </child>
+                      </widget>
+                      <packing>
+                        <property name="position">7</property>
+                        <property name="tab_expand">False</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="phoebe_para_spots_label">
+                        <property name="visible">True</property>
+                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                        <property name="label" translatable="yes">Spots</property>
+                      </widget>
+                      <packing>
+                        <property name="type">tab</property>
+                        <property name="position">7</property>
                         <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
@@ -6370,6 +7235,7 @@ Nelder &amp; Mead's Simplex</property>
                                       <widget class="GtkButton" id="phoebe_fitt_detach_button">
                                         <property name="visible">True</property>
                                         <property name="relief">GTK_RELIEF_NONE</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_fitt_fitting_detach_button_clicked"/>
                                         <child>
                                           <widget class="GtkImage" id="image5">
@@ -6397,6 +7263,7 @@ Nelder &amp; Mead's Simplex</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_first_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6414,6 +7281,7 @@ Nelder &amp; Mead's Simplex</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_second_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6433,6 +7301,7 @@ Nelder &amp; Mead's Simplex</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_third_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6472,12 +7341,14 @@ Nelder &amp; Mead's Simplex</property>
                                       <widget class="GtkButton" id="phoebe_fitt_fitting_corrmat_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Correlation Matrix</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                     </child>
                                     <child>
                                       <widget class="GtkButton" id="phoebe_fitt_fitting_calculate_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Calculate</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                       <packing>
                                         <property name="position">1</property>
@@ -6487,6 +7358,7 @@ Nelder &amp; Mead's Simplex</property>
                                       <widget class="GtkButton" id="phoebe_fitt_fitting_updateall_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Update All</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                       <packing>
                                         <property name="position">2</property>
@@ -6561,6 +7433,7 @@ Nelder &amp; Mead's Simplex</property>
                                   <widget class="GtkButton" id="phoebe_lc_plot_detach_button">
                                     <property name="visible">True</property>
                                     <property name="relief">GTK_RELIEF_NONE</property>
+                                    <property name="response_id">0</property>
                                     <signal name="clicked" handler="on_phoebe_lc_plot_detach_button_clicked"/>
                                     <child>
                                       <widget class="GtkImage" id="image3">
@@ -6643,6 +7516,7 @@ Nelder &amp; Mead's Simplex</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Observed</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_lc_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
@@ -6656,6 +7530,7 @@ Nelder &amp; Mead's Simplex</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Synthetic</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -6683,6 +7558,7 @@ Nelder &amp; Mead's Simplex</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Aliasing</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -6692,6 +7568,7 @@ Nelder &amp; Mead's Simplex</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Residuals</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -6898,6 +7775,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_left_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_left_arrow">
                                                 <property name="visible">True</property>
@@ -6913,6 +7791,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_down_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_down_arrow">
                                                 <property name="visible">True</property>
@@ -6930,6 +7809,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_right_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_right_arrow">
                                                 <property name="visible">True</property>
@@ -6947,6 +7827,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_up_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_up_arrow">
                                                 <property name="visible">True</property>
@@ -6963,6 +7844,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_reset_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <placeholder/>
                                             </child>
@@ -7030,12 +7912,14 @@ Time</property>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_zoomin_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom In</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                         </child>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_zoomout_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom Out</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -7104,6 +7988,7 @@ Time</property>
                                           <widget class="GtkCheckButton" id="phoebe_lc_plot_controls_coarse_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Coarse</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -7114,6 +7999,7 @@ Time</property>
                                           <widget class="GtkCheckButton" id="phoebe_lc_plot_controls_fine_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Fine</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -7159,6 +8045,7 @@ Time</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_lc_plot_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">5</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -7179,6 +8066,7 @@ Time</property>
                                           <widget class="GtkButton" id="phoebe_lc_plot_plot_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Plot</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_plot_button_clicked"/>
                                           </widget>
                                         </child>
@@ -7187,6 +8075,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-save</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -7197,6 +8086,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-clear</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">2</property>
@@ -7267,6 +8157,7 @@ Time</property>
                                     <property name="relief">GTK_RELIEF_NONE</property>
                                     <property name="xalign">0</property>
                                     <property name="yalign">0</property>
+                                    <property name="response_id">0</property>
                                     <signal name="clicked" handler="on_phoebe_rv_plot_detach_button_clicked"/>
                                     <child>
                                       <widget class="GtkImage" id="image2">
@@ -7354,6 +8245,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Observed</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_rv_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
@@ -7367,6 +8259,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Synthetic</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -7394,6 +8287,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Aliasing</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -7403,6 +8297,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Residuals</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -7612,6 +8507,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_right_left">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_left_arrow">
                                                 <property name="visible">True</property>
@@ -7627,6 +8523,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_down_arrow">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_down_arrow">
                                                 <property name="visible">True</property>
@@ -7644,6 +8541,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_right_arrow">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_right_arrow">
                                                 <property name="visible">True</property>
@@ -7661,6 +8559,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_up_arrow">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_up_arrow">
                                                 <property name="visible">True</property>
@@ -7677,6 +8576,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_reset_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <child>
                                               <placeholder/>
                                             </child>
@@ -7744,12 +8644,14 @@ Time</property>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_zoomin_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom In</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                         </child>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_zoomout_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom Out</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -7818,6 +8720,7 @@ Time</property>
                                           <widget class="GtkCheckButton" id="phoebe_rv_plot_controls_coarse_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Coarse</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -7828,6 +8731,7 @@ Time</property>
                                           <widget class="GtkCheckButton" id="phoebe_rv_plot_controls_fine_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Fine</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -7873,6 +8777,7 @@ Time</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_rv_plot_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_IN</property>
@@ -7889,6 +8794,7 @@ Time</property>
                                           <widget class="GtkButton" id="phoebe_rv_plot_plot_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Plot</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                         </child>
                                         <child>
@@ -7896,6 +8802,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-save</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -7906,6 +8813,7 @@ Time</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-clear</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                           </widget>
                                           <packing>
                                             <property name="position">2</property>
@@ -7967,6 +8875,7 @@ Time</property>
                             <child>
                               <widget class="GtkScrolledWindow" id="phoebe_star_shape_scrolledwindow">
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="shadow_type">GTK_SHADOW_IN</property>
@@ -7986,12 +8895,14 @@ Time</property>
                                       <widget class="GtkButton" id="phoebe_star_shape_calculate_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Calculate</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                     </child>
                                     <child>
                                       <widget class="GtkButton" id="phoebe_star_shape_plottofile_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Plot to FIle</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                       <packing>
                                         <property name="position">1</property>
@@ -8091,13 +9002,10 @@ Time</property>
                   </packing>
                 </child>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkTable" id="phoebe_sidesheet_parent_table">
+                <property name="width_request">140</property>
                 <property name="visible">True</property>
                 <property name="n_rows">1</property>
                 <property name="n_columns">1</property>
@@ -8116,6 +9024,7 @@ Time</property>
                           <widget class="GtkButton" id="phoebe_sidesheet_detach_button">
                             <property name="visible">True</property>
                             <property name="relief">GTK_RELIEF_NONE</property>
+                            <property name="response_id">0</property>
                             <signal name="clicked" handler="on_phoebe_sidesheet_detach_button_clicked"/>
                             <child>
                               <widget class="GtkImage" id="image4">
@@ -8146,8 +9055,8 @@ Time</property>
                             <property name="visible">True</property>
                             <child>
                               <widget class="GtkScrolledWindow" id="phoebe_sidesheet_fitt_scrolledwindow">
-                                <property name="width_request">215</property>
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="border_width">4</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -8188,6 +9097,7 @@ Time</property>
                               <widget class="GtkScrolledWindow" id="phoebe_sidesheet_data_scrolledwindow">
                                 <property name="width_request">120</property>
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="border_width">4</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
