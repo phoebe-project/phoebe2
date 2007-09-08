@@ -430,17 +430,110 @@ on_phoebe_para_surf_spots_treeview_row_activated
 
 
 void
-on_phoebe_para_surf_spots_treeview_cursor_changed
+on_phoebe_para_spots_treeview_cursor_changed
                                         (GtkTreeView *tree_view,
                                          gpointer     user_data)
 {
+	GtkWidget *lat_label			  = gui_widget_lookup ("phoebe_para_spots_lat_label")->gtk;
+	GtkWidget *lat_spinbutton         = gui_widget_lookup ("phoebe_para_spots_lat_spinbutton")->gtk;
+	GtkWidget *latadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_latadjust_checkbutton")->gtk;
+	GtkWidget *latstep_spinbutton     = gui_widget_lookup ("phoebe_para_spots_latstep_spinbutton")->gtk;
+	GtkWidget *latmax_spinbutton      = gui_widget_lookup ("phoebe_para_spots_latmax_spinbutton")->gtk;
+	GtkWidget *latmin_spinbutton      = gui_widget_lookup ("phoebe_para_spots_latmin_spinbutton")->gtk;
+	GtkWidget *lon_label			  = gui_widget_lookup ("phoebe_para_spots_lon_label")->gtk;
+	GtkWidget *lon_spinbutton         = gui_widget_lookup ("phoebe_para_spots_lon_spinbutton")->gtk;
+	GtkWidget *lonadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_lonadjust_checkbutton")->gtk;
+	GtkWidget *lonstep_spinbutton     = gui_widget_lookup ("phoebe_para_spots_lonstep_spinbutton")->gtk;
+	GtkWidget *lonmax_spinbutton      = gui_widget_lookup ("phoebe_para_spots_lonmax_spinbutton")->gtk;
+	GtkWidget *lonmin_spinbutton      = gui_widget_lookup ("phoebe_para_spots_lonmin_spinbutton")->gtk;
+	GtkWidget *rad_label			  = gui_widget_lookup ("phoebe_para_spots_rad_label")->gtk;
+	GtkWidget *rad_spinbutton         = gui_widget_lookup ("phoebe_para_spots_rad_spinbutton")->gtk;
+	GtkWidget *radadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_radadjust_checkbutton")->gtk;
+	GtkWidget *radstep_spinbutton     = gui_widget_lookup ("phoebe_para_spots_radstep_spinbutton")->gtk;
+	GtkWidget *radmax_spinbutton      = gui_widget_lookup ("phoebe_para_spots_radmax_spinbutton")->gtk;
+	GtkWidget *radmin_spinbutton      = gui_widget_lookup ("phoebe_para_spots_radmin_spinbutton")->gtk;
+	GtkWidget *temp_label			  = gui_widget_lookup ("phoebe_para_spots_temp_label")->gtk;
+	GtkWidget *temp_spinbutton        = gui_widget_lookup ("phoebe_para_spots_temp_spinbutton")->gtk;
+	GtkWidget *tempadjust_checkbutton = gui_widget_lookup ("phoebe_para_spots_tempadjust_checkbutton")->gtk;
+	GtkWidget *tempstep_spinbutton    = gui_widget_lookup ("phoebe_para_spots_tempstep_spinbutton")->gtk;
+	GtkWidget *tempmax_spinbutton     = gui_widget_lookup ("phoebe_para_spots_tempmax_spinbutton")->gtk;
+	GtkWidget *tempmin_spinbutton     = gui_widget_lookup ("phoebe_para_spots_tempmin_spinbutton")->gtk;
 
+	double lat,  latstep,  latmin,  latmax;  bool latadjust;
+	double lon,  lonstep,  lonmin,  lonmax;  bool lonadjust;
+	double rad,  radstep,  radmin,  radmax;  bool radadjust;
+	double temp, tempstep, tempmin, tempmax; bool tempadjust;
+
+	char *source, *markup;
+
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+		gtk_tree_model_get(model, &iter,SPOTS_COL_SOURCE_STR, &source,
+										SPOTS_COL_LAT, &lat,
+										SPOTS_COL_LATADJUST, &latadjust,
+										SPOTS_COL_LATSTEP, &latstep,
+										SPOTS_COL_LATMIN, &latmin,
+										SPOTS_COL_LATMAX, &latmax,
+										SPOTS_COL_LON, &lon,
+										SPOTS_COL_LONADJUST, &lonadjust,
+										SPOTS_COL_LONSTEP, &lonstep,
+										SPOTS_COL_LONMIN, &lonmin,
+										SPOTS_COL_LONMAX, &lonmax,
+										SPOTS_COL_RAD, &rad,
+										SPOTS_COL_RADADJUST, &radadjust,
+										SPOTS_COL_RADSTEP, &radstep,
+										SPOTS_COL_RADMIN, &radmin,
+										SPOTS_COL_RADMAX, &radmax,
+										SPOTS_COL_TEMP, &temp,
+										SPOTS_COL_TEMPADJUST, &tempadjust,
+										SPOTS_COL_TEMPSTEP, &tempstep,
+										SPOTS_COL_TEMPMIN, &tempmin,
+										SPOTS_COL_TEMPMAX, &tempmax, -1);
+
+		markup = g_markup_printf_escaped ("<b>Latitude of spot %d on %s</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1, source);
+		gtk_label_set_markup (GTK_LABEL (lat_label), markup);
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(latadjust_checkbutton), latadjust);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lat_spinbutton), lat);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(latstep_spinbutton), latstep);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(latmin_spinbutton), latmin);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(latmax_spinbutton), latmax);
+
+		markup = g_markup_printf_escaped ("<b>Longitude of spot %d on %s</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1, source);
+		gtk_label_set_markup (GTK_LABEL (lon_label), markup);
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lonadjust_checkbutton), lonadjust);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lon_spinbutton), lon);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lonstep_spinbutton), lonstep);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lonmin_spinbutton), lonmin);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lonmax_spinbutton), lonmax);
+
+		markup = g_markup_printf_escaped ("<b>Radius of spot %d on %s</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1, source);
+		gtk_label_set_markup (GTK_LABEL (rad_label), markup);
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radadjust_checkbutton), radadjust);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(rad_spinbutton), rad);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radstep_spinbutton), radstep);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radmin_spinbutton), radmin);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radmax_spinbutton), radmax);
+
+		markup = g_markup_printf_escaped ("<b>Temperature of spot %d on %s</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1, source);
+		gtk_label_set_markup (GTK_LABEL (temp_label), markup);
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tempadjust_checkbutton), tempadjust);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(temp_spinbutton), temp);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(tempstep_spinbutton), tempstep);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(tempmin_spinbutton), tempmin);
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(tempmax_spinbutton), tempmax);
+    }
 }
 
 void
-on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
-                                                gpointer         user_data)
+on_phoebe_para_spots_add_button_clicked   (GtkButton       *button,
+											gpointer         user_data)
 {
+/* The original coding:
     gchar     *glade_xml_file                           = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_spots.glade", NULL);
     GladeXML  *phoebe_load_spots_xml                    = glade_xml_new        (glade_xml_file, NULL, NULL);
 
@@ -476,11 +569,9 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
 	switch (result)	{
 	    case GTK_RESPONSE_OK:{
 
-			GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
-            model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
+			GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+            model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
 
-            /* source gets set separately because 1 is for primary, and 2 for secondary, while the
-               combo returns 0 for primary and 1 for secondary; and, we need it later */
             int source = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
             char *source_str;
 
@@ -516,14 +607,12 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
             int spots_no;
 
             if (source == 1){
-                /* the primary */
                 par = phoebe_parameter_lookup("phoebe_spots_no1");
                 phoebe_parameter_get_value(par, &spots_no);
                 phoebe_parameter_set_value(par, spots_no + 1);
                 printf("Number of spots on the primary: %d\n", spots_no + 1);
             }
             else{
-                /* the secondary */
                 par = phoebe_parameter_lookup("phoebe_spots_no2");
                 phoebe_parameter_get_value(par, &spots_no);
                 phoebe_parameter_set_value(par, spots_no + 1);
@@ -537,18 +626,46 @@ on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
 	}
 
     gtk_widget_destroy (phoebe_load_spots_dialog);
+*/
+
+	GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
+
+    gtk_list_store_append((GtkListStore*)model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       NO,
+													SPOTS_COL_SOURCE,       1,
+													SPOTS_COL_SOURCE_STR,   "primary star",
+													SPOTS_COL_LAT,          0,
+													SPOTS_COL_LATADJUST,    FALSE,
+													SPOTS_COL_LON,          0,
+													SPOTS_COL_LONADJUST,    FALSE,
+													SPOTS_COL_RAD,          0,
+													SPOTS_COL_RADADJUST,    FALSE,
+													SPOTS_COL_TEMP,         0,
+													SPOTS_COL_TEMPADJUST,   FALSE,-1);
+	PHOEBE_parameter *par;
+	int spots_no;
+
+	par = phoebe_parameter_lookup("phoebe_spots_no1");
+	phoebe_parameter_get_value(par, &spots_no);
+	phoebe_parameter_set_value(par, spots_no + 1);
+	printf("Number of spots on the primary: %d\n", spots_no + 1);
 }
 
 
 void
-on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
+on_phoebe_para_spots_edit_button_clicked  (GtkButton       *button,
                                                 gpointer         user_data)
 {
+/* The original coding:
     GtkTreeModel *model;
     GtkTreeIter iter;
 
-	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
-    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
 
     if(gtk_tree_model_get_iter_first(model, &iter)){
         gchar     *glade_xml_file                           = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_spots.glade", NULL);
@@ -587,7 +704,7 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
         int source_old, source_new;
 
         GtkTreeSelection *selection;
-        selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_surf_spots_treeview);
+        selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
             gtk_tree_model_get(model, &iter,    SPOTS_COL_SOURCE,       &source_old,
                                                 SPOTS_COL_LAT,          &lat,
@@ -638,8 +755,6 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
         switch (result){
             case GTK_RESPONSE_OK:{
 
-                /* source gets set separately because 1 is for primary, and 2 for secondary, while the
-                   combo returns 0 for primary and 1 for secondary; and, we need it later */
                 source_new = gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_spots_source_combobox) + 1;
                 char *source_str;
 
@@ -670,13 +785,11 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
                                                                 SPOTS_COL_TEMPMIN,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmin_spinbutton),
                                                                 SPOTS_COL_TEMPMAX,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmax_spinbutton), -1);
 
-                /* source of the spot has been changed, so the spots_nos have to be changed as well */
                 if(source_old != source_new){
                     PHOEBE_parameter *par;
                     int spots_no;
 
                     if (source_old == 1){
-                        /* the spot USED to be on the primary, and now it's on the secondary */
                         par = phoebe_parameter_lookup("phoebe_spots_no1");
                         phoebe_parameter_get_value(par, &spots_no);
                         phoebe_parameter_set_value(par, spots_no - 1);
@@ -688,7 +801,6 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
                         printf("Number of spots on the secondary: %d\n", spots_no + 1);
                     }
                     else{
-                        /* the spot USED to be on the secondary, and now it's on the primary */
                         par = phoebe_parameter_lookup("phoebe_spots_no2");
                         phoebe_parameter_get_value(par, &spots_no);
                         phoebe_parameter_set_value(par, spots_no - 1);
@@ -708,11 +820,39 @@ on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
         }
         gtk_widget_destroy (phoebe_load_spots_dialog);
     }
+*/
+
+	GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
+
+    gtk_list_store_append((GtkListStore*)model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST,       FALSE,
+													SPOTS_COL_SOURCE,       2,
+													SPOTS_COL_SOURCE_STR,   "secondary star",
+													SPOTS_COL_LAT,          0,
+													SPOTS_COL_LATADJUST,    FALSE,
+													SPOTS_COL_LON,          0,
+													SPOTS_COL_LONADJUST,    FALSE,
+													SPOTS_COL_RAD,          0,
+													SPOTS_COL_RADADJUST,    FALSE,
+													SPOTS_COL_TEMP,         0,
+													SPOTS_COL_TEMPADJUST,   FALSE,-1);
+	PHOEBE_parameter *par;
+	int spots_no;
+
+	par = phoebe_parameter_lookup("phoebe_spots_no2");
+	phoebe_parameter_get_value(par, &spots_no);
+	phoebe_parameter_set_value(par, spots_no + 1);
+	printf("Number of spots on the secondary: %d\n", spots_no + 1);
+
 }
 
 
 void
-on_phoebe_para_surf_spots_remove_button_clicked
+on_phoebe_para_spots_remove_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data)
 {
@@ -720,8 +860,8 @@ on_phoebe_para_surf_spots_remove_button_clicked
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
-	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
-    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_surf_spots_treeview);
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
     if (gtk_tree_selection_get_selected(selection, &model, &iter)){
         int source;
         gtk_tree_model_get(model, &iter, SPOTS_COL_SOURCE, &source, -1);
@@ -748,27 +888,301 @@ on_phoebe_para_surf_spots_remove_button_clicked
     }
 }
 
-
-void on_phoebe_para_surf_spots_adjust_checkbutton_toggled
+void on_phoebe_para_spots_adjust_checkbutton_toggled
                                         (GtkCellRendererToggle *renderer,
                                          gchar                 *path,
                                          gpointer               user_data)
 {
+	GtkWidget *latadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_latadjust_checkbutton")->gtk;
+	GtkWidget *lonadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_lonadjust_checkbutton")->gtk;
+	GtkWidget *radadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_radadjust_checkbutton")->gtk;
+	GtkWidget *tempadjust_checkbutton = gui_widget_lookup ("phoebe_para_spots_tempadjust_checkbutton")->gtk;
+
     GtkTreeModel *model;
     GtkTreeIter   iter;
     int           active;
 
-	GtkWidget *phoebe_para_surf_spots_treeview = gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk;
-    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_surf_spots_treeview);
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
 
     if(gtk_tree_model_get_iter_from_string(model, &iter, path)){
         g_object_get(renderer, "active", &active, NULL);
 
-        if(active)
+        if(active){
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
-        else
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(latadjust_checkbutton), FALSE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lonadjust_checkbutton), FALSE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radadjust_checkbutton), FALSE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tempadjust_checkbutton), FALSE);
+        }
+        else{
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, TRUE, -1);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(latadjust_checkbutton), TRUE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lonadjust_checkbutton), TRUE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radadjust_checkbutton), TRUE);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tempadjust_checkbutton), TRUE);
+        }
     }
+}
+
+void on_phoebe_para_spots_latadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
+                                                        gpointer         user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATADJUST, gtk_toggle_button_get_active(togglebutton), -1);
+}
+
+void on_phoebe_para_spots_lat_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LAT, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_latstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATSTEP, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_latmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMIN, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_latmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMAX, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_lonadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
+                                                        gpointer         user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONADJUST, gtk_toggle_button_get_active(togglebutton), -1);
+}
+
+void on_phoebe_para_spots_lon_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LON, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_lonstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONSTEP, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMIN, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMAX, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_radadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
+                                                        gpointer         user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADADJUST, gtk_toggle_button_get_active(togglebutton), -1);
+}
+
+void on_phoebe_para_spots_rad_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RAD, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_radstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADSTEP, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_radmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADMIN, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_radmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADMAX, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_tempadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
+                                                        gpointer         user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPADJUST, gtk_toggle_button_get_active(togglebutton), -1);
+}
+
+void on_phoebe_para_spots_temp_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMP, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_tempstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPSTEP, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_tempmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPMIN, gtk_spin_button_get_value(spinbutton), -1);
+}
+
+void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
+                                                        gpointer       user_data)
+{
+	GtkTreeSelection *selection;
+    GtkTreeModel     *model;
+    GtkTreeIter       iter;
+
+	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
+    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview);
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
 
 

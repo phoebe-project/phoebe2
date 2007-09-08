@@ -1291,28 +1291,28 @@ on_phoebe_para_surf_gr2_spinbutton_value_changed
                                         gpointer         user_data);
 
 void
-on_phoebe_para_surf_spots_treeview_row_activated
+on_phoebe_para_spots_treeview_row_activated
                                         (GtkTreeView     *treeview,
                                         GtkTreePath     *path,
                                         GtkTreeViewColumn *column,
                                         gpointer         user_data);
 
 void
-on_phoebe_para_surf_spots_adjust_checkbutton_toggled
+on_phoebe_para_spots_adjust_checkbutton_toggled
                                         (GtkCellRendererToggle *renderer,
                                          gchar                 *path,
                                          gpointer               user_data);
 
 void
-on_phoebe_para_surf_spots_add_button_clicked   (GtkButton       *button,
+on_phoebe_para_spots_add_button_clicked   (GtkButton       *button,
                                         gpointer         user_data);
 
 void
-on_phoebe_para_surf_spots_edit_button_clicked  (GtkButton       *button,
+on_phoebe_para_spots_edit_button_clicked  (GtkButton       *button,
                                         gpointer         user_data);
 
 void
-on_phoebe_para_surf_spots_remove_button_clicked
+on_phoebe_para_spots_remove_button_clicked
                                         (GtkButton       *button,
                                         gpointer         user_data);
 
