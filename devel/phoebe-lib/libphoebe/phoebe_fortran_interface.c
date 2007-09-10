@@ -47,25 +47,26 @@ int create_dci_file (char *filename, void *pars)
 
 	WD_DCI_parameters *params = (WD_DCI_parameters *) pars;
 
-	int ifder = 0;
-	int ifm = 1;
-	int ifr = 1;
-	int k0 = 2;
-	int kdisk = 0;
-	int nppl = 1;
-	double the = 0.0;
-	double vunit = 100.0;
-	double vga = params->vga / 100.0;
-	double tavh = params->teff1/10000.0;
-	double tavc = params->teff2/10000.0;
+	integer ifder = 0;
+	integer ifm = 1;
+	integer ifr = 1;
+	integer k0 = 2;
+	integer kdisk = 0;
+	integer nppl = 1;
 
-	double *step, *wla, *sigma;
-	double *indep, *dep, *weight;
+	doublereal the = 0.0;
+	doublereal vunit = 100.0;
+	doublereal vga = params->vga / 100.0;
+	doublereal tavh = params->teff1/10000.0;
+	doublereal tavc = params->teff2/10000.0;
 
-	int  rvno = params->rv1data + params->rv2data;
-	int   cno = rvno + params->nlc;
-	int ptsno = 0;
-	int index = 0;
+	doublereal *step, *wla, *sigma;
+	doublereal *indep, *dep, *weight;
+
+	integer  rvno = params->rv1data + params->rv2data;
+	integer   cno = rvno + params->nlc;
+	integer ptsno = 0;
+	integer index = 0;
 
 	for (i = 0; i < cno; i++)
 		ptsno += params->obs[i]->indep->dim + 1;
@@ -622,8 +623,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	PHOEBE_column_type master_indep, itype, dtype, wtype;
 
 	/* DC features 35 adjustable parameters and we initialize such arrays: */
-	bool    *tba;
-	double *step;
+	integer *tba;
+	doublereal *step;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
@@ -646,7 +647,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	for (i = 0; i < 35; i++) {
 		if (i == 29) { tba[i] = !FALSE; continue; } /* reserved WD channel */
-		phoebe_parameter_get_tba (phoebe_parameter_lookup (pars[i]), &(tba[i])); tba[i] = !tba[i];
+		phoebe_parameter_get_tba (phoebe_parameter_lookup (pars[i]), &readout_bool);
+		tba[i] = (integer) (!readout_bool);
 		phoebe_parameter_get_step (phoebe_parameter_lookup (pars[i]), &step[i]);
 		if (i > 29)
 			*marked_tba += lcno * (1-tba[i]);
