@@ -91,6 +91,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="libphoebe/phoebe_spectra.h" />
+		<Unit filename="libphoebe/phoebe_spots.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="libphoebe/phoebe_spots.h" />
 		<Unit filename="libphoebe/phoebe_types.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -98,6 +102,7 @@
 		<Extensions>
 			<envvars />
 			<code_completion />
+			<debugger />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>
