@@ -6992,6 +6992,7 @@ Nelder &amp; Mead's Simplex</property>
                                       <widget class="GtkButton" id="phoebe_fitt_fitting_updateall_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Update All</property>
+                                        <signal name="clicked" handler="on_phoebe_fitt_fitting_updateall_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="position">2</property>
