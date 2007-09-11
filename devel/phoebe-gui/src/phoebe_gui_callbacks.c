@@ -48,7 +48,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 	for(index = 0; index < count; index++){
 		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
 		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			MF_COL_QUALIFIER, feedback->qualifiers[index],
+			MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
 			MF_COL_INITVAL, feedback->initvals->val[index],
 			MF_COL_NEWVAL, feedback->newvals->val[index],
 			MF_COL_ERROR, feedback->ferrors->val[index], -1);
