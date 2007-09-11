@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Tue Jul  3 10:59:27 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Tue Sep 11 18:22:11 2007 by gal@brjav-->
 <glade-interface>
-  <widget class="GtkWindow" id="phoebe_settings_window">
-    <property name="title" translatable="yes">PHOEBE Configuration</property>
-    <property name="default_width">400</property>
-    <signal name="delete_event" handler="on_phoebe_settings_window_delete_event" object="phoebe_settings_window"/>
-    <child>
-      <widget class="GtkVBox" id="phoebe_settings_vbox">
+  <widget class="GtkDialog" id="phoebe_settings_dialog">
+    <property name="border_width">5</property>
+    <property name="has_separator">False</property>
+    <child internal-child="vbox">
+      <widget class="GtkVBox" id="dialog-vbox1">
         <property name="visible">True</property>
+        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
+        <property name="spacing">2</property>
         <child>
           <widget class="GtkNotebook" id="phoebe_settings_notebook">
             <property name="visible">True</property>
@@ -30,100 +31,11 @@
                         <property name="column_spacing">20</property>
                         <property name="row_spacing">2</property>
                         <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_datadir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                          <widget class="GtkLabel" id="phoebe_settings_configuration_basedir_label">
                             <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
+                            <property name="label" translatable="yes">Base directory:</property>
                           </widget>
                           <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">4</property>
-                            <property name="bottom_attach">5</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_workingdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">3</property>
-                            <property name="bottom_attach">4</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_defaultsdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_srcdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_basedir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_configuration_datadir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Data directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">4</property>
-                            <property name="bottom_attach">5</property>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_configuration_workingdir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Working directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">3</property>
-                            <property name="bottom_attach">4</property>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_configuration_defaultsdir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Defaults directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
                             <property name="x_options">GTK_FILL</property>
                             <property name="y_options">GTK_FILL</property>
                           </packing>
@@ -141,13 +53,102 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkLabel" id="phoebe_settings_configuration_basedir_label">
+                          <widget class="GtkLabel" id="phoebe_settings_configuration_defaultsdir_label">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Base directory:</property>
+                            <property name="label" translatable="yes">Defaults directory:</property>
                           </widget>
                           <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
                             <property name="x_options">GTK_FILL</property>
                             <property name="y_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_settings_configuration_workingdir_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Working directory:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">3</property>
+                            <property name="bottom_attach">4</property>
+                            <property name="x_options">GTK_FILL</property>
+                            <property name="y_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_settings_configuration_datadir_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Data directory:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">4</property>
+                            <property name="bottom_attach">5</property>
+                            <property name="x_options">GTK_FILL</property>
+                            <property name="y_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_basedir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_srcdir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_defaultsdir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_workingdir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">3</property>
+                            <property name="bottom_attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_configuration_datadir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </widget>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">4</property>
+                            <property name="bottom_attach">5</property>
                           </packing>
                         </child>
                       </widget>
@@ -169,109 +170,6 @@
                   </packing>
                 </child>
                 <child>
-                  <widget class="GtkFrame" id="phoebe_settings_wd_frame">
-                    <property name="visible">True</property>
-                    <property name="border_width">1</property>
-                    <property name="label_xalign">0</property>
-                    <child>
-                      <widget class="GtkTable" id="phoebe_settings_wd_table">
-                        <property name="visible">True</property>
-                        <property name="border_width">4</property>
-                        <property name="n_rows">3</property>
-                        <property name="n_columns">2</property>
-                        <property name="column_spacing">20</property>
-                        <property name="row_spacing">2</property>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_wd_fluxdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_wd_dcdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_wd_lcdir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
-                            <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
-                          </widget>
-                          <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_wd_lcdir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">WD LC directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_wd_dcdir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">WD DC directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_settings_wd_fluxdir_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">WD Flux directory:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="phoebe_settings_wd_frame_label">
-                        <property name="visible">True</property>
-                        <property name="xpad">4</property>
-                        <property name="label" translatable="yes">&lt;b&gt;WD Configuration&lt;/b&gt;</property>
-                        <property name="use_markup">True</property>
-                      </widget>
-                      <packing>
-                        <property name="type">label_item</property>
-                      </packing>
-                    </child>
-                  </widget>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
                   <widget class="GtkFrame" id="phoebe_settings_vh_frame">
                     <property name="visible">True</property>
                     <property name="border_width">1</property>
@@ -285,20 +183,19 @@
                         <property name="column_spacing">20</property>
                         <property name="row_spacing">2</property>
                         <child>
-                          <widget class="GtkFileChooserButton" id="phoebe_settings_vh_lddir_filechooserbutton">
-                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
+                          <widget class="GtkLabel" id="phoebe_settings_vh_lddir_label2">
                             <property name="visible">True</property>
-                            <property name="title" translatable="yes">Select A Directory</property>
+                            <property name="label" translatable="yes">Van Hamme LD directory:</property>
                           </widget>
                           <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
                             <property name="top_attach">1</property>
                             <property name="bottom_attach">2</property>
+                            <property name="x_options">GTK_FILL</property>
+                            <property name="y_options">GTK_FILL</property>
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkCheckButton" id="phoebe_settings_vh_checkbutton2">
+                          <widget class="GtkCheckButton" id="phoebe_settings_vh_checkbutton">
                             <property name="visible">True</property>
                             <property name="label" translatable="yes">Use Van Hamme tables</property>
                             <property name="draw_indicator">True</property>
@@ -310,15 +207,17 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkLabel" id="phoebe_settings_vh_lddir_label2">
+                          <widget class="GtkFileChooserButton" id="phoebe_settings_vh_lddir_filechooserbutton">
+                            <property name="action">GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER</property>
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Van Hamme LD directory:</property>
+                            <property name="sensitive">False</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
                           </widget>
                           <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
                             <property name="top_attach">1</property>
                             <property name="bottom_attach">2</property>
-                            <property name="x_options">GTK_FILL</property>
-                            <property name="y_options">GTK_FILL</property>
                           </packing>
                         </child>
                       </widget>
@@ -337,7 +236,7 @@
                   </widget>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="position">2</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
               </widget>
@@ -348,7 +247,7 @@
             <child>
               <widget class="GtkLabel" id="phoebe_settings_files_label">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Files</property>
+                <property name="label" translatable="yes">Directories</property>
               </widget>
               <packing>
                 <property name="type">tab</property>
@@ -357,16 +256,21 @@
               </packing>
             </child>
           </widget>
+          <packing>
+            <property name="position">1</property>
+          </packing>
         </child>
-        <child>
-          <widget class="GtkHButtonBox" id="phoebe_settings_hbuttonbox">
+        <child internal-child="action_area">
+          <widget class="GtkHButtonBox" id="dialog-action_area1">
             <property name="visible">True</property>
+            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
             <property name="layout_style">GTK_BUTTONBOX_END</property>
             <child>
               <widget class="GtkButton" id="phoebe_settings_ok_button">
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-ok</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-5</property>
                 <signal name="clicked" handler="on_phoebe_settings_ok_button_clicked" object="phoebe_settings_ok_button"/>
               </widget>
             </child>
@@ -375,6 +279,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-save</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-8</property>
                 <signal name="clicked" handler="on_phoebe_settings_save_button_clicked" object="phoebe_settings_save_button"/>
               </widget>
               <packing>
@@ -386,6 +291,7 @@
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">gtk-cancel</property>
                 <property name="use_stock">True</property>
+                <property name="response_id">-6</property>
                 <signal name="clicked" handler="on_phoebe_settings_cancel_button_clicked" object="phoebe_settings_cancel_button"/>
               </widget>
               <packing>
@@ -395,7 +301,7 @@
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="position">1</property>
+            <property name="pack_type">GTK_PACK_END</property>
           </packing>
         </child>
       </widget>
