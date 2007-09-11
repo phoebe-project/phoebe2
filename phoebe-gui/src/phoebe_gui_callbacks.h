@@ -39,4 +39,4 @@ void on_phoebe_load_lc_filechooserbutton_selection_changed 	(GtkFileChooserButto
 void on_phoebe_load_rv_filechooserbutton_selection_changed 	(GtkFileChooserButton *filechooserbutton, gpointer user_data);
 void on_phoebe_lc_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);
 void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
-void on_phoebe_settings_vh_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
+void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
