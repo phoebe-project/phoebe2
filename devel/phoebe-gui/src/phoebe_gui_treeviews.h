@@ -1,7 +1,7 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
-typedef enum lc_model_columns {
+typedef enum GUI_lc_model_columns {
     LC_COL_ACTIVE,
     LC_COL_FILENAME,
     LC_COL_FILTER,
@@ -24,9 +24,9 @@ typedef enum lc_model_columns {
     LC_COL_Y1,
     LC_COL_Y2,
     LC_COL_COUNT
-} lc_model_columns;
+} GUI_lc_model_columns;
 
-typedef enum rv_model_columns {
+typedef enum GUI_rv_model_columns {
     RV_COL_ACTIVE,
     RV_COL_FILENAME,
     RV_COL_FILTER,
@@ -42,9 +42,9 @@ typedef enum rv_model_columns {
     RV_COL_Y1,
     RV_COL_Y2,
     RV_COL_COUNT
-} rv_model_columns;
+} GUI_rv_model_columns;
 
-typedef enum spots_model_columns {
+typedef enum GUI_spots_model_columns {
     SPOTS_COL_ADJUST,
     SPOTS_COL_SOURCE,
     SPOTS_COL_SOURCE_STR,
@@ -69,87 +69,63 @@ typedef enum spots_model_columns {
     SPOTS_COL_TEMPMIN,
     SPOTS_COL_TEMPMAX,
     SPOTS_COL_COUNT
-} SPOTS_model_columns;
+} GUI_spots_model_columns;
 
-typedef enum adjustible_spots_model_columns {
-	ADJ_SPOTS_COL_SOURCE1,
-	ADJ_SPOTS_COL_LAT1,
-    ADJ_SPOTS_COL_LAT1ADJUST,
-    ADJ_SPOTS_COL_LAT1STEP,
-    ADJ_SPOTS_COL_LAT1MIN,
-    ADJ_SPOTS_COL_LAT1MAX,
-    ADJ_SPOTS_COL_LON1,
-    ADJ_SPOTS_COL_LON1ADJUST,
-    ADJ_SPOTS_COL_LON1STEP,
-    ADJ_SPOTS_COL_LON1MIN,
-    ADJ_SPOTS_COL_LON1MAX,
-    ADJ_SPOTS_COL_RAD1,
-    ADJ_SPOTS_COL_RAD1ADJUST,
-    ADJ_SPOTS_COL_RAD1STEP,
-    ADJ_SPOTS_COL_RAD1MIN,
-    ADJ_SPOTS_COL_RAD1MAX,
-    ADJ_SPOTS_COL_TEMP1,
-    ADJ_SPOTS_COL_TEMP1ADJUST,
-    ADJ_SPOTS_COL_TEMP1STEP,
-    ADJ_SPOTS_COL_TEMP1MIN,
-    ADJ_SPOTS_COL_TEMP1MAX,
-    ADJ_SPOTS_COL_SOURCE2,
-	ADJ_SPOTS_COL_LAT2,
-    ADJ_SPOTS_COL_LAT2ADJUST,
-    ADJ_SPOTS_COL_LAT2STEP,
-    ADJ_SPOTS_COL_LAT2MIN,
-    ADJ_SPOTS_COL_LAT2MAX,
-    ADJ_SPOTS_COL_LON2,
-    ADJ_SPOTS_COL_LON2ADJUST,
-    ADJ_SPOTS_COL_LON2STEP,
-    ADJ_SPOTS_COL_LON2MIN,
-    ADJ_SPOTS_COL_LON2MAX,
-    ADJ_SPOTS_COL_RAD2,
-    ADJ_SPOTS_COL_RAD2ADJUST,
-    ADJ_SPOTS_COL_RAD2STEP,
-    ADJ_SPOTS_COL_RAD2MIN,
-    ADJ_SPOTS_COL_RAD2MAX,
-    ADJ_SPOTS_COL_TEMP2,
-    ADJ_SPOTS_COL_TEMP2ADJUST,
-    ADJ_SPOTS_COL_TEMP2STEP,
-    ADJ_SPOTS_COL_TEMP2MIN,
-    ADJ_SPOTS_COL_TEMP2MAX,
-    ADJ_SPOTS_COL_COUNT
-} adjustible_spots_model_columns;
-
-typedef enum sidesheet_results_model_columns {
+typedef enum GUI_sidesheet_results_model_columns {
     RS_COL_PARAM_NAME,
     RS_COL_PARAM_VALUE,
     RS_COL_COUNT
-} sidesheet_results_model_columns;
+} GUI_sidesheet_results_model_columns;
 
-typedef enum sidesheet_fitting_model_columns {
+typedef enum GUI_sidesheet_fitting_model_columns {
     FS_COL_PARAM_NAME,
     FS_COL_PARAM_VALUE,
     FS_COL_PARAM_STEP,
     FS_COL_PARAM_MIN,
     FS_COL_PARAM_MAX,
     FS_COL_COUNT
-} sidesheet_fitting_model_columns;
+} GUI_sidesheet_fitting_model_columns;
+
+typedef enum GUI_minimizer_feedback_model_columns {
+	MF_COL_QUALIFIER,
+	MF_COL_INITVAL,
+	MF_COL_NEWVAL,
+	MF_COL_ERROR,
+	MF_COL_COUNT
+} GUI_minimizer_feedback_model_columns;
 
 int gui_init_treeviews				();
 int gui_reinit_treeviews			();
+
 int gui_init_lc_treeviews			();
 int gui_reinit_lc_treeviews			();
+
 int gui_init_rv_treeviews			();
 int gui_reinit_rv_treeviews			();
+
 int gui_init_spots_treeview 		();
 int gui_reinit_spots_treeview		();
+
 int gui_init_sidesheet_res_treeview	();
 int gui_init_sidesheet_fit_treeview ();
+
 int gui_fill_sidesheet_res_treeview ();
 int gui_fill_sidesheet_fit_treeview ();
+
+int gui_init_fitt_mf_treeview		();
+
 int gui_init_filter_combobox 		(GtkWidget *combo_box);
 int gui_init_lc_obs_combobox		();
 int gui_init_rv_obs_combobox		();
 
-void on_lc_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
-void on_rv_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void gui_on_lc_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void gui_on_rv_model_row_changed(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
 
-int gui_edit_data_lc_treeview();
-int gui_edit_data_rv_treeview();
+int gui_data_lc_treeview_add 	();
+int gui_data_rv_treeview_add 	();
+int gui_data_lc_treeview_edit	();
+int gui_data_rv_treeview_edit	();
+int gui_data_lc_treeview_remove	();
+int gui_data_rv_treeview_remove	();
+
+

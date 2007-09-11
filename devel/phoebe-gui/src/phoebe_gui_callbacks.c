@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <phoebe/phoebe.h>
 
@@ -10,31 +11,48 @@
 #include "phoebe_gui_plotting.h"
 
 void
-on_phoebe_test_toolbutton_0_clicked      (GtkToolButton   *toolbutton,
-                                        	gpointer         user_data)
+on_phoebe_test_toolbutton_0_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
     gui_get_values_from_widgets();
 }
 
 void
-on_phoebe_test_toolbutton_1_clicked      (GtkToolButton   *toolbutton,
-                                        	gpointer         user_data)
+on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
     gui_set_values_to_widgets();
 }
 
 /* ******************************************************************** *
  *
- *                    phoebe_sidesheet_data_treeview events
+ *                    phoebe fitting tab events
  *
  * ******************************************************************** */
 
 
-void on_phoebe_sidesheet_data_tba_checkbutton_toggled
-                                        (GtkCellRendererToggle *renderer,
-                                         gchar                 *path,
-                                         gpointer               user_data)
+void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
+	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback_new();
+	FILE *output = fopen("phoebe_out", "w");
+
+	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
+	GtkTreeIter iter;
+	int index, count;
+
+	int status = phoebe_minimize_using_dc(output, feedback);
+	printf("Minimizer says: %s", phoebe_error(status));
+
+	gtk_list_store_clear(GTK_LIST_STORE(model));
+
+	count = feedback->qualifiers->dim;
+	for(index = 0; index < count; index++){
+		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+			MF_COL_QUALIFIER, feedback->qualifiers[index],
+			MF_COL_INITVAL, feedback->initvals->val[index],
+			MF_COL_NEWVAL, feedback->newvals->val[index],
+			MF_COL_ERROR, feedback->ferrors->val[index], -1);
+	}
 
 }
 
@@ -47,166 +65,34 @@ void on_phoebe_sidesheet_data_tba_checkbutton_toggled
 
 
 void
-on_phoebe_data_lc_treeview_row_activated
-                                        (GtkTreeView      *treeview,
-                                        GtkTreePath       *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer           user_data)
+on_phoebe_data_lc_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
-	gui_edit_data_lc_treeview();
+	gui_data_lc_treeview_edit();
 }
 
 
 void
-on_phoebe_data_lc_treeview_cursor_changed
-                                        (GtkTreeView *tree_view,
-                                         gpointer     user_data)
+on_phoebe_data_lc_add_button_clicked (GtkButton *button, gpointer user_data)
 {
-
+    gui_data_lc_treeview_add();
 }
 
 
 void
-on_phoebe_data_lc_add_button_clicked   (GtkButton       *button,
-                                        gpointer         user_data)
+on_phoebe_data_lc_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
-    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
-	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-
-	GladeXML  *phoebe_load_lc_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
-
-    GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_dialog");
-	GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
-    GtkWidget *phoebe_load_lc_column1_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column1_combobox");
-    GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
-    GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
-    GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-    GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
-    GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
-
-	g_object_unref (phoebe_load_lc_xml);
-
-	gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
-	gtk_window_set_title (GTK_WINDOW(phoebe_load_lc_dialog), "PHOEBE - Add LC Data");
-
-	gui_init_filter_combobox (phoebe_load_lc_filter_combobox);
-
-	g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton),
-					  "selection_changed",
-					  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed),
-					  (gpointer) phoebe_load_lc_preview_textview);
-
-	/* Default values for column combo boxes: */
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  0);
-
-    gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
-    switch (result){
-        case GTK_RESPONSE_OK:{
-            GtkTreeModel *model;
-            GtkTreeIter iter;
-
-			GtkTreeIter filter_iter;
-			gint 		filter_number;
-			gchar 		filter_selected[255] = "Johnson:V";
-
-			GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
-            model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
-
-			if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
-				gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
-				sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
-			}
-
-            PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
-            PHOEBE_parameter *dep       = phoebe_parameter_lookup ("phoebe_lc_dep");
-            PHOEBE_parameter *indweight = phoebe_parameter_lookup ("phoebe_lc_indweight");
-
-            gtk_list_store_append ((GtkListStore*) model, &iter);
-            gtk_list_store_set ((GtkListStore*) model, &iter,
-								LC_COL_ACTIVE,      TRUE,
-								LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
-								LC_COL_FILTER,      filter_selected,
-								LC_COL_FILTERNO,	filter_number,
-                                LC_COL_ITYPE,       gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_lc_column1_combobox),
-                                LC_COL_ITYPE_STR,   strdup (indep->menu->option[gtk_combo_box_get_active((GtkComboBox*) phoebe_load_lc_column1_combobox)]),
-                                LC_COL_DTYPE,       gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_lc_column2_combobox),
-                                LC_COL_DTYPE_STR,   strdup (dep->menu->option[gtk_combo_box_get_active((GtkComboBox*) phoebe_load_lc_column2_combobox)]),
-                                LC_COL_WTYPE,       gtk_combo_box_get_active ((GtkComboBox*) phoebe_load_lc_column3_combobox),
-                                LC_COL_WTYPE_STR,   strdup (indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*) phoebe_load_lc_column3_combobox)]),
-                                LC_COL_SIGMA,       gtk_spin_button_get_value ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton),
-                                LC_COL_LEVWEIGHT,   "Poissonian scatter",
-                                LC_COL_HLA,         12.566371,
-                                LC_COL_CLA,         12.566371,
-                                LC_COL_OPSF,        0.0,
-                                LC_COL_EL3,         0.0,
-                                LC_COL_EXTINCTION,  0.0,
-                                LC_COL_X1,          0.5,
-                                LC_COL_X2,          0.5,
-                                LC_COL_Y1,          0.5,
-                                LC_COL_Y2,          0.5,
-								-1);
-
-			/* Update the number of light curves parameter: */
-            PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
-            int lcno;
-
-            phoebe_parameter_get_value(par, &lcno);
-            phoebe_parameter_set_value(par, lcno + 1);
-
-            printf("Number of light curves: %d\n", lcno + 1);
-
-            /* Select the new row in the list: */
-			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
-        }
-        break;
-
-        case GTK_RESPONSE_CANCEL:
-        break;
-    }
-
-    gtk_widget_destroy (phoebe_load_lc_dialog);
+    gui_data_lc_treeview_edit();
 }
 
 
 void
-on_phoebe_data_lc_edit_button_clicked  (GtkButton       *button,
-                                        gpointer         user_data)
+on_phoebe_data_lc_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
-    gui_edit_data_lc_treeview();
+    gui_data_lc_treeview_remove();
 }
 
 
-void
-on_phoebe_data_lc_remove_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
-{
-    GtkTreeSelection *selection;
-    GtkTreeModel     *model;
-    GtkTreeIter       iter;
-
-	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
-    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-        gtk_list_store_remove((GtkListStore*)model, &iter);
-
-        PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
-        int lcno;
-
-        phoebe_parameter_get_value(par, &lcno);
-        phoebe_parameter_set_value(par, lcno - 1);
-
-        printf("Number of light curves: %d\n", lcno - 1);
-    }
-}
-
-
-void on_phoebe_data_lc_active_checkbutton_toggled
-                                        (GtkCellRendererToggle *renderer,
-                                         gchar                 *path,
-                                         gpointer               user_data)
+void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -239,159 +125,40 @@ void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton
 
 
 void
-on_phoebe_data_rv_treeview_row_activated
-                                        (GtkTreeView        *treeview,
-                                         GtkTreePath        *path,
-                                         GtkTreeViewColumn  *column,
-                                         gpointer            user_data)
+on_phoebe_data_rv_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
-	gui_edit_data_rv_treeview();
+	gui_data_rv_treeview_edit();
 }
 
 
 void
-on_phoebe_data_rv_treeview_cursor_changed
-                                        (GtkTreeView *tree_view,
-                                         gpointer     user_data)
+on_phoebe_data_rv_add_button_clicked (GtkButton *button, gpointer user_data)
 {
-
+	gui_data_rv_treeview_add();
 }
 
-
-void
-on_phoebe_data_rv_add_button_clicked   (GtkButton       *button,
-                                        gpointer         user_data)
-{
-    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
-	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-
-	GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
-
-    GtkWidget *phoebe_load_rv_dialog                = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_dialog");
-	GtkWidget *phoebe_load_rv_filechooserbutton     = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filechooserbutton");
-    GtkWidget *phoebe_load_rv_column1_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column1_combobox");
-    GtkWidget *phoebe_load_rv_column2_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column2_combobox");
-    GtkWidget *phoebe_load_rv_column3_combobox      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_column3_combobox");
-    GtkWidget *phoebe_load_rv_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_sigma_spinbutton");
-    GtkWidget *phoebe_load_rv_preview_textview      = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_preview_textview");
-
-    GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget(phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
-
-	gtk_window_set_icon (GTK_WINDOW (phoebe_load_rv_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
-	gtk_window_set_title (GTK_WINDOW(phoebe_load_rv_dialog), "PHOEBE - Add RV Data");
-
-    gui_init_filter_combobox(phoebe_load_rv_filter_combobox);
-
-	g_signal_connect (G_OBJECT (phoebe_load_rv_filechooserbutton),
-					  "selection_changed",
-					  G_CALLBACK (on_phoebe_load_rv_filechooserbutton_selection_changed),
-					  (gpointer) phoebe_load_rv_preview_textview);
-
-    g_object_unref(phoebe_load_rv_xml);
-
-    GtkTreeModel *model;
-    GtkTreeIter iter;
-
-	/* Default values for column combo boxes: */
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
-	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);
-
-    gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
-    switch (result){
-        case GTK_RESPONSE_OK:{
-
-			GtkTreeIter filter_iter;
-			gint 		filter_number;
-			gchar 		filter_selected[255] = "Undefined";
-
-			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
-            model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
-
-			if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_rv_filter_combobox), &filter_iter)) {
-				gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_rv_filter_combobox)), &filter_iter, 1, &filter_number, -1);
-				sprintf (filter_selected, "%s  (%.0lfnm)", PHOEBE_passbands[filter_number]->name, PHOEBE_passbands[filter_number]->effwl/10.);
-			}
-
-            PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
-            PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
-            PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
-
-            gtk_list_store_append((GtkListStore*)model, &iter);
-            gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
-                                                            RV_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton),
-                                                            RV_COL_FILTER,      filter_selected,
-                                                            RV_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox),
-                                                            RV_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]),
-                                                            RV_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox),
-                                                            RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
-                                                            RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
-                                                            RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
-                                                            RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
-                                                            RV_COL_X1,          0.5,
-                                                            RV_COL_X2,          0.5,
-                                                            RV_COL_Y1,          0.5,
-                                                            RV_COL_Y2,          0.5, -1);
-
-            PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
-            int rvno;
-
-            phoebe_parameter_get_value(par, &rvno);
-            phoebe_parameter_set_value(par, rvno + 1);
-
-            printf("Number of RV curves: %d\n", rvno + 1);
-
-			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
-        }
-        break;
-
-        case GTK_RESPONSE_CANCEL:
-        break;
-    }
-    gtk_widget_destroy (phoebe_load_rv_dialog);
-}
 
 void on_phoebe_load_rv_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
 {
 	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
 
-void
-on_phoebe_data_rv_edit_button_clicked  (GtkButton       *button,
-                                        gpointer         user_data)
-{
-	gui_edit_data_rv_treeview();
-}
 
 void
-on_phoebe_data_rv_remove_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+on_phoebe_data_rv_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
-    GtkTreeSelection *selection;
-    GtkTreeModel     *model;
-    GtkTreeIter       iter;
-
-	GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
-    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-        gtk_list_store_remove((GtkListStore*)model, &iter);
-
-        PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
-        int rvno;
-
-        phoebe_parameter_get_value(par, &rvno);
-        phoebe_parameter_set_value(par, rvno - 1);
-
-        printf("Number of RV curves: %d\n", rvno - 1);
-    }
+	gui_data_rv_treeview_edit();
 }
 
 
-void on_phoebe_data_rv_active_checkbutton_toggled
-                                        (GtkCellRendererToggle *renderer,
-                                         gchar                 *path,
-                                         gpointer               user_data)
+void
+on_phoebe_data_rv_remove_button_clicked (GtkButton *button, gpointer user_data)
+{
+    gui_data_rv_treeview_remove();
+}
+
+
+void on_phoebe_data_rv_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -419,20 +186,7 @@ void on_phoebe_data_rv_active_checkbutton_toggled
 
 
 void
-on_phoebe_para_surf_spots_treeview_row_activated
-                                        (GtkTreeView      *treeview,
-                                        GtkTreePath       *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer           user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_spots_treeview_cursor_changed
-                                        (GtkTreeView *tree_view,
-                                         gpointer     user_data)
+on_phoebe_para_spots_treeview_cursor_changed (GtkTreeView *tree_view, gpointer user_data)
 {
 	GtkWidget *lat_label			  = gui_widget_lookup ("phoebe_para_spots_lat_label")->gtk;
 	GtkWidget *lat_spinbutton         = gui_widget_lookup ("phoebe_para_spots_lat_spinbutton")->gtk;
@@ -529,9 +283,9 @@ on_phoebe_para_spots_treeview_cursor_changed
     }
 }
 
+
 void
-on_phoebe_para_spots_add_button_clicked   (GtkButton       *button,
-											gpointer         user_data)
+on_phoebe_para_spots_add_button_clicked (GtkButton *button, gpointer user_data)
 {
 /* The original coding:
     gchar     *glade_xml_file                           = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_spots.glade", NULL);
@@ -657,8 +411,7 @@ on_phoebe_para_spots_add_button_clicked   (GtkButton       *button,
 
 
 void
-on_phoebe_para_spots_edit_button_clicked  (GtkButton       *button,
-                                                gpointer         user_data)
+on_phoebe_para_spots_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 /* The original coding:
     GtkTreeModel *model;
@@ -852,9 +605,7 @@ on_phoebe_para_spots_edit_button_clicked  (GtkButton       *button,
 
 
 void
-on_phoebe_para_spots_remove_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+on_phoebe_para_spots_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
     GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -888,10 +639,8 @@ on_phoebe_para_spots_remove_button_clicked
     }
 }
 
-void on_phoebe_para_spots_adjust_checkbutton_toggled
-                                        (GtkCellRendererToggle *renderer,
-                                         gchar                 *path,
-                                         gpointer               user_data)
+
+void on_phoebe_para_spots_adjust_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
 	GtkWidget *latadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_latadjust_checkbutton")->gtk;
 	GtkWidget *lonadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_lonadjust_checkbutton")->gtk;
@@ -925,8 +674,8 @@ void on_phoebe_para_spots_adjust_checkbutton_toggled
     }
 }
 
-void on_phoebe_para_spots_latadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
-                                                        gpointer         user_data)
+
+void on_phoebe_para_spots_latadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -938,8 +687,8 @@ void on_phoebe_para_spots_latadjust_checkbutton_toggled(GtkToggleButton *toggleb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATADJUST, gtk_toggle_button_get_active(togglebutton), -1);
 }
 
-void on_phoebe_para_spots_lat_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_lat_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -951,8 +700,8 @@ void on_phoebe_para_spots_lat_spinbutton_value_changed(GtkSpinButton *spinbutton
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LAT, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_latstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_latstep_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -964,8 +713,8 @@ void on_phoebe_para_spots_latstep_spinbutton_value_changed(GtkSpinButton *spinbu
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_latmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_latmin_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -977,8 +726,8 @@ void on_phoebe_para_spots_latmin_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_latmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_latmax_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -990,8 +739,8 @@ void on_phoebe_para_spots_latmax_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_lonadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
-                                                        gpointer         user_data)
+
+void on_phoebe_para_spots_lonadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1003,8 +752,8 @@ void on_phoebe_para_spots_lonadjust_checkbutton_toggled(GtkToggleButton *toggleb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONADJUST, gtk_toggle_button_get_active(togglebutton), -1);
 }
 
-void on_phoebe_para_spots_lon_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_lon_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1016,8 +765,8 @@ void on_phoebe_para_spots_lon_spinbutton_value_changed(GtkSpinButton *spinbutton
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LON, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_lonstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_lonstep_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1029,8 +778,8 @@ void on_phoebe_para_spots_lonstep_spinbutton_value_changed(GtkSpinButton *spinbu
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1042,8 +791,8 @@ void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1055,8 +804,8 @@ void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_radadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
-                                                        gpointer         user_data)
+
+void on_phoebe_para_spots_radadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1068,8 +817,8 @@ void on_phoebe_para_spots_radadjust_checkbutton_toggled(GtkToggleButton *toggleb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADADJUST, gtk_toggle_button_get_active(togglebutton), -1);
 }
 
-void on_phoebe_para_spots_rad_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+
+void on_phoebe_para_spots_rad_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1081,8 +830,7 @@ void on_phoebe_para_spots_rad_spinbutton_value_changed(GtkSpinButton *spinbutton
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RAD, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_radstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_radstep_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1094,8 +842,7 @@ void on_phoebe_para_spots_radstep_spinbutton_value_changed(GtkSpinButton *spinbu
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_radmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_radmin_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1107,8 +854,7 @@ void on_phoebe_para_spots_radmin_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_radmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_radmax_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1120,8 +866,7 @@ void on_phoebe_para_spots_radmax_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_RADMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_tempadjust_checkbutton_toggled(GtkToggleButton *togglebutton,
-                                                        gpointer         user_data)
+void on_phoebe_para_spots_tempadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1133,8 +878,7 @@ void on_phoebe_para_spots_tempadjust_checkbutton_toggled(GtkToggleButton *toggle
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPADJUST, gtk_toggle_button_get_active(togglebutton), -1);
 }
 
-void on_phoebe_para_spots_temp_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_temp_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1146,8 +890,7 @@ void on_phoebe_para_spots_temp_spinbutton_value_changed(GtkSpinButton *spinbutto
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_tempstep_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_tempstep_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1159,8 +902,7 @@ void on_phoebe_para_spots_tempstep_spinbutton_value_changed(GtkSpinButton *spinb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_tempmin_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_tempmin_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1172,8 +914,7 @@ void on_phoebe_para_spots_tempmin_spinbutton_value_changed(GtkSpinButton *spinbu
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_TEMPMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbutton,
-                                                        gpointer       user_data)
+void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
@@ -1193,27 +934,20 @@ void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbu
  * ******************************************************************** */
 
 
-gboolean
-on_phoebe_window_delete_event          (GtkWidget *widget,
-                                        GdkEvent  *event,
-                                        gpointer   user_data)
+gboolean on_phoebe_window_delete_event (GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
     gtk_main_quit();
     return FALSE;
 }
 
 
-void
-on_phoebe_file_new_menuitem_activate   (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_file_new_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_file_open_menuitem_activate  (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	int status = gui_open_parameter_file ();
 
@@ -1227,9 +961,7 @@ on_phoebe_file_open_menuitem_activate  (GtkMenuItem     *menuitem,
 }
 
 
-void
-on_phoebe_file_save_menuitem_activate  (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	int status = gui_save_parameter_file ();
 
@@ -1240,10 +972,7 @@ on_phoebe_file_save_menuitem_activate  (GtkMenuItem     *menuitem,
 }
 
 
-void
-on_phoebe_file_saveas_menuitem_activate
-                                       (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	int status = gui_save_parameter_file ();
 
@@ -1254,26 +983,19 @@ on_phoebe_file_saveas_menuitem_activate
 }
 
 
-void
-on_phoebe_file_quit_menuitem_activate  (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
     gtk_main_quit();
 }
 
 
-void
-on_phoebe_settings_configuration_menuitem_activate
-                                       (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_settings_configuration_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_help_about_menuitem_activate (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 
 }
@@ -1286,9 +1008,7 @@ on_phoebe_help_about_menuitem_activate (GtkMenuItem     *menuitem,
  * ******************************************************************** */
 
 
-void
-on_phoebe_lc_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_lc_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
@@ -1297,9 +1017,7 @@ on_phoebe_lc_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
 }
 
 
-void
-on_phoebe_rv_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
@@ -1308,9 +1026,7 @@ on_phoebe_rv_plot_toolbutton_clicked  (GtkToolButton   *toolbutton,
 }
 
 
-void
-on_phoebe_fiitting_toolbutton_clicked  (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_fiitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_fitting_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_fitting_parent_table");
@@ -1319,33 +1035,25 @@ on_phoebe_fiitting_toolbutton_clicked  (GtkToolButton   *toolbutton,
 }
 
 
-void
-on_phoebe_scripter_toolbutton_clicked  (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_scripter_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_settings_toolbutton_clicked  (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_settings_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_quit_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_quit_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
     gtk_main_quit();
 }
 
 
-void
-on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	int status = gui_open_parameter_file ();
 
@@ -1358,9 +1066,7 @@ on_phoebe_open_toolbutton_clicked      (GtkToolButton   *toolbutton,
 		printf ("%s", phoebe_error (status));
 }
 
-void
-on_phoebe_save_toolbutton_clicked      (GtkToolButton   *toolbutton,
-                                        gpointer         user_data)
+void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	int status = gui_save_parameter_file ();
 
@@ -1368,2293 +1074,6 @@ on_phoebe_save_toolbutton_clicked      (GtkToolButton   *toolbutton,
 		printf("Parameter file successfuly saved.\n");
 	else
 		printf ("%s", phoebe_error (status));
-}
-
-/* ******************************************************************** *
- *
- *                    phoebe_window data tab events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_data_star_name_entry_changed
-                                        (GtkEditable *editable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_star_model_combobox_changed
-                                        (GtkComboBox     *combobox,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_lcoptions_mag_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_lcoptions_mag_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_rvoptions_psepe_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_rvoptions_ssepe_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_options_bins_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_options_binsno_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_options_binsno_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_options_the_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_data_options_the_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_dpdt events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_dpdt_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdt_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dpdtmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_period events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_periodmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_periodadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_period_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_period_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_hjd0 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_hjd0_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_hjd0min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_dperdt events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_dperdt_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdt_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtmax_spinbutton_remove_widget
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_dperdtmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_perr0 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_perr0min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0max_spinbutton_change_value
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_perr0_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_eph_pshift events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_eph_pshiftmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_eph_pshiftadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_incl events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_incl_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_incl_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_incladjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_inclmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_ecc events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_ecc_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_ecc_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_eccmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_vga events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_vgamin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgamin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgamax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgamax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgastep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgastep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vgaadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vga_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_vga_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_rm events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_rm_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rm_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_rmmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_sma events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_smamin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smamin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smamax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smamax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smastep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smastep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_smaadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_sma_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_sma_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_f1 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_f1min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f1_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_sys_f2 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_sys_f2_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_sys_f2min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_met2 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_met2min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2min_spinbutton_wrapped
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met2_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_met1 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_met1_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_met1min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_pcsv events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_pcsv_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsv_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_pcsvmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_phsv events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_phsvmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsvadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsv_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_phsv_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_tavc events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_tavc_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavc_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavcmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_tavh events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_tavhmin_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavhmin_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavhmax_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavhmax_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavhstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavhstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavh_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavh_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_tavh_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_logg1 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_logg1min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg1_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_comp_logg2 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_comp_logg2_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2min_spinbutton_remove_widget
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_comp_logg2min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_surf_alb1 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_surf_alb1_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb1min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_surf_alb2 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_surf_alb2min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_alb2_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_surf_gr1 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_surf_gr1_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr1min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_surf_gr2 events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_surf_gr2min_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2min_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2max_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2max_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2adjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_surf_gr2_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
 }
 
 
@@ -3666,20 +1085,14 @@ on_phoebe_para_surf_gr2_spinbutton_value_changed
 
 
 void
-on_phoebe_para_lum_levels_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer         user_data)
+on_phoebe_para_lum_levels_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 
 }
 
 
 void
-on_phoebe_para_lum_levels_edit_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+on_phoebe_para_lum_levels_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
  	int lcno;
@@ -3745,60 +1158,6 @@ on_phoebe_para_lum_levels_edit_button_clicked
 }
 
 
-void
-on_phoebe_para_lum_levels_primadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_levels_secadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_levels_primstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_levels_primstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_levels_secstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_levels_secstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
 /* ******************************************************************** *
  *
  *                    phoebe_para_lum_el3 events
@@ -3806,74 +1165,13 @@ on_phoebe_para_lum_levels_secstep_spinbutton_value_changed
  * ******************************************************************** */
 
 
-void
-on_phoebe_para_lum_el3_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer         user_data)
+void on_phoebe_para_lum_el3_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_para_lum_el3_opacityadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_el3_opacitystep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_el3_opacitystep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_el3ajdust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_el3step_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_el3step_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void on_phoebe_para_lum_el3_edit_button_clicked
-										(GtkButton       *button,
-                                        gpointer         user_data)
+void on_phoebe_para_lum_el3_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
  	int lcno;
@@ -3948,21 +1246,13 @@ void on_phoebe_para_lum_el3_edit_button_clicked
  * ******************************************************************** */
 
 
-void
-on_phoebe_para_lum_weighting_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer         user_data)
+void on_phoebe_para_lum_weighting_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 
 }
 
 
-void
-on_phoebe_para_lum_weighting_edit_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+void on_phoebe_para_lum_weighting_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
  	int lcno;
@@ -4025,354 +1315,12 @@ on_phoebe_para_lum_weighting_edit_button_clicked
 
 /* ******************************************************************** *
  *
- *                    phoebe_para_lum_atmospheres events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_lum_atmospheres_prim_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_atmospheres_sec_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_atmospheres_grav_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_lum_noise events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_lum_noise_seed_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_seed_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_seedgen_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_sigma_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_sigma_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_lcscatter_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_noise_lcscatter_combobox_changed
-                                        (GtkComboBox     *combobox,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_options_reflections_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_lum_options events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_lum_options_decouple_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_options_reflections_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_lum_options_reflections_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_ld_bolcoefs events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_ld_bolcoefs_secy_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_secy_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_primy_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_primy_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_secx_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_secx_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_primx_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_bolcoefs_primx_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_model_autoupdate_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_ld_model events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_ld_model_combobox_changed
-                                        (GtkComboBox     *combobox,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_model_tables_claret_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_model_tables_vanhamme_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
-{
-
-}
-
-
-/* ******************************************************************** *
- *
- *                    phoebe_para_ld_lccoefs events
- *
- * ******************************************************************** */
-
-
-void
-on_phoebe_para_ld_lccoefs_treeview_row_activated
-                                        (GtkTreeView     *treeview,
-                                        GtkTreePath     *path,
-                                        GtkTreeViewColumn *column,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_secstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_secstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_primstep_spinbutton_editing_done
-                                        (GtkCellEditable *celleditable,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_primstep_spinbutton_value_changed
-                                        (GtkSpinButton   *spinbutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_secadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-
-void
-on_phoebe_para_ld_lccoefs_primadjust_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
-{
-
-}
-
-/* ******************************************************************** *
- *
  *                    phoebe_window detach events
  *
  * ******************************************************************** */
 
-void
-on_phoebe_sidesheet_detach_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+
+void on_phoebe_sidesheet_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_sidesheet_parent_table");
@@ -4380,10 +1328,8 @@ on_phoebe_sidesheet_detach_button_clicked
 	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
 }
 
-void
-on_phoebe_lc_plot_detach_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+
+void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
@@ -4391,10 +1337,8 @@ on_phoebe_lc_plot_detach_button_clicked
 	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 750, 550);
 }
 
-void
-on_phoebe_rv_plot_detach_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+
+void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
@@ -4402,10 +1346,8 @@ on_phoebe_rv_plot_detach_button_clicked
 	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 750, 550);
 }
 
-void
-on_phoebe_fitt_fitting_detach_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+
+void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_fitting_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_fitting_parent_table");
@@ -4419,20 +1361,16 @@ on_phoebe_fitt_fitting_detach_button_clicked
  *
  * ******************************************************************** */
 
-void
-on_phoebe_lc_plot_options_obs_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
+
+void on_phoebe_lc_plot_options_obs_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GUI_widget *combobox = gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox");
 	gtk_widget_set_sensitive (combobox->gtk, gtk_toggle_button_get_active(togglebutton));
 	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
 }
 
-void
-on_phoebe_rv_plot_options_obs_checkbutton_toggled
-                                        (GtkToggleButton *togglebutton,
-                                        gpointer         user_data)
+
+void on_phoebe_rv_plot_options_obs_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GUI_widget *combobox = gui_widget_lookup ("phoebe_rv_plot_options_obs_combobox");
 	gtk_widget_set_sensitive (combobox->gtk, gtk_toggle_button_get_active(togglebutton));
@@ -4440,10 +1378,7 @@ on_phoebe_rv_plot_options_obs_checkbutton_toggled
 }
 
 
-void
-on_phoebe_lc_plot_plot_button_clicked
-                                        (GtkButton       *button,
-                                        gpointer         user_data)
+void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
 	int lcno;
 
