@@ -28,32 +28,57 @@ on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_da
  *
  * ******************************************************************** */
 
+PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
+int accept_flag = 0;
+
 
 void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
-	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback_new();
+	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
 	FILE *output = fopen("phoebe_out", "w");
 
 	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkComboBox *phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
 	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
 	GtkTreeIter iter;
 	int index, count;
 
-	int status = phoebe_minimize_using_dc(output, feedback);
-	printf("Minimizer says: %s", phoebe_error(status));
+	int status = 0;
+
+	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 0){
+		status = phoebe_minimize_using_dc(output, phoebe_minimizer_feedback);
+		printf("DC minimizer says: %s", phoebe_error(status));
+	}
+
+	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
+		status = phoebe_minimize_using_nms(0.1, 1, output, phoebe_minimizer_feedback);
+		printf("NMS minimizer says: %s", phoebe_error(status));
+	}
 
 	gtk_list_store_clear(GTK_LIST_STORE(model));
 
-	count = feedback->qualifiers->dim;
+	count = phoebe_minimizer_feedback->qualifiers->dim;
 	for(index = 0; index < count; index++){
 		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
 		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
-			MF_COL_INITVAL, feedback->initvals->val[index],
-			MF_COL_NEWVAL, feedback->newvals->val[index],
-			MF_COL_ERROR, feedback->ferrors->val[index], -1);
+		MF_COL_QUALIFIER, phoebe_minimizer_feedback->qualifiers->val.strarray[index],
+		MF_COL_INITVAL, phoebe_minimizer_feedback->initvals->val[index],
+		MF_COL_NEWVAL, phoebe_minimizer_feedback->newvals->val[index],
+		MF_COL_ERROR, phoebe_minimizer_feedback->ferrors->val[index], -1);
 	}
 
+	accept_flag = 1;
+
+}
+
+
+void on_phoebe_fitt_fitting_updateall_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
+{
+	int status;
+	if (accept_flag){
+		status = phoebe_minimizer_feedback_accept(phoebe_minimizer_feedback);
+		accept_flag = 0;
+	}
 }
 
 
