@@ -136,10 +136,10 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_dc_symder_switch",     "Should symmetrical DC derivatives be used",  KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,          YES);
 	phoebe_parameter_add ("phoebe_dc_lambda",            "Levenberg-Marquardt multiplier for DC",      KIND_PARAMETER,  NULL,  0.0,    1.0,   1e-3, NO, TYPE_DOUBLE,       1e-3);
 
-	phoebe_parameter_add ("phoebe_dc_spot1src",          "Adjusted spot 1 source (at which star is the spot)", KIND_PARAMETER, NULL, 1,   2, 1, NO, TYPE_INT, 1);
-	phoebe_parameter_add ("phoebe_dc_spot2src",          "Adjusted spot 2 source (at which star is the spot)", KIND_PARAMETER, NULL, 1,   2, 1, NO, TYPE_INT, 2);
-	phoebe_parameter_add ("phoebe_dc_spot1id",           "Adjusted spot 1 id (which spot is to be adjusted)",  KIND_PARAMETER, NULL, 1, 100, 1, NO, TYPE_INT, 1);
-	phoebe_parameter_add ("phoebe_dc_spot2id",           "Adjusted spot 2 id (which spot is to be adjusted)",  KIND_PARAMETER, NULL, 1, 100, 1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot1src",          "Adjusted spot 1 source (at which star is the spot)", KIND_PARAMETER, NULL,      1,      2,      1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot2src",          "Adjusted spot 2 source (at which star is the spot)", KIND_PARAMETER, NULL,      1,      2,      1, NO, TYPE_INT, 2);
+	phoebe_parameter_add ("phoebe_dc_spot1id",           "Adjusted spot 1 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot2id",           "Adjusted spot 2 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
 
 	/* *******************   Perturbations parameters   ********************* */
 
@@ -157,18 +157,27 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_ld_rvy1",              "Primary RV bandpass LD coefficient y",               KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
 	phoebe_parameter_add ("phoebe_ld_rvy2",              "Secondary RV bandpass LD coefficient y",             KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
 
-	phoebe_parameter_add ("phoebe_spots_no1",            "Number of spots on primary star",                    KIND_PARAMETER,  NULL,    0,    100,      1, NO, TYPE_INT,            0);
-	phoebe_parameter_add ("phoebe_spots_no2",            "Number of spots on secondary star",                  KIND_PARAMETER,  NULL,    0,    100,      1, NO, TYPE_INT,            0);
-	phoebe_parameter_add ("phoebe_spots_move1",          "Spots on primary star move in longitude",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
-	phoebe_parameter_add ("phoebe_spots_move2",          "Spots on secondary star move in longitude",          KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
-	phoebe_parameter_add ("phoebe_spots_lat1",           "Latitude of the spot on primary star",               KIND_PARAMETER,  "phoebe_spots_no1",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
-	phoebe_parameter_add ("phoebe_spots_long1",          "Longitude of the spot on primary star",              KIND_PARAMETER,  "phoebe_spots_no1",  0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
-	phoebe_parameter_add ("phoebe_spots_rad1",           "Radius of the spot on primary star",                 KIND_PARAMETER,  "phoebe_spots_no1",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.2);
-	phoebe_parameter_add ("phoebe_spots_temp1",          "Temperature of the spot on primary star",            KIND_PARAMETER,  "phoebe_spots_no1",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.9);
-	phoebe_parameter_add ("phoebe_spots_lat2",           "Latitude of the spot on secondary star",             KIND_PARAMETER,  "phoebe_spots_no2",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
-	phoebe_parameter_add ("phoebe_spots_long2",          "Longitude of the spot on secondary star",            KIND_PARAMETER,  "phoebe_spots_no2",  0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.0);
-	phoebe_parameter_add ("phoebe_spots_rad2",           "Radius of the spot on secondary star",               KIND_PARAMETER,  "phoebe_spots_no2",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.2);
-	phoebe_parameter_add ("phoebe_spots_temp2",          "Temperature of the spot on secondary star",          KIND_PARAMETER,  "phoebe_spots_no2",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.9);
+	phoebe_parameter_add ("phoebe_spots_no",             "Number of spots in the model",                       KIND_MODIFIER,   NULL,                  0,      0,      0, NO, TYPE_INT,             0);
+	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
+/*	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE); */
+	phoebe_parameter_add ("phoebe_spots_source",         "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,       1);
+	phoebe_parameter_add ("phoebe_spots_colatitude",     "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 1.57);
+	phoebe_parameter_add ("phoebe_spots_longitude",      "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.00);
+	phoebe_parameter_add ("phoebe_spots_radius",         "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.20);
+	phoebe_parameter_add ("phoebe_spots_tempfactor",     "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.90);
+
+	phoebe_parameter_add ("phoebe_spots_corotate1",      "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
+	phoebe_parameter_add ("phoebe_spots_corotate2",      "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
+
+	/* These pertain to WD's DC that can fit up to two spots simultaneously. */
+	phoebe_parameter_add ("wd_spots_lat1",               "Latitude of the 1st adjusted spot",                  KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_long1",              "Longitude of the 1st adjusted spot",                 KIND_ADJUSTABLE, NULL,                0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_rad1",               "Radius of the 1st adjusted spot",                    KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
+	phoebe_parameter_add ("wd_spots_temp1",              "Temperature of 1st adjusted spot",                   KIND_ADJUSTABLE, NULL,                0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
+	phoebe_parameter_add ("wd_spots_lat2",               "Latitude of the 2nd adjusted spot",                  KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_long2",              "Longitude of the 2nd adjusted spot",                 KIND_ADJUSTABLE, NULL,                0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_rad2",               "Radius of the 2nd adjusted spot",                    KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
+	phoebe_parameter_add ("wd_spots_temp2",              "Temperature of 2nd adjusted spot",                   KIND_ADJUSTABLE, NULL,                0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
 
 	/* *********************   Utilities parameters   *********************** */
 

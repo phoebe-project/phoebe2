@@ -299,6 +299,20 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "spectra are not aligned in wavelength, aborting.\n";
 		case ERROR_BROADENING_INADEQUATE_ACCURACY:
 			return "rotational broadening cannot be accurately applied for |vsini| < 5km/s, aborting.\n";
+		case ERROR_SPOT_NOT_INITIALIZED:
+			return "the spot is not initialized, aborting.\n";
+		case ERROR_SPOT_INVALID_SOURCE:
+			return "spot source star invalid (should be 1 or 2), aborting.\n";
+		case ERROR_SPOT_INVALID_COLATITUDE:
+			return "spot latitude is invalid (0 < colat < pi), aborting.\n";
+		case ERROR_SPOT_INVALID_LONGITUDE:
+			return "spot latitude is invalid (0 < lon < 2pi), aborting.\n";
+		case ERROR_SPOT_INVALID_RADIUS:
+			return "spot angular radius is invalid (0 < rad < pi), aborting.\n";
+		case ERROR_SPOT_INVALID_TEMPERATURE:
+			return "spot temperature factor is invalid (0 < temp < 100), aborting.\n";
+		case ERROR_SPOT_INVALID_WD_NUMBER:
+			return "spot DC designation is invalid (should be 1 or 2), aborting.\n";
 		default:
 			phoebe_lib_error ("exception handler invoked in phoebe_error () by code %d, please report this!\n", code);
 			return "exception handler invoked.\n";

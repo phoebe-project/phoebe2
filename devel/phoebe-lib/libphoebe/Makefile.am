@@ -50,7 +50,7 @@ libphoebe_la_SOURCES =                                                  \
                                       phoebe.h
 
 BUILT_SOURCES =                                                         \
-	phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
+	phoebe_constraints.lex.c          phoebe_constraints.lex.h      \
 	phoebe_constraints.tab.c          phoebe_constraints.tab.h
 
 EXTRA_DIST = \

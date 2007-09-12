@@ -123,7 +123,7 @@ int create_dci_file (char *filename, void *pars)
 	wd_wrdci (filename, step, params->tba, ifder, ifm, ifr, params->dclambda,
 			  params->spot1src, params->spot1id, params->spot2src, params->spot2id,
 			  params->rv1data, params->rv2data, params->nlc, k0, kdisk, params->symder, nppl,
-			  params->refno, params->refswitch, params->spots1move, params->spots2move, params->rv1proximity, params->rv2proximity, params->ldmodel,
+			  params->refno, params->refswitch, params->spots1corotate, params->spots2corotate, params->rv1proximity, params->rv2proximity, params->ldmodel,
 			  params->indep, params->hjd0, params->period, params->dpdt, params->pshift,
 			  params->morph, params->cladec, params->ifat1, params->ifat2, params->n1f, params->n2f, params->n1c, params->n2c, params->perr0, params->dperdt, the, vunit,
 			  params->ecc, params->sma, params->f1, params->f2, vga, params->incl, params->grb1, params->grb2, params->met1,
@@ -159,7 +159,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 
 	int i;
 
-	int lcno, rvno;
+	int lcno, rvno, spotno;
 
 	int    readout_int;
 	bool   readout_bool;
@@ -202,11 +202,11 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_reffect_reflections"), &readout_int);
 	params->NREF = (integer) readout_int;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move1"), &readout_bool);
-	if (readout_bool) params->IFSMV1 = 1; else params->IFSMV1 = 0;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_corotate1"), &readout_bool);
+	if (readout_bool) params->IFSMV1 = 0; else params->IFSMV1 = 1;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move2"), &readout_bool);
-	if (readout_bool) params->IFSMV2 = 1; else params->IFSMV2 = 0;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_corotate2"), &readout_bool);
+	if (readout_bool) params->IFSMV2 = 0; else params->IFSMV2 = 1;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv1_switch"), &readout_bool);
 	if (readout_bool) params->ICOR1  = 1; else params->ICOR1  = 0;
@@ -459,50 +459,49 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	params->FACTOR = 1.0;
 
 	/* Spots: */
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no1"), &readout_int);
-	params->SPRIM = (integer) readout_int;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no2"), &readout_int);
-	params->SSEC = (integer) readout_int;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spotno);
 
-	/* Allocate memory for spot parameters and fill in the values: */
-	if (params->SPRIM != 0) {
-		params->XLAT1  = phoebe_malloc (params->SPRIM * sizeof (*(params->XLAT1)));
-		params->XLONG1 = phoebe_malloc (params->SPRIM * sizeof (*(params->XLONG1)));
-		params->RADSP1 = phoebe_malloc (params->SPRIM * sizeof (*(params->RADSP1)));
-		params->TEMSP1 = phoebe_malloc (params->SPRIM * sizeof (*(params->TEMSP1)));
+	/* Nullify arrays so that we can use phoebe_realloc immediately: */
+	params->XLAT1 = NULL; params->XLONG1 = NULL; params->RADSP1 = NULL; params->TEMSP1 = NULL;
+	params->XLAT2 = NULL; params->XLONG2 = NULL; params->RADSP2 = NULL; params->TEMSP2 = NULL;
 
-		for (i = 0; i < params->SPRIM; i++) {
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat1"),  i, &readout_dbl);
+	params->SPRIM = 0; params->SSEC = 0;
+	for (i = 0; i < spotno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), i, &readout_int);
+
+		if (readout_int == 1) {
+			params->SPRIM++;
+
+			params->XLAT1  = phoebe_realloc (params->XLAT1,  params->SPRIM * sizeof (*(params->XLAT1)));
+			params->XLONG1 = phoebe_realloc (params->XLONG1, params->SPRIM * sizeof (*(params->XLONG1)));
+			params->RADSP1 = phoebe_realloc (params->RADSP1, params->SPRIM * sizeof (*(params->RADSP1)));
+			params->TEMSP1 = phoebe_realloc (params->TEMSP1, params->SPRIM * sizeof (*(params->TEMSP1)));
+
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
 			params->XLAT1[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long1"), i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
 			params->XLONG1[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad1"),  i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
 			params->RADSP1[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp1"), i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
 			params->TEMSP1[i] = (doublereal) readout_dbl;
 		}
-	}
-	if (params->SSEC != 0) {
-		params->XLAT2  = phoebe_malloc (params->SSEC * sizeof (*(params->XLAT2)));
-		params->XLONG2 = phoebe_malloc (params->SSEC * sizeof (*(params->XLONG2)));
-		params->RADSP2 = phoebe_malloc (params->SSEC * sizeof (*(params->RADSP2)));
-		params->TEMSP2 = phoebe_malloc (params->SSEC * sizeof (*(params->TEMSP2)));
+		else {
+			params->SSEC++;
 
-		for (i = 0; i < params->SSEC; i++) {
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat2"),  i, &readout_dbl);
+			params->XLAT2  = phoebe_realloc (params->XLAT2,  params->SSEC  * sizeof (*(params->XLAT2)));
+			params->XLONG2 = phoebe_realloc (params->XLONG2, params->SSEC  * sizeof (*(params->XLONG2)));
+			params->RADSP2 = phoebe_realloc (params->RADSP2, params->SSEC  * sizeof (*(params->RADSP2)));
+			params->TEMSP2 = phoebe_realloc (params->TEMSP2, params->SSEC  * sizeof (*(params->TEMSP2)));
+
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
 			params->XLAT2[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long2"), i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
 			params->XLONG2[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad2"),  i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
 			params->RADSP2[i] = (doublereal) readout_dbl;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp2"), i, &readout_dbl);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
 			params->TEMSP2[i] = (doublereal) readout_dbl;
 		}
 	}
@@ -574,15 +573,17 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	 *  SUCCESS
 	 */
 
+#warning FIX_CASTING_IN_READ_IN_WD_DCI_PARAMETERS
+
 	char *pars[] = {
-		"phoebe_spots_lat1",
-		"phoebe_spots_long1",
-		"phoebe_spots_rad1",
-		"phoebe_spots_temp1",
-		"phoebe_spots_lat2",
-		"phoebe_spots_long2",
-		"phoebe_spots_rad2",
-		"phoebe_spots_temp2",
+		"wd_spots_lat1",
+		"wd_spots_long1",
+		"wd_spots_rad1",
+		"wd_spots_temp1",
+		"wd_spots_lat2",
+		"wd_spots_long2",
+		"wd_spots_rad2",
+		"wd_spots_temp2",
 		"phoebe_sma",
 		"phoebe_ecc",
 		"phoebe_perr0",
@@ -613,8 +614,11 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	};
 
 	int i, status;
-	int lcno, rvno, cno;
+	int lcno, rvno, cno, spotno;
+
+	int readout_int;
 	bool readout_bool;
+	double readout_dbl;
 	const char *readout_str;
 
 	int rv1index = -1;
@@ -644,6 +648,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	 * readout function; that's because WD sets 1 for /kept/ parameters and
 	 * 0 for parameters that are marked for adjustment.
 	 */
+
+	/* Indices 0..7 are spots. We handle these below, with the rest of spots. */
 
 	for (i = 0; i < 35; i++) {
 		if (i == 29) { tba[i] = !FALSE; continue; } /* reserved WD channel */
@@ -855,37 +861,63 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	}
 	}
 
-	/* Spot parameters:                                                       */
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no1"), &(params->spot1no));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no2"), &(params->spot2no));
+	/* Spot parameters: */
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spotno);
+
+	/* Nullify arrays so that we can use phoebe_realloc immediately: */
+	params->spot1lat = NULL; params->spot1long = NULL; params->spot1rad = NULL; params->spot1temp = NULL;
+	params->spot2lat = NULL; params->spot2long = NULL; params->spot2rad = NULL; params->spot2temp = NULL;
+
+	params->spot1no = 0; params->spot2no = 0;
+	for (i = 0; i < spotno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), i, &readout_int);
+
+		if (readout_int == 1) {
+			params->spot1no++;
+
+			params->spot1lat  = phoebe_realloc (params->spot1lat,  params->spot1no * sizeof (*(params->spot1lat)));
+			params->spot1long = phoebe_realloc (params->spot1long, params->spot1no * sizeof (*(params->spot1long)));
+			params->spot1rad  = phoebe_realloc (params->spot1rad,  params->spot1no * sizeof (*(params->spot1rad)));
+			params->spot1temp = phoebe_realloc (params->spot1temp, params->spot1no * sizeof (*(params->spot1temp)));
+
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
+			params->spot1lat[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
+			params->spot1long[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
+			params->spot1rad[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
+			params->spot1temp[i] = (doublereal) readout_dbl;
+		}
+		else {
+			params->spot2no++;
+
+			params->spot2lat  = phoebe_realloc (params->spot2lat,  params->spot2no * sizeof (*(params->spot2lat)));
+			params->spot2long = phoebe_realloc (params->spot2long, params->spot2no * sizeof (*(params->spot2long)));
+			params->spot2rad  = phoebe_realloc (params->spot2rad,  params->spot2no * sizeof (*(params->spot2rad)));
+			params->spot2temp = phoebe_realloc (params->spot2temp, params->spot2no * sizeof (*(params->spot2temp)));
+
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
+			params->spot2lat[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
+			params->spot2long[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
+			params->spot2rad[i] = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
+			params->spot2temp[i] = (doublereal) readout_dbl;
+		}
+	}
+
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), &(params->spot1src));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), &(params->spot2src));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), &(params->spot1id));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), &(params->spot2id));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move1"), &(params->spots1move));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_move2"), &(params->spots2move));
 
-	params->spot1lat  = phoebe_malloc (params->spot1no * sizeof (*(params->spot1lat)));
-	params->spot1long = phoebe_malloc (params->spot1no * sizeof (*(params->spot1long)));
-	params->spot1rad  = phoebe_malloc (params->spot1no * sizeof (*(params->spot1rad)));
-	params->spot1temp = phoebe_malloc (params->spot1no * sizeof (*(params->spot1temp)));
-	params->spot2lat  = phoebe_malloc (params->spot2no * sizeof (*(params->spot2lat)));
-	params->spot2long = phoebe_malloc (params->spot2no * sizeof (*(params->spot2long)));
-	params->spot2rad  = phoebe_malloc (params->spot2no * sizeof (*(params->spot2rad)));
-	params->spot2temp = phoebe_malloc (params->spot2no * sizeof (*(params->spot2temp)));
-
-	for (i = 0; i < params->spot1no; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat1"), i, &(params->spot1lat[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long1"), i, &(params->spot1long[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad1"), i, &(params->spot1rad[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp1"), i, &(params->spot1temp[i]));
-	}
-	for (i = 0; i < params->spot2no; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_lat2"), i, &(params->spot2lat[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_long2"), i, &(params->spot2long[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_rad2"), i, &(params->spot2rad[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_temp2"), i, &(params->spot2temp[i]));
-	}
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_corotate1"), &readout_bool);
+	params->spots1corotate = (integer) (!readout_bool);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_corotate2"), &readout_bool);
+	params->spots2corotate = (integer) (!readout_bool);
 
 	/* Observational data: */
 	{
