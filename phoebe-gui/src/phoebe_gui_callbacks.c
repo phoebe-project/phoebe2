@@ -1254,7 +1254,7 @@ void on_phoebe_settings_toolbutton_clicked (GtkToolButton *toolbutton, gpointer 
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	TRUE);
 				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
 			}
-			else if (toggle)
+			else if (!toggle)
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);
 
 			phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &toggle);
@@ -1262,7 +1262,7 @@ void on_phoebe_settings_toolbutton_clicked (GtkToolButton *toolbutton, gpointer 
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	TRUE);
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)kurucz_filechooserbutton));
 			}
-			else if (toggle)
+			else if (!toggle)
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
 		}
         break;
