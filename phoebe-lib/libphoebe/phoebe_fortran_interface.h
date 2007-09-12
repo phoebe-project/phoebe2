@@ -176,8 +176,8 @@ typedef struct WD_DCI_parameters {
 	integer    spot2src;
 	integer    spot1id;
 	integer    spot2id;
-	integer    spots1move;
-	integer    spots2move;
+	integer    spots1corotate;
+	integer    spots2corotate;
 	doublereal *spot1lat;
 	doublereal *spot1long;
 	doublereal *spot1rad;
