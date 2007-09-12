@@ -40,20 +40,18 @@ int gui_plot_lc_using_gnuplot ()
 	plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton->gtk));
 	plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton->gtk));
 
-	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", tmpdir);
+	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
 	if(1){
-		printf("%d\n",index);
-		/*index = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox->gtk))-1; problems with function w->p*/
-		printf("%d\n",index);
+		index = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox->gtk));
 
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index);
 		syn = phoebe_curve_new ();
 		syn->type = PHOEBE_CURVE_LC;
 
-		phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+		phoebe_curve_transform (obs, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_UNDEFINED);
 
-		/* Write first curve data to the temporary file */
+
 		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);
 
@@ -61,10 +59,9 @@ int gui_plot_lc_using_gnuplot ()
 			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
 			write(ofd, line, strlen(line));
 		}
-		close(ofd) ;
+		close(ofd);
 
-		/* Write first curve data to the temporary file */
-		/* Create phase vector */
+
 		indep = phoebe_vector_new ();
 		phoebe_vector_alloc (indep, vertices);
 		for (i = 0; i < vertices; i++) indep->val[i] = -0.6 + 1.2 * (double) i/(vertices-1);
@@ -79,7 +76,7 @@ int gui_plot_lc_using_gnuplot ()
 			sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
 			write(sfd, line, strlen(line));
 		}
-		close(sfd) ;
+		close(sfd);
 
 
 	//----------------
@@ -87,7 +84,7 @@ int gui_plot_lc_using_gnuplot ()
 	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
 	pfd = mkstemp (pname);
 
-	sprintf(cname, "%s/phoebe-com-XXXXXX", tmpdir);
+	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
 	sprintf(line, "set terminal png truecolor nocrop enhanced small size 614,336\n");
@@ -124,6 +121,7 @@ int gui_plot_lc_using_gnuplot ()
 
 	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image->gtk), gdk_pixbuf_new_from_file(pname, NULL));
 
+	close(pfd);
 
 	remove(oname);
 	remove(sname);
