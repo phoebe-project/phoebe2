@@ -1448,3 +1448,19 @@ void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 	else printf("Nothing to plot...\n");
 }
+
+
+void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
+{
+	int rvno;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+	phoebe_parameter_get_value(par, &rvno);
+
+	if(rvno > 0){
+		gui_get_values_from_widgets();
+		gui_plot_rv_using_gnuplot();
+	}
+
+	else printf("Nothing to plot...\n");
+}

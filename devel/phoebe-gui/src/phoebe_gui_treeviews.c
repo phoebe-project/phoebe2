@@ -1077,7 +1077,7 @@ int gui_data_rv_treeview_add()
 
 			GtkTreeIter filter_iter;
 			gint 		filter_number;
-			gchar 		filter_selected[255] = "Undefined";
+			gchar 		filter_selected[255] = "Johnson:V";
 
 			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
@@ -1158,7 +1158,7 @@ int gui_data_rv_treeview_edit()
         gdouble sigma;
         gchar *filter;
 
-        gchar filter_selected[255] = "Undefined";
+        gchar filter_selected[255] = "Johnson:V";
 		gint filter_number;
 		GtkTreeIter filter_iter;
 
