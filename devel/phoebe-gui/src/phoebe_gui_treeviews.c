@@ -342,7 +342,7 @@ int gui_init_spots_treeview  ()
 
     GtkTreeModel *spots_model = (GtkTreeModel*)gtk_list_store_new(
 		SPOTS_COL_COUNT,       	/* number of columns    */
-		G_TYPE_BOOLEAN,        	/* adjustable           */
+		G_TYPE_BOOLEAN,        	/* active	            */
 		G_TYPE_INT,            	/* source               */
 		G_TYPE_STRING,			/* source as string		*/
 		G_TYPE_DOUBLE,         	/* latitude             */
@@ -364,15 +364,16 @@ int gui_init_spots_treeview  ()
 		G_TYPE_BOOLEAN,       	/* temperature adjust   */
 		G_TYPE_DOUBLE,         	/* temperature step     */
 		G_TYPE_DOUBLE,         	/* temperature min      */
-		G_TYPE_DOUBLE);        	/* temperature max      */
+		G_TYPE_DOUBLE,			/* temperature max      */
+		G_TYPE_BOOLEAN);        /* adjustable			*/
 
     GtkCellRenderer     *renderer;
     GtkTreeViewColumn   *column;
 
     renderer    = gtk_cell_renderer_toggle_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", SPOTS_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
-    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_adjust_checkbutton_toggled), NULL);
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_active_checkbutton_toggled), NULL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
@@ -382,17 +383,102 @@ int gui_init_spots_treeview  ()
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
+	renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lat. adjust", renderer, "active", SPOTS_COL_LATADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lat. Step", renderer, "text", SPOTS_COL_LATADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lat. Min", renderer, "text", SPOTS_COL_LATMIN, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lat. Max", renderer, "text", SPOTS_COL_LATMAX, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Longitude", renderer, "text", SPOTS_COL_LON, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lon. adjust", renderer, "active", SPOTS_COL_LONADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lon. Step", renderer, "text", SPOTS_COL_LONSTEP, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lon. Min", renderer, "text", SPOTS_COL_LONMIN, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Lon. Max", renderer, "text", SPOTS_COL_LONMAX, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Radius", renderer, "text", SPOTS_COL_RAD, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
+    renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Rad. adjust", renderer, "active", SPOTS_COL_RADADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Rad. Step", renderer, "text", SPOTS_COL_RADSTEP, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Rad. Min", renderer, "text", SPOTS_COL_RADMIN, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Rad. Max", renderer, "text", SPOTS_COL_RADMAX, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temperature", renderer, "text", SPOTS_COL_TEMP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Temp. adjust", renderer, "active", SPOTS_COL_TEMPADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Temp. Step", renderer, "text", SPOTS_COL_TEMPSTEP, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Temp. Min", renderer, "text", SPOTS_COL_TEMPMIN, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Temp. Max", renderer, "text", SPOTS_COL_TEMPMAX, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+
+    renderer    = gtk_cell_renderer_toggle_new ();
+    column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_adjust_checkbutton_toggled), NULL);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_spots_treeview, spots_model);
 
@@ -401,27 +487,23 @@ int gui_init_spots_treeview  ()
 
 int gui_reinit_spots_treeview ()
 {
-//	int i;
-//	int spots_no1, spots_no2;
-//
-//	PHOEBE_parameter *par;
-//	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_para_surf_spots_treeview")->gtk)));
-//	GtkTreeIter iter;
-//
-//	gtk_list_store_clear(store);
-//
-//	par = phoebe_parameter_lookup("phoebe_spots_no1");
-//	phoebe_parameter_get_value(par, &spots_no1);
-//
-//	par = phoebe_parameter_lookup("phoebe_spots_no2");
-//	phoebe_parameter_get_value(par, &spots_no2);
-//
-//	for(i = 0; i < spots_no1 + spots_no2; i++){
-//		gtk_list_store_append(store, &iter);
-//	}
+	int status;
+	int i;
+	int spots_no;
 
-	return SUCCESS;
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_spots_no");
+	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_para_spots_treeview")->gtk)));
+	GtkTreeIter iter;
+
+	status = phoebe_parameter_get_value(par, &spots_no);
+	gtk_list_store_clear(store);
+
+	for(i = 0; i < spots_no; i++)
+		gtk_list_store_append(store, &iter);
+
+	return status;
 }
+
 
 int gui_init_sidesheet_res_treeview()
 {
@@ -601,12 +683,12 @@ int gui_fill_sidesheet_res_treeview()
 	par = phoebe_parameter_lookup("phoebe_logg1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "log(g) 1", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g) 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "log(g) 2", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g) 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_sbr1");
 	status = phoebe_parameter_get_value(par, &value);
@@ -952,6 +1034,7 @@ int gui_data_rv_treeview_add()
 
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+	gchar	  *dir;
 
 	GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
@@ -984,6 +1067,9 @@ int gui_data_rv_treeview_add()
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);
+
+	phoebe_config_entry_get ("PHOEBE_DATA_DIR", &dir);
+	gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, dir);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
     switch (result){
@@ -1210,4 +1296,21 @@ int gui_init_fitt_mf_treeview()
     gtk_tree_view_set_model((GtkTreeView*)phoebe_fitt_mf_treeview, model);
 
 	return status;
+}
+
+int gui_spots_parameters_marked_tba()
+{
+	int result = 0;
+
+	GtkWidget *latadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_latadjust_checkbutton")->gtk;
+	GtkWidget *lonadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_lonadjust_checkbutton")->gtk;
+	GtkWidget *radadjust_checkbutton  = gui_widget_lookup ("phoebe_para_spots_radadjust_checkbutton")->gtk;
+	GtkWidget *tempadjust_checkbutton = gui_widget_lookup ("phoebe_para_spots_tempadjust_checkbutton")->gtk;
+
+	result += 	gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(latadjust_checkbutton)) +
+				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lonadjust_checkbutton)) +
+				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radadjust_checkbutton)) +
+				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tempadjust_checkbutton));
+
+	return result;
 }

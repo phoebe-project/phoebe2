@@ -13,6 +13,7 @@ gboolean PHOEBE_WINDOW_SIDESHEET_IS_DETACHED = FALSE;
 gboolean PHOEBE_WINDOW_LC_PLOT_IS_DETACHED   = FALSE;
 gboolean PHOEBE_WINDOW_RV_PLOT_IS_DETACHED   = FALSE;
 gboolean PHOEBE_WINDOW_FITTING_IS_DETACHED   = FALSE;
+gboolean PHOEBE_SPOTS_SHOW_ALL				 = FALSE;
 
 int gui_init_widgets ()
 {
@@ -25,18 +26,19 @@ int gui_init_widgets ()
 
 	PHOEBE_parameter *par;
 	gchar *glade_xml_file;
-    gchar *glade_pixmap_file;
+    gchar *glade_pixmap_file, *detach_pixmap_file;
 	GladeXML  *phoebe_window;
 
-	GtkWidget *phoebe_data_lc_treeview,       *phoebe_para_lc_levels_treeview,
-              *phoebe_para_lc_el3_treeview,   *phoebe_para_lc_levweight_treeview,
-		      *phoebe_para_lc_ld_treeview,    *phoebe_data_rv_treeview,
-		      *phoebe_para_rv_ld_treeview,    *phoebe_para_spots_treeview,
-		      *phoebe_sidesheet_res_treeview, *phoebe_sidesheet_fit_treeview;
+	GtkWidget *phoebe_data_lc_treeview,       		*phoebe_para_lc_levels_treeview,
+              *phoebe_para_lc_el3_treeview,   		*phoebe_para_lc_levweight_treeview,
+		      *phoebe_para_lc_ld_treeview,    		*phoebe_data_rv_treeview,
+		      *phoebe_para_rv_ld_treeview,    		*phoebe_para_spots_treeview,
+		      *phoebe_sidesheet_res_treeview, 		*phoebe_sidesheet_fit_treeview;
 
 	/* Read in the main PHOEBE window: */
 	glade_xml_file    = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
 	glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+	detach_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "detach.png", NULL);
 	phoebe_window = glade_xml_new (glade_xml_file, NULL, NULL);
 	g_free (glade_xml_file);
 
@@ -367,64 +369,40 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_ld_lccoefs_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,	par, NULL);
 	gui_widget_add ("phoebe_para_ld_lccoefs_secstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP,	par, NULL);
 
-	gui_widget_add ("phoebe_para_spots_primmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_primmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_move1"),	NULL);
-	gui_widget_add ("phoebe_para_spots_secmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_secmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_move2"),	NULL);
+	gui_widget_add ("phoebe_para_spots_primmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_primmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate1"),	NULL);
+	gui_widget_add ("phoebe_para_spots_secmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_secmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate2"),	NULL);
 
-//	par = phoebe_parameter_lookup ("phoebe_spots_lat1");
-//	gui_widget_add ("phoebe_para_spots_lat1_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT1,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat1_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT1STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat1_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT1MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat1_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT1MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat1_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT1ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_lat2");
-//	gui_widget_add ("phoebe_para_spots_lat2_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT2,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat2_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT2STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat2_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT2MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat2_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT2MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lat2_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LAT2ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_lon1");
-//	gui_widget_add ("phoebe_para_spots_lon1_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON1,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon1_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON1STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon1_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON1MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon1_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON1MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon1_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON1ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_lon2");
-//	gui_widget_add ("phoebe_para_spots_lon2_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON2,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon2_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON2STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon2_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON2MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon2_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON2MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_lon2_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_LON2ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_rad1");
-//	gui_widget_add ("phoebe_para_spots_rad1_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD1,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad1_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD1STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad1_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD1MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad1_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD1MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad1_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD1ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_rad2");
-//	gui_widget_add ("phoebe_para_spots_rad2_value",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD2,			GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad2_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD2STEP,		GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad2_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD2MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad2_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD2MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_rad2_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_RAD2ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_temp1");
-//	gui_widget_add ("phoebe_para_spots_temp1_value",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP1,		GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp1_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP1STEP,	GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp1_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP1MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp1_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP1MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp1_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP1ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
-//
-//	par = phoebe_parameter_lookup ("phoebe_spots_temp2");
-//	gui_widget_add ("phoebe_para_spots_temp21_value",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP2,		GUI_WIDGET_VALUE,			par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp2_step",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP2STEP,	GUI_WIDGET_VALUE_STEP,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp21_min",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP2MIN,		GUI_WIDGET_VALUE_MIN,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp2_max",						(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP2MAX,		GUI_WIDGET_VALUE_MAX,		par,	NULL);
-//	gui_widget_add ("phoebe_para_spots_temp2_adjust",					(GtkWidget *) adjustible_spots_model,																	ADJ_SPOTS_COL_TEMP2ADJUST,	GUI_WIDGET_SWITCH_TBA,		par,	NULL);
+	gui_widget_add ("phoebe_para_spots_active_switch",					(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_ACTIVE,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_spots_active_switch"), NULL);
+	gui_widget_add ("phoebe_para_spots_tba_switch",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_ADJUST,	GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_tba_switch"), NULL);
+	gui_widget_add ("phoebe_para_spots_source",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_SOURCE,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_spots_source"), NULL);
+
+	par = phoebe_parameter_lookup ("phoebe_spots_colatitude");
+	gui_widget_add ("phoebe_para_spots_lat",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LAT,		GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_spots_latadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_latstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_latmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_latmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+
+	par = phoebe_parameter_lookup ("phoebe_spots_longitude");
+	gui_widget_add ("phoebe_para_spots_lon",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LON,		GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_spots_lonadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lonstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lonmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lonmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+
+	par = phoebe_parameter_lookup ("phoebe_spots_radius");
+	gui_widget_add ("phoebe_para_spots_rad",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RAD,		GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_spots_radadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_radstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_radmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_radmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+
+	par = phoebe_parameter_lookup ("phoebe_spots_tempfactor");
+	gui_widget_add ("phoebe_para_spots_temp",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMP,		GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_spots_tempadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_tempstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_tempmin",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_tempmax",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
 
 	gui_widget_add ("phoebe_para_spots_lat_label",						glade_xml_get_widget(phoebe_window, "phoebe_para_spots_lat_frame_label"),								0,					GUI_WIDGET_VALUE,					NULL,	NULL);
 	gui_widget_add ("phoebe_para_spots_lon_label",						glade_xml_get_widget(phoebe_window, "phoebe_para_spots_lon_frame_label"),								0,					GUI_WIDGET_VALUE,					NULL,	NULL);
@@ -500,6 +478,11 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_detach_button",                        glade_xml_get_widget(phoebe_window, "phoebe_fitt_detach_button"),                                       0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_lc_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_sidesheet_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_fitt_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 
 	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"), gui_widget_lookup("phoebe_data_lc_filter"));
 	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"), gui_widget_lookup("phoebe_data_rv_filter"));
