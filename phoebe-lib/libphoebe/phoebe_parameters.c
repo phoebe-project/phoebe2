@@ -159,7 +159,7 @@ int phoebe_init_parameters ()
 
 	phoebe_parameter_add ("phoebe_spots_no",             "Number of spots in the model",                       KIND_MODIFIER,   NULL,                  0,      0,      0, NO, TYPE_INT,             0);
 	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
-/*	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE); */
+	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 	phoebe_parameter_add ("phoebe_spots_source",         "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,       1);
 	phoebe_parameter_add ("phoebe_spots_colatitude",     "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 1.57);
 	phoebe_parameter_add ("phoebe_spots_longitude",      "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.00);
@@ -1287,7 +1287,7 @@ PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ()
 PHOEBE_parameter_list *phoebe_parameter_list_reverse (PHOEBE_parameter_list *c, PHOEBE_parameter_list *p)
 {
 	/**
-	 * 
+	 *
 	 */
 
 	PHOEBE_parameter_list *rev;
@@ -1409,7 +1409,7 @@ PHOEBE_parameter_table *phoebe_parameter_table_duplicate (PHOEBE_parameter_table
 	tba = table->lists.marked_tba;
 	while (tba) {
 		tbacopy = phoebe_malloc (sizeof (*tbacopy));
-		
+
 		/* The parameters in the list need to be in the duplicated table: */
 		list = copy->bucket[phoebe_parameter_hash (tba->par->qualifier)];
 		while (strcmp (tba->par->qualifier, list->par->qualifier) != 0)
@@ -1590,7 +1590,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 		char *version_str = strstr (readout_str, "PHOEBE");
 		double version;
-			
+
 		if (sscanf (version_str, "PHOEBE %lf", &version) != 1) {
 			/* Just in case, if the header line is invalid.                       */
 			phoebe_lib_error ("Invalid header line in %s, aborting.\n", filename);

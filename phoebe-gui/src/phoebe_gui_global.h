@@ -11,4 +11,6 @@ extern gboolean PHOEBE_WINDOW_LC_PLOT_IS_DETACHED;
 extern gboolean PHOEBE_WINDOW_RV_PLOT_IS_DETACHED;
 extern gboolean PHOEBE_WINDOW_FITTING_IS_DETACHED;
 
+extern gboolean PHOEBE_SPOTS_SHOW_ALL;
+
 #endif

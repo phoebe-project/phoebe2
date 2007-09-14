@@ -45,7 +45,7 @@ typedef enum GUI_rv_model_columns {
 } GUI_rv_model_columns;
 
 typedef enum GUI_spots_model_columns {
-    SPOTS_COL_ADJUST,
+    SPOTS_COL_ACTIVE,
     SPOTS_COL_SOURCE,
     SPOTS_COL_SOURCE_STR,
     SPOTS_COL_LAT,
@@ -68,6 +68,7 @@ typedef enum GUI_spots_model_columns {
     SPOTS_COL_TEMPSTEP,
     SPOTS_COL_TEMPMIN,
     SPOTS_COL_TEMPMAX,
+    SPOTS_COL_ADJUST,
     SPOTS_COL_COUNT
 } GUI_spots_model_columns;
 
@@ -127,5 +128,8 @@ int gui_data_lc_treeview_edit	();
 int gui_data_rv_treeview_edit	();
 int gui_data_lc_treeview_remove	();
 int gui_data_rv_treeview_remove	();
+
+int gui_spots_treeview_toggle_show_all();
+int gui_spots_parameters_marked_tba();
 
 
