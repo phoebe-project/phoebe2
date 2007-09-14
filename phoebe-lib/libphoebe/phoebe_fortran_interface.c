@@ -556,6 +556,158 @@ WD_DCI_parameters *wd_dci_parameters_new ()
 	return pars;
 }
 
+int wd_spots_parameters_get ()
+{
+	int i, spno, sp1no = 0, sp2no = 0, src, tbano = 0, tbacur = 1;
+	bool *colat_tba, *long_tba, *rad_tba, *temp_tba;
+	double colat, lon, rad, temp;
+
+	/* Set all adjustment switches to 0: */
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long1"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad1"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp1"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat2"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long2"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad2"), 0);
+	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 0);
+
+	/* First test: are there any spots defined in the model: */
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spno);
+	if (spno == 0)
+		return SUCCESS;
+
+	/* Second test: let's check whether there are more than 2 spots marked    */
+	/* for adjustment. Fill in arrays at the same time for subsequent usage.  */
+
+	colat_tba = phoebe_malloc (spno * sizeof (*colat_tba));
+	 long_tba = phoebe_malloc (spno * sizeof (*long_tba));
+	  rad_tba = phoebe_malloc (spno * sizeof (*rad_tba));
+	 temp_tba = phoebe_malloc (spno * sizeof (*temp_tba));
+
+	for (i = 0; i < spno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_tba"), i, &(colat_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_tba"),  i, &(long_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_tba"),     i, &(rad_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_tba"), i, &(temp_tba[i]));
+
+		if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i])
+			tbano++;
+	}
+
+	if (tbano == 0) {
+		free (colat_tba); free (long_tba); free (rad_tba); free (temp_tba);
+		return SUCCESS;
+	}
+	if (tbano > 2) {
+		free (colat_tba); free (long_tba); free (rad_tba); free (temp_tba);
+		return ERROR_DC_TOO_MANY_SPOTS_TBA;
+	}
+
+	/* Now we know there are spots in the model and we know that at least one */
+	/* and not more than 2 of them are marked for adjustment. We make a 2nd   */
+	/* pass through the list and copy the values to WD spot parameters.       */
+
+	for (i = 0; i < spno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), i, &src);
+
+		if (src == 1) {
+			sp1no++;
+
+			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), i, &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &temp);
+
+				if (tbacur == 1) {
+					if (colat_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 1);
+					if (long_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long1"), 1);
+					if (rad_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad1"), 1);
+					if (temp_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp1"), 1);
+
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), 1);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), sp1no);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat1"), colat);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long1"), lon);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad1"), rad);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp1"), temp);
+				} else {
+					if (colat_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat2"), 1);
+					if (long_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long2"), 1);
+					if (rad_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad2"), 1);
+					if (temp_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 1);
+
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), 1);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), sp1no);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat2"), colat);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long2"), lon);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad2"), rad);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp2"), temp);
+				}
+				tbacur++;
+			}
+		}
+		else /* if (src == 2) */ {
+			sp2no++;
+
+			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), i, &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &temp);
+
+				if (tbacur == 1) {
+					if (colat_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 1);
+					if (long_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long1"), 1);
+					if (rad_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad1"), 1);
+					if (temp_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp1"), 1);
+
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), 2);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), sp2no);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat1"), colat);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long1"), lon);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad1"), rad);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp1"), temp);
+				} else {
+					if (colat_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat2"), 1);
+					if (long_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long2"), 1);
+					if (rad_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad2"), 1);
+					if (temp_tba[i])
+						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 1);
+
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), 2);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), sp2no);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat2"), colat);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long2"), lon);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad2"), rad);
+					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp2"), temp);
+				}
+				tbacur++;
+			}
+		}
+	}
+
+	free (colat_tba); free (long_tba); free (rad_tba); free (temp_tba);
+	return SUCCESS;
+}
+
 int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 {
 	/*
@@ -649,7 +801,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	 * 0 for parameters that are marked for adjustment.
 	 */
 
-	/* Indices 0..7 are spots. We handle these below, with the rest of spots. */
+	wd_spots_parameters_get ();
 
 	for (i = 0; i < 35; i++) {
 		if (i == 29) { tba[i] = !FALSE; continue; } /* reserved WD channel */

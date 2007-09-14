@@ -299,6 +299,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "spectra are not aligned in wavelength, aborting.\n";
 		case ERROR_BROADENING_INADEQUATE_ACCURACY:
 			return "rotational broadening cannot be accurately applied for |vsini| < 5km/s, aborting.\n";
+		case ERROR_DC_TOO_MANY_SPOTS_TBA:
+			return "too many spots are marked for adjustment (up to two are allowed), aborting.\n";
 		case ERROR_SPOT_NOT_INITIALIZED:
 			return "the spot is not initialized, aborting.\n";
 		case ERROR_SPOT_INVALID_SOURCE:

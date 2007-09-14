@@ -193,6 +193,7 @@ int create_lci_file (char *filename, WD_LCI_parameters *param);
 int create_dci_file (char *filename, void *pars);
 
 int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve);
+int wd_spots_parameters_get ();
 
 WD_DCI_parameters *wd_dci_parameters_new     ();
 int                read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba);
