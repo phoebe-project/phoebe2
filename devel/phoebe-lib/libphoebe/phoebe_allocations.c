@@ -369,6 +369,7 @@ int get_passband_id (const char *passband)
 	if (strcmp (passband,    "Johnson:R") == 0) passid =  8;
 	if (strcmp (passband,    "Johnson:I") == 0) passid =  9;
 	if (strcmp (passband,    "Johnson:J") == 0) passid = 10;
+	if (strcmp (passband,    "Johnson:H") == 0) passid = 26;
 	if (strcmp (passband,    "Johnson:K") == 0) passid = 11;
 	if (strcmp (passband,    "Johnson:L") == 0) passid = 12;
 	if (strcmp (passband,    "Johnson:M") == 0) passid = 13;

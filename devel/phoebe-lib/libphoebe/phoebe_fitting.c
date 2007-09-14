@@ -406,6 +406,9 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 	if (lcno + rvno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
+	/* Copy PHOEBE spot parameters into WD spot structures: */
+	wd_spots_parameters_get ();
+
 	/* Get a list of parameters marked for adjustment: */
 	tba = phoebe_parameter_list_get_marked_tba ();
 	if (!tba) return ERROR_MINIMIZER_NO_PARAMS;
@@ -539,7 +542,6 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 			phoebe_parameter_get_value (par, index-1, &(adjpars->val[i]));
 
 		phoebe_parameter_get_step (par, &(steps->val[i]));
-printf ("par: %s\tinitval: %lf\n", qualifier, adjpars->val[i]);
 		feedback->initvals->val[i] = adjpars->val[i];
 	}
 
@@ -991,6 +993,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	/* Everything seems to be ok. Fire up the stop watch: */
 	clock_start = clock ();
+
+	/* Copy PHOEBE spot parameters into WD spot structures: */
+	wd_spots_parameters_get ();
 
 	/* Get a list of parameters marked for adjustment: */
 	marked_tba = phoebe_parameter_list_get_marked_tba ();

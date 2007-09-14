@@ -477,6 +477,7 @@ int scripter_directive_list (scripter_ast_list *args)
 	 *   parameters  ..  qualifiers of all model parameters
 	 *   qualifiers  ..  alias of the above
 	 *   tba         ..  parameters that are marked for adjustment
+	 *   spots       ..  all spots and their parameters
 	 *
 	 * This directive is grammar-controlled, so there is no need for error-
 	 * handling here.
@@ -484,10 +485,9 @@ int scripter_directive_list (scripter_ast_list *args)
 
 	int i;
 	char *ident = args->elem->value.variable;
-	PHOEBE_parameter_list *list;
 
-	if (strcmp (ident, "qualifiers") == 0 ||
-		strcmp (ident, "parameters") == 0) {
+	if (strcmp (ident, "qualifiers") == 0 || strcmp (ident, "parameters") == 0) {
+		PHOEBE_parameter_list *list;
 		for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
 			list = PHOEBE_pt->bucket[i];
 			while (list) {
@@ -497,7 +497,7 @@ int scripter_directive_list (scripter_ast_list *args)
 		}
 	}
 	else if (strcmp (ident, "tba") == 0) {
-		list = phoebe_parameter_list_get_marked_tba ();
+		PHOEBE_parameter_list *list = phoebe_parameter_list_get_marked_tba ();
 		while (list) {
 			fprintf (PHOEBE_output, "\t%s\n", list->par->qualifier);
 			list = list->next;

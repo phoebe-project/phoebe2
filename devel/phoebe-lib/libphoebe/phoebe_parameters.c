@@ -10,6 +10,7 @@
 #include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
+#include "phoebe_fortran_interface.h"
 #include "phoebe_global.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
@@ -160,11 +161,16 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_spots_no",             "Number of spots in the model",                       KIND_MODIFIER,   NULL,                  0,      0,      0, NO, TYPE_INT,             0);
 	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
 	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
+
 	phoebe_parameter_add ("phoebe_spots_source",         "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,       1);
 	phoebe_parameter_add ("phoebe_spots_colatitude",     "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 1.57);
+	phoebe_parameter_add ("phoebe_spots_colatitude_tba", "Spot co-latitude TBA switch",                        KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 	phoebe_parameter_add ("phoebe_spots_longitude",      "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.00);
+	phoebe_parameter_add ("phoebe_spots_longitude_tba",  "Spot longitude TBA switch",                          KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 	phoebe_parameter_add ("phoebe_spots_radius",         "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.20);
+	phoebe_parameter_add ("phoebe_spots_radius_tba",     "Spot angular radius TBA switch",                     KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 	phoebe_parameter_add ("phoebe_spots_tempfactor",     "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.90);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_tba", "Spot temperature factor TBA switch",                 KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 
 	phoebe_parameter_add ("phoebe_spots_corotate1",      "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
 	phoebe_parameter_add ("phoebe_spots_corotate2",      "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
@@ -986,14 +992,14 @@ int phoebe_parameter_list_sort_marked_tba (PHOEBE_parameter_list *list)
 	int i, id1 = 0, id2 = 0;
 
 	struct { int index; PHOEBE_parameter *par; } wdorder[] = {
-		{ 0, phoebe_parameter_lookup ("phoebe_spots_lat1") },
-		{ 1, phoebe_parameter_lookup ("phoebe_spots_long1")},
-		{ 2, phoebe_parameter_lookup ("phoebe_spots_rad1") },
-		{ 3, phoebe_parameter_lookup ("phoebe_spots_temp1")},
-		{ 4, phoebe_parameter_lookup ("phoebe_spots_lat2") },
-		{ 5, phoebe_parameter_lookup ("phoebe_spots_long2")},
-		{ 6, phoebe_parameter_lookup ("phoebe_spots_rad2") },
-		{ 7, phoebe_parameter_lookup ("phoebe_spots_temp2")},
+		{ 0, phoebe_parameter_lookup ("wd_spots_lat1") },
+		{ 1, phoebe_parameter_lookup ("wd_spots_long1")},
+		{ 2, phoebe_parameter_lookup ("wd_spots_rad1") },
+		{ 3, phoebe_parameter_lookup ("wd_spots_temp1")},
+		{ 4, phoebe_parameter_lookup ("wd_spots_lat2") },
+		{ 5, phoebe_parameter_lookup ("wd_spots_long2")},
+		{ 6, phoebe_parameter_lookup ("wd_spots_rad2") },
+		{ 7, phoebe_parameter_lookup ("wd_spots_temp2")},
 		{ 8, phoebe_parameter_lookup ("phoebe_sma")        },
 		{ 9, phoebe_parameter_lookup ("phoebe_ecc")        },
 		{10, phoebe_parameter_lookup ("phoebe_perr0")      },
