@@ -493,6 +493,7 @@ int gui_init_widgets ()
 	/* ************************    GUI Containers   ************************* */
 
 	gui_widget_add ("phoebe_lc_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 
 	gui_widget_add ("phoebe_sidesheet_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_parent_table"),									0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_sidesheet_vbox",							glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_vbox"),											0,					GUI_WIDGET_VALUE, 		NULL, NULL);
