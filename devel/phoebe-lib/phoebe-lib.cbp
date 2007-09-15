@@ -75,10 +75,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="libphoebe/phoebe_parameters.h" />
-		<Unit filename="libphoebe/phoebe_plotting.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="libphoebe/phoebe_plotting.h" />
 		<Unit filename="libphoebe/phoebe_radiation.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -91,10 +87,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="libphoebe/phoebe_spectra.h" />
-		<Unit filename="libphoebe/phoebe_spots.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="libphoebe/phoebe_spots.h" />
 		<Unit filename="libphoebe/phoebe_types.c">
 			<Option compilerVar="CC" />
 		</Unit>
