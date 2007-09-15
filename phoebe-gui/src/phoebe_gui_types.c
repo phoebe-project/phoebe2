@@ -810,6 +810,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 					printf ("\tsetting step to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 					status = phoebe_parameter_set_step (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 				}
+				break;
 				default:
 					/* change to phoebe_gui_error! */
 					printf ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, par->type switch; please report this!\n");
