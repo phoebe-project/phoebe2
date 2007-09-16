@@ -382,6 +382,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_spots_latstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_latmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_latmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lat_tba",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATADJUST,GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_colatitude_tba"), NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_spots_longitude");
 	gui_widget_add ("phoebe_para_spots_lon",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LON,		GUI_WIDGET_VALUE,		par, NULL);
@@ -389,6 +390,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_spots_lonstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_lonmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_lonmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lon_tba",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONADJUST,GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_longitude_tba"), NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_spots_radius");
 	gui_widget_add ("phoebe_para_spots_rad",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RAD,		GUI_WIDGET_VALUE,		par, NULL);
@@ -396,6 +398,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_spots_radstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_radmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_radmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_rad_tba",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADADJUST,GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_radius"), NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_spots_tempfactor");
 	gui_widget_add ("phoebe_para_spots_temp",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMP,		GUI_WIDGET_VALUE,		par, NULL);
@@ -403,6 +406,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_spots_tempstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_tempmin",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_tempmax",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_temp_tba",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPADJUST,GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_tempfactor"), NULL);
 
 	gui_widget_add ("phoebe_para_spots_lat_label",						glade_xml_get_widget(phoebe_window, "phoebe_para_spots_lat_frame_label"),								0,					GUI_WIDGET_VALUE,					NULL,	NULL);
 	gui_widget_add ("phoebe_para_spots_lon_label",						glade_xml_get_widget(phoebe_window, "phoebe_para_spots_lon_frame_label"),								0,					GUI_WIDGET_VALUE,					NULL,	NULL);
@@ -441,6 +445,9 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_parameters_coarsize1_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize1_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize1"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_coarsize2_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize2_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize2"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_lambda_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_lambda_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"), NULL);
+	gui_widget_add ("phoebe_fitt_nms_iters_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_iters_spinbutton"),								0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+	gui_widget_add ("phoebe_fitt_nms_accuracy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_accuracy_spinbutton"),								0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+	gui_widget_add ("phoebe_fitt_feedback_label",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_feedback_label"),										0,					GUI_WIDGET_VALUE,		NULL,	NULL);
 
 	/* *************************    GUI Widgets   *************************** */
 
@@ -1074,6 +1081,7 @@ int gui_get_values_from_widgets ()
 
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_sidesheet_res_treeview ();
+	//gui_fill_fitt_mf_treeview();
 
 	return SUCCESS;
 }
@@ -1097,6 +1105,7 @@ int gui_set_values_to_widgets ()
 
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_sidesheet_res_treeview ();
+	gui_fill_fitt_mf_treeview();
 
 	return SUCCESS;
 }

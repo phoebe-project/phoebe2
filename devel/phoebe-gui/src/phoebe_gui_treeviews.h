@@ -114,6 +114,7 @@ int gui_fill_sidesheet_res_treeview ();
 int gui_fill_sidesheet_fit_treeview ();
 
 int gui_init_fitt_mf_treeview		();
+int gui_fill_fitt_mf_treeview			();
 
 int gui_init_filter_combobox 		(GtkWidget *combo_box);
 int gui_init_lc_obs_combobox		();
