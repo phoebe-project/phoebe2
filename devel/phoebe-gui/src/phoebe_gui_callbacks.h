@@ -5,7 +5,7 @@ void on_phoebe_test_toolbutton_0_clicked 					(GtkToolButton *toolbutton, gpoint
 void on_phoebe_test_toolbutton_1_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_open_toolbutton_clicked 						(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_save_toolbutton_clicked 						(GtkToolButton *toolbutton, gpointer user_data);
-void on_phoebe_fiitting_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
+void on_phoebe_fitting_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_scripter_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_quit_toolbutton_clicked 						(GtkToolButton *toolbutton, gpointer user_data);
@@ -41,3 +41,4 @@ void on_phoebe_load_rv_filechooserbutton_selection_changed 	(GtkFileChooserButto
 void on_phoebe_lc_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);
 void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
+void on_phoebe_fitt_updateall_button_clicked 				(GtkToolButton   *toolbutton, gpointer user_data);

@@ -187,12 +187,12 @@
               </packing>
             </child>
             <child>
-              <widget class="GtkToolButton" id="phoebe_fiitting_toolbutton">
+              <widget class="GtkToolButton" id="phoebe_fitting_toolbutton">
                 <property name="visible">True</property>
                 <property name="label">Fitting</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-execute</property>
-                <signal name="clicked" handler="on_phoebe_fiitting_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_fitting_toolbutton_clicked"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -919,6 +919,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1074,6 +1075,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1230,6 +1232,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1385,6 +1388,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1570,6 +1574,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1726,6 +1731,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1883,6 +1889,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2035,6 +2042,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2224,6 +2232,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2378,6 +2387,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2532,6 +2542,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2683,6 +2694,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2834,6 +2846,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3014,6 +3027,7 @@ Interpolation
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3163,6 +3177,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3314,6 +3329,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3468,6 +3484,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3622,6 +3639,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3776,6 +3794,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3966,6 +3985,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4119,6 +4139,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4274,6 +4295,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4429,6 +4451,7 @@ Interpolation
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
                                     <property name="response_id">0</property>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4626,6 +4649,7 @@ Interpolation
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="x_options">GTK_FILL</property>
@@ -4639,6 +4663,7 @@ Interpolation
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">1</property>
@@ -4832,6 +4857,7 @@ Flux</property>
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">3</property>
@@ -4847,6 +4873,7 @@ Flux</property>
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">2</property>
@@ -4893,6 +4920,7 @@ Flux</property>
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
+                                            <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">1</property>
@@ -5759,6 +5787,7 @@ Square root law</property>
                                         <property name="use_underline">True</property>
                                         <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -5774,6 +5803,7 @@ Square root law</property>
                                         <property name="use_underline">True</property>
                                         <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
                                       <packing>
                                         <property name="x_options">GTK_FILL</property>
@@ -6992,6 +7022,7 @@ Nelder &amp; Mead's Simplex</property>
                                         <property name="can_focus">True</property>
                                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                         <property name="adjustment">0 0 100 1 10 10</property>
+                                        <property name="climb_rate">0.10000000149011612</property>
                                         <property name="digits">4</property>
                                       </widget>
                                       <packing>
@@ -7067,12 +7098,12 @@ Nelder &amp; Mead's Simplex</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkTable" id="phoebe_fitt_fitting_parent_table">
+                      <widget class="GtkTable" id="phoebe_fitt_parent_table">
                         <property name="visible">True</property>
                         <property name="n_rows">1</property>
                         <property name="n_columns">1</property>
                         <child>
-                          <widget class="GtkFrame" id="phoebe_fitt_fitting_frame">
+                          <widget class="GtkFrame" id="phoebe_fitt_frame">
                             <property name="visible">True</property>
                             <property name="border_width">1</property>
                             <property name="label_xalign">0</property>
@@ -7216,11 +7247,11 @@ Nelder &amp; Mead's Simplex</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkButton" id="phoebe_fitt_fitting_updateall_button">
+                                      <widget class="GtkButton" id="phoebe_fitt_updateall_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Update All</property>
                                         <property name="response_id">0</property>
-                                        <signal name="clicked" handler="on_phoebe_fitt_fitting_updateall_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_fitt_updateall_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="position">2</property>

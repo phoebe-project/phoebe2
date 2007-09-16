@@ -24,6 +24,15 @@ on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_da
     gui_set_values_to_widgets();
 }
 
+void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	char *widget_name = (char*)gtk_widget_get_name(GTK_WIDGET(togglebutton));
+	gui_get_value_from_widget(gui_widget_lookup(widget_name));
+
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_fitt_mf_treeview();
+}
+
 /* ******************************************************************** *
  *
  *                    phoebe fitting tab events
@@ -62,7 +71,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 		printf("NMS minimizer says: %s", phoebe_error(status));
 	}
 
-	if (status == 0){
+	if (status == SUCCESS){
 		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (phoebe_minimizer_feedback->algorithm? "Differential corrections":"Nelder-Mead Simplex"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
@@ -81,13 +90,13 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 		accept_flag = 1;
 	}
 	else{
-		sprintf(status_message, "%s", phoebe_error(status));
+		sprintf(status_message, "%s: %s", (phoebe_minimizer_feedback->algorithm? "Differential corrections":"Nelder-Mead Simplex"), phoebe_error(status));
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 	}
 }
 
 
-void on_phoebe_fitt_fitting_updateall_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
+void on_phoebe_fitt_updateall_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
 	int status;
 	if (accept_flag){
@@ -975,7 +984,7 @@ void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 }
 
 
-void on_phoebe_fiitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
+void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_fitting_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_fitting_parent_table");
