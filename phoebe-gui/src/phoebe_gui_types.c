@@ -25,8 +25,10 @@ int gui_init_widgets ()
 	int i;
 
 	PHOEBE_parameter *par;
+
 	gchar *glade_xml_file;
     gchar *glade_pixmap_file, *detach_pixmap_file;
+
 	GladeXML  *phoebe_window;
 
 	GtkWidget *phoebe_data_lc_treeview,       		*phoebe_para_lc_levels_treeview,
@@ -35,14 +37,14 @@ int gui_init_widgets ()
 		      *phoebe_para_rv_ld_treeview,    		*phoebe_para_spots_treeview,
 		      *phoebe_sidesheet_res_treeview, 		*phoebe_sidesheet_fit_treeview;
 
-	/* Read in the main PHOEBE window: */
-	glade_xml_file    = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
-	glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-	detach_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "detach.png", NULL);
-	phoebe_window = glade_xml_new (glade_xml_file, NULL, NULL);
-	g_free (glade_xml_file);
+	glade_xml_file    	= g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe.glade", NULL);
+	glade_pixmap_file 	= g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+	detach_pixmap_file 	= g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "detach.png", NULL);
+
+	phoebe_window 		= glade_xml_new (glade_xml_file, NULL, NULL);
 
 	glade_xml_signal_autoconnect (phoebe_window);
+	g_free (glade_xml_file);
 
 	GUI_wt = phoebe_malloc (sizeof (GUI_widget_table));
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++)
@@ -437,7 +439,6 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_spots_tempmin_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_spots_tempmin_spinbutton"),							0,					GUI_WIDGET_VALUE_MIN,				NULL,	NULL);
 	gui_widget_add ("phoebe_para_spots_tempmax_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_spots_tempmax_spinbutton"),							0,					GUI_WIDGET_VALUE_MAX,				NULL,	NULL);
 
-
 	/* ***********************    Fitting Widgets   ************************* */
 
 	gui_widget_add ("phoebe_fitt_parameters_finesize1_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_finesize1_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize1"), NULL);
@@ -486,16 +487,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_sidesheet_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_fitt_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-
 	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"), gui_widget_lookup("phoebe_data_lc_filter"));
 	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"), gui_widget_lookup("phoebe_data_rv_filter"));
-
-	gui_init_lc_obs_combobox();
-	gui_init_rv_obs_combobox();
 
 	/* ************************    GUI Containers   ************************* */
 
@@ -511,10 +504,18 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_table",								glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_table"),											0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_parent_table",						glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_parent_table"),										0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 
-	gui_widget_add ("phoebe_fitt_fitting_frame",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_frame"),										0,					GUI_WIDGET_VALUE, 		NULL, NULL);
-	gui_widget_add ("phoebe_fitt_fitting_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_parent_table"),								0,					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_fitt_frame",								glade_xml_get_widget(phoebe_window, "phoebe_fitt_frame"),												0,					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_fitt_parent_table",							glade_xml_get_widget(phoebe_window, "phoebe_fitt_parent_table"),										0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 
 	g_object_unref (phoebe_window);
+
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_sidesheet_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_fitt_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+
+	gui_init_lc_obs_combobox();
+	gui_init_rv_obs_combobox();
 
 	gui_init_parameter_options ();
 
@@ -1064,7 +1065,7 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 int gui_get_values_from_widgets ()
 {
-	printf("\n\n******** Entering gui_get_values_from_widgets!******* \n\n");
+ 	printf("\n\n******** Entering gui_get_values_from_widgets!******* \n\n");
 
 	int i, status;
 	GUI_wt_bucket *bucket;
@@ -1078,10 +1079,6 @@ int gui_get_values_from_widgets ()
 			bucket = bucket->next;
 		}
 	}
-
-	gui_fill_sidesheet_fit_treeview ();
-	gui_fill_sidesheet_res_treeview ();
-	//gui_fill_fitt_mf_treeview();
 
 	return SUCCESS;
 }
@@ -1103,8 +1100,8 @@ int gui_set_values_to_widgets ()
 		}
 	}
 
-	gui_fill_sidesheet_fit_treeview ();
-	gui_fill_sidesheet_res_treeview ();
+	gui_fill_sidesheet_res_treeview();
+	gui_fill_sidesheet_fit_treeview();
 	gui_fill_fitt_mf_treeview();
 
 	return SUCCESS;

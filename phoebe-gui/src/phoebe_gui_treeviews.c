@@ -711,11 +711,11 @@ int gui_fill_sidesheet_fit_treeview()
 	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_sidesheet_fit_treeview);
 	GtkTreeIter iter;
 
-	gtk_list_store_clear((GtkListStore*)model);
-
 	PHOEBE_parameter_list *pars_tba = phoebe_parameter_list_get_marked_tba();
 	PHOEBE_parameter *par;
 	double value, step, min, max;
+
+	gtk_list_store_clear((GtkListStore*)model);
 
 	while(pars_tba){
 		par = pars_tba->par;
@@ -1308,7 +1308,7 @@ int gui_fill_fitt_mf_treeview()
 
 	int status = 0;
 
-	status = gui_get_values_from_widgets();
+	//status = gui_get_values_from_widgets();
 
 	gtk_list_store_clear(GTK_LIST_STORE(model));
 
