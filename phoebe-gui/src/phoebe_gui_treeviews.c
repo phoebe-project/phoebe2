@@ -1298,6 +1298,38 @@ int gui_init_fitt_mf_treeview()
 	return status;
 }
 
+
+int gui_fill_fitt_mf_treeview()
+{
+	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
+	GtkTreeIter iter;
+	double value;
+
+	int status = 0;
+
+	status = gui_get_values_from_widgets();
+
+	gtk_list_store_clear(GTK_LIST_STORE(model));
+
+	PHOEBE_parameter_list *pars_tba = phoebe_parameter_list_get_marked_tba();
+	PHOEBE_parameter *par;
+
+	while(pars_tba){
+		par = pars_tba->par;
+
+		status = phoebe_parameter_get_value(par, &value);
+
+		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+			MF_COL_QUALIFIER, par->qualifier,
+			MF_COL_INITVAL, value, -1);
+		pars_tba = pars_tba->next;
+	}
+	return status;
+}
+
+
 int gui_spots_parameters_marked_tba()
 {
 	int result = 0;

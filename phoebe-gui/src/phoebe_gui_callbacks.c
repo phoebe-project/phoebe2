@@ -20,6 +20,7 @@ on_phoebe_test_toolbutton_0_clicked (GtkToolButton   *toolbutton, gpointer user_
 void
 on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
+	gui_reinit_treeviews();
     gui_set_values_to_widgets();
 }
 
@@ -32,19 +33,24 @@ on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_da
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 int accept_flag = 0;
 
-
 void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
 	FILE *output = fopen("phoebe_out", "w");
 
-	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
-	GtkComboBox *phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
-	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
+	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
+	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
+	GtkSpinButton 	*phoebe_fitt_nms_iters_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk);
+	GtkSpinButton 	*phoebe_fitt_nms_accuracy_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_accuracy_spinbutton")->gtk);
+	GtkTreeModel 	*model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
 	GtkTreeIter iter;
 	int index, count;
+	char status_message[255] = "Minimizer feedback";
 
 	int status = 0;
+
+	status = gui_get_values_from_widgets();
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 0){
 		status = phoebe_minimize_using_dc(output, phoebe_minimizer_feedback);
@@ -52,24 +58,32 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 	}
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
-		status = phoebe_minimize_using_nms(0.1, 1, output, phoebe_minimizer_feedback);
+		status = phoebe_minimize_using_nms(gtk_spin_button_get_value_as_int(phoebe_fitt_nms_iters_spinbutton), gtk_spin_button_get_value(phoebe_fitt_nms_accuracy_spinbutton), output, phoebe_minimizer_feedback);
 		printf("NMS minimizer says: %s", phoebe_error(status));
 	}
 
-	gtk_list_store_clear(GTK_LIST_STORE(model));
+	if (status == 0){
+		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (phoebe_minimizer_feedback->algorithm? "Differential corrections":"Nelder-Mead Simplex"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
+		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
-	count = phoebe_minimizer_feedback->qualifiers->dim;
-	for(index = 0; index < count; index++){
-		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-		MF_COL_QUALIFIER, phoebe_minimizer_feedback->qualifiers->val.strarray[index],
-		MF_COL_INITVAL, phoebe_minimizer_feedback->initvals->val[index],
-		MF_COL_NEWVAL, phoebe_minimizer_feedback->newvals->val[index],
-		MF_COL_ERROR, phoebe_minimizer_feedback->ferrors->val[index], -1);
+		gtk_list_store_clear(GTK_LIST_STORE(model));
+
+		count = phoebe_minimizer_feedback->qualifiers->dim;
+		for(index = 0; index < count; index++){
+			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+			MF_COL_QUALIFIER, phoebe_minimizer_feedback->qualifiers->val.strarray[index],
+			MF_COL_INITVAL, phoebe_minimizer_feedback->initvals->val[index],
+			MF_COL_NEWVAL, phoebe_minimizer_feedback->newvals->val[index],
+			MF_COL_ERROR, phoebe_minimizer_feedback->ferrors->val[index], -1);
+		}
+
+		accept_flag = 1;
 	}
-
-	accept_flag = 1;
-
+	else{
+		sprintf(status_message, "%s", phoebe_error(status));
+		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
+	}
 }
 
 
@@ -78,6 +92,7 @@ void on_phoebe_fitt_fitting_updateall_button_clicked (GtkToolButton   *toolbutto
 	int status;
 	if (accept_flag){
 		status = phoebe_minimizer_feedback_accept(phoebe_minimizer_feedback);
+		status = gui_set_values_to_widgets();
 		accept_flag = 0;
 	}
 }
