@@ -983,6 +983,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	double *chi2s;
 	double  cfval;
 
+	PHOEBE_el3_units l3units;
+	integer L3perc;
+
 	phoebe_debug ("entering differential corrections minimizer.\n");
 
 	/* Check if the feedback structure is initialized and not allocated: */
@@ -1024,8 +1027,18 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
+	/* Get third light units: */
+	status = phoebe_el3_units_id (&l3units);
+	if (status != SUCCESS)
+		phoebe_lib_warning ("Third light units invalid, assuming defaults (flux units).\n");
+
+	/* Assign a third light units switch for WD: */
+	L3perc = 0;
+	if (l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
+		L3perc = 1;
+
 	/* Run one DC iteration and store the results in the allocated arrays: */
-	wd_dc (atmcof, atmcofplanck, corrections, errors, chi2s, &cfval);
+	wd_dc (atmcof, atmcofplanck, &L3perc, corrections, errors, chi2s, &cfval);
 
 	/*
 	 * Allocate the feedback structure and fill it in. The number of parameter

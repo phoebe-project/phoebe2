@@ -165,12 +165,13 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	int i;
+	int i, status;
 	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
-	integer request, nodes;
+	PHOEBE_el3_units l3units;
+	integer request, nodes, L3perc;
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -188,13 +189,22 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	phoebe_vector_alloc (curve->dep, indep->dim);
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
 	request = 1;
 	nodes = (integer) indep->dim;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, curve->indep->val, curve->dep->val, params);
+	status = phoebe_el3_units_id (&l3units);
+	if (status != SUCCESS)
+		phoebe_lib_warning ("Third light units invalid, assuming defaults (flux units).\n");
+
+	L3perc = 0;
+	if (l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
+		L3perc = 1;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -219,7 +229,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
-	integer request, nodes;
+	integer request, nodes, L3perc;
 
 	if (!rv1)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -243,7 +253,9 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	request = 2;
 	nodes = (integer) indep->dim;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, indep->val, rv1->dep->val, params);
+	L3perc = 0;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv1->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -268,7 +280,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
 
-	integer request, nodes;
+	integer request, nodes, L3perc;
 
 	if (!rv2)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -292,7 +304,9 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	request = 3;
 	nodes = (integer) indep->dim;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, indep->val, rv2->dep->val, params);
+	L3perc = 0;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv2->dep->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
