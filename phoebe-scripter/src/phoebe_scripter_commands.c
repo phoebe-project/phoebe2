@@ -107,6 +107,9 @@ scripter_ast_value scripter_open_parameter_file (scripter_ast_list *args)
 		case ERROR_FILE_NOT_FOUND:
 			phoebe_scripter_output ("cannot open %s - file not found.\n", vals[0].value.str);
 		break;
+		case SUCCESS:
+			/* enjoy life, everything is fine! :) */
+		break;
 		default:
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 	}
