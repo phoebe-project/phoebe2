@@ -1,4 +1,5 @@
-      subroutine lc(atmtab,pltab,request,vertno,indeps,deps,params)
+      subroutine lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,
+     +              params)
 c
 c  Main program for computing light and radial velocity curves,
 c      line profiles, and images
@@ -92,6 +93,10 @@ c                       1  ..  light curve
 c                       2  ..  primary RV curve
 c                       3  ..  secondary RV curve
 c       vertno   ..   number of vertices in a light/RV curve
+c       L3perc   ..   3rd light switch:
+c                       0  ..  3rd light passed in flux units (default)
+c                       1  ..  3rd light computed from the passed
+c                              percentage of L3, x=L3/(L1+L2+L3)
 c       indeps   ..   an array of vertices (HJDs or phases)
 c         deps   ..   an array of computed values (fluxes or RVs)
 c       params   ..   an array of computed parameters:
@@ -439,6 +444,16 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $encl,dens,ns1,sms1,sr1,bolm1,xlg1,ns2,sms2,sr2,bolm2,xlg2,mmsave,
      $sbrh,sbrc,sm1,sm2,phperi,pconsc,pconic,dif1,abunir,abun,mod)
 
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+c     The following block supports third light to be computed from the
+c     passed percentage of third luminosity.
+c
+      if(L3perc.eq.1) el3=(hlum+clum)*el3/(4.d0*3.141593d0*(1.d0-el3))
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       ALL=HOT+COOL+EL3
       IF(MODE.EQ.-1) ALL=COOL+EL3
       LL1=MMSAVE(N1)+1

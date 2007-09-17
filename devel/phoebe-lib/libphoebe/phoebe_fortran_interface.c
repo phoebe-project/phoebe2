@@ -445,7 +445,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 		params->OPSF = (doublereal) readout_dbl;
 	}
 	else {
-		/* Third light and opacity function don't make sense for RVs.             */
+		/* Third light and opacity function don't make sense for RVs. */
 		params->EL3 = 0.0;
 		params->OPSF = 0.0;
 	}

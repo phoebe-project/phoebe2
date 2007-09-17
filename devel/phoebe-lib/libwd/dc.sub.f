@@ -1,4 +1,4 @@
-      subroutine dc(atmtab,pltab,corrs,stdevs,chi2s,cfval)
+      subroutine dc(atmtab,pltab,L3perc,corrs,stdevs,chi2s,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -93,9 +93,10 @@ c
 c       ichno    ..    number of parameter channels (currently 35)
 c
       parameter (ichno=35)
-      dimension xtha(4),xfia(4),arad(4),po(2),omcr(2)
+      dimension xtha(4),xfia(4),po(2),omcr(2)
       dimension abun(19),glog(11),grand(250800),plcof(1250),iband(25)
       dimension message(2,4)
+      character arad(4)*10
       dimension aa(20),bb(20)
 c
 c     Nothing needs to be changed beyond this point to accomodate finer grids.
@@ -974,7 +975,26 @@ c***************************************************************
       IF(KH.NE.31) GOTO 941
       IF(MODE.LE.0) GOTO 941
       IF(IPB.EQ.1) GOTO 941
-      IF(IB.GT.NVC) OBS(II)=(BR(IX)-EL3A(IB))/HLA(IB)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+c     The following block supports third light to be computed from the
+c     passed percentage of third luminosity.
+c
+c     IF(IB.GT.NVC) OBS(II)=(BR(IX)-EL3A(IB))/HLA(IB)
+c
+      if (IB.GT.NVC) then
+        if (L3perc.eq.1) then
+          el3=(hla(ib)+cla(ib))*el3a(ib)/(4.d0*3.141593d0*
+     $        (1.d0-el3a(ib)))
+        else
+          el3=el3a(ib)
+        end if
+        OBS(II)=(BR(IX)-EL3)/HLA(IB)
+      end if
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GOTO 420
   941 CONTINUE
       DL=DEL(KH)
@@ -1414,7 +1434,24 @@ c***************************************************************
   602 CONTINUE
       HTT=HOT
       IF(MODE.EQ.-1) HTT=0.d0
-      XR=(HTT+COOL+EL3A(IB))*ELIT+VKM1*VC1+VKM2*VC2
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+c     The following block supports third light to be computed from the
+c     passed percentage of third luminosity.
+c
+      if (L3perc.eq.1) then
+        el3=(hla(ib)+cla(ib))*el3a(ib)/(4.d0*3.141593d0*(1.d0-el3a(ib)))
+      else
+        el3=el3a(ib)
+      end if
+c
+c     XR=(HTT+COOL+EL3A(IB))*ELIT+VKM1*VC1+VKM2*VC2
+c
+      XR=(HTT+COOL+EL3)*ELIT+VKM1*VC1+VKM2*VC2
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       IF(KSR.NE.1) GOTO 710
       BL(IX)=XR
       GOTO 420
@@ -1496,7 +1533,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(message(komp,2).eq.1) write(6,284) komp
       if(message(komp,3).eq.1) write(6,285) komp
       if(message(komp,4).eq.1) write(6,286) komp
-  909  continue
+  909 continue
       write(6,101)
       GOTO 65
    71 JF=0
@@ -1698,6 +1735,29 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       iout=iout+1
       ipar=kpar
       if(kpar.gt.30) ipar=30+kurv+(kpar-31)*nlc
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+c     The following block supports third light to be computed from the
+c     passed percentage of third luminosity.
+c
+      hlum=hla(kcurv)
+      if (kpar.eq.31) then
+        hlum=para(ipar)+out(iout)
+      endif
+      clum=cla(kcurv)
+      if (kpar.eq.32) then
+        clum=para(ipar)+out(iout)
+      endif
+      if (kpar.eq.35 .and. L3perc.eq.1) then
+        out(iout) = 4.d0*3.1415926d0*out(iout)/
+     $              (hlum+clum+4.d0*3.1415926d0*out(iout))
+        sd(iout)  = 4.d0*3.1415926d0*sd(iout)/
+     $              (hlum+clum+4.d0*3.1415926d0*sd(iout))
+      endif
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       parout=para(ipar)+out(iout)
       write(6,616) kpar,kcurv,para(ipar),out(iout),parout,sd(iout)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

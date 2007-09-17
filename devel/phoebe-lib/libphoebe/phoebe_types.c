@@ -2342,24 +2342,17 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	params.JDPHS = jdphs;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
-/*
-	status = phoebe_el3_units_id (&el3units);
-	if (status != SUCCESS) return status;
 
-	phoebe_parameter_get_value ("phoebe_el3", index, &el3value);
-*/
 	filename = resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, &params);
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:
 			call_wd_to_get_fluxes (curve, nodes);
-/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_FLUX:
 			call_wd_to_get_fluxes (curve, nodes);
-/*			apply_third_light_correction (curve, el3units, el3value);*/
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_PRIMARY_RV:
