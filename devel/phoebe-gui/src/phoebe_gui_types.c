@@ -380,7 +380,7 @@ int gui_init_widgets ()
 
 	par = phoebe_parameter_lookup ("phoebe_spots_colatitude");
 	gui_widget_add ("phoebe_para_spots_lat",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LAT,		GUI_WIDGET_VALUE,		par, NULL);
-	gui_widget_add ("phoebe_para_spots_latadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_latadjust",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_latstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_latmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_latmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LATMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
@@ -388,7 +388,7 @@ int gui_init_widgets ()
 
 	par = phoebe_parameter_lookup ("phoebe_spots_longitude");
 	gui_widget_add ("phoebe_para_spots_lon",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LON,		GUI_WIDGET_VALUE,		par, NULL);
-	gui_widget_add ("phoebe_para_spots_lonadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_lonadjust",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_lonstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_lonmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_lonmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_LONMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
@@ -396,7 +396,7 @@ int gui_init_widgets ()
 
 	par = phoebe_parameter_lookup ("phoebe_spots_radius");
 	gui_widget_add ("phoebe_para_spots_rad",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RAD,		GUI_WIDGET_VALUE,		par, NULL);
-	gui_widget_add ("phoebe_para_spots_radadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_radadjust",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_radstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_radmin",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_radmax",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_RADMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
@@ -404,7 +404,7 @@ int gui_init_widgets ()
 
 	par = phoebe_parameter_lookup ("phoebe_spots_tempfactor");
 	gui_widget_add ("phoebe_para_spots_temp",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMP,		GUI_WIDGET_VALUE,		par, NULL);
-	gui_widget_add ("phoebe_para_spots_tempadjsut",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_spots_tempadjust",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPADJUST,GUI_WIDGET_SWITCH_TBA,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_tempstep",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPSTEP,	GUI_WIDGET_VALUE_STEP,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_tempmin",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMIN,	GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_spots_tempmax",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_TEMPMAX,	GUI_WIDGET_VALUE_MAX,	par, NULL);
