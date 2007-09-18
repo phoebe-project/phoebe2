@@ -241,9 +241,9 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 		params->SIGMA = (doublereal) readout_dbl;
 
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_levweight"), &readout_str);
-		if (strcmp (readout_str, "No level-dependent weighting") == 0) params->WEIGHTING = 0;
-		if (strcmp (readout_str, "Poissonian scatter")           == 0) params->WEIGHTING = 1;
-		if (strcmp (readout_str, "Low light scatter")            == 0) params->WEIGHTING = 2;
+		if (strcmp (readout_str, "None") == 0)               params->WEIGHTING = 0;
+		if (strcmp (readout_str, "Poissonian scatter") == 0) params->WEIGHTING = 1;
+		if (strcmp (readout_str, "Low light scatter")  == 0) params->WEIGHTING = 2;
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_synscatter_seed"), &readout_dbl);
 		params->SEED = (doublereal) readout_dbl;
 	}

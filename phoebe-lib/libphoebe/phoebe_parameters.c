@@ -288,7 +288,7 @@ int phoebe_init_parameter_options ()
 	phoebe_parameter_add_option (par, "Unavailable");
 
 	par = phoebe_parameter_lookup ("phoebe_lc_levweight");
-	phoebe_parameter_add_option (par, "No level-dependent weighting");
+	phoebe_parameter_add_option (par, "None");
 	phoebe_parameter_add_option (par, "Poissonian scatter");
 	phoebe_parameter_add_option (par, "Low light scatter");
 
@@ -318,7 +318,7 @@ int phoebe_init_parameter_options ()
 	phoebe_parameter_add_option (par, "Square root law");
 
 	par = phoebe_parameter_lookup ("phoebe_synscatter_levweight");
-	phoebe_parameter_add_option (par, "No level-dependent weighting");
+	phoebe_parameter_add_option (par, "None");
 	phoebe_parameter_add_option (par, "Poissonian scatter");
 	phoebe_parameter_add_option (par, "Low light scatter");
 
@@ -802,41 +802,41 @@ int phoebe_parameter_get_value (PHOEBE_parameter *par, ...)
 			*value = par->value.str;
 		}
 		break;
-		case TYPE_INT_ARRAY:
+		case TYPE_INT_ARRAY: {
+			int *value;
 			index = va_arg (args, int);
-			{
-			int *value = va_arg (args, int *);
+			value = va_arg (args, int *);
 			if (index < 0 || index > par->value.array->dim-1)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			*value = par->value.array->val.iarray[index];
-			}
+		}
 		break;
-		case TYPE_BOOL_ARRAY:
+		case TYPE_BOOL_ARRAY: {
+			bool *value;
 			index = va_arg (args, int);
-			{
-			bool *value = va_arg (args, bool *);
+			value = va_arg (args, bool *);
 			if (index < 0 || index > par->value.array->dim-1)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			*value = par->value.array->val.barray[index];
-			}
+		}
 		break;
-		case TYPE_DOUBLE_ARRAY:
+		case TYPE_DOUBLE_ARRAY: {
+			double *value;
 			index = va_arg (args, int);
-			{
-			double *value = va_arg (args, double *);
+			value = va_arg (args, double *);
 			if (index < 0 || index > par->value.vec->dim-1)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			*value = par->value.vec->val[index];
-			}
+		}
 		break;
-		case TYPE_STRING_ARRAY:
+		case TYPE_STRING_ARRAY: {
+			const char **value;
 			index = va_arg (args, int);
-			{
-			const char **value = va_arg (args, const char **);
+			value = va_arg (args, const char **);
 			if (index < 0 || index > par->value.array->dim-1)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			*value = par->value.array->val.strarray[index];
-			}
+		}
 		break;
 		default:
 			phoebe_lib_error ("exception handler invoked in phoebe_parameter_get_value (), please report this!\n");

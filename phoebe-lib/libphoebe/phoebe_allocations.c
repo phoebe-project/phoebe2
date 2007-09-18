@@ -386,9 +386,9 @@ int get_level_weighting_id (const char *type)
 
 	int id = -1;
 
-	if (strcmp (type, "No level-dependent weighting") == 0) id = 0;
-	if (strcmp (type, "Poissonian scatter")           == 0) id = 1;
-	if (strcmp (type, "Low light scatter")            == 0) id = 2;
+	if (strcmp (type, "None") == 0)               id = 0;
+	if (strcmp (type, "Poissonian scatter") == 0) id = 1;
+	if (strcmp (type, "Low light scatter") == 0)  id = 2;
 
 	if (id == -1)
 		{
