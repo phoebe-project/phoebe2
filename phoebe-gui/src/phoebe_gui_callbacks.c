@@ -82,7 +82,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 	}
 
 	if (status == SUCCESS){
-		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (phoebe_minimizer_feedback->algorithm? "Differential corrections":"Nelder-Mead Simplex"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
+		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
 		gtk_list_store_clear(GTK_LIST_STORE(model));
@@ -100,7 +100,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 		accept_flag = 1;
 	}
 	else{
-		sprintf(status_message, "%s: %s", (phoebe_minimizer_feedback->algorithm? "Differential corrections":"Nelder-Mead Simplex"), phoebe_error(status));
+		sprintf(status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_error(status));
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 	}
 }
