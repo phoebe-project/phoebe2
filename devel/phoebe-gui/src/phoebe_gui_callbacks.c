@@ -33,6 +33,16 @@ void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpoi
 	gui_fill_fitt_mf_treeview();
 }
 
+void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer user_data)
+{
+	GtkWidget *phoebe_window = gui_widget_lookup("phoebe_window")->gtk;
+	GtkWidget *star_name_entry = gui_widget_lookup("phoebe_data_star_name_entry")->gtk;
+	char *star_name = (char*)gtk_entry_get_text(GTK_ENTRY(star_name_entry));
+
+	gtk_window_set_title (GTK_WINDOW(phoebe_window), star_name);
+}
+
+
 /* ******************************************************************** *
  *
  *                    phoebe fitting tab events
