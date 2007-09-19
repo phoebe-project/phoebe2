@@ -162,15 +162,27 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
 	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 
-	phoebe_parameter_add ("phoebe_spots_source",         "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,       1);
-	phoebe_parameter_add ("phoebe_spots_colatitude",     "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 1.57);
-	phoebe_parameter_add ("phoebe_spots_colatitude_tba", "Spot co-latitude TBA switch",                        KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
-	phoebe_parameter_add ("phoebe_spots_longitude",      "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.00);
-	phoebe_parameter_add ("phoebe_spots_longitude_tba",  "Spot longitude TBA switch",                          KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
-	phoebe_parameter_add ("phoebe_spots_radius",         "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.20);
-	phoebe_parameter_add ("phoebe_spots_radius_tba",     "Spot angular radius TBA switch",                     KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
-	phoebe_parameter_add ("phoebe_spots_tempfactor",     "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.90);
-	phoebe_parameter_add ("phoebe_spots_tempfactor_tba", "Spot temperature factor TBA switch",                 KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
+	phoebe_parameter_add ("phoebe_spots_source",          "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,         1);
+	phoebe_parameter_add ("phoebe_spots_colatitude",      "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   1.57);
+	phoebe_parameter_add ("phoebe_spots_colatitude_tba",  "Spot co-latitude TBA switch",                        KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_colatitude_min",  "Spot co-latitude minimum value",                     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_colatitude_max",  "Spot co-latitude maximum value",                     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
+	phoebe_parameter_add ("phoebe_spots_colatitude_step", "Spot co-latitude adjustment step",                   KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_longitude",       "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_longitude_tba",   "Spot longitude TBA switch",                          KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_longitude_min",   "Spot longitude minimum value",                       KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_longitude_max",   "Spot longitude maximum value",                       KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 2*M_PI);
+	phoebe_parameter_add ("phoebe_spots_longitude_step",  "Spot longitude adjustment step",                     KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_radius",          "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.20);
+	phoebe_parameter_add ("phoebe_spots_radius_tba",      "Spot angular radius TBA switch",                     KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_radius_min",      "Spot angular radius minimum value",                  KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_radius_max",      "Spot angular radius maximum value",                  KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
+	phoebe_parameter_add ("phoebe_spots_radius_step",     "Spot angular radius adjustment step",                KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_tempfactor",      "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.90);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_tba",  "Spot temperature factor TBA switch",                 KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_min",  "Spot temperature factor minimum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_max",  "Spot temperature factor maximum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,    100);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_step", "Spot temperature factor adjustment step",            KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
 
 	phoebe_parameter_add ("phoebe_spots_corotate1",      "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
 	phoebe_parameter_add ("phoebe_spots_corotate2",      "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
@@ -1168,7 +1180,7 @@ int phoebe_parameter_set_step (PHOEBE_parameter *par, double step)
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_lower_limit (PHOEBE_parameter *par, double *valmin)
+int phoebe_parameter_get_min (PHOEBE_parameter *par, double *valmin)
 {
 	/*
 	 * This is the public function for reading out the lower parameter limit.
@@ -1185,7 +1197,7 @@ int phoebe_parameter_get_lower_limit (PHOEBE_parameter *par, double *valmin)
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_lower_limit (PHOEBE_parameter *par, double valmin)
+int phoebe_parameter_set_min (PHOEBE_parameter *par, double valmin)
 {
 	/*
 	 * This is the public function for changing the lower parameter limit.
@@ -1202,7 +1214,7 @@ int phoebe_parameter_set_lower_limit (PHOEBE_parameter *par, double valmin)
 	return SUCCESS;
 }
 
-int phoebe_parameter_get_upper_limit (PHOEBE_parameter *par, double *valmax)
+int phoebe_parameter_get_max (PHOEBE_parameter *par, double *valmax)
 {
 	/*
 	 * This is the public function for reading out the upper parameter limit.
@@ -1219,7 +1231,7 @@ int phoebe_parameter_get_upper_limit (PHOEBE_parameter *par, double *valmax)
 	return SUCCESS;
 }
 
-int phoebe_parameter_set_upper_limit (PHOEBE_parameter *par, double valmax)
+int phoebe_parameter_set_max (PHOEBE_parameter *par, double valmax)
 {
 	/*
 	 * This is the public function for changing the upper parameter limit.
@@ -1703,9 +1715,9 @@ int phoebe_open_parameter_file (const char *filename)
 					if (strcmp (field,  "VAL") == 0)
 						phoebe_parameter_set_value (par, elem-1, atoi (value_str));
 					if (strcmp (field,  "MIN") == 0)
-						phoebe_parameter_set_lower_limit (par, atof (value_str));
+						phoebe_parameter_set_min (par, atof (value_str));
 					if (strcmp (field,  "MAX") == 0)
-						phoebe_parameter_set_upper_limit (par, atof (value_str));
+						phoebe_parameter_set_max (par, atof (value_str));
 					if (strcmp (field, "STEP") == 0)
 						phoebe_parameter_set_step (par, atof (value_str));
 					if (strcmp (field,  "ADJ") == 0)
@@ -1721,9 +1733,9 @@ int phoebe_open_parameter_file (const char *filename)
 					if (strcmp (field,  "VAL") == 0)
 						phoebe_parameter_set_value (par, elem-1, atob (value_str));
 					if (strcmp (field,  "MIN") == 0)
-						phoebe_parameter_set_lower_limit (par, atof (value_str));
+						phoebe_parameter_set_min (par, atof (value_str));
 					if (strcmp (field,  "MAX") == 0)
-						phoebe_parameter_set_upper_limit (par, atof (value_str));
+						phoebe_parameter_set_max (par, atof (value_str));
 					if (strcmp (field, "STEP") == 0)
 						phoebe_parameter_set_step (par, atof (value_str));
 					if (strcmp (field,  "ADJ") == 0)
@@ -1739,9 +1751,9 @@ int phoebe_open_parameter_file (const char *filename)
 					if (strcmp (field,  "VAL") == 0)
 						phoebe_parameter_set_value (par, elem-1, atof (value_str));
 					if (strcmp (field,  "MIN") == 0)
-						phoebe_parameter_set_lower_limit (par, atof (value_str));
+						phoebe_parameter_set_min (par, atof (value_str));
 					if (strcmp (field,  "MAX") == 0)
-						phoebe_parameter_set_upper_limit (par, atof (value_str));
+						phoebe_parameter_set_max (par, atof (value_str));
 					if (strcmp (field, "STEP") == 0)
 						phoebe_parameter_set_step (par, atof (value_str));
 					if (strcmp (field,  "ADJ") == 0)
@@ -1757,9 +1769,9 @@ int phoebe_open_parameter_file (const char *filename)
 					if (strcmp (field,  "VAL") == 0)
 						phoebe_parameter_set_value (par, elem-1, value_str);
 					if (strcmp (field,  "MIN") == 0)
-						phoebe_parameter_set_lower_limit (par, atof (value_str));
+						phoebe_parameter_set_min (par, atof (value_str));
 					if (strcmp (field,  "MAX") == 0)
-						phoebe_parameter_set_upper_limit (par, atof (value_str));
+						phoebe_parameter_set_max (par, atof (value_str));
 					if (strcmp (field, "STEP") == 0)
 						phoebe_parameter_set_step (par, atof (value_str));
 					if (strcmp (field,  "ADJ") == 0)
@@ -1856,9 +1868,9 @@ int phoebe_open_parameter_file (const char *filename)
 			if (strcmp (field,  "VAL") == 0)
 				phoebe_parameter_set_value (par, atof (value_str));
 			if (strcmp (field,  "MIN") == 0)
-				phoebe_parameter_set_lower_limit (par, atof (value_str));
+				phoebe_parameter_set_min (par, atof (value_str));
 			if (strcmp (field,  "MAX") == 0)
-				phoebe_parameter_set_upper_limit (par, atof (value_str));
+				phoebe_parameter_set_max (par, atof (value_str));
 			if (strcmp (field, "STEP") == 0)
 				phoebe_parameter_set_step (par, atof (value_str));
 			if (strcmp (field,  "ADJ") == 0)

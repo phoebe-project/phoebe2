@@ -561,6 +561,11 @@ int wd_spots_parameters_get ()
 	int i, spno, sp1no = 0, sp2no = 0, src, tbano = 0, tbacur = 1;
 	bool *colat_tba, *long_tba, *rad_tba, *temp_tba;
 	double colat, lon, rad, temp;
+	double colat_min, lon_min, rad_min, temp_min;
+	double colat_max, lon_max, rad_max, temp_max;
+	double colat_step, lon_step, rad_step, temp_step;
+
+	PHOEBE_parameter *par;
 
 	/* Set all adjustment switches to 0: */
 	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 0);
@@ -617,42 +622,97 @@ int wd_spots_parameters_get ()
 
 			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), i, &colat_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), i, &colat_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), i, &colat_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), i, &lon_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), i, &lon_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), i, &lon_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), i, &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), i, &rad_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), i, &rad_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), i, &rad_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &temp);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), i, &temp_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), i, &temp_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), i, &temp_step);
 
 				if (tbacur == 1) {
-					if (colat_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 1);
-					if (long_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long1"), 1);
-					if (rad_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad1"), 1);
-					if (temp_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp1"), 1);
+					if (colat_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_lat1");
+						phoebe_parameter_set_value (par, colat);
+						phoebe_parameter_set_min   (par, colat_min);
+						phoebe_parameter_set_max   (par, colat_max);
+						phoebe_parameter_set_step  (par, colat_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (long_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_long1");
+						phoebe_parameter_set_value (par, lon);
+						phoebe_parameter_set_min   (par, lon_min);
+						phoebe_parameter_set_max   (par, lon_max);
+						phoebe_parameter_set_step  (par, lon_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (rad_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_rad1");
+						phoebe_parameter_set_value (par, rad);
+						phoebe_parameter_set_min   (par, rad_min);
+						phoebe_parameter_set_max   (par, rad_max);
+						phoebe_parameter_set_step  (par, rad_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (temp_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_temp1");
+						phoebe_parameter_set_value (par, temp);
+						phoebe_parameter_set_min   (par, temp_min);
+						phoebe_parameter_set_max   (par, temp_max);
+						phoebe_parameter_set_step  (par, temp_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
 
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), 1);
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), sp1no);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat1"), colat);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long1"), lon);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad1"), rad);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp1"), temp);
 				} else {
-					if (colat_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat2"), 1);
-					if (long_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long2"), 1);
-					if (rad_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad2"), 1);
-					if (temp_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 1);
+					if (colat_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_lat2");
+						phoebe_parameter_set_value (par, colat);
+						phoebe_parameter_set_min   (par, colat_min);
+						phoebe_parameter_set_max   (par, colat_max);
+						phoebe_parameter_set_step  (par, colat_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (long_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_long2");
+						phoebe_parameter_set_value (par, lon);
+						phoebe_parameter_set_min   (par, lon_min);
+						phoebe_parameter_set_max   (par, lon_max);
+						phoebe_parameter_set_step  (par, lon_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (rad_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_rad2");
+						phoebe_parameter_set_value (par, rad);
+						phoebe_parameter_set_min   (par, rad_min);
+						phoebe_parameter_set_max   (par, rad_max);
+						phoebe_parameter_set_step  (par, rad_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (temp_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_temp2");
+						phoebe_parameter_set_value (par, temp);
+						phoebe_parameter_set_min   (par, temp_min);
+						phoebe_parameter_set_max   (par, temp_max);
+						phoebe_parameter_set_step  (par, temp_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
 
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), 1);
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), sp1no);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat2"), colat);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long2"), lon);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad2"), rad);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp2"), temp);
 				}
 				tbacur++;
 			}
@@ -662,42 +722,97 @@ int wd_spots_parameters_get ()
 
 			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), i, &colat_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), i, &colat_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), i, &colat_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), i, &lon_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), i, &lon_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), i, &lon_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), i, &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), i, &rad_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), i, &rad_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), i, &rad_step);
+
 				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &temp);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), i, &temp_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), i, &temp_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), i, &temp_step);
 
 				if (tbacur == 1) {
-					if (colat_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 1);
-					if (long_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long1"), 1);
-					if (rad_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad1"), 1);
-					if (temp_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp1"), 1);
+					if (colat_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_lat1");
+						phoebe_parameter_set_value (par, colat);
+						phoebe_parameter_set_min   (par, colat_min);
+						phoebe_parameter_set_max   (par, colat_max);
+						phoebe_parameter_set_step  (par, colat_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (long_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_long1");
+						phoebe_parameter_set_value (par, lon);
+						phoebe_parameter_set_min   (par, lon_min);
+						phoebe_parameter_set_max   (par, lon_max);
+						phoebe_parameter_set_step  (par, lon_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (rad_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_rad1");
+						phoebe_parameter_set_value (par, rad);
+						phoebe_parameter_set_min   (par, rad_min);
+						phoebe_parameter_set_max   (par, rad_max);
+						phoebe_parameter_set_step  (par, rad_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (temp_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_temp1");
+						phoebe_parameter_set_value (par, temp);
+						phoebe_parameter_set_min   (par, temp_min);
+						phoebe_parameter_set_max   (par, temp_max);
+						phoebe_parameter_set_step  (par, temp_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
 
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1src"), 2);
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot1id"), sp2no);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat1"), colat);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long1"), lon);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad1"), rad);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp1"), temp);
 				} else {
-					if (colat_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat2"), 1);
-					if (long_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_long2"), 1);
-					if (rad_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_rad2"), 1);
-					if (temp_tba[i])
-						phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 1);
+					if (colat_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_lat2");
+						phoebe_parameter_set_value (par, colat);
+						phoebe_parameter_set_min   (par, colat_min);
+						phoebe_parameter_set_max   (par, colat_max);
+						phoebe_parameter_set_step  (par, colat_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (long_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_long2");
+						phoebe_parameter_set_value (par, lon);
+						phoebe_parameter_set_min   (par, lon_min);
+						phoebe_parameter_set_max   (par, lon_max);
+						phoebe_parameter_set_step  (par, lon_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (rad_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_rad2");
+						phoebe_parameter_set_value (par, rad);
+						phoebe_parameter_set_min   (par, rad_min);
+						phoebe_parameter_set_max   (par, rad_max);
+						phoebe_parameter_set_step  (par, rad_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
+					if (temp_tba[i]) {
+						par = phoebe_parameter_lookup ("wd_spots_temp2");
+						phoebe_parameter_set_value (par, temp);
+						phoebe_parameter_set_min   (par, temp_min);
+						phoebe_parameter_set_max   (par, temp_max);
+						phoebe_parameter_set_step  (par, temp_step);
+						phoebe_parameter_set_tba   (par, 1);
+					}
 
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2src"), 2);
 					phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_dc_spot2id"), sp2no);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_lat2"), colat);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_long2"), lon);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_rad2"), rad);
-					phoebe_parameter_set_value (phoebe_parameter_lookup ("wd_spots_temp2"), temp);
 				}
 				tbacur++;
 			}

@@ -94,23 +94,23 @@ bool              phoebe_qualifier_is_constrained (char *qualifier);
 
 /******************************************************************************/
 
-int phoebe_parameter_get_value        (PHOEBE_parameter *par, ...);
-int phoebe_parameter_set_value        (PHOEBE_parameter *par, ...);
+int phoebe_parameter_get_value  (PHOEBE_parameter *par, ...);
+int phoebe_parameter_set_value  (PHOEBE_parameter *par, ...);
 
-int phoebe_parameter_get_tba          (PHOEBE_parameter *par, bool *tba);
-int phoebe_parameter_set_tba          (PHOEBE_parameter *par, bool  tba);
+int phoebe_parameter_get_tba    (PHOEBE_parameter *par, bool *tba);
+int phoebe_parameter_set_tba    (PHOEBE_parameter *par, bool  tba);
 
-int phoebe_parameter_get_step         (PHOEBE_parameter *par, double *step);
-int phoebe_parameter_set_step         (PHOEBE_parameter *par, double  step);
+int phoebe_parameter_get_step   (PHOEBE_parameter *par, double *step);
+int phoebe_parameter_set_step   (PHOEBE_parameter *par, double  step);
 
-int phoebe_parameter_get_lower_limit  (PHOEBE_parameter *par, double *valmin);
-int phoebe_parameter_set_lower_limit  (PHOEBE_parameter *par, double  valmin);
+int phoebe_parameter_get_min    (PHOEBE_parameter *par, double *valmin);
+int phoebe_parameter_set_min    (PHOEBE_parameter *par, double  valmin);
 
-int phoebe_parameter_get_upper_limit  (PHOEBE_parameter *par, double *valmax);
-int phoebe_parameter_set_upper_limit  (PHOEBE_parameter *par, double  valmax);
+int phoebe_parameter_get_max    (PHOEBE_parameter *par, double *valmax);
+int phoebe_parameter_set_max    (PHOEBE_parameter *par, double  valmax);
 
-int phoebe_parameter_get_limits       (PHOEBE_parameter *par, double *valmin, double *valmax);
-int phoebe_parameter_set_limits       (PHOEBE_parameter *par, double  valmin, double  valmax);
+int phoebe_parameter_get_limits (PHOEBE_parameter *par, double *valmin, double *valmax);
+int phoebe_parameter_set_limits (PHOEBE_parameter *par, double  valmin, double  valmax);
 
 PHOEBE_parameter_list *phoebe_parameter_list_reverse         (PHOEBE_parameter_list *c, PHOEBE_parameter_list *p);
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba  ();
