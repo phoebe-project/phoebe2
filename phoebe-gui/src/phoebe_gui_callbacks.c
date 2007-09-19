@@ -816,7 +816,10 @@ void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 
 void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
-	int status = gui_save_parameter_file ();
+	int status = 0;
+
+	status = gui_get_values_from_widgets();
+	status = gui_save_parameter_file ();
 
 	if( status == SUCCESS )
 		printf("Parameter file successfuly saved.\n");
@@ -827,7 +830,10 @@ void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 
 void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
-	int status = gui_save_parameter_file ();
+	int status = 0;
+
+	status = gui_get_values_from_widgets();
+	status = gui_save_parameter_file ();
 
 	if( status == SUCCESS )
 		printf("Parameter file successfuly saved.\n");
@@ -1158,7 +1164,10 @@ void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user
 
 void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	int status = gui_save_parameter_file ();
+	int status = 0;
+
+	status = gui_get_values_from_widgets();
+	status = gui_save_parameter_file ();
 
 	if( status == SUCCESS )
 		printf("Parameter file successfuly saved.\n");
