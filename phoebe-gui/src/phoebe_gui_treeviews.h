@@ -131,9 +131,6 @@ int gui_init_filter_combobox 			(GtkWidget *combo_box);
 int gui_init_lc_obs_combobox			();
 int gui_init_rv_obs_combobox			();
 
-void gui_on_lc_model_row_changed		(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
-void gui_on_rv_model_row_changed		(GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
-
 int gui_data_lc_treeview_add 			();
 int gui_data_rv_treeview_add 			();
 int gui_data_lc_treeview_edit			();

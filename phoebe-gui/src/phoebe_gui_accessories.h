@@ -8,3 +8,5 @@ void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, 
 
 int gui_open_parameter_file();
 int gui_save_parameter_file();
+
+int gui_show_configuration_dialog();
