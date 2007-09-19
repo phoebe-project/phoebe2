@@ -760,8 +760,8 @@ int gui_fill_sidesheet_fit_treeview()
 
 		status = phoebe_parameter_get_value(par, &value);
 		status = phoebe_parameter_get_step(par, &step);
-		status = phoebe_parameter_get_lower_limit(par, &min);
-		status = phoebe_parameter_get_upper_limit(par, &max);
+		status = phoebe_parameter_get_min(par, &min);
+		status = phoebe_parameter_get_max(par, &max);
 
 		gtk_list_store_append((GtkListStore*)model, &iter);
 		gtk_list_store_set((GtkListStore*)model, &iter, FS_COL_PARAM_NAME, par->qualifier,

@@ -806,12 +806,12 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				break;
 				case GUI_WIDGET_VALUE_MIN: {
 					printf ("\tsetting min to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					status = phoebe_parameter_set_lower_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+					status = phoebe_parameter_set_min (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 				}
 				break;
 				case GUI_WIDGET_VALUE_MAX: {
 					printf ("\tsetting max to %lf\n", gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
-					status = phoebe_parameter_set_upper_limit (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
+					status = phoebe_parameter_set_max (widget->par, gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget->gtk)));
 				}
 				break;
 				case GUI_WIDGET_VALUE_STEP: {
@@ -977,14 +977,14 @@ int gui_set_value_to_widget (GUI_widget *widget)
 				break;
 				case GUI_WIDGET_VALUE_MIN: {
 					double value;
-					status = phoebe_parameter_get_lower_limit(widget->par, &value);
+					status = phoebe_parameter_get_min(widget->par, &value);
 					printf("\tsetting min to %lf\n", value);
 					gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
 				}
 				break;
 				case GUI_WIDGET_VALUE_MAX: {
 					double value;
-					status = phoebe_parameter_get_upper_limit(widget->par, &value);
+					status = phoebe_parameter_get_max(widget->par, &value);
 					printf("\tsetting max to %lf\n", value);
 					gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
 				}
