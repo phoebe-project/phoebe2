@@ -112,6 +112,8 @@ void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointe
 	if (accept_flag){
 		status = phoebe_minimizer_feedback_accept(phoebe_minimizer_feedback);
 		status = gui_set_values_to_widgets();
+		gui_fill_sidesheet_fit_treeview ();
+		gui_fill_fitt_mf_treeview();
 		accept_flag = 0;
 	}
 }
