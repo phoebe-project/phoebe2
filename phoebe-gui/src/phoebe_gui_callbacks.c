@@ -927,8 +927,8 @@ void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 
 void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_fitting_frame");
-	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_fitting_parent_table");
+	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_frame");
+	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_parent_table");
 
 	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
