@@ -25,7 +25,7 @@ LETTER     [a-zA-Z]
 DIGIT      [0-9]
 UNDERSCORE "\_"
 WSPACE     [ \t\n]
-FUNC       sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt|norm|rand|trunc|round|int|frac|abs|dim|strlen
+FUNC       sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt|norm|rand|trunc|round|int|frac|abs|dim|strlen|isnan
 INT	       {DIGIT}+
 BOOL	   TRUE|FALSE|YES|NO
 REAL       {DIGIT}+"."{DIGIT}*

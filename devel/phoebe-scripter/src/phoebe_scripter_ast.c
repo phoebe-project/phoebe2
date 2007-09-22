@@ -1622,6 +1622,10 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 								else
 									out.value.i = (int) value.value.d - 1;
 						}
+						if (strcmp (func,   "isnan") == 0) {
+							out.type = type_bool;
+							out.value.b = !(value.value.d == value.value.d);
+						}
 					break;
 					case type_vector:
 						out.value.vec = phoebe_vector_new ();
