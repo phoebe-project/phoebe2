@@ -47,6 +47,8 @@ BUILT_SOURCES = \
     spot.c      square.c    surfas.c    volume.c    wrhead.c    wrdata.c       \
     wrfoot.c    wrlci.c     wrdci.c     lc.sub.c    dc.sub.c
 
+*.c: *.f
+
 EXTRA_DIST = \
 	$(SOURCES)
 
