@@ -758,20 +758,47 @@ int gui_fill_sidesheet_fit_treeview()
 	while(pars_tba){
 		par = pars_tba->par;
 
-		status = phoebe_parameter_get_value(par, &value);
-		status = phoebe_parameter_get_step(par, &step);
-		status = phoebe_parameter_get_min(par, &min);
-		status = phoebe_parameter_get_max(par, &max);
+		switch (par->type){
+			case TYPE_DOUBLE: {
+				status = phoebe_parameter_get_value(par, &value);
+				status = phoebe_parameter_get_step(par, &step);
+				status = phoebe_parameter_get_min(par, &min);
+				status = phoebe_parameter_get_max(par, &max);
 
-		gtk_list_store_append((GtkListStore*)model, &iter);
-		gtk_list_store_set((GtkListStore*)model, &iter, FS_COL_PARAM_NAME, par->qualifier,
+				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+				gtk_list_store_set((GtkListStore*)model, &iter,
+														FS_COL_PARAM_NAME, par->qualifier,
 														FS_COL_PARAM_VALUE, value,
 														FS_COL_PARAM_STEP, step,
 														FS_COL_PARAM_MIN, min,
 														FS_COL_PARAM_MAX, max, -1);
+			}
+			break;
+			case TYPE_DOUBLE_ARRAY: {
+				int i, n = par->value.vec->dim;
+				char full_qualifier[255];
+				for (i = 0; i < n; i++){
+					status = phoebe_parameter_get_value(par, i, &value);
+					status = phoebe_parameter_get_step(par, &step);
+					status = phoebe_parameter_get_min(par, &min);
+					status = phoebe_parameter_get_max(par, &max);
+
+					sprintf(full_qualifier, "%s[%d]", par->qualifier, i+1);
+					gtk_list_store_append((GtkListStore*)model, &iter);
+					gtk_list_store_set((GtkListStore*)model, &iter,
+														FS_COL_PARAM_NAME, full_qualifier,
+														FS_COL_PARAM_VALUE, value,
+														FS_COL_PARAM_STEP, step,
+														FS_COL_PARAM_MIN, min,
+														FS_COL_PARAM_MAX, max, -1);
+			}
+			break;
+			default:
+				status = -1;
+			}
+		}
 		pars_tba = pars_tba->next;
 	}
-
 	return status;
 }
 
@@ -1304,8 +1331,6 @@ int gui_fill_fitt_mf_treeview()
 
 	int status = 0;
 
-	//status = gui_get_values_from_widgets();
-
 	gtk_list_store_clear(GTK_LIST_STORE(model));
 
 	PHOEBE_parameter_list *pars_tba = phoebe_parameter_list_get_marked_tba();
@@ -1314,12 +1339,33 @@ int gui_fill_fitt_mf_treeview()
 	while(pars_tba){
 		par = pars_tba->par;
 
-		status = phoebe_parameter_get_value(par, &value);
+		switch (par->type){
+			case TYPE_DOUBLE: {
+				status = phoebe_parameter_get_value(par, &value);
 
-		gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-		gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			MF_COL_QUALIFIER, par->qualifier,
-			MF_COL_INITVAL, value, -1);
+				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+				gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+					MF_COL_QUALIFIER, par->qualifier,
+					MF_COL_INITVAL, value, -1);
+			}
+			break;
+			case TYPE_DOUBLE_ARRAY: {
+				int i, n = par->value.vec->dim;
+				char full_qualifier[255];
+				for (i = 0; i < n; i++){
+					status = phoebe_parameter_get_value(par, i, &value);
+
+					sprintf(full_qualifier, "%s[%d]", par->qualifier, i+1);
+					gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+						MF_COL_QUALIFIER, full_qualifier,
+						MF_COL_INITVAL, value, -1);
+					}
+			}
+			break;
+			default:
+				status = -1;
+		}
 		pars_tba = pars_tba->next;
 	}
 	return status;

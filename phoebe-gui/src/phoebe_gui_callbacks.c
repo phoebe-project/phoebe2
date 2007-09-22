@@ -96,7 +96,6 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 			MF_COL_NEWVAL, phoebe_minimizer_feedback->newvals->val[index],
 			MF_COL_ERROR, phoebe_minimizer_feedback->ferrors->val[index], -1);
 		}
-
 		accept_flag = 1;
 	}
 	else{
