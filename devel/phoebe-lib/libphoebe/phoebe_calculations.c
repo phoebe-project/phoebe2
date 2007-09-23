@@ -446,7 +446,7 @@ double calculate_pcsv_value (int ELLIPTIC, double D, double q, double r, double 
 	return phsv/q + 0.5 * (q-1)/q;
 	}
 
-int calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit)
+int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit)
 	{
 	/* This function calculates the value of the gravitational potential \Omega */
 	/* (PHSV) in Lagrange points L1 and L2.                                     */

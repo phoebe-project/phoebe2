@@ -41,7 +41,7 @@ int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector 
 double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 double calculate_pcsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 
-int calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);
+int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);
 int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc);
 
 int calculate_median           (double *median,  PHOEBE_vector *vec);
