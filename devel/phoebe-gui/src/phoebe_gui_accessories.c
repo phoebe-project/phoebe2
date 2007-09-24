@@ -113,6 +113,7 @@ int gui_save_parameter_file()
 										  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  NULL);
 
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){

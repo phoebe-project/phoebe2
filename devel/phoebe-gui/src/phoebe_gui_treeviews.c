@@ -1055,7 +1055,6 @@ int gui_data_rv_treeview_add()
 
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-	gchar	  *dir;
 
 	GladeXML  *phoebe_load_rv_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
 
@@ -1088,9 +1087,6 @@ int gui_data_rv_treeview_add()
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);
-
-	phoebe_config_entry_get ("PHOEBE_DATA_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, dir);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
     switch (result){
