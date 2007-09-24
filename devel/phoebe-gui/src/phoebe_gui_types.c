@@ -566,6 +566,46 @@ int gui_init_parameter_options()
 	phoebe_parameter_add_option (par, "Primary EC corrections");
 	phoebe_parameter_add_option (par, "Secondary EC correction");
 
+	par = phoebe_parameter_lookup("gui_lc_plot_offset");
+	phoebe_parameter_add_option (par, "5%");
+	phoebe_parameter_add_option (par, "10%");
+	phoebe_parameter_add_option (par, "25%");
+	phoebe_parameter_add_option (par, "50%");
+	phoebe_parameter_add_option (par, "100%");
+	phoebe_parameter_add_option (par, "200%");
+	phoebe_parameter_add_option (par, "500%");
+	phoebe_parameter_add_option (par, "1000%");
+
+	par = phoebe_parameter_lookup("gui_lc_plot_zoom");
+	phoebe_parameter_add_option (par, "5%");
+	phoebe_parameter_add_option (par, "10%");
+	phoebe_parameter_add_option (par, "25%");
+	phoebe_parameter_add_option (par, "50%");
+	phoebe_parameter_add_option (par, "100%");
+	phoebe_parameter_add_option (par, "200%");
+	phoebe_parameter_add_option (par, "500%");
+	phoebe_parameter_add_option (par, "1000%");
+
+	par = phoebe_parameter_lookup("gui_rv_plot_offset");
+	phoebe_parameter_add_option (par, "5%");
+	phoebe_parameter_add_option (par, "10%");
+	phoebe_parameter_add_option (par, "25%");
+	phoebe_parameter_add_option (par, "50%");
+	phoebe_parameter_add_option (par, "100%");
+	phoebe_parameter_add_option (par, "200%");
+	phoebe_parameter_add_option (par, "500%");
+	phoebe_parameter_add_option (par, "1000%");
+
+	par = phoebe_parameter_lookup("gui_rv_plot_zoom");
+	phoebe_parameter_add_option (par, "5%");
+	phoebe_parameter_add_option (par, "10%");
+	phoebe_parameter_add_option (par, "25%");
+	phoebe_parameter_add_option (par, "50%");
+	phoebe_parameter_add_option (par, "100%");
+	phoebe_parameter_add_option (par, "200%");
+	phoebe_parameter_add_option (par, "500%");
+	phoebe_parameter_add_option (par, "1000%");
+
 	return status;
 }
 
