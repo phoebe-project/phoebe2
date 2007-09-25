@@ -2394,6 +2394,9 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 
 	phoebe_debug ("entering phoebe_curve_transform ()\n");
 
+	if (!curve)
+		return ERROR_CURVE_NOT_INITIALIZED;
+
 	phoebe_column_type_get_name (curve->itype, &rs1);
 	phoebe_column_type_get_name (       itype, &rs2);
 	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
