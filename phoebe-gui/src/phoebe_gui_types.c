@@ -54,22 +54,22 @@ int gui_init_widgets ()
 
 	phoebe_parameter_add ("gui_ld_model_autoupdate",	"Automatically update LD model",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Diferential Corrections");
-	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	phoebe_parameter_add ("gui_lc_plot_obsmenu",		"Select observed LC",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_aliasing",		"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
-	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Magnitude");
+	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Total flux");
 	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_lc_plot_offset",			"Offset level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_zoom",			"Zoom level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_lc_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_synthetic",		"Plot synthetic RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_rv_plot_observed",		"Plot observed RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_synthetic",		"Plot synthetic RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_observed",		"Plot observed RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_rv_plot_verticesno",		"Number of vertices for RV curve",	KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	phoebe_parameter_add ("gui_rv_plot_obsmenu",		"Select observed RV curve",			KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_rv_plot_alias",			"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
@@ -479,8 +479,13 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 
-	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"), gui_widget_lookup("phoebe_data_lc_filter"));
-	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_obs_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"), gui_widget_lookup("phoebe_data_rv_filter"));
+	gui_widget_add ("phoebe_lc_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_lc_plot_obsmenu"), gui_widget_lookup("phoebe_data_lc_filter"));
+	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"), gui_widget_lookup("phoebe_data_rv_filter"));
+
+	gui_widget_add ("phoebe_lc_plot_options_phstart_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phstart_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_lc_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_options_phstart_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phstart_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
 
 	/* ************************    GUI Containers   ************************* */
 

@@ -43,6 +43,9 @@ void on_phoebe_para_ld_lccoefs_treeview_row_activated 		(GtkTreeView *treeview, 
 void on_phoebe_load_lc_filechooserbutton_selection_changed 	(GtkFileChooserButton *filechooserbutton, gpointer user_data);
 void on_phoebe_load_rv_filechooserbutton_selection_changed 	(GtkFileChooserButton *filechooserbutton, gpointer user_data);
 void on_phoebe_lc_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);
+void on_phoebe_lc_plot_options_x_combobox_changed 			(GtkComboBox *widget, gpointer user_data);
+void on_phoebe_rv_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);
+void on_phoebe_rv_plot_options_x_combobox_changed 			(GtkComboBox *widget, gpointer user_data);
 void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
 void on_phoebe_fitt_updateall_button_clicked 				(GtkToolButton   *toolbutton, gpointer user_data);
