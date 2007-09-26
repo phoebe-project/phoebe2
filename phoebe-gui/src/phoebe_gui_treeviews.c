@@ -608,7 +608,7 @@ int gui_init_fitt_curve_treeview()
 	return status;
 }
 
-static void filter_cell_data_func  (GtkCellLayout *cell_layout,
+static void gui_filter_cell_data_func  (GtkCellLayout *cell_layout,
                             		GtkCellRenderer *renderer,
                             		GtkTreeModel *model,
                             		GtkTreeIter *iter,
@@ -639,7 +639,7 @@ int gui_init_filter_combobox (GtkWidget *combo_box)
 	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT(combo_box), renderer, TRUE);
 	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT(combo_box), renderer, "text", 0);
 
-	gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo_box), renderer, filter_cell_data_func, NULL, NULL);
+	gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(combo_box), renderer, gui_filter_cell_data_func, NULL, NULL);
 
 	for(i=0;i<PHOEBE_passbands_no;i++){
 		sprintf(set, "%s",(PHOEBE_passbands[i])->set);
@@ -1638,7 +1638,7 @@ int gui_para_lc_coefficents_edit ()
         selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
 			gtk_tree_model_get(model, &iter,    LC_COL_FILTER,	&passband,
-												LC_COL_X1,		&x1, 
+												LC_COL_X1,		&x1,
 												LC_COL_X2,		&x2,
 												LC_COL_X2,		&y1,
 												LC_COL_X2,		&y2, -1);

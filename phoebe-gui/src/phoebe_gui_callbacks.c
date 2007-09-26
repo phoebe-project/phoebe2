@@ -174,7 +174,7 @@ void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRendererToggle *render
 
 void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
 {
-	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
+	gui_set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
 
 
@@ -221,7 +221,7 @@ on_phoebe_data_rv_add_button_clicked (GtkButton *button, gpointer user_data)
 
 void on_phoebe_load_rv_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
 {
-	set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
+	gui_set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
 
 
@@ -913,7 +913,7 @@ void on_phoebe_lc_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
 
@@ -922,7 +922,7 @@ void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
 
 
@@ -931,7 +931,7 @@ void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
 
 
@@ -1074,7 +1074,7 @@ void on_phoebe_sidesheet_detach_button_clicked (GtkButton *button, gpointer user
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_sidesheet_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
 }
 
 
@@ -1083,7 +1083,7 @@ void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button, gpointer user_d
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
 
@@ -1092,7 +1092,7 @@ void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button, gpointer user_d
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
 
 
@@ -1101,7 +1101,7 @@ void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *button, gpointer u
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_parent_table");
 
-	detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
+	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
 
 /* ******************************************************************** *
