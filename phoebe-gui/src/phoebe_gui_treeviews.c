@@ -693,10 +693,10 @@ int gui_fill_sidesheet_res_treeview()
 	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
 
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "L1", RS_COL_PARAM_VALUE, L1, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Crit. Pot. in L1", RS_COL_PARAM_VALUE, L1, -1);
 
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "L2", RS_COL_PARAM_VALUE, L2, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Crit. Pot. in L2", RS_COL_PARAM_VALUE, L2, -1);
 
 	par = phoebe_parameter_lookup("phoebe_plum1");
 	status = phoebe_parameter_get_value(par, &value);
