@@ -953,15 +953,19 @@ int gui_data_lc_treeview_edit()
         GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
 
         gchar *filename;
-        gint itype;
-        gint dtype;
-        gint wtype;
+        gint itype, dtype, wtype;
+        gchar *itype_str, *dtype_str, *wtype_str;
 		gchar *filter;
         gdouble sigma;
 
         gchar filter_selected[255] = "Johnson:V";
 		gint filter_number;
 		GtkTreeIter filter_iter;
+
+		PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
+		PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
+		PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
+		PHOEBE_parameter *lcfilter	= phoebe_parameter_lookup("phoebe_lc_filter");
 
         g_object_unref(phoebe_load_lc_xml);
 
@@ -978,23 +982,28 @@ int gui_data_lc_treeview_edit()
         GtkTreeSelection *selection;
         selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-            gtk_tree_model_get(model, &iter,    LC_COL_FILENAME, &filename,
-                                                LC_COL_FILTER,   &filter,
-												LC_COL_FILTERNO, &filter_number,
-                                                LC_COL_ITYPE,    &itype,
-                                                LC_COL_DTYPE,    &dtype,
-                                                LC_COL_WTYPE,    &wtype,
-                                                LC_COL_SIGMA,    &sigma, -1);
+            gtk_tree_model_get(model, &iter,    LC_COL_FILENAME, 	&filename,
+                                                LC_COL_FILTER,   	&filter,
+                                                LC_COL_ITYPE_STR,	&itype_str,
+                                                LC_COL_DTYPE_STR, 	&dtype_str,
+                                                LC_COL_WTYPE_STR, 	&wtype_str,
+                                                LC_COL_SIGMA,    	&sigma, -1);
 
-            gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
-            gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
-            gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
-            gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
+			phoebe_parameter_option_get_index(indep, itype_str, &itype);
+			phoebe_parameter_option_get_index(dep, dtype_str, &dtype);
+			phoebe_parameter_option_get_index(indweight, wtype_str, &wtype);
+			phoebe_parameter_option_get_index(lcfilter, filter, &filter_number);
+
+			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
+			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
+			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
+
+			gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
 
 			sprintf(filter_selected, "%s", filter);
 
 			if(filename){
-	            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
+				gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
 			}
         }
 
@@ -1006,10 +1015,6 @@ int gui_data_lc_treeview_edit()
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
 					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
 				}
-
-                PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
-                PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
-                PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
 
                 gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
                                                                 LC_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton),
@@ -1191,15 +1196,18 @@ int gui_data_rv_treeview_edit()
         GtkWidget *phoebe_load_rv_filter_combobox       = glade_xml_get_widget (phoebe_load_rv_xml, "phoebe_load_rv_filter_combobox");
 
 		gchar *filename;
-        gint itype;
-        gint dtype;
-        gint wtype;
+        int itype, dtype, wtype;
+        gchar *itype_str, *dtype_str, *wtype_str;
         gdouble sigma;
         gchar *filter;
 
         gchar filter_selected[255] = "Johnson:V";
 		gint filter_number;
 		GtkTreeIter filter_iter;
+
+		PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
+		PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
+		PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
 
 		gtk_window_set_icon (GTK_WINDOW (phoebe_load_rv_dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW(phoebe_load_rv_dialog), "PHOEBE - Edit RV Data");
@@ -1216,16 +1224,21 @@ int gui_data_rv_treeview_edit()
         GtkTreeSelection *selection;
         selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview);
         if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-            gtk_tree_model_get(model, &iter,    RV_COL_FILENAME, &filename,
-                                                RV_COL_FILTER,   &filter,
-                                                RV_COL_ITYPE,    &itype,
-                                                RV_COL_DTYPE,    &dtype,
-                                                RV_COL_WTYPE,    &wtype,
-                                                RV_COL_SIGMA,    &sigma, -1);
+            gtk_tree_model_get(model, &iter,    RV_COL_FILENAME, 	&filename,
+                                                RV_COL_FILTER,   	&filter,
+                                                RV_COL_ITYPE_STR,   &itype_str,
+                                                RV_COL_DTYPE_STR,   &dtype_str,
+                                                RV_COL_WTYPE_STR,   &wtype_str,
+                                                RV_COL_SIGMA,    	&sigma, -1);
+
+			phoebe_parameter_option_get_index(indep, itype_str, &itype);
+			phoebe_parameter_option_get_index(dep, dtype_str, &dtype);
+			phoebe_parameter_option_get_index(indweight, wtype_str, &wtype);
 
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  dtype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  wtype);
+
             gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_rv_sigma_spinbutton,  sigma);
 
 			sprintf(filter_selected, "%s", filter);
@@ -1243,12 +1256,6 @@ int gui_data_rv_treeview_edit()
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_rv_filter_combobox)), &filter_iter, 1, &filter_number, -1);
 					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
 				}
-
-                result++;
-
-                PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
-                PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
-                PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
 
                 gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
                                                                 RV_COL_FILENAME,    gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton),
