@@ -38,6 +38,8 @@ void on_phoebe_para_lum_levels_edit_button_clicked 			(GtkButton *button, gpoint
 void on_phoebe_para_lum_el3_treeview_row_activated 			(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_para_lum_weighting_treeview_row_activated 	(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_para_lum_weighting_edit_button_clicked 		(GtkButton *button, gpointer user_data);
+void on_phoebe_para_ld_lccoefs_edit_button_clicked 			(GtkButton *button, gpointer user_data);
+void on_phoebe_para_ld_lccoefs_treeview_row_activated 		(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_load_lc_filechooserbutton_selection_changed 	(GtkFileChooserButton *filechooserbutton, gpointer user_data);
 void on_phoebe_load_rv_filechooserbutton_selection_changed 	(GtkFileChooserButton *filechooserbutton, gpointer user_data);
 void on_phoebe_lc_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);

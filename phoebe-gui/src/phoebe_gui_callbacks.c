@@ -1046,6 +1046,24 @@ void on_phoebe_para_lum_weighting_edit_button_clicked (GtkButton *button, gpoint
 
 /* ******************************************************************** *
  *
+ *              	phoebe_para_lc_coefficents_treeview events
+ *
+ * ******************************************************************** */
+
+
+void on_phoebe_para_ld_lccoefs_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
+{
+	gui_para_lc_coefficents_edit();
+}
+
+void on_phoebe_para_ld_lccoefs_edit_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gui_para_lc_coefficents_edit();
+}
+
+
+/* ******************************************************************** *
+ *
  *                    phoebe_window detach events
  *
  * ******************************************************************** */
