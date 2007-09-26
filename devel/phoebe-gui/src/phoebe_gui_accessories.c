@@ -7,7 +7,7 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_global.h"
 
-void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
+void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 {
 	/*
 	 * This function fills the text view text_view with the first maxlines lines
@@ -40,7 +40,7 @@ void set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 	}
 }
 
-void detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
+void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
 {
 	/*
 	 * This function detaches the box from its parent. If the flag=FALSE, than
