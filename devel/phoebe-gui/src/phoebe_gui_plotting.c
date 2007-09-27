@@ -109,12 +109,19 @@ int gui_plot_lc_using_gnuplot ()
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_MAGNITUDE;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_FLUX;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == -1){
+		gtk_combo_box_set_active (GTK_COMBO_BOX(y_combobox), 0);
+		DEP 	= PHOEBE_COLUMN_FLUX;
+	}
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_FLUX;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_MAGNITUDE;
 
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
-	if (INDEX > -1){
+	if (INDEX < 0){
+		INDEX = 0;
+		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
+	}
 
 	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 	phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
@@ -156,7 +163,7 @@ int gui_plot_lc_using_gnuplot ()
 	sprintf(line, "set terminal png small size 615,341\n"); 			write(cfd, line, strlen(line));
 	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
-	sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set lmargin 6\n");									write(cfd, line, strlen(line));
 	sprintf(line, "set tmargin 2\n");									write(cfd, line, strlen(line));
 	sprintf(line, "set rmargin 2\n");									write(cfd, line, strlen(line));
 	sprintf(line, "set bmargin 4\n");									write(cfd, line, strlen(line));
@@ -216,7 +223,6 @@ int gui_plot_lc_using_gnuplot ()
 
 	phoebe_curve_free(syn);
 	phoebe_curve_free(obs);
-	}
 
 	return SUCCESS;
 }
@@ -261,7 +267,6 @@ int gui_plot_rv_using_gnuplot ()
 
 	gboolean plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton));
 	gboolean plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton));
-	gboolean both = FALSE;
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
