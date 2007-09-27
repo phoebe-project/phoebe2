@@ -4,6 +4,8 @@
 
 #include <phoebe/phoebe.h>
 
+#include "phoebe_scripter_build_config.h"
+
 /* GNU readline library may be used for configuration: */
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 	#include <readline/readline.h>
@@ -52,7 +54,7 @@ int scripter_create_config_file ()
 		printf ("\nPHOEBE configuration directory created.\n\n");
 
 	/* If libreadline is present, use it: */
-	#if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
+#if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 	{
 		char *basedir, *srcdir, *defdir, *tempdir, *datadir, *ptfdir, *lddir, *kuruczdir;
 		char *ldswitch, *kuruczswitch, *yn;
@@ -261,7 +263,7 @@ int scripter_create_config_file ()
 			exit (0);
 		}
 	}
-	#endif
+#endif
 
 	/* This part is executed if GNU readline isn't found:                     */
 	{

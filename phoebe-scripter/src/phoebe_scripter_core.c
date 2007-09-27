@@ -35,11 +35,13 @@ int parse_startup_line (int argc, char *argv[])
 		if ( (strcmp (argv[i],  "-h"   ) == 0) ||
 		     (strcmp (argv[i],  "-?"   ) == 0) ||
 				 (strcmp (argv[i], "--help") == 0) ) {
-			printf ("\nPHOEBE %s command line arguments: [-cehv] [keyword_file]\n\n", PHOEBE_VERSION_NUMBER);
+			printf ("\n%s command line arguments: [-cehv] [keyword_file]\n\n", PHOEBE_VERSION_NUMBER);
 			printf ("  -c, --configure     ..  configure PHOEBE\n");
 			printf ("  -e, --execute       ..  execute PHOEBE script\n");
 			printf ("  -h, --help, -?      ..  this help screen\n");
 			printf ("  -v, --version       ..  display PHOEBE version and exit\n");
+			printf ("\n");
+			printf ("  --config-dir dir/   ..  use dir/ as configuration directory\n");
 			printf ("\n");
 			phoebe_quit ();
 		}
@@ -77,7 +79,13 @@ int parse_startup_line (int argc, char *argv[])
 
 			/* Otherwise let's read in the script's name:                           */
 			PHOEBE_args.SCRIPT_NAME = strdup (argv[i+1]);
-			i++; i++;                            /* This will skip the script name. */
+			i++;                    /* This will skip the script name. */
+			if (i >= argc) break;   /* If this was the last switch, break the loop. */
+		}
+
+		if (strcmp (argv[i],  "--config-dir") == 0) {
+			PHOEBE_args.CONFIG_DIR = strdup (argv[i+1]);
+			i++; i++;
 			if (i >= argc) break;   /* If this was the last switch, break the loop. */
 		}
 
@@ -141,6 +149,20 @@ int scripter_init ()
 	scripter_register_all_commands ();
 
 	fprintf (PHOEBE_output, "\nThis is %s scripter.\n\n", PHOEBE_VERSION_NUMBER);
+
+	return SUCCESS;
+}
+
+int scripter_config_populate ()
+{
+	/*
+	 * This function adds the configuration entries to the config table.
+	 * Don't worry about freeing them, the library takes care of that
+	 * automatically.
+	 */
+
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_BASE_DIR", "/usr/local/share/phoebe_scripter");
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_HELP_DIR", "/usr/local/share/phoebe_scripter/help");
 
 	return SUCCESS;
 }

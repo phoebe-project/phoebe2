@@ -21,12 +21,13 @@
 ########################################################################
 
 phoebehelpdir = $(datadir)/phoebe_scripter/help
-phoebehelp_DATA = apply_doppler_shift.help         \
-                  apply_rotational_broadening.help \
-                  if.help                          \
-                  info.help                        \
-		  resample_spectrum.help           \
-                  while.help                       \
+phoebehelp_DATA = apply_doppler_shift.help          \
+                  apply_rotational_broadening.help  \
+                  get_spectrum_from_repository.help \
+                  if.help                           \
+                  info.help                         \
+		  resample_spectrum.help            \
+                  while.help                        \
                   broaden_spectrum.help
 
 EXTRA_DIST = $(phoebehelp_DATA)
