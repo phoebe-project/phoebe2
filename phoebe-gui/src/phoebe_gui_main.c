@@ -16,6 +16,7 @@ int main (int argc, char *argv[])
 	glade_init ();
 
 	phoebe_init ();
+	phoebe_configure ();
 
 	phoebe_gui_init ();
 	gtk_main ();
