@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-09-05 #
+#                                            Last revision: 2007-09-26 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -59,7 +59,7 @@
   AC_CONFIG_AUX_DIR(autoconfig)
 
 # Initialize configure.ac for automake:
-  AM_INIT_AUTOMAKE(phoebe,0.30pre5)
+  AM_INIT_AUTOMAKE(phoebe,0.30RC1)
   AM_MAINTAINER_MODE
 
 # Check for system programs:

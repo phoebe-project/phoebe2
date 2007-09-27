@@ -2099,7 +2099,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=phoebe
- VERSION=0.30pre5
+ VERSION=0.30RC1
 
 
 cat >>confdefs.h <<_ACEOF
