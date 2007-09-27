@@ -26,8 +26,21 @@ LDelem *phoebe_ld_elem_new (double M, int T, double lg)
 
 int phoebe_ld_table_free ()
 {
+	/**
+	 * phoebe_ld_table_free:
+	 *
+	 * Frees the contents of the limb darkening table #PHOEBE_ld_table. It
+	 * is safe to call this function on the uninitialized table, so there
+	 * is no need to check for LD presence.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
-	
+
+	if (!PHOEBE_ld_table)
+		return SUCCESS;
+
 	for (i = 0; i < PHOEBE_ld_table_size; i++) {
 		free (PHOEBE_ld_table[i].elem);
 		free (PHOEBE_ld_table[i].filename);

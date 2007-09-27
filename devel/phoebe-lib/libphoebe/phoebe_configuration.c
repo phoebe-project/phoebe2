@@ -28,15 +28,15 @@ int PHOEBE_CONFIRM_ON_SAVE;
 int PHOEBE_CONFIRM_ON_QUIT;
 int PHOEBE_WARN_ON_SYNTHETIC_SCATTER;
 
-int phoebe_init_config_entries ()
+int phoebe_config_populate ()
 {
 	/**
-	 * phoebe_init_config_entries:
+	 * phoebe_config_populate:
 	 *
 	 * Initializes all configuration keywords and their default values and
 	 * adds them to the global #PHOEBE_config_table. All drivers need to
-	 * implement their own *_init_config_entries () function analogous to
-	 * this function.
+	 * implement their own *_config_populate () function analogous to this
+	 * function.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -65,10 +65,10 @@ int phoebe_init_config_entries ()
 	return SUCCESS;
 }
 
-int phoebe_free_config_entries ()
+int phoebe_config_free ()
 {
 	/**
-	 * phoebe_free_config_entries:
+	 * phoebe_config_free:
 	 *
 	 * Frees all configuration entries in the global #PHOEBE_config_table.
 	 *

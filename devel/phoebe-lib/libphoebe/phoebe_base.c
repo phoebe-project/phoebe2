@@ -44,6 +44,9 @@ int intern_phoebe_variables_init ()
 	PHOEBE_config_table = NULL;
 	PHOEBE_config_table_size = 0;
 
+	/* Initialize configuration directory name: */
+	PHOEBE_HOME_DIR = NULL;
+
 	/* Let's declare a global parameter filename string to "Undefined". This  */
 	/* is needed for command line parameter filename loading.                 */
 
@@ -58,6 +61,9 @@ int intern_phoebe_variables_init ()
 
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;
+
+	PHOEBE_ld_table_size = 0;
+	PHOEBE_ld_table      = NULL;
 
 	return SUCCESS;
 }
@@ -82,24 +88,10 @@ int phoebe_init ()
 {
 	/* This function initializes all core parameters.                         */
 
-	int status;
-	char *pathname;
-	int switch_state;
+	phoebe_debug ("Welcome to PHOEBE-lib debugger! :)");
 
-	char working_string[255];
-	char *working_str = working_string;
-
-	/* Welcome to PHOEBE! :) Let's initialize all the variables first: */
+	phoebe_debug ("* initialize the variables...\n");
 	intern_phoebe_variables_init ();
-
-	/*
-	 * Assign a current directory (i.e. the directory from which PHOEBE was
-	 * started) to PHOEBE_STARTUP_DIR; this is used for resolving relative
-	 * pathnames.
-	 */
-
-	getcwd (working_str, 255);
-	PHOEBE_STARTUP_DIR = strdup (working_str);
 
 	/*
 	 * Get the current locale decimal point, store it to the global variable,
@@ -113,67 +105,7 @@ int phoebe_init ()
 		return ERROR_HOME_ENV_NOT_DEFINED;
 	USER_HOME_DIR = strdup (getenv ("HOME"));
 
-	/*
-	 * Although it sounds silly, let's check full permissions of the home
-	 * directory:
-	 */
-
-	if (!filename_has_full_permissions (USER_HOME_DIR))
-		return ERROR_HOME_HAS_NO_PERMISSIONS;
-
-	/* Initialize all configuration parameters: */
-
-	phoebe_debug ("* declaring configuration options...\n");
-	phoebe_init_config_entries ();
-
-	/* Read out configuration; first try ~/.phoebe2 and then ~/.phoebe. If    */
-	/* a valid configuration file is found open it, if it is a legacy file,   */
-	/* import it, otherwise assume defaults.                                  */
-
-	sprintf (working_str, "%s/.phoebe2", USER_HOME_DIR);
-	PHOEBE_HOME_DIR = strdup (working_str);
-	sprintf (working_str, "%s/phoebe.config", PHOEBE_HOME_DIR);
-	PHOEBE_CONFIG = strdup (working_str);
-
-	status = phoebe_config_peek (PHOEBE_CONFIG);
-	if (status == SUCCESS)
-		phoebe_config_load (PHOEBE_CONFIG);
-	else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
-		phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
-		phoebe_config_import (PHOEBE_CONFIG);
-	}
-	else {
-		/* An alternative PHOEBE_HOME_DIR: */
-		free (PHOEBE_HOME_DIR); free (PHOEBE_CONFIG);
-		sprintf (working_str, "%s/.phoebe", USER_HOME_DIR);
-		PHOEBE_HOME_DIR = strdup (working_str);
-		sprintf (working_str, "%s/phoebe.config", PHOEBE_HOME_DIR);
-		PHOEBE_CONFIG = strdup (working_str);
-		status = phoebe_config_peek (PHOEBE_CONFIG);
-		if (status == SUCCESS)
-			phoebe_config_load (PHOEBE_CONFIG);
-		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
-			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
-			phoebe_config_import (PHOEBE_CONFIG);
-		}
-		else
-			phoebe_lib_warning ("PHOEBE configuration file cannot be opened, assuming defaults.\n");
-	}
-
-	/* Initialize all parameters: */
-	phoebe_debug ("* declaring parameters...\n");
-	phoebe_init_parameters ();
-
-	/* Read in all supported passbands and their transmission functions:      */
-	phoebe_debug ("* reading in passbands:\n");
-	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
-	phoebe_read_in_passbands (pathname);
-	phoebe_debug ("  %d passbands read in.\n", PHOEBE_passbands_no);
-
-	/* Add options to all KIND_MENU parameters:                               */
-	phoebe_init_parameter_options ();
-
-	/* Choose a randomizer seed:                                              */
+	/* Choose a randomizer seed: */
 	srand (time (0));
 
 	/*
@@ -182,11 +114,115 @@ int phoebe_init ()
 	 */
 
 	signal (SIGINT, intern_phoebe_sigint_handler);
-
-	/* Set the interrupt state to false:                                      */
 	PHOEBE_INTERRUPT = FALSE;
 
-	/* If LD tables are present, do the readout:                              */
+	return SUCCESS;
+}
+
+int phoebe_configure ()
+{
+	/**
+	 * phoebe_configure:
+	 *
+	 * Probes the existence of the configuration file, loads it and reads in
+	 * the configuration entries. The configuration filename is hardcoded to
+	 * phoebe.config (this should be changed in future), but the configuration
+	 * directory PHOEBE_HOME_DIR can be set by the drivers.
+	 *
+	 * The order of the checked config directories is:
+	 *
+	 * 1) PHOEBE_HOME_DIR if not NULL,
+	 * 2) ~/.phoebe2,
+	 * 3) ~/.phoebe
+	 *
+	 * Once the configuration file is open, the function configures all
+	 * PHOEBE features (passband transmission functions, limb darkening
+	 * coefficients etc).
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int status;
+	char homedir[255], conffile[255];
+	char *pathname;
+	bool switch_state;
+
+	phoebe_debug ("* adding configuration entries...\n");
+	phoebe_config_populate ();
+
+	phoebe_debug ("* probing configuration directories...\n");
+	if (PHOEBE_HOME_DIR) {
+		/* This happens when the driver supplied PHOEBE_HOME_DIR variable. */
+		sprintf (conffile, "%s/phoebe.config", PHOEBE_HOME_DIR);
+		status = phoebe_config_peek (conffile);
+		if (status == SUCCESS) {
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_config_load (PHOEBE_CONFIG);
+		}
+		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (PHOEBE_CONFIG);
+		}
+		else {
+			phoebe_lib_error ("Config file not found in %s, reverting to defaults.\n", PHOEBE_HOME_DIR);
+		}
+	}
+
+	if (!PHOEBE_HOME_DIR) {
+		/* Check for config in ~/phoebe2: */
+		sprintf (homedir, "%s/.phoebe2", USER_HOME_DIR);
+		sprintf (conffile, "%s/phoebe.config", homedir);
+
+		status = phoebe_config_peek (conffile);
+
+		if (status == SUCCESS) {
+			PHOEBE_HOME_DIR = strdup (homedir);
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_config_load (PHOEBE_CONFIG);
+		}
+		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			PHOEBE_HOME_DIR = strdup (homedir);
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (PHOEBE_CONFIG);
+		}
+	}
+
+	if (!PHOEBE_HOME_DIR) {
+		/* Check for config in ~/.phoebe: */
+		sprintf (homedir, "%s/.phoebe", USER_HOME_DIR);
+		sprintf (conffile, "%s/phoebe.config", homedir);
+
+		status = phoebe_config_peek (conffile);
+
+		if (status == SUCCESS) {
+			PHOEBE_HOME_DIR = strdup (homedir);
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_config_load (PHOEBE_CONFIG);
+		}
+		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			PHOEBE_HOME_DIR = strdup (homedir);
+			PHOEBE_CONFIG = strdup (conffile);
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (PHOEBE_CONFIG);
+		}
+	}
+
+	if (!PHOEBE_HOME_DIR) {
+		/* Admit defeat and revert to defaults. */
+		phoebe_lib_warning ("configuration file not found, reverting to defaults.\n");
+	}
+
+	/* It is time now to configure all PHOEBE features. */
+
+	getcwd (homedir, 255);
+	PHOEBE_STARTUP_DIR = strdup (homedir);
+
+	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
+	phoebe_read_in_passbands (pathname);
+	phoebe_debug ("* %d passbands read in.\n", PHOEBE_passbands_no);
+
 	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &switch_state);
 	if (switch_state == 1) {
 		phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
@@ -196,6 +232,13 @@ int phoebe_init ()
 			phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
 		}
 	}
+
+	phoebe_debug ("* declaring parameters...\n");
+	phoebe_init_parameters ();
+
+	phoebe_debug ("* declaring parameter options...\n");
+	phoebe_init_parameter_options ();
+
 
 	return SUCCESS;
 }
@@ -209,16 +252,11 @@ int phoebe_quit ()
 	 * frees all memory for an elegant exit.
 	 */
 
-	int   state;
-
 	/* Restore the original locale of the system: */
 	setlocale (LC_NUMERIC, PHOEBE_INPUT_LOCALE);
 
 	/* Free the LD table:                                                     */
-	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &state);
-	if (state) {
-		phoebe_ld_table_free ();
-	}
+	phoebe_ld_table_free ();
 
 	/* Free all global PHOEBE strings:                                        */
 	free (PHOEBE_STARTUP_DIR);
@@ -241,7 +279,7 @@ int phoebe_quit ()
 	phoebe_free_parameters ();
 
 	/* Free configuration entries: */
-	phoebe_free_config_entries ();
+	phoebe_config_free ();
 
 	/* Free parameter table: */
 	phoebe_parameter_table_free (PHOEBE_pt);
