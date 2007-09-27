@@ -63,7 +63,7 @@ int gui_init_widgets ()
 	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
 	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Total flux");
 	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
-	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
+	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
 	phoebe_parameter_add ("gui_lc_plot_offset",			"Offset level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_zoom",			"Zoom level",						KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
