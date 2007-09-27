@@ -23,13 +23,26 @@ int main (int argc, char *argv[])
 	if (status != SUCCESS)
 		phoebe_fatal (phoebe_scripter_error (status));
 
+	phoebe_debug ("  adding config entries.\n");
+	scripter_config_populate ();
+
 	phoebe_debug ("  parsing the start-up line.\n");
 	parse_startup_line (argc, argv);
+
+	if (PHOEBE_args.CONFIG_DIR != NULL) {
+		phoebe_debug ("  found a --config-dir switch.\n");
+		free (PHOEBE_HOME_DIR);
+		PHOEBE_HOME_DIR = strdup (PHOEBE_args.CONFIG_DIR);
+	}
+
+	phoebe_debug ("  configuring PHOEBE...\n");
+	phoebe_configure ();
 
 	if (PHOEBE_args.CONFIGURE_SWITCH == 1) {
 		phoebe_debug ("  found a '-c' switch, proceeding to configuration mode.\n");
 		scripter_create_config_file ();
 	}
+
 	if (PHOEBE_args.SCRIPT_SWITCH == 1) {
 		FILE *in = fopen (PHOEBE_args.SCRIPT_NAME, "r");
 
