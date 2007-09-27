@@ -15,6 +15,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add option="CFLAGS=-g -O0" />
 				</Compiler>
 			</Target>
 		</Build>

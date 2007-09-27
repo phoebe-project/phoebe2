@@ -14,7 +14,7 @@ int gui_plot_get_curve_limits (PHOEBE_curve *curve, double *xmin, double *ymin, 
 
 	*xmin = curve->indep->val[0]; *xmax = curve->indep->val[0];
 	*ymin = curve->dep->val[0];   *ymax = curve->dep->val[0];
-	
+
 	for (i = 1; i < curve->indep->dim; i++) {
 		if (*xmin > curve->indep->val[i]) *xmin = curve->indep->val[i];
 		if (*xmax < curve->indep->val[i]) *xmax = curve->indep->val[i];
@@ -94,7 +94,7 @@ int gui_plot_lc_using_gnuplot ()
 
 	gint VERITCES 	= gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(vertices_no_spinbutton));
 	gint INDEX		= -1;
-	gint INDEP; 
+	gint INDEP;
 	gint DEP;
 
 	gdouble XMIN = 0.0, XMAX = 0.0, YMIN = 0.0, YMAX = 0.0;
@@ -106,8 +106,8 @@ int gui_plot_lc_using_gnuplot ()
 
 	//----------------
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_HJD;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_PHASE;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
 
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_MAGNITUDE;
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_FLUX;
@@ -217,26 +217,26 @@ int gui_plot_lc_using_gnuplot ()
 	phoebe_curve_free(syn);
 	phoebe_curve_free(obs);
 	}
-	
+
 	return SUCCESS;
 }
 
 int gui_plot_rv_using_gnuplot ()
 {
 	PHOEBE_curve *obs;
-	PHOEBE_curve *syn; 
+	PHOEBE_curve *syn;
 
 	PHOEBE_vector *indep;
 
 	gchar *tmpdir;
-	gchar oname[255];	
+	gchar oname[255];
 	gchar sname[255];
 	gchar cname[255];
-	gchar pname[255]; 	
-	gchar  line[255]; 
+	gchar pname[255];
+	gchar  line[255];
 
-	gint ofd, sfd; 
-	gint cfd, pfd;	
+	gint ofd, sfd;
+	gint cfd, pfd;
 
 	gint i;
 	gint status;
@@ -265,8 +265,8 @@ int gui_plot_rv_using_gnuplot ()
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_HJD;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_PHASE;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
+	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
 
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_PRIMARY_RV;
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_SECONDARY_RV;
@@ -283,7 +283,7 @@ int gui_plot_rv_using_gnuplot ()
 	PHOEBE_COLUMN_SIGMA,
 	PHOEBE_COLUMN_WEIGHT,
 	PHOEBE_COLUMN_INVALID
-*/	
+*/
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
 	if (INDEX > -1){
@@ -353,9 +353,9 @@ int gui_plot_rv_using_gnuplot ()
 
 		sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
 		pfd = mkstemp (pname);
-	
+
 		sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
-	
+
 		if (plot_syn && plot_obs)
 			{sprintf(line, "plot  '%s' w l notitle,'%s' w p lt 3 lw 1 pt 6 notitle\n", sname, oname);	write(cfd, line, strlen(line));}
 		else if (plot_syn)
@@ -371,7 +371,7 @@ int gui_plot_rv_using_gnuplot ()
 
 		if (plot_syn || plot_obs)
 			gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
-	
+
 		close(pfd);
 
 		//----------------
@@ -385,7 +385,7 @@ int gui_plot_rv_using_gnuplot ()
 		phoebe_curve_free(syn);
 		phoebe_curve_free(obs);
 	}
-	
+
 	return SUCCESS;
 }
 
