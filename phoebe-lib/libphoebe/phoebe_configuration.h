@@ -19,12 +19,14 @@ int                  phoebe_config_entry_get  (char *keyword, ...);
 int                  phoebe_config_entry_set  (char *keyword, ...);
 int                  phoebe_config_entry_free (PHOEBE_config_entry *entry);
 
-int                  phoebe_init_config_entries ();
-int                  phoebe_free_config_entries ();
+int                  phoebe_config_populate   ();
+int                  phoebe_config_free       ();
 
-int phoebe_config_peek   (char *filename);
-int phoebe_config_load   (char *filename);
-int phoebe_config_save   (char *filename);
-int phoebe_config_import (char *filename);
+int                  phoebe_configure         ();
+
+int                  phoebe_config_peek       (char *filename);
+int                  phoebe_config_load       (char *filename);
+int                  phoebe_config_save       (char *filename);
+int                  phoebe_config_import     (char *filename);
 
 #endif
