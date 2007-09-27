@@ -133,7 +133,8 @@ int scripter_directive_help (scripter_ast_list *args)
 	 * must be done separately.
 	 */
 
-	char PHOEBE_SCRIPTER_HELP_DIR[] = "help";
+	int status;
+	char *helpdir;
 	char filename[255], line[255];
 	FILE *helpfile;
 
@@ -145,21 +146,19 @@ int scripter_directive_help (scripter_ast_list *args)
 		return SUCCESS;
 	}
 
-	if (args->elem->type == ast_int) {
-		/* This means we have a directive: */
-		switch (args->elem->value.integer) {
-			case kind_if:    sprintf (filename, "%s/if.help",    PHOEBE_SCRIPTER_HELP_DIR); break;
-			case kind_info:  sprintf (filename, "%s/info.help",  PHOEBE_SCRIPTER_HELP_DIR); break;
-			case kind_while: sprintf (filename, "%s/while.help", PHOEBE_SCRIPTER_HELP_DIR); break;
-			default:
-				phoebe_scripter_output ("help not implemented yet for that directive.\n");
-				return SUCCESS;
-			break;
-		}
+	status = phoebe_config_entry_get ("SCRIPTER_HELP_DIR", &helpdir);
+	if (status != SUCCESS) {
+		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+		return status;
 	}
+
+	if (args->elem->type == ast_int)
+		/* This means we have a directive: */
+		sprintf (filename, "%s/%s.help", helpdir, scripter_ast_kind_name (args->elem->value.integer));
+
 	if (args->elem->type == ast_string)
 		/* This means we have a command: */
-		sprintf (filename, "%s/%s.help", PHOEBE_SCRIPTER_HELP_DIR, args->elem->value.string);
+		sprintf (filename, "%s/%s.help", helpdir, args->elem->value.string);
 
 	helpfile = fopen (filename, "r");
 	if (!helpfile) {
