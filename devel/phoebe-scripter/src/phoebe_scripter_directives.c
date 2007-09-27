@@ -139,9 +139,9 @@ int scripter_directive_help (scripter_ast_list *args)
 
 	if (!args) {
 		/* This means generic help directive with no arguments passed.        */
-		fprintf (PHOEBE_output, "\n  This is %s scripter. For general help on PHOEBE\n", PHOEBE_VERSION_NUMBER);
-		fprintf (PHOEBE_output, "  scripting please refer to PHOEBE API documentation. For specific online help\n");
-		fprintf (PHOEBE_output, "  use 'help directive' or 'help command'. To quit, use 'quit'.\n\n");
+		fprintf (PHOEBE_output, "\n  This is %s scripter. For general help on\n", PHOEBE_VERSION_NUMBER);
+		fprintf (PHOEBE_output, "  PHOEBE scripting please refer to PHOEBE API documentation. For online\n");
+		fprintf (PHOEBE_output, "  help use 'help directive' or 'help command'. To quit, use 'quit'.\n\n");
 		return SUCCESS;
 	}
 
