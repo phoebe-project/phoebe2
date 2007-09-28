@@ -552,11 +552,11 @@ int gui_init_parameter_options()
 	phoebe_parameter_add_option (par, "Time");
 
 	par = phoebe_parameter_lookup("gui_lc_plot_y");
-	phoebe_parameter_add_option (par, "Magnitude");
-	phoebe_parameter_add_option (par, "Primary flux");
-	phoebe_parameter_add_option (par, "Secondary flux");
 	phoebe_parameter_add_option (par, "Total flux");
-	phoebe_parameter_add_option (par, "Normalized flux");
+	//phoebe_parameter_add_option (par, "Primary flux");
+	//phoebe_parameter_add_option (par, "Secondary flux");
+	phoebe_parameter_add_option (par, "Magnitude");
+	//phoebe_parameter_add_option (par, "Normalized flux");
 
 	par = phoebe_parameter_lookup("gui_rv_plot_x");
 	phoebe_parameter_add_option (par, "Phase");
@@ -566,10 +566,10 @@ int gui_init_parameter_options()
 	phoebe_parameter_add_option (par, "Primary RV");
 	phoebe_parameter_add_option (par, "Secondary RV");
 	phoebe_parameter_add_option (par, "Both RVs");
-	phoebe_parameter_add_option (par, "Primary normalized RV");
-	phoebe_parameter_add_option (par, "Secondary normalized RV");
-	phoebe_parameter_add_option (par, "Primary EC corrections");
-	phoebe_parameter_add_option (par, "Secondary EC correction");
+	//phoebe_parameter_add_option (par, "Primary normalized RV");
+	//phoebe_parameter_add_option (par, "Secondary normalized RV");
+	//phoebe_parameter_add_option (par, "Primary EC corrections");
+	//phoebe_parameter_add_option (par, "Secondary EC correction");
 
 	par = phoebe_parameter_lookup("gui_lc_plot_offset");
 	phoebe_parameter_add_option (par, "5%");
