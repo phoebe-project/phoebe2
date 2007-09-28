@@ -55,7 +55,6 @@ int accept_flag = 0;
 void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
 {
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
-	FILE *output = fopen("phoebe_out", "w");
 
 	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
 	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
@@ -72,12 +71,12 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpoin
 	status = gui_get_values_from_widgets();
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 0){
-		status = phoebe_minimize_using_dc(output, phoebe_minimizer_feedback);
+		status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
 		printf("DC minimizer says: %s", phoebe_error(status));
 	}
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
-		status = phoebe_minimize_using_nms(gtk_spin_button_get_value_as_int(phoebe_fitt_nms_iters_spinbutton), gtk_spin_button_get_value(phoebe_fitt_nms_accuracy_spinbutton), output, phoebe_minimizer_feedback);
+		status = phoebe_minimize_using_nms(gtk_spin_button_get_value_as_int(phoebe_fitt_nms_iters_spinbutton), gtk_spin_button_get_value(phoebe_fitt_nms_accuracy_spinbutton), stdout, phoebe_minimizer_feedback);
 		printf("NMS minimizer says: %s", phoebe_error(status));
 	}
 
