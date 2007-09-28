@@ -106,7 +106,7 @@ int gui_plot_lc_using_gnuplot ()
 
 	//----------------
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
+	/*if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
 
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == -1){
@@ -118,10 +118,10 @@ int gui_plot_lc_using_gnuplot ()
 
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
-	if (INDEX < 0){
+	/*if (INDEX < 0){
 		INDEX = 0;
 		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
-	}
+	}*/
 
 	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 	phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
