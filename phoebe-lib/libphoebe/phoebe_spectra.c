@@ -27,6 +27,11 @@
 
 #define pdif(a)  ((a) > 0 ? (a) : 0)
 
+int phoebe_spectra_set_repository (char *rep_name, PHOEBE_specrep *spec)
+{
+	
+}
+
 int query_spectra_repository (char *rep_name, PHOEBE_specrep *spec)
 {
 	/*
@@ -689,7 +694,7 @@ int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion dis
 	dest = phoebe_spectrum_create (ll, ul, R, disp);
 
 	/* Resample the histogram in the spectrum: */
-	status = phoebe_hist_rebin (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_VALUES);
+	status = phoebe_hist_rebin (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_DENSITY);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (dest);
 		return status;
@@ -856,8 +861,8 @@ int phoebe_spectra_multiply (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOE
 	s1 = phoebe_spectrum_duplicate (src1);
 	s2 = phoebe_spectrum_duplicate (src2);
 
-	phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LOG, s1->data->range[0], s1->data->range[s1->data->bins], R);
-	phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LOG, s2->data->range[0], s2->data->range[s2->data->bins], R);
+	phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LOG, ll, ul, R);
+	phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LOG, ll, ul, R);
 
 	*dest = phoebe_spectrum_create (ll, ul, R, PHOEBE_SPECTRUM_DISPERSION_LOG);
 

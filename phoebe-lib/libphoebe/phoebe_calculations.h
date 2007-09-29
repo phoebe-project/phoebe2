@@ -29,11 +29,12 @@ int phoebe_join_chi2  (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weight
  * below should then correspond to that prototype.
  */
 
-#define wd_lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,params) lc_(atmtab,pltab,request,vertno,L3perc,indeps,deps,params,strlen(atmtab),strlen(pltab))
+#define wd_lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params) lc_(atmtab,pltab,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params,strlen(atmtab),strlen(pltab))
 
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
 int call_wd_to_get_rv1    (PHOEBE_curve *rv1,   PHOEBE_vector *indep);
 int call_wd_to_get_rv2    (PHOEBE_curve *rv2,   PHOEBE_vector *indep);
+int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, double phase);
 
 int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep);
 int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep);

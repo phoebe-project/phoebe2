@@ -177,13 +177,14 @@ typedef struct PHOEBE_hist {
  * @PHOEBE_HIST_CONSERVE_DENSITY: When rebinning, conserve the densities.
  *
  * There are two ways to rebin a histogram:
+ *
  *   1) conserve the values and
  *   2) conserve the value densities.
+ *
  * The first option is better if we are degrading the histogram, and the
- * second option is better if we are oversampling the histogram. The
- * approach is similar yet distinct to the point that it is easier to
- * switch on the type and do the computation completely separately.
+ * second option is better if we are oversampling the histogram.
  */
+
 typedef enum PHOEBE_hist_rebin_type {
 	PHOEBE_HIST_CONSERVE_VALUES = 20,
 	PHOEBE_HIST_CONSERVE_DENSITY
