@@ -149,15 +149,9 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 {
 	/**
 	 * call_wd_to_get_fluxes:
-	 *
 	 * @curve: a pointer to #PHOEBE_curve structure that will hold computed
-	 * fluxes;
-	 *
+	 * fluxes
 	 * @indep: an array of independent variable values (HJDs or phases);
-	 *
-	 * @compars: a pointer to #PHOEBE_computed_params structure. This structure
-	 * must be allocated in the calling function. Alternatively %NULL can be
-	 * passed for @compars if the computed parameters should not be stored.
 	 *
 	 * Uses WD's LC code through a FORTRAN wrapper to obtain the fluxes.
 	 * Structure PHOEBE_curve must not be allocated, only initialized.
@@ -204,7 +198,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	if (l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
 		L3perc = 1;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, params);
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, NULL, NULL, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -255,7 +249,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 	L3perc = 0;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv1->dep->val, params);
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv1->dep->val, NULL, NULL, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
@@ -306,7 +300,88 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 
 	L3perc = 0;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv2->dep->val, params);
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv2->dep->val, NULL, NULL, params);
+
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
+	return SUCCESS;
+}
+
+int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, double phase)
+{
+	/**
+	 * call_wd_to_get_pos_coordinates:
+	 * @poscoy: a pointer to #PHOEBE_vector that will hold y coordinates of
+	 * the plane-of-sky
+	 * @poscoz: a pointer to #PHOEBE_vector that will hold z coordinates of
+	 * the plane-of-sky
+	 * @phase: phase node in which the plane-of-sky (pos) coordinates should
+	 * be computed
+	 *
+	 * Uses WD's LC code through a FORTRAN wrapper to obtain the plane-of-sky
+	 * coordinates. The vectors @poscoy and @poscoz must not be allocated, only
+	 * initialized.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	int n1, n2;
+	char *basedir;
+	char atmcof[255], atmcofplanck[255];
+	double params[12];
+
+	double theta;
+	int dim1 = 0, dim2 = 0;
+
+	integer request, nodes, L3perc;
+	doublereal phs;
+
+	if (!poscoy || !poscoz)
+		return ERROR_VECTOR_NOT_INITIALIZED;
+	if (poscoy->dim != 0 || poscoz->dim != 0)
+		return ERROR_VECTOR_ALREADY_ALLOCATED;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize1"), &n1);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize2"), &n2);
+
+	/* Count the number of points: */
+	for (i = 1; i <= n1; i++) {
+		theta = M_PI/2.0 * ((double) i - 0.5) / ((double) n1);
+		dim1 += 1 + (int) (1.3 * n1 * sin(theta));
+	}
+	for (i = 1; i <= n2; i++) {
+		theta = M_PI/2.0 * ((double) i - 0.5) / ((double) n2);
+		dim2 += 1 + (int) (1.3 * n2 * sin(theta));
+	}
+
+	phoebe_vector_alloc (poscoy, 2*dim1+2*dim2);
+	phoebe_vector_pad (poscoy, 0.0);
+	phoebe_vector_alloc (poscoz, 2*dim1+2*dim2);
+	phoebe_vector_pad (poscoz, 0.0);
+
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
+
+	phs = (doublereal) phase;
+	request = 4;
+	nodes   = 1;
+	L3perc  = 0;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, &phs, NULL, poscoy->val, poscoz->val, params);
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);

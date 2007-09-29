@@ -179,6 +179,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	 *
 	 *   MPAGE = 1 .. light curve
 	 *   MPAGE = 2 .. radial velocity curve
+	 *   MPAGE = 5 .. plane-of-sky coordinates
 	 *
 	 * It is passed as argument to this function. First we check if the chosen
 	 * curve is initialized and, if everything is ok, we set the params->MPAGE
@@ -191,7 +192,8 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	if (MPAGE == 2)
 		if (curve < 0 || curve > rvno-1)
 			return ERROR_UNINITIALIZED_CURVE;
-	if (MPAGE != 1 && MPAGE != 2)
+	if (MPAGE == 5) /* plane-of-sky coordinates are not curve-dependent */;
+	if (MPAGE != 1 && MPAGE != 2 && MPAGE != 5)
 		return ERROR_UNSUPPORTED_MPAGE;
 
 	params->MPAGE = (integer) MPAGE;
@@ -382,72 +384,81 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol2"), &readout_dbl);
 	params->YBOL2 = (doublereal) readout_dbl;
 
-	if (MPAGE == 2)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), curve, &filter);
-	else
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), curve, &filter);
+	/* Wavelength-dependent parameters: */
+	switch (MPAGE) {
+		case 1:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), curve, &filter);	
+			passband = phoebe_passband_lookup (filter);
+			if (!passband) {
+				phoebe_lib_warning ("passband not set or invalid, reverting to Johnson V.\n");
+				params->IBAND = 7;
+				params->WLA   = 550.0;
+			} else {
+				params->IBAND = (integer) get_passband_id (filter);
+				params->WLA   = (doublereal) passband->effwl;
+			}
+			
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), curve, &readout_dbl);
+			params->HLA = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), curve, &readout_dbl);
+			params->CLA = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx1"), curve, &readout_dbl);
 
-	passband = phoebe_passband_lookup (filter);
-	if (!passband) {
-		phoebe_lib_warning ("passband not set or invalid, reverting to Johnson V.\n");
-		params->IBAND = 7;
-		params->WLA   = 550.0;
-	} else {
-		params->IBAND = (integer) get_passband_id (filter);
-		params->WLA   = (doublereal) passband->effwl;
-	}
+			params->X1A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx2"), curve, &readout_dbl);
+			params->X2A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy1"), curve, &readout_dbl);
+			params->Y1A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy2"), curve, &readout_dbl);
+			params->Y2A = (doublereal) readout_dbl;
 
-	if (MPAGE == 1) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), curve, &readout_dbl);
-		params->HLA = (doublereal) readout_dbl;
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), curve, &readout_dbl);
-		params->CLA = (doublereal) readout_dbl;
-	}
-	else {
-		/* HLAs and CLAs don't make any sense for RV curves, so we initialize     */
-		/* them to some canonic dummy values.                                     */
-		params->HLA = 1.0;
-		params->CLA = 1.0;
-	}
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), curve, &readout_dbl);
+			params->EL3 = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"), curve, &readout_dbl);
+			params->OPSF = (doublereal) readout_dbl;
+		break;
+		case 2:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), curve, &filter);
+			passband = phoebe_passband_lookup (filter);
+			if (!passband) {
+				phoebe_lib_warning ("passband not set or invalid, reverting to Johnson V.\n");
+				params->IBAND = 7;
+				params->WLA   = 550.0;
+			} else {
+				params->IBAND = (integer) get_passband_id (filter);
+				params->WLA   = (doublereal) passband->effwl;
+			}
 
-	if (MPAGE == 2) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx1"), curve, &readout_dbl);
-		params->X1A = (doublereal) readout_dbl;
+			params->HLA = 1.0;
+			params->CLA = 1.0;
 
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx2"), curve, &readout_dbl);
-		params->X2A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx1"), curve, &readout_dbl);
+			params->X1A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvx2"), curve, &readout_dbl);
+			params->X2A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy1"), curve, &readout_dbl);
+			params->Y1A = (doublereal) readout_dbl;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy2"), curve, &readout_dbl);
+			params->Y2A = (doublereal) readout_dbl;
 
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy1"), curve, &readout_dbl);
-		params->Y1A = (doublereal) readout_dbl;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy2"), curve, &readout_dbl);
-		params->Y2A = (doublereal) readout_dbl;
-	}
-	else {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx1"), curve, &readout_dbl);
-		params->X1A = (doublereal) readout_dbl;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcx2"), curve, &readout_dbl);
-		params->X2A = (doublereal) readout_dbl;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy1"), curve, &readout_dbl);
-		params->Y1A = (doublereal) readout_dbl;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy2"), curve, &readout_dbl);
-		params->Y2A = (doublereal) readout_dbl;
-	}
-
-	if (MPAGE == 1) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), curve, &readout_dbl);
-		params->EL3 = (doublereal) readout_dbl;
-
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"), curve, &readout_dbl);
-		params->OPSF = (doublereal) readout_dbl;
-	}
-	else {
-		/* Third light and opacity function don't make sense for RVs. */
-		params->EL3 = 0.0;
-		params->OPSF = 0.0;
+			params->EL3 = 0.0;
+			params->OPSF = 0.0;
+		break;
+		case 5:
+			params->IBAND = 7;
+			params->WLA   = 550.0;
+			params->HLA   = 1.0;
+			params->CLA   = 1.0;
+			params->X1A   = 0.5;
+			params->X2A   = 0.5;
+			params->Y1A   = 0.5;
+			params->Y2A   = 0.5;
+			params->EL3   = 0.0;
+			params->OPSF  = 0.0;
+		break;
+		default:
+			/* We can't ever get here. */
+		break;
 	}
 
 	/*

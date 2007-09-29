@@ -1,5 +1,5 @@
       subroutine lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,
-     +              params)
+     +              skycoy,skycoz,params)
 c
 c  Main program for computing light and radial velocity curves,
 c      line profiles, and images
@@ -92,6 +92,7 @@ c      request   ..   what do we want to compute:
 c                       1  ..  light curve
 c                       2  ..  primary RV curve
 c                       3  ..  secondary RV curve
+c                       4  ..  star shape
 c       vertno   ..   number of vertices in a light/RV curve
 c       L3perc   ..   3rd light switch:
 c                       0  ..  3rd light passed in flux units (default)
@@ -99,6 +100,8 @@ c                       1  ..  3rd light computed from the passed
 c                              percentage of L3, x=L3/(L1+L2+L3)
 c       indeps   ..   an array of vertices (HJDs or phases)
 c         deps   ..   an array of computed values (fluxes or RVs)
+c       skycoy   ..   an array of y-coordinates of the plane of sky
+c       skycoz   ..   an array of z-coordinates of the plane of sky
 c       params   ..   an array of computed parameters:
 c
 c                     params( 1) = L1     star 1 passband luminosity
@@ -115,7 +118,7 @@ c                     params(11) = SBR1   star 1 polar surface brightness
 c                     params(12) = SBR2   star 2 polar surface brightness
 c
       integer request,vertno
-      double precision indeps(*),deps(*),params(*)
+      double precision indeps(*),deps(*),skycoy(*),skycoz(*),params(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -531,6 +534,12 @@ c
       if (request.eq.1) deps(idx)=total
       if (request.eq.2) deps(idx)=vkm1
       if (request.eq.3) deps(idx)=vkm2
+      if (request.eq.4) then
+        do 129 imp=1,ipc
+          skycoy(imp) = yskp(imp)
+          skycoz(imp) = zskp(imp)
+  129   continue
+      endif
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call wrdata(hjd,phas,yskp,zskp,htt,cool,total,tot,d,smagg,
