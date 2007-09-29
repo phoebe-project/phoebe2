@@ -506,6 +506,41 @@ int gui_reinit_spots_treeview ()
 }
 
 
+static void crit_cell_data_function (GtkTreeViewColumn *column,
+                            		GtkCellRenderer *renderer,
+                            		GtkTreeModel *model,
+                            		GtkTreeIter *iter,
+                            		gpointer data)
+{
+	gdouble 	val;
+	gchar	   	buf[20];
+	gchar	   *name;
+
+	PHOEBE_parameter *par;
+	gdouble pot1, pot2;
+
+	par = phoebe_parameter_lookup("phoebe_pot1");
+	phoebe_parameter_get_value(par, &pot1);
+	par = phoebe_parameter_lookup("phoebe_pot2");
+	phoebe_parameter_get_value(par, &pot2);
+
+	gtk_tree_model_get(model, iter, RS_COL_PARAM_NAME, &name, RS_COL_PARAM_VALUE, &val, -1);
+
+	if (pot1 < val && !strcmp(name, "Ω(L<sub>1</sub>)")){
+		g_snprintf(buf, sizeof(buf), "<b>%f</b>", val);
+		g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, "markup", buf, NULL);
+	}
+	else if (pot2 < val && !strcmp(name, "Ω(L<sub>2</sub>)")){
+		g_snprintf(buf, sizeof(buf), "<b>%f</b>", val);
+		g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, "markup", buf, NULL);
+	}
+	else
+		g_object_set(renderer, "foreground-set", FALSE, NULL);
+
+	g_free (name);
+}
+
+
 int gui_init_sidesheet_res_treeview()
 {
 	GtkWidget *phoebe_sidesheet_res_treeview = gui_widget_lookup("phoebe_sidesheet_res_treeview")->gtk;
@@ -523,8 +558,9 @@ int gui_init_sidesheet_res_treeview()
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", RS_COL_PARAM_VALUE, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "markup", RS_COL_PARAM_VALUE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
+	gtk_tree_view_column_set_cell_data_func(column, renderer, crit_cell_data_function, NULL, NULL);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_res_treeview, model);
 
