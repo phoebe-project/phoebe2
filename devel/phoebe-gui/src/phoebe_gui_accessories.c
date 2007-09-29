@@ -144,6 +144,7 @@ int gui_show_configuration_dialog()
 	GtkWidget *defaultsdir_filechooserbutton	= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_defaultsdir_filechooserbutton");
 	GtkWidget *workingdir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_workingdir_filechooserbutton");
 	GtkWidget *datadir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_datadir_filechooserbutton");
+	GtkWidget *ptfdir_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_ptfdir_filechooserbutton");
 
 	GtkWidget *vh_checkbutton					= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_vh_checkbutton");
 	GtkWidget *vh_lddir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_vh_lddir_filechooserbutton");
@@ -167,6 +168,8 @@ int gui_show_configuration_dialog()
 	gtk_file_chooser_set_filename((GtkFileChooser*)workingdir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_DATA_DIR", &dir);
 	gtk_file_chooser_set_filename((GtkFileChooser*)datadir_filechooserbutton, dir);
+	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &dir);
+	gtk_file_chooser_set_filename((GtkFileChooser*)ptfdir_filechooserbutton, dir);
 
 	g_signal_connect(G_OBJECT(vh_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)vh_lddir_filechooserbutton);
 	g_signal_connect(G_OBJECT(kurucz_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)kurucz_filechooserbutton);
@@ -198,6 +201,7 @@ int gui_show_configuration_dialog()
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
+			phoebe_config_entry_set ("PHOEBE_PTF_DIR", 		gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton));
 
 			phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
@@ -223,6 +227,7 @@ int gui_show_configuration_dialog()
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
+			phoebe_config_entry_set ("PHOEBE_PTF_DIR", 		gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton));
 
 			phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
