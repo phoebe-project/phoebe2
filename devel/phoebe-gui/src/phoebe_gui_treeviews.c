@@ -519,7 +519,7 @@ int gui_init_sidesheet_res_treeview()
     GtkTreeViewColumn   *column;
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", RS_COL_PARAM_NAME, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "markup", RS_COL_PARAM_NAME, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
@@ -693,10 +693,10 @@ int gui_fill_sidesheet_res_treeview()
 	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
 
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Crit. Pot. in L1", RS_COL_PARAM_VALUE, L1, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>1</sub>)", RS_COL_PARAM_VALUE, L1, -1);
 
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Crit. Pot. in L2", RS_COL_PARAM_VALUE, L2, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 
 	par = phoebe_parameter_lookup("phoebe_plum1");
 	status = phoebe_parameter_get_value(par, &value);
@@ -731,12 +731,12 @@ int gui_fill_sidesheet_res_treeview()
 	par = phoebe_parameter_lookup("phoebe_mbol1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mbol 2", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol</sub> 2", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mbol2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Mbol 1", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol</sub> 1", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg1");
 	status = phoebe_parameter_get_value(par, &value);

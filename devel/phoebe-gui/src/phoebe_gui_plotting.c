@@ -125,7 +125,7 @@ int gui_plot_lc_using_gnuplot ()
 
 	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 	phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-	alias_phase_points (obs->indep, obs->dep, NULL, -0.6, 0.6);
+	//alias_phase_points (obs->indep, obs->dep, NULL, -0.6, 0.6);
 
 	syn = phoebe_curve_new ();
 	syn->type = PHOEBE_CURVE_LC;
