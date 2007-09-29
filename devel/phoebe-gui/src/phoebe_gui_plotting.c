@@ -64,8 +64,8 @@ int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin
 
 int gui_plot_lc_using_gnuplot ()
 {
-	PHOEBE_curve *obs;
-	PHOEBE_curve *syn;
+	PHOEBE_curve *obs = NULL;
+	PHOEBE_curve *syn = NULL;
 
 	PHOEBE_vector *indep;
 
@@ -123,36 +123,42 @@ int gui_plot_lc_using_gnuplot ()
 		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
 	}
 
-	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
-	phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-	//alias_phase_points (obs->indep, obs->dep, NULL, -0.6, 0.6);
 
-	syn = phoebe_curve_new ();
-	syn->type = PHOEBE_CURVE_LC;
+	if(plot_obs){
+		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
+		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
+		//alias_phase_points (obs->indep, obs->dep, NULL, -0.6, 0.6);
 
-	indep = phoebe_vector_new ();
-	phoebe_vector_alloc (indep, VERITCES);
-	for (i = 0; i < VERITCES; i++) indep->val[i] = -0.6 + 1.2 * (double) i/(VERITCES-1);
-
-	status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
-	phoebe_vector_free (indep);
-
-	/* write both curves to files */
-	sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
-	ofd = mkstemp (oname);
-	for (i=0;i<obs->indep->dim;i++) {
-		sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
-		write(ofd, line, strlen(line));
+		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
+		ofd = mkstemp (oname);
+		for (i=0;i<obs->indep->dim;i++) {
+			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
+			write(ofd, line, strlen(line));
+		}
+		close(ofd);
 	}
-	close(ofd);
 
-	sprintf(sname, "%s/phoebe-lc-XXXXXX", tmpdir);
-	sfd = mkstemp (sname);
-	for (i=0;i<syn->indep->dim;i++) {
-		sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
-		write(sfd, line, strlen(line));
+	if(plot_syn){
+		syn = phoebe_curve_new ();
+		syn->type = PHOEBE_CURVE_LC;
+
+		indep = phoebe_vector_new ();
+		phoebe_vector_alloc (indep, VERITCES);
+		for (i = 0; i < VERITCES; i++) indep->val[i] = -0.6 + 1.2 * (double) i/(VERITCES-1);
+	
+		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		phoebe_vector_free (indep);
+
+		sprintf(sname, "%s/phoebe-lc-XXXXXX", tmpdir);
+		sfd = mkstemp (sname);
+		for (i=0;i<syn->indep->dim;i++) {
+			sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
+			write(sfd, line, strlen(line));
+		}
+		close(sfd);
 	}
-	close(sfd);
+
+
 
 	//----------------
 
@@ -160,7 +166,7 @@ int gui_plot_lc_using_gnuplot ()
 	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
-	sprintf(line, "set terminal png small size 615,341\n"); 			write(cfd, line, strlen(line));
+	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
 	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set lmargin 6\n");									write(cfd, line, strlen(line));
@@ -197,7 +203,7 @@ int gui_plot_lc_using_gnuplot ()
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
 	if (plot_syn && plot_obs)
-		{sprintf(line, "plot  '%s' w l notitle,'%s' w p lt 3 lw 1 pt 6 notitle\n", sname, oname);	write(cfd, line, strlen(line));}
+		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l notitle\n", oname, sname);	write(cfd, line, strlen(line));}
 	else if (plot_syn)
 		{sprintf(line, "plot  '%s' w l notitle\n", sname);											write(cfd, line, strlen(line));}
 	else if (plot_obs)
@@ -221,16 +227,16 @@ int gui_plot_lc_using_gnuplot ()
 	remove(cname);
 	remove(pname);
 
-	phoebe_curve_free(syn);
-	phoebe_curve_free(obs);
+	if (plot_syn) phoebe_curve_free(syn);
+	if (plot_obs) phoebe_curve_free(obs);
 
 	return SUCCESS;
 }
 
 int gui_plot_rv_using_gnuplot ()
 {
-	PHOEBE_curve *obs;
-	PHOEBE_curve *syn;
+	PHOEBE_curve *obs = NULL;
+	PHOEBE_curve *syn = NULL;
 
 	PHOEBE_vector *indep;
 
@@ -277,25 +283,28 @@ int gui_plot_rv_using_gnuplot ()
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_SECONDARY_RV;
 
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 2)	DEP 	= PHOEBE_COLUMN_PRIMARY_RV;
-/*
-	PHOEBE_COLUMN_UNDEFINED,
-	PHOEBE_COLUMN_HJD,
-	PHOEBE_COLUMN_PHASE,
-	PHOEBE_COLUMN_MAGNITUDE,
-	PHOEBE_COLUMN_FLUX,
-	PHOEBE_COLUMN_PRIMARY_RV,
-	PHOEBE_COLUMN_SECONDARY_RV,
-	PHOEBE_COLUMN_SIGMA,
-	PHOEBE_COLUMN_WEIGHT,
-	PHOEBE_COLUMN_INVALID
-*/
+
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
-	if (INDEX > -1){
+	if (INDEX < 0){
+		INDEX = 0;
+		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
+	}
 
+	if(plot_obs){
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, INDEX);
 		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
 
+		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
+		ofd = mkstemp (oname);
+		for (i=0;i<obs->indep->dim;i++) {
+			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
+			write(ofd, line, strlen(line));
+		}
+		close(ofd);
+	}
+
+	if(plot_syn){
 		syn = phoebe_curve_new ();
 		syn->type = PHOEBE_CURVE_RV;
 
@@ -306,15 +315,6 @@ int gui_plot_rv_using_gnuplot ()
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		phoebe_vector_free (indep);
 
-		/* write both curves to files */
-		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
-		ofd = mkstemp (oname);
-		for (i=0;i<obs->indep->dim;i++) {
-			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
-			write(ofd, line, strlen(line));
-		}
-		close(ofd);
-
 		sprintf(sname, "%s/phoebe-rv-XXXXXX", tmpdir);
 		sfd = mkstemp (sname);
 		for (i=0;i<syn->indep->dim;i++) {
@@ -322,75 +322,74 @@ int gui_plot_rv_using_gnuplot ()
 			write(sfd, line, strlen(line));
 		}
 		close(sfd);
-
-		sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
-		cfd = mkstemp (cname);
-
-		sprintf(line, "set terminal png small size 615,341\n"); 			write(cfd, line, strlen(line));
-		sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
-		sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
-		sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
-		sprintf(line, "set tmargin 2\n");									write(cfd, line, strlen(line));
-		sprintf(line, "set rmargin 2\n");									write(cfd, line, strlen(line));
-		sprintf(line, "set bmargin 4\n");									write(cfd, line, strlen(line));
-
-		sprintf(line, "set xlabel '%s'\n", gtk_combo_box_get_active_text (GTK_COMBO_BOX (x_combobox)));
-			write(cfd, line, strlen(line));
-		sprintf(line, "set ylabel '%s'\n", gtk_combo_box_get_active_text (GTK_COMBO_BOX (y_combobox)));
-			write(cfd, line, strlen(line));
-
-		if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (coarse_grid)))
-			sprintf(line, "set grid xtics ytics\n");						write(cfd, line, strlen(line));
-		if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (fine_grid)))
-			sprintf(line, "set grid mxtics mytics\n");						write(cfd, line, strlen(line));
-
-		gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, 0.0, 0.0, 0.0);
-
-
-		sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
-		if (DEP == PHOEBE_COLUMN_MAGNITUDE)
-			{sprintf(line, "set yrange [%lf:%lf]\n", YMAX, YMIN); 			write(cfd, line, strlen(line));}
-		if (DEP == PHOEBE_COLUMN_FLUX)
-			{sprintf(line, "set yrange [%lf:%lf]\n", YMIN, YMAX); 			write(cfd, line, strlen(line));}
-
-		if (INDEP == PHOEBE_COLUMN_HJD)
-			{sprintf(line, "set format x '%%7.0f'\n");			 			write(cfd, line, strlen(line));}
-
-		sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
-		pfd = mkstemp (pname);
-
-		sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
-
-		if (plot_syn && plot_obs)
-			{sprintf(line, "plot  '%s' w l notitle,'%s' w p lt 3 lw 1 pt 6 notitle\n", sname, oname);	write(cfd, line, strlen(line));}
-		else if (plot_syn)
-			{sprintf(line, "plot  '%s' w l notitle\n", sname);											write(cfd, line, strlen(line));}
-		else if (plot_obs)
-			{sprintf(line, "plot  '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);							write(cfd, line, strlen(line));}
-
-		close(cfd);
-
-		sprintf(line,"gnuplot \"%s\"", cname);
-
-		system(line);
-
-		if (plot_syn || plot_obs)
-			gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
-
-		close(pfd);
-
-		//----------------
-
-		remove(oname);
-		remove(sname);
-		remove(cname);
-		remove(pname);
-
-
-		phoebe_curve_free(syn);
-		phoebe_curve_free(obs);
 	}
 
+	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
+	cfd = mkstemp (cname);
+
+	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
+	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
+	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
+	sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set tmargin 2\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set rmargin 2\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set bmargin 4\n");									write(cfd, line, strlen(line));
+
+	sprintf(line, "set xlabel '%s'\n", gtk_combo_box_get_active_text (GTK_COMBO_BOX (x_combobox)));
+		write(cfd, line, strlen(line));
+	sprintf(line, "set ylabel '%s'\n", gtk_combo_box_get_active_text (GTK_COMBO_BOX (y_combobox)));
+		write(cfd, line, strlen(line));
+
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (coarse_grid)))
+		sprintf(line, "set grid xtics ytics\n");						write(cfd, line, strlen(line));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (fine_grid)))
+		sprintf(line, "set grid mxtics mytics\n");						write(cfd, line, strlen(line));
+
+	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, 0.0, 0.0, 0.0);
+
+
+	sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
+	if (DEP == PHOEBE_COLUMN_MAGNITUDE)
+		{sprintf(line, "set yrange [%lf:%lf]\n", YMAX, YMIN); 			write(cfd, line, strlen(line));}
+	if (DEP == PHOEBE_COLUMN_FLUX)
+		{sprintf(line, "set yrange [%lf:%lf]\n", YMIN, YMAX); 			write(cfd, line, strlen(line));}
+
+	if (INDEP == PHOEBE_COLUMN_HJD)
+		{sprintf(line, "set format x '%%7.0f'\n");			 			write(cfd, line, strlen(line));}
+
+	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
+	pfd = mkstemp (pname);
+
+	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
+
+	if (plot_syn && plot_obs)
+		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l notitle\n", oname, sname);	write(cfd, line, strlen(line));}
+	else if (plot_syn)
+		{sprintf(line, "plot  '%s' w l notitle\n", sname);											write(cfd, line, strlen(line));}
+	else if (plot_obs)
+		{sprintf(line, "plot  '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);							write(cfd, line, strlen(line));}
+
+	close(cfd);
+
+	sprintf(line,"gnuplot \"%s\"", cname);
+
+	system(line);
+
+	if (plot_syn || plot_obs)
+		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
+
+	close(pfd);
+
+	//----------------
+
+	remove(oname);
+	remove(sname);
+	remove(cname);
+	remove(pname);
+
+	if (plot_syn) phoebe_curve_free(syn);
+	if (plot_obs) phoebe_curve_free(obs);
+	
 	return SUCCESS;
 }
 
