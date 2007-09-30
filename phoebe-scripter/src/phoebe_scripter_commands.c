@@ -74,6 +74,7 @@ int scripter_register_all_commands ()
 	scripter_command_register ("plot_lc_using_gnuplot",        scripter_plot_lc_using_gnuplot);
 	scripter_command_register ("plot_rv_using_gnuplot",        scripter_plot_rv_using_gnuplot);
 	scripter_command_register ("plot_spectrum_using_gnuplot",  scripter_plot_spectrum_using_gnuplot);
+	scripter_command_register ("plot_eb_using_gnuplot",        scripter_plot_eb_using_gnuplot);
 	scripter_command_register ("plot_using_gnuplot",           scripter_plot_using_gnuplot);
 
 	/* Other auxiliary commands:                                              */
@@ -1616,6 +1617,74 @@ scripter_ast_value scripter_plot_spectrum_using_gnuplot (scripter_ast_list *args
 	phoebe_vector_free (dep);
 	free (props);
 	scripter_ast_value_array_free (vals, 3);
+
+	/* That's all! Have a nice plot! ;)                                         */
+	return out;
+}
+
+scripter_ast_value scripter_plot_eb_using_gnuplot (scripter_ast_list *args)
+{
+	/*
+	 * This function plots the image of the eclipsing binary (thus "eb") on
+	 * the plane-of-sky. The plot is not meant to be publication-ready, it is
+	 * meant only for a quick inspection.
+	 *
+	 * Synopsis:
+	 *
+	 *   plot_eb_using_gnuplot (phase)
+	 */
+
+	int status;
+
+	int index = 0;
+
+	PHOEBE_vector *poscoy, *poscoz;
+
+	scripter_plot_properties *props = NULL;
+	WD_LCI_parameters *params;
+
+	char *filename;
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+
+	out.type = type_void;
+
+	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_double);
+	if (status != SUCCESS) return out;
+
+	params = phoebe_malloc (sizeof (*params));
+	status = wd_lci_parameters_get (params, 5, 0);
+	if (status != SUCCESS) {
+		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+		return out;
+	}
+
+	filename = resolve_relative_filename ("lcin.active");
+	create_lci_file (filename, params);
+
+	poscoy = phoebe_vector_new ();
+	poscoz = phoebe_vector_new ();
+	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, vals[0].value.d);
+
+	props = phoebe_malloc (sizeof (*props));
+	props[index].lines = FALSE;
+	props[index].ctype = 3;
+	props[index].ptype = 13;
+	props[index].ltype = 3;
+
+	/* Everything is set now, let's plot the figure using gnuplot:            */
+	status = plot_using_gnuplot (1, NO, &poscoy, &poscoz, props);
+	if (status != SUCCESS)
+		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+
+	/* Let's clean everything up:                                             */
+	phoebe_vector_free (poscoy);
+	phoebe_vector_free (poscoz);
+	free (params);
+	free (props);
+
+	scripter_ast_value_array_free (vals, 1);
 
 	/* That's all! Have a nice plot! ;)                                         */
 	return out;
