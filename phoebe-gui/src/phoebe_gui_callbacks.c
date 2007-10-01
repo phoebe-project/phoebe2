@@ -11,19 +11,6 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_plotting.h"
 
-void
-on_phoebe_test_toolbutton_0_clicked (GtkToolButton   *toolbutton, gpointer user_data)
-{
-    gui_get_values_from_widgets();
-}
-
-void
-on_phoebe_test_toolbutton_1_clicked (GtkToolButton *toolbutton, gpointer user_data)
-{
-	gui_reinit_treeviews();
-    gui_set_values_to_widgets();
-}
-
 void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	char *widget_name = (char*)gtk_widget_get_name(GTK_WIDGET(togglebutton));
@@ -845,7 +832,6 @@ void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 	int status = gui_open_parameter_file ();
 
 	if( status == SUCCESS ){
-		printf("Parameter file successfuly open.\n");
 		gui_reinit_treeviews();
 		gui_set_values_to_widgets();
 	}
@@ -861,9 +847,7 @@ void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 	status = gui_get_values_from_widgets();
 	status = gui_save_parameter_file ();
 
-	if( status == SUCCESS )
-		printf("Parameter file successfuly saved.\n");
-	else
+	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
 }
 
@@ -875,9 +859,7 @@ void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer us
 	status = gui_get_values_from_widgets();
 	status = gui_save_parameter_file ();
 
-	if( status == SUCCESS )
-		printf("Parameter file successfuly saved.\n");
-	else
+	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
 }
 
@@ -964,7 +946,6 @@ void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user
 	int status = gui_open_parameter_file ();
 
 	if( status == SUCCESS ){
-		printf("Parameter file successfuly open.\n");
 		gui_reinit_treeviews();
 		gui_set_values_to_widgets();
 	}
@@ -979,9 +960,7 @@ void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user
 	status = gui_get_values_from_widgets();
 	status = gui_save_parameter_file ();
 
-	if( status == SUCCESS )
-		printf("Parameter file successfuly saved.\n");
-	else
+	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
 }
 
