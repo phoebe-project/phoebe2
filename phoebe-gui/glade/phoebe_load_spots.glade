@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.2.0 on Thu Jul 19 13:37:36 2007 by olivia@luna-->
+<!--Generated with glade3 3.2.0 on Mon Oct  1 13:53:09 2007 by olivia@olivia-AOB-->
 <glade-interface>
   <widget class="GtkDialog" id="phoebe_load_spots_dialog">
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
@@ -92,7 +92,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_latmax_label3">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Upper:</property>
+                                    <property name="label" translatable="yes">Max:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -120,7 +120,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_latmin_label3">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Lower:</property>
+                                    <property name="label" translatable="yes">Min:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -233,7 +233,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_lonmax_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Upper:</property>
+                                    <property name="label" translatable="yes">Max:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -261,7 +261,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_lonmin_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Lower:</property>
+                                    <property name="label" translatable="yes">Min:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -375,7 +375,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_radmax_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Upper:</property>
+                                    <property name="label" translatable="yes">Max:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -403,7 +403,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_radmin_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Lower:</property>
+                                    <property name="label" translatable="yes">Min:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -517,7 +517,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_tempmax_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Upper:</property>
+                                    <property name="label" translatable="yes">Max:</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -545,7 +545,7 @@
                                   <widget class="GtkLabel" id="phoebe_load_spots_tempmin_label2">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="label" translatable="yes">Lower:</property>
+                                    <property name="label" translatable="yes">Min:</property>
                                   </widget>
                                 </child>
                                 <child>
