@@ -862,6 +862,11 @@ int gui_data_lc_treeview_add()
 {
 	int status = 0;
 
+	PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
+	PHOEBE_parameter *dep       = phoebe_parameter_lookup ("phoebe_lc_dep");
+	PHOEBE_parameter *indweight = phoebe_parameter_lookup ("phoebe_lc_indweight");
+	int optindex, optcount;
+
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
@@ -888,6 +893,19 @@ int gui_data_lc_treeview_add()
 					  G_CALLBACK (on_phoebe_load_lc_filechooserbutton_selection_changed),
 					  (gpointer) phoebe_load_lc_preview_textview);
 
+	/* Populate the combo boxes: */
+	optcount = indep->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column1_combobox), strdup(indep->menu->option[optindex]));
+
+	optcount = dep->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column2_combobox), strdup(dep->menu->option[optindex]));
+
+	optcount = indweight->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column3_combobox), strdup(indweight->menu->option[optindex]));
+
 	/* Default values for column combo boxes: */
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  0);
@@ -910,10 +928,6 @@ int gui_data_lc_treeview_add()
 				gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
 				sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
 			}
-
-            PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
-            PHOEBE_parameter *dep       = phoebe_parameter_lookup ("phoebe_lc_dep");
-            PHOEBE_parameter *indweight = phoebe_parameter_lookup ("phoebe_lc_indweight");
 
             gtk_list_store_append ((GtkListStore*) model, &iter);
             gtk_list_store_set ((GtkListStore*) model, &iter,
@@ -967,6 +981,12 @@ int gui_data_lc_treeview_edit()
 {
 	int status = 0;
 
+	PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
+	PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
+	PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
+	PHOEBE_parameter *lcfilter	= phoebe_parameter_lookup("phoebe_lc_filter");
+	int optindex, optcount;
+
 	GtkTreeModel     *model;
     GtkTreeIter       iter;
 
@@ -998,11 +1018,6 @@ int gui_data_lc_treeview_edit()
 		gint filter_number;
 		GtkTreeIter filter_iter;
 
-		PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
-		PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
-		PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
-		PHOEBE_parameter *lcfilter	= phoebe_parameter_lookup("phoebe_lc_filter");
-
         g_object_unref(phoebe_load_lc_xml);
 
 		gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
@@ -1029,6 +1044,19 @@ int gui_data_lc_treeview_edit()
 			phoebe_parameter_option_get_index(dep, dtype_str, &dtype);
 			phoebe_parameter_option_get_index(indweight, wtype_str, &wtype);
 			phoebe_parameter_option_get_index(lcfilter, filter, &filter_number);
+
+			/* Populate the combo boxes: */
+			optcount = indep->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column1_combobox), strdup(indep->menu->option[optindex]));
+
+			optcount = dep->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column2_combobox), strdup(dep->menu->option[optindex]));
+
+			optcount = indweight->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column3_combobox), strdup(indweight->menu->option[optindex]));
 
 			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
 			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
@@ -1114,6 +1142,11 @@ int gui_data_rv_treeview_add()
 {
 	int status = 0;
 
+	PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
+	PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
+	PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
+	int optindex, optcount;
+
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_rv.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
@@ -1144,6 +1177,19 @@ int gui_data_rv_treeview_add()
     GtkTreeModel *model;
     GtkTreeIter iter;
 
+    /* Populate the combo boxes: */
+	optcount = indep->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column1_combobox), strdup(indep->menu->option[optindex]));
+
+	optcount = dep->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column2_combobox), strdup(dep->menu->option[optindex]));
+
+	optcount = indweight->menu->optno;
+	for(optindex = 0; optindex < optcount; optindex++)
+		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column3_combobox), strdup(indweight->menu->option[optindex]));
+
 	/* Default values for column combo boxes: */
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
@@ -1164,10 +1210,6 @@ int gui_data_rv_treeview_add()
 				gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_rv_filter_combobox)), &filter_iter, 1, &filter_number, -1);
 				sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
 			}
-
-            PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
-            PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
-            PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
 
             gtk_list_store_append((GtkListStore*)model, &iter);
             gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
@@ -1211,6 +1253,11 @@ int gui_data_rv_treeview_edit()
 {
 	int status = 0;
 
+	PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
+	PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
+	PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
+	int optindex, optcount;
+
 	GtkTreeModel *model;
     GtkTreeIter iter;
 
@@ -1241,10 +1288,6 @@ int gui_data_rv_treeview_edit()
 		gint filter_number;
 		GtkTreeIter filter_iter;
 
-		PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
-		PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_rv_dep");
-		PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_rv_indweight");
-
 		gtk_window_set_icon (GTK_WINDOW (phoebe_load_rv_dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW(phoebe_load_rv_dialog), "PHOEBE - Edit RV Data");
 
@@ -1270,6 +1313,19 @@ int gui_data_rv_treeview_edit()
 			phoebe_parameter_option_get_index(indep, itype_str, &itype);
 			phoebe_parameter_option_get_index(dep, dtype_str, &dtype);
 			phoebe_parameter_option_get_index(indweight, wtype_str, &wtype);
+
+			/* Populate the combo boxes: */
+			optcount = indep->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column1_combobox), strdup(indep->menu->option[optindex]));
+
+			optcount = dep->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column2_combobox), strdup(dep->menu->option[optindex]));
+
+			optcount = indweight->menu->optno;
+			for(optindex = 0; optindex < optcount; optindex++)
+				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_rv_column3_combobox), strdup(indweight->menu->option[optindex]));
 
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  itype);
             gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  dtype);
