@@ -31,6 +31,7 @@ int 			 gui_widget_commit 	(GUI_widget *widget);
 int 			 gui_widget_free	(GUI_widget *widget);
 
 int gui_init_parameter_options		();
+int gui_init_combo_boxes			();
 
 int				 gui_init_widgets	();
 int 			 gui_free_widgets	();

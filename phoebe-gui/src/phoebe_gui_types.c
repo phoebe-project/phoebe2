@@ -515,6 +515,7 @@ int gui_init_widgets ()
 	gui_init_rv_obs_combobox();
 
 	gui_init_parameter_options ();
+	gui_init_combo_boxes();
 
 	gtk_widget_show (gui_widget_lookup ("phoebe_window")->gtk);
 	gtk_window_set_icon (GTK_WINDOW(gui_widget_lookup ("phoebe_window")->gtk), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
@@ -536,6 +537,27 @@ int gui_init_widgets ()
 	gui_set_values_to_widgets();
 
 	return SUCCESS;
+}
+
+int gui_init_combo_boxes()
+{
+	int i, optindex, optcount, status = 0;
+	GUI_wt_bucket *bucket;
+
+	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
+		bucket = GUI_wt->bucket[i];
+		while (bucket) {
+			if(bucket->widget->par){
+				if(bucket->widget->par->kind == KIND_MENU && bucket->widget->par->type == TYPE_STRING){
+					optcount = bucket->widget->par->menu->optno;
+					for(optindex = 0; optindex < optcount; optindex++)
+						gtk_combo_box_append_text(GTK_COMBO_BOX(bucket->widget->gtk), strdup(bucket->widget->par->menu->option[optindex]));
+				}
+			}
+			bucket = bucket->next;
+		}
+	}
+	return status;
 }
 
 int gui_init_parameter_options()
