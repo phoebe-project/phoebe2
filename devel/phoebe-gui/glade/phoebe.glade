@@ -320,14 +320,7 @@
                                 <child>
                                   <widget class="GtkComboBox" id="phoebe_data_star_model_combobox">
                                     <property name="visible">True</property>
-                                    <property name="items" translatable="yes">X-ray binary
-Unconstrained binary system
-Overcontact binary of the W UMa type
-Detached binary
-Overcontact binary not in thermal contact
-Semi-detached binary, primary star fills Roche lobe
-Semi-detached binary, secondary star fills Roche lobe
-Double contact binary</property>
+                                    <property name="items" translatable="yes"></property>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">4</property>
@@ -619,8 +612,7 @@ Double contact binary</property>
                                   <widget class="GtkComboBox" id="phoebe_data_options_indep_combobox">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="items" translatable="yes">Time (HJD)
-Phase</property>
+                                    <property name="items" translatable="yes"></property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -631,9 +623,7 @@ Phase</property>
                                   <widget class="GtkComboBox" id="phoebe_data_options_filtermode_combobox">
                                     <property name="visible">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="items" translatable="yes">None
-Interpolation
-</property>
+                                    <property name="items" translatable="yes"></property>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4741,8 +4731,7 @@ Interpolation
                                           <widget class="GtkComboBox" id="phoebe_para_lum_el3units_combobox">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="items" translatable="yes">Total light
-Flux</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -5144,9 +5133,7 @@ Flux</property>
                                     <child>
                                       <widget class="GtkComboBox" id="phoebe_para_lum_noise_lcscatter_combobox">
                                         <property name="visible">True</property>
-                                        <property name="items" translatable="yes">None
-Poissonian scatter
-Low light scatter</property>
+                                        <property name="items" translatable="yes"></property>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -5488,9 +5475,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkComboBox" id="phoebe_para_ld_model_combobox">
                                         <property name="visible">True</property>
-                                        <property name="items" translatable="yes">Linear cosine law
-Logarithmic law
-Square root law</property>
+                                        <property name="items" translatable="yes"></property>
                                       </widget>
                                       <packing>
                                         <property name="bottom_attach">2</property>
@@ -6746,8 +6731,7 @@ Square root law</property>
                             <child>
                               <widget class="GtkComboBox" id="phoebe_fitt_method_combobox">
                                 <property name="visible">True</property>
-                                <property name="items" translatable="yes">Diferential Corrections
-Nelder &amp; Mead's Simplex</property>
+                                <property name="items" translatable="yes"></property>
                               </widget>
                               <packing>
                                 <property name="expand">False</property>
@@ -7468,8 +7452,7 @@ Nelder &amp; Mead's Simplex</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_lc_plot_options_x_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">Phase
-Time</property>
+                                            <property name="items" translatable="yes"></property>
                                             <signal name="changed" handler="on_phoebe_lc_plot_options_x_combobox_changed"/>
                                           </widget>
                                           <packing>
@@ -7505,8 +7488,7 @@ Time</property>
                                           <widget class="GtkComboBox" id="phoebe_lc_plot_options_y_combobox">
                                             <property name="width_request">120</property>
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">Total flux
-Magnitude</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -7668,14 +7650,7 @@ Magnitude</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_lc_plot_controls_offset_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -7736,14 +7711,7 @@ Magnitude</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_lc_plot_controls_zoom_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -8176,9 +8144,7 @@ Magnitude</property>
                                           <widget class="GtkComboBox" id="phoebe_rv_plot_options_y_combobox">
                                             <property name="width_request">120</property>
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">Primary RV
-Secondary RV
-Both RVs</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -8191,8 +8157,7 @@ Both RVs</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_rv_plot_options_x_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">Phase
-Time</property>
+                                            <property name="items" translatable="yes"></property>
                                             <signal name="changed" handler="on_phoebe_rv_plot_options_x_combobox_changed"/>
                                           </widget>
                                           <packing>
@@ -8376,14 +8341,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_rv_plot_controls_offset_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
@@ -8444,14 +8402,7 @@ Time</property>
                                         <child>
                                           <widget class="GtkComboBox" id="phoebe_rv_plot_controls_zoom_combobox">
                                             <property name="visible">True</property>
-                                            <property name="items" translatable="yes">5%
-10%
-25%
-50%
-100%
-200%
-500%
-1000%</property>
+                                            <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
                                             <property name="position">1</property>
