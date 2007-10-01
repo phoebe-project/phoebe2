@@ -145,4 +145,7 @@ int gui_data_rv_treeview_remove			();
 int gui_spots_treeview_toggle_show_all	();
 int gui_spots_parameters_marked_tba		();
 
+int gui_spots_add						();
+int gui_spots_edit						();
+
 

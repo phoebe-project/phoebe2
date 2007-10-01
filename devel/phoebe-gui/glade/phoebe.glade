@@ -5836,6 +5836,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkTreeView" id="phoebe_para_spots_treeview">
                                         <property name="visible">True</property>
+                                        <signal name="row_activated" handler="on_phoebe_para_spots_treeview_row_activated"/>
                                         <signal name="cursor_changed" handler="on_phoebe_para_spots_treeview_cursor_changed"/>
                                       </widget>
                                     </child>
@@ -5846,12 +5847,12 @@ from temperatures</property>
                                     <property name="visible">True</property>
                                     <property name="layout_style">GTK_BUTTONBOX_START</property>
                                     <child>
-                                      <widget class="GtkButton" id="phoebe_para_spots_addprim_button">
+                                      <widget class="GtkButton" id="phoebe_para_spots_add_button">
                                         <property name="visible">True</property>
                                         <property name="border_width">4</property>
-                                        <property name="label" translatable="yes">Add a spot to the primary</property>
+                                        <property name="label" translatable="yes">Add</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_spots_addprim_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_add_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -5859,12 +5860,12 @@ from temperatures</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkButton" id="phoebe_para_spots_addsec_button">
+                                      <widget class="GtkButton" id="phoebe_para_spots_edit_button">
                                         <property name="visible">True</property>
                                         <property name="border_width">4</property>
-                                        <property name="label" translatable="yes">Add a spot to the secondary</property>
+                                        <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_spots_addsec_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_edit_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -5876,7 +5877,7 @@ from temperatures</property>
                                       <widget class="GtkButton" id="phoebe_para_spots_remove_button">
                                         <property name="visible">True</property>
                                         <property name="border_width">4</property>
-                                        <property name="label" translatable="yes">Remove selected spot</property>
+                                        <property name="label" translatable="yes">Remove</property>
                                         <property name="use_underline">True</property>
                                         <signal name="clicked" handler="on_phoebe_para_spots_remove_button_clicked"/>
                                       </widget>

@@ -30,9 +30,10 @@ void on_phoebe_data_rv_active_checkbutton_toggled 			(GtkCellRendererToggle *ren
 void on_phoebe_data_rv_model_row_changed 					(GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data);
 void on_phoebe_para_spots_adjust_checkbutton_toggled 		(GtkCellRendererToggle *renderer, gchar *path, gpointer user_data);
 void on_phoebe_para_spots_active_checkbutton_toggled 		(GtkCellRendererToggle *renderer, gchar *path, gpointer user_data);
-void on_phoebe_para_spots_addprim_button_clicked 			(GtkButton *button, gpointer user_data);
-void on_phoebe_para_spots_addsec_button_clicked 			(GtkButton *button, gpointer user_data);
+void on_phoebe_para_spots_add_button_clicked 				(GtkButton *button, gpointer user_data);
+void on_phoebe_para_spots_edit_button_clicked 				(GtkButton *button, gpointer user_data);
 void on_phoebe_para_spots_remove_button_clicked 			(GtkButton *button, gpointer user_data);
+void on_phoebe_para_spots_treeview_row_activated 			(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_para_lum_levels_treeview_row_activated 		(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_para_lum_levels_edit_button_clicked 			(GtkButton *button, gpointer user_data);
 void on_phoebe_para_lum_el3_treeview_row_activated 			(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);

@@ -370,90 +370,21 @@ void on_phoebe_para_spots_treeview_cursor_changed (GtkTreeView *tree_view, gpoin
 }
 
 
-void on_phoebe_para_spots_addprim_button_clicked (GtkButton *button, gpointer user_data)
+void on_phoebe_para_spots_add_button_clicked (GtkButton *button, gpointer user_data)
 {
-	GtkTreeModel *model;
-    GtkTreeIter iter;
-
-    GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
-	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
-
-    gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE,		TRUE,
-													SPOTS_COL_SOURCE,       1,
-													SPOTS_COL_SOURCE_STR,   "primary star",
-													SPOTS_COL_LAT,          1.57,
-													SPOTS_COL_LATADJUST,    FALSE,
-													SPOTS_COL_LATSTEP,		0.01,
-													SPOTS_COL_LATMIN,		0.00,
-													SPOTS_COL_LATMAX,		M_PI,
-													SPOTS_COL_LON,          0.00,
-													SPOTS_COL_LONADJUST,    FALSE,
-													SPOTS_COL_LONSTEP,		0.01,
-													SPOTS_COL_LONMIN,		0.00,
-													SPOTS_COL_LONMAX,		2*M_PI,
-													SPOTS_COL_RAD,          0.20,
-													SPOTS_COL_RADADJUST,    FALSE,
-													SPOTS_COL_RADSTEP,		0.01,
-													SPOTS_COL_RADMIN,		0.00,
-													SPOTS_COL_RADMAX,		M_PI,
-													SPOTS_COL_TEMP,         0.90,
-													SPOTS_COL_TEMPADJUST,   FALSE,
-													SPOTS_COL_TEMPSTEP,		0.01,
-													SPOTS_COL_TEMPMIN,		0.00,
-													SPOTS_COL_TEMPMAX,		100.00,
-													SPOTS_COL_ADJUST,       FALSE, -1);
-	PHOEBE_parameter *par;
-	int spots_no;
-
-	par = phoebe_parameter_lookup("phoebe_spots_no");
-	phoebe_parameter_get_value(par, &spots_no);
-	phoebe_parameter_set_value(par, spots_no + 1);
-	printf("Number of spots: %d\n", spots_no + 1);
+	gui_spots_add();
 }
 
 
-void on_phoebe_para_spots_addsec_button_clicked (GtkButton *button, gpointer user_data)
+void on_phoebe_para_spots_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
-	GtkTreeModel *model;
-    GtkTreeIter iter;
+	gui_spots_edit();
+}
 
-    GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
-	model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
 
-    gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE,		TRUE,
-													SPOTS_COL_SOURCE,       2,
-													SPOTS_COL_SOURCE_STR,   "secondary star",
-													SPOTS_COL_LAT,          1.57,
-													SPOTS_COL_LATADJUST,    FALSE,
-													SPOTS_COL_LATSTEP,		0.01,
-													SPOTS_COL_LATMIN,		0.00,
-													SPOTS_COL_LATMAX,		M_PI,
-													SPOTS_COL_LON,          0.00,
-													SPOTS_COL_LONADJUST,    FALSE,
-													SPOTS_COL_LONSTEP,		0.01,
-													SPOTS_COL_LONMIN,		0.00,
-													SPOTS_COL_LONMAX,		2*M_PI,
-													SPOTS_COL_RAD,          0.20,
-													SPOTS_COL_RADADJUST,    FALSE,
-													SPOTS_COL_RADSTEP,		0.01,
-													SPOTS_COL_RADMIN,		0.00,
-													SPOTS_COL_RADMAX,		M_PI,
-													SPOTS_COL_TEMP,         0.90,
-													SPOTS_COL_TEMPADJUST,   FALSE,
-													SPOTS_COL_TEMPSTEP,		0.01,
-													SPOTS_COL_TEMPMIN,		0.00,
-													SPOTS_COL_TEMPMAX,		100.00,
-													SPOTS_COL_ADJUST,       FALSE, -1);
-	PHOEBE_parameter *par;
-	int spots_no;
-
-	par = phoebe_parameter_lookup("phoebe_spots_no");
-	phoebe_parameter_get_value(par, &spots_no);
-	phoebe_parameter_set_value(par, spots_no + 1);
-	printf("Number of spots: %d\n", spots_no + 1);
-
+void on_phoebe_para_spots_edit_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gui_spots_edit();
 }
 
 
