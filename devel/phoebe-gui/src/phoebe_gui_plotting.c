@@ -324,7 +324,7 @@ int gui_plot_rv_using_gnuplot ()
 		close(sfd);
 	}
 
-	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
+	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
 	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
@@ -395,28 +395,90 @@ int gui_plot_rv_using_gnuplot ()
 
 int gui_plot_eb_using_gnuplot ()
 {
-	int status;
+	gint status, i;
 
-	/*double phase = 0.15;
+	gchar *filename;
 
 	PHOEBE_vector *poscoy, *poscoz;
 
 	WD_LCI_parameters *params;
 
-	gchar filename[255] = "/home/gal/faks/phoebe/lcin.active";
+	gchar *tmpdir;
+	gchar ebname[255];
+	gchar cname[255];
+	gchar pname[255];
+	gchar  line[255];
+
+	gint ebfd, cfd, pfd;
+
+	GtkWidget *plot_image 		= gui_widget_lookup ("phoebe_eb_plot_image")->gtk;
+	GtkWidget *phase_spinbutton = gui_widget_lookup ("phoebe_star_shape_phase_spinbutton")->gtk;
+
+	gdouble phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phase_spinbutton));
+
+	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
 	params = phoebe_malloc (sizeof (*params));
 	status = wd_lci_parameters_get (params, 5, 0);
 
-	create_lci_file (filename, params);*/
+	filename = resolve_relative_filename ("lcin.active");
+	create_lci_file (filename, params);
 
-	PHOEBE_vector *poscoy = phoebe_vector_new ();
-	PHOEBE_vector *poscoz = phoebe_vector_new ();
-	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, 0.0);
+	poscoy = phoebe_vector_new ();
+	poscoz = phoebe_vector_new ();
+	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, phase);
+
+	sprintf(ebname, "%s/phoebe-eb-XXXXXX", tmpdir);
+	ebfd = mkstemp (ebname);
+	for (i=0;i<poscoy->dim;i++) {
+		sprintf(line, "%lf\t%lf\n", poscoy->val[i], poscoz->val[i]) ;
+		write(ebfd, line, strlen(line));
+	}
+	close(ebfd);
+
+
+	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
+	cfd = mkstemp (cname);
+
+	sprintf(line, "set terminal png small size 694,458\n"); 			write(cfd, line, strlen(line));
+	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
+	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
+	sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set tmargin 2\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set rmargin 2\n");									write(cfd, line, strlen(line));
+	sprintf(line, "set bmargin 4\n");									write(cfd, line, strlen(line));
+
+	sprintf(line, "set yrange [-0.8:0.8]\n"); 							write(cfd, line, strlen(line));
+	sprintf(line, "set xrange [-1.3:1.3]\n"); 							write(cfd, line, strlen(line));
+
+	sprintf(pname, "%s/phoebe-eb-plot-XXXXXX", tmpdir);
+	pfd = mkstemp (pname);
+
+	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
+
+	sprintf(line, "plot  '%s' w d notitle\n", ebname);					write(cfd, line, strlen(line));
+
+	close(cfd);
+
+
+	sprintf(line,"gnuplot \"%s\"", cname);
+
+	system(line);
+
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
+
+	close(pfd);
+
+	//----------------
+
+	remove(ebname);
+	remove(cname);
+	remove(pname);
+
 
 	phoebe_vector_free (poscoy);
 	phoebe_vector_free (poscoz);
-	/*free (params);*/
+	free (params);
 
 	return SUCCESS;
 }
