@@ -1105,6 +1105,6 @@ void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
-		//gui_get_values_from_widgets();
+		gui_get_values_from_widgets();
 		gui_plot_eb_using_gnuplot();
 }
