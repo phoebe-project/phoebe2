@@ -393,3 +393,30 @@ int gui_plot_rv_using_gnuplot ()
 	return SUCCESS;
 }
 
+int gui_plot_eb_using_gnuplot ()
+{
+	int status;
+
+	/*double phase = 0.15;
+
+	PHOEBE_vector *poscoy, *poscoz;
+
+	WD_LCI_parameters *params;
+
+	gchar filename[255] = "/home/gal/faks/phoebe/lcin.active";
+
+	params = phoebe_malloc (sizeof (*params));
+	status = wd_lci_parameters_get (params, 5, 0);
+
+	create_lci_file (filename, params);*/
+
+	PHOEBE_vector *poscoy = phoebe_vector_new ();
+	PHOEBE_vector *poscoz = phoebe_vector_new ();
+	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, 0.0);
+
+	phoebe_vector_free (poscoy);
+	phoebe_vector_free (poscoz);
+	/*free (params);*/
+
+	return SUCCESS;
+}
