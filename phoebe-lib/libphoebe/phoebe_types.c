@@ -243,11 +243,15 @@ int phoebe_vector_realloc (PHOEBE_vector *vec, int dimension)
 	 * Possible errors: ERROR_VECTOR_INVALID_DIMENSION.
 	 */
 
-	if (dimension < 1)
+	if (dimension < 0)
 		return ERROR_VECTOR_INVALID_DIMENSION;
+	if (vec->dim == dimension)
+		return SUCCESS;
 
 	vec->dim = dimension;
 	vec->val = phoebe_realloc (vec->val, sizeof (*(vec->val)) * dimension);
+	if (dimension == 0) vec->val = NULL;
+
 	return SUCCESS;
 }
 
@@ -1173,12 +1177,15 @@ int phoebe_hist_realloc (PHOEBE_hist *hist, int bins)
 
 	if (!hist)
 		return ERROR_HIST_NOT_INITIALIZED;
-	if (bins < 1)
+	if (bins < 0)
 		return ERROR_HIST_INVALID_DIMENSION;
+	if (hist->bins == bins)
+		return SUCCESS;
 
 	hist->bins  = bins;
 	hist->range = phoebe_realloc (hist->range, (bins+1) * sizeof (*hist->range));
 	hist->val   = phoebe_realloc (hist->val,    bins    * sizeof (*hist->val));
+	if (bins == 0) hist->val = NULL;
 	return SUCCESS;
 }
 
@@ -1728,18 +1735,31 @@ int phoebe_array_realloc (PHOEBE_array *array, int dimension)
 	if (!array)
 		return ERROR_ARRAY_NOT_INITIALIZED;
 
-	if (dimension < 1)
+	if (dimension < 0)
 		return ERROR_ARRAY_INVALID_DIMENSION;
+
+	if (olddim == dimension)
+		return SUCCESS;
 
 	array->dim = dimension;
 	switch (array->type) {
-		case TYPE_INT_ARRAY:    array->val.iarray   = phoebe_realloc (array->val.iarray,   dimension * sizeof (*(array->val.iarray)));   break;
-		case TYPE_BOOL_ARRAY:   array->val.barray   = phoebe_realloc (array->val.barray,   dimension * sizeof (*(array->val.barray)));   break;
-		case TYPE_DOUBLE_ARRAY: array->val.darray   = phoebe_realloc (array->val.darray,   dimension * sizeof (*(array->val.darray)));   break;
+		case TYPE_INT_ARRAY:
+			array->val.iarray = phoebe_realloc (array->val.iarray, dimension * sizeof (*(array->val.iarray)));
+			if (dimension == 0) array->val.iarray = NULL;
+		break;
+		case TYPE_BOOL_ARRAY:
+			array->val.barray = phoebe_realloc (array->val.barray, dimension * sizeof (*(array->val.barray)));
+			if (dimension == 0) array->val.barray = NULL;
+		break;
+		case TYPE_DOUBLE_ARRAY:
+			array->val.darray = phoebe_realloc (array->val.darray, dimension * sizeof (*(array->val.darray)));
+			if (dimension == 0) array->val.darray = NULL;
+		break;
 		case TYPE_STRING_ARRAY:
 			array->val.strarray = phoebe_realloc (array->val.strarray, dimension * sizeof (*(array->val.strarray)));
 			for (i = olddim; i < dimension; i++)
 				array->val.strarray[i] = NULL;
+			if (dimension == 0) array->val.strarray = NULL;
 		break;
 		default:
 			/* for suppressing compiler warning only */
@@ -2256,12 +2276,20 @@ int phoebe_curve_realloc (PHOEBE_curve *curve, int dim)
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
-	if (dim < 1)
+	if (dim < 0)
 		return ERROR_CURVE_INVALID_DIMENSION;
+	if (curve->indep->dim == dim)
+		return SUCCESS;
 
 	phoebe_vector_realloc (curve->indep,  dim);
 	phoebe_vector_realloc (curve->dep,    dim);
 	phoebe_vector_realloc (curve->weight, dim);
+
+	if (dim == 0) {
+		curve->indep  = NULL;
+		curve->dep    = NULL;
+		curve->weight = NULL;
+	}
 
 	return SUCCESS;
 }
