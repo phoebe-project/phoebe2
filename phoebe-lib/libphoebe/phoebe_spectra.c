@@ -181,7 +181,7 @@ int phoebe_spectra_set_repository (char *rep_name)
 		PHOEBE_spectra_repository.table[i] = phoebe_malloc (PHOEBE_spectra_repository.loggnodes->dim * sizeof (**PHOEBE_spectra_repository.table));
 		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++) {
 			PHOEBE_spectra_repository.table[i][j] = phoebe_malloc (PHOEBE_spectra_repository.metnodes->dim * sizeof (***PHOEBE_spectra_repository.table));
-			for (k = 0; k < PHOEBE_spectra_repository.loggnodes->dim; k++)
+			for (k = 0; k < PHOEBE_spectra_repository.metnodes->dim; k++)
 				PHOEBE_spectra_repository.table[i][j][k] = NULL;
 		}
 	}
@@ -204,7 +204,10 @@ int phoebe_spectra_set_repository (char *rep_name)
 	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
 		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++)
 			for (k = 0; k < PHOEBE_spectra_repository.metnodes->dim; k++) {
-				printf ("%d %d %d: %s\n", i, j, k, PHOEBE_spectra_repository.table[i][j][k]->filename);
+				if (PHOEBE_spectra_repository.table[i][j][k])
+					printf ("%d %d %d: %s\n", i, j, k, PHOEBE_spectra_repository.table[i][j][k]->filename);
+				else
+					printf ("%d %d %d: %s\n", i, j, k, "n/a");
 			}
 
 	return SUCCESS;
