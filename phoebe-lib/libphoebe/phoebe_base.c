@@ -16,6 +16,7 @@
 #include "phoebe_fitting.h"
 #include "phoebe_ld.h"
 #include "phoebe_parameters.h"
+#include "phoebe_spectra.h"
 
 #ifdef HAVE_LIBGSL
 	#ifndef PHOEBE_GSL_DISABLED
@@ -64,6 +65,9 @@ int intern_phoebe_variables_init ()
 
 	PHOEBE_ld_table_size = 0;
 	PHOEBE_ld_table      = NULL;
+
+	PHOEBE_spectra_repository.no = 0;
+	PHOEBE_spectra_repository.prop = NULL;
 
 	return SUCCESS;
 }

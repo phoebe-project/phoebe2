@@ -35,6 +35,18 @@ int diff (const void *a, const void *b)
 	return (*da > *db) - (*da < *db);
 }
 
+int diff_int (const void *a, const void *b)
+{
+	/*
+	 * This function is used to compare two doubles.
+	 */
+
+	const int *da = (const int *) a;
+	const int *db = (const int *) b;
+
+	return (*da > *db) - (*da < *db);
+}
+
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...)
 {
 	/*
