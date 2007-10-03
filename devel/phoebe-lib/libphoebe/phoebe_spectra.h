@@ -4,18 +4,30 @@
 #include "phoebe_types.h"
 
 typedef struct PHOEBE_specrep_tag {
+	char *filename;
+	int type;
 	int resolution;
 	int lambda_min;
 	int lambda_max;
 	int temperature;
 	int metallicity;
 	int gravity;
+	int alpha;
+	int microturbulence;
 } PHOEBE_specrep_tag;
 
 typedef struct PHOEBE_specrep {
-	int                  no;
+	int                 no;
 	PHOEBE_specrep_tag *prop;
+	PHOEBE_array       *Teffnodes;
+	PHOEBE_array       *loggnodes;
+	PHOEBE_array       *metnodes;
+	PHOEBE_specrep_tag ****table;
 } PHOEBE_specrep;
+
+extern PHOEBE_specrep PHOEBE_spectra_repository;
+
+int phoebe_spectra_set_repository (char *rep_name);
 
 int              query_spectra_repository                    (char *rep_name, PHOEBE_specrep *spec);
 

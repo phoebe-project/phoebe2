@@ -4,6 +4,9 @@
 #include <math.h>
 #include <dirent.h>
 
+/* ftw.h contains ftw (), a function for manipulating directory trees */
+#include <ftw.h>
+
 #include "phoebe_build_config.h"
 
 #include "phoebe_accessories.h"
@@ -27,9 +30,184 @@
 
 #define pdif(a)  ((a) > 0 ? (a) : 0)
 
-int phoebe_spectra_set_repository (char *rep_name, PHOEBE_specrep *spec)
+PHOEBE_specrep PHOEBE_spectra_repository;
+
+int intern_spectra_repository_process (const char *filename, const struct stat *filestat, int flag)
 {
-	
+	/**
+	 *
+	 */
+
+	int i, argmatch;
+	char *relative = strrchr (filename, '/');
+	int type, T, logg, met, turb, res, alpenh;
+	char metsign, alpha = 'S', odftype[3], respow[4], sptype;
+
+	argmatch = sscanf (relative, "/T%5dG%2d%c%2dV000K%1dS%2cNV%3c%c.ASC", &T, &logg, &metsign, &met, &turb, odftype, respow, &sptype);
+	printf ("%2d matched; ", argmatch);
+	if (argmatch == 8) {
+		/* Handle metallicity sign: */
+		if (metsign == 'M') met = -met;
+
+		/* Commit the temperature to the array of temperature nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.Teffnodes->val.iarray[i] == T)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.Teffnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.Teffnodes, PHOEBE_spectra_repository.Teffnodes->dim+1);
+			PHOEBE_spectra_repository.Teffnodes->val.iarray[i] = T;
+		}
+
+		/* Commit the log(g) to the array of log(g) nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.loggnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.loggnodes->val.iarray[i] == logg)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.loggnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.loggnodes, PHOEBE_spectra_repository.loggnodes->dim+1);
+			PHOEBE_spectra_repository.loggnodes->val.iarray[i] = logg;
+		}
+
+		/* Commit the metallicity to the array of metallicity nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.metnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.metnodes->val.iarray[i] == met)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.metnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.metnodes, PHOEBE_spectra_repository.metnodes->dim+1);
+			PHOEBE_spectra_repository.metnodes->val.iarray[i] = met;
+		}
+
+		/* Reallocate the memory in blocks of 10000 spectra (for efficiency): */
+		if (PHOEBE_spectra_repository.no % 10000 == 0)
+			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, 10000 * sizeof (*(PHOEBE_spectra_repository.prop)));
+		PHOEBE_spectra_repository.no++;
+
+		/* Add terminating characters to read strings: */
+		odftype[2] = '\0'; respow[3] = '\0';
+
+		/* Get a numeric value of the resolving power: */
+		if      (strcmp (respow, "R20") == 0) res = 20000;
+		else if (strcmp (respow, "RVS") == 0) res = 11500;
+		else if (strcmp (respow, "RAV") == 0) res =  8500;
+		else if (strcmp (respow, "SLN") == 0) res =  2000;
+		else if (strcmp (respow, "D01") == 0) res =  2500;
+		else if (strcmp (respow, "D10") == 0) res =   250;
+		else {
+			phoebe_lib_error ("resolving power string %s is invalid, assuming D01.\n", respow);
+			res = 2500;
+		}
+
+		/* Get a numeric value of alpha enhancement: */
+		if (alpha == 'A') alpenh = 4;
+		else alpenh = 0;
+
+		/* Get the spectrum type switch: */
+		if (sptype == 'F') type = 1; /* flux */
+		else               type = 0; /* normalized */
+
+		/* Add the parsed data to the repository: */
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].filename = strdup (filename);
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].type = type;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].lambda_min = 2500;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].lambda_max = 10500;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].resolution = res;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].temperature = T;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].gravity = logg;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].metallicity = met;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].alpha = alpenh;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].microturbulence = turb;
+		printf ("parsed:  %s\n", relative+1);
+	}
+	else
+		printf ("skipped: %s\n", relative+1);
+
+	return SUCCESS;
+}
+
+int phoebe_spectra_set_repository (char *rep_name)
+{
+	int i, j, k, s;
+
+	if (PHOEBE_spectra_repository.no != 0) {
+		phoebe_array_free (PHOEBE_spectra_repository.Teffnodes);
+		phoebe_array_free (PHOEBE_spectra_repository.loggnodes);
+		phoebe_array_free (PHOEBE_spectra_repository.metnodes);
+
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			free (PHOEBE_spectra_repository.prop[i].filename);
+		free (PHOEBE_spectra_repository.prop);
+	}
+
+	PHOEBE_spectra_repository.no = 0;
+	PHOEBE_spectra_repository.prop = NULL;
+
+	PHOEBE_spectra_repository.Teffnodes = phoebe_array_new (TYPE_INT_ARRAY);
+	PHOEBE_spectra_repository.loggnodes = phoebe_array_new (TYPE_INT_ARRAY);
+	PHOEBE_spectra_repository.metnodes  = phoebe_array_new (TYPE_INT_ARRAY);
+
+	if (!rep_name)
+		return ERROR_SPECTRA_REPOSITORY_INVALID_NAME;
+
+	if (!filename_is_directory (rep_name))
+		return ERROR_SPECTRA_REPOSITORY_NOT_DIRECTORY;
+
+	ftw (rep_name, intern_spectra_repository_process, 10);
+
+	/*
+	 * The ftw function put all the T, log g, M/H values into arrays that we
+	 * will use to generate a 3D grid. However, these values are added in
+	 * order of appearance, whereas we need them sorted. That is why:
+	 */
+
+	qsort (PHOEBE_spectra_repository.Teffnodes->val.iarray, PHOEBE_spectra_repository.Teffnodes->dim, sizeof (*(PHOEBE_spectra_repository.Teffnodes->val.iarray)), diff_int);
+	qsort (PHOEBE_spectra_repository.loggnodes->val.iarray, PHOEBE_spectra_repository.loggnodes->dim, sizeof (*(PHOEBE_spectra_repository.loggnodes->val.iarray)), diff_int);
+	qsort (PHOEBE_spectra_repository.metnodes->val.iarray,  PHOEBE_spectra_repository.metnodes->dim,  sizeof (*(PHOEBE_spectra_repository.metnodes->val.iarray)),  diff_int);
+
+	printf ("Temperature nodes:\n");
+	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
+		printf ("\t%d\n", PHOEBE_spectra_repository.Teffnodes->val.iarray[i]);
+	printf ("Gravity nodes:\n");
+	for (i = 0; i < PHOEBE_spectra_repository.loggnodes->dim; i++)
+		printf ("\t%d\n", PHOEBE_spectra_repository.loggnodes->val.iarray[i]);
+	printf ("Metallicity nodes:\n");
+	for (i = 0; i < PHOEBE_spectra_repository.metnodes->dim; i++)
+		printf ("\t%d\n", PHOEBE_spectra_repository.metnodes->val.iarray[i]);
+
+	/* Now that the nodes are in place, we create our dynamic 3D grid table: */
+	PHOEBE_spectra_repository.table = phoebe_malloc (PHOEBE_spectra_repository.Teffnodes->dim * sizeof (*PHOEBE_spectra_repository.table));
+	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++) {
+		PHOEBE_spectra_repository.table[i] = phoebe_malloc (PHOEBE_spectra_repository.loggnodes->dim * sizeof (**PHOEBE_spectra_repository.table));
+		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++) {
+			PHOEBE_spectra_repository.table[i][j] = phoebe_malloc (PHOEBE_spectra_repository.metnodes->dim * sizeof (***PHOEBE_spectra_repository.table));
+			for (k = 0; k < PHOEBE_spectra_repository.loggnodes->dim; k++)
+				PHOEBE_spectra_repository.table[i][j][k] = NULL;
+		}
+	}
+
+	/* Finally we go over all spectra and populate the table with pointers: */
+	for (s = 0; s < PHOEBE_spectra_repository.no; s++) {
+		for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
+			if (PHOEBE_spectra_repository.prop[s].temperature == PHOEBE_spectra_repository.Teffnodes->val.iarray[i])
+				break;
+		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++)
+			if (PHOEBE_spectra_repository.prop[s].gravity == PHOEBE_spectra_repository.loggnodes->val.iarray[j])
+				break;
+		for (k = 0; k < PHOEBE_spectra_repository.metnodes->dim; k++)
+			if (PHOEBE_spectra_repository.prop[s].metallicity == PHOEBE_spectra_repository.metnodes->val.iarray[k])
+				break;
+		PHOEBE_spectra_repository.table[i][j][k] = &(PHOEBE_spectra_repository.prop[s]);
+	}
+
+	printf ("Table:\n");
+	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
+		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++)
+			for (k = 0; k < PHOEBE_spectra_repository.metnodes->dim; k++) {
+				printf ("%d %d %d: %s\n", i, j, k, PHOEBE_spectra_repository.table[i][j][k]->filename);
+			}
+
+	return SUCCESS;
 }
 
 int query_spectra_repository (char *rep_name, PHOEBE_specrep *spec)
@@ -419,7 +597,7 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	 *
 	 * Input parameters:
 	 *
-	 *   R    ..  resolution (typically 50000)
+	 *   R    ..  resolution (typically 2500)
 	 *   T    ..  effective temperature
 	 *   g    ..  log g/g0
 	 *   M    ..  metallicity [M/H] in Solar units
@@ -439,8 +617,6 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	int Tlow, Thigh, Mlow, Mhigh, glow, ghigh;
 	char Mlostr[5], Mhistr[5];
 
-	char *kuruczdir;
-
 	double square, minsquare;
 	int    minindex = 0;
 	int    status;
@@ -449,127 +625,124 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	double x[3], lo[3], hi[3];
 	PHOEBE_spectrum *fv[8];
 	char filename[8][255];
+	PHOEBE_vector *specvals;
 
-	PHOEBE_specrep spec;
+	char *kuruczdir;
 
 	phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &kuruczdir);
-	status = query_spectra_repository (kuruczdir, &spec);
-	if (status != SUCCESS)
-		return status;
+
+	if (PHOEBE_spectra_repository.no == 0)
+		return ERROR_SPECTRA_REPOSITORY_EMPTY;
 
 	phoebe_debug ("\n");
-	phoebe_debug ("Repository location: %s\n", kuruczdir);
-	phoebe_debug ("Synthetic spectra in the repository: %d\n\n", spec.no);
+	phoebe_debug ("Synthetic spectra in the repository: %d\n\n", PHOEBE_spectra_repository.no);
 
 	/*
 	 * Now we have to find the closest match from the grid; we shall use
 	 * least squares for this ;) :
 	 */
 
-	minsquare = pow (T - spec.prop[0].temperature, 2) + 
-                pow (g - spec.prop[0].gravity,     2) +
-                pow (M - spec.prop[0].metallicity, 2);
+	minsquare = pow (T - PHOEBE_spectra_repository.prop[0].temperature, 2) + 
+                pow (g - PHOEBE_spectra_repository.prop[0].gravity,     2) +
+                pow (M - PHOEBE_spectra_repository.prop[0].metallicity, 2);
 
-	for (i = 1; i < spec.no; i++) {
-		square = pow (T - spec.prop[i].temperature, 2) + 
-                 pow (g - spec.prop[i].gravity,     2) +
-		         pow (M - spec.prop[i].metallicity, 2);
+	for (i = 1; i < PHOEBE_spectra_repository.no; i++) {
+		square = pow (T - PHOEBE_spectra_repository.prop[i].temperature, 2) + 
+                 pow (g - PHOEBE_spectra_repository.prop[i].gravity,     2) +
+		         pow (M - PHOEBE_spectra_repository.prop[i].metallicity, 2);
 		if (square < minsquare) {
 			minsquare = square; minindex = i;
 		}
 	}
 
-	phoebe_debug ("The closest spectrum is: R=%d at [%d, %d]\n                         T=%d, [M/H]=%d, logg=%d\n", spec.prop[minindex].resolution, 
-		spec.prop[minindex].lambda_min, spec.prop[minindex].lambda_max, spec.prop[minindex].temperature,
-		spec.prop[minindex].metallicity, spec.prop[minindex].gravity);
+	phoebe_debug ("The closest spectrum is: R=%d at [%d, %d]\n                         T=%d, [M/H]=%d, logg=%d\n", PHOEBE_spectra_repository.prop[minindex].resolution, 
+		PHOEBE_spectra_repository.prop[minindex].lambda_min, PHOEBE_spectra_repository.prop[minindex].lambda_max, PHOEBE_spectra_repository.prop[minindex].temperature,
+		PHOEBE_spectra_repository.prop[minindex].metallicity, PHOEBE_spectra_repository.prop[minindex].gravity);
 
 	/*
 	 * Since we now know which is the closest spectrum, let's find the limiting
 	 * values for all parameters:
 	 */
 
-	if (T >= spec.prop[minindex].temperature) {
-		Tlow  = spec.prop[minindex].temperature;
-		Thigh = 2 * spec.prop[minindex].temperature;  /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].temperature - spec.prop[minindex].temperature > 0) &&
-			     (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].metallicity == spec.prop[minindex].metallicity)    &&
-			     (spec.prop[i].gravity     == spec.prop[minindex].gravity) )
-				if (spec.prop[i].temperature - spec.prop[minindex].temperature < Thigh - Tlow)
-					Thigh = spec.prop[i].temperature;
+	if (T >= PHOEBE_spectra_repository.prop[minindex].temperature) {
+		Tlow  = PHOEBE_spectra_repository.prop[minindex].temperature;
+		Thigh = 2 * PHOEBE_spectra_repository.prop[minindex].temperature;  /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature > 0) &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity)    &&
+			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
+				if (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature < Thigh - Tlow)
+					Thigh = PHOEBE_spectra_repository.prop[i].temperature;
 	}
-	if (T < spec.prop[minindex].temperature) {
-		Thigh = spec.prop[minindex].temperature;
-		Tlow  = spec.prop[minindex].temperature / 2;  /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].temperature - spec.prop[minindex].temperature < 0) &&
-			     (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].metallicity == spec.prop[minindex].metallicity)    &&
-			     (spec.prop[i].gravity     == spec.prop[minindex].gravity) )
-				if (spec.prop[minindex].temperature - spec.prop[i].temperature < Thigh - Tlow)
-					Tlow = spec.prop[i].temperature;
-	}
-
-	if (M >= spec.prop[minindex].metallicity) {
-		Mlow  = spec.prop[minindex].metallicity;
-		Mhigh = 5 + spec.prop[minindex].metallicity;  /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].metallicity - spec.prop[minindex].metallicity > 0) &&
-			     (spec.prop[i].metallicity - spec.prop[minindex].metallicity < Mhigh - Mlow) &&
-				 (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].temperature == spec.prop[minindex].temperature)    &&
-			     (spec.prop[i].gravity     == spec.prop[minindex].gravity) )
-					Mhigh = spec.prop[i].metallicity;
-	}
-	if (M < spec.prop[minindex].metallicity) {
-		Mhigh = spec.prop[minindex].metallicity;
-		Mlow  = spec.prop[minindex].metallicity - 5;  /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].metallicity - spec.prop[minindex].metallicity < 0) &&
-			     (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].temperature == spec.prop[minindex].temperature)    &&
-			     (spec.prop[i].gravity     == spec.prop[minindex].gravity) )
-				if (spec.prop[minindex].metallicity - spec.prop[i].metallicity < Mhigh - Mlow)
-					Mlow = spec.prop[i].metallicity;
+	if (T < PHOEBE_spectra_repository.prop[minindex].temperature) {
+		Thigh = PHOEBE_spectra_repository.prop[minindex].temperature;
+		Tlow  = PHOEBE_spectra_repository.prop[minindex].temperature / 2;  /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature < 0) &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity)    &&
+			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
+				if (PHOEBE_spectra_repository.prop[minindex].temperature - PHOEBE_spectra_repository.prop[i].temperature < Thigh - Tlow)
+					Tlow = PHOEBE_spectra_repository.prop[i].temperature;
 	}
 
-	if (g >= spec.prop[minindex].gravity) {
-		glow  = spec.prop[minindex].gravity;
-		ghigh = 2 * spec.prop[minindex].gravity;      /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].gravity - spec.prop[minindex].gravity > 0) &&
-			     (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].temperature == spec.prop[minindex].temperature)    &&
-			     (spec.prop[i].metallicity == spec.prop[minindex].metallicity) )
-				if (spec.prop[i].gravity - spec.prop[minindex].gravity < ghigh - glow)
-					ghigh = spec.prop[i].gravity;
+	if (M >= PHOEBE_spectra_repository.prop[minindex].metallicity) {
+		Mlow  = PHOEBE_spectra_repository.prop[minindex].metallicity;
+		Mhigh = 5 + PHOEBE_spectra_repository.prop[minindex].metallicity;  /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity > 0) &&
+			     (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity < Mhigh - Mlow) &&
+				 (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
+			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
+					Mhigh = PHOEBE_spectra_repository.prop[i].metallicity;
 	}
-	if (g < spec.prop[minindex].gravity) {
-		ghigh = spec.prop[minindex].gravity;
-		glow  = spec.prop[minindex].gravity / 2;      /* This should suffice! */
-		for (i = 0; i < spec.no; i++)
-			if ( (spec.prop[i].gravity - spec.prop[minindex].gravity < 0) &&
-			     (spec.prop[i].lambda_min  == spec.prop[minindex].lambda_min)     &&
-			     (spec.prop[i].lambda_max  == spec.prop[minindex].lambda_max)     &&
-			     (spec.prop[i].temperature == spec.prop[minindex].temperature)    &&
-			     (spec.prop[i].metallicity == spec.prop[minindex].metallicity) )
-				if (spec.prop[minindex].gravity - spec.prop[i].gravity < ghigh - glow)
-					glow = spec.prop[i].gravity;
+	if (M < PHOEBE_spectra_repository.prop[minindex].metallicity) {
+		Mhigh = PHOEBE_spectra_repository.prop[minindex].metallicity;
+		Mlow  = PHOEBE_spectra_repository.prop[minindex].metallicity - 5;  /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity < 0) &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
+			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
+				if (PHOEBE_spectra_repository.prop[minindex].metallicity - PHOEBE_spectra_repository.prop[i].metallicity < Mhigh - Mlow)
+					Mlow = PHOEBE_spectra_repository.prop[i].metallicity;
+	}
+
+	if (g >= PHOEBE_spectra_repository.prop[minindex].gravity) {
+		glow  = PHOEBE_spectra_repository.prop[minindex].gravity;
+		ghigh = 2 * PHOEBE_spectra_repository.prop[minindex].gravity;      /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity > 0) &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
+			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity) )
+				if (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity < ghigh - glow)
+					ghigh = PHOEBE_spectra_repository.prop[i].gravity;
+	}
+	if (g < PHOEBE_spectra_repository.prop[minindex].gravity) {
+		ghigh = PHOEBE_spectra_repository.prop[minindex].gravity;
+		glow  = PHOEBE_spectra_repository.prop[minindex].gravity / 2;      /* This should suffice! */
+		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+			if ( (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity < 0) &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
+			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
+			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
+			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity) )
+				if (PHOEBE_spectra_repository.prop[minindex].gravity - PHOEBE_spectra_repository.prop[i].gravity < ghigh - glow)
+					glow = PHOEBE_spectra_repository.prop[i].gravity;
 	}
 
 	phoebe_debug ("\n");
 	phoebe_debug ("Temperature range: [%d, %d]\n", Tlow, Thigh);
 	phoebe_debug ("Metallicity range: [%d, %d]\n", Mlow, Mhigh);
 	phoebe_debug ("Gravity range:     [%d, %d]\n", glow, ghigh);
-
-	/* We don't need the grid anymore, so let's free the memory:              */
-	free (spec.prop);
 
 	/* Let's build interpolation structures:                                  */
 	 x[0] = T;      x[1] = g;      x[2] = M;
@@ -588,31 +761,37 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 		sprintf (Mhistr, "P%02d", Mhigh);
 
 	/* Node  0: (0, 0, 0) */
-		sprintf (filename[ 0], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Tlow, glow);
+		sprintf (filename[ 0], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, glow, Mlostr);
 	/* Node  1: (1, 0, 0) */
-		sprintf (filename[ 1], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Thigh, glow);
+		sprintf (filename[ 1], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, glow, Mlostr);
 	/* Node  2: (0, 1, 0) */
-		sprintf (filename[ 2], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Tlow, ghigh);
+		sprintf (filename[ 2], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, ghigh, Mlostr);
 	/* Node  3: (1, 1, 0) */
-		sprintf (filename[ 3], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mlostr, Thigh, ghigh);
+		sprintf (filename[ 3], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, ghigh, Mlostr);
 	/* Node  4: (0, 0, 1) */
-		sprintf (filename[ 4], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Tlow, glow);
+		sprintf (filename[ 4], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, glow, Mhistr);
 	/* Node  5: (1, 0, 1) */
-		sprintf (filename[ 5], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Thigh, glow);
+		sprintf (filename[ 5], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, glow, Mhistr);
 	/* Node  6: (0, 1, 1) */
-		sprintf (filename[ 6], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Tlow, ghigh);
+		sprintf (filename[ 6], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, ghigh, Mhistr);
 	/* Node  7: (1, 1, 1) */
-		sprintf (filename[ 7], "%s/F250010500V000-R20000%sT%dG%dK2NOVER.ASC", kuruczdir, Mhistr, Thigh, ghigh);
+		sprintf (filename[ 7], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, ghigh, Mhistr);
 
-	/* Read in the node spectra; if readout fails, free memory and abort.     */
+	/* Read in the node spectra; if the readout fails, free memory and abort. */
 	for (i = 0; i < 8; i++) {
-		fv[i] = phoebe_spectrum_new_from_file (filename[i]);
-		if (!fv[i]) {
+		fv[i] = phoebe_spectrum_create (2500, 10500, 2500, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+		specvals = phoebe_vector_new_from_column (filename[i], 1);
+		if (!specvals) {
 			phoebe_lib_error ("spectrum %s not found, aborting.\n", filename[i]);
 			for (j = 0; j < i-1; j++)
 				phoebe_spectrum_free (fv[j]);
 			return ERROR_SPECTRUM_NOT_IN_REPOSITORY;
 		}
+
+		status = phoebe_hist_set_values (fv[i]->data, specvals);
+		if (status != SUCCESS)
+			phoebe_lib_error ("%s", phoebe_error (status));
+		phoebe_vector_free (specvals);
 	}
 
 	/* Everything seems to be ok; proceed to the interpolation.               */
@@ -625,8 +804,8 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	/* Assign the passed argument to the first spectrum: */
 	*spectrum = fv[0];
 
-	/* All spectra in the repository are in wavelength-space: */
-	(*spectrum)->disp = PHOEBE_SPECTRUM_DISPERSION_LOG;
+	/* All spectra in the repository are in pixel space: */
+	(*spectrum)->disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
 
 	return SUCCESS;
 }

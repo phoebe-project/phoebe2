@@ -1229,8 +1229,16 @@ int phoebe_hist_set_ranges (PHOEBE_hist *hist, PHOEBE_vector *bin_centers)
 
 int phoebe_hist_set_values (PHOEBE_hist *hist, PHOEBE_vector *values)
 {
-	/*
-	 * This function sets bin values to the passed vector elements.
+	/**
+	 * phoebe_hist_set_values:
+	 * @hist: histogram to be modified
+	 * @values: a vector of values to be copied to the histogram
+	 * 
+	 * Sets bin values to the passed vector elements. The histogram @hist
+	 * must be initialized and allocated, and the dimension of @values must
+	 * match the number of bins.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;

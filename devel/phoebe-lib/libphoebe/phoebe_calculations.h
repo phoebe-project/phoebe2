@@ -16,6 +16,7 @@ typedef enum PHOEBE_cost_function {
 
 double frac (double x);
 int    diff (const void *a, const void *b);
+int    diff_int (const void *a, const void *b);
 
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...);
 
