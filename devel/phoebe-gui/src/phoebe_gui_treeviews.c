@@ -337,6 +337,17 @@ int gui_init_rv_obs_combobox()
     return SUCCESS;
 }
 
+static void gui_spots_cell_data_function (GtkCellLayout *cell_layout, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+	int source;
+	gtk_tree_model_get(model, iter, SPOTS_COL_SOURCE, &source, -1);
+
+	if(source == 1)
+		g_object_set(renderer, "text", "Primary", NULL);
+	else
+		g_object_set(renderer, "text", "Secondary", NULL);
+}
+
 int gui_init_spots_treeview  ()
 {
 	GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
@@ -379,6 +390,7 @@ int gui_init_spots_treeview  ()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, (GtkTreeCellDataFunc)gui_spots_cell_data_function, NULL, FALSE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
@@ -506,11 +518,7 @@ int gui_reinit_spots_treeview ()
 }
 
 
-static void crit_cell_data_function (GtkTreeViewColumn *column,
-                            		GtkCellRenderer *renderer,
-                            		GtkTreeModel *model,
-                            		GtkTreeIter *iter,
-                            		gpointer data)
+static void gui_crit_cell_data_function (GtkCellLayout *cell_layout, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
 	gdouble 	val;
 	gchar	   	buf[20];
@@ -560,7 +568,7 @@ int gui_init_sidesheet_res_treeview()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "markup", RS_COL_PARAM_VALUE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_res_treeview, column, -1);
-	gtk_tree_view_column_set_cell_data_func(column, renderer, crit_cell_data_function, NULL, NULL);
+	gtk_tree_view_column_set_cell_data_func(column, renderer, (GtkTreeCellDataFunc)gui_crit_cell_data_function, NULL, NULL);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_sidesheet_res_treeview, model);
 
@@ -644,11 +652,7 @@ int gui_init_fitt_curve_treeview()
 	return status;
 }
 
-static void gui_filter_cell_data_func  (GtkCellLayout *cell_layout,
-                            		GtkCellRenderer *renderer,
-                            		GtkTreeModel *model,
-                            		GtkTreeIter *iter,
-                            		gpointer data)
+static void gui_filter_cell_data_func (GtkCellLayout *cell_layout, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
 	if(gtk_tree_model_iter_has_child(model, iter)) g_object_set(renderer, "sensitive", FALSE, NULL);
 	else g_object_set(renderer, "sensitive", TRUE, NULL);
@@ -1837,7 +1841,7 @@ int gui_spots_add()
 
 			gtk_list_store_append((GtkListStore*)model, &iter);
 			gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE,		TRUE,
-															SPOTS_COL_SOURCE,       1,
+															SPOTS_COL_SOURCE,       source,
 															SPOTS_COL_SOURCE_STR,   source_str,
 															SPOTS_COL_LAT,          gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_lat_spinbutton),
 															SPOTS_COL_LATADJUST,    gtk_toggle_button_get_active((GtkToggleButton*)phoebe_load_spots_latadjust_checkbutton),
@@ -2010,7 +2014,6 @@ int gui_spots_edit()
 				par = phoebe_parameter_lookup("phoebe_spots_no");
 				phoebe_parameter_get_value(par, &spots_no);
 				phoebe_parameter_set_value(par, spots_no + 1);
-				printf("Number of spots: %d\n", spots_no + 1);
 
 				gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview), &iter);
             }
