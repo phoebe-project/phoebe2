@@ -150,6 +150,11 @@ int gui_init_widgets ()
 
 	gui_widget_add ("phoebe_data_options_filtermode_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_data_options_filtermode_combobox"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_passband_mode"), NULL);
 
+	gui_widget_add ("phoebe_data_lc_addnoise_checkbutton",				glade_xml_get_widget(phoebe_window, "phoebe_data_lc_addnoise_checkbutton"),								0,					GUI_WIDGET_SWITCH_TBA, 	phoebe_parameter_lookup ("phoebe_synscatter_switch"), NULL);
+	gui_widget_add ("phoebe_data_lc_sigma_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_data_lc_sigma_spinbutton"),									0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_sigma"), NULL);
+	gui_widget_add ("phoebe_data_lc_seed_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_data_lc_seed_spinbutton"),									0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_seed"), NULL);
+	gui_widget_add ("phoebe_data_lc_scatter_combobox",					glade_xml_get_widget(phoebe_window, "phoebe_data_lc_scatter_combobox"),									0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_levweight"), NULL);
+
 	/* **********************    Parameters Widgets   ************************* */
 
 	par = phoebe_parameter_lookup ("phoebe_hjd0");
@@ -347,11 +352,6 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_lum_options_reflections_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_options_reflections_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_reffect_switch"), NULL);
 	gui_widget_add ("phoebe_para_lum_options_reflections_spinbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_options_reflections_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_reffect_reflections"), NULL);
 	gui_widget_add ("phoebe_para_lum_options_decouple_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_options_decouple_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_usecla_switch"), NULL);
-
-	gui_widget_add ("phoebe_para_lum_noise_lcscatter_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_noise_lcscatter_checkbutton"),						0,					GUI_WIDGET_SWITCH_TBA, 	phoebe_parameter_lookup ("phoebe_synscatter_switch"), NULL);
-	gui_widget_add ("phoebe_para_lum_noise_sigma_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_noise_sigma_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_sigma"), NULL);
-	gui_widget_add ("phoebe_para_lum_noise_seed_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_noise_seed_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_seed"), NULL);
-	gui_widget_add ("phoebe_para_lum_noise_lcscatter_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_noise_lcscatter_combobox"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_synscatter_levweight"), NULL);
 
 	gui_widget_add ("phoebe_para_ld_model_combobox",					glade_xml_get_widget(phoebe_window, "phoebe_para_ld_model_combobox"),									0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_model"), NULL);
 	gui_widget_add ("phoebe_para_ld_bolcoefs_primx_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_bolcoefs_primx_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_ld_xbol1"), NULL);
