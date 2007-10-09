@@ -442,6 +442,9 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_nms_accuracy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_accuracy_spinbutton"),								0,					GUI_WIDGET_VALUE,		NULL,	NULL);
 	gui_widget_add ("phoebe_fitt_feedback_label",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_feedback_label"),										0,					GUI_WIDGET_VALUE,		NULL,	NULL);
 
+	gui_widget_add ("phoebe_fitt_dc_frame",								glade_xml_get_widget(phoebe_window, "phoebe_fitt_dc_frame"),											0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+	gui_widget_add ("phoebe_fitt_nms_frame",							glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_frame"),											0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+
 	/* *************************    GUI Widgets   *************************** */
 
 	gui_widget_add ("phoebe_para_ld_model_autoupdate_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_model_autoupdate_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_ld_model_autoupdate"), NULL);
