@@ -182,6 +182,49 @@ PHOEBE_vector *phoebe_vector_new_from_column (char *filename, int col)
 	return vec;
 }
 
+PHOEBE_vector *phoebe_vector_new_from_array (PHOEBE_array *array)
+{
+	/**
+	 * phoebe_vector_new_from_array:
+	 * @array: #PHOEBE_array of type #TYPE_INT or #TYPE_DOUBLE
+	 *
+	 * Converts the array of doubles into #PHOEBE_vector.
+	 *
+	 * Returns: #PHOEBE_vector, or NULL in case of failure.
+	 */
+
+	int i;
+	PHOEBE_vector *vec;
+
+	if (!array)
+		return NULL;
+
+	if (array->type != TYPE_INT_ARRAY && array->type != TYPE_DOUBLE_ARRAY) {
+		phoebe_lib_error ("cannot convert non-numeric arrays to vectors, aborting.\n");
+		return NULL;
+	}
+
+	if (array->dim == 0)
+		return NULL;
+
+	vec = phoebe_vector_new ();
+	phoebe_vector_alloc (vec, array->dim);
+	for (i = 0; i < array->dim; i++)
+		switch (array->type) {
+			case TYPE_INT_ARRAY:
+				vec->val[i] = (double) array->val.iarray[i];
+			break;
+			case TYPE_DOUBLE_ARRAY:
+				vec->val[i] = (double) array->val.darray[i];
+			break;
+			default:
+				/* Can't really get here. */
+			break;
+		}
+
+	return vec;
+}
+
 PHOEBE_vector *phoebe_vector_duplicate (PHOEBE_vector *vec)
 {
 	/**
@@ -1823,6 +1866,136 @@ PHOEBE_array *phoebe_array_new_from_qualifier (char *qualifier)
 			phoebe_lib_error ("exception handler invoked in phoebe_array_new_from_qualifier ()!\n");
 		break;
 	}
+
+	return array;
+}
+
+PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
+{
+	/**
+	 * phoebe_array_new_from_column:
+	 * @filename: absolute path to the file to be read.
+	 * @col: column to be read.
+	 *
+	 * Reads in the @col-th column from file @filename, parses it and stores
+	 * it into the returned array. The first element determines the type of
+	 * the array.
+	 *
+	 * Returns: #PHOEBE_array, or NULL if an error occured.
+	 */
+
+	FILE *input;
+	PHOEBE_array *array = NULL;
+	int i, linecount = 1;
+	char line[255];
+
+	input = fopen (filename, "r");
+	if (input == NULL) return NULL;
+
+	while (!feof (input)) {
+		char *delimeter = line;
+
+		fgets (line, 254, input);
+		if (feof (input)) break;
+
+		/* Remove the trailing newline (unix or dos): */
+		line[strlen(line)-1] = '\0';
+		if (strchr (line, 13) != NULL) (strchr (line, 13))[0] = '\0';
+
+		/* Remove comments (if any): */
+		if (strchr (line, '#') != NULL) (strchr (line, '#'))[0] = '\0';
+
+		/* Remove any leading whitespaces and empty lines: */
+		while ( (delimeter[0] == ' ' || delimeter[0] == '\t') && delimeter[0] != '\0') delimeter++;
+		if (delimeter[0] == '\0') {
+			linecount++;
+			continue;
+		}
+
+		for (i = 1; i < col; i++) {
+			while (delimeter[0] != ' ' && delimeter[0] != '\t' && delimeter[0] != '\0') delimeter++;
+			while ( (delimeter[0] == ' ' || delimeter[0] == '\t') && delimeter[0] != '\0') delimeter++;
+			if (delimeter[0] == '\0') {
+				phoebe_lib_error ("column %d in line %d cannot be read, skipping.\n", col, linecount);
+				break;
+			}
+		}
+
+		if (delimeter[0] != '\0') {
+			if (!array) {
+				char test_string[255];
+				int test_int;
+
+				/* This is the first row; parse the column type: */
+				sscanf (delimeter, "%s", test_string);
+
+				if (sscanf (test_string, "%d", &test_int) == 1)
+					/* It starts with a number; does it contain '.' or 'e': */
+					if (strchr (test_string, '.') || strchr (test_string, 'e') || strchr (test_string, 'E'))
+						array = phoebe_array_new (TYPE_DOUBLE_ARRAY);
+					else
+						array = phoebe_array_new (TYPE_INT_ARRAY);
+				else
+					if (strcmp (test_string, "true")  == 0 || strcmp (test_string, "TRUE") == 0 ||
+						strcmp (test_string, "false") == 0 || strcmp (test_string, "FALSE") == 0)
+						array = phoebe_array_new (TYPE_BOOL_ARRAY);
+					else
+						array = phoebe_array_new (TYPE_STRING_ARRAY);
+			}
+
+			switch (array->type) {
+				case TYPE_INT_ARRAY: {
+					int val;
+					if (sscanf (delimeter, "%d", &val) == 1) {
+						phoebe_array_realloc (array, array->dim+1);
+						array->val.iarray[array->dim-1] = val;
+					}
+					else
+						phoebe_lib_warning ("line %d in file %s discarded.\n", linecount, filename);
+				}
+				break;
+				case TYPE_BOOL_ARRAY: {
+					char val[255];
+					if (sscanf (delimeter, "%s", val) == 1) {
+						phoebe_array_realloc (array, array->dim+1);
+						if (strcmp (val, "true") == 0 || strcmp (val, "TRUE") == 0)
+							array->val.barray[array->dim-1] = TRUE;
+						else
+							array->val.barray[array->dim-1] = FALSE;
+					}
+					else
+						phoebe_lib_warning ("line %d in file %s discarded.\n", linecount, filename);
+				}
+				break;
+				case TYPE_DOUBLE_ARRAY: {
+					double val;
+					if (sscanf (delimeter, "%lf", &val) == 1) {
+						phoebe_array_realloc (array, array->dim+1);
+						array->val.darray[array->dim-1] = val;
+					}
+					else
+						phoebe_lib_warning ("line %d in file %s discarded.\n", linecount, filename);
+				}
+				break;
+				case TYPE_STRING_ARRAY: {
+					char val[255];
+					if (sscanf (delimeter, "%s", val) == 1) {
+						phoebe_array_realloc (array, array->dim+1);
+						array->val.strarray[array->dim-1] = strdup (val);
+					}
+					else
+						phoebe_lib_warning ("line %d in file %s discarded.\n", linecount, filename);
+				}
+				break;
+				default:
+					/* Can't really happen. */
+				break;
+			}
+		}
+
+		linecount++;
+	}
+	fclose (input);
 
 	return array;
 }

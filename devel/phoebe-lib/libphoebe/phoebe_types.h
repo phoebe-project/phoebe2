@@ -134,11 +134,14 @@ typedef struct PHOEBE_array {
 } PHOEBE_array;
 
 PHOEBE_array  *phoebe_array_new                 (PHOEBE_type type);
+PHOEBE_array  *phoebe_array_new_from_qualifier  (char *qualifier);
+PHOEBE_array  *phoebe_array_new_from_column     (char *filename, int col);
 int            phoebe_array_alloc               (PHOEBE_array *array, int dimension);
 int            phoebe_array_realloc             (PHOEBE_array *array, int dimension);
-PHOEBE_array  *phoebe_array_new_from_qualifier  (char *qualifier);
 PHOEBE_array  *phoebe_array_duplicate           (PHOEBE_array *array);
 int            phoebe_array_free                (PHOEBE_array *array);
+
+PHOEBE_vector *phoebe_vector_new_from_array     (PHOEBE_array *array);
 
 /* **************************************************************************** */
 
