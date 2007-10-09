@@ -573,6 +573,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 * dedicated directive or command.
 				 */
 
+				phoebe_spectra_set_repository ("/home/andrej/astronomy/catalogs/munari");
 				return out;
 			}
 			if (in->value.node.kind == kind_statement) {
@@ -1660,6 +1661,17 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 							phoebe_scripter_output ("function %s() cannot act on arrays, aborting.\n", func);
 							out.type = type_void;
 							return out;
+						}
+					break;
+					case type_array:
+						if (strcmp (func, "dim") == 0) {
+							out.type = type_int;
+							out.value.i = value.value.array->dim;
+						}
+						else {
+							/* Functions on arrays not yet implemented! */
+							phoebe_scripter_output ("functions on arrays not yet implemented, sorry!\n");
+							out.type = type_void;
 						}
 					break;
 					case type_spectrum:

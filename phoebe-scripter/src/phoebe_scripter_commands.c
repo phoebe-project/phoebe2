@@ -676,11 +676,17 @@ scripter_ast_value scripter_column (scripter_ast_list *args)
 		return out;
 	}
 
-	out.type = type_vector;
-	out.value.vec = phoebe_vector_new_from_column (vals[0].value.str, vals[1].value.i);
-	if (!out.value.vec) {
-		phoebe_scripter_output ("file '%s' not found, aborting.\n", vals[0].value.str);
+	out.type = type_array;
+	out.value.array = phoebe_array_new_from_column (vals[0].value.str, vals[1].value.i);
+	if (!out.value.array) {
+		phoebe_scripter_output ("file '%s' cannot be parsed, aborting.\n", vals[0].value.str);
 		out.type = type_void;
+	}
+	if (out.value.array->type == TYPE_INT_ARRAY || out.value.array->type == TYPE_DOUBLE_ARRAY) {
+		PHOEBE_vector *vec = phoebe_vector_new_from_array (out.value.array);
+		phoebe_array_free (out.value.array);
+		out.type = type_vector;
+		out.value.vec = vec;
 	}
 
 	scripter_ast_value_array_free (vals, 2);
