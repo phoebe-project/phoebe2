@@ -50,3 +50,4 @@ void on_phoebe_rv_plot_options_x_combobox_changed 			(GtkComboBox *widget, gpoin
 void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
 void on_phoebe_fitt_updateall_button_clicked 				(GtkToolButton   *toolbutton, gpointer user_data);
+void on_phoebe_fitt_method_combobox_changed 				(GtkComboBox *widget, gpointer user_data);

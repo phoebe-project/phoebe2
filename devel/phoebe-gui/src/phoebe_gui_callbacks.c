@@ -104,6 +104,26 @@ void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointe
 }
 
 
+void on_phoebe_fitt_method_combobox_changed (GtkComboBox *widget, gpointer user_data)
+{
+	GUI_widget *phoebe_fitt_dc_frame = gui_widget_lookup("phoebe_fitt_dc_frame");
+	GUI_widget *phoebe_fitt_nms_frame = gui_widget_lookup("phoebe_fitt_nms_frame");
+
+	switch(gtk_combo_box_get_active(widget)){
+		case 0:
+			/* DC */
+			gtk_widget_hide_all(phoebe_fitt_nms_frame->gtk);
+			gtk_widget_show_all(phoebe_fitt_dc_frame->gtk);
+		break;
+		case 1:
+			/* NMS */
+			gtk_widget_hide_all(phoebe_fitt_dc_frame->gtk);
+			gtk_widget_show_all(phoebe_fitt_nms_frame->gtk);
+		break;
+	}
+}
+
+
 /* ******************************************************************** *
  *
  *                    phoebe_data_lc_treeview events
