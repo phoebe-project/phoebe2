@@ -1743,8 +1743,8 @@ int gui_para_lc_coefficents_edit ()
 			gtk_tree_model_get(model, &iter,    LC_COL_FILTER,	&passband,
 												LC_COL_X1,		&x1,
 												LC_COL_X2,		&x2,
-												LC_COL_X2,		&y1,
-												LC_COL_X2,		&y2, -1);
+												LC_COL_Y1,		&y1,
+												LC_COL_Y2,		&y2, -1);
 
     		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_lc_coefficents.glade", NULL);
 			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
