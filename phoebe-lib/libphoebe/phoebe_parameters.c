@@ -1792,7 +1792,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
 				free (qualifier);
 				continue;
 			}
@@ -1859,7 +1859,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
 				free (qualifier);
 				free (field);
 				continue;
@@ -1882,7 +1882,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_error ("qualifier %s not recognized, ignoring.\n", qualifier);
+				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
 				free (qualifier);
 				continue;
 			}
