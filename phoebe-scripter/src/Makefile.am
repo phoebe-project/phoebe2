@@ -20,7 +20,7 @@
 #                                                                      #
 ########################################################################
 
-bin_PROGRAMS = phoebe_scripter
+bin_PROGRAMS = phoebe-scripter
 phoebe_scripter_SOURCES =                                               \
     main.c                                                              \
     phoebe_scripter_arithmetics.c     phoebe_scripter_arithmetics.h     \
