@@ -3,7 +3,7 @@ INCLUDES = \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
 	@PACKAGE_CFLAGS@ -I/usr/include/libglade-2.0
 
-bin_PROGRAMS = phoebe_gui
+bin_PROGRAMS = phoebe-gui
 
 phoebe_gui_SOURCES =                                    \
 	phoebe_gui_main.h       phoebe_gui_main.c           \

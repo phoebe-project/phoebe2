@@ -52,7 +52,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = phoebe_scripter$(EXEEXT)
+bin_PROGRAMS = phoebe-scripter$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/phoebe_scripter_build_config.h.in
@@ -286,8 +286,8 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
-phoebe_scripter$(EXEEXT): $(phoebe_scripter_OBJECTS) $(phoebe_scripter_DEPENDENCIES) 
-	@rm -f phoebe_scripter$(EXEEXT)
+phoebe-scripter$(EXEEXT): $(phoebe_scripter_OBJECTS) $(phoebe_scripter_DEPENDENCIES) 
+	@rm -f phoebe-scripter$(EXEEXT)
 	$(LINK) $(phoebe_scripter_OBJECTS) $(phoebe_scripter_LDADD) $(LIBS)
 
 mostlyclean-compile:
