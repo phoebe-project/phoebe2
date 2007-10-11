@@ -1178,13 +1178,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			params->spot1temp = phoebe_realloc (params->spot1temp, params->spot1no * sizeof (*(params->spot1temp)));
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
-			params->spot1lat[i] = (doublereal) readout_dbl;
+			params->spot1lat[params->spot1no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
-			params->spot1long[i] = (doublereal) readout_dbl;
+			params->spot1long[params->spot1no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
-			params->spot1rad[i] = (doublereal) readout_dbl;
+			params->spot1rad[params->spot1no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
-			params->spot1temp[i] = (doublereal) readout_dbl;
+			params->spot1temp[params->spot1no-1] = (doublereal) readout_dbl;
 		}
 		else {
 			params->spot2no++;
@@ -1195,13 +1195,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			params->spot2temp = phoebe_realloc (params->spot2temp, params->spot2no * sizeof (*(params->spot2temp)));
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
-			params->spot2lat[i] = (doublereal) readout_dbl;
+			params->spot2lat[params->spot2no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
-			params->spot2long[i] = (doublereal) readout_dbl;
+			params->spot2long[params->spot2no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
-			params->spot2rad[i] = (doublereal) readout_dbl;
+			params->spot2rad[params->spot2no-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
-			params->spot2temp[i] = (doublereal) readout_dbl;
+			params->spot2temp[params->spot2no-1] = (doublereal) readout_dbl;
 		}
 	}
 
