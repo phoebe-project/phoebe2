@@ -238,6 +238,10 @@ char *resolve_relative_filename (char *filename)
 	if (filename[0] == '/') return filename;
 
 	cwd = get_current_working_directory ();
+	if (!cwd) {
+		phoebe_lib_error ("cannot get a path to the current directory.");
+		return NULL;
+	}
 	abs = phoebe_malloc (strlen (cwd) + strlen (filename) + 2); /* for / and \0 */
 	sprintf (abs, "%s/%s", cwd, filename);
 	free (cwd);
