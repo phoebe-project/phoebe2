@@ -2551,11 +2551,8 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	params.JDPHS = jdphs;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
-printf ("sfsg\n");
 	filename = resolve_relative_filename ("lcin.active");
-printf ("sfsg\n");
 	create_lci_file (filename, &params);
-printf ("sfsg\n");
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:
