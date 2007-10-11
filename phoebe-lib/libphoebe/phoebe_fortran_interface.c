@@ -490,30 +490,30 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 			params->TEMSP1 = phoebe_realloc (params->TEMSP1, params->SPRIM * sizeof (*(params->TEMSP1)));
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
-			params->XLAT1[i] = (doublereal) readout_dbl;
+			params->XLAT1[params->SPRIM-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
-			params->XLONG1[i] = (doublereal) readout_dbl;
+			params->XLONG1[params->SPRIM-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
-			params->RADSP1[i] = (doublereal) readout_dbl;
+			params->RADSP1[params->SPRIM-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
-			params->TEMSP1[i] = (doublereal) readout_dbl;
+			params->TEMSP1[params->SPRIM-1] = (doublereal) readout_dbl;
 		}
 		else {
 			params->SSEC++;
 
-			params->XLAT2  = phoebe_realloc (params->XLAT2,  params->SSEC  * sizeof (*(params->XLAT2)));
-			params->XLONG2 = phoebe_realloc (params->XLONG2, params->SSEC  * sizeof (*(params->XLONG2)));
-			params->RADSP2 = phoebe_realloc (params->RADSP2, params->SSEC  * sizeof (*(params->RADSP2)));
-			params->TEMSP2 = phoebe_realloc (params->TEMSP2, params->SSEC  * sizeof (*(params->TEMSP2)));
+			params->XLAT2  = phoebe_realloc (params->XLAT2,  params->SSEC * sizeof (*(params->XLAT2)));
+			params->XLONG2 = phoebe_realloc (params->XLONG2, params->SSEC * sizeof (*(params->XLONG2)));
+			params->RADSP2 = phoebe_realloc (params->RADSP2, params->SSEC * sizeof (*(params->RADSP2)));
+			params->TEMSP2 = phoebe_realloc (params->TEMSP2, params->SSEC * sizeof (*(params->TEMSP2)));
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), i, &readout_dbl);
-			params->XLAT2[i] = (doublereal) readout_dbl;
+			params->XLAT2[params->SSEC-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), i, &readout_dbl);
-			params->XLONG2[i] = (doublereal) readout_dbl;
+			params->XLONG2[params->SSEC-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"),  i, &readout_dbl);
-			params->RADSP2[i] = (doublereal) readout_dbl;
+			params->RADSP2[params->SSEC-1] = (doublereal) readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), i, &readout_dbl);
-			params->TEMSP2[i] = (doublereal) readout_dbl;
+			params->TEMSP2[params->SSEC-1] = (doublereal) readout_dbl;
 		}
 	}
 
