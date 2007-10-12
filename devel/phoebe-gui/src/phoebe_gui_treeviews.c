@@ -724,10 +724,10 @@ int gui_fill_sidesheet_res_treeview()
 	par = phoebe_parameter_lookup("phoebe_rm");
 	status = phoebe_parameter_get_value(par, &q);
 
-	par = phoebe_parameter_lookup("phoebe_phoebe_ecc");
+	par = phoebe_parameter_lookup("phoebe_ecc");
 	status = phoebe_parameter_get_value(par, &e);
 
-	par = phoebe_parameter_lookup("phoebe_phoebe_f1");
+	par = phoebe_parameter_lookup("phoebe_f1");
 	status = phoebe_parameter_get_value(par, &F);
 
 	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
