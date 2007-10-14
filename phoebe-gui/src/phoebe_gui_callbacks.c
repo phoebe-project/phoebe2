@@ -25,8 +25,14 @@ void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer use
 	GtkWidget *phoebe_window = gui_widget_lookup("phoebe_window")->gtk;
 	GtkWidget *star_name_entry = gui_widget_lookup("phoebe_data_star_name_entry")->gtk;
 	char *star_name = (char*)gtk_entry_get_text(GTK_ENTRY(star_name_entry));
+	char title[255];
 
-	gtk_window_set_title (GTK_WINDOW(phoebe_window), star_name);
+	if (strlen(star_name) > 0)
+		sprintf(title, "PHOEBE - %s", star_name);
+	else
+		sprintf(title, "PHOEBE");
+
+	gtk_window_set_title (GTK_WINDOW(phoebe_window), title);
 }
 
 
