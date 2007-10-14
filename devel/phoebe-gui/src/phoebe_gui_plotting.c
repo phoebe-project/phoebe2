@@ -297,9 +297,12 @@ int gui_plot_rv_using_gnuplot ()
 	GtkWidget *syn_checkbutton 			= gui_widget_lookup ("phoebe_rv_plot_options_syn_checkbutton")->gtk;
 	GtkWidget *obs_checkbutton 			= gui_widget_lookup ("phoebe_rv_plot_options_obs_checkbutton")->gtk;
 	GtkWidget *vertices_no_spinbutton 	= gui_widget_lookup ("phoebe_rv_plot_options_vertices_no_spinbutton")->gtk;
+	GtkWidget *alias_checkbutton	 	= gui_widget_lookup ("phoebe_rv_plot_options_alias_checkbutton")->gtk;
 	GtkWidget *obs_combobox 			= gui_widget_lookup ("phoebe_rv_plot_options_obs_combobox")->gtk;
 	GtkWidget *x_combobox 				= gui_widget_lookup ("phoebe_rv_plot_options_x_combobox")->gtk;
 	GtkWidget *y_combobox				= gui_widget_lookup ("phoebe_rv_plot_options_y_combobox")->gtk;
+	GtkWidget *phstart_spinbutton 		= gui_widget_lookup ("phoebe_rv_plot_options_phstart_spinbutton")->gtk;
+	GtkWidget *phend_spinbutton			= gui_widget_lookup ("phoebe_rv_plot_options_phend_spinbutton")->gtk;
 
 	GtkWidget *coarse_grid				= gui_widget_lookup ("phoebe_rv_plot_controls_coarse_checkbutton")->gtk;
 	GtkWidget *fine_grid				= gui_widget_lookup ("phoebe_rv_plot_controls_fine_checkbutton")->gtk;
@@ -313,6 +316,10 @@ int gui_plot_rv_using_gnuplot ()
 
 	gboolean plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton));
 	gboolean plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton));
+
+	gboolean ALIAS = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(alias_checkbutton));
+	gdouble phstart = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phstart_spinbutton));
+	gdouble phend = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phend_spinbutton));
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
@@ -334,6 +341,8 @@ int gui_plot_rv_using_gnuplot ()
 	if(plot_obs){
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, INDEX);
 		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
+		if(ALIAS && INDEP == PHOEBE_COLUMN_PHASE)
+			gui_plot_alias_curve (obs, phstart, phend);
 
 		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);
