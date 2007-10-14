@@ -787,8 +787,9 @@ void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbu
 
 gboolean on_phoebe_window_delete_event (GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
-    gtk_main_quit();
-    return FALSE;
+    if(gui_show_quit_dialog() == 1)
+    	gtk_main_quit();
+    return TRUE;
 }
 
 
@@ -842,7 +843,8 @@ void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer us
 
 void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
-    gtk_main_quit();
+    if(gui_show_quit_dialog() == 1)
+    	gtk_main_quit();
 }
 
 
@@ -913,7 +915,8 @@ void on_phoebe_settings_checkbutton_toggled (GtkToggleButton *togglebutton, gpoi
 
 void on_phoebe_quit_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-    gtk_main_quit();
+	if(gui_show_quit_dialog() == 1)
+    	gtk_main_quit();
 }
 
 

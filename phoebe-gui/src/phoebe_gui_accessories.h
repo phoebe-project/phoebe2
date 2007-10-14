@@ -10,3 +10,4 @@ int gui_open_parameter_file();
 int gui_save_parameter_file();
 
 int gui_show_configuration_dialog();
+int gui_show_quit_dialog();
