@@ -92,6 +92,8 @@ int gui_open_parameter_file()
 
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		status = phoebe_open_parameter_file(filename);
+		PHOEBE_FILEFLAG = TRUE;
+		PHOEBE_FILENAME = strdup(filename);
 		g_free (filename);
 	}
 
@@ -121,6 +123,8 @@ int gui_save_parameter_file()
 
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		status = phoebe_save_parameter_file(filename);
+		PHOEBE_FILEFLAG = TRUE;
+		PHOEBE_FILENAME = strdup(filename);
 		g_free (filename);
 	}
 
