@@ -62,6 +62,38 @@ int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin
 	return SUCCESS;
 }
 
+int gui_plot_alias_curve (PHOEBE_curve *obs, double phmin, double phmax)
+{
+	if (phmax > phmin){
+		int i,j,k=1;
+
+		/* Copy original to curve to temporary one */
+
+		PHOEBE_curve *temp = phoebe_curve_duplicate (obs);
+
+		/* Clear the original curve and create new one. */
+		phoebe_curve_free(obs);
+		obs=phoebe_curve_new();
+
+		for (i = 0; i < temp->indep->dim; i++){
+			for (j = (int)(phmin-1.0); j <= (int)(phmax+1.0); j++){
+				if ((temp->indep->val[i] + j > phmin) && (temp->indep->val[i] + j < phmax)){
+					phoebe_curve_realloc (obs, k);
+
+					obs->indep->val[obs->indep->dim-1]	 = temp->indep->val[i] + j;
+					obs->dep->val[obs->dep->dim-1] 		 = temp->dep->val[i];
+					obs->weight->val[obs->weight->dim-1] = temp->weight->val[i];
+					k ++;
+				}
+			}
+		}
+
+		phoebe_curve_free (temp);
+	}
+
+	return SUCCESS;
+}
+
 int gui_plot_lc_using_gnuplot ()
 {
 	PHOEBE_curve *obs = NULL;
@@ -84,10 +116,13 @@ int gui_plot_lc_using_gnuplot ()
 	GtkWidget *plot_image				= gui_widget_lookup ("phoebe_lc_plot_image")->gtk;
 	GtkWidget *syn_checkbutton 			= gui_widget_lookup ("phoebe_lc_plot_options_syn_checkbutton")->gtk;
 	GtkWidget *obs_checkbutton 			= gui_widget_lookup ("phoebe_lc_plot_options_obs_checkbutton")->gtk;
-	GtkWidget *vertices_no_spinbutton 	= gui_widget_lookup ("phoebe_lc_plot_options_vertices_no_spinbutton")->gtk;
+	GtkWidget *alias_checkbutton	 	= gui_widget_lookup ("phoebe_lc_plot_options_alias_checkbutton")->gtk;
+	GtkWidget *vertices_no_spinbutton	= gui_widget_lookup ("phoebe_lc_plot_options_vertices_no_spinbutton")->gtk;
 	GtkWidget *obs_combobox 			= gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox")->gtk;
 	GtkWidget *x_combobox 				= gui_widget_lookup ("phoebe_lc_plot_options_x_combobox")->gtk;
 	GtkWidget *y_combobox				= gui_widget_lookup ("phoebe_lc_plot_options_y_combobox")->gtk;
+	GtkWidget *phstart_spinbutton 		= gui_widget_lookup ("phoebe_lc_plot_options_phstart_spinbutton")->gtk;
+	GtkWidget *phend_spinbutton			= gui_widget_lookup ("phoebe_lc_plot_options_phend_spinbutton")->gtk;
 
 	GtkWidget *coarse_grid				= gui_widget_lookup ("phoebe_lc_plot_controls_coarse_checkbutton")->gtk;
 	GtkWidget *fine_grid				= gui_widget_lookup ("phoebe_lc_plot_controls_fine_checkbutton")->gtk;
@@ -99,8 +134,12 @@ int gui_plot_lc_using_gnuplot ()
 
 	gdouble XMIN = 0.0, XMAX = 0.0, YMIN = 0.0, YMAX = 0.0;
 
-	gboolean plot_obs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(obs_checkbutton));
-	gboolean plot_syn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(syn_checkbutton));
+	gboolean plot_obs = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(obs_checkbutton));
+	gboolean plot_syn = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(syn_checkbutton));
+
+	gboolean ALIAS = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(alias_checkbutton));
+	gdouble phstart = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phstart_spinbutton));
+	gdouble phend = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phend_spinbutton));
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
@@ -127,7 +166,8 @@ int gui_plot_lc_using_gnuplot ()
 	if(plot_obs){
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-		//alias_phase_points (obs->indep, obs->dep, NULL, -0.6, 0.6);
+		if(ALIAS && INDEP == PHOEBE_COLUMN_PHASE)
+			gui_plot_alias_curve (obs, phstart, phend);
 
 		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);
