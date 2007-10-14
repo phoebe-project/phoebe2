@@ -22,6 +22,7 @@ void on_phoebe_data_lc_add_button_clicked 					(GtkButton *button, gpointer user
 void on_phoebe_data_lc_edit_button_clicked 					(GtkButton *button, gpointer user_data);
 void on_phoebe_data_lc_remove_button_clicked 				(GtkButton *button, gpointer user_data);
 void on_phoebe_data_lc_model_row_changed 					(GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data);
+void on_phoebe_data_lc_seedgen_button_clicked 				(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_data_rv_treeview_row_activated 				(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 void on_phoebe_data_rv_add_button_clicked 					(GtkButton *button, gpointer user_data);
 void on_phoebe_data_rv_edit_button_clicked 					(GtkButton *button, gpointer user_data);

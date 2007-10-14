@@ -36,6 +36,17 @@ void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer use
 }
 
 
+void on_phoebe_data_lc_seedgen_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+{
+	int seed;
+	GtkWidget *seed_spin_button = gui_widget_lookup("phoebe_data_lc_seed_spinbutton")->gtk;
+
+	srand (time (0));
+	seed = (int) (100000001.0 + (double) rand () / RAND_MAX * 100000000.0);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (seed_spin_button), seed);
+}
+
+
 /* ******************************************************************** *
  *
  *                    phoebe fitting tab events
@@ -45,7 +56,7 @@ void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer use
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 int accept_flag = 0;
 
-void on_phoebe_fitt_calculate_button_clicked (GtkToolButton   *toolbutton, gpointer user_data)
+void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
 
