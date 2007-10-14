@@ -13,4 +13,7 @@ extern gboolean PHOEBE_WINDOW_FITTING_IS_DETACHED;
 
 extern gboolean PHOEBE_SPOTS_SHOW_ALL;
 
+extern gchar   *PHOEBE_FILENAME;
+extern gboolean PHOEBE_FILEFLAG;
+
 #endif

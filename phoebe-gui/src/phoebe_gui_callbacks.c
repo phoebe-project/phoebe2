@@ -11,6 +11,9 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_plotting.h"
 
+gchar *PHOEBE_FILENAME;
+gboolean PHOEBE_FILEFLAG = FALSE;
+
 void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	char *widget_name = (char*)gtk_widget_get_name(GTK_WIDGET(togglebutton));
@@ -807,13 +810,18 @@ void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 		printf ("%s", phoebe_error (status));
 }
 
-
 void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	int status = 0;
 
-	status = gui_get_values_from_widgets();
-	status = gui_save_parameter_file ();
+	//status = gui_get_values_from_widgets();
+
+	//if(PHOEBE_FILEFLAG)
+		//status = phoebe_save_parameter_file(PHOEBE_FILENAME);
+	//else
+		//status = gui_save_parameter_file ();
+
+	printf("In on_phoebe_file_save_menuitem_activate\n");
 
 	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
@@ -926,7 +934,15 @@ void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user
 	int status = 0;
 
 	status = gui_get_values_from_widgets();
-	status = gui_save_parameter_file ();
+
+	if(PHOEBE_FILEFLAG)
+		status = phoebe_save_parameter_file(PHOEBE_FILENAME);
+	else
+		status = gui_save_parameter_file ();
+
+	printf("In on_phoebe_save_toolbutton_clicked\n");
+	printf("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
+	printf("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
 
 	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
