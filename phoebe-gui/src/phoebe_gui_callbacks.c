@@ -1048,36 +1048,62 @@ void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *button, gpointer u
 
 void on_phoebe_rv_plot_options_x_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
-	GUI_widget *rv_xstart_label = gui_widget_lookup("phoebe_rv_plot_options_phstart_label");
-	GUI_widget *rv_xend_label = gui_widget_lookup("phoebe_rv_plot_options_phend_label");
+	GUI_widget *rv_xstart_label			= gui_widget_lookup("phoebe_rv_plot_options_phstart_label");
+	GUI_widget *rv_xend_label			= gui_widget_lookup("phoebe_rv_plot_options_phend_label");
+	GUI_widget *rv_phstart_spinbutton 	= gui_widget_lookup("phoebe_rv_plot_options_phstart_spinbutton");
+	GUI_widget *rv_phend_spinbutton 	= gui_widget_lookup("phoebe_rv_plot_options_phend_spinbutton");
+	GUI_widget *rv_alias_checkbutton 	= gui_widget_lookup("phoebe_rv_plot_options_alias_checkbutton");
 
 	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)) == 0){
 		/* Phase */
+		gtk_widget_set_sensitive (rv_xstart_label->gtk, TRUE);
+		gtk_widget_set_sensitive (rv_xend_label->gtk, TRUE);
+		gtk_widget_set_sensitive (rv_phstart_spinbutton->gtk, TRUE);
+		gtk_widget_set_sensitive (rv_phend_spinbutton->gtk, TRUE);
+		gtk_widget_set_sensitive (rv_alias_checkbutton->gtk, TRUE);
 		gtk_label_set_text(GTK_LABEL(rv_xstart_label->gtk), "Phase start:");
 		gtk_label_set_text(GTK_LABEL(rv_xend_label->gtk), "Phase end:");
 	}
 	else{
 		/* Time */
-		gtk_label_set_text(GTK_LABEL(rv_xstart_label->gtk), "Time start: ");
-		gtk_label_set_text(GTK_LABEL(rv_xend_label->gtk), "Time end: ");
+		//gtk_label_set_text(GTK_LABEL(rv_xstart_label->gtk), "Time start: ");
+		//gtk_label_set_text(GTK_LABEL(rv_xend_label->gtk), "Time end: ");
+		gtk_widget_set_sensitive (rv_xstart_label->gtk, FALSE);
+		gtk_widget_set_sensitive (rv_xend_label->gtk, FALSE);
+		gtk_widget_set_sensitive (rv_phstart_spinbutton->gtk, FALSE);
+		gtk_widget_set_sensitive (rv_phend_spinbutton->gtk, FALSE);
+		gtk_widget_set_sensitive (rv_alias_checkbutton->gtk, FALSE);
 	}
 }
 
 
 void on_phoebe_lc_plot_options_x_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
-	GUI_widget *lc_xstart_label = gui_widget_lookup("phoebe_lc_plot_options_phstart_label");
-	GUI_widget *lc_xend_label = gui_widget_lookup("phoebe_lc_plot_options_phend_label");
+	GUI_widget *lc_xstart_label 		= gui_widget_lookup("phoebe_lc_plot_options_phstart_label");
+	GUI_widget *lc_xend_label 			= gui_widget_lookup("phoebe_lc_plot_options_phend_label");
+	GUI_widget *lc_phstart_spinbutton 	= gui_widget_lookup("phoebe_lc_plot_options_phstart_spinbutton");
+	GUI_widget *lc_phend_spinbutton 	= gui_widget_lookup("phoebe_lc_plot_options_phend_spinbutton");
+	GUI_widget *lc_alias_checkbutton 	= gui_widget_lookup("phoebe_lc_plot_options_alias_checkbutton");
 
 	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)) == 0){
 		/* Phase */
+		gtk_widget_set_sensitive (lc_xstart_label->gtk, TRUE);
+		gtk_widget_set_sensitive (lc_xend_label->gtk, TRUE);
+		gtk_widget_set_sensitive (lc_phstart_spinbutton->gtk, TRUE);
+		gtk_widget_set_sensitive (lc_phend_spinbutton->gtk, TRUE);
+		gtk_widget_set_sensitive (lc_alias_checkbutton->gtk, TRUE);
 		gtk_label_set_text(GTK_LABEL(lc_xstart_label->gtk), "Phase start:");
 		gtk_label_set_text(GTK_LABEL(lc_xend_label->gtk), "Phase end:");
 	}
 	else{
 		/* Time */
-		gtk_label_set_text(GTK_LABEL(lc_xstart_label->gtk), "Time start: ");
-		gtk_label_set_text(GTK_LABEL(lc_xend_label->gtk), "Time end: ");
+		//gtk_label_set_text(GTK_LABEL(lc_xstart_label->gtk), "Time start: ");
+		//gtk_label_set_text(GTK_LABEL(lc_xend_label->gtk), "Time end: ");
+		gtk_widget_set_sensitive (lc_xstart_label->gtk, FALSE);
+		gtk_widget_set_sensitive (lc_xend_label->gtk, FALSE);
+		gtk_widget_set_sensitive (lc_phstart_spinbutton->gtk, FALSE);
+		gtk_widget_set_sensitive (lc_phend_spinbutton->gtk, FALSE);
+		gtk_widget_set_sensitive (lc_alias_checkbutton->gtk, FALSE);
 	}
 }
 

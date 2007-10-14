@@ -203,11 +203,11 @@ int gui_plot_lc_using_gnuplot ()
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
 	if (plot_syn && plot_obs)
-		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l notitle\n", oname, sname);	write(cfd, line, strlen(line));}
+		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l lt 1 notitle\n", oname, sname);	write(cfd, line, strlen(line));}
 	else if (plot_syn)
-		{sprintf(line, "plot  '%s' w l notitle\n", sname);											write(cfd, line, strlen(line));}
+		{sprintf(line, "plot '%s' w l lt 1 notitle\n", sname);											write(cfd, line, strlen(line));}
 	else if (plot_obs)
-		{sprintf(line, "plot  '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);							write(cfd, line, strlen(line));}
+		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);								write(cfd, line, strlen(line));}
 
 	close(cfd);
 
@@ -363,11 +363,11 @@ int gui_plot_rv_using_gnuplot ()
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
 	if (plot_syn && plot_obs)
-		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l notitle\n", oname, sname);	write(cfd, line, strlen(line));}
+		{sprintf(line, "plot '%s' w p lt 3 lw 1 pt 6 notitle, '%s' w l lt 1 notitle\n", oname, sname);	write(cfd, line, strlen(line));}
 	else if (plot_syn)
-		{sprintf(line, "plot  '%s' w l notitle\n", sname);											write(cfd, line, strlen(line));}
+		{sprintf(line, "plot  '%s' w l lt 1 notitle\n", sname);											write(cfd, line, strlen(line));}
 	else if (plot_obs)
-		{sprintf(line, "plot  '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);							write(cfd, line, strlen(line));}
+		{sprintf(line, "plot  '%s' w p lt 3 lw 1 pt 6 notitle\n", oname);								write(cfd, line, strlen(line));}
 
 	close(cfd);
 
