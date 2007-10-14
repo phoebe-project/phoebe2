@@ -324,27 +324,37 @@ int gui_init_widgets ()
     gui_widget_add ("phoebe_para_lum_levels_prim",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 				LC_COL_HLA,			GUI_WIDGET_VALUE, 		par, NULL);
 	gui_widget_add ("phoebe_para_lum_levels_primadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_levels_primstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_levels_primmin_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primmin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_levels_primmax_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_primmax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_cla");
 	gui_widget_add ("phoebe_para_lum_levels_sec",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_levels_treeview), 				LC_COL_CLA,			GUI_WIDGET_VALUE, 		par, NULL);
 	gui_widget_add ("phoebe_para_lum_levels_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_levels_secstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_levels_secmin_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secmin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_levels_secmax_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_secmax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 
     par = phoebe_parameter_lookup ("phoebe_el3");
     gui_widget_add ("phoebe_para_lum_el3",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_EL3,			GUI_WIDGET_VALUE,		par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3ajdust_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3ajdust_checkbutton"),							0,					GUI_WIDGET_SWITCH_TBA, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3step_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3step_spinbutton"),								0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3min_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3min_spinbutton"),								0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3max_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3max_spinbutton"),								0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3units_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3units_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup("phoebe_el3_units"), NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_opsf");
 	gui_widget_add ("phoebe_para_lum_el3_opacity",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_OPSF,		GUI_WIDGET_VALUE,		par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3_opacityadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacityadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,  par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3_opacitystep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacitystep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3_opacitymin_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacitymin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3_opacitymax_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_opacitymax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_extinction");
 	gui_widget_add ("phoebe_para_lum_el3_ext",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_EXTINCTION,	GUI_WIDGET_VALUE,		par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3_extadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extadjust_checkbutton"),						0,					GUI_WIDGET_SWITCH_TBA,  par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3_extstep_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extstep_spinbutton"),							0,					GUI_WIDGET_VALUE_STEP,  par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3_extmin_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extmin_spinbutton"),							0,					GUI_WIDGET_VALUE_MIN,  	par, NULL);
+	gui_widget_add ("phoebe_para_lum_el3_extmax_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3_extmax_spinbutton"),							0,					GUI_WIDGET_VALUE_MAX,  	par, NULL);
 
 	gui_widget_add ("phoebe_para_lum_atmospheres_prim_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_atmospheres_prim_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_atm1_switch"), NULL);
 	gui_widget_add ("phoebe_para_lum_atmospheres_sec_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_lum_atmospheres_sec_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_atm2_switch"), NULL);
