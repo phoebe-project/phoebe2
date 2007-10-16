@@ -136,9 +136,13 @@ int phoebe_configure ()
 	 * The order of the checked config directories is:
 	 *
 	 * 1) PHOEBE_HOME_DIR if not NULL,
-	 * 2) ~/.phoebe2,
+	 * 2) ~/.phoebe-VERSION (i.e. ~/.phoebe-0.30),
 	 * 3) ~/.phoebe
 	 *
+	 * If a legacy (pre-0.30) config file is found, its configuration entries
+	 * will get imported, but the configuration directory will be set to
+	 * ~/.phoebe-VERSION.
+	 * 
 	 * Once the configuration file is open, the function configures all
 	 * PHOEBE features (passband transmission functions, limb darkening
 	 * coefficients etc).
@@ -164,9 +168,9 @@ int phoebe_configure ()
 			phoebe_config_load (PHOEBE_CONFIG);
 		}
 		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
-			PHOEBE_CONFIG = strdup (conffile);
 			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
-			phoebe_config_import (PHOEBE_CONFIG);
+			phoebe_config_import (conffile);
+			PHOEBE_CONFIG = strdup (conffile);
 		}
 		else {
 			phoebe_lib_error ("Config file not found in %s, reverting to defaults.\n", PHOEBE_HOME_DIR);
@@ -174,8 +178,8 @@ int phoebe_configure ()
 	}
 
 	if (!PHOEBE_HOME_DIR) {
-		/* Check for config in ~/phoebe2: */
-		sprintf (homedir, "%s/.phoebe2", USER_HOME_DIR);
+		/* Check for config in ~/phoebe-VERSION: */
+		sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
 		sprintf (conffile, "%s/phoebe.config", homedir);
 
 		status = phoebe_config_peek (conffile);
@@ -186,10 +190,15 @@ int phoebe_configure ()
 			phoebe_config_load (PHOEBE_CONFIG);
 		}
 		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (conffile);
+
+			/* The config file should point to the ~/.phoebe-VERSION dir: */
+			sprintf (homedir,  "%s-%s", USER_HOME_DIR, PACKAGE_VERSION);
+			sprintf (conffile, "%s/phoebe.config", homedir);
+
 			PHOEBE_HOME_DIR = strdup (homedir);
 			PHOEBE_CONFIG = strdup (conffile);
-			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
-			phoebe_config_import (PHOEBE_CONFIG);
 		}
 	}
 
@@ -206,10 +215,15 @@ int phoebe_configure ()
 			phoebe_config_load (PHOEBE_CONFIG);
 		}
 		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			phoebe_config_import (conffile);
+
+			/* The config file should point to the ~/.phoebe-VERSION dir: */
+			sprintf (homedir,  "%s-%s", USER_HOME_DIR, PACKAGE_VERSION);
+			sprintf (conffile, "%s/phoebe.config", homedir);
+
 			PHOEBE_HOME_DIR = strdup (homedir);
 			PHOEBE_CONFIG = strdup (conffile);
-			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
-			phoebe_config_import (PHOEBE_CONFIG);
 		}
 	}
 
@@ -242,7 +256,6 @@ int phoebe_configure ()
 
 	phoebe_debug ("* declaring parameter options...\n");
 	phoebe_init_parameter_options ();
-
 
 	return SUCCESS;
 }

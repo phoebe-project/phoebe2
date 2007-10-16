@@ -1,6 +1,9 @@
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include <phoebe/phoebe.h>
+
+#include "phoebe_gui_build_config.h"
 
 #include "phoebe_gui_accessories.h"
 #include "phoebe_gui_callbacks.h"
@@ -248,6 +251,18 @@ int gui_show_configuration_dialog()
 			}
 			else if (toggle)
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
+
+			if (!PHOEBE_HOME_DIR || !filename_is_directory (PHOEBE_HOME_DIR)) {
+				char homedir[255], confdir[255];
+
+				sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
+				sprintf (confdir, "%s/phoebe.config", homedir);
+
+				PHOEBE_HOME_DIR = strdup (homedir);
+				PHOEBE_CONFIG   = strdup (confdir);
+
+				mkdir (PHOEBE_HOME_DIR, 0755);
+			}
 
 			phoebe_config_save (PHOEBE_CONFIG);
 		}
