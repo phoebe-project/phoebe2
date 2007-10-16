@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-10-11 #
+#                                            Last revision: 2007-10-16 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -92,23 +92,23 @@
   fi
 
   # Glib/GTK+/libglade support:
-  AM_PATH_GLIB_2_0(2.4.0,glib_check_passed=1,glib_check_passed=0)
+  AM_PATH_GLIB_2_0(2.10.0,glib_check_passed=1,glib_check_passed=0)
   if test $glib_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE cannot find the graphical library GLib 2.4.0 or higher."
+      echo "PHOEBE cannot find the graphical library GLib 2.10.0 or higher."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
   fi
 
-  AM_PATH_GTK_2_0(2.4.0,gtk_check_passed=1,gtk_check_passed=0)
+  AM_PATH_GTK_2_0(2.10.0,gtk_check_passed=1,gtk_check_passed=0)
   if test $gtk_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE cannot find the graphical library GTK+-2.4.0 or higher."
+      echo "PHOEBE cannot find the graphical library GTK+-2.10.0 or higher."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
