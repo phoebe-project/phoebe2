@@ -33,6 +33,7 @@ int phoebe_open_directory (DIR **dir, const char *dirname)
 			default:      return ERROR_DIRECTORY_UNKNOWN_ERROR;
 		}
 	}
+
 	return SUCCESS;
 }
 

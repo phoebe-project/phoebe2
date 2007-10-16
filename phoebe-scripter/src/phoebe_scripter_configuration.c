@@ -19,6 +19,12 @@ int scripter_create_config_file ()
 
 	char *pathname;
 
+	if (!PHOEBE_HOME_DIR) {
+		char homedir[255];
+		sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
+		PHOEBE_HOME_DIR = strdup (homedir);
+	}
+
 	printf ("\nWelcome to %s!\n\n", PHOEBE_VERSION_NUMBER);
 	printf ("I am about to create a top-level configuration directory:\n\n\t%s\n\n", PHOEBE_HOME_DIR);
 	printf ("and guide you through the setup process. Do you wish to continue? [Y/n] ");
