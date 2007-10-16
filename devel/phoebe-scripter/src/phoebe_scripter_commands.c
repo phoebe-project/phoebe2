@@ -1348,7 +1348,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		lc = phoebe_malloc (sizeof (*lc));
 		lc[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, curve-1);
 		phoebe_curve_transform (lc[index], PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_UNDEFINED);
-		alias_phase_points (lc[index]->indep, lc[index]->dep, NULL, -0.6, 0.6);
+		phoebe_curve_alias (lc[index], -0.6, 0.6);
 
 		props = phoebe_malloc (sizeof (*props));
 		props[index].lines = FALSE;
@@ -1470,7 +1470,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		rv = phoebe_malloc (sizeof (*rv));
 		rv[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, curve-1);
 		phoebe_curve_transform (rv[index], PHOEBE_COLUMN_PHASE, rv[index]->dtype, PHOEBE_COLUMN_UNDEFINED);
-		alias_phase_points (rv[index]->indep, rv[index]->dep, NULL, -0.6, 0.6);
+		phoebe_curve_alias (rv[index], -0.6, 0.6);
 
 		props = phoebe_malloc (sizeof (*props));
 		props[index].lines = FALSE;
