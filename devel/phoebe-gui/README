@@ -12,12 +12,13 @@ exhibit some instability, and possibly some missing features. We encourage you
 to give us feedback about any unexpected behavior through the mailing lists and 
 the issue tracker on PHOEBE's homepage.
 
-You may share, distribute and modify PHOEBE to your liking. For more information 
-on PHOEBE licensing please read the GNU/GPL license in PHOEBE documentation.
+You may share, distribute and modify PHOEBE to your liking. For more
+information on PHOEBE licensing please read the GNU/GPL license in PHOEBE
+documentation.
 
-Wilson-Devinney WD2007 code is distributed along with this version of PHOEBE for 
-test purposes only.  If you are new to WD, please contact R. E. Wilson, 
-University of Florida, and let him know that you use his software.
+A *modified* version of the Wilson-Devinney code WD2007 is distributed with
+PHOEBE. If you are new to WD, or want the original WD, please contact R. 
+E. Wilson, University of Florida, and let him know that you use his software.
 
 REQUIREMENTS
 ------------
@@ -74,12 +75,12 @@ system-wide installation, but it would be good to review them anyway.
 QUICKSTART
 ----------
 
-Take this quick tour to learn the basic usage of PHOEBE-GUI. For how's and why's 
-of PHysics Of Eclipsing BinariEs, consult the Scientific reference, downloadable 
-from PHOEBE's homepage.
+Take this quick tour to learn the basic usage of PHOEBE-GUI. For how's and
+why's of PHysics Of Eclipsing BinariEs, consult the Scientific reference,
+downloadable from PHOEBE homepage.
 
-The main window of PHOEBE-GUI is divided by tabs into Data, Parameters, Fitting 
-and Plotting sections.
+The main window of PHOEBE-GUI is divided by tabs into Data, Parameters,
+Fitting and Plotting sections.
 
 In the Data tab you can load your observed light curves and radial velocity 
 curves into PHOEBE, by clicking the Add buttons in the LC and RV frames 
@@ -115,17 +116,17 @@ The frame in the right side, containing two lists of parameters, is the Summary
 frame. The upper list shows the parameters that get calculated from the model, 
 and the bottom list shows all the parameters you marked for adjustment.
 
-Please note that some parts of the GUI are "detachable", as indicated by a small 
-button depicting an arrow in their upper right corners. You can detach the 
-fitting and plotting frames, as well as the Summary frame by clicking their 
+Please note that some parts of the GUI are "detachable", as indicated by a
+small button depicting an arrow in their upper right corners. You can detach
+the fitting and plotting frames, as well as the Summary frame by clicking their 
 detach buttons. To reattach a detached frame, click its detach button again. 
 The LC and RV plotting frames and the Fitting frame can also be detached and 
 brought to front from the toolbar.
 
 PHOEBE saves your work in "Parameter files" with ".phoebe" suffix. These files 
-contain your binary system solutions as well as your GUI setup. You may edit the 
-parameter files by hand; if you enter an invalid parameter value, it will simply 
-be ignored.
+contain your binary system solutions as well as your GUI setup. You may edit
+the parameter files by hand; if you enter an invalid parameter value, it will
+simply be ignored.
 
 CONTACT & FEEDBACK
 ------------------
@@ -133,14 +134,5 @@ CONTACT & FEEDBACK
 Please send as much feedback as possible, it will be greatly appreciated. 
 Visit PHOEBE's homepage to join our mailing lists and post a bug report or a 
 feature request.
-
-Don't hesitate to contact the author:
-
-	Andrej Prsa
-	Villanova University
-	800 E Lancaster Ave,
-	Villanova, PA 19085
-	Tel: +1 (610) 519-4887
-	andrej.prsa@villanova.edu
 
 For the list of contributors, please take a look at the top-level AUTHORS file.
