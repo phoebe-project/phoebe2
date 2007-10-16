@@ -1181,37 +1181,59 @@ int transform_weight_to_sigma (PHOEBE_vector *vec)
 	return SUCCESS;
 }
 
-int alias_phase_points (PHOEBE_vector *ph, PHOEBE_vector *dep, PHOEBE_vector *weight, double phmin, double phmax)
-	{
-	/* This function redimensiones the array of data phases by aliasing points  */
-	/* to outside the [-0.5, 0.5] range. If the new interval is narrower, the   */
-	/* points are omitted, otherwise they are aliased.                          */
+int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
+{
+	/**
+	 * phoebe_curve_alias:
+	 * @curve: the curve to be aliased
+	 * @phmin: start phase
+	 * @phmax: end phase
+	 *
+	 * This function redimensiones the array of data phases by aliasing points
+	 * to outside the [-0.5, 0.5] range. If the new interval is narrower, the
+	 * points are omitted, otherwise they are aliased.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
 
-	int i, j, dim = ph->dim;
+	int i, j, dim = curve->indep->dim;
 
-	/* Make the aliasing loop:                                                  */
+	if (!curve)
+		return ERROR_CURVE_NOT_INITIALIZED;
+
+	if (phmin >= phmax)
+		return ERROR_INVALID_PHASE_INTERVAL;
+
+	if (curve->itype != PHOEBE_COLUMN_PHASE)
+		return ERROR_INVALID_INDEP;
+
+	/* Make the aliasing loop: */
 	for (i = 0; i < dim; i++) {
-		/* First alias the points; this is important because the target interval  */
-		/* may not be overlapping the original interval and all original points   */
-		/* will be removed.                                                       */
+		/*
+		 * First alias the points; this is important because the target
+		 * interval may not be overlapping with the original interval and all
+		 * original points would then be removed.
+		 */
 		for (j = (int) (phmin - 1); j <= (int) (phmax + 1); j++) {
-			if ( (ph->val[i] + j > phmin) && (ph->val[i] + j < phmax) ) {
-				phoebe_vector_append_element (ph, ph->val[i] + j);
-				phoebe_vector_append_element (dep, dep->val[i]);
-				if (weight) phoebe_vector_append_element (weight, weight->val[i]);
+			if ( (curve->indep->val[i] + j > phmin) && (curve->indep->val[i] + j < phmax) ) {
+				phoebe_vector_append_element (curve->indep, curve->indep->val[i] + j);
+				phoebe_vector_append_element (curve->dep,   curve->dep->val[i]);
+				if (curve->weight)
+					phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
 			}
 		}
-		/* If the original point is outside of the allowed interval, remove it:   */
-		if (ph->val[i] < phmin || ph->val[i] > phmax) {
-			phoebe_vector_remove_element (ph, i);
-			phoebe_vector_remove_element (dep, i);
-			if (weight) phoebe_vector_remove_element (weight, i);
+
+		/* If the original point is outside of the phase interval, remove it: */
+		if (curve->indep->val[i] < phmin || curve->indep->val[i] > phmax) {
+			phoebe_vector_remove_element (curve->indep, i);
+			phoebe_vector_remove_element (curve->dep, i);
+			if (curve->weight) phoebe_vector_remove_element (curve->weight, i);
 			i--;
 		}
 	}
 
 	return SUCCESS;
-	}
+}
 
 int calculate_main_sequence_parameters (double T1, double T2, double P0, double *L1, double *L2, double *M1, double *M2, double *q, double *a, double *R1, double *R2, double *Omega1, double *Omega2)
 	{

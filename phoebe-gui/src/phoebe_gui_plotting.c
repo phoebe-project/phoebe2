@@ -62,38 +62,6 @@ int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin
 	return SUCCESS;
 }
 
-int gui_plot_alias_curve (PHOEBE_curve *obs, double phmin, double phmax)
-{
-	if (phmax > phmin){
-		int i,j,k=1;
-
-		/* Copy original to curve to temporary one */
-
-		PHOEBE_curve *temp = phoebe_curve_duplicate (obs);
-
-		/* Clear the original curve and create new one. */
-		phoebe_curve_free(obs);
-		obs=phoebe_curve_new();
-
-		for (i = 0; i < temp->indep->dim; i++){
-			for (j = (int)(phmin-1.0); j <= (int)(phmax+1.0); j++){
-				if ((temp->indep->val[i] + j > phmin) && (temp->indep->val[i] + j < phmax)){
-					phoebe_curve_realloc (obs, k);
-
-					obs->indep->val[obs->indep->dim-1]	 = temp->indep->val[i] + j;
-					obs->dep->val[obs->dep->dim-1] 		 = temp->dep->val[i];
-					obs->weight->val[obs->weight->dim-1] = temp->weight->val[i];
-					k ++;
-				}
-			}
-		}
-
-		phoebe_curve_free (temp);
-	}
-
-	return SUCCESS;
-}
-
 int gui_plot_lc_using_gnuplot ()
 {
 	PHOEBE_curve *obs = NULL;
@@ -166,8 +134,8 @@ int gui_plot_lc_using_gnuplot ()
 	if(plot_obs){
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-		if(ALIAS && INDEP == PHOEBE_COLUMN_PHASE)
-			gui_plot_alias_curve (obs, phstart, phend);
+		if (ALIAS)
+			phoebe_curve_alias (obs, phstart, phend);
 
 		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);
@@ -341,8 +309,8 @@ int gui_plot_rv_using_gnuplot ()
 	if(plot_obs){
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, INDEX);
 		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-		if(ALIAS && INDEP == PHOEBE_COLUMN_PHASE)
-			gui_plot_alias_curve (obs, phstart, phend);
+		if (ALIAS)
+			phoebe_curve_alias (obs, phstart, phend);
 
 		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
 		ofd = mkstemp (oname);

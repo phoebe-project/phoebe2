@@ -179,6 +179,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "the passed wavelength interval is invalid, aborting.\n";
 		case ERROR_INVALID_SAMPLING_POWER:
 			return "the spectrum's sampling power is invalid, aborting.\n";
+		case ERROR_INVALID_PHASE_INTERVAL:
+			return "phase interval is invalid (phmax <= phmin), aborting.\n";
 		case ERROR_UNINITIALIZED_CURVE:
 			return "the curve you are trying to compute is not initialized.\n";
 		case ERROR_UNSUPPORTED_MPAGE:
