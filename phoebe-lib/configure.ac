@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-09-14 #
+#                                            Last revision: 2007-10-15 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
