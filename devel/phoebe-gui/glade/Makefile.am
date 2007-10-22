@@ -35,7 +35,8 @@ guiglade_DATA = phoebe_filechooser.glade          \
                 phoebe_weighting.glade			  \
                 phoebe_third_light.glade		  \
 				phoebe_levels.glade				  \
-				phoebe_lc_coefficents.glade
+				phoebe_lc_coefficents.glade		  \
+				phoebe_about.glade
 
 
 EXTRA_DIST = $(guiglade_DATA)

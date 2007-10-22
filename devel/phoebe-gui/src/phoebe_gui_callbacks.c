@@ -856,7 +856,21 @@ void on_phoebe_settings_configuration_menuitem_activate (GtkMenuItem *menuitem, 
 
 void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
+	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_about.glade", NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
+	GladeXML  *phoebe_about_xml                   = glade_xml_new        (glade_xml_file, NULL, NULL);
+	GtkWidget *phoebe_about_dialog                = glade_xml_get_widget (phoebe_about_xml, "phoebe_about_dialog");
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_about_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+
+	gint result = gtk_dialog_run ((GtkDialog*)phoebe_about_dialog);
+	switch (result){
+		case GTK_RESPONSE_CLOSE:
+		break;
+	}
+
+	gtk_widget_destroy (phoebe_about_dialog);
 }
 
 
