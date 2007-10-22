@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.2.0 on Mon Oct  1 13:03:05 2007 by olivia@olivia-AOB-->
+<!--Generated with glade3 3.2.0 on Sun Oct 21 22:01:49 2007 by andrej@gemma-->
 <glade-interface>
   <widget class="GtkDialog" id="phoebe_load_lc_dialog">
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
@@ -21,6 +21,35 @@
             <child>
               <widget class="GtkVBox" id="vbox4">
                 <property name="visible">True</property>
+                <child>
+                  <widget class="GtkHBox" id="hbox1">
+                    <property name="visible">True</property>
+                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                    <child>
+                      <widget class="GtkLabel" id="phoebe_load_lc_id_label">
+                        <property name="visible">True</property>
+                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                        <property name="yalign">0.50999999046325684</property>
+                        <property name="xpad">10</property>
+                        <property name="label" translatable="yes">Name:</property>
+                      </widget>
+                      <packing>
+                        <property name="expand">False</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkEntry" id="phoebe_load_lc_id_entry">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                        <property name="tooltip" translatable="yes">Common name of the light curve; this name will be used to identify the curve throughout PHOEBE.</property>
+                      </widget>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </widget>
+                </child>
                 <child>
                   <widget class="GtkHBox" id="hbox6">
                     <property name="visible">True</property>
@@ -48,6 +77,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="padding">4</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
@@ -57,7 +87,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="padding">4</property>
-                    <property name="position">1</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
                 <child>
@@ -71,16 +101,44 @@
                         <property name="n_columns">2</property>
                         <property name="column_spacing">20</property>
                         <child>
-                          <widget class="GtkComboBox" id="phoebe_load_lc_column3_combobox">
+                          <widget class="GtkLabel" id="phoebe_load_lc_column1_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Column 1:</property>
+                          </widget>
+                          <packing>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_load_lc_column2_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Column 2:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_load_lc_column3_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Column 3:</property>
+                          </widget>
+                          <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
+                            <property name="x_options">GTK_FILL</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkComboBox" id="phoebe_load_lc_column1_combobox">
                             <property name="visible">True</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
-                            <property name="top_attach">2</property>
-                            <property name="bottom_attach">3</property>
-                            <property name="x_options">GTK_FILL</property>
                             <property name="y_options"></property>
                           </packing>
                         </child>
@@ -99,45 +157,17 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkComboBox" id="phoebe_load_lc_column1_combobox">
+                          <widget class="GtkComboBox" id="phoebe_load_lc_column3_combobox">
                             <property name="visible">True</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
-                            <property name="y_options"></property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_lc_column3_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 3:</property>
-                          </widget>
-                          <packing>
                             <property name="top_attach">2</property>
                             <property name="bottom_attach">3</property>
                             <property name="x_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_lc_column2_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 2:</property>
-                          </widget>
-                          <packing>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
-                            <property name="x_options">GTK_FILL</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_lc_column1_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Column 1:</property>
-                          </widget>
-                          <packing>
-                            <property name="x_options">GTK_FILL</property>
+                            <property name="y_options"></property>
                           </packing>
                         </child>
                       </widget>
@@ -164,16 +194,23 @@
                         <property name="column_spacing">20</property>
                         <property name="row_spacing">10</property>
                         <child>
-                          <widget class="GtkComboBox" id="phoebe_load_lc_filter_combobox">
+                          <widget class="GtkLabel" id="phoebe_load_lc_sigma_label">
                             <property name="visible">True</property>
-                            <property name="items" translatable="yes"></property>
+                            <property name="label" translatable="yes">Sigma:</property>
                           </widget>
                           <packing>
-                            <property name="left_attach">1</property>
-                            <property name="right_attach">2</property>
+                            <property name="y_options"></property>
+                          </packing>
+                        </child>
+                        <child>
+                          <widget class="GtkLabel" id="phoebe_load_lc_filter_label">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Filter:</property>
+                          </widget>
+                          <packing>
                             <property name="top_attach">1</property>
                             <property name="bottom_attach">2</property>
-                            <property name="y_options">GTK_FILL</property>
+                            <property name="y_options"></property>
                           </packing>
                         </child>
                         <child>
@@ -191,23 +228,16 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkLabel" id="phoebe_load_lc_filter_label">
+                          <widget class="GtkComboBox" id="phoebe_load_lc_filter_combobox">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Filter:</property>
+                            <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
                             <property name="top_attach">1</property>
                             <property name="bottom_attach">2</property>
-                            <property name="y_options"></property>
-                          </packing>
-                        </child>
-                        <child>
-                          <widget class="GtkLabel" id="phoebe_load_lc_sigma_label">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes">Sigma:</property>
-                          </widget>
-                          <packing>
-                            <property name="y_options"></property>
+                            <property name="y_options">GTK_FILL</property>
                           </packing>
                         </child>
                       </widget>
@@ -219,7 +249,7 @@
                   </widget>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="position">2</property>
+                    <property name="position">3</property>
                   </packing>
                 </child>
                 <child>
@@ -229,7 +259,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="padding">4</property>
-                    <property name="position">3</property>
+                    <property name="position">4</property>
                   </packing>
                 </child>
                 <child>
@@ -249,7 +279,7 @@
                     </child>
                   </widget>
                   <packing>
-                    <property name="position">4</property>
+                    <property name="position">5</property>
                   </packing>
                 </child>
               </widget>

@@ -41,6 +41,7 @@ int phoebe_init_parameters ()
 
 	/* ***********************   Data parameters   ************************** */
 
+	phoebe_parameter_add ("phoebe_lc_id"                 "Observed LC identification name",            KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
 	phoebe_parameter_add ("phoebe_lc_filename",          "Observed LC data filename",                  KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
 	phoebe_parameter_add ("phoebe_lc_sigma",             "Observed LC data standard deviation",        KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 0.01);
 	phoebe_parameter_add ("phoebe_lc_filter",            "Observed LC data filter",                    KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
@@ -50,6 +51,7 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_lc_levweight",         "Observed LC data level weighting",           KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Poissonian scatter");
 	phoebe_parameter_add ("phoebe_lc_active",            "Observed LC data is used",                   KIND_SWITCH,     "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
+	phoebe_parameter_add ("phoebe_rv_id"                 "Observed RV identification name",            KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
 	phoebe_parameter_add ("phoebe_rv_filename",          "Observed RV data filename",                  KIND_PARAMETER,  "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
 	phoebe_parameter_add ("phoebe_rv_sigma",             "Observed RV data standard deviation",        KIND_PARAMETER,  "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 1.0);
 	phoebe_parameter_add ("phoebe_rv_filter",            "Observed RV data filter",                    KIND_MENU,       "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
