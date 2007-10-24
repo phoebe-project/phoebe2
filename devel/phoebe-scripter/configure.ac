@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-09-26 #
+#                                            Last revision: 2007-10-24 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -79,7 +79,7 @@
 
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
-    if test "$LEX" != flex; then
+    if test "$LEX" != flex -a "$LEX" != flex-new; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -90,7 +90,7 @@
     fi
 
     # Check for 2.5.33 version:
-    if ! flex --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
+    if ! $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
