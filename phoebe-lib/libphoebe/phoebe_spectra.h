@@ -30,8 +30,6 @@ extern PHOEBE_specrep PHOEBE_spectra_repository;
 int phoebe_spectra_set_repository (char *rep_name);
 int phoebe_spectra_free_repository ();
 
-int              query_spectra_repository                    (char *rep_name, PHOEBE_specrep *spec);
-
 PHOEBE_spectrum *phoebe_spectrum_new                         ();
 PHOEBE_spectrum *phoebe_spectrum_new_from_file               (char *filename);
 PHOEBE_spectrum *phoebe_spectrum_create                      (double ll, double ul, double R, PHOEBE_spectrum_dispersion disp);

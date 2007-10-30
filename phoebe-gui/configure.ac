@@ -92,7 +92,7 @@
   fi
 
   # Glib/GTK+/libglade support:
-  AM_PATH_GLIB_2_0(2.10.0,glib_check_passed=1,glib_check_passed=0)
+  AM_PATH_GLIB_2_0(2.4.0,glib_check_passed=1,glib_check_passed=0)
   if test $glib_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
@@ -103,7 +103,7 @@
       exit
   fi
 
-  AM_PATH_GTK_2_0(2.10.0,gtk_check_passed=1,gtk_check_passed=0)
+  AM_PATH_GTK_2_0(2.4.0,gtk_check_passed=1,gtk_check_passed=0)
   if test $gtk_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"

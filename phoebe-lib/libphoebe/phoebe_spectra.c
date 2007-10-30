@@ -165,15 +165,15 @@ int phoebe_spectra_set_repository (char *rep_name)
 	qsort (PHOEBE_spectra_repository.loggnodes->val.iarray, PHOEBE_spectra_repository.loggnodes->dim, sizeof (*(PHOEBE_spectra_repository.loggnodes->val.iarray)), diff_int);
 	qsort (PHOEBE_spectra_repository.metnodes->val.iarray,  PHOEBE_spectra_repository.metnodes->dim,  sizeof (*(PHOEBE_spectra_repository.metnodes->val.iarray)),  diff_int);
 
-	printf ("Temperature nodes:\n");
+	phoebe_debug ("Temperature nodes:\n");
 	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
-		printf ("\t%d\n", PHOEBE_spectra_repository.Teffnodes->val.iarray[i]);
-	printf ("Gravity nodes:\n");
+		phoebe_debug ("\t%d\n", PHOEBE_spectra_repository.Teffnodes->val.iarray[i]);
+	phoebe_debug ("Gravity nodes:\n");
 	for (i = 0; i < PHOEBE_spectra_repository.loggnodes->dim; i++)
-		printf ("\t%d\n", PHOEBE_spectra_repository.loggnodes->val.iarray[i]);
-	printf ("Metallicity nodes:\n");
+		phoebe_debug ("\t%d\n", PHOEBE_spectra_repository.loggnodes->val.iarray[i]);
+	phoebe_debug ("Metallicity nodes:\n");
 	for (i = 0; i < PHOEBE_spectra_repository.metnodes->dim; i++)
-		printf ("\t%d\n", PHOEBE_spectra_repository.metnodes->val.iarray[i]);
+		phoebe_debug ("\t%d\n", PHOEBE_spectra_repository.metnodes->val.iarray[i]);
 
 	/* Now that the nodes are in place, we create our dynamic 3D grid table: */
 	PHOEBE_spectra_repository.table = phoebe_malloc (PHOEBE_spectra_repository.Teffnodes->dim * sizeof (*PHOEBE_spectra_repository.table));
@@ -237,58 +237,6 @@ int phoebe_spectra_free_repository ()
 	for (i = 0; i < PHOEBE_spectra_repository.no; i++)
 		free (PHOEBE_spectra_repository.prop[i].filename);
 	free (PHOEBE_spectra_repository.prop);
-
-	return SUCCESS;
-}
-
-int query_spectra_repository (char *rep_name, PHOEBE_specrep *spec)
-{
-	/*
-	 * This function queries the passed directory location for spectra. The
-	 * number of found spectra is reported through a spec.no parameter field.
-	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
-	 *   ERROR_SPECTRA_REPOSITORY_NOT_FOUND
-	 *   ERROR_SPECTRA_REPOSITORY_INVALID_NAME
-	 */
-
-	DIR *repository;
-	struct dirent *filelist;
-
-	int RES, LAMIN, LAMAX, MET, TEMP, LOGG;
-	char METSIGN;
-
-	if (!rep_name)
-		return ERROR_SPECTRA_REPOSITORY_INVALID_NAME;
-
-	if (!filename_is_directory (rep_name))
-		return ERROR_SPECTRA_REPOSITORY_NOT_DIRECTORY;
-
-	repository = opendir (rep_name);
-	if (!repository)
-		return ERROR_SPECTRA_REPOSITORY_NOT_FOUND;
-
-	/* Initialize the spectra database:                                       */
-	spec->no = 0; spec->prop = NULL;
-
-	while ( (filelist = readdir (repository)) ) {
-		if (sscanf (filelist->d_name, "F%4d%dV000-R%d%c%dT%dG%dK2NOVER.ASC", &LAMIN, &LAMAX, &RES, &METSIGN, &MET, &TEMP, &LOGG) != 7) continue;
-		if (METSIGN == 'M') MET = -MET;
-		spec->no++;
-		spec->prop = phoebe_realloc (spec->prop, spec->no * sizeof (*spec->prop));
-		spec->prop[spec->no-1].resolution  = RES;
-		spec->prop[spec->no-1].lambda_min  = LAMIN;
-		spec->prop[spec->no-1].lambda_max  = LAMAX;
-		spec->prop[spec->no-1].temperature = TEMP;
-		spec->prop[spec->no-1].metallicity = MET;
-		spec->prop[spec->no-1].gravity     = LOGG;
-	}
-	closedir (repository);
-
-	if (spec->no == 0)
-		return ERROR_SPECTRA_REPOSITORY_EMPTY;
 
 	return SUCCESS;
 }

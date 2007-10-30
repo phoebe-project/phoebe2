@@ -68,7 +68,7 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
 		gtk_widget_reparent(box, window);
 		gtk_widget_set_size_request (window, x, y);
-		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);
+/*		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);*/
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 		gtk_widget_show_all (window);
 		*flag = !(*flag);
