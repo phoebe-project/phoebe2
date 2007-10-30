@@ -251,6 +251,16 @@ int phoebe_configure ()
 		}
 	}
 
+	phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &switch_state);
+	if (switch_state == 1) {
+		phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &pathname);
+		status = phoebe_spectra_set_repository (pathname);
+		if (status != SUCCESS) {
+			phoebe_lib_error ("Spectra repository cannot be accessed, disabling readouts.\n");
+			phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", 0);
+		}
+	}
+
 	phoebe_debug ("* declaring parameters...\n");
 	phoebe_init_parameters ();
 
@@ -274,6 +284,9 @@ int phoebe_quit ()
 
 	/* Free the LD table:                                                     */
 	phoebe_ld_table_free ();
+
+	/* Free the spectra table: */
+	phoebe_spectra_free_repository ();
 
 	/* Free all global PHOEBE strings:                                        */
 	free (PHOEBE_STARTUP_DIR);

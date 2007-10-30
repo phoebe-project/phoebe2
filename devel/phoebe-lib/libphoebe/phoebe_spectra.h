@@ -28,6 +28,7 @@ typedef struct PHOEBE_specrep {
 extern PHOEBE_specrep PHOEBE_spectra_repository;
 
 int phoebe_spectra_set_repository (char *rep_name);
+int phoebe_spectra_free_repository ();
 
 int              query_spectra_repository                    (char *rep_name, PHOEBE_specrep *spec);
 
@@ -36,7 +37,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file               (char *filename);
 PHOEBE_spectrum *phoebe_spectrum_create                      (double ll, double ul, double R, PHOEBE_spectrum_dispersion disp);
 PHOEBE_spectrum *phoebe_spectrum_duplicate                   (PHOEBE_spectrum *spectrum);
 PHOEBE_vector   *phoebe_spectrum_get_column                  (PHOEBE_spectrum *spectrum, int col);
-int              phoebe_spectrum_new_from_repository         (PHOEBE_spectrum **spectrum, double R, int T, int g, int M, double ll, double ul);
+int              phoebe_spectrum_new_from_repository         (PHOEBE_spectrum **spectrum, int T, int g, int M);
 int              phoebe_spectrum_alloc                       (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_realloc                     (PHOEBE_spectrum *spectrum, int dim);
 int              phoebe_spectrum_free                        (PHOEBE_spectrum *spectrum);
