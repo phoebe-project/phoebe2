@@ -82,7 +82,7 @@ expand_content_files=
 # signals and properties.
 # e.g. INCLUDES=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
-INCLUDES=`pkg-config gtk+-2.0 --cflags`
+AM_CPPFLAGS=`pkg-config gtk+-2.0 --cflags`
 GTKDOC_LIBS=-lphoebe `pkg-config gtk+-2.0 --libs`
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.

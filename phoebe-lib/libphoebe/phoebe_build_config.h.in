@@ -164,9 +164,6 @@
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
-/* This is for Linux x86 architectures: */
-#undef f2cFortran
-
 /* Define to rpl_malloc if the replacement function should be used. */
 #undef malloc
 

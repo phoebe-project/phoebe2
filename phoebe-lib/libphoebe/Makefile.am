@@ -61,10 +61,6 @@ phoebe_constraints.tab.c: phoebe_constraints.y
 phoebe_constraints.lex.c: phoebe_constraints.lex
 	$(LEX) phoebe_constraints.lex
 
-INCLUDES = \
-	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
-	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"
-
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS  = -ff2c
 libphoebe_la_CFLAGS  = -Wall

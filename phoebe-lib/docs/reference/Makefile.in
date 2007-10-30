@@ -99,7 +99,6 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
 FFLAGS = @FFLAGS@
-FLIBS = @FLIBS@
 GREP = @GREP@
 HTML_DIR = @HTML_DIR@
 INSTALL = @INSTALL@
@@ -249,7 +248,7 @@ expand_content_files =
 # signals and properties.
 # e.g. INCLUDES=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
-INCLUDES = `pkg-config gtk+-2.0 --cflags`
+AM_CPPFLAGS = `pkg-config gtk+-2.0 --cflags`
 GTKDOC_LIBS = -lphoebe `pkg-config gtk+-2.0 --libs`
 @GTK_DOC_USE_LIBTOOL_FALSE@GTKDOC_CC = $(CC) $(INCLUDES) $(AM_CFLAGS) $(CFLAGS)
 @GTK_DOC_USE_LIBTOOL_TRUE@GTKDOC_CC = $(LIBTOOL) --mode=compile $(CC) $(INCLUDES) $(AM_CFLAGS) $(CFLAGS)
