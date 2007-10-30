@@ -4,6 +4,7 @@
 typedef enum GUI_lc_model_columns {
     LC_COL_ACTIVE,
     LC_COL_FILENAME,
+    LC_COL_ID,
     LC_COL_FILTER,
 	LC_COL_FILTERNO,
     LC_COL_ITYPE,
@@ -29,6 +30,7 @@ typedef enum GUI_lc_model_columns {
 typedef enum GUI_rv_model_columns {
     RV_COL_ACTIVE,
     RV_COL_FILENAME,
+    RV_COL_ID,
     RV_COL_FILTER,
     RV_COL_ITYPE,
     RV_COL_ITYPE_STR,
