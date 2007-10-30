@@ -21,8 +21,11 @@ int scripter_create_config_file ()
 
 	if (!PHOEBE_HOME_DIR) {
 		char homedir[255];
+		char configfile[255];
 		sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
 		PHOEBE_HOME_DIR = strdup (homedir);
+		sprintf (configfile, "%s/phoebe.config", PHOEBE_HOME_DIR);
+		PHOEBE_CONFIG = strdup (configfile);
 	}
 
 	printf ("\nWelcome to %s!\n\n", PHOEBE_VERSION_NUMBER);
