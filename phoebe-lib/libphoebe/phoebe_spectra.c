@@ -44,7 +44,7 @@ int intern_spectra_repository_process (const char *filename, const struct stat *
 	char metsign, alpha = 'S', odftype[3], respow[4], sptype;
 
 	argmatch = sscanf (relative, "/T%5dG%2d%c%2dV000K%1dS%2cNV%3c%c.ASC", &T, &logg, &metsign, &met, &turb, odftype, respow, &sptype);
-	printf ("%2d matched; ", argmatch);
+	phoebe_debug ("%2d matched; ", argmatch);
 	if (argmatch == 8) {
 		/* Handle metallicity sign: */
 		if (metsign == 'M') met = -met;
@@ -118,10 +118,10 @@ int intern_spectra_repository_process (const char *filename, const struct stat *
 		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].metallicity = met;
 		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].alpha = alpenh;
 		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].microturbulence = turb;
-		printf ("parsed:  %s\n", relative+1);
+		phoebe_debug ("parsed:  %s\n", relative+1);
 	}
 	else
-		printf ("skipped: %s\n", relative+1);
+		phoebe_debug ("skipped: %s\n", relative+1);
 
 	return SUCCESS;
 }
@@ -200,15 +200,43 @@ int phoebe_spectra_set_repository (char *rep_name)
 		PHOEBE_spectra_repository.table[i][j][k] = &(PHOEBE_spectra_repository.prop[s]);
 	}
 
-	printf ("Table:\n");
+	phoebe_debug ("Table:\n");
 	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++)
 		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++)
 			for (k = 0; k < PHOEBE_spectra_repository.metnodes->dim; k++) {
 				if (PHOEBE_spectra_repository.table[i][j][k])
-					printf ("%d %d %d: %s\n", i, j, k, PHOEBE_spectra_repository.table[i][j][k]->filename);
+					phoebe_debug ("%d %d %d: %s\n", i, j, k, PHOEBE_spectra_repository.table[i][j][k]->filename);
 				else
-					printf ("%d %d %d: %s\n", i, j, k, "n/a");
+					phoebe_debug ("%d %d %d: %s\n", i, j, k, "n/a");
 			}
+
+	return SUCCESS;
+}
+
+int phoebe_spectra_free_repository ()
+{
+	int i, j;
+
+	if (PHOEBE_spectra_repository.no == 0)
+		return SUCCESS;
+
+	/* The 'table' field holds pointers, so we need to remove only the table: */
+	for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++) {
+		for (j = 0; j < PHOEBE_spectra_repository.loggnodes->dim; j++)
+			free (PHOEBE_spectra_repository.table[i][j]);
+		free (PHOEBE_spectra_repository.table[i]);
+	}
+	free (PHOEBE_spectra_repository.table);
+
+	/* Free memory occupied by arrays: */
+	phoebe_array_free (PHOEBE_spectra_repository.Teffnodes);
+	phoebe_array_free (PHOEBE_spectra_repository.loggnodes);
+	phoebe_array_free (PHOEBE_spectra_repository.metnodes);
+
+	/* Finally, free the actual spectra properties: */
+	for (i = 0; i < PHOEBE_spectra_repository.no; i++)
+		free (PHOEBE_spectra_repository.prop[i].filename);
+	free (PHOEBE_spectra_repository.prop);
 
 	return SUCCESS;
 }
@@ -591,7 +619,7 @@ int phoebe_spectrum_crop (PHOEBE_spectrum *spectrum, double ll, double ul)
 	return phoebe_hist_crop (spectrum->data, ll, ul);
 }
 
-int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, int T, int g, int M, double ll, double ul)
+int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, int T, int g, int M)
 {
 	/*
 	 * This function queries the spectra repository, takes closest gridded spe-
@@ -600,12 +628,9 @@ int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, double R, i
 	 *
 	 * Input parameters:
 	 *
-	 *   R    ..  resolution (typically 2500)
 	 *   T    ..  effective temperature
-	 *   g    ..  log g/g0
+	 *   g    ..  log g/g0 in cgs units
 	 *   M    ..  metallicity [M/H] in Solar units
-	 *   ll   ..  lower queried wavelength interval limit
-	 *   ul   ..  upper queried wavelength interval limit
 	 *
 	 * Return values:
 	 *
