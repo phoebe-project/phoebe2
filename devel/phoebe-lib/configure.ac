@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT(PHOEBE,[0.30],[andrej.prsa@fmf.uni-lj.si],[phoebe])
+  AC_INIT([PHOEBE],[0.30],[phoebe-devel@lists.sourceforge.net],[phoebe])
 
 # Create a dedicated header file phoebe_build_config.h that will contain
 # all #define statements that correspond to whatever ./configure found:
@@ -50,8 +50,8 @@
 # Initialize the location of local autoconf macros:
   AC_CONFIG_MACRO_DIR(autoconfig)
 
-# Initialize configure.ac for automake:
-  AM_INIT_AUTOMAKE(phoebe,0.30)
+# Pass the following options to automake and enable maintainer mode:
+  AM_INIT_AUTOMAKE([-Wall -Werror gnu])
   AM_MAINTAINER_MODE
 
 # Get the system type:
@@ -77,19 +77,6 @@
       echo "       *** PHOEBE configuration failure ***"
       echo ""
       echo "PHOEBE needs an ANSI-compliant C compiler to build."
-      echo "Please install it and run the ./configure script again."
-      echo ""
-      exit
-    fi
-
-  # FORTRAN compiler:
-    AC_PROG_F77
-
-    if test -z $F77; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs an F77-compliant FORTRAN compiler to build."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
@@ -219,11 +206,12 @@ GTK_DOC_CHECK(1.0)
 
 # Check for FORTRAN library features:
 
-  # Make sure FORTRAN internal libraries will be available for linking:
-  AC_F77_LIBRARY_LDFLAGS
+  # Get $FLIBS for mixing Fortran with C:
+  # (see http://www.gnu.org/software/automake/manual/automake.html#Mixing-Fortran-77-With-C-and-C_002b_002b)
+# AC_F77_LIBRARY_LDFLAGS
 
   # Define a switch to tell FORTRAN what architecture it is compiling for:
-  AC_DEFINE(f2cFortran, 1, [This is for Linux x86 architectures:])
+# AC_DEFINE(f2cFortran, 1, [This is for Linux x86 architectures:])
 
 # Check for OS features:
 
@@ -251,12 +239,13 @@ GTK_DOC_CHECK(1.0)
   echo "-----------------------------------------------------------"
   echo "System type:                      $build"
   echo "C compiler used:                  $CC"
-  echo "FORTRAN compiler used:            $F77"
+#  echo "FORTRAN compiler used:            $F77"
   echo "Grammar lexer used:               $LEX"
   echo "Grammar parser used:              $YACC"
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
   echo "Build API documentation:          $gtkdocstate"
+  echo "Maintainer mode (build sources):  $USE_MAINTAINER_MODE"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
