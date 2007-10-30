@@ -604,7 +604,7 @@ scripter_ast_value scripter_create_wd_lci_file (scripter_ast_list *args)
 	if (status != SUCCESS) return out;
 
 	status = wd_lci_parameters_get (&params, vals[1].value.i, vals[2].value.i-1);
-	if (status != SUCCESS) printf ("%s", phoebe_scripter_error (status));
+	if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 	else {
 		status = create_lci_file (vals[0].value.str, &params);
 		if (status != SUCCESS)
@@ -2247,7 +2247,7 @@ scripter_ast_value scripter_get_spectrum_from_repository (scripter_ast_list *arg
 		return out;
 	}
 
-	status = phoebe_spectrum_new_from_repository (&spectrum, 50000.0, (int) vals[0].value.d, (int) (10.0*vals[1].value.d), (int) vals[2].value.d, 2500, 10500);
+	status = phoebe_spectrum_new_from_repository (&spectrum, (int) vals[0].value.d, (int) (10.0*vals[1].value.d), (int) vals[2].value.d);
 	if (status != SUCCESS) {
 		scripter_ast_value_array_free (vals, 3);
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
