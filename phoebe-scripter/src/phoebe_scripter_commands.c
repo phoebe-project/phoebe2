@@ -2168,7 +2168,6 @@ scripter_ast_value scripter_set_spectra_repository (scripter_ast_list *args)
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
-	PHOEBE_specrep specrep;
 	int status;
 
 	out.type = type_void;
@@ -2176,7 +2175,7 @@ scripter_ast_value scripter_set_spectra_repository (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_string);
 	if (status != SUCCESS) return out;
 
-	status = query_spectra_repository (vals[0].value.str, &specrep);
+	status = phoebe_spectra_set_repository (vals[0].value.str);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 1);
@@ -2185,8 +2184,7 @@ scripter_ast_value scripter_set_spectra_repository (scripter_ast_list *args)
 
 	phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR", vals[0].value.str);
 
-	phoebe_scripter_output ("repository %s:\n", vals[0].value.str);
-	phoebe_scripter_output ("%d spectra found.\n", specrep.no);
+	phoebe_scripter_output ("repository %s: %d spectra found.\n", vals[0].value.str, PHOEBE_spectra_repository.no);
 
 	scripter_ast_value_array_free (vals, 1);
 	return out;
