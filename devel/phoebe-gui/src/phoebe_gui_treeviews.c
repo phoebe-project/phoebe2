@@ -926,6 +926,11 @@ int gui_data_lc_treeview_add()
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  0);
 
+	gchar *dir;
+	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+	gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_lc_filechooserbutton, dir);
+
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
     switch (result){
         case GTK_RESPONSE_OK:{
@@ -1090,8 +1095,13 @@ int gui_data_lc_treeview_edit()
 
 			sprintf(filter_selected, "%s", filter);
 
-			if(filename){
+			if(filename)
 				gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
+			else{
+				gchar *dir;
+				phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+				gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_lc_filechooserbutton, dir);
 			}
         }
 
@@ -1224,6 +1234,11 @@ int gui_data_rv_treeview_add()
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column1_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column2_combobox,  0);
 	gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_rv_column3_combobox,  0);
+
+	gchar *dir;
+	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+	gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_rv_filechooserbutton, dir);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
     switch (result){
@@ -1374,8 +1389,13 @@ int gui_data_rv_treeview_edit()
 
 			sprintf(filter_selected, "%s", filter);
 
-			if(filename){
+			if(filename)
 	            gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_rv_filechooserbutton, filename);
+			else{
+				gchar *dir;
+				phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+				gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_rv_filechooserbutton, dir);
 			}
         }
 
