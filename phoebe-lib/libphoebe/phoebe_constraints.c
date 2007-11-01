@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "phoebe_constraints.h"
-#include "phoebe_constraints.lex.h"
+#include "phoebe_constraints.lng.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
 

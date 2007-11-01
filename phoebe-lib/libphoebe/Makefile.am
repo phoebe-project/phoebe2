@@ -27,6 +27,7 @@
 lib_LTLIBRARIES = libphoebe.la
 
 libphoebe_la_SOURCES =                                                  \
+    phoebe_constraints.grm.y          phoebe_constraints.lng.l          \
     phoebe_accessories.c              phoebe_accessories.h              \
     phoebe_allocations.c              phoebe_allocations.h              \
     phoebe_base.c                     phoebe_base.h                     \
@@ -34,7 +35,6 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
     phoebe_constraints.c              phoebe_constraints.h              \
-    phoebe_constraints.lex            phoebe_constraints.grm.y          \
     phoebe_data.c                     phoebe_data.h                     \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
@@ -48,14 +48,16 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_types.c                    phoebe_types.h                    \
                                       phoebe.h
 
-BUILT_SOURCES =                                                         \
-	phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
-	phoebe_constraints.grm.c          phoebe_constraints.grm.h
+BUILT_SOURCES = phoebe_constraints.lng.h phoebe_constraints.grm.h
 
-EXTRA_DIST = \
-    phoebe_constraints.lex.c          phoebe_constraints.lex.h
+phoebe_constraints.lng.h:
+	$(LEX) phoebe_constraints.lng.l
+
+#EXTRA_DIST = \
+#    phoebe_constraints.lex.c          phoebe_constraints.lex.h
 
 AM_YFLAGS = -d -p pc
+AM_LFLAGS = -P pc --header-file=phoebe_constraints.lng.h
 
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS  = -ff2c

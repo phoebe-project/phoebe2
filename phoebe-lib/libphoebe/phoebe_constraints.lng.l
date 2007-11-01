@@ -14,8 +14,8 @@
 
 %option warn
 %option prefix="pc"
-%option outfile="phoebe_constraints.lex.c"
-%option header-file="phoebe_constraints.lex.h"
+%option outfile="lex.yy.c"
+%option header-file="phoebe_constraints.lng.h"
 
 _DIGIT	[0-9]
 _LETTER	[a-zA-Z]
