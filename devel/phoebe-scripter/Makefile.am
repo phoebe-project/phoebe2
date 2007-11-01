@@ -28,11 +28,7 @@ SUBDIRS = help src
 
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
-             autogen.sh                              \
              autoconfig/compile                      \
-             autoconfig/config.guess                 \
-             autoconfig/config.sub                   \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
-             autoconfig/ltmain.sh                    \
              autoconfig/missing
