@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT([PHOEBE],[0.30],[phoebe-devel@lists.sourceforge.net],[phoebe])
+  AC_INIT([phoebe-lib],[0.30],[phoebe-devel@lists.sourceforge.net])
 
 # Create a dedicated header file phoebe_build_config.h that will contain
 # all #define statements that correspond to whatever ./configure found:

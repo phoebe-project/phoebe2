@@ -53,11 +53,8 @@ BUILT_SOURCES = phoebe_constraints.lng.h phoebe_constraints.grm.h
 phoebe_constraints.lng.h:
 	$(LEX) phoebe_constraints.lng.l
 
-#EXTRA_DIST = \
-#    phoebe_constraints.lex.c          phoebe_constraints.lex.h
-
 AM_YFLAGS = -d -p pc
-AM_LFLAGS = -P pc --header-file=phoebe_constraints.lng.h
+AM_LFLAGS = -P pc
 
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS  = -ff2c

@@ -31,7 +31,6 @@ DISTCHECK_CONFIGURE_FLAGS=--enable-gtk-doc
 
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
-             autogen.sh                              \
              autoconfig/compile                      \
              autoconfig/config.guess                 \
              autoconfig/config.sub                   \
