@@ -602,8 +602,6 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	uninstall-library_includeHEADERS
 
 
-*.c: *.f
-
 $(libwd_la_SOURCES):
 	f2c -A -R -Nn802 $(SOURCES)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
