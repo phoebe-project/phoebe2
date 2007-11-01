@@ -59,9 +59,8 @@ subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
 	ChangeLog INSTALL NEWS TODO autoconfig/compile \
-	autoconfig/config.guess autoconfig/config.sub \
-	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
-	autoconfig/missing autoconfig/ylwrap
+	autoconfig/depcomp autoconfig/install-sh autoconfig/missing \
+	autoconfig/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -192,13 +191,9 @@ top_srcdir = @top_srcdir@
 SUBDIRS = help src
 EXTRA_DIST = ACKNOWLEDGEMENTS                        \
              SPECS                                   \
-             autogen.sh                              \
              autoconfig/compile                      \
-             autoconfig/config.guess                 \
-             autoconfig/config.sub                   \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
-             autoconfig/ltmain.sh                    \
              autoconfig/missing
 
 all: all-recursive
