@@ -291,7 +291,7 @@ GTK_DOC_CHECK(1.0)
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 
-if test -z "$f2c_check_passed" || test -z "$flex_check_passed"; then
+if test -z "$f2c_check_passed" || test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
   echo "Notice:"
   echo ""
 fi
