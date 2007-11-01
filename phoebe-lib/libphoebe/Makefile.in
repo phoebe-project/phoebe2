@@ -203,6 +203,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+f2c_built_sources = @f2c_built_sources@
 f2c_check_passed = @f2c_check_passed@
 host = @host@
 host_alias = @host_alias@
