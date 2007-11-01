@@ -1806,7 +1806,7 @@ int gui_para_lc_coefficents_edit ()
 												LC_COL_Y1,		&y1,
 												LC_COL_Y2,		&y2, -1);
 
-    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_lc_coefficents.glade", NULL);
+    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_lc_coefficients.glade", NULL);
 			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
 			GladeXML  *phoebe_lc_coefficents_xml	        = glade_xml_new        (glade_xml_file, NULL, NULL);

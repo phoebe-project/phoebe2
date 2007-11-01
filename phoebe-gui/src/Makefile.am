@@ -1,4 +1,4 @@
-INCLUDES = \
+AM_CPPFLAGS = \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
 	@PACKAGE_CFLAGS@ -I/usr/include/libglade-2.0
@@ -21,5 +21,3 @@ AM_CFLAGS = -Wall -g \
 
 phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
 phoebe_gui_LDFLAGS = -export-dynamic
-
-EXTRA_DIST = phoebe.glade
