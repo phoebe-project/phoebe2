@@ -19354,7 +19354,7 @@ fi
 
 
 
-  # Now we check for existence of all built WD and WD-related sources:
+  # Check for existence of all built WD and WD-related sources:
     f2c_built_sources="
       atmx.c      bbl.c      binnum.c cloud.c  conjph.c
       dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c
@@ -19372,9 +19372,7 @@ fi
     { echo "$as_me:$LINENO: checking for WD sources built with f2c" >&5
 echo $ECHO_N "checking for WD sources built with f2c... $ECHO_C" >&6; }
     for f in $f2c_built_sources; do
-#     AC_MSG_CHECKING([for $f])
       test -f libwd/$f && found=yes || found=no
-#     AC_MSG_RESULT([$found])
       test "x$found" = "xno" && f2c_missing="$f2c_missing $f"
     done
 
@@ -23451,3 +23449,13 @@ fi
   echo "Maintainer mode (build sources):  $USE_MAINTAINER_MODE"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
+
+if test -z "$f2c_check_passed"; then
+  echo "Notice:"
+  echo ""
+  echo "The f2c compiler does not appear to be installed; it is required to"
+  echo "rebuild the WD-derived source files that are distributed in this"
+  echo "tarball. If you modify FORTRAN sources in libwd/ directory, you will"
+  echo "be unable to build PHOEBE without first installing f2c."
+  echo ""
+fi

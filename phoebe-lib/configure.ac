@@ -94,7 +94,7 @@
   # f2c program:
     AC_CHECK_PROG([f2c_check_passed],[f2c],[yes])
 
-  # Now we check for existence of all built WD and WD-related sources:
+  # Check for existence of all built WD and WD-related sources:
     AC_SUBST([f2c_built_sources],["
       atmx.c      bbl.c      binnum.c cloud.c  conjph.c
       dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c
@@ -273,3 +273,13 @@ GTK_DOC_CHECK(1.0)
   echo "Maintainer mode (build sources):  $USE_MAINTAINER_MODE"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
+
+if test -z "$f2c_check_passed"; then
+  echo "Notice:"
+  echo ""
+  echo "The f2c compiler does not appear to be installed; it is required to"
+  echo "rebuild the WD-derived source files that are distributed in this"
+  echo "tarball. If you modify FORTRAN sources in libwd/ directory, you will"
+  echo "be unable to build PHOEBE without first installing f2c."
+  echo ""
+fi
