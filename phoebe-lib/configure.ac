@@ -95,15 +95,15 @@
     AC_CHECK_PROG([f2c_check_passed],[f2c],[yes])
 
   # Check for existence of all built WD and WD-related sources:
-    AC_SUBST([f2c_built_sources],["
-      atmx.c      bbl.c      binnum.c cloud.c  conjph.c
-      dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c
-      fourls.c    gabs.c     jdph.c   kepler.c lcr.c
-      lc.sub.c    legendre.c light.c  linpro.c lum.c
-      lump.c      mlrg.c     modlog.c nekmin.c olump.c
-      planckint.c rangau.c   ranuni.c rddata.c ring.c
-      romq.c      sincos.c   spot.c   square.c surfas.c
-      volume.c    wrdata.c   wrdci.c  wrfoot.c wrhead.c
+    AC_SUBST([f2c_built_sources],["                      \
+      atmx.c      bbl.c      binnum.c cloud.c  conjph.c  \
+      dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c  \
+      fourls.c    gabs.c     jdph.c   kepler.c lcr.c     \
+      lc.sub.c    legendre.c light.c  linpro.c lum.c     \
+      lump.c      mlrg.c     modlog.c nekmin.c olump.c   \
+      planckint.c rangau.c   ranuni.c rddata.c ring.c    \
+      romq.c      sincos.c   spot.c   square.c surfas.c  \
+      volume.c    wrdata.c   wrdci.c  wrfoot.c wrhead.c  \
       wrlci.c"
       ])
 
