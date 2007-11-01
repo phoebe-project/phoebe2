@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-10-31 #
+#                                            Last revision: 2007-11-01 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -60,11 +60,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_RELEASE_NAME,
-	[["PHOEBE 0.30RC1 (release candidate)"]],
+	[["PHOEBE 0.30RC2 (release candidate)"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_RELEASE_DATE,
-	[["Oct 15, 2007"]],
+	[["Nov 1, 2007"]],
 	[PHOEBE release date])
 
 # Check for system programs:
@@ -147,7 +147,7 @@
     fi
 
   # Check for existence of all flexed sources:
-    AC_SUBST([flex_built_sources],["phoebe_constraints.lex.c phoebe_constraints.lex.h"])
+    AC_SUBST([flex_built_sources],["phoebe_constraints.lng.c phoebe_constraints.lng.h"])
 
     flex_missing=""
     AC_MSG_CHECKING([for flexed PHOEBE sources])
@@ -171,12 +171,11 @@
 
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
-#   AC_CHECK_PROGS(YACC, 'bison' byacc)
     AC_PROG_YACC
     test -n "$YACC" && bison_check_passed="yes"
 
   # Check for existence of all bisoned sources:
-    AC_SUBST([bison_built_sources],["phoebe_constraints.tab.c phoebe_constraints.tab.h"])
+    AC_SUBST([bison_built_sources],["phoebe_constraints.grm.c phoebe_constraints.grm.h"])
 
     bison_missing=""
     AC_MSG_CHECKING([for bisoned PHOEBE sources])

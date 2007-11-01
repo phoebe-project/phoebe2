@@ -2532,12 +2532,12 @@ case $build_os in *\ *) build_os=`echo "$build_os" | sed 's/ /-/g'`;; esac
 # Define the release name, date and type:
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_RELEASE_NAME "PHOEBE 0.30RC1 (release candidate)"
+#define PHOEBE_RELEASE_NAME "PHOEBE 0.30RC2 (release candidate)"
 _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_RELEASE_DATE "Oct 15, 2007"
+#define PHOEBE_RELEASE_DATE "Nov 1, 2007"
 _ACEOF
 
 
@@ -19699,7 +19699,7 @@ fi
     fi
 
   # Check for existence of all flexed sources:
-    flex_built_sources="phoebe_constraints.lex.c phoebe_constraints.lex.h"
+    flex_built_sources="phoebe_constraints.lng.c phoebe_constraints.lng.h"
 
 
     flex_missing=""
@@ -19736,7 +19736,6 @@ echo "${ECHO_T}yes" >&6; }
 
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
-#   AC_CHECK_PROGS(YACC, 'bison' byacc)
     for ac_prog in 'bison -y' byacc
 do
   # Extract the first word of "$ac_prog", so it can be a program name with args.
@@ -19783,7 +19782,7 @@ test -n "$YACC" || YACC="yacc"
     test -n "$YACC" && bison_check_passed="yes"
 
   # Check for existence of all bisoned sources:
-    bison_built_sources="phoebe_constraints.tab.c phoebe_constraints.tab.h"
+    bison_built_sources="phoebe_constraints.grm.c phoebe_constraints.grm.h"
 
 
     bison_missing=""
