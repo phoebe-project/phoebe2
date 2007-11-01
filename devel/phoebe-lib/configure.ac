@@ -142,40 +142,61 @@
 
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
-    if test "$LEX" != flex -a "$LEX" != flex-new; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs the GNU flex 2.5.33 or later to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
+    if $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
+      flex_check_passed="yes"
     fi
 
-    # Check for 2.5.33 version:
-    if ! $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs GNU flex 2.5.33 or later to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
+  # Check for existence of all flexed sources:
+    AC_SUBST([flex_built_sources],["phoebe_constraints.lex.c phoebe_constraints.lex.h"])
+
+    flex_missing=""
+    AC_MSG_CHECKING([for flexed PHOEBE sources])
+    for f in $flex_built_sources; do
+      test -f libphoebe/$f && found=yes || found=no
+      test "x$found" = "xno" && flex_missing="$flex_missing $f"
+    done
+
+    test -n "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_RESULT([no, but may be built])
+    test -z "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_RESULT([no])
+
+    test -z "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_ERROR([
+    built source file(s) missing in libphoebe/ directory:
+      ${flex_missing}
+
+    The flex program is required to build these source files, but it does
+    not appear to be installed.
+    ])
+
+    test -z "$flex_missing" && AC_MSG_RESULT([yes])
 
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
-    AC_CHECK_PROGS(YACC, 'bison' byacc yacc, :)
+#   AC_CHECK_PROGS(YACC, 'bison' byacc)
+    AC_PROG_YACC
+    test -n "$YACC" && bison_check_passed="yes"
 
-    if test "$YACC" == :; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs a yacc-compliant grammar parser to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
+  # Check for existence of all bisoned sources:
+    AC_SUBST([bison_built_sources],["phoebe_constraints.tab.c phoebe_constraints.tab.h"])
+
+    bison_missing=""
+    AC_MSG_CHECKING([for bisoned PHOEBE sources])
+    for f in $bison_built_sources; do
+      test -f libphoebe/$f && found=yes || found=no
+      test "x$found" = "xno" && bison_missing="$bison_missing $f"
+    done
+
+    test -n "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_RESULT([no, but may be built])
+    test -z "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_RESULT([no])
+
+    test -z "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_ERROR([
+    built source file(s) missing in libphoebe/ directory:
+      ${bison_missing}
+
+    The bison program is required to build these source files, but it does
+    not appear to be installed.
+    ])
+
+    test -z "$bison_missing" && AC_MSG_RESULT([yes])
 
   # System type:
     AC_DEFINE_UNQUOTED(PHOEBE_SYSTEM_TYPE,"$build",[System type])
@@ -263,9 +284,6 @@ GTK_DOC_CHECK(1.0)
   echo "-----------------------------------------------------------"
   echo "System type:                      $build"
   echo "C compiler used:                  $CC"
-#  echo "FORTRAN compiler used:            $F77"
-  echo "Grammar lexer used:               $LEX"
-  echo "Grammar parser used:              $YACC"
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
@@ -274,12 +292,31 @@ GTK_DOC_CHECK(1.0)
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 
-if test -z "$f2c_check_passed"; then
+if test -z "$f2c_check_passed" || test -z "$flex_check_passed"; then
   echo "Notice:"
   echo ""
+fi
+
+if test -z "$f2c_check_passed"; then
   echo "The f2c compiler does not appear to be installed; it is required to"
   echo "rebuild the WD-derived source files that are distributed in this"
   echo "tarball. If you modify FORTRAN sources in libwd/ directory, you will"
   echo "be unable to build PHOEBE without first installing f2c."
+  echo ""
+fi
+
+if test -z "$flex_check_passed"; then
+  echo "Flex 2.5.33 or later does not appear to be installed; it is required"
+  echo "to rebuild PHOEBE lexical source files that are distributed in this"
+  echo "tarball. If you modify the flex sources in libphoebe/ directory, you"
+  echo "will be unable to build PHOEBE without first installing flex."
+  echo ""
+fi
+
+if test -z "$bison_check_passed"; then
+  echo "Bison 1.9 or later does not appear to be installed; it is required"
+  echo "to rebuild PHOEBE grammar source files that are distributed in this"
+  echo "tarball. If you modify the bison sources in libphoebe/ directory, you"
+  echo "will be unable to build PHOEBE without first installing bison."
   echo ""
 fi

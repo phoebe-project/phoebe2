@@ -7,7 +7,7 @@
 %{
 #include <stdlib.h>
 
-#include "phoebe_constraints.tab.h"
+#include "phoebe_constraints.grm.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_parameters.h"
 %}
