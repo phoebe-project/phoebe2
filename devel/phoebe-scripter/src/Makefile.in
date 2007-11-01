@@ -55,7 +55,9 @@ POST_UNINSTALL = :
 bin_PROGRAMS = phoebe-scripter$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/phoebe_scripter_build_config.h.in
+	$(srcdir)/phoebe_scripter_build_config.h.in \
+	phoebe_scripter.grm.c phoebe_scripter.grm.h \
+	phoebe_scripter.lng.c
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -67,6 +69,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_phoebe_scripter_OBJECTS = main.$(OBJEXT) \
+	phoebe_scripter.grm.$(OBJEXT) phoebe_scripter.lng.$(OBJEXT) \
 	phoebe_scripter_arithmetics.$(OBJEXT) \
 	phoebe_scripter_ast.$(OBJEXT) \
 	phoebe_scripter_commands.$(OBJEXT) \
@@ -74,8 +77,6 @@ am_phoebe_scripter_OBJECTS = main.$(OBJEXT) \
 	phoebe_scripter_core.$(OBJEXT) \
 	phoebe_scripter_directives.$(OBJEXT) \
 	phoebe_scripter_error_handling.$(OBJEXT) \
-	phoebe_scripter_grammar.$(OBJEXT) \
-	phoebe_scripter_grammar.tab.$(OBJEXT) \
 	phoebe_scripter_io.$(OBJEXT) \
 	phoebe_scripter_plotting.$(OBJEXT) \
 	phoebe_scripter_types.$(OBJEXT)
@@ -88,6 +89,11 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+@MAINTAINER_MODE_FALSE@am__skiplex = test -f $@ ||
+LEXCOMPILE = $(LEX) $(LFLAGS) $(AM_LFLAGS)
+YLWRAP = $(top_srcdir)/autoconfig/ylwrap
+@MAINTAINER_MODE_FALSE@am__skipyacc = test -f $@ ||
+YACCCOMPILE = $(YACC) $(YFLAGS) $(AM_YFLAGS)
 SOURCES = $(phoebe_scripter_SOURCES)
 DIST_SOURCES = $(phoebe_scripter_SOURCES)
 ETAGS = etags
@@ -142,6 +148,7 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
+YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -153,6 +160,7 @@ am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
 bindir = @bindir@
+bison_built_sources = @bison_built_sources@
 build_alias = @build_alias@
 builddir = @builddir@
 datadir = @datadir@
@@ -160,6 +168,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+flex_built_sources = @flex_built_sources@
 host_alias = @host_alias@
 htmldir = @htmldir@
 includedir = @includedir@
@@ -185,6 +194,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 phoebe_scripter_SOURCES = \
     main.c                                                              \
+    phoebe_scripter.grm.y             phoebe_scripter.lng.l             \
     phoebe_scripter_arithmetics.c     phoebe_scripter_arithmetics.h     \
     phoebe_scripter_ast.c             phoebe_scripter_ast.h             \
     phoebe_scripter_commands.c        phoebe_scripter_commands.h        \
@@ -192,31 +202,20 @@ phoebe_scripter_SOURCES = \
     phoebe_scripter_core.c            phoebe_scripter_core.h            \
     phoebe_scripter_directives.c      phoebe_scripter_directives.h      \
     phoebe_scripter_error_handling.c  phoebe_scripter_error_handling.h  \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
     phoebe_scripter_plotting.c        phoebe_scripter_plotting.h        \
     phoebe_scripter_types.c           phoebe_scripter_types.h           
 
-BUILT_SOURCES = \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h
-
-CLEANFILES = \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.output    \
-    phoebe_scripter_grammar.h
-
-EXTRA_DIST = \
-    phoebe_scripter_grammar.lex       phoebe_scripter_grammar.y
-
+BUILT_SOURCES = phoebe_scripter.lng.h phoebe_scripter.grm.h
+EXTRA_DIST = phoebe_scripter.lng.h
+AM_YFLAGS = -d
 AM_CFLAGS = -Wall
 phoebe_scripter_LDADD = -lphoebe
 all: $(BUILT_SOURCES) phoebe_scripter_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .o .obj
+.SUFFIXES: .c .l .o .obj .y
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -286,6 +285,11 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+phoebe_scripter.grm.h: phoebe_scripter.grm.c
+	@if test ! -f $@; then \
+	  rm -f phoebe_scripter.grm.c; \
+	  $(MAKE) $(AM_MAKEFLAGS) phoebe_scripter.grm.c; \
+	else :; fi
 phoebe-scripter$(EXEEXT): $(phoebe_scripter_OBJECTS) $(phoebe_scripter_DEPENDENCIES) 
 	@rm -f phoebe-scripter$(EXEEXT)
 	$(LINK) $(phoebe_scripter_OBJECTS) $(phoebe_scripter_LDADD) $(LIBS)
@@ -297,6 +301,8 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter.grm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter.lng.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_arithmetics.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_ast.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_commands.Po@am__quote@
@@ -304,8 +310,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_core.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_directives.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_error_handling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_grammar.tab.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_io.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_plotting.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/phoebe_scripter_types.Po@am__quote@
@@ -323,6 +327,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+.l.c:
+	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
+
+.y.c:
+	$(am__skipyacc) $(SHELL) $(YLWRAP) $< y.tab.c $@ y.tab.h $*.h y.output $*.output -- $(YACCCOMPILE)
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -424,7 +434,6 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
-	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -432,6 +441,9 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f phoebe_scripter.grm.c
+	-rm -f phoebe_scripter.grm.h
+	-rm -f phoebe_scripter.lng.c
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
@@ -506,10 +518,8 @@ uninstall-am: uninstall-binPROGRAMS
 	tags uninstall uninstall-am uninstall-binPROGRAMS
 
 
-phoebe_scripter_grammar.c: phoebe_scripter_grammar.lex
-	$(LEX) phoebe_scripter_grammar.lex
-phoebe_scripter_grammar.tab.c: phoebe_scripter_grammar.y
-	$(YACC) -d phoebe_scripter_grammar.y
+phoebe_scripter.lng.h:
+	$(LEX) phoebe_scripter.lng.l
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

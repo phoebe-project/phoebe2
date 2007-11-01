@@ -11,13 +11,13 @@
 
 #include <phoebe/phoebe.h>
 
-#include "phoebe_scripter_grammar.tab.h"
+#include "phoebe_scripter.grm.h"
 #include "phoebe_scripter_types.h"
 %}
 
 %option warn
-%option outfile="phoebe_scripter_grammar.c"
-%option header-file="phoebe_scripter_grammar.h"
+%option outfile="lex.yy.c"
+%option header-file="phoebe_scripter.lng.h"
 
 %x literal
 

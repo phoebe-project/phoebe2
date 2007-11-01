@@ -8,8 +8,8 @@
 #include "phoebe_scripter_configuration.h"
 #include "phoebe_scripter_core.h"
 #include "phoebe_scripter_error_handling.h"
-#include "phoebe_scripter_grammar.h"
-#include "phoebe_scripter_grammar.tab.h"
+#include "phoebe_scripter.lng.h"
+#include "phoebe_scripter.grm.h"
 
 int main (int argc, char *argv[])
 {

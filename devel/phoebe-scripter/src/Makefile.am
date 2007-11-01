@@ -23,6 +23,7 @@
 bin_PROGRAMS = phoebe-scripter
 phoebe_scripter_SOURCES =                                               \
     main.c                                                              \
+    phoebe_scripter.grm.y             phoebe_scripter.lng.l             \
     phoebe_scripter_arithmetics.c     phoebe_scripter_arithmetics.h     \
     phoebe_scripter_ast.c             phoebe_scripter_ast.h             \
     phoebe_scripter_commands.c        phoebe_scripter_commands.h        \
@@ -30,28 +31,18 @@ phoebe_scripter_SOURCES =                                               \
     phoebe_scripter_core.c            phoebe_scripter_core.h            \
     phoebe_scripter_directives.c      phoebe_scripter_directives.h      \
     phoebe_scripter_error_handling.c  phoebe_scripter_error_handling.h  \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
     phoebe_scripter_io.c              phoebe_scripter_io.h              \
     phoebe_scripter_plotting.c        phoebe_scripter_plotting.h        \
     phoebe_scripter_types.c           phoebe_scripter_types.h           
 
-BUILT_SOURCES = \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.h         \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h
+BUILT_SOURCES = phoebe_scripter.lng.h phoebe_scripter.grm.h
 
-phoebe_scripter_grammar.c: phoebe_scripter_grammar.lex
-	$(LEX) phoebe_scripter_grammar.lex
-phoebe_scripter_grammar.tab.c: phoebe_scripter_grammar.y
-	$(YACC) -d phoebe_scripter_grammar.y
+EXTRA_DIST = phoebe_scripter.lng.h
 
-CLEANFILES = \
-    phoebe_scripter_grammar.tab.c     phoebe_scripter_grammar.tab.h     \
-    phoebe_scripter_grammar.c         phoebe_scripter_grammar.output    \
-    phoebe_scripter_grammar.h
+phoebe_scripter.lng.h:
+	$(LEX) phoebe_scripter.lng.l
 
-EXTRA_DIST = \
-    phoebe_scripter_grammar.lex       phoebe_scripter_grammar.y
+AM_YFLAGS = -d
 
 AM_CFLAGS = -Wall
 phoebe_scripter_LDADD = -lphoebe
