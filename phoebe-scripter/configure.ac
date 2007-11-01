@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                         PHOEBE 0.30RC1 scripter                      #
+#                         PHOEBE 0.30RC2 scripter                      #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-10-24 #
+#                                            Last revision: 2007-11-01 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -45,11 +45,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_NAME,
-	[["PHOEBE scripter 0.30RC1 (release candidate)"]],
+	[["PHOEBE scripter 0.30RC2 (release candidate)"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["Oct 15, 2007"]],
+	[["Nov 1, 2007"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
@@ -59,7 +59,7 @@
   AC_CONFIG_AUX_DIR(autoconfig)
 
 # Initialize configure.ac for automake:
-  AM_INIT_AUTOMAKE(phoebe,0.30RC1)
+  AM_INIT_AUTOMAKE([-Wall -Werror gnu])
   AM_MAINTAINER_MODE
 
 # Check for system programs:
@@ -79,40 +79,60 @@
 
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
-    if test "$LEX" != flex -a "$LEX" != flex-new; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs the GNU flex 2.5.33 or later to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
+    if $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
+      flex_check_passed="yes"
     fi
 
-    # Check for 2.5.33 version:
-    if ! $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs GNU flex 2.5.33 or later to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
+  # Check for existence of all flexed sources:
+    AC_SUBST([flex_built_sources],["phoebe_scripter.lng.c phoebe_scripter.lng.h"])
+
+    flex_missing=""
+    AC_MSG_CHECKING([for flexed PHOEBE scripter sources])
+    for f in $flex_built_sources; do
+      test -f src/$f && found=yes || found=no
+      test "x$found" = "xno" && flex_missing="$flex_missing $f"
+    done
+
+    test -n "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_RESULT([no, but may be built])
+    test -z "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_RESULT([no])
+
+    test -z "$flex_check_passed" && test -n "$flex_missing" && AC_MSG_ERROR([
+    built source file(s) missing in src/ directory:
+      ${flex_missing}
+
+    The flex program is required to build these source files, but it does
+    not appear to be installed.
+  ])
+
+  test -z "$flex_missing" && AC_MSG_RESULT([yes])
 
   # Parser:
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
-    AC_CHECK_PROGS(YACC, 'bison' byacc yacc, :)
+    AC_PROG_YACC
+    test -n "$YACC" && bison_check_passed="yes"
 
-    if test "$YACC" == :; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs a yacc-compliant grammar parser to build."
-      echo "Please install it and run the ./configure script again."
-      echo ""
-      exit
-    fi
+  # Check for existence of all bisoned sources:
+    AC_SUBST([bison_built_sources],["phoebe_scripter.grm.c phoebe_scripter.grm.h"])
+
+    bison_missing=""
+    AC_MSG_CHECKING([for bisoned PHOEBE scripter sources])
+    for f in $bison_built_sources; do
+      test -f src/$f && found=yes || found=no
+      test "x$found" = "xno" && bison_missing="$bison_missing $f"
+    done
+
+    test -n "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_RESULT([no, but may be built])
+    test -z "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_RESULT([no])
+
+    test -z "$bison_check_passed" && test -n "$bison_missing" && AC_MSG_ERROR([
+    built source file(s) missing in src/ directory:
+      ${bison_missing}
+
+    The bison program is required to build these source files, but it does
+    not appear to be installed.
+    ])
+
+    test -z "$bison_missing" && AC_MSG_RESULT([yes])
 
 # Check if PHOEBE library is installed:
 
@@ -212,8 +232,7 @@
   echo "Configuration summary for $PACKAGE_STRING:"
   echo "-----------------------------------------------------------------"
   echo "C compiler used:                  $CC"
-  echo "Grammar lexer used:               $LEX"
-  echo "Grammar parser used:              $YACC"
+  echo "Maintainer mode (build sources):  $USE_MAINTAINER_MODE"
   echo "Top-level install directory:      $prefix"
   echo "Scripter binary goes to:          $prefix/bin"
   echo "Scripter help files go to:        $prefix/share/phoebe_scripter"
@@ -221,3 +240,24 @@
   echo "GNU readline library present:     $readlinesupport"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
+
+if test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
+  echo "Notice:"
+  echo ""
+fi
+
+if test -z "$flex_check_passed"; then
+  echo "Flex 2.5.33 or later does not appear to be installed; it is required"
+  echo "to rebuild PHOEBE lexical source files that are distributed in this"
+  echo "tarball. If you modify the flex sources in the src/ directory, you"
+  echo "will be unable to build PHOEBE without first installing flex."
+  echo ""
+fi
+
+if test -z "$bison_check_passed"; then
+  echo "Bison 1.9 or later does not appear to be installed; it is required"
+  echo "to rebuild PHOEBE grammar source files that are distributed in this"
+  echo "tarball. If you modify the bison sources in the src/ directory, you"
+  echo "will be unable to build PHOEBE without first installing bison."
+  echo ""
+fi

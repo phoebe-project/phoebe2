@@ -10,7 +10,7 @@
 #include "phoebe_scripter_ast.h"
 #include "phoebe_scripter_core.h"
 #include "phoebe_scripter_error_handling.h"
-#include "phoebe_scripter_grammar.h"
+#include "phoebe_scripter.lng.h"
 #include "phoebe_scripter_io.h"
 #include "phoebe_scripter_types.h"
 

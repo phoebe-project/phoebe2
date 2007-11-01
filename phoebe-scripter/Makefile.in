@@ -59,7 +59,9 @@ subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
 	ChangeLog INSTALL NEWS TODO autoconfig/compile \
-	autoconfig/depcomp autoconfig/install-sh autoconfig/missing
+	autoconfig/config.guess autoconfig/config.sub \
+	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
+	autoconfig/missing autoconfig/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -143,6 +145,7 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
+YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -154,6 +157,7 @@ am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
 bindir = @bindir@
+bison_built_sources = @bison_built_sources@
 build_alias = @build_alias@
 builddir = @builddir@
 datadir = @datadir@
@@ -161,6 +165,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+flex_built_sources = @flex_built_sources@
 host_alias = @host_alias@
 htmldir = @htmldir@
 includedir = @includedir@
