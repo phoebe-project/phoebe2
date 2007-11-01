@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-10-15 #
+#                                            Last revision: 2007-10-31 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -92,16 +92,40 @@
     AC_PROG_INSTALL
 
   # f2c program:
-    AC_CHECK_PROG(f2c_check_passed,f2c,yes,no)
-    if test "x$f2c_check_passed" = "xno"; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs a FORTRAN-to-C converter f2c to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
+    AC_CHECK_PROG([f2c_check_passed],[f2c],[yes])
+
+  # Now we check for existence of all built WD and WD-related sources:
+    AC_SUBST([f2c_built_sources],["
+      atmx.c      bbl.c      binnum.c cloud.c  conjph.c
+      dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c
+      fourls.c    gabs.c     jdph.c   kepler.c lcr.c
+      lc.sub.c    legendre.c light.c  linpro.c lum.c
+      lump.c      mlrg.c     modlog.c nekmin.c olump.c
+      planckint.c rangau.c   ranuni.c rddata.c ring.c
+      romq.c      sincos.c   spot.c   square.c surfas.c
+      volume.c    wrdata.c   wrdci.c  wrfoot.c wrhead.c
+      wrlci.c"
+      ])
+
+    f2c_missing=""
+    AC_MSG_CHECKING([for WD sources built with f2c])
+    for f in $f2c_built_sources; do
+      test -f libwd/$f && found=yes || found=no
+      test "x$found" = "xno" && f2c_missing="$f2c_missing $f"
+    done
+
+    test -n "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_RESULT([no, but may be built])
+    test -z "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_RESULT([no])
+
+    test -z "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_ERROR([
+    built source file(s) missing in libwd/ directory:
+      ${f2c_missing}
+
+    The f2c program is required to build these source files, but it does
+    not appear to be installed.
+    ])
+
+    test -z "$f2c_missing" && AC_MSG_RESULT([yes])
 
   # g2c library:
     g2c_check_passed=yes
