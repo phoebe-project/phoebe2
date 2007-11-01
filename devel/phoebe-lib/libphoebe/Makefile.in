@@ -62,7 +62,8 @@ host_triplet = @host@
 subdir = libphoebe
 DIST_COMMON = $(library_include_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/phoebe_build_config.h.in \
-	phoebe_constraints.grm.c phoebe_constraints.grm.h
+	phoebe_constraints.grm.c phoebe_constraints.grm.h \
+	phoebe_constraints.lng.c
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -81,13 +82,13 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libphoebe_la_DEPENDENCIES = ../libwd/libwd.la
-am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_accessories.lo \
+am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_constraints.grm.lo \
+	libphoebe_la-phoebe_constraints.lng.lo \
+	libphoebe_la-phoebe_accessories.lo \
 	libphoebe_la-phoebe_allocations.lo libphoebe_la-phoebe_base.lo \
 	libphoebe_la-phoebe_calculations.lo \
 	libphoebe_la-phoebe_configuration.lo \
-	libphoebe_la-phoebe_constraints.lo \
-	libphoebe_la-phoebe_constraints.grm.lo \
-	libphoebe_la-phoebe_data.lo \
+	libphoebe_la-phoebe_constraints.lo libphoebe_la-phoebe_data.lo \
 	libphoebe_la-phoebe_error_handling.lo \
 	libphoebe_la-phoebe_fitting.lo \
 	libphoebe_la-phoebe_fortran_interface.lo \
@@ -111,11 +112,15 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
+@MAINTAINER_MODE_FALSE@am__skiplex = test -f $@ ||
+LEXCOMPILE = $(LEX) $(LFLAGS) $(AM_LFLAGS)
+LTLEXCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(LEX) $(LFLAGS) $(AM_LFLAGS)
+YLWRAP = $(top_srcdir)/autoconfig/ylwrap
 @MAINTAINER_MODE_FALSE@am__skipyacc = test -f $@ ||
 YACCCOMPILE = $(YACC) $(YFLAGS) $(AM_YFLAGS)
 LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=compile $(YACC) $(YFLAGS) $(AM_YFLAGS)
-YLWRAP = $(top_srcdir)/autoconfig/ylwrap
 SOURCES = $(libphoebe_la_SOURCES)
 DIST_SOURCES = $(libphoebe_la_SOURCES)
 library_includeHEADERS_INSTALL = $(INSTALL_HEADER)
@@ -242,6 +247,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 lib_LTLIBRARIES = libphoebe.la
 libphoebe_la_SOURCES = \
+    phoebe_constraints.grm.y          phoebe_constraints.lng.l          \
     phoebe_accessories.c              phoebe_accessories.h              \
     phoebe_allocations.c              phoebe_allocations.h              \
     phoebe_base.c                     phoebe_base.h                     \
@@ -249,7 +255,6 @@ libphoebe_la_SOURCES = \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
     phoebe_constraints.c              phoebe_constraints.h              \
-    phoebe_constraints.lex            phoebe_constraints.grm.y          \
     phoebe_data.c                     phoebe_data.h                     \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
@@ -263,14 +268,12 @@ libphoebe_la_SOURCES = \
     phoebe_types.c                    phoebe_types.h                    \
                                       phoebe.h
 
-BUILT_SOURCES = \
-	phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
-	phoebe_constraints.grm.c          phoebe_constraints.grm.h
+BUILT_SOURCES = phoebe_constraints.lng.h phoebe_constraints.grm.h
 
-EXTRA_DIST = \
-    phoebe_constraints.lex.c          phoebe_constraints.lex.h
-
+#EXTRA_DIST = \
+#    phoebe_constraints.lex.c          phoebe_constraints.lex.h
 AM_YFLAGS = -d -p pc
+AM_LFLAGS = -P pc --header-file=phoebe_constraints.lng.h
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS = -ff2c
 libphoebe_la_CFLAGS = -Wall
@@ -299,7 +302,7 @@ all: $(BUILT_SOURCES) phoebe_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .lo .o .obj .y
+.SUFFIXES: .c .l .lo .o .obj .y
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -394,6 +397,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_configuration.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_constraints.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_constraints.lng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_data.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_error_handling.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fitting.Plo@am__quote@
@@ -426,6 +430,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+
+libphoebe_la-phoebe_constraints.grm.lo: phoebe_constraints.grm.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_constraints.grm.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Tpo -c -o libphoebe_la-phoebe_constraints.grm.lo `test -f 'phoebe_constraints.grm.c' || echo '$(srcdir)/'`phoebe_constraints.grm.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Tpo $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_constraints.grm.c' object='libphoebe_la-phoebe_constraints.grm.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_constraints.grm.lo `test -f 'phoebe_constraints.grm.c' || echo '$(srcdir)/'`phoebe_constraints.grm.c
+
+libphoebe_la-phoebe_constraints.lng.lo: phoebe_constraints.lng.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_constraints.lng.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_constraints.lng.Tpo -c -o libphoebe_la-phoebe_constraints.lng.lo `test -f 'phoebe_constraints.lng.c' || echo '$(srcdir)/'`phoebe_constraints.lng.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_constraints.lng.Tpo $(DEPDIR)/libphoebe_la-phoebe_constraints.lng.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_constraints.lng.c' object='libphoebe_la-phoebe_constraints.lng.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_constraints.lng.lo `test -f 'phoebe_constraints.lng.c' || echo '$(srcdir)/'`phoebe_constraints.lng.c
 
 libphoebe_la-phoebe_accessories.lo: phoebe_accessories.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_accessories.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_accessories.Tpo -c -o libphoebe_la-phoebe_accessories.lo `test -f 'phoebe_accessories.c' || echo '$(srcdir)/'`phoebe_accessories.c
@@ -468,13 +486,6 @@ libphoebe_la-phoebe_constraints.lo: phoebe_constraints.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_constraints.c' object='libphoebe_la-phoebe_constraints.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_constraints.lo `test -f 'phoebe_constraints.c' || echo '$(srcdir)/'`phoebe_constraints.c
-
-libphoebe_la-phoebe_constraints.grm.lo: phoebe_constraints.grm.c
-@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_constraints.grm.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Tpo -c -o libphoebe_la-phoebe_constraints.grm.lo `test -f 'phoebe_constraints.grm.c' || echo '$(srcdir)/'`phoebe_constraints.grm.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Tpo $(DEPDIR)/libphoebe_la-phoebe_constraints.grm.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_constraints.grm.c' object='libphoebe_la-phoebe_constraints.grm.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_constraints.grm.lo `test -f 'phoebe_constraints.grm.c' || echo '$(srcdir)/'`phoebe_constraints.grm.c
 
 libphoebe_la-phoebe_data.lo: phoebe_data.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_data.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_data.Tpo -c -o libphoebe_la-phoebe_data.lo `test -f 'phoebe_data.c' || echo '$(srcdir)/'`phoebe_data.c
@@ -552,6 +563,9 @@ libphoebe_la-phoebe_types.lo: phoebe_types.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_types.c' object='libphoebe_la-phoebe_types.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_types.lo `test -f 'phoebe_types.c' || echo '$(srcdir)/'`phoebe_types.c
+
+.l.c:
+	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
 
 .y.c:
 	$(am__skipyacc) $(SHELL) $(YLWRAP) $< y.tab.c $@ y.tab.h $*.h y.output $*.output -- $(YACCCOMPILE)
@@ -688,6 +702,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f phoebe_constraints.grm.c
 	-rm -f phoebe_constraints.grm.h
+	-rm -f phoebe_constraints.lng.c
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
@@ -767,6 +782,9 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	tags uninstall uninstall-am uninstall-libLTLIBRARIES \
 	uninstall-library_includeHEADERS
 
+
+phoebe_constraints.lng.h:
+	$(LEX) phoebe_constraints.lng.l
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
