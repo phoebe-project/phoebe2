@@ -34,8 +34,7 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_calculations.c             phoebe_calculations.h             \
     phoebe_configuration.c            phoebe_configuration.h            \
     phoebe_constraints.c              phoebe_constraints.h              \
-    phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
-    phoebe_constraints.tab.c          phoebe_constraints.tab.h          \
+    phoebe_constraints.lex            phoebe_constraints.grm.y          \
     phoebe_data.c                     phoebe_data.h                     \
     phoebe_error_handling.c           phoebe_error_handling.h           \
     phoebe_fitting.c                  phoebe_fitting.h                  \
@@ -50,16 +49,13 @@ libphoebe_la_SOURCES =                                                  \
                                       phoebe.h
 
 BUILT_SOURCES =                                                         \
-	phoebe_constraints.lex.c          phoebe_constraints.lex.h      \
-	phoebe_constraints.tab.c          phoebe_constraints.tab.h
+	phoebe_constraints.lex.c          phoebe_constraints.lex.h          \
+	phoebe_constraints.grm.c          phoebe_constraints.grm.h
 
 EXTRA_DIST = \
-    phoebe_constraints.lex            phoebe_constraints.y
+    phoebe_constraints.lex.c          phoebe_constraints.lex.h
 
-phoebe_constraints.tab.c: phoebe_constraints.y
-	$(YACC) -d -p pc phoebe_constraints.y
-phoebe_constraints.lex.c: phoebe_constraints.lex
-	$(LEX) phoebe_constraints.lex
+AM_YFLAGS = -d -p pc
 
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libphoebe_la_FFLAGS  = -ff2c

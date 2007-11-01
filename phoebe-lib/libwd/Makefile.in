@@ -171,6 +171,7 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 YACC = @YACC@
+YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -184,6 +185,7 @@ am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
 bindir = @bindir@
+bison_built_sources = @bison_built_sources@
 build = @build@
 build_alias = @build_alias@
 build_cpu = @build_cpu@
@@ -197,6 +199,7 @@ dvidir = @dvidir@
 exec_prefix = @exec_prefix@
 f2c_built_sources = @f2c_built_sources@
 f2c_check_passed = @f2c_check_passed@
+flex_built_sources = @flex_built_sources@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -249,9 +252,8 @@ BUILT_SOURCES = \
 EXTRA_DIST = \
 	$(SOURCES)
 
-CLEANFILES = \
-	$(BUILT_SOURCES)
 
+#CLEANFILES = 
 libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
@@ -514,7 +516,6 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
-	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

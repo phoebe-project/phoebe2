@@ -53,8 +53,7 @@ EXTRA_DIST = \
 $(libwd_la_SOURCES):
 	f2c -A -R -Nn802 $(SOURCES)
 
-CLEANFILES = \
-	$(BUILT_SOURCES)
+#CLEANFILES = 
 
 libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
