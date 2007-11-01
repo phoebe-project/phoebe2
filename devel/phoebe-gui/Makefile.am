@@ -26,13 +26,7 @@
 
 SUBDIRS = glade pixmaps src
 
-EXTRA_DIST = ACKNOWLEDGEMENTS                        \
-             SPECS                                   \
-             autogen.sh                              \
-             autoconfig/compile                      \
-             autoconfig/config.guess                 \
-             autoconfig/config.sub                   \
+EXTRA_DIST = autoconfig/compile                      \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
-             autoconfig/ltmain.sh                    \
              autoconfig/missing
