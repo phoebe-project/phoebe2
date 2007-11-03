@@ -1,9 +1,3 @@
-* Star 1 should be hotter, otherwise the computation won't be precise. To see
-  this effect, try plotting a light curve for two identical stars with their
-  surface temperatures 3000K and 10000K or 10000K and 3000K. You'll see that
-  in the first case the model will go crazy and in the second case it will be
-  ok.
-
 * The current way of computing the horizon of the star in front (using Fourier
   series decomposition over boundary surface elements) is inaccurate. This
   would be easy to replace with a Newton-Raphson-powered method for getting
