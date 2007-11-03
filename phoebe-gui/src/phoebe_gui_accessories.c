@@ -43,6 +43,11 @@ void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 	}
 }
 
+void tmp_circumvent_delete_event (GtkWidget *widget, gpointer user_data)
+{
+	printf ("PHOEBE GUI: window cannot be closed; please re-parent it.\n");
+}
+
 void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
 {
 	/*
@@ -59,7 +64,6 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 
 		gtk_widget_reparent(box, parent);
 		gtk_widget_destroy(window);
-		*flag = !(*flag);
 	}
 	else{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -68,11 +72,11 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
 		gtk_widget_reparent(box, window);
 		gtk_widget_set_size_request (window, x, y);
-/*		gtk_window_set_deletable(GTK_WINDOW(window), FALSE);*/
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+		g_signal_connect (window, "delete-event", (GCallback) tmp_circumvent_delete_event, NULL);
 		gtk_widget_show_all (window);
-		*flag = !(*flag);
 	}
+	*flag = !(*flag);
 }
 
 int gui_open_parameter_file()
