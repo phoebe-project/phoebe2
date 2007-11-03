@@ -1,4 +1,4 @@
-PHOEBE-lib-0.30pre5 TOPLEVEL DOCUMENTATION                     October 20, 2005
+PHOEBE-lib-0.30 RC2 TOPLEVEL DOCUMENTATION                     November 1, 2007
 -------------------------------------------------------------------------------
 
 Hello and thank you for your interest in PHOEBE! :-)
@@ -7,53 +7,47 @@ WHAT IS THIS THING ANYWAY?
 --------------------------
 
 PHOEBE stands for PHysics Of Eclipsing BinariEs. It is a facility to model
-eclipsing binary stars as efficiently and as accurately as possible. PHOEBE
-is divided in two parts:
+eclipsing binary stars. PHOEBE is divided in two parts:
 
     * PHOEBE library (this package):
     
         PHOEBE library is the modeling engine. It consists of many functions
-        that are written to accurately and reliably do tasks related to the
-        modeling of eclipsing binaries. It is *not* an executable, only a
-		library: you need a driver to access those functions. If you want to
-        write your own driver, then the library is all you need. Otherwise
-        you may choose among existing drivers (see below).
+        that are written to do tasks related to the modeling of eclipsing
+	binaries. It is *not* an executable, only a library: you need a driver
+	to access these functions. If you want to write your own driver, then
+	the library is all you need. Otherwise you may choose among existing
+	drivers (see below).
 	
-	* PHOEBE driver:
+    * PHOEBE driver:
 
         To access the functions in PHOEBE library, a driver is needed.  The
-        driver's task is to make use of library's functions, be it as a self-
-        standing program or an interactive interface. Interfaces are usually
-        referred to as the front-ends. There are currently two front-ends
-        available for PHOEBE: the Scripter and the Graphical user interface.
-        Both interfaces are being developped simultaneously to the library.
+        driver's task is to make use of the library functions Interfaces are
+	usually referred to as the front-ends. There are currently two
+	front-ends available for PHOEBE: the Scripter and the Graphical User
+	Interface. Both interfaces are being developed simultaneously with
+	the library.
 
-The idea behind PHOEBE is to relieve scientists from spending unreasonable
-amounts of time learning technical details of the given code implementation
-and rather use that time for the actual science.
+The idea behind PHOEBE is to build on the foundations of the renowned
+Wilson-Devinney (WD) code and to extend it with new science, new numeric
+approaches to modeling, and new technical features. For formal introduction
+of PHOEBE see Prsa & Zwitter (2005), ApJ 628, 426.
 
-PHOEBE 0.30pre5 is in the stabilizing phase. This means that the code is
-expected to run smoothly, it has been tested to some extent and as soon as
-sufficient confidence is gained that everything works as expected, the stable
-release will come out. It is thus of utmost importance that you provide
-feed-back to the authors and let us know your opinions and suggestions. The
-best way to get in touch is via PHOEBE discussion mailing list, where both
-developers and users share ideas and information on PHOEBE and eclipsing
-binaries in general.
+PHOEBE 0.30 RC2 is a release candidate. This means that the code is expected
+to run smoothly, it has been tested to some extent and there should be no
+major show-stoppers. Please report any problems you encounter so that we can
+fix them for the final release. The best way to get in touch is via PHOEBE
+discussion mailing list, or report a bug on PHOEBE homepage.
 
-As the modeling back-end, PHOEBE 0.30pre5 uses Wilson-Devinney's WD code
-released on Oct 17, 2004. You do not need to obtain any WD sources separately,
-they are already built into PHOEBE.
+For modeling back-end PHOEBE 0.30 RC2 uses Wilson-Devinney's WD code released
+on Aug 15 2007. You do not need to obtain any WD sources separately, they are
+already built into PHOEBE.
 
 LICENSE
 -------
 
 PHOEBE is free, released under GNU General public license (GPL). The license
 may be found in the top-level file COPYING. PHOEBE always was free and it
-always will be. The only price you have to pay is send the developers a
-postcard - the address where to send the postcards is given at the end of
-this README. We really appreciate postcards, so please do send them - that
-is all we ask for our continuous work on PHOEBE! :-)
+always will be.
 
 You may freely share PHOEBE with others as long as no undocumented changes
 are imposed on the code. For further information please read the GNU GPL
@@ -69,3 +63,20 @@ open for your contribution.
 
 REQUIREMENTS
 ------------
+
+To successfully build PHOEBE-lib, you need:
+
+    * A Linux machine
+
+	PHOEBE-lib has been successfully tested on the following platforms:
+
+	· Ubuntu 7.04 (Feisty) - no issues (development platform)
+
+    * ANSI C compliant compiler (e. g. gcc)
+    * GNU make
+    * libg2c
+
+INSTALLATION
+------------
+
+Please see the generic instructions in the top-level INSTALL file.
