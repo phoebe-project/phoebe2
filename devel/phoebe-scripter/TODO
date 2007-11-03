@@ -1,15 +1,4 @@
-*** Fix buffering for prompt () command
+Please refer to PHOEBE homepage for a detailed TODO list:
 
-*** for statement redirection doesn't work. For example:
+        http://phoebe.fiz.uni-lj.si
 
-	for (i=1; i<=3; i++) {
-		print i
-	} -> "result"
-
-    will output only 3. Fix this.
-
-*** Fix return statements that don't work under conditionals.
-
-*** Identifier operators (i++, i-- ...) do not work. Fix this!
-
-*** Boolean check of {1,2,3} < {3,4,5} fails. Fix this!
