@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT(phoebe-scripter, 0.30, http://phoebe.fiz.uni-lj.si)
+  AC_INIT(phoebe-scripter, 0.30rc2, http://phoebe.fiz.uni-lj.si)
 
 # Create a dedicated header file phoebe_scripter_build_config.h that will
 # contain all #define statements that correspond to whatever ./configure

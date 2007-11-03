@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                        PHOEBE 0.30pre5 scripter                      #
+#                        PHOEBE 0.30rc2 scripter                       #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -26,9 +26,7 @@
 
 SUBDIRS = help src
 
-EXTRA_DIST = ACKNOWLEDGEMENTS                        \
-             SPECS                                   \
-             autoconfig/compile                      \
+EXTRA_DIST = autoconfig/compile                      \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
              autoconfig/missing
