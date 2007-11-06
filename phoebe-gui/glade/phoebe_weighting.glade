@@ -67,7 +67,7 @@
                     <child>
                       <widget class="GtkComboBox" id="phoebe_weighting_combobox">
                         <property name="visible">True</property>
-                        <property name="items" translatable="yes">No level-dependent weighting
+                        <property name="items" translatable="yes">None
 Poissonian scatter
 Low light scatter</property>
                       </widget>
