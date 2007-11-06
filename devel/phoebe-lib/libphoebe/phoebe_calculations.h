@@ -40,8 +40,8 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep);
 int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep);
 
-double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
-double calculate_pcsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
+double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
+double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);
 int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc);
