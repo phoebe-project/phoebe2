@@ -503,55 +503,78 @@ int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *r
 	return SUCCESS;
 }
 
-double calculate_phsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
-	{
-	/* This function calculates the modified Kopal gravity potential. If the    */
-	/* ELLIPTIC switch is turned off, the calculation is simpler.               */
+double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
+{
+	/**
+	 * phoebe_calculate_pot1:
+	 * @ELLIPTIC: elliptic orbit switch: 1 for elliptic orbits, 0 for circular
+	 * @D: instantaneous separation in units of semi-major axis
+	 * @q: mass ratio
+	 * @r: effective radius of the star
+	 * @F: asynchronicity parameter
+	 * @lambda: direction cosine, @lambda = sin(theta) cos(phi)
+	 * @nu: direction cosine, @nu = cos(theta)
+	 *
+	 * Calculates the primary star surface potential according to Eq.(3.16)
+	 * in PHOEBE scientific reference.
+	 *
+	 * Returns: value of the primary star surface potential
+	 */
 
 	if (ELLIPTIC == 0)
 		return 1./r + q*pow(D*D+r*r,-0.5) + 0.5*(1.+q)*r*r;
 	else
 		return 1./r + q*(pow(D*D+r*r-2*r*lambda*D,-0.5)-r*lambda/D/D) + 0.5*F*F*(1.+q)*r*r*(1-nu*nu);
-	}
+}
 	
-double calculate_pcsv_value (int ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
-	{
-	/* This function calculates the modified Kopal gravity potential of the se- */
-	/* condary star by transforming the origin of space and calling the calcu-  */
-	/* lation procedure for the primary star potential.                         */
+double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
+{
+	/**
+	 * phoebe_calculate_pot2:
+	 * @ELLIPTIC: elliptic orbit switch: 1 for elliptic orbits, 0 for circular
+	 * @D: instantaneous separation in units of semi-major axis
+	 * @q: mass ratio
+	 * @r: effective radius of the star
+	 * @F: asynchronicity parameter
+	 * @lambda: direction cosine, @lambda = sin(theta) cos(phi)
+	 * @nu: direction cosine, @nu = cos(theta)
+	 *
+	 * Calculates the secondary star surface potential by transforming the
+	 * coordinate system to the center of the secondary star according to
+	 * Eq.(3.15) in PHOEBE scientific reference, and using Eq.(3.16) to do
+	 * the calculation.
+	 *
+	 * Returns: value of the secondary star surface potential
+	 */
 
 	double phsv;
 
-	/* We changed the coordinate system, thus q -> 1/q:                         */
+	/* We transform the coordinate system: q -> 1/q: */
 	q = 1./q;
 
 	if (ELLIPTIC == 0)
-		phsv = calculate_phsv_value (0, D, q, r, 0, 0, 0);
+		phsv = phoebe_calculate_pot1 (0, D, q, r, 0, 0, 0);
 	else
-		phsv = calculate_phsv_value (1, D, q, r, F, lambda, nu);
+		phsv = phoebe_calculate_pot1 (1, D, q, r, F, lambda, nu);
 
 	return phsv/q + 0.5 * (q-1)/q;
-	}
+}
 
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit)
-	{
-	/* This function calculates the value of the gravitational potential \Omega */
-	/* (PHSV) in Lagrange points L1 and L2.                                     */
-	/*                                                                          */
-	/* Input parameters:                                                        */
-	/*                                                                          */
-	/*   q .. mass ratio                                                        */
-	/*   F .. synchronicity parameter                                           */
-	/*   e .. eccentricity                                                      */
-	/*                                                                          */
-	/* Output parameters:                                                       */
-	/*                                                                          */
-	/*   L1crit .. L1 potential value                                           */
-	/*   L2crit .. L2 potential value                                           */
-	/*                                                                          */
-	/* Return value:                                                            */
-	/*                                                                          */
-	/*   SUCCESS                                                                */
+{
+	/**
+	 * phoebe_calculate_critical_potentials:
+	 * @q: mass ratio
+	 * @F: asynchronicity parameter
+	 * @e: eccentricity
+	 * @L1crit: placeholder for the inner (Roche) lobe value of the potential
+	 * @L2crit: placeholder for the outer lobe value of the potential
+	 *
+	 * Calculates the value of the primary surface potential in Lagrange points
+	 * L1 and L2.
+	 * 
+	 * Returns: #PHOEBE_error_code
+	 */
 
 	double D = 1.0 - e;
 	double  xL = 0.5;                             /* Initial x coordinate value */
@@ -575,7 +598,7 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 		dxL = -Force * dxLdF;
 		}
 	xL1 = xL;
-	*L1crit = calculate_phsv_value (1, D, q, xL1, F, 1.0, 0.0);
+	*L1crit = phoebe_calculate_pot1 (1, D, q, xL1, F, 1.0, 0.0);
 
 	/* Next, L2: we have to make sure that L2 is properly defined, i.e. behind  */
 	/* the lower mass star, and that it makes sense to calculate it only in     */
@@ -598,7 +621,7 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	*L2crit = 1.0/fabs(xL2) + q*(1.0/fabs(xL2-1)-xL2) + 1./2.*(q+1)*xL2*xL2;
 
 	return SUCCESS;
-	}
+}
 
 int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc)
 {
@@ -1284,8 +1307,8 @@ int calculate_main_sequence_parameters (double T1, double T2, double P0, double 
 	*R2 = pow (*L2, 1./2.) * pow (T2/Tsun, -2.);
 
 	/* Sixth step: let's calculate the potentials:                              */
-	*Omega1 = calculate_phsv_value (0, 1, *q, *R1 / *a, 1.0, 1.0, 0.0);
-	*Omega2 = calculate_pcsv_value (0, 1, *q, *R2 / *a, 1.0, 1.0, 0.0);
+	*Omega1 = phoebe_calculate_pot1 (0, 1, *q, *R1 / *a, 1.0, 1.0, 0.0);
+	*Omega2 = phoebe_calculate_pot2 (0, 1, *q, *R2 / *a, 1.0, 1.0, 0.0);
 
 	/* That's all. Goodbye!                                                     */
 	return SUCCESS;
