@@ -6,7 +6,7 @@
 #include "phoebe_nms.h"
 #include "phoebe_types.h"
 
-#define wd_dc(atmtab,pltab,l3perc,corrs,errors,chi2s,cfval) dc_(atmtab,pltab,l3perc,corrs,errors,chi2s,cfval,strlen(atmtab),strlen(pltab))
+#define wd_dc(atmtab,pltab,l3perc,corrs,errors,chi2s,cormat,cfval) dc_(atmtab,pltab,l3perc,corrs,errors,chi2s,cormat,cfval,strlen(atmtab),strlen(pltab))
 
 double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters *params);
 

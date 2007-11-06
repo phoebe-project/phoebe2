@@ -1,4 +1,4 @@
-      subroutine dc(atmtab,pltab,L3perc,corrs,stdevs,chi2s,cfval)
+      subroutine dc(atmtab,pltab,L3perc,corrs,stdevs,chi2s,cormat,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -107,9 +107,10 @@ c
 c        corrs   ..   an array of computed corrections
 c       stdevs   ..   standard deviations of fitted parameters
 c        chi2s   ..   chi2 values of individual curves after the fit
+c       cormat   ..   correlation matrix (a wrapped 1D array)
 c        cfval   ..   cost function value (global goodness-of-fit value)
 c
-      double precision corrs(*),stdevs(*),chi2s(*),cfval
+      double precision corrs(*),stdevs(*),chi2s(*),cormat(*),cfval
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -1669,7 +1670,9 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       JT=JM+MAT*(JQ-1)
       IJM=(MAT+1)*(JM-1)+1
       IJQ=(MAT+1)*(JQ-1)+1
-   33 V(JQ)=CNN(JT)/DSQRT(CNN(IJM)*CNN(IJQ))
+      V(JQ)=CNN(JT)/DSQRT(CNN(IJM)*CNN(IJQ))
+      cormat((JM-1)*MAT+JQ)=V(JQ)
+   33 continue
       co1q=0.d0
       co2q=0.d0
       if(jm.eq.nrm.and.no1.gt.0) co1q=v(no1)*corq*coro1
