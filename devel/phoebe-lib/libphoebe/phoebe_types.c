@@ -994,6 +994,31 @@ int phoebe_matrix_alloc (PHOEBE_matrix *matrix, int cols, int rows)
 	return SUCCESS;
 }
 
+PHOEBE_matrix *phoebe_matrix_duplicate (PHOEBE_matrix *matrix)
+{
+	/**
+	 * phoebe_matrix_duplicate:
+	 * @matrix: The #PHOEBE_matrix to copy.
+	 *
+	 * Makes a duplicate copy of #PHOEBE_matrix @matrix.
+	 *
+	 * Returns: A #PHOEBE_matrix.
+	 */
+
+	int i, j;
+	PHOEBE_matrix *copy;
+
+	if (!matrix) return NULL;
+
+	copy = phoebe_matrix_new ();
+	phoebe_matrix_alloc (copy, matrix->cols, matrix->rows);
+	for (i = 0; i < matrix->cols; i++)
+		for (j = 0; j < matrix->rows; j++)
+			copy->val[i][j] = matrix->val[i][j];
+
+	return copy;
+}
+
 int phoebe_matrix_set_row (PHOEBE_matrix *matrix, PHOEBE_vector *vec, int row)
 {
     /**
@@ -2824,6 +2849,7 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	feedback->ferrors    = phoebe_vector_new ();
 	feedback->chi2s      = phoebe_vector_new ();
 	feedback->wchi2s     = phoebe_vector_new ();
+	feedback->cormat     = phoebe_matrix_new ();
 
 	return feedback;
 }
@@ -2853,6 +2879,7 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tb
 	phoebe_vector_alloc (feedback->ferrors,    tba);
 	phoebe_vector_alloc (feedback->chi2s,      cno);
 	phoebe_vector_alloc (feedback->wchi2s,     cno);
+	phoebe_matrix_alloc (feedback->cormat,     tba, tba);
 
 	return SUCCESS;
 }
@@ -2887,6 +2914,7 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup->ferrors    = phoebe_vector_duplicate (feedback->ferrors);
 	dup->chi2s      = phoebe_vector_duplicate (feedback->chi2s);
 	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
+	dup->cormat     = phoebe_matrix_duplicate (feedback->cormat);
 
 	return dup;
 }
@@ -2939,6 +2967,7 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 	phoebe_vector_free (feedback->ferrors);
 	phoebe_vector_free (feedback->chi2s);
 	phoebe_vector_free (feedback->wchi2s);
+	phoebe_matrix_free (feedback->cormat);
 
 	free (feedback);
 

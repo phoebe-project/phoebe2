@@ -130,7 +130,7 @@ int phoebe_minimizer_feedback_print (PHOEBE_minimizer_feedback *feedback)
 	 *   SUCCESS
 	 */
 
-	int i;
+	int i, j;
 	char *algname;
 
 	fprintf (PHOEBE_output, "\n");
@@ -208,6 +208,20 @@ int phoebe_minimizer_feedback_print (PHOEBE_minimizer_feedback *feedback)
 	}
 
 	fprintf (PHOEBE_output, "  cost function value:  %lf\n", feedback->cfval);
+
+	fprintf (PHOEBE_output, "  correlation matrix: ");
+	if (feedback->cormat) {
+		fprintf (PHOEBE_output, "\n\t");
+		for (i = 0; i < feedback->cormat->cols; i++) {
+			for (j = 0; j < feedback->cormat->rows; j++) {
+				fprintf (PHOEBE_output, "% 3.3lf ", feedback->cormat->val[i][j]);
+			}
+			fprintf (PHOEBE_output, "\n\t");
+		}
+	}
+	else {
+		fprintf (PHOEBE_output, "  n/a\n");
+	}
 
 	return SUCCESS;
 }

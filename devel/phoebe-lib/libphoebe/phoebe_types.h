@@ -364,6 +364,7 @@ int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name
  * @ferrors:    A list of formal error estimates
  * @chi2s:      A list of passband chi2 values
  * @wchi2s:     A list of weighted passband chi2 values
+ * @cormat:     Correlation matrix
  */
 typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_minimizer_type algorithm;
@@ -376,6 +377,7 @@ typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_vector   *ferrors;
 	PHOEBE_vector   *chi2s;
 	PHOEBE_vector   *wchi2s;
+	PHOEBE_matrix   *cormat;
 } PHOEBE_minimizer_feedback;
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new       ();

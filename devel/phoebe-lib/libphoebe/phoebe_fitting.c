@@ -583,6 +583,10 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		feedback->wchi2s->val[i] = weights->val[i] * chi2s->val[i];
 	}
 
+	/* There is no correlation matrix: */
+	phoebe_matrix_free (feedback->cormat);
+	feedback->cormat = NULL;
+
 	/* Free observed data: */
 	for (i = 0; i < lcno + rvno; i++)
 		phoebe_curve_free (obs[i]);
@@ -981,6 +985,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	double *corrections;
 	double *errors;
 	double *chi2s;
+	double *cormat;
 	double  cfval;
 
 	PHOEBE_el3_units l3units;
@@ -1018,6 +1023,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	corrections = phoebe_malloc (no_tba * sizeof (*corrections));
 	errors      = phoebe_malloc (no_tba * sizeof (*errors));
 	chi2s       = phoebe_malloc ((lcno + rvno) * sizeof (*chi2s));
+	cormat      = phoebe_malloc (no_tba * no_tba * sizeof (*cormat));
 
 	/* Create the DCI file from the params variable: */
 	create_dci_file ("dcin.active", params);
@@ -1038,7 +1044,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		L3perc = 1;
 
 	/* Run one DC iteration and store the results in the allocated arrays: */
-	wd_dc (atmcof, atmcofplanck, &L3perc, corrections, errors, chi2s, &cfval);
+	wd_dc (atmcof, atmcofplanck, &L3perc, corrections, errors, chi2s, cormat, &cfval);
 
 	/*
 	 * Allocate the feedback structure and fill it in. The number of parameter
@@ -1093,11 +1099,16 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		tba = tba->next;
 	}
 
+	for (i = 0; i < no_tba; i++)
+		for (j = 0; j < no_tba; j++)
+			feedback->cormat->val[i][j] = cormat[i*no_tba+j];
+
 	/* Free all the allocated structures: */
 	wd_dci_parameters_free (params);
 	free (corrections);
 	free (errors);
 	free (chi2s);
+	free (cormat);
 
 	/* Stop the clock watch and compute the total CPU time on the process: */
 	clock_stop = clock ();
