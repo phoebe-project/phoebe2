@@ -1,6 +1,9 @@
 #include <gtk/gtk.h>
 #include <glade/glade.h>
 
+extern gboolean PHOEBE_FILEFLAG;
+extern gchar *PHOEBE_FILENAME;
+
 void on_phoebe_test_toolbutton_0_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_test_toolbutton_1_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
 void on_phoebe_open_toolbutton_clicked 						(GtkToolButton *toolbutton, gpointer user_data);
