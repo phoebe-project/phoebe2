@@ -11,7 +11,7 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_plotting.h"
 
-gchar *PHOEBE_FILENAME;
+gchar   *PHOEBE_FILENAME = NULL;
 gboolean PHOEBE_FILEFLAG = FALSE;
 
 void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
