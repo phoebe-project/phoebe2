@@ -909,6 +909,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 		break;
 		case TYPE_STRING: {
 			char *value = va_arg (args, char *);
+			if (!value) value = strdup ("Undefined");
 			free (par->value.str);
 			par->value.str = phoebe_malloc (strlen (value) + 1);
 			strcpy (par->value.str, value);
@@ -956,6 +957,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 				return ERROR_INDEX_OUT_OF_RANGE;
 			{
 			char *value = va_arg (args, char *);
+			if (!value) value = strdup ("Undefined");
 			free (par->value.array->val.strarray[index]);
 			par->value.array->val.strarray[index] = phoebe_malloc (strlen (value) + 1);
 			strcpy (par->value.array->val.strarray[index], value);
