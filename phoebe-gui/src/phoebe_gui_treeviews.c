@@ -1129,17 +1129,7 @@ int gui_data_lc_treeview_edit()
                                                                 LC_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox)]),
                                                                 LC_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox),
                                                                 LC_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox)]),
-                                                                LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton),
-                                                                LC_COL_LEVWEIGHT,   "Poissonian scatter",
-                                                                LC_COL_HLA,         12.566371,
-                                                                LC_COL_CLA,         12.566371,
-                                                                LC_COL_OPSF,        0.0,
-                                                                LC_COL_EL3,         0.0,
-                                                                LC_COL_EXTINCTION,  0.0,
-                                                                LC_COL_X1,          0.5,
-                                                                LC_COL_X2,          0.5,
-                                                                LC_COL_Y1,          0.5,
-                                                                LC_COL_Y2,          0.5, -1);
+                                                                LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton), -1);
             }
             break;
 
@@ -1422,11 +1412,7 @@ int gui_data_rv_treeview_edit()
                                                                 RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
                                                                 RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
                                                                 RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
-                                                                RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
-                                                                RV_COL_X1,          0.5,
-                                                                RV_COL_X2,          0.5,
-                                                                RV_COL_Y1,          0.5,
-                                                                RV_COL_Y2,          0.5, -1);
+                                                                RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton), -1);
             }
             break;
 
