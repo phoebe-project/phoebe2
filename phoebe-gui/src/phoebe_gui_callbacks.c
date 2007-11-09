@@ -1178,6 +1178,8 @@ void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 	if(lcno > 0){
 		gui_get_values_from_widgets();
 		gui_plot_lc_using_gnuplot();
+
+		gui_fill_sidesheet_res_treeview();
 	}
 
 	else printf("Nothing to plot...\n");
@@ -1194,6 +1196,8 @@ void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 	if(rvno > 0){
 		gui_get_values_from_widgets();
 		gui_plot_rv_using_gnuplot();
+
+		gui_fill_sidesheet_res_treeview();
 	}
 
 	else printf("Nothing to plot...\n");
