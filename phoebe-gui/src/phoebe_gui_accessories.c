@@ -89,7 +89,7 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 	//params->parent=parent;
 	//params->flag=flag;
 	params->test=5;
-	
+
 
 	if(*flag){
 		window = gtk_widget_get_parent(box);
@@ -124,6 +124,11 @@ int gui_open_parameter_file()
 										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 										  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 										  NULL);
+
+	gchar *dir;
+	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+	gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
 
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 

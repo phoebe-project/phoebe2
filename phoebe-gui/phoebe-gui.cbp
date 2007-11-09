@@ -34,6 +34,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/phoebe_gui_callbacks.h" />
+		<Unit filename="src/phoebe_gui_error_handling.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/phoebe_gui_error_handling.h" />
 		<Unit filename="src/phoebe_gui_global.h" />
 		<Unit filename="src/phoebe_gui_main.c">
 			<Option compilerVar="CC" />
