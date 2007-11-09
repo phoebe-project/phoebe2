@@ -8,6 +8,7 @@
 
 #include "phoebe_gui_base.h"
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_error_handling.h"
 #include "phoebe_gui_main.h"
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_types.h"
@@ -46,8 +47,7 @@ int parse_startup_line (int argc, char *argv[])
 
 			status = phoebe_open_parameter_file (argv[i]);
 			if (status != SUCCESS)
-#warning CHANGE PRINTF TO PHOEBE_GUI_DEBUG
-				printf ("%s", phoebe_error (status));
+				phoebe_gui_output ("%s", phoebe_error (status));
 			else {
 				gui_reinit_treeviews ();
 				gui_set_values_to_widgets ();
