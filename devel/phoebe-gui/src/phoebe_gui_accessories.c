@@ -47,14 +47,8 @@ void tmp_circumvent_delete_event (GtkWidget *widget, gpointer user_data)
 {
 	//printf ("PHOEBE GUI: window cannot be closed; please re-parent it.\n");
 
-	struct passed {
-		//GtkWidget *box;
-		//GtkWidget *parent;
-		//gboolean  *flag;
-		int test;
-	} *params = (struct passed *) user_data;
-
-	printf ("%d\n",params->test);
+	GtkWidget *box = g_object_get_data (G_OBJECT (widget), "my_box");
+	gtk_widget_set_sensitive (box, 0);
 
 	/*GtkWidget *window = gtk_widget_get_parent(params->box);
 
@@ -76,29 +70,15 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 	GtkWidget *window;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
-	struct passed {
-		//GtkWidget *box;
-		//GtkWidget *parent;
-		//gboolean  *flag;
-		int test;
-	} *params;
-
-	params = malloc (sizeof (*params));
-
-	//params->box=box;
-	//params->parent=parent;
-	//params->flag=flag;
-	params->test=5;
-
-
 	if(*flag){
-		window = gtk_widget_get_parent(box);
+		window = gtk_widget_get_parent (box);
 
 		gtk_widget_reparent(box, parent);
 		gtk_widget_destroy(window);
 	}
 	else{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+		g_object_set_data (G_OBJECT (window), "my_box", (gpointer) box);
 
 		gtk_window_set_icon (GTK_WINDOW(window), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
@@ -106,7 +86,7 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 		gtk_widget_set_size_request (window, x, y);
 		//g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (gui_detach_box_from_parent), flag);
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-		g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (tmp_circumvent_delete_event), (gpointer) params);
+		g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (tmp_circumvent_delete_event), NULL);
 		gtk_widget_show_all (window);
 	}
 	*flag = !(*flag);
