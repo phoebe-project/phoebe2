@@ -45,8 +45,25 @@ void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 
 void tmp_circumvent_delete_event (GtkWidget *widget, gpointer user_data)
 {
-	printf ("PHOEBE GUI: window cannot be closed; please re-parent it.\n");
+	//printf ("PHOEBE GUI: window cannot be closed; please re-parent it.\n");
+
+	struct passed {
+		//GtkWidget *box;
+		//GtkWidget *parent;
+		//gboolean  *flag;
+		int test;
+	} *params = (struct passed *) user_data;
+
+	printf ("%d\n",params->test);
+
+	/*GtkWidget *window = gtk_widget_get_parent(params->box);
+
+	gtk_widget_reparent(params->box, params->parent);
+	gtk_widget_destroy(window);
+
+	*params->flag = !(*params->flag);*/
 }
+
 
 void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
 {
@@ -58,6 +75,21 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 
 	GtkWidget *window;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	struct passed {
+		//GtkWidget *box;
+		//GtkWidget *parent;
+		//gboolean  *flag;
+		int test;
+	} *params;
+
+	params = malloc (sizeof (*params));
+
+	//params->box=box;
+	//params->parent=parent;
+	//params->flag=flag;
+	params->test=5;
+	
 
 	if(*flag){
 		window = gtk_widget_get_parent(box);
@@ -72,8 +104,9 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
 		gtk_widget_reparent(box, window);
 		gtk_widget_set_size_request (window, x, y);
+		//g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (gui_detach_box_from_parent), flag);
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-		g_signal_connect (window, "delete-event", (GCallback) tmp_circumvent_delete_event, NULL);
+		g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (tmp_circumvent_delete_event), (gpointer) params);
 		gtk_widget_show_all (window);
 	}
 	*flag = !(*flag);
