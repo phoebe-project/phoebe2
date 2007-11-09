@@ -152,7 +152,7 @@ int gui_plot_lc_using_gnuplot ()
 
 		indep = phoebe_vector_new ();
 		phoebe_vector_alloc (indep, VERITCES);
-		for (i = 0; i < VERITCES; i++) indep->val[i] = -0.6 + 1.2 * (double) i/(VERITCES-1);
+		for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
 	
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		phoebe_vector_free (indep);
@@ -327,7 +327,7 @@ int gui_plot_rv_using_gnuplot ()
 
 		indep = phoebe_vector_new ();
 		phoebe_vector_alloc (indep, VERITCES);
-		for (i = 0; i < VERITCES; i++) indep->val[i] = -0.6 + 1.2 * (double) i/(VERITCES-1);
+		for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		phoebe_vector_free (indep);
