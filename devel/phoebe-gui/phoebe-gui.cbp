@@ -8,7 +8,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="all">
-				<Option output="src/phoebe_gui" prefix_auto="0" extension_auto="0" />
+				<Option output="src/phoebe-gui" prefix_auto="0" extension_auto="0" />
 				<Option working_dir="src/" />
 				<Option object_output="src/" />
 				<Option type="0" />
