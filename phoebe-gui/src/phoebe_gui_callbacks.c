@@ -1208,3 +1208,143 @@ void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_
 		gui_get_values_from_widgets();
 		gui_plot_eb_using_gnuplot();
 }
+
+
+
+void on_phoebe_pot_calc_close_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gtk_widget_destroy (GTK_WIDGET(user_data));
+}
+
+void on_phoebe_pot_calc_update_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gint sel = (int) user_data;
+	GtkWidget *pot_spinbutton=NULL;
+
+	if (sel==1){pot_spinbutton = gui_widget_lookup("phoebe_para_comp_phsv_spinbutton")->gtk;}
+	if (sel==2){pot_spinbutton = gui_widget_lookup("phoebe_para_comp_pcsv_spinbutton")->gtk;}
+
+	gdouble pot = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_pot_spinbutton")));
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(pot_spinbutton), pot);
+}
+
+void on_phoebe_pot_calc_calculate_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gboolean circ 	= gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(g_object_get_data (G_OBJECT (button), "data_circ_checkbutton")));
+	gdouble d		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_d_spinbutton")));
+	gdouble rm		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_rm_spinbutton")));
+	gdouble r		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_r_spinbutton")));
+	gdouble f		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_f_spinbutton")));
+	gdouble lambda	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_lambda_spinbutton")));
+	gdouble nu		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_nu_spinbutton")));
+
+	gdouble pot 	= phoebe_calculate_pot1((int)(!circ), d, rm, r, f, lambda, nu);
+
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_pot_spinbutton")), pot);
+}
+
+void on_phoebe_para_comp_phsv_calculate_button_clicked (GtkButton *button, gpointer user_data)
+{
+    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_potential_calculator.glade", NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_pot_calc_xml      			= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+	GtkWidget *phoebe_pot_calc_dialog        		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potential_calculator_dialog");
+	
+	GtkWidget *phoebe_pot_calc_circ_checkbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_circularorbit_checkbutton");
+	GtkWidget *phoebe_pot_calc_d_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_d_spinbutton");
+	GtkWidget *phoebe_pot_calc_rm_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_rm_spinbutton");
+	GtkWidget *phoebe_pot_calc_r_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_r_spinbutton");
+	GtkWidget *phoebe_pot_calc_f_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_f_spinbutton");
+	GtkWidget *phoebe_pot_calc_lambda_spinbutton	= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_lambda_spinbutton");
+	GtkWidget *phoebe_pot_calc_nu_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_nu_spinbutton");
+	GtkWidget *phoebe_pot_calc_pot_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_pot_spinbutton");
+
+
+	GtkWidget *phoebe_pot_calc_calculate_button		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_calculate_button");
+	GtkWidget *phoebe_pot_calc_update_button		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_update_button");
+	GtkWidget *phoebe_pot_calc_close_button			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_close_button");
+
+	g_object_unref (phoebe_pot_calc_xml);
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_pot_calc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_window_set_title (GTK_WINDOW(phoebe_pot_calc_dialog), "PHOEBE - Potential Calculator");
+
+
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_rm_spinbutton", (gpointer) phoebe_pot_calc_rm_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_r_spinbutton", (gpointer) phoebe_pot_calc_r_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_f_spinbutton", (gpointer) phoebe_pot_calc_f_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_lambda_spinbutton", (gpointer) phoebe_pot_calc_lambda_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_nu_spinbutton", (gpointer) phoebe_pot_calc_nu_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_pot_spinbutton", (gpointer) phoebe_pot_calc_pot_spinbutton );
+
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_update_button), "data_pot_spinbutton", (gpointer) phoebe_pot_calc_pot_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_update_button), "data_pot_spinbutton", (gpointer) phoebe_pot_calc_pot_spinbutton );
+
+
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_close_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_close_button_clicked), (gpointer) phoebe_pot_calc_dialog);
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_update_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_update_button_clicked), (gpointer) 1);
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_calculate_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_calculate_button_clicked), NULL);
+
+	gtk_widget_show (phoebe_pot_calc_dialog);
+}
+
+
+
+void on_phoebe_para_comp_pcsv_calculate_button_clicked (GtkButton *button, gpointer user_data)
+{
+    gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_potential_calculator.glade", NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_pot_calc_xml      			= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+	GtkWidget *phoebe_pot_calc_dialog        		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potential_calculator_dialog");
+	
+	GtkWidget *phoebe_pot_calc_circ_checkbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_circularorbit_checkbutton");
+	GtkWidget *phoebe_pot_calc_d_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_d_spinbutton");
+	GtkWidget *phoebe_pot_calc_rm_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_rm_spinbutton");
+	GtkWidget *phoebe_pot_calc_r_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_r_spinbutton");
+	GtkWidget *phoebe_pot_calc_f_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_f_spinbutton");
+	GtkWidget *phoebe_pot_calc_lambda_spinbutton	= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_lambda_spinbutton");
+	GtkWidget *phoebe_pot_calc_nu_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_nu_spinbutton");
+	GtkWidget *phoebe_pot_calc_pot_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_pot_spinbutton");
+
+
+	GtkWidget *phoebe_pot_calc_calculate_button		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_calculate_button");
+	GtkWidget *phoebe_pot_calc_update_button		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_update_button");
+	GtkWidget *phoebe_pot_calc_close_button			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_close_button");
+
+
+	gtk_label_set_markup (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_radius_label")),"<b>Secondary Star Radius</b>");
+	gtk_label_set_text (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_r_label")),"R2:");
+	gtk_label_set_markup (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_sync_label")),"<b>Secondary Star Synchronicity Parameter</b>");
+	gtk_label_set_text (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_f_label")),"F2:");
+	gtk_label_set_markup (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_potential_label")),"<b>Secondary Star Surface Potential</b>");
+	gtk_label_set_text (GTK_LABEL(glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_pot_label")),"PCSV:");
+
+	g_object_unref (phoebe_pot_calc_xml);
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_pot_calc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_window_set_title (GTK_WINDOW(phoebe_pot_calc_dialog), "PHOEBE - Potential Calculator");
+
+
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_rm_spinbutton", (gpointer) phoebe_pot_calc_rm_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_r_spinbutton", (gpointer) phoebe_pot_calc_r_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_f_spinbutton", (gpointer) phoebe_pot_calc_f_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_lambda_spinbutton", (gpointer) phoebe_pot_calc_lambda_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_nu_spinbutton", (gpointer) phoebe_pot_calc_nu_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_pot_spinbutton", (gpointer) phoebe_pot_calc_pot_spinbutton );
+
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_update_button), "data_pot_spinbutton", (gpointer) phoebe_pot_calc_pot_spinbutton );
+
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_close_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_close_button_clicked), (gpointer) phoebe_pot_calc_dialog);
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_update_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_update_button_clicked), (gpointer) 2);
+	g_signal_connect (GTK_WIDGET(phoebe_pot_calc_calculate_button), "clicked", G_CALLBACK (on_phoebe_pot_calc_calculate_button_clicked), NULL);
+
+	gtk_widget_show (phoebe_pot_calc_dialog);
+}
