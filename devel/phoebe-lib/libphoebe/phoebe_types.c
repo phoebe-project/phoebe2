@@ -469,23 +469,49 @@ int phoebe_vector_raise (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vect
 	return SUCCESS;
 }
 
-int phoebe_vector_multiply_by (PHOEBE_vector *vec, double factor)
+int phoebe_vector_offset (PHOEBE_vector *vec, double offset)
 {
 	/**
-	 * phoebe_vector_multiply_by:
-	 * @vec:    The #PHOEBE_vector to be modified.
-	 * @factor: The value the elements of @vec will be multiplied with.
+	 * phoebe_vector_offset:
+	 * @vec:    #PHOEBE_vector to be offset
+	 * @offset: offset value.
 	 *
-	 * Multiplies all elements of the #PHOEBE_vector @vec with the scalar
-	 * value @factor.
+	 * Adds @offset to all elements of #PHOEBE_vector @vec.
 	 *
-	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;
 
+	if (!vec)
+		return ERROR_VECTOR_NOT_INITIALIZED;
+
 	for (i = 0; i < vec->dim; i++)
-		vec->val[i] = vec->val[i] * factor;
+		vec->val[i] += offset;
+
+	return SUCCESS;
+}
+
+int phoebe_vector_multiply_by (PHOEBE_vector *vec, double factor)
+{
+	/**
+	 * phoebe_vector_multiply_by:
+	 * @vec:    #PHOEBE_vector to be modified
+	 * @factor: scaling factor
+	 *
+	 * Multiplies all elements of the #PHOEBE_vector @vec with the scalar
+	 * value @factor.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+
+	if (!vec)
+		return ERROR_VECTOR_NOT_INITIALIZED;
+
+	for (i = 0; i < vec->dim; i++)
+		vec->val[i] *= factor;
 
 	return SUCCESS;
 }

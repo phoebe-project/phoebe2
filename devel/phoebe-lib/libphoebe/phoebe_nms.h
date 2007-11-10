@@ -20,10 +20,10 @@ typedef struct PHOEBE_nms_parameters {
 	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
 	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
 	PHOEBE_vector *weights;        /* A vector of individual passband weights */
+	bool autolevels;              /* Should levels be computed automatically? */
+	bool autogamma;       /* Should gamma velocity be computed automatically? */
 	bool rv1;
 	bool rv2;
-	int CALCHLA;
-	int CALCVGA;
 	double *average;
 } PHOEBE_nms_parameters;
 

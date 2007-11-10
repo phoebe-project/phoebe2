@@ -411,30 +411,76 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	return SUCCESS;
 }
 
-int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep)
+int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs)
 {
-	/*
-	 * This function generates a synthetic curve and calculates the average.
-	 * It checks for sanity of the indep vector.
+	/**
+	 * phoebe_calculate_level_correction:
+	 * @alpha: level correction: L1 -> L1/@alpha, L2 -> L2/@alpha
+	 * @syn:   synthetic (model) light curve
+	 * @obs:   observed light curve
+	 *
+	 * Computes the correction @alpha that solves the equation:
+	 *
+	 *   \sum_i w_i (o_i - @alpha c_i)^2 = min
+	 *
+	 * where o_i are observed data points with individual weights w_i, and c_i
+	 * are the computed fluxes with the original value of L1. Solving this
+	 * system requires solving the following least squares equation:
+	 *
+	 *   @alpha = (A W A^T)^{-1} A W b = \sum_i w_i o_i c_i / \sum_i w_i o_i^2
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
-	phoebe_lib_warning ("function calculate_model_level () disabled for review.\n");
-	return SUCCESS;	
-/*
-	int status;
-	PHOEBE_curve *syncurve;
+	int i;
+	double wsum_xx = 0.0, wsum_xy = 0.0;
 
-	if (!indep)         return ERROR_VECTOR_NOT_INITIALIZED;
-	if (indep->dim < 1) return ERROR_VECTOR_INVALID_DIMENSION;
+	if (!obs || !syn)
+		return ERROR_CURVE_NOT_INITIALIZED;
 
-	syncurve = phoebe_curve_new ();
+	for (i = 0; i < obs->dep->dim; i++) {
+		wsum_xy += obs->weight->val[i] * obs->dep->val[i] * syn->dep->val[i];
+		wsum_xx += obs->weight->val[i] * obs->dep->val[i] * obs->dep->val[i];
+	}
+	*alpha = wsum_xy/wsum_xx;
 
-	status = read_in_synthetic_data (syncurve, indep, curve, itype, PHOEBE_COLUMN_FLUX);
-	if (status != SUCCESS) return status;
+	return SUCCESS;
+}
 
-	status = calculate_average (level, syncurve->dep);
-	return status;
-*/
+int phoebe_calculate_gamma_correction (double *gamma, PHOEBE_curve *syn, PHOEBE_curve *obs)
+{
+	/**
+	 * phoebe_calculate_gamma_correction:
+	 * @gamma: gamma (center-of-mass) velocity correction: v -> v + gamma
+	 * @syn:   synthetic (model) light curve
+	 * @obs:   observed light curve
+	 *
+	 * Computes the correction @gamma that solves the equation:
+	 *
+	 *   \sum_i w_i (o_i - c_i - @gamma)^2 = min
+	 *
+	 * where o_i are observed data points with individual weights w_i, and c_i
+	 * are the computed fluxes with the original value of @gamma. Solving this
+	 * system requires solving the following least squares equation:
+	 *
+	 *   @gamma = (A W A^T)^{-1} A W b = \sum_i w_i o_i / \sum_i w_i
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	double wsum_y = 0.0, wsum = 0.0;
+
+	if (!obs || !syn)
+		return ERROR_CURVE_NOT_INITIALIZED;
+
+	for (i = 0; i < obs->dep->dim; i++) {
+		wsum_y += obs->weight->val[i] * obs->dep->val[i];
+		wsum   += obs->weight->val[i];
+	}
+	*gamma = wsum_y/wsum;
+
+	return SUCCESS;
 }
 
 int calculate_model_vga (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep)
