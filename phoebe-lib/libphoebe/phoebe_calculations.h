@@ -37,8 +37,8 @@ int call_wd_to_get_rv1    (PHOEBE_curve *rv1,   PHOEBE_vector *indep);
 int call_wd_to_get_rv2    (PHOEBE_curve *rv2,   PHOEBE_vector *indep);
 int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, double phase);
 
-int calculate_model_level (double *level, int curve, PHOEBE_column_type itype, PHOEBE_vector *indep);
-int calculate_model_vga   (double *vga, PHOEBE_vector *rv1_indep, PHOEBE_vector *rv1_dep, PHOEBE_vector *rv2_indep, PHOEBE_vector *rv2_dep);
+int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs);
+int phoebe_calculate_gamma_correction (double *gamma, PHOEBE_curve *syn, PHOEBE_curve *obs);
 
 double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);

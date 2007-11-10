@@ -89,12 +89,28 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		wd_lci_parameters_get (lcipars[lcno+i], /* MPAGE = */ 2, i);
 	}
 
-	/* Compute theoretical light curves: */
+	/* Compute theoretical light and RV curves: */
 	for (i = 0; i < lcno + rvno; i++) {
 		PHOEBE_curve *curve = phoebe_curve_new ();
 
 		create_lci_file ("lcin.active", lcipars[i]);
 		call_wd_to_get_fluxes (curve, obs[i]->indep);
+
+		if (params->autolevels && i < lcno) {
+			double alpha;
+			phoebe_calculate_level_correction (&alpha, curve, obs[i]);
+			phoebe_vector_multiply_by (curve->dep, 1./alpha);
+			printf ("    alpha[%d] = %lf\n", i, alpha);
+		}
+		if (params->autogamma && i >= lcno) {
+			phoebe_lib_warning ("automatic computation of gamma velocity pending on RV readouts.\n");
+			/*
+			double gamma;
+			phoebe_calculate_gamma_correction (&gamma, curve, obs[i]);
+			phoebe_vector_offset (curve->dep, gamma);
+			printf ("    gamma[%d] = %lf\n", i, gamma);
+			*/
+		}
 
 		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_CHI2, curve->dep, obs[i]->dep, obs[i]->weight, 1.0);
 
@@ -522,6 +538,9 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	passed->obs        = obs;
 	passed->chi2s      = chi2s;
 	passed->weights    = weights;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &(passed->autolevels));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &(passed->autogamma));
 
 	/* Read out initial values and step sizes: */
 

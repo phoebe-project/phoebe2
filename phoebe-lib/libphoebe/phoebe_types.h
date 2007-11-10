@@ -74,7 +74,8 @@ int            phoebe_vector_subtract           (PHOEBE_vector *result, PHOEBE_v
 int            phoebe_vector_multiply           (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_divide             (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_raise              (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
-int            phoebe_vector_multiply_by        (PHOEBE_vector *fac1, double factor);
+int            phoebe_vector_offset             (PHOEBE_vector *vec, double offset);
+int            phoebe_vector_multiply_by        (PHOEBE_vector *vec, double factor);
 int            phoebe_vector_dot_product        (double *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_vec_product        (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_submit             (PHOEBE_vector *result, PHOEBE_vector *vec, double func ());
