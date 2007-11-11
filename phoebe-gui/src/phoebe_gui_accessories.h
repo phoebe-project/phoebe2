@@ -11,3 +11,8 @@ int gui_save_parameter_file();
 
 int gui_show_configuration_dialog();
 int gui_show_quit_dialog();
+
+int gui_question	(char* title, char* message);
+int gui_warning		(char* title, char* message);
+int gui_notice		(char* title, char* message);
+int gui_error		(char* title, char* message);
