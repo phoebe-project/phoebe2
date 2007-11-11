@@ -787,7 +787,7 @@ void on_phoebe_para_spots_tempmax_spinbutton_value_changed(GtkSpinButton *spinbu
 
 gboolean on_phoebe_window_delete_event (GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
-    if(gui_show_quit_dialog() == 1)
+    if(gui_warning("Quit PHOEBE?", "By quitting Phoebe all unsaved data will be lost. Are you sure you want to quit?") == 1)
     	gtk_main_quit();
     return TRUE;
 }
@@ -843,7 +843,7 @@ void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer us
 
 void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
-    if(gui_show_quit_dialog() == 1)
+    if(gui_warning("Quit PHOEBE?", "By quitting Phoebe all unsaved data will be lost. Are you sure you want to quit?") == 1)
     	gtk_main_quit();
 }
 
@@ -929,7 +929,7 @@ void on_phoebe_settings_checkbutton_toggled (GtkToggleButton *togglebutton, gpoi
 
 void on_phoebe_quit_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	if(gui_show_quit_dialog() == 1)
+	if(gui_warning("Quit PHOEBE?", "By quitting Phoebe all unsaved data will be lost. Are you sure you want to quit?") == 1)
     	gtk_main_quit();
 }
 
@@ -1251,7 +1251,7 @@ void on_phoebe_para_comp_phsv_calculate_button_clicked (GtkButton *button, gpoin
 	GladeXML  *phoebe_pot_calc_xml      			= glade_xml_new        (glade_xml_file, NULL, NULL);
 
 	GtkWidget *phoebe_pot_calc_dialog        		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potential_calculator_dialog");
-	
+
 	GtkWidget *phoebe_pot_calc_circ_checkbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_circularorbit_checkbutton");
 	GtkWidget *phoebe_pot_calc_d_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_d_spinbutton");
 	GtkWidget *phoebe_pot_calc_rm_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_rm_spinbutton");
@@ -1272,8 +1272,8 @@ void on_phoebe_para_comp_phsv_calculate_button_clicked (GtkButton *button, gpoin
 	gtk_window_set_title (GTK_WINDOW(phoebe_pot_calc_dialog), "PHOEBE - Potential Calculator");
 
 
-	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);	
-	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_rm_spinbutton", (gpointer) phoebe_pot_calc_rm_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_r_spinbutton", (gpointer) phoebe_pot_calc_r_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_f_spinbutton", (gpointer) phoebe_pot_calc_f_spinbutton );
@@ -1302,7 +1302,7 @@ void on_phoebe_para_comp_pcsv_calculate_button_clicked (GtkButton *button, gpoin
 	GladeXML  *phoebe_pot_calc_xml      			= glade_xml_new        (glade_xml_file, NULL, NULL);
 
 	GtkWidget *phoebe_pot_calc_dialog        		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potential_calculator_dialog");
-	
+
 	GtkWidget *phoebe_pot_calc_circ_checkbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_circularorbit_checkbutton");
 	GtkWidget *phoebe_pot_calc_d_spinbutton			= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_d_spinbutton");
 	GtkWidget *phoebe_pot_calc_rm_spinbutton		= glade_xml_get_widget (phoebe_pot_calc_xml, "phoebe_potentialcalc_rm_spinbutton");
@@ -1331,8 +1331,8 @@ void on_phoebe_para_comp_pcsv_calculate_button_clicked (GtkButton *button, gpoin
 	gtk_window_set_title (GTK_WINDOW(phoebe_pot_calc_dialog), "PHOEBE - Potential Calculator");
 
 
-	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);	
-	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);	
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_circ_checkbutton", (gpointer) phoebe_pot_calc_circ_checkbutton);
+	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_d_spinbutton", (gpointer) phoebe_pot_calc_d_spinbutton);
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_rm_spinbutton", (gpointer) phoebe_pot_calc_rm_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_r_spinbutton", (gpointer) phoebe_pot_calc_r_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_pot_calc_calculate_button), "data_f_spinbutton", (gpointer) phoebe_pot_calc_f_spinbutton );
