@@ -2,6 +2,7 @@
 
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_accessories.h"
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_types.h"
 
@@ -131,19 +132,25 @@ int gui_plot_lc_using_gnuplot ()
 	}
 
 
-	if(plot_obs){
+	if (plot_obs) {
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
-		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-		if (ALIAS)
-			phoebe_curve_alias (obs, phstart, phend);
-
-		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
-		ofd = mkstemp (oname);
-		for (i=0;i<obs->indep->dim;i++) {
-			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
-			write(ofd, line, strlen(line));
+		if (!obs) {
+			plot_obs = FALSE;
+			gui_notice ("Observed curve not available", "The filename of the observed curve is not given or is invalid.");
 		}
-		close(ofd);
+		else {
+			phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
+			if (ALIAS)
+				phoebe_curve_alias (obs, phstart, phend);
+
+			sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
+			ofd = mkstemp (oname);
+			for (i=0;i<obs->indep->dim;i++) {
+				sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
+				write(ofd, line, strlen(line));
+			}
+			close(ofd);
+		}
 	}
 
 	if(plot_syn){
@@ -306,22 +313,28 @@ int gui_plot_rv_using_gnuplot ()
 		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
 	}
 
-	if(plot_obs){
+	if (plot_obs) {
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, INDEX);
-		phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
-		if (ALIAS)
-			phoebe_curve_alias (obs, phstart, phend);
-
-		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
-		ofd = mkstemp (oname);
-		for (i=0;i<obs->indep->dim;i++) {
-			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
-			write(ofd, line, strlen(line));
+		if (!obs) {
+			plot_obs = FALSE;
+			gui_notice ("Observed curve not available", "The filename of the observed curve is not given or is invalid.");
 		}
-		close(ofd);
+		else {
+			phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
+			if (ALIAS)
+				phoebe_curve_alias (obs, phstart, phend);
+
+			sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
+			ofd = mkstemp (oname);
+			for (i=0;i<obs->indep->dim;i++) {
+				sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
+				write(ofd, line, strlen(line));
+			}
+			close(ofd);
+		}
 	}
 
-	if(plot_syn){
+	if (plot_syn) {
 		syn = phoebe_curve_new ();
 		syn->type = PHOEBE_CURVE_RV;
 
