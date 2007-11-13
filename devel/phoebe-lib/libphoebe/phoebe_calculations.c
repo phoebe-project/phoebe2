@@ -1265,7 +1265,7 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	int i, j, dim = curve->indep->dim;
+	int i, j, dim;
 
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
@@ -1275,6 +1275,8 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 
 	if (curve->itype != PHOEBE_COLUMN_PHASE)
 		return ERROR_INVALID_INDEP;
+
+	dim = curve->indep->dim;
 
 	/* Make the aliasing loop: */
 	for (i = 0; i < dim; i++) {
