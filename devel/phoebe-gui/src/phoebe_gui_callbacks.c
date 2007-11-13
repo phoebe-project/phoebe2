@@ -1348,3 +1348,106 @@ void on_phoebe_para_comp_pcsv_calculate_button_clicked (GtkButton *button, gpoin
 
 	gtk_widget_show (phoebe_pot_calc_dialog);
 }
+
+
+void on_phoebe_ld_dialog_close_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gtk_widget_destroy (GTK_WIDGET(user_data));
+}
+
+
+void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer user_data)
+{
+	double tavh 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_tavh_spinbutton")));
+	double tavc 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_tavc_spinbutton")));
+	double logg1 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_logg1_spinbutton")));
+	double logg2 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_logg2_spinbutton")));
+	double met1 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met1_spinbutton")));
+	double met2 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met2_spinbutton")));
+
+	char* ldlaw 	= gtk_combo_box_get_active_text (GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_law_combobox")));
+
+	GtkTreeIter filter_iter;
+	gint 		filter_number;
+	gchar 		filter[255] = "Johnson:V";
+
+	if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_filter_combobox")), &filter_iter)) {
+		gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_filter_combobox"))), &filter_iter, 1, &filter_number, -1);
+		sprintf (filter, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
+	}
+
+	double x1, x2, y1, y2;
+
+	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup ((const char*)filter), met1, tavh, logg1, &x1, &y1);
+	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup ((const char*)filter), met2, tavc, logg2, &x2, &y2);
+
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")), x1);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")), x2);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")), y1);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")), y2);
+}
+
+
+void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)
+{
+
+}
+
+
+void on_phoebe_para_ld_model_tables_get_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_ld_interpolator.glade", NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_ld_dialog_xml      			= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+	GtkWidget *phoebe_ld_dialog        				= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog");
+
+	GtkWidget *phoebe_ld_dialog_law_combobox		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_law_combobox");
+	GtkWidget *phoebe_ld_dialog_filter_combobox		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_filter_combobox");
+	GtkWidget *phoebe_ld_dialog_tavh_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_tavh_spinbutton");
+	GtkWidget *phoebe_ld_dialog_logg1_spinbutton	= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_logg1_spinbutton");
+	GtkWidget *phoebe_ld_dialog_met1_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_met1_spinbutton");
+	GtkWidget *phoebe_ld_dialog_tavc_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_tavc_spinbutton");
+	GtkWidget *phoebe_ld_dialog_logg2_spinbutton	= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_logg2_spinbutton");
+	GtkWidget *phoebe_ld_dialog_met2_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_met2_spinbutton");
+	GtkWidget *phoebe_ld_dialog_x1_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_x1_spinbutton");
+	GtkWidget *phoebe_ld_dialog_y1_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_y1_spinbutton");
+	GtkWidget *phoebe_ld_dialog_x2_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_x2_spinbutton");
+	GtkWidget *phoebe_ld_dialog_y2_spinbutton		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_y2_spinbutton");
+
+	GtkWidget *phoebe_ld_dialog_interpolate_button 	= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_interpolate_button");
+	GtkWidget *phoebe_ld_dialog_update_button 		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_update_button");
+	GtkWidget *phoebe_ld_dialog_close_button 		= glade_xml_get_widget (phoebe_ld_dialog_xml, "phoebe_ld_dialog_close_button");
+
+	g_object_unref (phoebe_ld_dialog_xml);
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_ld_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_window_set_title (GTK_WINDOW(phoebe_ld_dialog), "PHOEBE - LD Coefficients Inerpolation");
+
+	gui_init_filter_combobox(phoebe_ld_dialog_filter_combobox);
+
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_law_combobox", (gpointer) phoebe_ld_dialog_law_combobox);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_filter_combobox", (gpointer) phoebe_ld_dialog_filter_combobox);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavh_spinbutton", (gpointer) phoebe_ld_dialog_tavh_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg1_spinbutton", (gpointer) phoebe_ld_dialog_logg1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met1_spinbutton", (gpointer) phoebe_ld_dialog_met1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavc_spinbutton", (gpointer) phoebe_ld_dialog_tavc_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg2_spinbutton", (gpointer) phoebe_ld_dialog_logg2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met2_spinbutton", (gpointer) phoebe_ld_dialog_met2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x1_spinbutton", (gpointer) phoebe_ld_dialog_x1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y1_spinbutton", (gpointer) phoebe_ld_dialog_y1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x2_spinbutton", (gpointer) phoebe_ld_dialog_x2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y2_spinbutton", (gpointer) phoebe_ld_dialog_y2_spinbutton );
+
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_x1_spinbutton", (gpointer) phoebe_ld_dialog_x1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y1_spinbutton", (gpointer) phoebe_ld_dialog_y1_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_x2_spinbutton", (gpointer) phoebe_ld_dialog_x2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y2_spinbutton", (gpointer) phoebe_ld_dialog_y2_spinbutton );
+
+	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_close_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_close_button_clicked), (gpointer) phoebe_ld_dialog);
+	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_update_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_update_button_clicked), NULL);
+	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_interpolate_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_interpolate_button_clicked), NULL);
+
+	gtk_widget_show (phoebe_ld_dialog);
+}
