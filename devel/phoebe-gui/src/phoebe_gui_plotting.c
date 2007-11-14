@@ -63,7 +63,7 @@ int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin
 	return SUCCESS;
 }
 
-int gui_plot_lc_using_gnuplot ()
+int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 {
 	PHOEBE_curve *obs = NULL;
 	PHOEBE_curve *syn = NULL;
@@ -200,7 +200,7 @@ int gui_plot_lc_using_gnuplot ()
 		sprintf(line, "set grid mxtics mytics\n");						write(cfd, line, strlen(line));
 
 
-	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, 0.0, 0.0, 0.0);
+	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, x_offset, y_offset, zoom);
 
 
 	sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
@@ -248,7 +248,7 @@ int gui_plot_lc_using_gnuplot ()
 	return SUCCESS;
 }
 
-int gui_plot_rv_using_gnuplot ()
+int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 {
 	PHOEBE_curve *obs = NULL;
 	PHOEBE_curve *syn = NULL;
@@ -375,7 +375,7 @@ int gui_plot_rv_using_gnuplot ()
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (fine_grid)))
 		sprintf(line, "set grid mxtics mytics\n");						write(cfd, line, strlen(line));
 
-	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, 0.0, 0.0, 0.0);
+	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, x_offset, y_offset, zoom);
 
 
 	sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
