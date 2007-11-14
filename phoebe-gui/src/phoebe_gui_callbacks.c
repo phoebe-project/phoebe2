@@ -1167,8 +1167,17 @@ void on_phoebe_rv_plot_options_obs_checkbutton_toggled (GtkToggleButton *toggleb
 	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
 }
 
+extern gdouble lc_zoom;
+extern gint lc_zoom_level;
+extern gdouble lc_x_offset;
+extern gdouble lc_y_offset;
 
-void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
+gdouble lc_zoom=0.0;
+gint 	lc_zoom_level=0;
+gdouble lc_x_offset=0.0;
+gdouble lc_y_offset=0.0;
+
+int phoebe_gui_lc_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 {
 	int lcno;
 
@@ -1177,16 +1186,89 @@ void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 	if(lcno > 0){
 		gui_get_values_from_widgets();
-		gui_plot_lc_using_gnuplot();
+		gui_plot_lc_using_gnuplot(x_offset, y_offset, zoom);
 
 		gui_fill_sidesheet_res_treeview();
 	}
 
-	else printf("Nothing to plot...\n");
+	return SUCCESS;
+}
+
+void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
+{
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
+{
+	GtkWidget *plot_image = gui_widget_lookup ("phoebe_lc_plot_image")->gtk;
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+}
+
+void on_phoebe_lc_plot_controls_reset_button_clicked (GtkButton *button, gpointer user_data)
+{
+	lc_zoom=0.0;
+	lc_zoom_level=0;
+	lc_x_offset=0.0;
+	lc_y_offset=0.0;
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_controls_right_button_clicked (GtkButton *button, gpointer user_data)
+{
+	lc_x_offset+=0.1;
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_controls_up_button_clicked (GtkButton *button, gpointer user_data)
+{
+	lc_y_offset+=0.1;
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_controls_left_button_clicked (GtkButton *button, gpointer user_data)
+{
+	lc_x_offset-=0.1;
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_controls_down_button_clicked (GtkButton *button, gpointer user_data)
+{
+	lc_y_offset-=0.1;
+	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+}
+
+void on_phoebe_lc_plot_controls_zoomin_button_clicked (GtkButton *button, gpointer user_data)
+{
+	if (lc_zoom_level<5){
+		lc_zoom-=0.1;
+		lc_zoom_level+=1;
+		phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+	}
+}
+
+void on_phoebe_lc_plot_controls_zoomout_button_clicked (GtkButton *button, gpointer user_data)
+{
+	if (lc_zoom_level>-5){
+		lc_zoom+=0.1;
+		lc_zoom_level-=1;
+		phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
+	}
 }
 
 
-void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
+
+extern gdouble rv_zoom;
+extern gint rv_zoom_level;
+extern gdouble rv_x_offset;
+extern gdouble rv_y_offset;
+
+gdouble rv_zoom=0.0;
+gint 	rv_zoom_level=0;
+gdouble rv_x_offset=0.0;
+gdouble rv_y_offset=0.0;
+
+int phoebe_gui_rv_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 {
 	int rvno;
 
@@ -1195,19 +1277,83 @@ void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 	if(rvno > 0){
 		gui_get_values_from_widgets();
-		gui_plot_rv_using_gnuplot();
+		gui_plot_rv_using_gnuplot (x_offset, y_offset, zoom);
 
 		gui_fill_sidesheet_res_treeview();
 	}
 
-	else printf("Nothing to plot...\n");
+	return SUCCESS;
 }
+
+void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
+{
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
+{
+	GtkWidget *plot_image = gui_widget_lookup ("phoebe_rv_plot_image")->gtk;
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+}
+
+void on_phoebe_rv_plot_controls_reset_button_clicked (GtkButton *button, gpointer user_data)
+{
+	rv_zoom=0.0;
+	rv_zoom_level=0;
+	rv_x_offset=0.0;
+	rv_y_offset=0.0;
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_controls_right_button_clicked (GtkButton *button, gpointer user_data)
+{
+	rv_x_offset+=0.1;
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_controls_up_button_clicked (GtkButton *button, gpointer user_data)
+{
+	rv_y_offset+=0.1;
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_controls_left_button_clicked (GtkButton *button, gpointer user_data)
+{
+	rv_x_offset-=0.1;
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_controls_down_button_clicked (GtkButton *button, gpointer user_data)
+{
+	rv_y_offset-=0.1;
+	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_controls_zoomin_button_clicked (GtkButton *button, gpointer user_data)
+{
+	if (rv_zoom_level<5){
+		rv_zoom-=0.1;
+		rv_zoom_level+=1;
+		phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+	}
+}
+
+void on_phoebe_rv_plot_controls_zoomout_button_clicked (GtkButton *button, gpointer user_data)
+{
+	if (rv_zoom_level>-5){
+		rv_zoom+=0.1;
+		rv_zoom_level-=1;
+		phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+	}
+}
+
 
 void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
 		gui_get_values_from_widgets();
 		gui_plot_eb_using_gnuplot();
 }
+
 
 
 
