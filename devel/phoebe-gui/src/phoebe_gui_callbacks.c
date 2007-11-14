@@ -1393,8 +1393,7 @@ void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user
 
 }
 
-
-void on_phoebe_para_ld_model_tables_get_button_clicked (GtkButton *button, gpointer user_data)
+void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_ld_interpolator.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
