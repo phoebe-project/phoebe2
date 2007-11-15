@@ -1242,6 +1242,51 @@ void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 	phoebe_gui_lc_plot (lc_x_offset, lc_y_offset, lc_zoom);
 }
 
+void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, gpointer user_data)
+{
+	int lcno;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
+	phoebe_parameter_get_value(par, &lcno);
+
+	if(lcno > 0){
+		GtkWidget *dialog;
+		gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+		int status = 0;
+
+		dialog = gtk_file_chooser_dialog_new ("Save LC Curves to ASCII File",
+										  	GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
+										 	GTK_FILE_CHOOSER_ACTION_OPEN,
+										 	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+										  	GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+										  	NULL);
+
+		gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+
+		gchar *dir;
+		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+
+    	gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
+
+		if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+			gchar *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+			gui_get_values_from_widgets();
+			status =gui_plot_lc_to_ascii (filename);
+			
+			//else
+			//	gui_notice ("Missing write permissions", "Selected directory has no write permissions.");
+
+			g_free (filename);
+		}
+
+		gtk_widget_destroy (dialog);
+
+		gui_fill_sidesheet_res_treeview();
+	}
+}
+
 void on_phoebe_lc_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_lc_plot_image")->gtk), NULL);
@@ -1330,6 +1375,51 @@ int phoebe_gui_rv_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
 	phoebe_gui_rv_plot (rv_x_offset, rv_y_offset, rv_zoom);
+}
+
+void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, gpointer user_data)
+{
+	int rvno;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+	phoebe_parameter_get_value(par, &rvno);
+
+	if(rvno > 0){
+		GtkWidget *dialog;
+		gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+		int status = 0;
+
+		dialog = gtk_file_chooser_dialog_new ("Save RV Curves to ASCII File",
+										  	GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
+										 	GTK_FILE_CHOOSER_ACTION_OPEN,
+										 	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+										  	GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+										  	NULL);
+
+		gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+
+		gchar *dir;
+		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+
+    	gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
+
+		if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+			gchar *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+			gui_get_values_from_widgets();
+			status =gui_plot_rv_to_ascii (filename);
+			
+			//else
+			//	gui_notice ("Missing write permissions", "Selected directory has no write permissions.");
+
+			g_free (filename);
+		}
+
+		gtk_widget_destroy (dialog);
+
+		gui_fill_sidesheet_res_treeview();
+	}
 }
 
 void on_phoebe_rv_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
