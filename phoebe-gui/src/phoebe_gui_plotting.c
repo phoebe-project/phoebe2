@@ -368,19 +368,21 @@ int gui_plot_lc_to_ascii (gchar *filename)
 		phoebe_vector_free (indep);
 	}
 
-	file = fopen(filename,"w");
-
-	if (plot_obs && file) {
-		fprintf(file, "#OBSERVED DATA\n");
-		for (i=0;i<obs->indep->dim;i++) fprintf(file, "%lf\t%lf\n",obs->indep->val[i], obs->dep->val[i]);
+	file = fopen (filename, "w");
+	if (!file) {
+		gui_notice ("File cannot be saved", "The file cannot be opened for output, aborting.");
 	}
-
-	if (plot_syn && file) {
-		fprintf(file, "#SYNTHETIC DATA\n");
-		for (i=0;i<syn->indep->dim;i++) fprintf(file, "%lf\t%lf\n",syn->indep->val[i], syn->dep->val[i]);
+	else {
+		if (plot_obs) {
+			fprintf(file, "#OBSERVED DATA\n");
+			for (i=0;i<obs->indep->dim;i++) fprintf(file, "%lf\t%lf\n",obs->indep->val[i], obs->dep->val[i]);
+		}
+		if (plot_syn) {
+			fprintf(file, "#SYNTHETIC DATA\n");
+			for (i=0;i<syn->indep->dim;i++) fprintf(file, "%lf\t%lf\n",syn->indep->val[i], syn->dep->val[i]);
+		}
+		fclose(file);
 	}
-
-	fclose(file);
 
 	if (plot_syn) phoebe_curve_free(syn);
 	if (plot_obs) phoebe_curve_free(obs);
