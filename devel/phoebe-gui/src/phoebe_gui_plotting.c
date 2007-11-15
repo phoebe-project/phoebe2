@@ -170,6 +170,8 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (ALIAS)
+			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
 			for (i = 0; i < syn->indep->dim; i++) {
 				obs->dep->val[i] -= syn->dep->val[i];
@@ -358,6 +360,8 @@ int gui_plot_lc_to_ascii (gchar *filename)
 			}
 		}
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (ALIAS)
+			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
 			for (i = 0; i < syn->indep->dim; i++) {
 				obs->dep->val[i] -= syn->dep->val[i];
@@ -494,6 +498,8 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (ALIAS)
+			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
 			for (i = 0; i < syn->indep->dim; i++) {
 				obs->dep->val[i] -= syn->dep->val[i];
@@ -675,6 +681,8 @@ int gui_plot_rv_to_ascii (gchar *filename)
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (ALIAS)
+			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
 			for (i = 0; i < syn->indep->dim; i++) {
 				obs->dep->val[i] -= syn->dep->val[i];
