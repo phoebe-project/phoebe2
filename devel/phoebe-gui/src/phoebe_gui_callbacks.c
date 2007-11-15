@@ -10,6 +10,7 @@
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_plotting.h"
+#include "phoebe_gui_error_handling.h"
 
 gchar   *PHOEBE_FILENAME = NULL;
 gboolean PHOEBE_FILEFLAG = FALSE;
@@ -64,14 +65,17 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
 
 	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkTreeView		*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
 	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
 	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
 	GtkSpinButton 	*phoebe_fitt_nms_iters_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk);
 	GtkSpinButton 	*phoebe_fitt_nms_accuracy_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_accuracy_spinbutton")->gtk);
-	GtkTreeModel 	*model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
+	GtkTreeModel 	*model;
 	GtkTreeIter iter;
-	int index, count;
+	int index, count, state;
+	char *id;
 	char status_message[255] = "Minimizer feedback";
+	PHOEBE_curve *curve;
 
 	int status = 0;
 
@@ -79,18 +83,19 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 0){
 		status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
-		printf("DC minimizer says: %s", phoebe_error(status));
+		phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
 	}
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
 		status = phoebe_minimize_using_nms(gtk_spin_button_get_value_as_int(phoebe_fitt_nms_iters_spinbutton), gtk_spin_button_get_value(phoebe_fitt_nms_accuracy_spinbutton), stdout, phoebe_minimizer_feedback);
-		printf("NMS minimizer says: %s", phoebe_error(status));
+		phoebe_gui_debug("NMS minimizer says: %s", phoebe_error(status));
 	}
 
 	if (status == SUCCESS){
 		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
+		model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
 		gtk_list_store_clear(GTK_LIST_STORE(model));
 
 		count = phoebe_minimizer_feedback->qualifiers->dim;
@@ -101,6 +106,31 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			MF_COL_INITVAL, phoebe_minimizer_feedback->initvals->val[index],
 			MF_COL_NEWVAL, phoebe_minimizer_feedback->newvals->val[index],
 			MF_COL_ERROR, phoebe_minimizer_feedback->ferrors->val[index], -1);
+		}
+
+		model = gtk_tree_view_get_model(phoebe_fitt_second_treeview);
+		gtk_list_store_clear(GTK_LIST_STORE(model));
+
+		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lcno"), &count);
+		for(index = 0; index < count; index++){
+			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_LC, index);
+			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
+			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+			CURVE_COL_NAME, id,
+			CURVE_COL_NPOINTS, curve->indep->dim,
+			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[index], -1);
+		}
+
+		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rvno"), &count);
+		for(index = 0; index < count; index++){
+			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_RV, index);
+			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rv_id"), index, &id);
+			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+			CURVE_COL_NAME, id,
+			CURVE_COL_NPOINTS, curve->indep->dim,
+			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[index], -1);
 		}
 		accept_flag = 1;
 	}
