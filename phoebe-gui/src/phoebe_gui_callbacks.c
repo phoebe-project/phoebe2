@@ -1354,7 +1354,11 @@ void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_
 		gui_plot_eb_using_gnuplot();
 }
 
-
+void on_phoebe_star_shape_clear_button_clicked (GtkButton *button, gpointer user_data)
+{
+	GtkWidget *plot_image = gui_widget_lookup ("phoebe_eb_plot_image")->gtk;
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+}
 
 
 void on_phoebe_pot_calc_close_button_clicked (GtkButton *button, gpointer user_data)
