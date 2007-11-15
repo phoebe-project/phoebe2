@@ -201,6 +201,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 
 	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, x_offset, y_offset, zoom);
+	printf("%.3lf %.3lf %.3lf %.3lf\n",XMIN, YMIN, XMAX, YMAX);
 
 
 	sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
@@ -377,12 +378,10 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	gui_plot_get_plot_limits (syn, obs, &XMIN, &YMIN, &XMAX, &YMAX, plot_syn, plot_obs, x_offset, y_offset, zoom);
 
+	printf("%.3lf %.3lf %.3lf %.3lf\n",XMIN, YMIN, XMAX, YMAX);
 
 	sprintf(line, "set xrange [%lf:%lf]\n", XMIN, XMAX); 				write(cfd, line, strlen(line));
-	if (DEP == PHOEBE_COLUMN_MAGNITUDE)
-		{sprintf(line, "set yrange [%lf:%lf]\n", YMAX, YMIN); 			write(cfd, line, strlen(line));}
-	if (DEP == PHOEBE_COLUMN_FLUX)
-		{sprintf(line, "set yrange [%lf:%lf]\n", YMIN, YMAX); 			write(cfd, line, strlen(line));}
+	sprintf(line, "set yrange [%lf:%lf]\n", YMIN, YMAX); 			write(cfd, line, strlen(line));
 
 	if (INDEP == PHOEBE_COLUMN_HJD)
 		{sprintf(line, "set format x '%%7.0f'\n");			 			write(cfd, line, strlen(line));}
