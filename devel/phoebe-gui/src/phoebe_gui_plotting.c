@@ -86,6 +86,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	GtkWidget *syn_checkbutton 			= gui_widget_lookup ("phoebe_lc_plot_options_syn_checkbutton")->gtk;
 	GtkWidget *obs_checkbutton 			= gui_widget_lookup ("phoebe_lc_plot_options_obs_checkbutton")->gtk;
 	GtkWidget *alias_checkbutton	 	= gui_widget_lookup ("phoebe_lc_plot_options_alias_checkbutton")->gtk;
+	GtkWidget *residual_checkbutton	 	= gui_widget_lookup ("phoebe_lc_plot_options_residuals_checkbutton")->gtk;
 	GtkWidget *vertices_no_spinbutton	= gui_widget_lookup ("phoebe_lc_plot_options_vertices_no_spinbutton")->gtk;
 	GtkWidget *obs_combobox 			= gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox")->gtk;
 	GtkWidget *x_combobox 				= gui_widget_lookup ("phoebe_lc_plot_options_x_combobox")->gtk;
@@ -96,7 +97,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	GtkWidget *coarse_grid				= gui_widget_lookup ("phoebe_lc_plot_controls_coarse_checkbutton")->gtk;
 	GtkWidget *fine_grid				= gui_widget_lookup ("phoebe_lc_plot_controls_fine_checkbutton")->gtk;
 
-	gint VERITCES 	= gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(vertices_no_spinbutton));
+	gint VERTICES 	= gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(vertices_no_spinbutton));
 	gint INDEX		= -1;
 	gint INDEP;
 	gint DEP;
@@ -107,6 +108,8 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	gboolean plot_syn = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(syn_checkbutton));
 
 	gboolean ALIAS = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(alias_checkbutton));
+	gboolean residuals = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(residual_checkbutton));
+
 	gdouble phstart = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phstart_spinbutton));
 	gdouble phend = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phend_spinbutton));
 
@@ -131,7 +134,6 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		gtk_combo_box_set_active (GTK_COMBO_BOX(obs_combobox), 0);
 	}
 
-
 	if (plot_obs) {
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, INDEX);
 		if (!obs) {
@@ -142,46 +144,61 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 			phoebe_curve_transform (obs, INDEP, DEP, PHOEBE_COLUMN_UNDEFINED);
 			if (ALIAS)
 				phoebe_curve_alias (obs, phstart, phend);
-
-			sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
-			ofd = mkstemp (oname);
-			for (i=0;i<obs->indep->dim;i++) {
-				sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
-				write(ofd, line, strlen(line));
-			}
-			close(ofd);
 		}
 	}
 
-	if(plot_syn){
+	if (plot_syn) {
 		syn = phoebe_curve_new ();
 		syn->type = PHOEBE_CURVE_LC;
 
-		indep = phoebe_vector_new ();
-		phoebe_vector_alloc (indep, VERITCES);
-		if (INDEP == PHOEBE_COLUMN_HJD && plot_obs){
-			double hjd_min,hjd_max;
-			phoebe_vector_min_max (obs->indep, &hjd_min, &hjd_max);
-			for (i = 0; i < VERITCES; i++) indep->val[i] = hjd_min + (hjd_max-hjd_min) * (double) i/(VERITCES-1);
+		if (residuals && plot_obs) {
+			indep = phoebe_vector_duplicate (obs->indep);
 		}
 		else {
-			for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
+			indep = phoebe_vector_new ();
+			phoebe_vector_alloc (indep, VERTICES);
+			if (INDEP == PHOEBE_COLUMN_HJD && plot_obs){
+				double hjd_min,hjd_max;
+				phoebe_vector_min_max (obs->indep, &hjd_min, &hjd_max);
+				for (i = 0; i < VERTICES; i++)
+					indep->val[i] = hjd_min + (hjd_max-hjd_min) * (double) i/(VERTICES-1);
+			}
+			else {
+				for (i = 0; i < VERTICES; i++)
+					indep->val[i] = phstart + (phend-phstart) * (double) i/(VERTICES-1);
+			}
 		}
-		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
-		phoebe_vector_free (indep);
 
+		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (residuals && plot_obs) {
+			for (i = 0; i < syn->indep->dim; i++) {
+				obs->dep->val[i] -= syn->dep->val[i];
+				syn->dep->val[i] = 0.0;
+			}
+		}
+
+		phoebe_vector_free (indep);
+	}
+
+	/* Write the data to a file: */
+	if (plot_obs) {
+		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
+		ofd = mkstemp (oname);
+		for (i=0;i<obs->indep->dim;i++) {
+			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
+			write(ofd, line, strlen(line));
+		}
+		close(ofd);
+	}
+	if (plot_syn) {
 		sprintf(sname, "%s/phoebe-lc-XXXXXX", tmpdir);
 		sfd = mkstemp (sname);
-		for (i=0;i<syn->indep->dim;i++) {
+		for (i = 0; i < syn->indep->dim; i++) {
 			sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
 			write(sfd, line, strlen(line));
 		}
 		close(sfd);
 	}
-
-
-
-	//----------------
 
 	/* open command file */
 	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
