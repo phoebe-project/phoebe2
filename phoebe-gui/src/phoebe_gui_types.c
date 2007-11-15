@@ -533,6 +533,10 @@ int gui_init_widgets ()
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_lc_plot_image")->gtk), NULL);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_rv_plot_image")->gtk), NULL);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_eb_plot_image")->gtk), NULL);
+
 	gui_init_lc_obs_combobox();
 	gui_init_rv_obs_combobox();
 

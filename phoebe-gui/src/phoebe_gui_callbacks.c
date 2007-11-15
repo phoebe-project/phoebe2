@@ -1190,8 +1190,7 @@ void on_phoebe_lc_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 void on_phoebe_lc_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
 {
-	GtkWidget *plot_image = gui_widget_lookup ("phoebe_lc_plot_image")->gtk;
-	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_lc_plot_image")->gtk), NULL);
 }
 
 void on_phoebe_lc_plot_controls_reset_button_clicked (GtkButton *button, gpointer user_data)
@@ -1281,8 +1280,7 @@ void on_phoebe_rv_plot_plot_button_clicked (GtkButton *button, gpointer user_dat
 
 void on_phoebe_rv_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
 {
-	GtkWidget *plot_image = gui_widget_lookup ("phoebe_rv_plot_image")->gtk;
-	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_rv_plot_image")->gtk), NULL);
 }
 
 void on_phoebe_rv_plot_controls_reset_button_clicked (GtkButton *button, gpointer user_data)
@@ -1345,8 +1343,7 @@ void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_
 
 void on_phoebe_star_shape_clear_button_clicked (GtkButton *button, gpointer user_data)
 {
-	GtkWidget *plot_image = gui_widget_lookup ("phoebe_eb_plot_image")->gtk;
-	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), NULL);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_eb_plot_image")->gtk), NULL);
 }
 
 
