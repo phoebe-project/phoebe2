@@ -7776,7 +7776,7 @@ from temperatures</property>
                                           <widget class="GtkSpinButton" id="phoebe_lc_plot_options_phend_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
-                                            <property name="adjustment">0.59999999999999998 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                            <property name="adjustment">0.59999999999999998 -2 2 0.01 0.10000000000000001 0.10000000000000001</property>
                                             <property name="climb_rate">0.0099999997764825821</property>
                                             <property name="digits">5</property>
                                           </widget>
@@ -7792,7 +7792,7 @@ from temperatures</property>
                                           <widget class="GtkSpinButton" id="phoebe_lc_plot_options_phstart_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
-                                            <property name="adjustment">-0.59999999999999998 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                            <property name="adjustment">-0.59999999999999998 -2 2 0.01 0.10000000000000001 0.10000000000000001</property>
                                             <property name="climb_rate">0.0099999997764825821</property>
                                             <property name="digits">5</property>
                                           </widget>
@@ -8470,7 +8470,7 @@ from temperatures</property>
                                           <widget class="GtkSpinButton" id="phoebe_rv_plot_options_phend_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
-                                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                            <property name="adjustment">0 -2 2 0.01 0.10000000000000001 0.10000000000000001</property>
                                             <property name="climb_rate">0.0099999997764825821</property>
                                             <property name="digits">5</property>
                                           </widget>
@@ -8486,7 +8486,7 @@ from temperatures</property>
                                           <widget class="GtkSpinButton" id="phoebe_rv_plot_options_phstart_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
-                                            <property name="adjustment">-0.59999999999999998 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                            <property name="adjustment">-0.59999999999999998 -2 2 0.01 0.10000000000000001 0.10000000000000001</property>
                                             <property name="climb_rate">0.0099999997764825821</property>
                                             <property name="digits">5</property>
                                           </widget>
