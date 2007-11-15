@@ -1521,12 +1521,17 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 	double met1 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met1_spinbutton")));
 	double met2 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met2_spinbutton")));
 
-	char* ldlaw 	= gtk_combo_box_get_active_text (GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_law_combobox")));
+	char* ldlaw 	= strdup(phoebe_parameter_lookup ("phoebe_ld_model")->menu->option[gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")))]);
+
+	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
+	char *id;
+	
+	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
 
 	double x1, x2, y1, y2;
 
-	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup ("Johnson:V"), met1, tavh, logg1, &x1, &y1);
-	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup ("Johnson:V"), met2, tavc, logg2, &x2, &y2);
+	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup_by_id(id), met1, tavh, logg1, &x1, &y1);
+	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup_by_id(id), met2, tavc, logg2, &x2, &y2);
 
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")), x1);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")), x2);
@@ -1537,7 +1542,34 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 
 void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)
 {
+	double x1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")));
+	double x2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")));
+	double y1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")));
+	double y2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")));
 
+	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
+	char *id, *id_in_model;
+	
+	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
+	
+	GtkTreeModel *model = GTK_TREE_MODEL(gui_widget_lookup("phoebe_para_ld_lccoefs_primx")->gtk);
+	GtkTreeIter iter;
+
+	int state = gtk_tree_model_get_iter_first (model, &iter);
+
+	while (state) {
+		index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
+
+		gtk_tree_model_get (model, &iter, LC_COL_ID, &id_in_model, -1);
+		if(strcmp(id, id_in_model) == 0){
+			gtk_list_store_set (GTK_LIST_STORE(model), &iter, 	LC_COL_X1, x1,
+																LC_COL_X2, x2,
+																LC_COL_Y1, y1,
+																LC_COL_Y2, y2, -1);
+			break;
+		}
+		state = gtk_tree_model_iter_next (model, &iter);
+	}
 }
 
 void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, gpointer user_data)
@@ -1609,6 +1641,7 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y1_spinbutton", (gpointer) phoebe_ld_dialog_y1_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_x2_spinbutton", (gpointer) phoebe_ld_dialog_x2_spinbutton );
 	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y2_spinbutton", (gpointer) phoebe_ld_dialog_y2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_id_combobox", (gpointer) phoebe_ld_dialog_id_combobox);
 
 	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_close_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_close_button_clicked), (gpointer) phoebe_ld_dialog);
 	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_update_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_update_button_clicked), NULL);
