@@ -20,6 +20,7 @@ extern int               PHOEBE_passbands_no;
 PHOEBE_passband *phoebe_passband_new            ();
 PHOEBE_passband *phoebe_passband_new_from_file  (char *filename);
 PHOEBE_passband *phoebe_passband_lookup         (const char *name);
+PHOEBE_passband *phoebe_passband_lookup_by_id   (const char *id);
 int              phoebe_passband_free           (PHOEBE_passband *passband);
 
 int              phoebe_read_in_passbands       (char *dir_name);
