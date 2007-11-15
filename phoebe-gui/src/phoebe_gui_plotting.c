@@ -159,8 +159,14 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 		indep = phoebe_vector_new ();
 		phoebe_vector_alloc (indep, VERITCES);
-		for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
-	
+		if (INDEP == PHOEBE_COLUMN_HJD && plot_obs){
+			double hjd_min,hjd_max;
+			phoebe_vector_min_max (obs->indep, &hjd_min, &hjd_max);
+			for (i = 0; i < VERITCES; i++) indep->val[i] = hjd_min + (hjd_max-hjd_min) * (double) i/(VERITCES-1);
+		}
+		else {
+			for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
+		}
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		phoebe_vector_free (indep);
 
@@ -338,7 +344,14 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 		indep = phoebe_vector_new ();
 		phoebe_vector_alloc (indep, VERITCES);
-		for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
+		if (INDEP == PHOEBE_COLUMN_HJD && plot_obs){
+			double hjd_min,hjd_max;
+			phoebe_vector_min_max (obs->indep, &hjd_min, &hjd_max);
+			for (i = 0; i < VERITCES; i++) indep->val[i] = hjd_min + (hjd_max-hjd_min) * (double) i/(VERITCES-1);
+		}
+		else {
+			for (i = 0; i < VERITCES; i++) indep->val[i] = phstart + (phend-phstart) * (double) i/(VERITCES-1);
+		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		phoebe_vector_free (indep);
