@@ -945,6 +945,7 @@ int gui_data_lc_treeview_add()
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
 			if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
+			else{
 			GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
 
@@ -994,6 +995,7 @@ int gui_data_lc_treeview_add()
 
             /* Select the new row in the list: */
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
+			}
         }
         break;
 
@@ -1250,6 +1252,7 @@ int gui_data_rv_treeview_add()
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
 			if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
+			else{
 			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
 
@@ -1288,8 +1291,7 @@ int gui_data_rv_treeview_add()
             printf("Number of RV curves: %d\n", rvno + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
-
-
+			}
         }
         break;
 
