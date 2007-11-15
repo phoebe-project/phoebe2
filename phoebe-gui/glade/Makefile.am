@@ -32,6 +32,7 @@ guiglade_DATA = phoebe_about.glade                \
                 phoebe_settings.glade             \
                 phoebe_third_light.glade          \
 				phoebe_ld_interpolator.glade	  \
+				phoebe_cormat.glade				  \
                 phoebe_weighting.glade
 
 EXTRA_DIST = $(guiglade_DATA)

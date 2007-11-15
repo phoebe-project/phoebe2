@@ -144,6 +144,30 @@ void on_phoebe_fitt_method_combobox_changed (GtkComboBox *widget, gpointer user_
 }
 
 
+void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+{
+	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_cormat.glade", NULL);
+	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_cormat_dialog_xml      		= glade_xml_new        (glade_xml_file, NULL, NULL);
+
+	GtkWidget *phoebe_cormat_dialog        			= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog");
+
+	GtkWidget *phoebe_cormat_dialog_textview		= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog_textview");
+
+	g_object_unref (phoebe_cormat_dialog_xml);
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_cormat_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_window_set_title (GTK_WINDOW(phoebe_cormat_dialog), "PHOEBE - Correlation matrix");
+
+	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
+
+	
+		
+	gtk_widget_destroy(GTK_WINDOW(phoebe_cormat_dialog));
+}
+
+
 /* ******************************************************************** *
  *
  *                    phoebe_data_lc_treeview events
