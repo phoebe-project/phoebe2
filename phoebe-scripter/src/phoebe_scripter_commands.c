@@ -1347,6 +1347,11 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 	if (vals[1].value.b) {
 		lc = phoebe_malloc (sizeof (*lc));
 		lc[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, curve-1);
+		if (!lc[index]) {
+			free (lc);
+			scripter_ast_value_array_free (vals, 3);
+			return out;
+		}
 		phoebe_curve_transform (lc[index], PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_UNDEFINED);
 		phoebe_curve_alias (lc[index], -0.6, 0.6);
 
@@ -1469,6 +1474,11 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	if (vals[1].value.b) {
 		rv = phoebe_malloc (sizeof (*rv));
 		rv[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, curve-1);
+		if (!rv[index]) {
+			free (rv);
+			scripter_ast_value_array_free (vals, 3);
+			return out;
+		}
 		phoebe_curve_transform (rv[index], PHOEBE_COLUMN_PHASE, rv[index]->dtype, PHOEBE_COLUMN_UNDEFINED);
 		phoebe_curve_alias (rv[index], -0.6, 0.6);
 
