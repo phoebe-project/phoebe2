@@ -9,6 +9,7 @@
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
+#include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
 PHOEBE_passband **PHOEBE_passbands;
@@ -250,6 +251,46 @@ PHOEBE_passband *phoebe_passband_lookup (const char *name)
 		}
 
 	free (set);
+	return NULL;
+}
+
+PHOEBE_passband *phoebe_passband_lookup_by_id (const char *id)
+{
+	/**
+	 * phoebe_passband_lookup_by_id:
+	 * @id: curve ID (light or RV curve)
+	 *
+	 * Looks up the passband that corresponds to the curve ID. If the lookup
+	 * fails, #NULL is returned.
+	 * 
+	 * Returns: pointer to #PHOEBE_passband.
+	 */
+
+	int i;
+	int lcno, rvno;
+	char *cid, *filter;
+	PHOEBE_passband *passband;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	for (i = 0; i < lcno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), i, &cid);
+		if (strcmp (cid, id) == 0) {
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), i, &filter);
+			passband = phoebe_passband_lookup (filter);
+			return passband;
+		}
+	}
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+	for (i = 0; i < rvno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), i, &cid);
+		if (strcmp (cid, id) == 0) {
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), i, &filter);
+			passband = phoebe_passband_lookup (filter);
+			return passband;
+		}
+	}
+
 	return NULL;
 }
 
