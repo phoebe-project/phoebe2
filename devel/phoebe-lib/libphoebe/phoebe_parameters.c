@@ -772,20 +772,22 @@ bool phoebe_parameter_option_is_valid (char *qualifier, char *option)
 
 int phoebe_parameter_get_value (PHOEBE_parameter *par, ...)
 {
-	/*
-	 * This is the public function for providing the values of parameters.
-	 * It is the only function that should be used for this purpose, all
-	 * other functions are internal and should not be used.
+	/**
+	 * phoebe_parameter_get_value:
+	 * @par: #PHOEBE_parameter to be queried
+	 * @...: index and a variable of the corresponding type in case of
+	 *       passband-dependent parameters, or a variable of the corresponding
+	 *       type in case of passband-independent parameters.
 	 *
 	 * Synopsis:
 	 *
 	 *   phoebe_parameter_get_value (par, [index, ], &value)
 	 *
-	 * Return values:
+	 * Assigns the value of the passed parameter @par to the passed variable
+	 * @value. In case of strings pointers are returned, so you should never
+	 * free the variable that has been assigned.
 	 *
-	 *   ERROR_INDEX_OUT_OF_RANGE
-	 *   ERROR_QUALIFIER_NOT_FOUND
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code
 	 */
 
 	int index = 0;
