@@ -164,7 +164,7 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 
 	
 		
-	gtk_widget_destroy(GTK_WINDOW(phoebe_cormat_dialog));
+	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
 }
 
 

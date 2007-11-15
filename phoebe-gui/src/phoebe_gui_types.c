@@ -475,8 +475,6 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_options_y_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_y_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_y"), NULL);
 	gui_widget_add ("phoebe_lc_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phstart_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phstart"), NULL);
 	gui_widget_add ("phoebe_lc_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phend"), NULL);
-	gui_widget_add ("phoebe_lc_plot_controls_offset_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_offset_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_offset"), NULL);
-	gui_widget_add ("phoebe_lc_plot_controls_zoom_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_zoom_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_zoom"), NULL);
 	gui_widget_add ("phoebe_lc_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_coarse"), NULL);
 	gui_widget_add ("phoebe_lc_plot_controls_fine_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_fine_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_fine"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_syn_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_syn_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_synthetic"), NULL);
@@ -488,9 +486,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_options_y_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_y_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_y"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_phstart_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phstart_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phstart"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_phend"), NULL);
-	gui_widget_add ("phoebe_rv_plot_controls_offset_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_offset_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_offset"), NULL);
 	gui_widget_add ("phoebe_rv_plot_scrolledwindow",					glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_scrolledwindow"),									0,					GUI_WIDGET_VALUE, 		NULL, NULL);
-	gui_widget_add ("phoebe_rv_plot_controls_zoom_combobox",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_zoom_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_zoom"), NULL);
 	gui_widget_add ("phoebe_rv_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_coarse"), NULL);
 	gui_widget_add ("phoebe_rv_plot_controls_fine_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_fine_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_fine"), NULL);
 
@@ -601,10 +597,7 @@ int gui_init_parameter_options()
 
 	par = phoebe_parameter_lookup("gui_lc_plot_y");
 	phoebe_parameter_add_option (par, "Total flux");
-	//phoebe_parameter_add_option (par, "Primary flux");
-	//phoebe_parameter_add_option (par, "Secondary flux");
 	phoebe_parameter_add_option (par, "Magnitude");
-	//phoebe_parameter_add_option (par, "Normalized flux");
 
 	par = phoebe_parameter_lookup("gui_rv_plot_x");
 	phoebe_parameter_add_option (par, "Phase");
@@ -613,52 +606,6 @@ int gui_init_parameter_options()
 	par = phoebe_parameter_lookup("gui_rv_plot_y");
 	phoebe_parameter_add_option (par, "Primary RV");
 	phoebe_parameter_add_option (par, "Secondary RV");
-	//phoebe_parameter_add_option (par, "Both RVs");
-	//phoebe_parameter_add_option (par, "Primary normalized RV");
-	//phoebe_parameter_add_option (par, "Secondary normalized RV");
-	//phoebe_parameter_add_option (par, "Primary EC corrections");
-	//phoebe_parameter_add_option (par, "Secondary EC correction");
-
-	par = phoebe_parameter_lookup("gui_lc_plot_offset");
-	phoebe_parameter_add_option (par, "5%");
-	phoebe_parameter_add_option (par, "10%");
-	phoebe_parameter_add_option (par, "25%");
-	phoebe_parameter_add_option (par, "50%");
-	phoebe_parameter_add_option (par, "100%");
-	phoebe_parameter_add_option (par, "200%");
-	phoebe_parameter_add_option (par, "500%");
-	phoebe_parameter_add_option (par, "1000%");
-
-	par = phoebe_parameter_lookup("gui_lc_plot_zoom");
-	phoebe_parameter_add_option (par, "5%");
-	phoebe_parameter_add_option (par, "10%");
-	phoebe_parameter_add_option (par, "25%");
-	phoebe_parameter_add_option (par, "50%");
-	phoebe_parameter_add_option (par, "100%");
-	phoebe_parameter_add_option (par, "200%");
-	phoebe_parameter_add_option (par, "500%");
-	phoebe_parameter_add_option (par, "1000%");
-
-	par = phoebe_parameter_lookup("gui_rv_plot_offset");
-	phoebe_parameter_add_option (par, "5%");
-	phoebe_parameter_add_option (par, "10%");
-	phoebe_parameter_add_option (par, "25%");
-	phoebe_parameter_add_option (par, "50%");
-	phoebe_parameter_add_option (par, "100%");
-	phoebe_parameter_add_option (par, "200%");
-	phoebe_parameter_add_option (par, "500%");
-	phoebe_parameter_add_option (par, "1000%");
-
-	par = phoebe_parameter_lookup("gui_rv_plot_zoom");
-	phoebe_parameter_add_option (par, "5%");
-	phoebe_parameter_add_option (par, "10%");
-	phoebe_parameter_add_option (par, "25%");
-	phoebe_parameter_add_option (par, "50%");
-	phoebe_parameter_add_option (par, "100%");
-	phoebe_parameter_add_option (par, "200%");
-	phoebe_parameter_add_option (par, "500%");
-	phoebe_parameter_add_option (par, "1000%");
-
 	return status;
 }
 
