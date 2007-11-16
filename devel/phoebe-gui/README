@@ -1,22 +1,22 @@
-PHEOEBE-GUI 0.30 RC1 TOPLEVEL DOCUMENTATION                  October 15, 2007
------------------------------------------------------------------------------
+PHEOEBE-GUI 0.30 TOPLEVEL DOCUMENTATION                      November 15, 2007
+------------------------------------------------------------------------------
 
 Hello, and thanks for your interest in PHOEBE!
 
 THINGS YOU NEED TO KNOW
 -----------------------
 
-This is the RC1 (Release Candidate 1) of the new, 0.30 version of PHOEBE's 
-Graphical User Interface (GUI). As such, this version of the software may 
-exhibit some instability, and possibly some missing features. We encourage you 
-to give us feedback about any unexpected behavior through the mailing lists and 
-the issue tracker on PHOEBE's homepage.
+This is the first release in the new 0.3x series of PHOEBE's Graphical User
+Interface (GUI). As such, this version of the software may exhibit some
+instability, and possibly some missing features. We encourage you to give us
+feedback about any unexpected behavior through the mailing lists and the
+issue tracker on PHOEBE's homepage.
 
 You may share, distribute and modify PHOEBE to your liking. For more
 information on PHOEBE licensing please read the GNU/GPL license in PHOEBE
 documentation.
 
-A *modified* version of the Wilson-Devinney code WD2007 is distributed with
+The adapted version of the Wilson-Devinney code WD2007 is distributed with
 PHOEBE. If you are new to WD, or want the original WD, please contact R. 
 E. Wilson, University of Florida, and let him know that you use his software.
 
@@ -24,9 +24,13 @@ REQUIREMENTS
 ------------
 
 To successfully setup PHOEBE-GUI, you need:
+
 - A Linux machine
+
   PHOEBE-GUI has been successfully tested on the following platforms:
-	· Ubuntu 7.04 (Feisty) no issues (development platform)
+
+	* Ubuntu 7.10 (Gutsy) no issues (development platform)
+	* Ubuntu 7.04 (Feisty) no issues
 
 - ANSI C compliant compiler (e. g. gcc)
 
@@ -42,6 +46,7 @@ To successfully setup PHOEBE-GUI, you need:
 	· GNU make
 
 Optionally, you can setup PHOEBE-GUI to work with:
+
 - Van Hamme limb darkening tables, downloadable from PHOEBE's homepage.
 
 OBTAINING PHOEBE
@@ -63,14 +68,6 @@ INSTALLATION
 ------------
 
 Installation instructions can be found in the top-level INSTALL file.
-
-SETTING UP
-----------
-
-When you first start PHOEBE-GUI, a configuration window appears; you may access 
-this window at any later time from the toolbar of by choosing 
-Settings->Configuration menu. The default settings are usually OK for a 
-system-wide installation, but it would be good to review them anyway.
 
 QUICKSTART
 ----------
