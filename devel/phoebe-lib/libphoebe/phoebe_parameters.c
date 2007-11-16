@@ -396,18 +396,22 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 
 	switch (par->type) {
 		case TYPE_INT:
-			par->value.i = va_arg (args, int);
+			par->defaultvalue.i = va_arg (args, int);
+			par->value.i = par->defaultvalue.i;
 		break;
 		case TYPE_DOUBLE:
-			par->value.d = va_arg (args, double);
+			par->defaultvalue.d = va_arg (args, double);
+			par->value.d = par->defaultvalue.d;
 		break;
 		case TYPE_BOOL:
-			par->value.b = va_arg (args, bool);
+			par->defaultvalue.b = va_arg (args, bool);
+			par->value.b = par->defaultvalue.b;
 		break;
 		case TYPE_STRING: {
 			char *str = va_arg (args, char *);
-			par->value.str = phoebe_malloc (strlen (str) + 1);
-			strcpy (par->value.str, str);
+			par->defaultvalue.str = phoebe_malloc (strlen (str) + 1);
+			strcpy (par->defaultvalue.str, str);
+			par->value.str = strdup (par->defaultvalue.str);
 		}
 		break;
 		case TYPE_INT_ARRAY:
@@ -923,7 +927,7 @@ int phoebe_parameter_set_value (PHOEBE_parameter *par, ...)
 			 */
 
 			if (par->kind == KIND_MENU && !phoebe_parameter_option_is_valid (par->qualifier, (char *) value))
-				phoebe_lib_warning ("option \"%s\" is not a valid menu option.\n", value);
+				phoebe_lib_warning ("option \"%s\" is not a valid menu option for %s.\n", value, par->qualifier);
 		}
 		break;
 		case TYPE_INT_ARRAY:
@@ -2046,5 +2050,37 @@ int phoebe_save_parameter_file (const char *filename)
 int phoebe_open_legacy_parameter_file (const char *filename)
 {
 	phoebe_lib_error ("Not yet implemented!\n");
+	return SUCCESS;
+}
+
+int phoebe_restore_default_parameters ()
+{
+	int i;
+	PHOEBE_parameter_list *elem;
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		elem = PHOEBE_pt->bucket[i];
+		while (elem) {
+			switch (elem->par->type) {
+				case TYPE_INT:
+					phoebe_parameter_set_value (elem->par, elem->par->defaultvalue.i);
+				break;
+				case TYPE_BOOL:
+					phoebe_parameter_set_value (elem->par, elem->par->defaultvalue.b);
+				break;
+				case TYPE_DOUBLE:
+					phoebe_parameter_set_value (elem->par, elem->par->defaultvalue.d);
+				break;
+				case TYPE_STRING:
+					phoebe_parameter_set_value (elem->par, elem->par->defaultvalue.str);
+				break;
+				default:
+					/* there will be no arrays after this. */
+				break;
+			}
+			elem = elem->next;
+		}
+	}
+
 	return SUCCESS;
 }
