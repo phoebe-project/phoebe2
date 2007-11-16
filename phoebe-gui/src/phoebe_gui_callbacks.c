@@ -185,6 +185,11 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 
 	GtkWidget *phoebe_cormat_dialog_textview		= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog_textview");
 
+	GtkTextBuffer *cormat_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (phoebe_cormat_dialog_textview));
+	GtkTextIter iter;
+	int rows, cols;
+	char cormat_string[255];
+
 	g_object_unref (phoebe_cormat_dialog_xml);
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_cormat_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
@@ -192,7 +197,17 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 
 	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
 
-	
+	if(phoebe_minimizer_feedback){
+		gtk_text_buffer_get_iter_at_line (cormat_buffer, &iter, 0);
+		for(rows = 0; rows < phoebe_minimizer_feedback->cormat->rows; rows++){
+			for(cols = 0; cols < phoebe_minimizer_feedback->cormat->cols; cols++){
+				sprintf(cormat_string, "%lf\t", phoebe_minimizer_feedback->cormat->val[rows][cols]);
+				gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
+			}
+			sprintf(cormat_string, "\n");
+			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
+		}
+	}
 		
 	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
 }
