@@ -60,7 +60,7 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_RELEASE_NAME,
-	[["PHOEBE 0.30 (release candidate)"]],
+	[["PHOEBE 0.30"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_RELEASE_DATE,
