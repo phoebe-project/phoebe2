@@ -573,7 +573,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 * dedicated directive or command.
 				 */
 
-				phoebe_spectra_set_repository ("/home/andrej/catalogs/kurucz");
+				phoebe_restore_default_parameters ();
 				return out;
 			}
 			if (in->value.node.kind == kind_statement) {
