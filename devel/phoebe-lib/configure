@@ -2533,7 +2533,7 @@ case $build_os in *\ *) build_os=`echo "$build_os" | sed 's/ /-/g'`;; esac
 # Define the release name, date and type:
 
 cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_RELEASE_NAME "PHOEBE 0.30 (release candidate)"
+#define PHOEBE_RELEASE_NAME "PHOEBE 0.30"
 _ACEOF
 
 
