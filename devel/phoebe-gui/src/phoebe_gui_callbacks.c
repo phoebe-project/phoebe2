@@ -195,20 +195,27 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 	gtk_window_set_icon (GTK_WINDOW (phoebe_cormat_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_cormat_dialog), "PHOEBE - Correlation matrix");
 
-	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
-
 	if(phoebe_minimizer_feedback){
 		gtk_text_buffer_get_iter_at_line (cormat_buffer, &iter, 0);
+		for(cols = 0; cols < phoebe_minimizer_feedback->cormat->cols; cols++){
+			sprintf(cormat_string, "%20s", phoebe_minimizer_feedback->qualifiers->val.strarray[cols]);
+			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
+		}
+		sprintf(cormat_string, "\n");
+		gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 		for(rows = 0; rows < phoebe_minimizer_feedback->cormat->rows; rows++){
+			sprintf(cormat_string, "%20s", phoebe_minimizer_feedback->qualifiers->val.strarray[rows]);
+			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 			for(cols = 0; cols < phoebe_minimizer_feedback->cormat->cols; cols++){
-				sprintf(cormat_string, "%lf\t", phoebe_minimizer_feedback->cormat->val[rows][cols]);
+				sprintf(cormat_string, "% 20.3lf", phoebe_minimizer_feedback->cormat->val[rows][cols]);
 				gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 			}
 			sprintf(cormat_string, "\n");
 			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 		}
 	}
-		
+	
+	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
 	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
 }
 
