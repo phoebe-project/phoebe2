@@ -131,8 +131,8 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_grid_coarsesize1",     "Coarse grid size on primary star",           KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,             5);
 	phoebe_parameter_add ("phoebe_grid_coarsesize2",     "Coarse grid size on secondary star",         KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,             5);
 
-	phoebe_parameter_add ("phoebe_compute_hla_switch",   "Compute passband (HLA) levels",              KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_compute_vga_switch",   "Compute gamma velocity",                     KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_compute_hla_switch",   "Compute passband (HLA) levels",              KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_compute_vga_switch",   "Compute gamma velocity",                     KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
 
 	/* **********************   DC fit parameters   ************************* */
 
