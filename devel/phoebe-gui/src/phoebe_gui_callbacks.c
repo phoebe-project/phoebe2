@@ -87,8 +87,8 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	}
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
-		status = phoebe_minimize_using_nms(gtk_spin_button_get_value_as_int(phoebe_fitt_nms_iters_spinbutton), gtk_spin_button_get_value(phoebe_fitt_nms_accuracy_spinbutton), stdout, phoebe_minimizer_feedback);
-		phoebe_gui_debug("NMS minimizer says: %s", phoebe_error(status));
+		status = phoebe_minimize_using_nms (gtk_spin_button_get_value (phoebe_fitt_nms_accuracy_spinbutton), gtk_spin_button_get_value_as_int (phoebe_fitt_nms_iters_spinbutton), stdout, phoebe_minimizer_feedback);
+		phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
 	}
 
 	if (status == SUCCESS){
