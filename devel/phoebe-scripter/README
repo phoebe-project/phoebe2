@@ -1,4 +1,4 @@
-PHOEBE-scripter-0.30 RC2 TOPLEVEL DOCUMENTATION                November 1, 2007
+PHOEBE-scripter-0.30 TOPLEVEL DOCUMENTATION                   November 15, 2007
 -------------------------------------------------------------------------------
 
 Hello and thank you for your interest in PHOEBE! :-)
@@ -32,15 +32,15 @@ Wilson-Devinney (WD) code and to extend it with new science, new numeric
 approaches to modeling, and new technical features. For formal introduction
 of PHOEBE see Prsa & Zwitter (2005), ApJ 628, 426.
 
-PHOEBE 0.30 RC2 is a release candidate. This means that the code is expected
+PHOEBE 0.30 is first in the 0.3x series. This means that the code is expected
 to run smoothly, it has been tested to some extent and there should be no
 major show-stoppers. Please report any problems you encounter so that we can
-fix them for the final release. The best way to get in touch is via PHOEBE
+fix them for subsequent releases. The best way to get in touch is via PHOEBE
 discussion mailing list, or report a bug on PHOEBE homepage.
 
-For modeling back-end PHOEBE 0.30 RC2 uses Wilson-Devinney's WD code released
-on Aug 15 2007. You do not need to obtain any WD sources separately, they are
-already built into PHOEBE.
+For modeling back-end PHOEBE 0.30 uses the Wilson-Devinney (WD) code (rev.
+Aug 15 2007). You do not need to obtain any WD sources separately, they are
+already built into PHOEBE and will be compiled along the library.
 
 LICENSE
 -------
@@ -50,7 +50,7 @@ may be found in the top-level file COPYING. PHOEBE always was free and it
 always will be.
 
 You may freely share PHOEBE with others as long as no undocumented changes
-are imposed on the code. For further information please read the GNU GPL
+are introduced to the code. For further information please read the GNU GPL
 license in PHOEBE documentation. If you feel you need to change the code
 without consulting the developers or joining the development team, please
 distribute it with the exact changing policy and a thorough change log. You
@@ -64,13 +64,14 @@ open for your contribution.
 REQUIREMENTS
 ------------
 
-To successfully build phoebe-scripter, you need:
+To successfully build phoebe-scripter from distribution, you need:
 
     * A Linux machine
 
 	PHOEBE-lib has been successfully tested on the following platforms:
 
-	· Ubuntu 7.04 (Feisty) - no issues (development platform)
+	- Ubuntu 7.10 (Gutsy) - no issues (development platform)
+	- Ubuntu 7.04 (Feisty) - no issues
 
     * ANSI C compliant compiler (e. g. gcc)
     * GNU make

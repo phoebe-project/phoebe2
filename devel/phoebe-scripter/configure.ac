@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                         PHOEBE 0.30RC2 scripter                      #
+#                           PHOEBE 0.30 scripter                       #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-11-01 #
+#                                            Last revision: 2007-11-15 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT(phoebe-scripter, 0.30rc2, http://phoebe.fiz.uni-lj.si)
+  AC_INIT(phoebe-scripter, 0.30, http://phoebe.fiz.uni-lj.si)
 
 # Create a dedicated header file phoebe_scripter_build_config.h that will
 # contain all #define statements that correspond to whatever ./configure
@@ -45,11 +45,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_NAME,
-	[["PHOEBE scripter 0.30RC2 (release candidate)"]],
+	[["PHOEBE scripter 0.30"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["Nov 1, 2007"]],
+	[["Nov 15, 2007"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
