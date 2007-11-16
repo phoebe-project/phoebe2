@@ -134,4 +134,6 @@ int phoebe_open_parameter_file        (const char *filename);
 int phoebe_open_legacy_parameter_file (const char *filename);
 int phoebe_save_parameter_file        (const char *filename);
 
+int phoebe_restore_default_parameters ();
+
 #endif
