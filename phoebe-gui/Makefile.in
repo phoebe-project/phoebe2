@@ -16,7 +16,7 @@
 
 ########################################################################
 #                                                                      #
-#                           PHOEBE 0.30RC1 GUI                         #
+#                             PHOEBE 0.30 GUI                          #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -58,7 +58,7 @@ POST_UNINSTALL = :
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
-	ChangeLog INSTALL NEWS autoconfig/depcomp \
+	ChangeLog INSTALL NEWS autoconfig/compile autoconfig/depcomp \
 	autoconfig/install-sh autoconfig/missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac

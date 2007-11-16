@@ -22,8 +22,10 @@
 
 guigladedir = $(datarootdir)/phoebe/gui/glade
 guiglade_DATA = phoebe_about.glade                \
+                phoebe_cormat.glade               \
                 phoebe.glade                      \
                 phoebe_lc_coefficients.glade      \
+                phoebe_ld_interpolator.glade	  \
                 phoebe_levels.glade               \
                 phoebe_load_lc.glade              \
                 phoebe_load_rv.glade              \
@@ -31,8 +33,6 @@ guiglade_DATA = phoebe_about.glade                \
                 phoebe_potential_calculator.glade \
                 phoebe_settings.glade             \
                 phoebe_third_light.glade          \
-				phoebe_ld_interpolator.glade	  \
-				phoebe_cormat.glade				  \
                 phoebe_weighting.glade
 
 EXTRA_DIST = $(guiglade_DATA)
