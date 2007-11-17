@@ -334,9 +334,9 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 {
 	/**
 	 * call_wd_to_get_pos_coordinates:
-	 * @poscoy: a pointer to #PHOEBE_vector that will hold y coordinates of
+	 * @poscoy: #PHOEBE_vector placeholder that will hold y coordinates of
 	 * the plane-of-sky
-	 * @poscoz: a pointer to #PHOEBE_vector that will hold z coordinates of
+	 * @poscoz: #PHOEBE_vector placeholder that will hold z coordinates of
 	 * the plane-of-sky
 	 * @phase: phase node in which the plane-of-sky (pos) coordinates should
 	 * be computed
@@ -349,7 +349,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	 */
 
 	int i;
-	int n1, n2;
+	int n1, n2, nspots, dim;
 	char *basedir;
 	char atmcof[255], atmcofplanck[255];
 	double params[12];
@@ -378,10 +378,20 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 		dim2 += 1 + (int) (1.3 * n2 * sin(theta));
 	}
 
-	phoebe_vector_alloc (poscoy, 2*dim1+2*dim2);
-	phoebe_vector_pad (poscoy, 0.0);
-	phoebe_vector_alloc (poscoz, 2*dim1+2*dim2);
-	phoebe_vector_pad (poscoz, 0.0);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &nspots);
+
+	/*
+	 * Each star is covered by dimN per 1/4-sphere, and each spot adds 4 points
+	 * around the surface point. That is why the maximum dimension (in absence
+	 * of eclipses and spots covering the whole hemishpere) is:
+	 */
+
+	dim = (4*nspots+1) * (2*dim1 + 2*dim2);
+
+	phoebe_vector_alloc (poscoy, dim);
+	phoebe_vector_pad (poscoy, sqrt(-1));
+	phoebe_vector_alloc (poscoz, dim);
+	phoebe_vector_pad (poscoz, sqrt(-1));
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
@@ -395,6 +405,11 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 
 	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, &phs, NULL, poscoy->val, poscoz->val, params);
 
+	i = 0;
+	while (!isnan(poscoy->val[i]) && i < poscoy->dim) i++;
+	phoebe_vector_realloc (poscoy, i-1);
+	phoebe_vector_realloc (poscoz, i-1);
+	
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
