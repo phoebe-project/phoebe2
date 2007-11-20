@@ -283,7 +283,7 @@ int phoebe_init_parameter_options ()
 
 	par = phoebe_parameter_lookup ("phoebe_lc_filter");
 	for (i = 0; i < PHOEBE_passbands_no; i++) {
-		passband_str = concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
+		passband_str = phoebe_concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
 		phoebe_parameter_add_option (par, passband_str);
 		free (passband_str);
 	}
@@ -308,7 +308,7 @@ int phoebe_init_parameter_options ()
 
 	par = phoebe_parameter_lookup ("phoebe_rv_filter");
 	for (i = 0; i < PHOEBE_passbands_no; i++) {
-		passband_str = concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
+		passband_str = phoebe_concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
 		phoebe_parameter_add_option (par, passband_str);
 		free (passband_str);
 	}
@@ -1600,9 +1600,9 @@ int phoebe_open_parameter_file (const char *filename)
 	phoebe_debug ("entering function phoebe_open_parameter_file ()\n");
 
 	/* First a checkup if everything is OK with the filename:                   */
-	if (!filename_exists ((char *) filename))               return ERROR_FILE_NOT_FOUND;
-	if (!filename_is_regular_file ((char *) filename))      return ERROR_FILE_NOT_REGULAR;
-	if (!filename_has_read_permissions ((char *) filename)) return ERROR_FILE_NO_PERMISSIONS;
+	if (!phoebe_filename_exists ((char *) filename))               return ERROR_FILE_NOT_FOUND;
+	if (!phoebe_filename_is_regular_file ((char *) filename))      return ERROR_FILE_NOT_REGULAR;
+	if (!phoebe_filename_has_read_permissions ((char *) filename)) return ERROR_FILE_NO_PERMISSIONS;
 
 	keyword_file = fopen (filename, "r");
 

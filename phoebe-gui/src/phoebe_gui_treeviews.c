@@ -943,7 +943,7 @@ int gui_data_lc_treeview_add()
 			gchar 		filter_selected[255] = "Johnson:V";
 
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
-			if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+			if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
 			GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
@@ -1116,7 +1116,7 @@ int gui_data_lc_treeview_edit()
             case GTK_RESPONSE_OK:{
 
             	filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
-				if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+				if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
@@ -1248,7 +1248,7 @@ int gui_data_rv_treeview_add()
 			gchar 		filter_selected[255] = "Johnson:V";
 
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
-			if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+			if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
 			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
@@ -1404,7 +1404,7 @@ int gui_data_rv_treeview_edit()
             case GTK_RESPONSE_OK:{
 
             	filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
-				if(!filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+				if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_rv_filter_combobox), &filter_iter)) {
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_rv_filter_combobox)), &filter_iter, 1, &filter_number, -1);

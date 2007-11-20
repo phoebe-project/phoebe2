@@ -150,7 +150,7 @@ int phoebe_spectra_set_repository (char *rep_name)
 	if (!rep_name)
 		return ERROR_SPECTRA_REPOSITORY_INVALID_NAME;
 
-	if (!filename_is_directory (rep_name))
+	if (!phoebe_filename_is_directory (rep_name))
 		return ERROR_SPECTRA_REPOSITORY_NOT_DIRECTORY;
 
 	ftw (rep_name, intern_spectra_repository_process, 10);

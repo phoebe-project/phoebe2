@@ -1676,7 +1676,7 @@ scripter_ast_value scripter_plot_eb_using_gnuplot (scripter_ast_list *args)
 		return out;
 	}
 
-	filename = resolve_relative_filename ("lcin.active");
+	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
 
 	poscoy = phoebe_vector_new ();

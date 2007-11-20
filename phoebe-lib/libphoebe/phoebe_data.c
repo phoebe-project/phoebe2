@@ -99,7 +99,7 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 
 		if (!ptf_file) {
 			phoebe_config_entry_get ("PHOEBE_PTF_DIR", &ptfdir);
-			full_filename = concatenate_strings (ptfdir, "/", filename, NULL);
+			full_filename = phoebe_concatenate_strings (ptfdir, "/", filename, NULL);
 			ptf_file = fopen (full_filename, "r");
 			
 			if (!ptf_file) return NULL;
@@ -205,7 +205,7 @@ int phoebe_read_in_passbands (char *dir_name)
 	while ( (ptf_file = readdir (ptf_dir)) ) {
 		sprintf (filename, "%s/%s", dir_name, ptf_file->d_name);
 
-		if (filename_is_directory (filename)) continue;
+		if (phoebe_filename_is_directory (filename)) continue;
 
 		passband = phoebe_passband_new_from_file (filename);
 		if (!passband)

@@ -94,7 +94,7 @@ int read_in_ld_nodes (char *dir)
 		sprintf (LDfile, "%s/%s", dir, file->d_name);
 
 		/* Skip directories and 'ld_availability.data' file:                  */
-		if (filename_is_directory (LDfile)) continue;
+		if (phoebe_filename_is_directory (LDfile)) continue;
 		if (strcmp (file->d_name, "ld_availability.data") == 0) continue;
 
 		in = fopen (LDfile, "r");

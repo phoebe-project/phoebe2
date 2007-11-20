@@ -42,7 +42,7 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 				case type_string:
 					out->type = type_string;
 					sprintf (str, "%d", val1.value.i);
-					out->value.str = concatenate_strings (str, val2.value.str, NULL);
+					out->value.str = phoebe_concatenate_strings (str, val2.value.str, NULL);
 				break;
 				case type_vector:
 					out->type = type_vector;
@@ -100,7 +100,7 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 				case type_string:
 					out->type = type_string;
 					sprintf (str, "%lf", val1.value.d);
-					out->value.str = concatenate_strings (str, val2.value.str, NULL);
+					out->value.str = phoebe_concatenate_strings (str, val2.value.str, NULL);
 				break;
 				case type_vector:
 					out->type = type_vector;
@@ -140,7 +140,7 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 				case type_int:
 					out->type = type_string;
 					sprintf (str, "%d", val2.value.i);
-					out->value.str = concatenate_strings (val1.value.str, str, NULL);
+					out->value.str = phoebe_concatenate_strings (val1.value.str, str, NULL);
 				break;
 				case type_bool:
 					phoebe_scripter_output ("operator '+' cannot act on booleans, aborting.\n");
@@ -149,11 +149,11 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 				case type_double:
 					out->type = type_string;
 					sprintf (str, "%lf", val2.value.d);
-					out->value.str = concatenate_strings (val1.value.str, str, NULL);
+					out->value.str = phoebe_concatenate_strings (val1.value.str, str, NULL);
 				break;
 				case type_string:
 					out->type = type_string;
-					out->value.str = concatenate_strings (val1.value.str, val2.value.str, NULL);
+					out->value.str = phoebe_concatenate_strings (val1.value.str, val2.value.str, NULL);
 				break;
 				case type_vector:
 					phoebe_scripter_output ("operator '+' cannot act between strings and arrays, aborting.\n");

@@ -85,17 +85,17 @@ int scripter_directive_execute (scripter_ast_list *args)
 
 	filename = vals[0].value.str;
 
-	if (!filename_exists (filename)) {
+	if (!phoebe_filename_exists (filename)) {
 		phoebe_scripter_output ("script '%s' not found.\n", filename);
 		scripter_ast_value_array_free (vals, 1);
 		return ERROR_FILE_NOT_FOUND;
 	}
-	if (!filename_has_read_permissions (filename)) {
+	if (!phoebe_filename_has_read_permissions (filename)) {
 		phoebe_scripter_output ("script '%s' does not have valid permissions, aborting.\n", filename);
 		scripter_ast_value_array_free (vals, 1);
 		return ERROR_FILE_NO_PERMISSIONS;
 	}
-	if (filename_is_directory (filename)) {
+	if (phoebe_filename_is_directory (filename)) {
 		phoebe_scripter_output ("script '%s' is not a file, aborting.\n", filename);
 		scripter_ast_value_array_free (vals, 1);
 		return ERROR_FILE_NOT_REGULAR;
