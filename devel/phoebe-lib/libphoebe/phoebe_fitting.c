@@ -708,12 +708,12 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	phoebe_debug ("checking whether everything's ok with filenames.\n");
 	for (i = 0; i < lcno; i++) {
 		phoebe_parameter_get_value ("phoebe_lc_filename", i, &readout_str);
-		if (!filename_exists (readout_str))
+		if (!phoebe_filename_exists (readout_str))
 			return ERROR_MINIMIZER_INVALID_FILE;
 	}
 	for (i = 0; i < rvno; i++) {
 		phoebe_parameter_get_value ("phoebe_rv_filename", i, &readout_str);
-		if (!filename_exists (readout_str))
+		if (!phoebe_filename_exists (readout_str))
 			return ERROR_MINIMIZER_INVALID_FILE;
 	}
 */

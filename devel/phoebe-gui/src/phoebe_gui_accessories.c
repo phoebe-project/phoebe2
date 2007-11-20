@@ -274,7 +274,7 @@ int gui_show_configuration_dialog()
 			else if (toggle)
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
 
-			if (!PHOEBE_HOME_DIR || !filename_is_directory (PHOEBE_HOME_DIR)) {
+			if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
 				char homedir[255], confdir[255];
 
 				sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);

@@ -744,7 +744,7 @@ int gui_plot_eb_using_gnuplot ()
 	params = phoebe_malloc (sizeof (*params));
 	status = wd_lci_parameters_get (params, 5, 0);
 
-	filename = resolve_relative_filename ("lcin.active");
+	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
 
 	poscoy = phoebe_vector_new ();

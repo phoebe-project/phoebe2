@@ -17,6 +17,19 @@
 
 int phoebe_open_directory (DIR **dir, const char *dirname)
 {
+	/**
+	 * phoebe_open_directory:
+	 * @dir: placeholder for the directory stream pointer
+	 * @dirname: path to the directory
+	 * 
+	 * This is a wrapper to opendir() for opening the directory @dirname
+	 * gracefully. In case opendir() is successful, a pointer to the directory
+	 * stream @dir is set and %SUCCESS is returned. Otherwise @dir is set to
+	 * %NULL and error code is returned.
+	 * 
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int error;
 
 	*dir = opendir (dirname);
@@ -39,6 +52,17 @@ int phoebe_open_directory (DIR **dir, const char *dirname)
 
 int phoebe_close_directory (DIR **dir)
 {
+	/**
+	 * phoebe_close_directory:
+	 * @dir: pointer to the directory stream
+	 * 
+	 * This is a wrapper to closedir() for closing the directory stream
+	 * @dir gracefully. In case closedir() is successful, %SUCCESS is returned;
+	 * otherwise error code is returned.
+	 * 
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int error;
 
 	int status = closedir (*dir);
@@ -53,10 +77,16 @@ int phoebe_close_directory (DIR **dir)
 	return SUCCESS;
 }
 
-bool filename_exists (const char *filename)
+bool phoebe_filename_exists (const char *filename)
 {
-	/*
-	 * This function checks whether a file exists.
+	/**
+	 * phoebe_filename_exists:
+	 * @filename: path to the file to be checked for existence
+	 *
+	 * Checks for existence of the file @filename. Returns %YES if it exists
+	 * and %NO if it does not exist.
+	 * 
+	 * Returns: #bool.
 	 */
 
 	struct stat log;
@@ -70,106 +100,136 @@ bool filename_exists (const char *filename)
 	return FALSE;
 }
 
-bool filename_has_write_permissions (const char *filename)
-	{
-	/* This function checks whether the supplied filename has write permissions */
-	/* for the effective user ID.                                               */
-
-	struct stat log;
-	int check;
-
-	if (filename == NULL) return FALSE;
-
-	check = stat (filename, &log);
-	if (check == 0)
-		{
-		if ( ( (log.st_uid == geteuid ()) && (log.st_mode & S_IWUSR) ) ||
-			   ( (log.st_gid == getegid ()) && (log.st_mode & S_IWGRP) ) ||
-			   ( (log.st_mode & S_IWOTH) ) )
-			return TRUE;
-
-		return FALSE;
-		}
-
-	return FALSE;
-	}
-
-bool filename_has_read_permissions (const char *filename)
-	{
-	/* This function checks whether the supplied filename has read permissions  */
-	/* for the effective user ID.                                               */
-
-	struct stat log;
-	int check;
-
-	if (filename == NULL) return FALSE;
-
-	check = stat (filename, &log);
-	if (check == 0)
-		{
-		if ( ( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) ) ||
-			   ( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) ) ||
-			   ( (log.st_mode & S_IROTH) ) )
-			return TRUE;
-		
-		return FALSE;
-		}
-
-	return FALSE;
-	}
-
-bool filename_has_execute_permissions (const char *filename)
-	{
-	/* This function checks whether the supplied filename has execute permissi- */
-	/* ons for the effective user ID.                                           */
-
-	struct stat log;
-	int check;
-
-	if (filename == NULL) return FALSE;
-
-	check = stat (filename, &log);
-	if (check == 0)
-		{
-		if ( ( (log.st_uid == geteuid ()) && (log.st_mode & S_IXUSR) ) ||
-			   ( (log.st_gid == getegid ()) && (log.st_mode & S_IXGRP) ) ||
-			   ( (log.st_mode & S_IXOTH) ) )
-			return TRUE;
-
-		return FALSE;
-		}
-
-	return FALSE;
-	}
-
-bool filename_has_full_permissions (const char *filename)
-	{
-	/* This function checks whether the supplied filename has full permissions  */
-	/* for the effective user ID.                                               */
-
-	struct stat log;
-	int check;
-
-	if (filename == NULL) return FALSE;
-
-	check = stat (filename, &log);
-	if (check == 0)
-		{
-		if ( ( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) && (log.st_mode & S_IWUSR) && (log.st_mode & S_IXUSR) ) ||
-			   ( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) && (log.st_mode & S_IWGRP) && (log.st_mode & S_IXGRP) ) ||
-			   ( (log.st_mode & S_IROTH) && (log.st_mode & S_IWOTH) && (log.st_mode & S_IXOTH) ) )
-			return TRUE;
-
-		return FALSE;
-		}
-
-	return FALSE;
-	}
-
-bool filename_is_directory (const char *filename)
+bool phoebe_filename_has_write_permissions (const char *filename)
 {
-	/*
-	 * This function checks whether the supplied filename is a directory.
+	/**
+	 * phoebe_filename_has_write_permissions:
+	 * @filename: path to the file to be checked for permissions
+	 *
+	 * Checks for write permissions of the file @filename. Returns %YES if it
+	 * has write permissions and %NO if it does not.
+	 * 
+	 * Returns: #bool.
+	 */
+
+	struct stat log;
+	int check;
+
+	if (filename == NULL) return FALSE;
+
+	check = stat (filename, &log);
+	if (check == 0) {
+		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IWUSR) ) ||
+			( (log.st_gid == getegid ()) && (log.st_mode & S_IWGRP) ) ||
+			( (log.st_mode & S_IWOTH) ))
+			return TRUE;
+
+		return FALSE;
+	}
+
+	return FALSE;
+}
+
+bool phoebe_filename_has_read_permissions (const char *filename)
+{
+	/**
+	 * phoebe_filename_has_read_permissions:
+	 * @filename: path to the file to be checked for permissions
+	 *
+	 * Checks for read permissions of the file @filename. Returns %YES if it
+	 * has read permissions and %NO if it does not.
+	 * 
+	 * Returns: #bool.
+	 */
+
+	struct stat log;
+	int check;
+
+	if (filename == NULL) return FALSE;
+
+	check = stat (filename, &log);
+	if (check == 0) {
+		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) ) ||
+			( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) ) ||
+			( (log.st_mode & S_IROTH) ) )
+			return TRUE;
+
+		return FALSE;
+	}
+
+	return FALSE;
+}
+
+bool phoebe_filename_has_execute_permissions (const char *filename)
+{
+	/**
+	 * phoebe_filename_has_execute_permissions:
+	 * @filename: path to the file to be checked for permissions
+	 *
+	 * Checks for execute permissions of the file @filename. Returns %YES if it
+	 * has execute permissions and %NO if it does not.
+	 * 
+	 * Returns: #bool.
+	 */
+
+	struct stat log;
+	int check;
+
+	if (filename == NULL) return FALSE;
+
+	check = stat (filename, &log);
+	if (check == 0) {
+		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IXUSR) ) ||
+			( (log.st_gid == getegid ()) && (log.st_mode & S_IXGRP) ) ||
+			( (log.st_mode & S_IXOTH) ) )
+			return TRUE;
+
+		return FALSE;
+	}
+
+	return FALSE;
+}
+
+bool phoebe_filename_has_full_permissions (const char *filename)
+{
+	/**
+	 * phoebe_filename_has_full_permissions:
+	 * @filename: path to the file to be checked for permissions
+	 *
+	 * Checks for full (read, write, execute) permissions of the file @filename.
+	 * Returns %YES if it has full permissions and %NO if it does not.
+	 * 
+	 * Returns: #bool.
+	 */
+
+	struct stat log;
+	int check;
+
+	if (filename == NULL) return FALSE;
+
+	check = stat (filename, &log);
+	if (check == 0) {
+		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) && (log.st_mode & S_IWUSR) && (log.st_mode & S_IXUSR) ) ||
+			( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) && (log.st_mode & S_IWGRP) && (log.st_mode & S_IXGRP) ) ||
+			( (log.st_mode & S_IROTH) && (log.st_mode & S_IWOTH) && (log.st_mode & S_IXOTH) ) )
+			return TRUE;
+
+		return FALSE;
+	}
+
+	return FALSE;
+}
+
+bool phoebe_filename_is_directory (const char *filename)
+{
+	/**
+	 * phoebe_filename_is_directory:
+	 * @filename: path to the file to be checked for type
+	 *
+	 * Checks whether the file @filename is a directory. Returns %YES if it
+	 * is a directory and %NO if it is not.
+	 * 
+	 * Returns: #bool.
 	 */
 
 	struct stat log;
@@ -186,9 +246,17 @@ bool filename_is_directory (const char *filename)
 	return FALSE;
 }
 
-bool filename_is_regular_file (const char *filename)
-	{
-	/* This function checks whether the supplied filename is a regular file.    */
+bool phoebe_filename_is_regular_file (const char *filename)
+{
+	/**
+	 * phoebe_filename_is_regular_file:
+	 * @filename: path to the file to be checked for type
+	 *
+	 * Checks whether the file @filename is a regular file. Returns %YES if it
+	 * is a regular file and %NO if it is not.
+	 * 
+	 * Returns: #bool.
+	 */
 
 	struct stat log;
 	int check;
@@ -196,20 +264,24 @@ bool filename_is_regular_file (const char *filename)
 	if (filename == NULL) return FALSE;
 
 	check = stat (filename, &log);
-	if (check == 0)
-		{
+	if (check == 0) {
 		if (S_ISREG (log.st_mode)) return TRUE;
 		return FALSE;
-		}
-
-	return FALSE;
 	}
 
-char *get_current_working_directory ()
+	return FALSE;
+}
+
+char *phoebe_get_current_working_directory ()
 {
-	/*
-	 * This function gets the current working directory that is used to resolve
-	 * relative filenames. It allocates space itself, the user has to free it.
+	/**
+	 * phoebe_get_current_working_directory:
+	 *
+	 * Queries the system for the current working directory and returns it.
+	 * This function allocates the memory to hold the path; the calling
+	 * function has to free the allocated memory after it is done using it.
+	 * 
+	 * Returns: path to the current working directory.
 	 */
 
 	size_t size = 100;
@@ -225,11 +297,17 @@ char *get_current_working_directory ()
 	}
 }
 
-char *resolve_relative_filename (char *filename)
+char *phoebe_resolve_relative_filename (char *filename)
 {
-	/* 
+	/**
+	 * phoebe_resolve_relative_filename:
+	 * @filename: relative path to be resolved (made absolute)
+	 *
 	 * This function takes a relative filename and resolves it to absolute; it
-	 * allocates the memory for the string itself, the user has to free it.
+	 * allocates the memory for the string itself, the calling function has to
+	 * free it.
+	 * 
+	 * Returns: #bool.
 	 */
 
 	char *cwd;
@@ -238,7 +316,7 @@ char *resolve_relative_filename (char *filename)
 	/* Is the filename already absolute?                                        */
 	if (filename[0] == '/') return filename;
 
-	cwd = get_current_working_directory ();
+	cwd = phoebe_get_current_working_directory ();
 	if (!cwd) {
 		phoebe_lib_error ("cannot get a path to the current directory.");
 		return NULL;
@@ -250,30 +328,44 @@ char *resolve_relative_filename (char *filename)
 	return abs;
 }
 
-int list_directory_contents (char *dir)
+int phoebe_list_directory_contents (char *dir)
 {
+	/**
+	 * phoebe_list_directory_contents:
+	 * @dir: path to the directory to be listed
+	 *
+	 * This function lists the contents of the directory @dir on screen. It
+	 * is used mostly for debugging purposes.
+	 * 
+	 * Returns: #bool.
+	 */
+
 	DIR *directory;
 	struct dirent *direntry;
 	
 	directory = opendir (dir);
-	if (directory)
-		{
+	if (directory) {
 		while ( (direntry = readdir (directory)) )
 			puts (direntry->d_name);
 		closedir (directory);
-		}
+	}
 	else
 		phoebe_lib_error ("Error reading current directory contents.\n");
 
 	return SUCCESS;
 }
 
-char *concatenate_strings (const char *str, ...)
+char *phoebe_concatenate_strings (const char *str, ...)
 {
-	/*
-	 * This function concatenates all passed strings into one string. The last
-	 * argument to be passed must be null. Note that strcpy () function also
-	 * copies the \0 character.
+	/**
+	 * phoebe_concatenate_strings:
+	 * @str: first string to be concatenated
+	 * @...: a %NULL-terminated list of strings to be concatenated
+	 *
+	 * Concatenates all passed strings into one string. The last argument to
+	 * be passed must be %NULL.
+	 * 
+	 * Returns: #bool.
 	 */
 
 	va_list args;
@@ -284,7 +376,7 @@ char *concatenate_strings (const char *str, ...)
 	strcpy (out, str);
 
 	va_start (args, str);
-	while ( (s = va_arg (args, char *)) )  {
+	while ( (s = va_arg (args, char *)) ) {
 		out = phoebe_realloc (out, strlen (out) + strlen (s) + 1);
 		change = &out[strlen(out)];
 		strcpy (change, s);
@@ -296,9 +388,14 @@ char *concatenate_strings (const char *str, ...)
 
 bool atob (char *str)
 {
-	/*
+	/**
+	 * atob:
+	 * @str: string to be converted to boolean
+	 *
 	 * This is a natural extension to C's ato* family of functions that
-	 * converts a string str to a boolean and returns it.
+	 * converts a string @str to a boolean.
+	 * 
+	 * Returns: #bool.
 	 */
 
 	if (!str) return FALSE;
@@ -308,14 +405,19 @@ bool atob (char *str)
 
 char *phoebe_strdup (const char *s)
 {
-	/*
-	 * The strdup () function is used excessively throughout PHOEBE sources.
+	/**
+	 * phoebe_strdup:
+	 * @s: string to be duplicated
+	 * 
+	 * The strdup() function is used excessively throughout PHOEBE sources.
 	 * Although virtually every single modern C library defines it in the
 	 * string.h header file, we supply here a copy just to be sure for the
 	 * remaining C libraries.
+	 *
+	 * Returns: a duplicate of string @s.
 	 */
 
 	size_t len = strlen (s) + 1;
-	void *new = phoebe_malloc (len);
-	return (char *) memcpy (new, s, len);
+	void *dup = phoebe_malloc (len);
+	return (char *) memcpy (dup, s, len);
 }

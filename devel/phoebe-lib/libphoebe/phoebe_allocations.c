@@ -165,7 +165,7 @@ int read_in_synthetic_data (PHOEBE_curve *curve, PHOEBE_vector *indep, int curve
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), curve_index, &A);
 
-	filename = resolve_relative_filename ("lcin.active");
+	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, &params);
 
 	switch (dtype) {

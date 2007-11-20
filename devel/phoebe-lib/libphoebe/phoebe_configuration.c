@@ -461,7 +461,7 @@ int phoebe_config_peek (char *filename)
 	FILE *config;
 	char entry[255];
 
-	if (!filename_exists (filename))
+	if (!phoebe_filename_exists (filename))
 		return ERROR_PHOEBE_CONFIG_NOT_FOUND;
 
 	config = fopen (filename, "r");
@@ -495,7 +495,7 @@ int phoebe_config_load (char *filename)
 
 	char keyword_str[255];
 
-	if (!filename_exists (filename)) {
+	if (!phoebe_filename_exists (filename)) {
 		PHOEBE_CONFIG_EXISTS = 0;
 		return ERROR_PHOEBE_CONFIG_NOT_FOUND;
 	}
@@ -597,7 +597,7 @@ int phoebe_config_import (char *filename)
 	char working_str[255];
 	int readint;
 
-	if (!filename_exists (filename)) {
+	if (!phoebe_filename_exists (filename)) {
 		PHOEBE_CONFIG_EXISTS = 0;
 		return ERROR_PHOEBE_CONFIG_NOT_FOUND;
 	}

@@ -2265,8 +2265,8 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 	double x, y, z;
 
 	/* Do some error handling here.                                           */
-	if (!filename_exists (filename))          return NULL;
-	if (!filename_is_regular_file (filename)) return NULL;
+	if (!phoebe_filename_exists (filename))          return NULL;
+	if (!phoebe_filename_is_regular_file (filename)) return NULL;
 	if (!(file = fopen (filename, "r")))      return NULL;
 
 	out = phoebe_curve_new ();
@@ -2602,7 +2602,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	params.JDPHS = jdphs;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
-	filename = resolve_relative_filename ("lcin.active");
+	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, &params);
 
 	switch (dtype) {
