@@ -270,6 +270,7 @@ libphoebe_la_SOURCES = \
                                       phoebe.h
 
 BUILT_SOURCES = phoebe_constraints.lng.h phoebe_constraints.grm.h
+EXTRA_DIST = phoebe_constraints.lng.h
 AM_YFLAGS = -d -p pc
 AM_LFLAGS = -P pc
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)

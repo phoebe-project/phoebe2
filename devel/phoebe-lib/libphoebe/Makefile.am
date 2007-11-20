@@ -53,6 +53,8 @@ BUILT_SOURCES = phoebe_constraints.lng.h phoebe_constraints.grm.h
 phoebe_constraints.lng.h:
 	$(LEX) phoebe_constraints.lng.l
 
+EXTRA_DIST = phoebe_constraints.lng.h
+
 AM_YFLAGS = -d -p pc
 AM_LFLAGS = -P pc
 
