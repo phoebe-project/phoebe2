@@ -57,10 +57,10 @@ typedef struct PHOEBE_parameter_table_list {
 } PHOEBE_parameter_table_list;
 
 /* A global list of all parameter tables: */
-PHOEBE_parameter_table_list *PHOEBE_pt_list;
+extern PHOEBE_parameter_table_list *PHOEBE_pt_list;
 
 /* A pointer to the currently active parameter table: */
-PHOEBE_parameter_table *PHOEBE_pt;
+extern PHOEBE_parameter_table *PHOEBE_pt;
 
 /**************************   PARAMETER TABLE   *******************************/
 

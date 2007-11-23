@@ -10,8 +10,8 @@ typedef struct PHOEBE_config_entry {
 	PHOEBE_value    *defval;
 } PHOEBE_config_entry;
 
-PHOEBE_config_entry **PHOEBE_config_table;
-int                   PHOEBE_config_table_size;
+extern PHOEBE_config_entry **PHOEBE_config_table;
+extern int                   PHOEBE_config_table_size;
 
 PHOEBE_config_entry *phoebe_config_entry_new  ();
 int                  phoebe_config_entry_add  (PHOEBE_type type, char *keyword, ...);

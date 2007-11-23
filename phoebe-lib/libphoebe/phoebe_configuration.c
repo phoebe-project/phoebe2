@@ -7,6 +7,9 @@
 #include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 
+PHOEBE_config_entry **PHOEBE_config_table;
+int                   PHOEBE_config_table_size;
+
 /* Global configuration parameters: */
 char *USER_HOME_DIR;
 
