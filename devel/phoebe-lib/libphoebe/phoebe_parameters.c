@@ -15,6 +15,9 @@
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
+PHOEBE_parameter_table_list *PHOEBE_pt_list;
+PHOEBE_parameter_table      *PHOEBE_pt;
+
 int phoebe_init_parameters ()
 {
 	/*

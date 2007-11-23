@@ -51,7 +51,7 @@ EXTRA_DIST = \
 	$(SOURCES)
 
 $(libwd_la_SOURCES):
-	f2c -A -R -Nn802 -E $(SOURCES)
+	f2c -A -R -Nn802 $(SOURCES)
 
 #CLEANFILES = 
 
