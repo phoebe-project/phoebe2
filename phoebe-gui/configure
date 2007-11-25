@@ -701,8 +701,9 @@ GOBJECT_QUERY
 GLIB_MKENUMS
 GTK_CFLAGS
 GTK_LIBS
-PACKAGE_CFLAGS
-PACKAGE_LIBS
+LIBGLADE_CFLAGS
+LIBGLADE_LIBS
+PHOEBE_LIBS
 CPP
 GREP
 EGREP
@@ -718,8 +719,8 @@ LDFLAGS
 LIBS
 CPPFLAGS
 PKG_CONFIG
-PACKAGE_CFLAGS
-PACKAGE_LIBS
+LIBGLADE_CFLAGS
+LIBGLADE_LIBS
 CPP'
 
 
@@ -1313,10 +1314,10 @@ Some influential environment variables:
   CPPFLAGS    C/C++/Objective C preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   PKG_CONFIG  path to pkg-config utility
-  PACKAGE_CFLAGS
-              C compiler flags for PACKAGE, overriding pkg-config
-  PACKAGE_LIBS
-              linker flags for PACKAGE, overriding pkg-config
+  LIBGLADE_CFLAGS
+              C compiler flags for LIBGLADE, overriding pkg-config
+  LIBGLADE_LIBS
+              linker flags for LIBGLADE, overriding pkg-config
   CPP         C preprocessor
 
 Use these variables to override the choices made by `configure' or to help
@@ -4177,12 +4178,12 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
 
 
 pkg_failed=no
-{ echo "$as_me:$LINENO: checking for PACKAGE" >&5
-echo $ECHO_N "checking for PACKAGE... $ECHO_C" >&6; }
+{ echo "$as_me:$LINENO: checking for LIBGLADE" >&5
+echo $ECHO_N "checking for LIBGLADE... $ECHO_C" >&6; }
 
 if test -n "$PKG_CONFIG"; then
-    if test -n "$PACKAGE_CFLAGS"; then
-        pkg_cv_PACKAGE_CFLAGS="$PACKAGE_CFLAGS"
+    if test -n "$LIBGLADE_CFLAGS"; then
+        pkg_cv_LIBGLADE_CFLAGS="$LIBGLADE_CFLAGS"
     else
         if test -n "$PKG_CONFIG" && \
     { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libglade-2.0\"") >&5
@@ -4190,7 +4191,7 @@ if test -n "$PKG_CONFIG"; then
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PACKAGE_CFLAGS=`$PKG_CONFIG --cflags "libglade-2.0" 2>/dev/null`
+  pkg_cv_LIBGLADE_CFLAGS=`$PKG_CONFIG --cflags "libglade-2.0" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -4199,8 +4200,8 @@ else
 	pkg_failed=untried
 fi
 if test -n "$PKG_CONFIG"; then
-    if test -n "$PACKAGE_LIBS"; then
-        pkg_cv_PACKAGE_LIBS="$PACKAGE_LIBS"
+    if test -n "$LIBGLADE_LIBS"; then
+        pkg_cv_LIBGLADE_LIBS="$LIBGLADE_LIBS"
     else
         if test -n "$PKG_CONFIG" && \
     { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libglade-2.0\"") >&5
@@ -4208,7 +4209,7 @@ if test -n "$PKG_CONFIG"; then
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PACKAGE_LIBS=`$PKG_CONFIG --libs "libglade-2.0" 2>/dev/null`
+  pkg_cv_LIBGLADE_LIBS=`$PKG_CONFIG --libs "libglade-2.0" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -4227,12 +4228,12 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PACKAGE_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "libglade-2.0"`
+	        LIBGLADE_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "libglade-2.0"`
         else
-	        PACKAGE_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "libglade-2.0"`
+	        LIBGLADE_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "libglade-2.0"`
         fi
 	# Put the nasty error message in config.log where it belongs
-	echo "$PACKAGE_PKG_ERRORS" >&5
+	echo "$LIBGLADE_PKG_ERRORS" >&5
 
 	{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
@@ -4240,13 +4241,13 @@ echo "${ECHO_T}no" >&6; }
 elif test $pkg_failed = untried; then
 	glade_check_passed=0
 else
-	PACKAGE_CFLAGS=$pkg_cv_PACKAGE_CFLAGS
-	PACKAGE_LIBS=$pkg_cv_PACKAGE_LIBS
+	LIBGLADE_CFLAGS=$pkg_cv_LIBGLADE_CFLAGS
+	LIBGLADE_LIBS=$pkg_cv_LIBGLADE_LIBS
         { echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; }
 	glade_check_passed=1
 fi
-  if test $gtk_check_passed == 0; then
+  if test $glade_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -4326,15 +4327,17 @@ else
 fi
 
 
-    if test $phoebe_check -eq 0; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE scripter needs PHOEBE library installed to be built."
-      echo "Remember, the scripter is only a driver for the library!"
-      echo ""
-      exit
-    fi
+  if test $phoebe_check -eq 0; then
+    echo ""
+    echo "       *** PHOEBE configuration failure ***"
+    echo ""
+    echo "PHOEBE scripter needs PHOEBE library installed to be built."
+    echo "Remember, the scripter is only a driver for the library!"
+    echo ""
+    exit
+  fi
+  PHOEBE_LIBS=-lphoebe
+
 
   # Make program:
     { echo "$as_me:$LINENO: checking whether ${MAKE-make} sets \$(MAKE)" >&5
@@ -6275,8 +6278,9 @@ GOBJECT_QUERY!$GOBJECT_QUERY$ac_delim
 GLIB_MKENUMS!$GLIB_MKENUMS$ac_delim
 GTK_CFLAGS!$GTK_CFLAGS$ac_delim
 GTK_LIBS!$GTK_LIBS$ac_delim
-PACKAGE_CFLAGS!$PACKAGE_CFLAGS$ac_delim
-PACKAGE_LIBS!$PACKAGE_LIBS$ac_delim
+LIBGLADE_CFLAGS!$LIBGLADE_CFLAGS$ac_delim
+LIBGLADE_LIBS!$LIBGLADE_LIBS$ac_delim
+PHOEBE_LIBS!$PHOEBE_LIBS$ac_delim
 CPP!$CPP$ac_delim
 GREP!$GREP$ac_delim
 EGREP!$EGREP$ac_delim
@@ -6284,7 +6288,7 @@ LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 93; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 94; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
