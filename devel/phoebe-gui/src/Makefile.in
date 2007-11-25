@@ -98,6 +98,8 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
+LIBGLADE_CFLAGS = @LIBGLADE_CFLAGS@
+LIBGLADE_LIBS = @LIBGLADE_LIBS@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LTLIBOBJS = @LTLIBOBJS@
@@ -107,13 +109,12 @@ MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
-PACKAGE_CFLAGS = @PACKAGE_CFLAGS@
-PACKAGE_LIBS = @PACKAGE_LIBS@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PHOEBE_LIBS = @PHOEBE_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -161,9 +162,9 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = \
+	@GTK_CFLAGS@ @LIBGLADE_CFLAGS@ \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
-	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
-	@PACKAGE_CFLAGS@ -I/usr/include/libglade-2.0
+	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"
 
 phoebe_gui_SOURCES = \
 	phoebe_gui_main.h               phoebe_gui_main.c               \
@@ -180,7 +181,7 @@ AM_CFLAGS = -Wall -g \
 	-DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\" \
 	-DGLADE_PIXMAP_DIR=\"$(prefix)/share/phoebe/gui/pixmaps\"
 
-phoebe_gui_LDADD = @PACKAGE_LIBS@ -lphoebe
+phoebe_gui_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
 phoebe_gui_LDFLAGS = -export-dynamic
 all: phoebe_gui_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am

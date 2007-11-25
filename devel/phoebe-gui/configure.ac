@@ -114,8 +114,8 @@
       exit
   fi
 
-  PKG_CHECK_MODULES(PACKAGE,libglade-2.0,glade_check_passed=1,glade_check_passed=0)
-  if test $gtk_check_passed == 0; then
+  PKG_CHECK_MODULES(LIBGLADE,libglade-2.0,glade_check_passed=1,glade_check_passed=0)
+  if test $glade_check_passed == 0; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -129,15 +129,17 @@
 
   AC_CHECK_LIB(phoebe, phoebe_init, phoebe_check=1, phoebe_check=0)
 
-    if test $phoebe_check -eq 0; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE scripter needs PHOEBE library installed to be built."
-      echo "Remember, the scripter is only a driver for the library!"
-      echo ""
-      exit
-    fi
+  if test $phoebe_check -eq 0; then
+    echo ""
+    echo "       *** PHOEBE configuration failure ***"
+    echo ""
+    echo "PHOEBE scripter needs PHOEBE library installed to be built."
+    echo "Remember, the scripter is only a driver for the library!"
+    echo ""
+    exit
+  fi
+  PHOEBE_LIBS=-lphoebe
+  AC_SUBST(PHOEBE_LIBS)
 
   # Make program:
     AC_PROG_MAKE_SET
