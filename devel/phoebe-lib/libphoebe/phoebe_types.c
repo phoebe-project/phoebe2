@@ -1938,16 +1938,16 @@ PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
 	FILE *input;
 	PHOEBE_array *array = NULL;
 	int i, linecount = 1;
-	char *line = NULL;
+	char *line = NULL, *delimeter;
 
 	input = fopen (filename, "r");
 	if (input == NULL) return NULL;
 
 	while (!feof (input)) {
-		char *delimeter = line;
-
 		line = phoebe_readline (input);
 		if (feof (input)) break;
+
+		delimeter = line;
 
 		/* Remove the trailing newline (unix or dos): */
 		line[strlen(line)-1] = '\0';

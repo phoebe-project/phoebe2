@@ -447,7 +447,6 @@ char *phoebe_readline (FILE *stream)
 	/* The following part takes care of lines longer than 256 characters: */
 	while (!strchr (cont, '\n') && !strchr (cont, EOF)) {
 		len *= 2;
-		printf ("Increasing the size to %d\n", len);
 		line = phoebe_realloc (line, len * sizeof (*line));
 		cont = &(line[len/2-1]);
 		fgets (cont, len/2+1, stream);
