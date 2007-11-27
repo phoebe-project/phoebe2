@@ -72,7 +72,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	GtkSpinButton 	*phoebe_fitt_nms_accuracy_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_accuracy_spinbutton")->gtk);
 	GtkTreeModel 	*model;
 	GtkTreeIter iter;
-	int index, count, state;
+	int index, count;
 	char *id;
 	char status_message[255] = "Minimizer feedback";
 	PHOEBE_curve *curve;
@@ -138,6 +138,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		sprintf(status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_error(status));
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 	}
+	gdk_beep ();
 }
 
 
@@ -214,7 +215,7 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 		}
 	}
-	
+
 	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
 	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
 }
@@ -1296,7 +1297,7 @@ void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, gpointer user_dat
 			gchar *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 			gui_get_values_from_widgets();
 			status =gui_plot_lc_to_ascii (filename);
-			
+
 			//else
 			//	gui_notice ("Missing write permissions", "Selected directory has no write permissions.");
 
@@ -1431,7 +1432,7 @@ void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, gpointer user_dat
 			gchar *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 			gui_get_values_from_widgets();
 			status =gui_plot_rv_to_ascii (filename);
-			
+
 			//else
 			//	gui_notice ("Missing write permissions", "Selected directory has no write permissions.");
 
@@ -1677,7 +1678,7 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 
 	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
 	char *id;
-	
+
 	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
 
 	double x1, x2, y1, y2;
@@ -1701,9 +1702,9 @@ void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user
 
 	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
 	char *id, *id_in_model;
-	
+
 	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
-	
+
 	GtkTreeModel *model = GTK_TREE_MODEL(gui_widget_lookup("phoebe_para_ld_lccoefs_primx")->gtk);
 	GtkTreeIter iter;
 
@@ -1732,7 +1733,7 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 
 	PHOEBE_parameter *ldlaw = phoebe_parameter_lookup ("phoebe_ld_model");
 	int optindex, optcount;
-	
+
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_ld_interpolator.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 

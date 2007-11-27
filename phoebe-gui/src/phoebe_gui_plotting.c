@@ -268,6 +268,8 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	if (plot_syn) phoebe_curve_free(syn);
 	if (plot_obs) phoebe_curve_free(obs);
 
+	gdk_beep();
+
 	return SUCCESS;
 }
 
@@ -591,7 +593,9 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	if (plot_syn) phoebe_curve_free(syn);
 	if (plot_obs) phoebe_curve_free(obs);
-	
+
+	gdk_beep();
+
 	return SUCCESS;
 }
 
