@@ -421,3 +421,38 @@ char *phoebe_strdup (const char *s)
 	void *dup = phoebe_malloc (len);
 	return (char *) memcpy (dup, s, len);
 }
+
+char *phoebe_readline (FILE *stream)
+{
+	/**
+	 * phoebe_readline:
+	 * @stream: file stream from which to read a line
+	 *
+	 * Reads a line from the file stream @stream. The memory to hold the line
+	 * is allocated dynamically, so there is no limit to the length of the
+	 * line. It also means that the user must not allocate the string before
+	 * the call to this function, and that the memory should be freed after
+	 * its use.
+	 *
+	 * Returns: a string containing the read line.
+	 */
+
+	int len = 256;
+	char *line, *cont;
+
+	line = phoebe_malloc (len * sizeof (*line));
+	fgets (line, len, stream);
+	cont = &(line[0]);
+
+	/* The following part takes care of lines longer than 256 characters: */
+	while (!strchr (cont, '\n') && !strchr (cont, EOF)) {
+		len *= 2;
+		printf ("Increasing the size to %d\n", len);
+		line = phoebe_realloc (line, len * sizeof (*line));
+		cont = &(line[len/2-1]);
+		fgets (cont, len/2+1, stream);
+		if (feof (stream)) break;
+	}
+
+	return line;
+}

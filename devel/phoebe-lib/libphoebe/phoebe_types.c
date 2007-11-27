@@ -1938,7 +1938,7 @@ PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
 	FILE *input;
 	PHOEBE_array *array = NULL;
 	int i, linecount = 1;
-	char line[255];
+	char *line = NULL;
 
 	input = fopen (filename, "r");
 	if (input == NULL) return NULL;
@@ -1946,7 +1946,7 @@ PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
 	while (!feof (input)) {
 		char *delimeter = line;
 
-		fgets (line, 254, input);
+		line = phoebe_readline (input);
 		if (feof (input)) break;
 
 		/* Remove the trailing newline (unix or dos): */
@@ -2044,6 +2044,7 @@ PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
 			}
 		}
 
+		free (line);
 		linecount++;
 	}
 	fclose (input);
