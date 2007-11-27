@@ -1,6 +1,7 @@
 #ifndef PHOEBE_ACCESSORIES_H
 	#define PHOEBE_ACCESSORIES_H 1
 
+#include <stdio.h>
 #include <dirent.h>
 
 #include "phoebe_types.h"
@@ -23,5 +24,6 @@ char *phoebe_concatenate_strings              (const char *str, ...);
 
 bool  atob                                    (char *str);
 char *phoebe_strdup                           (const char *s);
+char *phoebe_readline                         (FILE *stream);
 
 #endif
