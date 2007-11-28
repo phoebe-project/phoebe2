@@ -79,12 +79,12 @@ int gui_init_lc_treeviews ()
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 	gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
 
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
+	renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
+    column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
@@ -260,11 +260,11 @@ int gui_init_rv_treeviews ()
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("ID", renderer, "text", RV_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("ID", renderer, "text", RV_COL_ID, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
