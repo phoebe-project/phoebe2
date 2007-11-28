@@ -650,12 +650,12 @@ int gui_init_fitt_curve_treeview()
     column      = gtk_tree_view_column_new_with_attributes("Number of points", renderer, "text", CURVE_COL_NPOINTS, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
 
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Original Chi2", renderer, "text", CURVE_COL_INITCHI2, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
+//    renderer    = gtk_cell_renderer_text_new ();
+//    column      = gtk_tree_view_column_new_with_attributes("Original Chi2", renderer, "text", CURVE_COL_INITCHI2, NULL);
+//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("New Chi2", renderer, "text", CURVE_COL_NEWCHI2, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Chi2", renderer, "text", CURVE_COL_NEWCHI2, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
 
     gtk_tree_view_set_model((GtkTreeView*)phoebe_fitt_curve_treeview, model);
