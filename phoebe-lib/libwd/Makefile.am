@@ -48,7 +48,7 @@ BUILT_SOURCES = \
     wrfoot.c    wrlci.c     wrdci.c     lc.sub.c    dc.sub.c
 
 EXTRA_DIST = \
-	$(SOURCES)
+	$(SOURCES) f2c.h
 
 $(libwd_la_SOURCES):
 	f2c -A -R -Nn802 $(SOURCES)
