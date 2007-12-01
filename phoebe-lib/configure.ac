@@ -172,7 +172,9 @@
   # Parser (needed for PHOEBE constraints):
   # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
     AC_PROG_YACC
-    test -n "$YACC" && bison_check_passed="yes"
+    if $YACC --version | grep bison > /dev/null 2>&1; then
+      bison_check_passed="yes"
+    fi
 
   # Check for existence of all bisoned sources:
     AC_SUBST([bison_built_sources],["phoebe_constraints.grm.c phoebe_constraints.grm.h"])
@@ -292,7 +294,7 @@ GTK_DOC_CHECK(1.0)
   echo ""
 
 if test -z "$f2c_check_passed" || test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
-  echo "Notice:"
+  echo "Notice(s):"
   echo ""
 fi
 

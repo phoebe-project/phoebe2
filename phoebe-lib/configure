@@ -20039,7 +20039,9 @@ fi
 done
 test -n "$YACC" || YACC="yacc"
 
-    test -n "$YACC" && bison_check_passed="yes"
+    if $YACC --version | grep bison > /dev/null 2>&1; then
+      bison_check_passed="yes"
+    fi
 
   # Check for existence of all bisoned sources:
     bison_built_sources="phoebe_constraints.grm.c phoebe_constraints.grm.h"
@@ -23768,7 +23770,7 @@ fi
   echo ""
 
 if test -z "$f2c_check_passed" || test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
-  echo "Notice:"
+  echo "Notice(s):"
   echo ""
 fi
 
