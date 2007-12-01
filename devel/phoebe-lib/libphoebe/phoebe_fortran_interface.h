@@ -1,7 +1,7 @@
 #ifndef PHOEBE_FORTRAN_INTERFACE_H
 	#define PHOEBE_FORTRAN_INTERFACE_H 1
 
-#include <f2c.h>
+#include "../f2c.h"
 #include <string.h>
 
 #include "phoebe_global.h"
