@@ -107,9 +107,10 @@
   test -z "$flex_missing" && AC_MSG_RESULT([yes])
 
   # Parser:
-  # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
     AC_PROG_YACC
-    test -n "$YACC" && bison_check_passed="yes"
+    if $YACC --version | grep bison > /dev/null 2>&1; then
+      bison_check_passed="yes"
+    fi
 
   # Check for existence of all bisoned sources:
     AC_SUBST([bison_built_sources],["phoebe_scripter.grm.c phoebe_scripter.grm.h"])

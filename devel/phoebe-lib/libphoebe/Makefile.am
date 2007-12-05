@@ -59,13 +59,13 @@ AM_YFLAGS = -d -p pc
 AM_LFLAGS = -P pc
 
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
-libphoebe_la_FFLAGS  = -ff2c
 libphoebe_la_CFLAGS  = -Wall
 
 libphoebe_la_LIBADD  = ../libwd/libwd.la
 
 library_includedir=$(includedir)/phoebe
-library_include_HEADERS = phoebe.h                   \
+library_include_HEADERS = f2c.h                      \
+                          phoebe.h                   \
                           phoebe_accessories.h       \
                           phoebe_allocations.h       \
                           phoebe_base.h              \

@@ -94,6 +94,19 @@
   # f2c program:
     AC_CHECK_PROG([f2c_check_passed],[f2c],[yes])
 
+  # g2c library:
+    g2c_check_passed=yes
+    AC_CHECK_LIB(g2c,main,,g2c_check_passed=no)
+    if test "x$g2c_check_passed" = "xno"; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs a libg2c library (part of g77) to build."
+      echo "Please install it and run ./configure script again."
+      echo ""
+      exit
+    fi
+
   # Check for existence of all built WD and WD-related sources:
     AC_SUBST([f2c_built_sources],["                      \
       atmx.c      bbl.c      binnum.c cloud.c  conjph.c  \
@@ -127,19 +140,6 @@
 
     test -z "$f2c_missing" && AC_MSG_RESULT([yes])
 
-  # g2c library:
-    g2c_check_passed=yes
-    AC_CHECK_LIB(g2c,main,,g2c_check_passed=no)
-    if test "x$g2c_check_passed" = "xno"; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs a libg2c library (part of g77) to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
-
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
     if $LEX --version | grep 2.5.[[3-9]][[0-9]] > /dev/null 2>&1; then
@@ -170,7 +170,6 @@
     test -z "$flex_missing" && AC_MSG_RESULT([yes])
 
   # Parser (needed for PHOEBE constraints):
-  # (here we don't call AC_PROG_YACC because we don't want -y attached to bison)
     AC_PROG_YACC
     if $YACC --version | grep bison > /dev/null 2>&1; then
       bison_check_passed="yes"
