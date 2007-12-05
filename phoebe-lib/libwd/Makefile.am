@@ -61,4 +61,4 @@ libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_LIBADD = -lg2c
 
 library_includedir=$(includedir)/phoebe
-library_include_HEADERS = wd.h
+library_include_HEADERS = f2c.h wd.h
