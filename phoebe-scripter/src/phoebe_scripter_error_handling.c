@@ -26,6 +26,8 @@ char *phoebe_scripter_error (int code)
 			return "command not found, aborting.\n";
 		case ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS:
 			return "the operands to the binary operation are incompatible, aborting.\n";
+		case ERROR_SCRIPTER_GNUPLOT_NOT_INSTALLED:
+			return "the scripter was not compiled with gnuplot support.\n";
 		default:
 			return phoebe_error (code);
 	}

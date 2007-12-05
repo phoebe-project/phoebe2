@@ -7,6 +7,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_scripter_build_config.h"
+#include "phoebe_scripter_error_handling.h"
 #include "phoebe_scripter_plotting.h"
 
 int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_vector **dep, scripter_plot_properties *props)
@@ -107,5 +108,5 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	return SUCCESS;
 #endif
 
-	return ERROR_GNUPLOT_NOT_INSTALLED;
+	return ERROR_SCRIPTER_GNUPLOT_NOT_INSTALLED;
 }

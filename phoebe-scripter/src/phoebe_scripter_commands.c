@@ -1412,7 +1412,9 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 	}
 
 	/* Everything is set now, let's plot the figure using gnuplot:            */
-	plot_using_gnuplot (index+1, NO, indeps, deps, props);
+	status = plot_using_gnuplot (index+1, NO, indeps, deps, props);
+	if (status != SUCCESS)
+		phoebe_scripter_output (phoebe_scripter_error (status));
 
 	/* Let's clean everything up:                                             */
 	free (indeps);
@@ -1547,7 +1549,9 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	}
 
 	/* Everything is set now, let's plot the figure using gnuplot:            */
-	plot_using_gnuplot (index+1, NO, indeps, deps, props);
+	status = plot_using_gnuplot (index+1, NO, indeps, deps, props);
+	if (status != SUCCESS)
+		phoebe_scripter_output (phoebe_scripter_error (status));
 
 	/* Let's clean everything up:                                               */
 	free (indeps);
@@ -1627,7 +1631,9 @@ scripter_ast_value scripter_plot_spectrum_using_gnuplot (scripter_ast_list *args
 	props[0].ltype = 1;
 
 	/* Everything is set now, let's plot the figure using gnuplot:              */
-	plot_using_gnuplot (1, FALSE, &indep, &dep, props);
+	status = plot_using_gnuplot (1, FALSE, &indep, &dep, props);
+	if (status != SUCCESS)
+		phoebe_scripter_output (phoebe_scripter_error (status));
 
 	phoebe_vector_free (indep);
 	phoebe_vector_free (dep);
@@ -1788,7 +1794,8 @@ scripter_ast_value scripter_plot_using_gnuplot (scripter_ast_list *args)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("scripter_ordinate_reversed_switch"), &reverse_y);
 
 	status = plot_using_gnuplot (dim, reverse_y, indeps, deps, props);
-	if (status != SUCCESS) phoebe_scripter_output (phoebe_scripter_error (status));
+	if (status != SUCCESS)
+		phoebe_scripter_output (phoebe_scripter_error (status));
 
 	free (indeps);
 	free (deps);

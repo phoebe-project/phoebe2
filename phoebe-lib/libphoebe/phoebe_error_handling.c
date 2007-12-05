@@ -229,8 +229,6 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "undocumented mkstemp () failure, please report this!\n";
 		case ERROR_GSL_NOT_INSTALLED:
 			return "GSL library that is required for that operation is missing, aborting.\n";
-		case ERROR_GNUPLOT_NOT_INSTALLED:
-			return "GNUPlot that is required for that operation is missing, aborting.\n";
 		case ERROR_PLOT_TEMP_MALFORMED_FILENAME:
 			return "temporary filename cannot be created, aborting.\n";
 		case ERROR_LD_LAW_INVALID:
