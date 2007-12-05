@@ -141,6 +141,23 @@
   PHOEBE_LIBS=-lphoebe
   AC_SUBST(PHOEBE_LIBS)
 
+# GNUPlot support:
+  AC_ARG_ENABLE(gnuplot,
+      [  --enable-gnuplot        Enable gnuplot for drawing graphs (default=yes)],
+      [ac_enable_gnuplot=yes], [ac_enable_gnuplot=yes])
+  AC_DEFUN([AC_PROG_GNUPLOT], [AC_CHECK_PROG(GNUPLOT,gnuplot,yes)])
+  AC_PROG_GNUPLOT
+  if test "$GNUPLOT" == yes; then
+    AC_DEFINE(PHOEBE_GUI_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
+    gnuplot="gnuplot"
+  fi
+
+# Concatenate all supporting plotting programs into $plotters:
+  plotters=$gnuplot
+  if test x$plotters = x; then
+    plotters="none"
+  fi
+
   # Make program:
     AC_PROG_MAKE_SET
 
@@ -182,5 +199,6 @@
   echo "C compiler used:                  $CC"
   echo "Top-level install directory:      $prefix"
   echo "PHOEBE GUI binary goes to:        $prefix/bin"
+  echo "Supported plotting packages:      $plotters"
   echo "Verbose debugging messages:       $debugstate"
   echo ""

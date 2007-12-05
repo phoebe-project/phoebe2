@@ -48,6 +48,9 @@
 /* Define if verbose debugging is required: */
 #undef PHOEBE_DEBUG_SUPPORT
 
+/* Define if GNUPlot is supported: */
+#undef PHOEBE_GUI_GNUPLOT_SUPPORT
+
 /* PHOEBE release date */
 #undef PHOEBE_GUI_RELEASE_DATE
 
