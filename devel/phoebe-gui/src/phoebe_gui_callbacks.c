@@ -65,8 +65,6 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	GtkTreeView		*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
 	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
 	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
-	GtkSpinButton 	*phoebe_fitt_nms_iters_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk);
-	GtkSpinButton 	*phoebe_fitt_nms_accuracy_spinbutton = GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_fitt_nms_accuracy_spinbutton")->gtk);
 	GtkTreeModel 	*model;
 	GtkTreeIter iter;
 	int index, count;
@@ -84,7 +82,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	}
 
 	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
-		status = phoebe_minimize_using_nms (gtk_spin_button_get_value (phoebe_fitt_nms_accuracy_spinbutton), gtk_spin_button_get_value_as_int (phoebe_fitt_nms_iters_spinbutton), stdout, phoebe_minimizer_feedback);
+		status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
 		phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
 	}
 
@@ -215,6 +213,31 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 
 	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
 	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
+}
+
+
+void on_phoebe_fitt_nms_nolimit_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	GtkWidget *phoebe_fitt_nms_iters_spinbutton	= gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk;
+
+	if(gtk_toggle_button_get_active(togglebutton)){
+		g_object_set_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value", (gpointer)gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton)));
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton), 0);
+		gtk_widget_set_sensitive(phoebe_fitt_nms_iters_spinbutton, FALSE);
+	}
+	else{
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton), (gint)g_object_get_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value"));
+		gtk_widget_set_sensitive(phoebe_fitt_nms_iters_spinbutton, TRUE);
+	}
+}
+
+void on_phoebe_fitt_nms_iters_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
+{
+	if(gtk_spin_button_get_value(spinbutton) == 0){
+		GtkWidget *phoebe_fitt_nms_nolimit_checkbutton = gui_widget_lookup("phoebe_fitt_nms_nolimit_checkbutton")->gtk;
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(phoebe_fitt_nms_nolimit_checkbutton), TRUE);
+		gtk_widget_set_sensitive(GTK_WIDGET(spinbutton), FALSE);
+	}
 }
 
 
@@ -1929,7 +1952,7 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	g_object_unref (phoebe_ld_dialog_xml);
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_ld_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
-	gtk_window_set_title (GTK_WINDOW(phoebe_ld_dialog), "PHOEBE - LD Coefficients Inerpolation");
+	gtk_window_set_title (GTK_WINDOW(phoebe_ld_dialog), "PHOEBE - LD Coefficients Interpolation");
 
 	renderer = gtk_cell_renderer_text_new ();
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_ld_dialog_id_combobox));

@@ -361,7 +361,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 */
 }
 
-int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, PHOEBE_minimizer_feedback *feedback)
+int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
 	 * This is a N&M simplex function that we use for multi-D minimization. All
@@ -391,6 +391,9 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 
 	PHOEBE_nms_parameters *passed;
 
+	double accuracy;
+	int iter_max;
+
 	int lcno, rvno;
 	char *qualifier;
 	int dim_tba;
@@ -416,6 +419,10 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 
 	/* Fire up the stop watch: */
 	clock_start = clock ();
+
+	/* Get the accuracy and maximum number of iterations */
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_nms_accuracy"), &accuracy);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_nms_iters_max"), &iter_max);
 
 	/* Get the number of LC and RV curves: */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
@@ -634,18 +641,18 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	return status;
 
 /*
-	double *initvals;         
-	int    *indices;          
-	int     cno, lcno, rvno;  
-	int     CALCHLA;          
-	int     CALCVGA;          
-	bool    ASINI;            
-	bool    color_constraint; 
-	int     CC;               
-	int     to_be_adjusted;   
-	double *weight;           
-	double *average;          
-	double *cindex;           
+	double *initvals;
+	int    *indices;
+	int     cno, lcno, rvno;
+	int     CALCHLA;
+	int     CALCVGA;
+	bool    ASINI;
+	bool    color_constraint;
+	int     CC;
+	int     to_be_adjusted;
+	double *weight;
+	double *average;
+	double *cindex;
 */
 	/* An array of initial parameter values.        */
 	/* An array of global table reference indices   */
@@ -661,7 +668,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 	/* Weights of passband curves                   */
 	/* Average values of observations for HLA/VGA   */
 	/* An array of color indices                    */
-	/* A list of individual passband chi2 values    */	
+	/* A list of individual passband chi2 values    */
 /*
 	int curve, index, parindex;
 	double parvalue;
@@ -850,7 +857,7 @@ int phoebe_minimize_using_nms (double accuracy, int iter_max, FILE *nms_output, 
 		if (ASINI == TRUE)
 			fprintf (nms_output, "a = %4.4f i = %4.4f ", params[0].SMA, params[0].INCL);
 		if (lcno != cno)
-*/			
+*/
 			/* Print VGA only if there are RVs present */
 /*
 			fprintf (nms_output, "VGA = %3.3f ", params[cno-1].VGA);
