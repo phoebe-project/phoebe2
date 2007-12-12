@@ -10,6 +10,12 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_global.h"
 
+gchar   *PHOEBE_FILENAME = NULL;
+gboolean PHOEBE_FILEFLAG = FALSE;
+
+gchar   *PHOEBE_DIRNAME = NULL;
+gboolean PHOEBE_DIRFLAG = FALSE;
+
 void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 {
 	/*
@@ -105,10 +111,14 @@ int gui_open_parameter_file()
 										  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 										  NULL);
 
-	gchar *dir;
-	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
-
-	gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+	if(PHOEBE_DIRFLAG)
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, PHOEBE_DIRNAME);
+	else{
+		gchar *dir;
+		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+		g_free(dir);
+	}
 
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
@@ -117,9 +127,13 @@ int gui_open_parameter_file()
 
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		status = phoebe_open_parameter_file(filename);
+
 		PHOEBE_FILEFLAG = TRUE;
 		PHOEBE_FILENAME = strdup(filename);
 		g_free (filename);
+
+		PHOEBE_DIRFLAG = TRUE;
+		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 	}
 
 	gtk_widget_destroy (dialog);
@@ -140,10 +154,14 @@ int gui_save_parameter_file()
 										  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  NULL);
 
-	gchar *dir;
-	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
-
-	gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+	if(PHOEBE_DIRFLAG)
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, PHOEBE_DIRNAME);
+	else{
+		gchar *dir;
+		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+		g_free (dir);
+	}
 
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
@@ -153,9 +171,13 @@ int gui_save_parameter_file()
 
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		status = phoebe_save_parameter_file(filename);
+
 		PHOEBE_FILEFLAG = TRUE;
 		PHOEBE_FILENAME = strdup(filename);
 		g_free (filename);
+
+		PHOEBE_DIRFLAG = TRUE;
+		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 	}
 
 	gtk_widget_destroy (dialog);

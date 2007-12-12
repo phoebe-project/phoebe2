@@ -930,6 +930,8 @@ int gui_data_lc_treeview_add()
 	gchar *dir;
 	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
 
+	if(PHOEBE_DIRFLAG)
+		dir = PHOEBE_DIRNAME;
 	gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_lc_filechooserbutton, dir);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
@@ -944,6 +946,10 @@ int gui_data_lc_treeview_add()
 
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
 			if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+			else{
+				if(!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
+				PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
+			}
 
 			GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
@@ -1118,6 +1124,11 @@ int gui_data_lc_treeview_edit()
             	filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
 				if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
 
+				else{
+					if(!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
+					PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
+				}
+
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
 					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
@@ -1237,6 +1248,8 @@ int gui_data_rv_treeview_add()
 	gchar *dir;
 	phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
 
+	if(PHOEBE_DIRFLAG)
+		dir = PHOEBE_DIRNAME;
 	gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_rv_filechooserbutton, dir);
 
     gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_rv_dialog);
@@ -1249,6 +1262,10 @@ int gui_data_rv_treeview_add()
 
 			gchar* filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
 			if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+			else{
+				if(!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
+				PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
+			}
 
 			GtkWidget *phoebe_data_rv_treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
             model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_rv_treeview);
@@ -1405,6 +1422,11 @@ int gui_data_rv_treeview_edit()
 
             	filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
 				if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
+
+				else{
+					if(!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
+					PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder ((GtkFileChooser*)phoebe_load_rv_filechooserbutton);
+				}
 
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_rv_filter_combobox), &filter_iter)) {
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_rv_filter_combobox)), &filter_iter, 1, &filter_number, -1);

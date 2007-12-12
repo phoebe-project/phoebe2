@@ -16,4 +16,7 @@ extern gboolean PHOEBE_SPOTS_SHOW_ALL;
 extern gchar   *PHOEBE_FILENAME;
 extern gboolean PHOEBE_FILEFLAG;
 
+extern gchar   *PHOEBE_DIRNAME;
+extern gboolean PHOEBE_DIRFLAG;
+
 #endif
