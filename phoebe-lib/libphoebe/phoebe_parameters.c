@@ -147,6 +147,11 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_dc_spot1id",           "Adjusted spot 1 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
 	phoebe_parameter_add ("phoebe_dc_spot2id",           "Adjusted spot 2 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
 
+	/* **********************   NMS fit parameters   ************************* */
+
+	phoebe_parameter_add ("phoebe_nms_iter_max",     	"Maximal number of iterations to do",				   KIND_PARAMETER, NULL,      0,1000000,      1, NO, TYPE_INT, 200);
+	phoebe_parameter_add ("phoebe_nms_accuracy",     	"Desired accuracy",				   					   KIND_PARAMETER, NULL,      0,      1,      1, NO, TYPE_DOUBLE, 0.01);
+
 	/* *******************   Perturbations parameters   ********************* */
 
 	phoebe_parameter_add ("phoebe_ld_model",             "Limb darkening model",                               KIND_MENU,      NULL,      0,      0,      0, NO, TYPE_STRING, "Logarithmic law");

@@ -458,10 +458,13 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_parameters_finesize2_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_finesize2_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_finesize2"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_coarsize1_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize1_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize1"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_coarsize2_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize2_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize2"), NULL);
-	gui_widget_add ("phoebe_fitt_parameters_lambda_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_lambda_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"), NULL);
-	gui_widget_add ("phoebe_fitt_nms_iters_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_iters_spinbutton"),								0,					GUI_WIDGET_VALUE,		NULL,	NULL);
-	gui_widget_add ("phoebe_fitt_nms_accuracy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_accuracy_spinbutton"),								0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+	gui_widget_add ("phoebe_fitt_parameters_lambda_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_lambda_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"), 		NULL);
+
+	gui_widget_add ("phoebe_fitt_nms_iters_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_iters_spinbutton"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_nms_iter_max"),	NULL);
+	gui_widget_add ("phoebe_fitt_nms_accuracy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_accuracy_spinbutton"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_nms_accuracy"),	NULL);
+
 	gui_widget_add ("phoebe_fitt_feedback_label",						glade_xml_get_widget(phoebe_window, "phoebe_fitt_feedback_label"),										0,					GUI_WIDGET_VALUE,		NULL,	NULL);
+	gui_widget_add ("phoebe_fitt_nms_nolimit_checkbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_nolimit_checkbutton"),								0,					GUI_WIDGET_VALUE,		NULL, 	NULL);
 
 	gui_widget_add ("phoebe_fitt_dc_frame",								glade_xml_get_widget(phoebe_window, "phoebe_fitt_dc_frame"),											0,					GUI_WIDGET_VALUE,		NULL,	NULL);
 	gui_widget_add ("phoebe_fitt_nms_frame",							glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_frame"),											0,					GUI_WIDGET_VALUE,		NULL,	NULL);
