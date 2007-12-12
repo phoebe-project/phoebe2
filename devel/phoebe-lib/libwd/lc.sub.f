@@ -443,7 +443,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $abunin,tavh,tavc,alb1,alb2,phsv,pcsv,rm,xbol1,xbol2,ybol1,ybol2,
      $iband,hlum,clum,xh,xc,yh,yc,el3,opsf,zero,factor,wl,binwm1,sc1,
      $sl1,binwm2,sc2,sl2,wll1,ewid1,depth1,wll2,ewid2,depth2,
-     $kks,xlat,xlong,radsp,temsp,xcl,ycl,zcl,rcl,op1,fcl,edens,xmue,
+     $kks,xlat,xlong,radsp,temsp,ncl,xcl,ycl,zcl,rcl,op1,fcl,edens,xmue,
      $encl,dens,ns1,sms1,sr1,bolm1,xlg1,ns2,sms2,sr2,bolm2,xlg2,mmsave,
      $sbrh,sbrc,sm1,sm2,phperi,pconsc,pconic,dif1,abunir,abun,mod)
 
