@@ -219,14 +219,17 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 void on_phoebe_fitt_nms_nolimit_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkWidget *phoebe_fitt_nms_iters_spinbutton	= gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk;
+	gint iters;
 
 	if(gtk_toggle_button_get_active(togglebutton)){
-		g_object_set_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value", (gpointer)gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton)));
+		g_object_set_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value", GINT_TO_POINTER (gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton))));
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton), 0);
 		gtk_widget_set_sensitive(phoebe_fitt_nms_iters_spinbutton, FALSE);
 	}
 	else{
-		gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton), (gint)g_object_get_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value"));
+		iters = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (phoebe_fitt_nms_iters_spinbutton), "old_value"));
+		if (iters == 0) iters = 1;
+		gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_fitt_nms_iters_spinbutton), iters);
 		gtk_widget_set_sensitive(phoebe_fitt_nms_iters_spinbutton, TRUE);
 	}
 }
