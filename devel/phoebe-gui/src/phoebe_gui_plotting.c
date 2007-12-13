@@ -2,6 +2,8 @@
 
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_build_config.h"
+
 #include "phoebe_gui_accessories.h"
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_types.h"
