@@ -48,11 +48,8 @@
 /* Define if verbose debugging is required: */
 #undef PHOEBE_DEBUG_SUPPORT
 
-/* Define if GNUPlot version is 4.0: */
-#undef PHOEBE_GUI_GNUPLOT_4_0
-
-/* Define if GNUPlot version is 4.2: */
-#undef PHOEBE_GUI_GNUPLOT_4_2
+/* Define if GNUPlot version is linked against libgd (supports "size"): */
+#undef PHOEBE_GUI_GNUPLOT_LIBGD
 
 /* Define if GNUPlot is supported: */
 #undef PHOEBE_GUI_GNUPLOT_SUPPORT

@@ -145,17 +145,16 @@
   AC_ARG_ENABLE(gnuplot,
       [  --enable-gnuplot        Enable gnuplot for drawing graphs (default=yes)],
       [ac_enable_gnuplot=yes], [ac_enable_gnuplot=yes])
-  AC_DEFUN([AC_PROG_GNUPLOT], [AC_CHECK_PROG(GNUPLOT,gnuplot,yes)])
+  AC_DEFUN([AC_PROG_GNUPLOT], [AC_PATH_PROG(GNUPLOT,gnuplot)])
   AC_PROG_GNUPLOT
-  if test "$GNUPLOT" == yes; then
+  if test -n "$GNUPLOT"; then
     AC_DEFINE(PHOEBE_GUI_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
-    if gnuplot --version | grep 4.0 > /dev/null 2>&1; then
-      AC_DEFINE(PHOEBE_GUI_GNUPLOT_4_0, 1, Define if GNUPlot version is 4.0:)
+    if ldd $GNUPLOT | grep libgd > /dev/null 2>&1; then
+      AC_DEFINE(PHOEBE_GUI_GNUPLOT_LIBGD, 1, Define if GNUPlot version is linked against libgd (supports "size"):)
+      gnuplot="gnuplot (with libgd)"
+    else
+      gnuplot="gnuplot (with libpng)"
     fi
-    if gnuplot --version | grep 4.2 > /dev/null 2>&1; then
-      AC_DEFINE(PHOEBE_GUI_GNUPLOT_4_2, 1, Define if GNUPlot version is 4.2:)
-    fi
-    gnuplot="gnuplot"
   fi
 
 
