@@ -206,7 +206,16 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
+	/* gnuplot 4.0 has a bug in the docs that says keyword "size" is recognized
+	 * whereas it isn't. That is why we check for the gnuplot version in the
+	 * configure script and use it here.
+	 */
+
+#ifdef PHOEBE_GUI_GNUPLOT_4_0
+	sprintf(line, "set terminal png small picsize 590 310\n"); 			write(cfd, line, strlen(line));
+#else
 	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
+#endif
 	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set lmargin 6\n");									write(cfd, line, strlen(line));
