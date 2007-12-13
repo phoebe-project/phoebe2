@@ -1708,7 +1708,7 @@ void on_phoebe_pot_calc_close_button_clicked (GtkButton *button, gpointer user_d
 
 void on_phoebe_pot_calc_update_button_clicked (GtkButton *button, gpointer user_data)
 {
-	gint sel = (int) user_data;
+	gint sel = GPOINTER_TO_INT (user_data);
 	GtkWidget *pot_spinbutton=NULL;
 
 	if (sel==1){pot_spinbutton = gui_widget_lookup("phoebe_para_comp_phsv_spinbutton")->gtk;}
