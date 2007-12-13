@@ -4393,8 +4393,23 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_SUPPORT 1
 _ACEOF
 
+    if gnuplot --version | grep 4.0 > /dev/null 2>&1; then
+
+cat >>confdefs.h <<\_ACEOF
+#define PHOEBE_GUI_GNUPLOT_4_0 1
+_ACEOF
+
+    fi
+    if gnuplot --version | grep 4.2 > /dev/null 2>&1; then
+
+cat >>confdefs.h <<\_ACEOF
+#define PHOEBE_GUI_GNUPLOT_4_2 1
+_ACEOF
+
+    fi
     gnuplot="gnuplot"
   fi
+
 
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot
