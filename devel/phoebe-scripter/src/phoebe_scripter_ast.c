@@ -478,6 +478,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 			out.type = type_qualifier;
 			out.value.str = strdup (in->value.string);
 			return out;
+		case ast_function:
+			out.type = type_function;
+			out.value.str = strdup (in->value.variable);
 		case ast_minfeedback:
 			out.type = type_minfeedback;
 			out.value.feedback = phoebe_minimizer_feedback_duplicate (in->value.minfeedback);
@@ -532,6 +535,10 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				case ast_qualifier:
 					out.type = type_qualifier;
 					out.value.str = strdup (s->link->value.qualifier);
+				break;
+				case ast_function:
+					out.type = type_function;
+					out.value.str = strdup (s->link->value.variable);
 				break;
 				case ast_spectrum:
 					out.type = type_spectrum;
@@ -1266,6 +1273,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 							case TYPE_STRING_ARRAY:
 								out.type = type_string;
 								out.value.str = strdup (expr.value.array->val.strarray[index.value.i-1]);
+							break;
+							default:
+								phoebe_scripter_output ("exception handler invoked in scripter_ast_evaluate, kind_element; please report this!\n");
 							break;
 						}
 						scripter_ast_value_free (expr);
@@ -2414,6 +2424,10 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						scripter_ast_value_free (val2);
 						return out;
 					break;
+					default:
+						phoebe_scripter_output ("exception handler invoked in scripter_ast_evaluate, binary operators; please report this!\n");
+					break;
+
 				}
 			}
  		}
@@ -2481,10 +2495,13 @@ char *scripter_ast_value_type_get_name (int type)
 		case type_curve:       return "curve";
 		case type_spectrum:    return "spectrum";
 		case type_qualifier:   return "qualifier";
+		case type_function:    return "built-in function";
 		case type_minfeedback: return "minimizer feedback";
 		case type_any:         return "non-void";
 		case type_void:        return "void";
-		default:               return "???";
+		default:
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_value_type_get_name (), please report this!\n");
+			return "invalid";
 	}
 }
 

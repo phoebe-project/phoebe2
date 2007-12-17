@@ -5,6 +5,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_scripter_ast.h"
+#include "phoebe_scripter_error_handling.h"
 #include "phoebe_scripter_io.h"
 
 int phoebe_vector_print (PHOEBE_vector *vec)
@@ -57,6 +58,9 @@ int phoebe_array_print (PHOEBE_array *array)
 			case TYPE_DOUBLE_ARRAY: fprintf (PHOEBE_output, "%f",     array->  val.darray[i]); break;
 			case TYPE_BOOL_ARRAY:   fprintf (PHOEBE_output, "%d",     array->  val.barray[i]); break;
 			case TYPE_STRING_ARRAY: fprintf (PHOEBE_output, "\"%s\"", array->val.strarray[i]); break;
+			default:
+				phoebe_scripter_output ("exception handler invoked in phoebe_array_print (), please report this!\n");
+				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 		if (i == array->dim - 1) fprintf (PHOEBE_output, "}");
 		else fprintf (PHOEBE_output, ", ");

@@ -386,6 +386,9 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 				fprintf (PHOEBE_output, "  Value:          <empty array>\n");
 		}
 		break;
+		default:
+			phoebe_scripter_output ("exception handler invoked in intern_info_on_qualifiers (), please report this!\n");
+		break;
 	}
 
 	/* Next, is it adjustable?                                                */
@@ -652,6 +655,9 @@ int scripter_directive_show (scripter_ast_list *args)
 			else
 				fprintf (PHOEBE_output, "\t<empty array>\n");
 		}
+		break;
+		default:
+			phoebe_scripter_output ("exception handler invoked in scripter_directive_show (), please report this!\n");
 		break;
 	}
 
