@@ -39,9 +39,9 @@
 #include <phoebe/phoebe_fortran_interface.h>
 #include <phoebe/phoebe_global.h>
 #include <phoebe/phoebe_ld.h>
+#include <phoebe/phoebe_model.h>
 #include <phoebe/phoebe_nms.h>
 #include <phoebe/phoebe_parameters.h>
-#include <phoebe/phoebe_roche.h>
 #include <phoebe/phoebe_spectra.h>
 #include <phoebe/phoebe_types.h>
 

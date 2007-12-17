@@ -183,6 +183,14 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "phase interval is invalid (phmax <= phmin), aborting.\n";
 		case ERROR_UNINITIALIZED_CURVE:
 			return "the curve you are trying to compute is not initialized.\n";
+		case ERROR_STAR_SURFACE_NOT_INITIALIZED:
+			return "star surface is not initialized, aborting.\n";
+		case ERROR_STAR_SURFACE_NOT_ALLOCATED:
+			return "star surface is not allocated, aborting.\n";
+		case ERROR_STAR_SURFACE_ALREADY_ALLOCATED:
+			return "star surface is already allocated, aborting.\n";
+		case ERROR_STAR_SURFACE_INVALID_DIMENSION:
+			return "star surface dimension is invalid, aborting.\n";
 		case ERROR_UNSUPPORTED_MPAGE:
 			return "unsupported calculation type, aborting.\n";
 		case ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED:
