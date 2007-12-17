@@ -123,6 +123,7 @@ typedef struct scripter_ast_value {
 		type_curve,
 		type_spectrum,
 		type_qualifier,
+		type_function,
 		type_minfeedback,
 		type_any,
 		type_void
