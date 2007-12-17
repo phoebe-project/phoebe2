@@ -3598,7 +3598,7 @@ fi
     PKG_CONFIG=no
   fi
 
-  min_glib_version=2.4.0
+  min_glib_version=2.6.0
   { echo "$as_me:$LINENO: checking for GLIB - version >= $min_glib_version" >&5
 echo $ECHO_N "checking for GLIB - version >= $min_glib_version... $ECHO_C" >&6; }
 
@@ -3850,7 +3850,7 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE cannot find the graphical library GLib 2.10.0 or higher."
+      echo "PHOEBE cannot find the graphical library GLib 2.6.0 or higher."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
@@ -3930,7 +3930,7 @@ fi
     no_gtk=yes
   fi
 
-  min_gtk_version=2.4.0
+  min_gtk_version=2.6.0
   { echo "$as_me:$LINENO: checking for GTK+ - version >= $min_gtk_version" >&5
 echo $ECHO_N "checking for GTK+ - version >= $min_gtk_version... $ECHO_C" >&6; }
 
@@ -4172,7 +4172,7 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE cannot find the graphical library GTK+-2.10.0 or higher."
+      echo "PHOEBE cannot find the graphical library GTK+-2.6.0 or higher."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
@@ -4333,8 +4333,8 @@ fi
     echo ""
     echo "       *** PHOEBE configuration failure ***"
     echo ""
-    echo "PHOEBE scripter needs PHOEBE library installed to be built."
-    echo "Remember, the scripter is only a driver for the library!"
+    echo "PHOEBE GUI needs PHOEBE library installed to be built."
+    echo "Remember, the GUI is only a driver for the library!"
     echo ""
     exit
   fi
