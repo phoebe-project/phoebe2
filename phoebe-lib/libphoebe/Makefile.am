@@ -40,10 +40,10 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
     phoebe_ld.c                       phoebe_ld.h                       \
+    phoebe_model.c                    phoebe_model.h                    \
     phoebe_nms.c                      phoebe_nms.h                      \
     phoebe_parameters.c               phoebe_parameters.h               \
     phoebe_radiation.c                phoebe_radiation.h                \
-    phoebe_roche.c                    phoebe_roche.h                    \
     phoebe_spectra.c                  phoebe_spectra.h                  \
     phoebe_types.c                    phoebe_types.h                    \
                                       phoebe.h
@@ -78,8 +78,8 @@ library_include_HEADERS = f2c.h                      \
                           phoebe_fortran_interface.h \
                           phoebe_global.h            \
                           phoebe_ld.h                \
+                          phoebe_model.h             \
                           phoebe_nms.h               \
                           phoebe_parameters.h        \
-                          phoebe_roche.h             \
                           phoebe_spectra.h           \
                           phoebe_types.h
