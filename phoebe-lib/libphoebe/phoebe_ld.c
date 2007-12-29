@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <math.h>
 
 #include "phoebe_accessories.h"
 #include "phoebe_calculations.h"
@@ -389,6 +390,7 @@ int phoebe_get_ld_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M
 	LDtable *table = &PHOEBE_ld_table[0];
 
 	/* Interpolation structures: */
+	int dim, nodes, fixedT = 0, fixedlg = 0, fixedM = 0;
 	double pars[3], lo[3], hi[3];
 	union {
 		double *d;
@@ -417,31 +419,169 @@ int phoebe_get_ld_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M
 		)
 		return ERROR_LD_PARAMS_OUT_OF_RANGE;
 
-	while ( M >= table->elem->M ) {
+	while ( M > table->elem->M ) {
 		table = table->Mnext;
 		if (!table)
 			return ERROR_LD_PARAMS_OUT_OF_RANGE;
 	}
 
-	while ( lg >= table->elem->lg ) {
+	while ( lg > table->elem->lg ) {
 		table = table->lgnext;
 		if (!table)
 			return ERROR_LD_PARAMS_OUT_OF_RANGE;
 	}
 
-	while ( T >= table->elem->T ) {
+	while ( T > table->elem->T ) {
 		table = table->Tnext;
 		if (!table)
 			return ERROR_LD_PARAMS_OUT_OF_RANGE;
 	}
 
 	phoebe_debug ("  everything ok, continuing to interpolation.\n");
+
+	dim = 3;
+
+	/* Let's see if any of the nodes is exact and requires no interpolation: */
+	if (fabs (T - table->elem->T) < PHOEBE_NUMERICAL_ACCURACY) {
+		fixedT = 1;
+		dim--;
+	}
+	if (fabs (lg - table->elem->lg) < PHOEBE_NUMERICAL_ACCURACY) {
+		fixedlg = 1;
+		dim--;
+	}
+	if (fabs (M - table->elem->M) < PHOEBE_NUMERICAL_ACCURACY) {
+		fixedM = 1;
+		dim--;
+	}
+printf ("dim = %d\n", dim);
+	/* Do a last node definiteness check: */
+	if (
+		(dim == 3 && table->Mprev
+		          && table->Mprev->Tprev
+		          && table->Mprev->Tprev->lgprev
+		) ||
+		(dim == 2 && (
+					 (fixedM  && table->Tprev && table->Tprev->lgprev) ||
+					 (fixedT  && table->Mprev && table->Mprev->lgprev) ||
+					 (fixedlg && table->Mprev && table->Mprev->Tprev)
+					 )
+		) ||
+		(dim == 1 && (
+					 (fixedM &&  fixedT  && table->lgprev) ||
+					 (fixedM &&  fixedlg && table->Tprev)  ||
+					 (fixedT &&  fixedlg && table->Mprev)
+					 )
+		)
+	   ) /* all is well */;
+	else
+		return ERROR_LD_PARAMS_OUT_OF_RANGE;
+if (table->lgprev)
+		printf ("null not caught, how come?\n");
+	nodes = pow (2, dim);
+
+	if (dim == 0) {
+		/* This means that the requested parameters correspond to a node. */
+		if (ldlaw == LD_LAW_LINEAR)
+			intern_get_ld_node (table, ldlaw, passband, x, NULL);
+		else
+			intern_get_ld_node (table, ldlaw, passband, x, y);
+
+		return SUCCESS;
+	}
+
+	/* Otherwise we have to interpolate. Allocate memory for the result: */
+	if (ldlaw == LD_LAW_LINEAR)
+		fv.d = phoebe_malloc (nodes * sizeof (*(fv.d)));
+	else {
+		fv.vec = phoebe_malloc (nodes * sizeof (*(fv.vec)));
+		for (i = 0; i < nodes; i++) {
+			fv.vec[i] = phoebe_vector_new ();
+			phoebe_vector_alloc (fv.vec[i], 2);
+		}
+	}
+
+	if (dim == 1) {
+		/* This means that 1D interpolation is required. */
+		if (!fixedT) {
+			table = table->Tprev;
+			if (!table)
+				return ERROR_LD_PARAMS_OUT_OF_RANGE;
+			pars[0] = T;
+			  lo[0] = table->Tprev->elem->T;
+			  hi[0] = table->elem->T;
+
+			if (ldlaw == LD_LAW_LINEAR) {
+				intern_get_ld_node (table->Tprev,  ldlaw, passband, &fv.d[0], NULL);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
+			}
+			else {
+				intern_get_ld_node (table->Tprev,  ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
+			}
+		}
+		else if (!fixedlg) {
+			table = table->lgprev;
+			if (!table)
+				return ERROR_LD_PARAMS_OUT_OF_RANGE;
+			fv.d = phoebe_malloc (2 * sizeof (*(fv.d)));
+			pars[0] = lg;
+			  lo[0] = table->lgprev->elem->lg;
+			  hi[0] = table->elem->lg;
+
+			if (ldlaw == LD_LAW_LINEAR) {
+				intern_get_ld_node (table->lgprev, ldlaw, passband, &fv.d[0], NULL);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
+			}
+			else {
+				intern_get_ld_node (table->lgprev, ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
+			}
+		}
+		else {
+			table = table->Mprev;
+			if (!table)
+				return ERROR_LD_PARAMS_OUT_OF_RANGE;
+			fv.d = phoebe_malloc (2 * sizeof (*(fv.d)));
+			pars[0] = M;
+			  lo[0] = table->Mprev->elem->M;
+			  hi[0] = table->elem->M;
+
+			if (ldlaw == LD_LAW_LINEAR) {
+				intern_get_ld_node (table->Mprev,  ldlaw, passband, &fv.d[0], NULL);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
+			}
+			else {
+				intern_get_ld_node (table->Mprev,  ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
+				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
+			}
+
+			/* Do the interpolation: */
+			phoebe_interpolate (dim, pars, lo, hi, TYPE_DOUBLE_ARRAY, fv.vec);
+
+			/* Assign the return value and free the array: */
+			*x = fv.vec[0]->val[0]; *y = fv.vec[0]->val[1];
+			for (i = 0; i < 8; i++)
+				phoebe_vector_free (fv.vec[i]);
+		}
+
+		/* Do the interpolation: */
+		phoebe_interpolate (dim, pars, lo, hi, TYPE_DOUBLE, fv.d);
+
+		/* Assign the return value and free the array: */
+		*x = fv.d[0];
+		free (fv.d);
+	}
+
+	return SUCCESS;
 	table = table->Mprev->Tprev->lgprev;
 
 	/* Set the interpolation nodes: */
 	pars[0] = T;                   pars[1] = lg;                    pars[2] = M;
 	  lo[0] = table->elem->T;        lo[1] = table->elem->lg;         lo[2] = table->elem->M;
-	  hi[0] = table->Tnext->elem->T; hi[1] = table->lgnext->elem->lg; hi[2] = table->Mnext->elem->M;
+	  hi[0] = table->Tnext->elem->T;
+	  hi[1] = table->lgnext->elem->lg;
+	  hi[2] = table->Mnext->elem->M;
 
 	if (ldlaw == LD_LAW_LINEAR) {
 		fv.d = phoebe_malloc (8 * sizeof (*(fv.d)));

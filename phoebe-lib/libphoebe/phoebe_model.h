@@ -20,6 +20,7 @@ typedef struct PHOEBE_star_surface {
 PHOEBE_star_surface *phoebe_star_surface_new           ();
 PHOEBE_star_surface *phoebe_star_surface_rasterize     (int gridsize);
 int                  phoebe_star_surface_compute_radii (PHOEBE_star_surface *surface, double Omega, double q, double D, double F);
+int                  phoebe_star_surface_compute_grads (PHOEBE_star_surface *surface, double q, double D, double F);
 int                  phoebe_star_surface_free          (PHOEBE_star_surface *surface);
 
 typedef struct PHOEBE_star {
@@ -31,5 +32,6 @@ typedef struct PHOEBE_star {
 
 double phoebe_compute_polar_radius (double Omega, double D, double q);
 double phoebe_compute_radius       (double rp, double q, double D, double F, double lambda, double nu);
+double phoebe_compute_gradient     (double r,  double q, double D, double F, double lambda, double nu);
 
 #endif
