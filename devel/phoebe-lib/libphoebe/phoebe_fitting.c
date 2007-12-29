@@ -1102,6 +1102,15 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	while (tba) {
 		switch (tba->par->type) {
 			case TYPE_DOUBLE:
+				if (strcmp (tba->par->qualifier, "phoebe_teff1") == 0 ||
+					strcmp (tba->par->qualifier, "phoebe_teff2") == 0) {
+					corrections[i] *= 10000.0;
+					errors[i] *= 10000.0;
+				}
+				else if (strcmp (tba->par->qualifier, "phoebe_vga") == 0) {
+					corrections[i] *= 100.0;
+					errors[i] *= 100.0;
+				}
 				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
 				phoebe_parameter_get_value (tba->par, &(feedback->initvals->val[i]));
 				feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
