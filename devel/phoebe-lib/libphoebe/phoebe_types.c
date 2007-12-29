@@ -2277,6 +2277,8 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 	/* Do the readout:                                                        */
 	while (!feof (file)) {
 		fgets (line, 255, file);
+		if (feof (file)) break;
+
 		line_number++;
 
 		/* If the line is commented or empty, skip it:                        */
