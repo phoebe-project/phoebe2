@@ -1045,7 +1045,6 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->ifat2 = (integer) readout_bool;
 
 	/* Model parameters:                                                        */
-#warning FIX_CASTING_IN_READ_IN_WD_DCI_PARAMETERS
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"),     &(params->hjd0));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"),   &(params->period));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"),     &(params->dpdt));
