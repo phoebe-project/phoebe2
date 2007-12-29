@@ -392,6 +392,22 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_ld_lccoefs_secmin_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secmin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN,	par, NULL);
 	gui_widget_add ("phoebe_para_ld_lccoefs_secmax_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_lccoefs_secmax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX,	par, NULL);
 
+	par = phoebe_parameter_lookup ("phoebe_ld_rvx1");
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_rv_ld_treeview),						RV_COL_X1,			GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_rv_ld_treeview),						RV_COL_Y1,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_rvy1"), NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primadjust_checkbutton",	glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_primadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_primstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primmin_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_primmin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_primmax_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_primmax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX,	par, NULL);
+
+	par = phoebe_parameter_lookup ("phoebe_ld_rvx2");
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secx",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_rv_ld_treeview),						RV_COL_X2,			GUI_WIDGET_VALUE,		par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secy",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_rv_ld_treeview),						RV_COL_Y2,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_ld_rvy2"), NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secadjust_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_secadjust_checkbutton"),					0,					GUI_WIDGET_SWITCH_TBA,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secstep_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_secstep_spinbutton"),						0,					GUI_WIDGET_VALUE_STEP,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secmin_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_secmin_spinbutton"),						0,					GUI_WIDGET_VALUE_MIN,	par, NULL);
+	gui_widget_add ("phoebe_para_ld_rvcoefs_secmax_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_ld_rvcoefs_secmax_spinbutton"),						0,					GUI_WIDGET_VALUE_MAX,	par, NULL);
+
 	gui_widget_add ("phoebe_para_spots_primmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_primmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate1"),	NULL);
 	gui_widget_add ("phoebe_para_spots_secmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_secmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate2"),	NULL);
 
