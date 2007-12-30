@@ -546,7 +546,11 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
+#ifdef PHOEBE_GUI_GNUPLOT_LIBGD
 	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
+#else
+	sprintf(line, "set terminal png small picsize 590 310\n"); 			write(cfd, line, strlen(line));
+#endif
 	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
@@ -778,7 +782,11 @@ int gui_plot_eb_using_gnuplot ()
 	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
 	cfd = mkstemp (cname);
 
+#ifdef PHOEBE_GUI_GNUPLOT_LIBGD
 	sprintf(line, "set terminal png small size 694,458\n"); 			write(cfd, line, strlen(line));
+#else
+	sprintf(line, "set terminal png small picsize 694 458\n"); 			write(cfd, line, strlen(line));
+#endif
 	sprintf(line, "set mxtics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set mytics 2\n"); 									write(cfd, line, strlen(line));
 	sprintf(line, "set lmargin 5\n");									write(cfd, line, strlen(line));
