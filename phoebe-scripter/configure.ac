@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT(phoebe-scripter, 0.30, http://phoebe.fiz.uni-lj.si)
+  AC_INIT(phoebe-scripter, [0.30-svn], http://phoebe.fiz.uni-lj.si)
 
 # Create a dedicated header file phoebe_scripter_build_config.h that will
 # contain all #define statements that correspond to whatever ./configure
@@ -45,11 +45,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_NAME,
-	[["PHOEBE scripter 0.30"]],
+	[["PHOEBE scripter 0.30-svn"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["Nov 15, 2007"]],
+	[["(snapshot)"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources:
