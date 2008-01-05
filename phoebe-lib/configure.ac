@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2007-11-15 #
+#                                            Last revision: 2008-01-05 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT([phoebe-lib],[0.30],[phoebe-devel@lists.sourceforge.net])
+  AC_INIT([phoebe-lib],[0.30-svn],[phoebe-devel@lists.sourceforge.net])
 
 # Create a dedicated header file phoebe_build_config.h that will contain
 # all #define statements that correspond to whatever ./configure found:
@@ -60,11 +60,11 @@
 # Define the release name, date and type:
   AC_DEFINE(
 	PHOEBE_RELEASE_NAME,
-	[["PHOEBE 0.30"]],
+	[["PHOEBE 0.30-svn"]],
 	[PHOEBE release name])
   AC_DEFINE(
 	PHOEBE_RELEASE_DATE,
-	[["Nov 15, 2007"]],
+	[["(snapshot)"]],
 	[PHOEBE release date])
 
 # Check for system programs:
