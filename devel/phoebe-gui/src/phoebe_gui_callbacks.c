@@ -1928,6 +1928,8 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	PHOEBE_parameter *ldlaw = phoebe_parameter_lookup ("phoebe_ld_model");
 	int optindex, optcount;
 
+	double logg1, logg2;
+
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_ld_interpolator.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
@@ -1970,6 +1972,17 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 		gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_ld_dialog_law_combobox), strdup(ldlaw->menu->option[optindex]));
 
 	gtk_combo_box_set_active(GTK_COMBO_BOX(phoebe_ld_dialog_law_combobox), gtk_combo_box_get_active(GTK_COMBO_BOX(gui_widget_lookup("phoebe_para_ld_model_combobox")->gtk)));
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_tavh_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_tavh_spinbutton")->gtk)));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_met1_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_met1_spinbutton")->gtk)));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_tavc_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_tavc_spinbutton")->gtk)));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_met2_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_met2_spinbutton")->gtk)));
+
+	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_logg1"), &logg1);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_logg1_spinbutton), logg1);
+
+	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_logg2"), &logg2);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_logg2_spinbutton), logg2);
 
 	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_law_combobox", (gpointer) phoebe_ld_dialog_law_combobox);
 	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_id_combobox", (gpointer) phoebe_ld_dialog_id_combobox);
