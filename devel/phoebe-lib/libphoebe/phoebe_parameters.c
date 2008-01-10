@@ -99,7 +99,7 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_alb1",                 "Primary star surface albedo",                KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
 	phoebe_parameter_add ("phoebe_alb2",                 "Secondary star surface albedo",              KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
 	phoebe_parameter_add ("phoebe_grb1",                 "Primary star gravity brightening",           KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
-	phoebe_parameter_add ("phoebe_grb2",                 "Primary star gravity brightening",           KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
+	phoebe_parameter_add ("phoebe_grb2",                 "Secondary star gravity brightening",         KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
 
 	/* **********************   Orbit parameters   ************************** */
 
