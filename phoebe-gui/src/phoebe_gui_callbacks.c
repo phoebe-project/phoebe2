@@ -178,12 +178,9 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 	GladeXML  *phoebe_cormat_dialog_xml      		= glade_xml_new        (glade_xml_file, NULL, NULL);
 
 	GtkWidget *phoebe_cormat_dialog        			= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog");
+	GtkWidget *phoebe_cormat_treeview				= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog_treeview");
 
-	GtkWidget *phoebe_cormat_dialog_textview		= glade_xml_get_widget (phoebe_cormat_dialog_xml, "phoebe_cormat_dialog_textview");
-
-	GtkTextBuffer *cormat_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (phoebe_cormat_dialog_textview));
-	GtkTextIter iter;
-	int rows, cols;
+	int rows, cols, cormat_cols, cormat_rows;
 	char cormat_string[255];
 
 	g_object_unref (phoebe_cormat_dialog_xml);
@@ -192,23 +189,45 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 	gtk_window_set_title (GTK_WINDOW(phoebe_cormat_dialog), "PHOEBE - Correlation matrix");
 
 	if(phoebe_minimizer_feedback){
-		gtk_text_buffer_get_iter_at_line (cormat_buffer, &iter, 0);
-		for(cols = 0; cols < phoebe_minimizer_feedback->cormat->cols; cols++){
-			sprintf(cormat_string, "%20s", phoebe_minimizer_feedback->qualifiers->val.strarray[cols]);
-			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
+		cormat_cols = phoebe_minimizer_feedback->cormat->cols;
+		cormat_rows = phoebe_minimizer_feedback->cormat->rows;
+		GType cormat_col_types[cormat_cols+1];
+
+		GtkListStore *cormat_model;
+		GtkCellRenderer *renderer;
+		GtkTreeViewColumn *column;
+		GtkTreeIter iter;
+
+		for(cols = 0; cols < cormat_cols+1; cols++){
+			cormat_col_types[cols] = G_TYPE_STRING;
 		}
-		sprintf(cormat_string, "\n");
-		gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
-		for(rows = 0; rows < phoebe_minimizer_feedback->cormat->rows; rows++){
-			sprintf(cormat_string, "%20s", phoebe_minimizer_feedback->qualifiers->val.strarray[rows]);
-			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
-			for(cols = 0; cols < phoebe_minimizer_feedback->cormat->cols; cols++){
+		cormat_model = gtk_list_store_newv (cormat_cols+1, cormat_col_types);
+
+		renderer = gtk_cell_renderer_text_new ();
+		column	  = gtk_tree_view_column_new_with_attributes ("Parameter", renderer, "text", 0, NULL);
+		gtk_tree_view_insert_column (GTK_TREE_VIEW(phoebe_cormat_treeview), column, -1);
+
+		for(cols = 0; cols < cormat_cols; cols++){
+			renderer    = gtk_cell_renderer_text_new ();
+			column      = gtk_tree_view_column_new_with_attributes (phoebe_minimizer_feedback->qualifiers->val.strarray[cols], renderer, "text", cols+1, NULL);
+			gtk_tree_view_insert_column (GTK_TREE_VIEW(phoebe_cormat_treeview), column, -1);
+		}
+
+		gtk_list_store_append(cormat_model, &iter);
+		gtk_list_store_set(cormat_model, &iter, 0, "", -1);
+		for(cols = 0; cols < cormat_cols; cols++){
+			gtk_list_store_set(cormat_model, &iter, cols + 1, phoebe_minimizer_feedback->qualifiers->val.strarray[cols], -1);
+		}
+
+		for(rows = 0; rows < cormat_rows; rows++){
+			gtk_list_store_append(cormat_model, &iter);
+			gtk_list_store_set(cormat_model, &iter, 0, phoebe_minimizer_feedback->qualifiers->val.strarray[rows], -1);
+			for(cols = 0; cols < cormat_cols; cols++){
 				sprintf(cormat_string, "% 20.3lf", phoebe_minimizer_feedback->cormat->val[rows][cols]);
-				gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
+				gtk_list_store_set(cormat_model, &iter, cols + 1, cormat_string, -1);
 			}
-			sprintf(cormat_string, "\n");
-			gtk_text_buffer_insert (cormat_buffer, &iter, cormat_string, -1);
 		}
+		gtk_tree_view_set_model(GTK_TREE_VIEW(phoebe_cormat_treeview), GTK_TREE_MODEL(cormat_model));
 	}
 
 	gtk_dialog_run(GTK_DIALOG(phoebe_cormat_dialog));
