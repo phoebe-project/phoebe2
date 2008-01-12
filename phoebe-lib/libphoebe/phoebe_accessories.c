@@ -15,6 +15,15 @@
 #include "phoebe_error_handling.h"
 #include "phoebe_types.h"
 
+/**
+ * SECTION:phoebe_accessories
+ * @title: PHOEBE accessories
+ * @short_description: functions that facilitate common type manipulation
+ *
+ * These are the functions that facilitate common type manipulation.
+ * They mostly pertain to I/O and string handling.
+ */
+
 int phoebe_open_directory (DIR **dir, const char *dirname)
 {
 	/**
