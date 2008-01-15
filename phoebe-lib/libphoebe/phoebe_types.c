@@ -2282,7 +2282,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 		line_number++;
 
 		/* If the line is commented or empty, skip it:                        */
-		if ( !(in = parse_data_line (line)) ) continue;
+		if ( !(in = phoebe_clean_data_line (line)) ) continue;
 
 		/* Read out the values from the parsed string:                        */
 		no_of_columns = sscanf (in, "%lf %lf %lf", &x, &y, &z);

@@ -18,49 +18,48 @@
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
-char *parse_data_line (char *in)
+char *phoebe_clean_data_line (char *line)
 {
-	/*
-	 * This function takes a string, parses it (cleans it of all comment
-	 * delimeters, spaces, tabs and newlines), copies the contents to the newly
-	 * allocated string.
+	/**
+	 * phoebe_clean_data_line:
+	 * @line: input string to be cleaned
+	 *
+	 * Takes a string, cleans it of all comment delimeters, spaces, tabs and
+	 * newlines, and copies the contents to a newly allocated string. The
+	 * original string is not modified in any way.
+	 *
+	 * Returns: clean string.
 	 */
 
-	char *value = NULL;
+	/* This function has been thorougly tested. */
 
-	/*
-	 * If the line contains the comment delimeter '#', discard everything that
-	 * follows it (strip the input line):
-	 */
+	char *value, *start, *stop;
 
-	if (strchr (in, '#') != NULL)
-		in[strlen(in)-strlen(strchr(in,'#'))] = '\0';
+	if (!line)
+		return NULL;
 
-	/*
-	 * If the line is empty (or it became empty after removing the comment),
-	 * return NULL:
-	 */
+	start = line;
+	while (*start != '\0' && (*start == '\n' || *start == '\t' || *start == ' ' || *start == 13))
+		start++;
 
-	if (strlen(in) == 0) return NULL;
-
-	/*
-	 * If we have spaces, tabs or newlines in front of the first character in
-	 * line, remove them by incrementing the pointer by 1:
-	 */
-
-	while ( (*in ==  ' ') || (*in == '\t') || (*in == '\n') || (*in == 13) ) {
-		if (strlen (in) > 1) in++;
-		else return NULL;
+	if ((stop = strchr (line, '#'))) {
+		if (stop > start)
+			stop--;
 	}
+	else
+		stop = &line[strlen(line)-1];
 
-	/*
-	 * Let's do the same for the tail of the string:
-	 */
+	while (stop != start && (*stop == '\n' || *stop == '\t' || *stop == ' ' || *stop == 13))
+		stop--;
 
-	while ( (in[strlen(in)-1] ==  ' ') || (in[strlen(in)-1] == '\t') || (in[strlen(in)-1] == '\n') || (in[strlen(in)-1] == 13) )
-		in[strlen(in)-1] = '\0';
+	printf ("start: %c; stop: %c; length: %ld\n", *start, *stop, stop-start+1);
+	if (start == stop)
+		return NULL;
 
-	value = strdup (in);
+	value = phoebe_malloc ((stop-start+2)*sizeof(*value));
+	memcpy (value, start, (stop-start+1)*sizeof(*value));
+	value[stop-start+1] = '\0';
+
 	return value;
 }
 
