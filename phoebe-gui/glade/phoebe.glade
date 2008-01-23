@@ -62,6 +62,28 @@
                       </widget>
                     </child>
                     <child>
+                      <widget class="GtkImageMenuItem" id="phoebe_file_import_bm3_menuitem">
+                        <property name="visible">True</property>
+                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                        <property name="tooltip" translatable="yes">Import Binary Maker (BM3) parameter file</property>
+                        <property name="label" translatable="yes">Import BM3</property>
+                        <property name="use_underline">True</property>
+                        <signal name="activate" handler="on_phoebe_file_import_bm3_menuitem_activate"/>
+                        <child internal-child="image">
+                          <widget class="GtkImage" id="menu-item-image1">
+                            <property name="visible">True</property>
+                            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                            <property name="stock">gtk-harddisk</property>
+                          </widget>
+                        </child>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkSeparatorMenuItem" id="phoebe_file_separator_2_menuitem">
+                        <property name="visible">True</property>
+                      </widget>
+                    </child>
+                    <child>
                       <widget class="GtkImageMenuItem" id="phoebe_file_quit_menuitem">
                         <property name="visible">True</property>
                         <property name="label">gtk-quit</property>
@@ -367,6 +389,7 @@
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_data_lc_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -388,6 +411,7 @@
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Add</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_data_lc_add_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -401,6 +425,7 @@
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_data_lc_edit_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -415,6 +440,7 @@
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Remove</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_data_lc_remove_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -453,6 +479,7 @@
                                         <property name="can_focus">True</property>
                                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                         <property name="label" translatable="yes">Add LC scatter:</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -523,6 +550,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Generate</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_lc_seedgen_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -565,6 +593,7 @@
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_data_rv_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -587,6 +616,7 @@
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Add</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_add_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -600,6 +630,7 @@
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -614,6 +645,7 @@
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Remove</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_data_rv_remove_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -755,6 +787,7 @@
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">Bin input data</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -862,6 +895,7 @@
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">Prim. Proximity</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -874,6 +908,7 @@
                                     <property name="border_width">4</property>
                                     <property name="label" translatable="yes">Sec. proximity</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                   </widget>
                                   <packing>
@@ -907,9 +942,6 @@
                       </packing>
                     </child>
                   </widget>
-                  <packing>
-                    <property name="tab_expand">False</property>
-                  </packing>
                 </child>
                 <child>
                   <widget class="GtkLabel" id="phoebe_data_label">
@@ -918,7 +950,6 @@
                   </widget>
                   <packing>
                     <property name="type">tab</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -965,6 +996,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_hjd0adjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1123,6 +1155,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_periodadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1282,6 +1315,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_eph_dpdtadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1437,6 +1471,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1569,9 +1604,6 @@
                           <placeholder/>
                         </child>
                       </widget>
-                      <packing>
-                        <property name="tab_expand">False</property>
-                      </packing>
                     </child>
                     <child>
                       <widget class="GtkLabel" id="phoebe_para_eph_label">
@@ -1580,7 +1612,6 @@
                       </widget>
                       <packing>
                         <property name="type">tab</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -1622,6 +1653,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_smaadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1778,6 +1810,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_rmadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -1935,6 +1968,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_sys_vgaadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2089,6 +2123,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2223,7 +2258,6 @@
                       </widget>
                       <packing>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -2234,7 +2268,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -2278,6 +2311,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2432,6 +2466,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2586,6 +2621,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2740,6 +2776,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -2894,6 +2931,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3025,7 +3063,6 @@
                       </widget>
                       <packing>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -3036,7 +3073,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -3077,6 +3113,7 @@
                                   <widget class="GtkCheckButton" id="phoebe_para_comp_tavhadjust_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3227,6 +3264,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3371,6 +3409,7 @@
                                       <widget class="GtkButton" id="phoebe_para_comp_phsv_calculate_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Calculate</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_comp_phsv_calculate_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -3397,6 +3436,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3544,6 +3584,7 @@
                                       <widget class="GtkButton" id="phoebe_para_comp_pcsv_calculate_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Calculate</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_comp_pcsv_calculate_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -3570,6 +3611,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3725,6 +3767,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -3880,6 +3923,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4003,7 +4047,6 @@
                       </widget>
                       <packing>
                         <property name="position">3</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -4014,7 +4057,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">3</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -4071,6 +4113,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4224,6 +4267,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4379,6 +4423,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4534,6 +4579,7 @@
                                     <property name="visible">True</property>
                                     <property name="border_width">8</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
@@ -4657,7 +4703,6 @@
                       </widget>
                       <packing>
                         <property name="position">4</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -4668,7 +4713,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">4</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -4691,6 +4735,7 @@
                                       <widget class="GtkScrolledWindow" id="phoebe_para_lum_levels_scrolledwindow">
                                         <property name="height_request">100</property>
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">4</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -4713,6 +4758,7 @@
                                             <property name="border_width">2</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_para_lum_levels_edit_button_clicked"/>
                                           </widget>
                                         </child>
@@ -4735,6 +4781,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Primary levels</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -4748,6 +4795,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Secondary levels</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -4989,6 +5037,7 @@
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_lum_el3_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">4</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -5011,6 +5060,7 @@
                                             <property name="border_width">2</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_para_lum_el3_edit_button_clicked"/>
                                           </widget>
                                         </child>
@@ -5063,6 +5113,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Third light</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -5076,6 +5127,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Opacity function</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -5091,6 +5143,7 @@
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Extinction</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -5462,6 +5515,7 @@
                                         <property name="label" translatable="yes">Decouple secondary luminosities 
 from temperatures</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5478,6 +5532,7 @@ from temperatures</property>
                                         <property name="can_focus">True</property>
                                         <property name="label" translatable="yes">Reflection effect with</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5522,6 +5577,7 @@ from temperatures</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Atmosphere model for primary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5533,6 +5589,7 @@ from temperatures</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Atmosphere model for secondary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5546,6 +5603,7 @@ from temperatures</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Gravity acceleration from model</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5580,7 +5638,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">5</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -5591,7 +5648,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">5</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -5785,6 +5841,7 @@ from temperatures</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Auto update</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                       </widget>
                                       <packing>
@@ -5825,6 +5882,7 @@ from temperatures</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Claret (2001)</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">2</property>
@@ -5841,6 +5899,7 @@ from temperatures</property>
                                         <property name="border_width">2</property>
                                         <property name="label" translatable="yes">Van Hamme (1993)</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_ld_model_tables_vanhamme_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -5900,6 +5959,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_para_ld_lccoefs_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">4</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -5922,6 +5982,7 @@ from temperatures</property>
                                             <property name="border_width">4</property>
                                             <property name="label" translatable="yes">Edit</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_para_ld_lccoefs_edit_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -6010,6 +6071,7 @@ from temperatures</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Adjust secondary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -6025,6 +6087,7 @@ from temperatures</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Adjust primary</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <property name="draw_indicator">True</property>
                                         <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
                                       </widget>
@@ -6185,6 +6248,7 @@ from temperatures</property>
                             <child>
                               <widget class="GtkScrolledWindow" id="phoebe_para_ld_rvcoefs_scrolledwindow">
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="border_width">4</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6215,7 +6279,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">6</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -6226,7 +6289,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">6</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -6245,6 +6307,7 @@ from temperatures</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_para_spots_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="border_width">4</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -6268,6 +6331,7 @@ from temperatures</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Add</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_spots_add_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -6281,6 +6345,7 @@ from temperatures</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Edit</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_spots_edit_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -6295,6 +6360,7 @@ from temperatures</property>
                                         <property name="border_width">4</property>
                                         <property name="label" translatable="yes">Remove</property>
                                         <property name="use_underline">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_para_spots_remove_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -6317,6 +6383,7 @@ from temperatures</property>
                                 <property name="visible">True</property>
                                 <property name="label" translatable="yes">Spots on primary move along longitude</property>
                                 <property name="use_underline">True</property>
+                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -6329,6 +6396,7 @@ from temperatures</property>
                                 <property name="visible">True</property>
                                 <property name="label" translatable="yes">Spots on secondary move along longitude</property>
                                 <property name="use_underline">True</property>
+                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -6394,6 +6462,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_spots_latadjust_checkbutton_toggled"/>
                                           </widget>
@@ -6582,6 +6651,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_spots_lonadjust_checkbutton_toggled"/>
                                           </widget>
@@ -6770,6 +6840,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_spots_radadjust_checkbutton_toggled"/>
                                           </widget>
@@ -6958,6 +7029,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_para_spots_tempadjust_checkbutton_toggled"/>
                                           </widget>
@@ -7104,7 +7176,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">7</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -7116,14 +7187,12 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">7</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="position">1</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -7134,7 +7203,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">1</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -7399,6 +7467,7 @@ from temperatures</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Unlimited iterations</property>
+                                    <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
                                     <signal name="toggled" handler="on_phoebe_fitt_nms_nolimit_checkbutton_toggled"/>
                                   </widget>
@@ -7440,6 +7509,7 @@ from temperatures</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_para_lum_weighting_scrolledwindow">
                                     <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
                                     <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                     <property name="shadow_type">GTK_SHADOW_ETCHED_IN</property>
@@ -7457,6 +7527,7 @@ from temperatures</property>
                                     <property name="border_width">2</property>
                                     <property name="label" translatable="yes">Edit</property>
                                     <property name="use_underline">True</property>
+                                    <property name="response_id">0</property>
                                     <signal name="clicked" handler="on_phoebe_para_lum_weighting_edit_button_clicked"/>
                                   </widget>
                                   <packing>
@@ -7518,6 +7589,7 @@ from temperatures</property>
                                       <widget class="GtkButton" id="phoebe_fitt_detach_button">
                                         <property name="visible">True</property>
                                         <property name="relief">GTK_RELIEF_NONE</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_fitt_fitting_detach_button_clicked"/>
                                         <child>
                                           <widget class="GtkImage" id="phoebe_fitt_detach_button_image">
@@ -7545,6 +7617,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_first_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -7562,6 +7635,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_second_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -7581,6 +7655,7 @@ from temperatures</property>
                                     <child>
                                       <widget class="GtkScrolledWindow" id="phoebe_fitt_fitting_third_scrolledwindow">
                                         <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
                                         <property name="border_width">2</property>
                                         <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                         <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -7623,6 +7698,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_fitt_fitting_corrmat_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Correlation Matrix</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_fitt_fitting_corrmat_button_clicked"/>
                                           </widget>
                                         </child>
@@ -7636,6 +7712,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_fitt_calculate_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Calculate</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_fitt_calculate_button_clicked"/>
                                           </widget>
                                         </child>
@@ -7643,6 +7720,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_fitt_updateall_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Update All</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_fitt_updateall_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -7684,7 +7762,6 @@ from temperatures</property>
                   </widget>
                   <packing>
                     <property name="position">2</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -7695,7 +7772,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">2</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -7724,6 +7800,7 @@ from temperatures</property>
                                   <widget class="GtkButton" id="phoebe_lc_plot_detach_button">
                                     <property name="visible">True</property>
                                     <property name="relief">GTK_RELIEF_NONE</property>
+                                    <property name="response_id">0</property>
                                     <signal name="clicked" handler="on_phoebe_lc_plot_detach_button_clicked"/>
                                     <child>
                                       <widget class="GtkImage" id="phoebe_lc_plot_detach_button_image">
@@ -7806,6 +7883,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Observed</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_lc_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
@@ -7819,6 +7897,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Synthetic</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -7846,6 +7925,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Aliasing</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -7855,6 +7935,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Residuals</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8057,6 +8138,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_left_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_left_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_left_arrow">
@@ -8073,6 +8155,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_down_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_down_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_down_arrow">
@@ -8091,6 +8174,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_right_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_right_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_right_arrow">
@@ -8109,6 +8193,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_up_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_up_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_lc_plot_controls_up_arrow">
@@ -8126,6 +8211,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_reset_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_reset_button_clicked"/>
                                             <child>
                                               <placeholder/>
@@ -8161,6 +8247,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_zoomin_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom In</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_zoomin_button_clicked"/>
                                           </widget>
                                         </child>
@@ -8168,6 +8255,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_zoomout_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom Out</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_controls_zoomout_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8204,6 +8292,7 @@ from temperatures</property>
                                           <widget class="GtkCheckButton" id="phoebe_lc_plot_controls_coarse_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Coarse</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8214,6 +8303,7 @@ from temperatures</property>
                                           <widget class="GtkCheckButton" id="phoebe_lc_plot_controls_fine_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Fine</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8277,6 +8367,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_lc_plot_plot_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Plot</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_plot_button_clicked"/>
                                           </widget>
                                         </child>
@@ -8285,6 +8376,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-save</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_save_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8296,6 +8388,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-clear</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_lc_plot_clear_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8330,9 +8423,6 @@ from temperatures</property>
                           </widget>
                         </child>
                       </widget>
-                      <packing>
-                        <property name="tab_expand">False</property>
-                      </packing>
                     </child>
                     <child>
                       <widget class="GtkLabel" id="phoebe_plot_lc_label">
@@ -8341,7 +8431,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="type">tab</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -8367,6 +8456,7 @@ from temperatures</property>
                                     <property name="relief">GTK_RELIEF_NONE</property>
                                     <property name="xalign">0</property>
                                     <property name="yalign">0</property>
+                                    <property name="response_id">0</property>
                                     <signal name="clicked" handler="on_phoebe_rv_plot_detach_button_clicked"/>
                                     <child>
                                       <widget class="GtkImage" id="phoebe_rv_plot_detach_button_image">
@@ -8454,6 +8544,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Observed</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                             <signal name="toggled" handler="on_phoebe_rv_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
@@ -8467,6 +8558,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Synthetic</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -8494,6 +8586,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Aliasing</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="active">True</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
@@ -8503,6 +8596,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Residuals</property>
                                             <property name="use_underline">True</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8705,6 +8799,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_left_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_left_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_left_arrow">
@@ -8721,6 +8816,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_down_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_down_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_down_arrow">
@@ -8739,6 +8835,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_right_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_right_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_right_arrow">
@@ -8757,6 +8854,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_up_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_up_button_clicked"/>
                                             <child>
                                               <widget class="GtkArrow" id="phoebe_rv_plot_controls_up_arrow">
@@ -8774,6 +8872,7 @@ from temperatures</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_reset_button">
                                             <property name="visible">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_reset_button_clicked"/>
                                             <child>
                                               <placeholder/>
@@ -8809,6 +8908,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_zoomin_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom In</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_zoomin_button_clicked"/>
                                           </widget>
                                         </child>
@@ -8816,6 +8916,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_zoomout_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Zoom Out</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_controls_zoomout_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8852,6 +8953,7 @@ from temperatures</property>
                                           <widget class="GtkCheckButton" id="phoebe_rv_plot_controls_coarse_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Coarse</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8862,6 +8964,7 @@ from temperatures</property>
                                           <widget class="GtkCheckButton" id="phoebe_rv_plot_controls_fine_checkbutton">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Fine</property>
+                                            <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
                                           </widget>
                                           <packing>
@@ -8925,6 +9028,7 @@ from temperatures</property>
                                           <widget class="GtkButton" id="phoebe_rv_plot_plot_button">
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">Plot</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_plot_button_clicked"/>
                                           </widget>
                                         </child>
@@ -8933,6 +9037,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-save</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_save_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8944,6 +9049,7 @@ from temperatures</property>
                                             <property name="visible">True</property>
                                             <property name="label" translatable="yes">gtk-clear</property>
                                             <property name="use_stock">True</property>
+                                            <property name="response_id">0</property>
                                             <signal name="clicked" handler="on_phoebe_rv_plot_clear_button_clicked"/>
                                           </widget>
                                           <packing>
@@ -8980,7 +9086,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -8991,7 +9096,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -9034,6 +9138,7 @@ from temperatures</property>
                                       <widget class="GtkButton" id="phoebe_star_shape_plot_button">
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">Plot</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_star_shape_plot_button_clicked"/>
                                       </widget>
                                     </child>
@@ -9042,6 +9147,7 @@ from temperatures</property>
                                         <property name="visible">True</property>
                                         <property name="label" translatable="yes">gtk-clear</property>
                                         <property name="use_stock">True</property>
+                                        <property name="response_id">0</property>
                                         <signal name="clicked" handler="on_phoebe_star_shape_clear_button_clicked"/>
                                       </widget>
                                       <packing>
@@ -9108,7 +9214,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -9119,14 +9224,12 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="position">3</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -9137,7 +9240,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">3</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -9163,6 +9265,7 @@ from temperatures</property>
                           <widget class="GtkButton" id="phoebe_sidesheet_detach_button">
                             <property name="visible">True</property>
                             <property name="relief">GTK_RELIEF_NONE</property>
+                            <property name="response_id">0</property>
                             <signal name="clicked" handler="on_phoebe_sidesheet_detach_button_clicked"/>
                             <child>
                               <widget class="GtkImage" id="phoebe_sideseet_detach_button_image">
@@ -9195,6 +9298,7 @@ from temperatures</property>
                             <child>
                               <widget class="GtkScrolledWindow" id="phoebe_sidesheet_fitt_scrolledwindow">
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="border_width">4</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
@@ -9235,6 +9339,7 @@ from temperatures</property>
                               <widget class="GtkScrolledWindow" id="phoebe_sidesheet_data_scrolledwindow">
                                 <property name="width_request">120</property>
                                 <property name="visible">True</property>
+                                <property name="can_focus">False</property>
                                 <property name="border_width">4</property>
                                 <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
                                 <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>

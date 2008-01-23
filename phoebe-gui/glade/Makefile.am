@@ -24,6 +24,7 @@ guigladedir = $(datarootdir)/phoebe/gui/glade
 guiglade_DATA = phoebe_about.glade                \
                 phoebe_cormat.glade               \
                 phoebe.glade                      \
+                phoebe_import_bm3.glade           \
                 phoebe_lc_coefficients.glade      \
                 phoebe_ld_interpolator.glade	  \
                 phoebe_levels.glade               \

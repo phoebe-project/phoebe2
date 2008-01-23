@@ -16,6 +16,7 @@ void on_phoebe_file_new_menuitem_activate 					(GtkMenuItem *menuitem, gpointer 
 void on_phoebe_file_open_menuitem_activate 					(GtkMenuItem *menuitem, gpointer user_data);
 void on_phoebe_file_save_menuitem_activate 					(GtkMenuItem *menuitem, gpointer user_data);
 void on_phoebe_file_saveas_menuitem_activate 				(GtkMenuItem *menuitem, gpointer user_data);
+void on_phoebe_file_import_bm3_menuitem_activate            (GtkMenuItem *menuitem, gpointer user_data);
 void on_phoebe_file_quit_menuitem_activate 					(GtkMenuItem *menuitem, gpointer user_data);
 void on_phoebe_settings_configuration_menuitem_activate 	(GtkMenuItem *menuitem, gpointer user_data);
 void on_phoebe_help_about_menuitem_activate 				(GtkMenuItem *menuitem, gpointer user_data);
