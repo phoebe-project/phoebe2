@@ -94,7 +94,7 @@ c       ichno    ..    number of parameter channels (currently 35)
 c
       parameter (ichno=35)
       dimension xtha(4),xfia(4),po(2),omcr(2)
-      dimension abun(19),glog(11),grand(250800),plcof(1250),iband(25)
+      dimension abun(19),glog(11),grand(250800),plcof(1250)
       dimension message(2,4)
       character arad(4)*10
       dimension aa(20),bb(20)
@@ -161,7 +161,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $bl(iptmax),phjd(iptmax),dfdph(iptmax),dfdap(iptmax)
       dimension hla(ncmax),cla(ncmax),x1a(ncmax),x2a(ncmax),y1a(ncmax),
      $y2a(ncmax),el3a(ncmax),wla(ncmax),noise(ncmax),sigma(ncmax),
-     $opsfa(ncmax),knobs(ncmax+2)
+     $opsfa(ncmax),knobs(ncmax+2),iband(ncmax)
       dimension snthh(2*Nmax),csthh(2*Nmax),snthl(2*Nmax),csthl(2*Nmax),
      $snfih(2*igsmax),csfih(2*igsmax),snfil(2*igsmax),csfil(2*igsmax)
       dimension hld(igsmax),tldh(2*igsmax),tldl(2*igsmax)
