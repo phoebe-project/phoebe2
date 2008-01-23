@@ -194,6 +194,7 @@ int scripter_main_loop ()
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 		phoebe_debug ("initializing GNU readline prompt.\n");
 		line = readline (prompt);
+
 		if (line == '\0') {
 			printf ("\n");
 			free (line);
@@ -216,7 +217,7 @@ int scripter_main_loop ()
 				if (line[i] == '{') block_level++;
 				if (line[i] == '}') block_level--;
 			}
-			buffer = malloc (strlen (line)+2);
+			buffer = phoebe_malloc (strlen (line)+2);
 			strcpy (buffer, line);
 			strcat (buffer, " ");
 			free (line);
@@ -225,24 +226,24 @@ int scripter_main_loop ()
 		while (block_level > 0) {
 			sprintf (prompt, "%2d> ", block_level);
 
-			#if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
+#if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 			line = readline (prompt);
 			if (line == '\0') printf ("\n"), scripter_directive_quit (NULL);
 			else if (strlen(line) > 0) add_history (line);
-			#endif
+#endif
 
-			#if (defined HAVE_LIBREADLINE && defined PHOEBE_READLINE_DISABLED) || !defined HAVE_LIBREADLINE
+#if (defined HAVE_LIBREADLINE && defined PHOEBE_READLINE_DISABLED) || !defined HAVE_LIBREADLINE
 			line = phoebe_malloc (255);
 			printf ("%s", prompt);
 			fgets (line, 255, stdin);
-			#endif
+#endif
 
 			for (i = 0; i < strlen(line); i++) {
 				if (line[i] == '{') block_level++;
 				if (line[i] == '}') block_level--;
 			}
 			
-			buffer = realloc (buffer, strlen (buffer) + strlen (line) + 2);
+			buffer = phoebe_realloc (buffer, strlen (buffer) + strlen (line) + 2);
 			strcat (buffer, line);
 			strcat (buffer, " ");
 			free (line);

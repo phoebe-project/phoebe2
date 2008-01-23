@@ -434,8 +434,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       open(unit=23,file=pltab,status='old')
       read(23,*) plcof
       close (23)
-      open(unit=5,file='dcin.active',status='old')
-      open(unit=6,file='dcout.active')
+      open(unit=15,file='dcin.active',status='old')
+      open(unit=16,file='dcout.active')
       tt=2.d0/3.d0
       nbins=1
       nl=1
@@ -482,62 +482,62 @@ c
       NI=0
       NY=0
       KNOBS(1)=0
-      WRITE(6,405)
-      WRITE(6,101)
-      WRITE(6,440)
-      WRITE(6,441)
-      WRITE(6,101)
-      WRITE(6,1440)
-      WRITE(6,1441)
-      WRITE(6,1442)
-      WRITE(6,1443)
-      WRITE(6,1444)
-      WRITE(6,1445)
-      WRITE(6,1446)
-      WRITE(6,1447)
-      WRITE(6,1448)
-      WRITE(6,1449)
-      WRITE(6,1450)
-      WRITE(6,1451)
-      WRITE(6,1452)
-      WRITE(6,1453)
-      WRITE(6,1454)
-      WRITE(6,1455)
-      WRITE(6,1456)
-      WRITE(6,1457)
-      WRITE(6,1458)
-      WRITE(6,1459)
-      WRITE(6,1460)
-      WRITE(6,1461)
-      WRITE(6,1462)
-      WRITE(6,1463)
-      WRITE(6,1464)
-      WRITE(6,1470)
-      WRITE(6,1471)
-      WRITE(6,1472)
-      WRITE(6,1473)
-      WRITE(6,1474)
-      WRITE(6,1465)
-      WRITE(6,1466)
-      WRITE(6,1467)
-      WRITE(6,1468)
-      WRITE(6,1469)
-      READ(5,56)(DEL(I),I=1,8)
-      READ(5,56)(DEL(I),I=10,14),(DEL(I),I=16,20)
-      READ(5,56)(DEL(I),I=21,25),(del(i),i=31,34)
-      READ(5,20)(KEP(I),I=1,35),IFDER,IFM,IFR,xlamda
-      READ(5,60) KSPA,NSPA,KSPB,NSPB
-      READ(5,705)IFVC1,IFVC2,NLC,KO,KDISK,ISYM,nppl
-      read(5,911)nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
-      read(5,649) jdphs,hjd0,period,dpdt,pshift
-      if(jdphs.eq.2.and.kep(26).eq.0) write(6,840)
-      if(jdphs.eq.2.and.kep(27).eq.0) write(6,840)
-      if(jdphs.eq.2.and.kep(28).eq.0) write(6,840)
-      if(kep(14).eq.0.and.kep(26).eq.0) write(6,839)
-      READ(5,701)MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,perr0,dperdt,THE,
+      WRITE(16,405)
+      WRITE(16,101)
+      WRITE(16,440)
+      WRITE(16,441)
+      WRITE(16,101)
+      WRITE(16,1440)
+      WRITE(16,1441)
+      WRITE(16,1442)
+      WRITE(16,1443)
+      WRITE(16,1444)
+      WRITE(16,1445)
+      WRITE(16,1446)
+      WRITE(16,1447)
+      WRITE(16,1448)
+      WRITE(16,1449)
+      WRITE(16,1450)
+      WRITE(16,1451)
+      WRITE(16,1452)
+      WRITE(16,1453)
+      WRITE(16,1454)
+      WRITE(16,1455)
+      WRITE(16,1456)
+      WRITE(16,1457)
+      WRITE(16,1458)
+      WRITE(16,1459)
+      WRITE(16,1460)
+      WRITE(16,1461)
+      WRITE(16,1462)
+      WRITE(16,1463)
+      WRITE(16,1464)
+      WRITE(16,1470)
+      WRITE(16,1471)
+      WRITE(16,1472)
+      WRITE(16,1473)
+      WRITE(16,1474)
+      WRITE(16,1465)
+      WRITE(16,1466)
+      WRITE(16,1467)
+      WRITE(16,1468)
+      WRITE(16,1469)
+      READ(15,56)(DEL(I),I=1,8)
+      READ(15,56)(DEL(I),I=10,14),(DEL(I),I=16,20)
+      READ(15,56)(DEL(I),I=21,25),(del(i),i=31,34)
+      READ(15,20)(KEP(I),I=1,35),IFDER,IFM,IFR,xlamda
+      READ(15,60) KSPA,NSPA,KSPB,NSPB
+      READ(15,705)IFVC1,IFVC2,NLC,KO,KDISK,ISYM,nppl
+      read(15,911)nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
+      read(15,649) jdphs,hjd0,period,dpdt,pshift
+      if(jdphs.eq.2.and.kep(26).eq.0) write(16,840)
+      if(jdphs.eq.2.and.kep(27).eq.0) write(16,840)
+      if(jdphs.eq.2.and.kep(28).eq.0) write(16,840)
+      if(kep(14).eq.0.and.kep(26).eq.0) write(16,839)
+      READ(15,701)MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,perr0,dperdt,THE,
      $vunit
-      READ(5,702)E,A,F1,F2,VGA,XINCL,GR1,GR2,abunin
-      READ(5,706) TAVH,TAVC,ALB1,ALB2,PHSV,PCSV,RM,xbol1,xbol2,ybol1,
+      READ(15,702)E,A,F1,F2,VGA,XINCL,GR1,GR2,abunin
+      READ(15,706) TAVH,TAVC,ALB1,ALB2,PHSV,PCSV,RM,xbol1,xbol2,ybol1,
      $ybol2
       acm=6.960d10*a
       nn1=n1
@@ -593,19 +593,19 @@ c
       KOSQ=(KO-2)*(KO-2)
       IF(NVC.EQ.0) GOTO 195
       DO 90 I=1,NVC
-   90 READ(5,218) iband(i),HLA(I),CLA(I),X1A(I),X2A(I),y1a(i),y2a(i),
+   90 READ(15,218) iband(i),HLA(I),CLA(I),X1A(I),X2A(I),y1a(i),y2a(i),
      $opsfa(i),sigma(i),wla(i)
   195 CONTINUE
       IF(NLVC.EQ.NVC) GOTO 194
       DO 190 I=NVCP,NLVC
-  190 read(5,18)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
+  190 read(15,18)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
      $el3a(i),opsfa(i),noise(i),sigma(i),wla(i)
   194 CONTINUE
       NSP1=0
       NSP2=0
       DO 988 KP=1,2
       DO 987 I=1,ispmax
-      READ(5,985)XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
+      READ(15,985)XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
       xlng(kp,i)=xlong(kp,i)
       IF(XLAT(KP,I).GE.200.d0) GOTO 988
       SNLAT(KP,I)=dsin(XLAT(KP,I))
@@ -620,7 +620,7 @@ c
       NSTOT=NSP1+NSP2
       ncl=0
       do 1062 i=1,iclmax
-      read(5,1063) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
+      read(15,1063) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
      $xmue(i),encl(i)
       if(xcl(i).gt.100.d0) goto 1066
       ncl=ncl+1
@@ -702,7 +702,7 @@ c  allowed value nearest the input value.
       if((dif.ge.0.d0).and.(dif.le.0.5d0)) goto 7702
       iab=iab+1
  7702 continue
-      if(dif1.ne.0.d0) write(6,287) abunin,abun(iab)
+      if(dif1.ne.0.d0) write(16,287) abunin,abun(iab)
       abunin=abun(iab)
       istart=1+(iab-1)*13200
 c***************************************************************
@@ -766,86 +766,86 @@ c***************************************************************
       del(28)=0.d0
       del(29)=0.d0
       DEL(35)=0.d0
-      WRITE(6,101)
-      WRITE(6,399)
-      WRITE(6,55)(DEL(I),I=1,8)
-      WRITE(6,101)
-      WRITE(6,402)
-      WRITE(6,55)(DEL(I),I=10,14),(DEL(I),I=16,20)
-      WRITE(6,101)
-      WRITE(6,403)
-      WRITE(6,55)(DEL(I),I=21,25),(del(i),i=31,34)
-      WRITE(6,101)
-      WRITE(6,406)
-      WRITE(6,20)(KEP(I),I=1,35),IFDER,IFM,IFR,xlamda
-      WRITE(6,101)
-      WRITE(6,166)
-      WRITE(6,66)
-      WRITE(6,61) KSPA,NSPA,KSPB,NSPB
-      WRITE(6,101)
-      WRITE(6,707)
-      WRITE(6,708)IFVC1,IFVC2,NLC,KO,KDISK,ISYM,nppl
-      WRITE(6,101)
-      write(6,917)
-      write(6,912)nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
-      WRITE(6,101)
-      write(6,171)
-      write(6,170) jdphs,hjd0,period,dpdt,pshift
-      WRITE(6,101)
-      WRITE(6,12)
-      WRITE(6,1)MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,perr0,dperdt,THE,
+      WRITE(16,101)
+      WRITE(16,399)
+      WRITE(16,55)(DEL(I),I=1,8)
+      WRITE(16,101)
+      WRITE(16,402)
+      WRITE(16,55)(DEL(I),I=10,14),(DEL(I),I=16,20)
+      WRITE(16,101)
+      WRITE(16,403)
+      WRITE(16,55)(DEL(I),I=21,25),(del(i),i=31,34)
+      WRITE(16,101)
+      WRITE(16,406)
+      WRITE(16,20)(KEP(I),I=1,35),IFDER,IFM,IFR,xlamda
+      WRITE(16,101)
+      WRITE(16,166)
+      WRITE(16,66)
+      WRITE(16,61) KSPA,NSPA,KSPB,NSPB
+      WRITE(16,101)
+      WRITE(16,707)
+      WRITE(16,708)IFVC1,IFVC2,NLC,KO,KDISK,ISYM,nppl
+      WRITE(16,101)
+      write(16,917)
+      write(16,912)nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
+      WRITE(16,101)
+      write(16,171)
+      write(16,170) jdphs,hjd0,period,dpdt,pshift
+      WRITE(16,101)
+      WRITE(16,12)
+      WRITE(16,1)MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,perr0,dperdt,THE,
      $vunit,vfac
-      WRITE(6,101)
-      WRITE(6,205)
-      WRITE(6,206) E,A,F1,F2,VGA,XINCL,GR1,GR2,nsp1,nsp2,abunin,iab
-      WRITE(6,101)
-      WRITE(6,54)
-      WRITE(6,408) TAVH,TAVC,ALB1,ALB2,PHSV,PCSV,RM,xbol1,xbol2,ybol1,
+      WRITE(16,101)
+      WRITE(16,205)
+      WRITE(16,206) E,A,F1,F2,VGA,XINCL,GR1,GR2,nsp1,nsp2,abunin,iab
+      WRITE(16,101)
+      WRITE(16,54)
+      WRITE(16,408) TAVH,TAVC,ALB1,ALB2,PHSV,PCSV,RM,xbol1,xbol2,ybol1,
      $ybol2
       IF(NVC.EQ.0) GOTO 196
-      WRITE(6,101)
-      WRITE(6,111)
+      WRITE(16,101)
+      WRITE(16,111)
       DO 91 I=1,NVC
-   91 WRITE(6,218)iband(I),HLA(I),CLA(I),X1A(I),X2A(I),y1a(i),y2a(i),
+   91 WRITE(16,218)iband(I),HLA(I),CLA(I),X1A(I),X2A(I),y1a(i),y2a(i),
      $opsfa(i),sigma(i),wla(i)
   196 CONTINUE
       IF(NLVC.EQ.NVC) GOTO 197
-      WRITE(6,101)
-      WRITE(6,11)
+      WRITE(16,101)
+      WRITE(16,11)
       DO 92 I=NVCP,NLVC
-   92 write(6,85)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
+   92 write(16,85)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
      $el3a(i),opsfa(i),noise(i),sigma(i),wla(i)
   197 CONTINUE
-      WRITE(6,101)
-      IF(NSTOT.GT.0) WRITE(6,983)
+      WRITE(16,101)
+      IF(NSTOT.GT.0) WRITE(16,983)
       DO 688 KP=1,2
       IF((NSP1+KP-1).EQ.0) GOTO 688
       IF((NSP2+(KP-2)**2).EQ.0) GOTO 688
       NSPOT=NSP1
       IF(KP.EQ.2) NSPOT=NSP2
       DO 687 I=1,NSPOT
-  687 WRITE(6,684)KP,XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
-  688 WRITE(6,101)
+  687 WRITE(16,684)KP,XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
+  688 WRITE(16,101)
       if(ncl.eq.0) goto 1067
-      write(6,69)
+      write(16,69)
       do 68 i=1,ncl
-   68 write(6,64) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
+   68 write(16,64) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
      $xmue(i),encl(i),dens(i)
-      write(6,101)
+      write(16,101)
  1067 continue
-      WRITE(6,101)
-      WRITE(6,9)
+      WRITE(16,101)
+      WRITE(16,9)
       DO 75 LCV=1,NLVC
-      WRITE(6,101)
-      IF(LCV.LE.NVC.and.jdphs.eq.2) WRITE(6,955)
-      IF(LCV.GT.NVC.and.jdphs.eq.2) WRITE(6,10)
-      IF(LCV.LE.NVC.and.jdphs.eq.1) WRITE(6,755)
-      IF(LCV.GT.NVC.and.jdphs.eq.1) WRITE(6,756)
+      WRITE(16,101)
+      IF(LCV.LE.NVC.and.jdphs.eq.2) WRITE(16,955)
+      IF(LCV.GT.NVC.and.jdphs.eq.2) WRITE(16,10)
+      IF(LCV.LE.NVC.and.jdphs.eq.1) WRITE(16,755)
+      IF(LCV.GT.NVC.and.jdphs.eq.1) WRITE(16,756)
       DO 74 I=NS,iptmax
       ifirst=nppl*(i-1)+NY+1
       last=ifirst+nppl-1
-      READ(5,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
-      WRITE(6,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
+      READ(15,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
+      WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
       IF(phjd(ifirst).gt.-10000.d0) GOTO 74
       NI=-(phjd(ifirst)+10000.d0)
       NY=NY+NI
@@ -1502,12 +1502,12 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   418 CONTINUE
   417 CONTINUE
   419 CONTINUE
-      write(6,101)
-      write(6,101)
-      write(6,101)
-      write(6,159)
-      write(6,101)
-      write(6,169)
+      write(16,101)
+      write(16,101)
+      write(16,101)
+      write(16,159)
+      write(16,101)
+      write(16,169)
       do 298 icv=1,nlvc
       icvp=icv+1
       nbs=knobs(icvp)-knobs(icv)
@@ -1519,7 +1519,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       do 299 jres=jstart,jstop
       iww=iww+1
   299 resq=resq+wt(iww)*obs(jres)**2
-      write(6,119) icv,nbs,resq
+      write(16,119) icv,nbs,resq
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     PHOEBE extension:
@@ -1528,14 +1528,14 @@ c
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   298 continue
-      write(6,101)
+      write(16,101)
       do 909 komp=1,2
-      if(message(komp,1).eq.1) write(6,283) komp
-      if(message(komp,2).eq.1) write(6,284) komp
-      if(message(komp,3).eq.1) write(6,285) komp
-      if(message(komp,4).eq.1) write(6,286) komp
+      if(message(komp,1).eq.1) write(16,283) komp
+      if(message(komp,2).eq.1) write(16,284) komp
+      if(message(komp,3).eq.1) write(16,285) komp
+      if(message(komp,4).eq.1) write(16,286) komp
   909 continue
-      write(6,101)
+      write(16,101)
       GOTO 65
    71 JF=0
       IF(KO.EQ.0) stop
@@ -1544,10 +1544,10 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       IF(KDISK.EQ.0) GOTO 72
       REWIND 9
       READ(9,67)(OBS(J),J=1,NCOF)
-   72 READ(5,20)(KEEP(I),I=1,35),IFDER,IFM,IFR,xlamda
+   72 READ(15,20)(KEEP(I),I=1,35),IFDER,IFM,IFR,xlamda
       if(keep(1).ne.2) goto 866
-      close (5)
-      close (6)
+      close (15)
+      close (16)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     PHOEBE extension: stop changed to return
@@ -1588,25 +1588,25 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    32 OBS(JF)=OBS(KX)
    30 CONTINUE
    65 continue
-      WRITE(6,20)(KEEP(I),I=1,35),IFDER,IFM,IFR,xlamda
+      WRITE(16,20)(KEEP(I),I=1,35),IFDER,IFM,IFR,xlamda
       NOBS=KNOBS(LC1)
-      WRITE(6,101)
+      WRITE(16,101)
       IF(IFDER.EQ.0) KTR=5
-      WRITE(6,82)
-      WRITE(6,101)
+      WRITE(16,82)
+      WRITE(16,101)
       DO 96 IB=1,NLVC
       IST=KNOBS(IB)+1
       IB1=IB+1
       ISP=KNOBS(IB1)
       DO 96 I=IST,ISP
       GOTO(5,6,7,8,96),KTR
-    5 WRITE(6,15)(OBS(J),J=I,NCOEFF,NOBS)
+    5 WRITE(16,15)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 96
-    6 WRITE(6,16)(OBS(J),J=I,NCOEFF,NOBS)
+    6 WRITE(16,16)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 96
-    7 WRITE(6,17)(OBS(J),J=I,NCOEFF,NOBS)
+    7 WRITE(16,17)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 96
-    8 WRITE(6,19)(OBS(J),J=I,NCOEFF,NOBS)
+    8 WRITE(16,19)(OBS(J),J=I,NCOEFF,NOBS)
    96 CONTINUE
       IF(KO.LE.1) GOTO 70
       IF(IBEF.EQ.1) GOTO 70
@@ -1616,7 +1616,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       REWIND 9
       WRITE(9,67)(OBS(J),J=1,NCOEFF)
    73 CONTINUE
-   70 WRITE(6,101)
+   70 WRITE(16,101)
       DO 97 IB=1,NLVC
       IST=KNOBS(IB)+1
       IB1=IB+1
@@ -1630,30 +1630,30 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   445 CONTINUE
       DO 97 LOB=I,NCOEFF,NOBS
    97 OBS(LOB)=OBS(LOB)*ROOTWT
-      IF(IFDER.NE.0) WRITE(6,83)
-      IF(IFDER.NE.0) WRITE(6,101)
+      IF(IFDER.NE.0) WRITE(16,83)
+      IF(IFDER.NE.0) WRITE(16,101)
       DO 98 I=1,NOBS
       GOTO(45,46,47,48,98),KTR
-   45 WRITE(6,15)(OBS(J),J=I,NCOEFF,NOBS)
+   45 WRITE(16,15)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 98
-   46 WRITE(6,16)(OBS(J),J=I,NCOEFF,NOBS)
+   46 WRITE(16,16)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 98
-   47 WRITE(6,17)(OBS(J),J=I,NCOEFF,NOBS)
+   47 WRITE(16,17)(OBS(J),J=I,NCOEFF,NOBS)
       GOTO 98
-   48 WRITE(6,19)(OBS(J),J=I,NCOEFF,NOBS)
+   48 WRITE(16,19)(OBS(J),J=I,NCOEFF,NOBS)
    98 CONTINUE
       CALL square (OBS,NOBS,MAT,OUT,sd,xlamda,deter,CN,CNN,cnc,clc,
      $s,ccl,ll,mm)
       MSQ=MAT*MAT
       IF(IFM.EQ.0) GOTO 436
-      WRITE(6,101)
-      WRITE(6,181)
-      WRITE(6,101)
+      WRITE(16,101)
+      WRITE(16,181)
+      WRITE(16,101)
       DO 38 JR=1,MAT
-   38 WRITE(6,37) (CN(JX),JX=JR,MSQ,MAT),CCL(JR)
-      WRITE(6,101)
-      WRITE(6,183)
-      WRITE(6,101)
+   38 WRITE(16,37) (CN(JX),JX=JR,MSQ,MAT),CCL(JR)
+      WRITE(16,101)
+      WRITE(16,183)
+      WRITE(16,101)
   436 CONTINUE
       NO1=23
       NO2=24
@@ -1677,17 +1677,17 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       co2q=0.d0
       if(jm.eq.nrm.and.no1.gt.0) co1q=v(no1)*corq*coro1
       if(jm.eq.nrm.and.no2.gt.0) co2q=v(no2)*corq*coro2
-   34 WRITE(6,37)(V(IM),IM=1,MAT)
+   34 WRITE(16,37)(V(IM),IM=1,MAT)
       IF(IFM.EQ.0) GOTO 36
-      WRITE(6,101)
-      WRITE(6,184)
-      WRITE(6,101)
+      WRITE(16,101)
+      WRITE(16,184)
+      WRITE(16,101)
       CALL DGMPRD(CN,CNN,CNOUT,MAT,MAT,MAT)
       DO 116 J8=1,MAT
-  116 WRITE(6,37)(CNOUT(J7),J7=J8,MSQ,MAT)
-      WRITE(6,101)
-      WRITE(6,185)
-      WRITE(6,101)
+  116 WRITE(16,37)(CNOUT(J7),J7=J8,MSQ,MAT)
+      WRITE(16,101)
+      WRITE(16,185)
+      WRITE(16,101)
       ANSCH=0.D0
       DO 118 J5=1,MAT
       V(J5)=0.D0
@@ -1698,15 +1698,15 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   117 V(J5)=OUT(J6)*CN(I9)*dsqrt(cnc(idi))+V(J5)
       ERR=V(J5)-CCL(J5)
   118 ANSCH=ANSCH+DABS(ERR)
-      WRITE(6,137)(V(J4),J4=1,MAT)
-      WRITE(6,101)
-      WRITE(6,138) ANSCH
+      WRITE(16,137)(V(J4),J4=1,MAT)
+      WRITE(16,101)
+      WRITE(16,138) ANSCH
    36 CONTINUE
-      WRITE(6,101)
-      WRITE(6,101)
-      write(6,715)
-      WRITE(6,101)
-      write(6,43)
+      WRITE(16,101)
+      WRITE(16,101)
+      write(16,715)
+      WRITE(16,101)
+      write(16,43)
       iout=0
       do 93 kpar=1,35
       imax=1
@@ -1719,14 +1719,14 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       ipar=kpar
       if(kpar.gt.30) ipar=30+kurv+(kpar-31)*nlc
       parout=para(ipar)+out(iout)
-      write(6,615) kpar,kcurv,para(ipar),out(iout),parout,sd(iout)
+      write(16,615) kpar,kcurv,para(ipar),out(iout),parout,sd(iout)
    94 continue
    93 continue
-      WRITE(6,101)
-      WRITE(6,101)
-      write(6,716)
-      WRITE(6,101)
-      write(6,43)
+      WRITE(16,101)
+      WRITE(16,101)
+      write(16,716)
+      WRITE(16,101)
+      write(16,43)
       iout=0
       do 53 kpar=1,35
       imax=1
@@ -1762,7 +1762,7 @@ c
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       parout=para(ipar)+out(iout)
-      write(6,616) kpar,kcurv,para(ipar),out(iout),parout,sd(iout)
+      write(16,616) kpar,kcurv,para(ipar),out(iout),parout,sd(iout)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     PHOEBE extension:
@@ -1773,7 +1773,7 @@ c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    52 continue
    53 continue
-      WRITE(6,101)
+      WRITE(16,101)
       RESSQ=0.d0
       JST=MAT*NOBS+1
       DO 199 JRES=JST,NCOEFF
@@ -1785,18 +1785,18 @@ c
       cfval=ressq
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-      WRITE(6,101)
-      WRITE(6,40)
-      WRITE(6,21) RESSQ,S,deter
+      WRITE(16,101)
+      WRITE(16,40)
+      WRITE(16,21) RESSQ,S,deter
       IBEF=1
       IF(IFR.EQ.0) GOTO 71
-      WRITE(6,101)
-      WRITE(6,101)
-      WRITE(6,650)
-      WRITE(6,101)
-      WRITE(6,101)
-      WRITE(6,653)
-      WRITE(6,101)
+      WRITE(16,101)
+      WRITE(16,101)
+      WRITE(16,650)
+      WRITE(16,101)
+      WRITE(16,101)
+      WRITE(16,653)
+      WRITE(16,101)
       DO1=0.0
       if (NO1.ne.0) DO1=sd(NO1)*CORO1
       DO2=0.0
@@ -1821,7 +1821,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       FI=XFIA(KD)
       CALL ROMQ(OME,RM,F,DP,E,TH,FI,R,DRDO,DRDQ,DODQ,KOMP,MODE)
       DR=dsqrt(DRDQ**2*DQ**2+DRDO**2*DOM**2+2.d0*COQ*DRDQ*DRDO*DQ*DOM)
-      WRITE(6,654)KOMP,ARAD(KD),R,DRDO,DRDQ,DR
+      WRITE(16,654)KOMP,ARAD(KD),R,DRDO,DRDQ,DR
   926 CONTINUE
       DO2DQ=DODQ
       IF(KOMP.EQ.1)DO1DQ=DODQ
@@ -1829,10 +1829,10 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       F=F2
       OME=PCSV
       DOM=DO2
-      WRITE(6,101)
+      WRITE(16,101)
       IF(KOMP.EQ.1) GOTO 925
-      WRITE(6,101)
-      WRITE(6,651)
-      IF(KOMP.EQ.2) WRITE(6,652)DO1DQ,DO2DQ,CO1Q,CO2Q,DO1,DO2,DQ
+      WRITE(16,101)
+      WRITE(16,651)
+      IF(KOMP.EQ.2) WRITE(16,652)DO1DQ,DO2DQ,CO1Q,CO2Q,DO1,DO2,DQ
       GOTO 71
       END

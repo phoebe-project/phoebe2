@@ -178,7 +178,7 @@ c    Version of December 18, 2003
       OM1=RM*OM1+(1.d0-RM)*.5d0
       IF(POTC.LT.OM1) GOTO 22
       IF(RA.LE.XLA) GOTO 28
-   22 WRITE(6,99)
+   22 WRITE(16,99)
       RETURN
    28 CONTINUE
       IF(E.NE.0.d0) CALL VOLUME(VTHE,RM,POTC,DTHE,F2,N2,N1,2,RV,GRX,
@@ -191,6 +191,6 @@ c    Version of December 18, 2003
      $GLUMP2,GMAG1,GMAG2,glog1,glog2,GR2,2)
       CALL ELLONE(F2,DP,RMR,XLD,OMP,XL2,OM2)
       OMP=RM*OMP+(1.d0-RM)*.5d0
-      IF(POTC.LT.OMP) WRITE(6,95)
+      IF(POTC.LT.OMP) WRITE(16,95)
       RETURN
       END

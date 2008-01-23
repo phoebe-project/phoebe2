@@ -52,7 +52,8 @@ int scripter_register_all_commands ()
 	scripter_command_register ("minimize_using_nms",           scripter_minimize_using_nms);
 	scripter_command_register ("minimize_using_dc",            scripter_minimize_using_dc);
 	scripter_command_register ("adopt_minimizer_results",      scripter_adopt_minimizer_results);
-
+	scripter_command_register ("compute_light_levels",         scripter_compute_light_levels);
+	
 	/* Commands for handling spectral energy distributions (SED):             */
 	scripter_command_register ("set_spectra_repository",       scripter_set_spectra_repository);
 	scripter_command_register ("set_spectrum_properties",      scripter_set_spectrum_properties);
@@ -1147,6 +1148,100 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 
 	scripter_ast_value_array_free (vals, 1);
 	out.type = type_void;
+	return out;
+}
+
+scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
+{
+	/*
+	 * This function computes the light levels (HLAs).
+	 *
+	 * Synopsis:
+	 *
+	 *   compute_light_levels ()
+	 *   compute_light_levels (curve)
+	 *
+	 * In the first case the command returns an array of computed light
+	 * levels for all curves, whereas in the second case the command returns
+	 * the computed light level of the passed curve.
+	 */
+
+	scripter_ast_value *vals;
+	scripter_ast_value out;
+
+	PHOEBE_vector *levels = NULL;
+
+	double level, alpha;
+	int index, lcno;
+
+	PHOEBE_curve *syncurve;
+	PHOEBE_curve *obs;
+
+	int status = scripter_command_args_evaluate (args, &vals, 0, 1, type_int);
+	if (status != SUCCESS) {
+		out.type = type_void;
+		return out;
+	}
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+
+	if (vals[0].type != type_void) {
+		index = vals[0].value.i;
+	}
+	else {
+		index = 1;
+		levels = phoebe_vector_new ();
+		phoebe_vector_alloc (levels, lcno);
+	}
+
+	if (index < 1 || index > lcno) {
+		phoebe_scripter_output ("passband index %d out of range, aborting.\n", index);
+		scripter_ast_value_array_free (vals, 1);
+		phoebe_vector_free (levels);
+		out.type = type_void;
+		return out;
+	}
+
+	while (index <= lcno) {
+		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index-1);
+		phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
+
+		/* Synthesize a theoretical curve: */
+		syncurve = phoebe_curve_new ();
+		phoebe_curve_compute (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
+
+		status = phoebe_calculate_level_correction (&alpha, syncurve, obs);
+		if (status != SUCCESS) {
+			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+			scripter_ast_value_array_free (vals, 1);
+			phoebe_vector_free (levels);
+			phoebe_curve_free (obs);
+			phoebe_curve_free (syncurve);
+			out.type = type_void;
+			return out;
+		}
+
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index-1, &level);
+		level /= alpha;
+
+		phoebe_curve_free (obs);
+		phoebe_curve_free (syncurve);
+
+		if (vals[0].type != type_void) {
+			scripter_ast_value_array_free (vals, 1);
+			out.type = type_double;
+			out.value.d = level;
+			return out;
+		}
+		else {
+			levels->val[index-1] = level;
+			index++;
+		}
+	}
+
+	scripter_ast_value_array_free (vals, 1);
+	out.type = type_vector;
+	out.value.vec = levels;
 	return out;
 }
 
