@@ -28,34 +28,34 @@
    85 format(4f9.5)
    63 format(3f9.4,f7.4,d11.4,f9.4,d11.3,f9.4,f7.3)
 
-      read(5,22) mpage,nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
+      read(15,22) mpage,nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
 
       if(mpage.eq.9) return
 
   414 continue
 
-      read(5,649) jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed
-      read(5,217) hjdst,hjdsp,hjdin,phstrt,phstop,phin,phn
-      read(5,  1) mode,ipb,ifat1,ifat2,n1,n2,perr0,dperdt,the,vunit
-      read(5,  2) e,a,f1,f2,vga,xincl,gr1,gr2,abunin
-      read(5,  6) tavh,tavc,alb1,alb2,poth,potc,rm,xbol1,xbol2,ybol1,
+      read(15,649) jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed
+      read(15,217) hjdst,hjdsp,hjdin,phstrt,phstop,phin,phn
+      read(15,  1) mode,ipb,ifat1,ifat2,n1,n2,perr0,dperdt,the,vunit
+      read(15,  2) e,a,f1,f2,vga,xincl,gr1,gr2,abunin
+      read(15,  6) tavh,tavc,alb1,alb2,poth,potc,rm,xbol1,xbol2,ybol1,
      $ybol2
-      read(5,  4) iband,hlum,clum,xh,xc,yh,yc,el3,opsf,zero,factor,wl
+      read(15,  4) iband,hlum,clum,xh,xc,yh,yc,el3,opsf,zero,factor,wl
 
       if(mpage.ne.3) goto 897
 
-      read(5,2048) binwm1,sc1,sl1,nf1
+      read(15,2048) binwm1,sc1,sl1,nf1
 
       do 86 iln=1,lpimax
-      read(5,138) wll1(iln),ewid1(iln),depth1(iln),kks(1,iln)
+      read(15,138) wll1(iln),ewid1(iln),depth1(iln),kks(1,iln)
       if(wll1(iln).lt.0.d0) goto 89
    86 continue
    89 continue
 
-      read(5,2048) binwm2,sc2,sl2,nf2
+      read(15,2048) binwm2,sc2,sl2,nf2
 
       do 99 iln=1,lpimax
-      read(5,138) wll2(iln),ewid2(iln),depth2(iln),kks(2,iln)
+      read(15,138) wll2(iln),ewid2(iln),depth2(iln),kks(2,iln)
       if(wll2(iln).lt.0.d0) goto 91
    99 continue
    91 continue
@@ -64,13 +64,13 @@
 
       DO 88 KP=1,2
       DO 87 I=1,ispmax
-      READ(5,85) xlat(KP,I),xlong(KP,I),radsp(KP,I),temsp(KP,I)
+      READ(15,85) xlat(KP,I),xlong(KP,I),radsp(KP,I),temsp(KP,I)
       IF(XLAT(KP,I).GE.200.d0) GOTO 88
    87 continue
    88 continue
 
       do 62 i=1,iclmax
-      read(5,63) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
+      read(15,63) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
      $xmue(i),encl(i)
       if(xcl(i).gt.100.d0) goto 66
    62 continue

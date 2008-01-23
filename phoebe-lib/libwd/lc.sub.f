@@ -253,8 +253,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       read(23,*) plcof
       close(22)
       close(23)
-      open(unit=5,file='lcin.active',status='old')
-      open(unit=6,file='lcout.active')
+      open(unit=15,file='lcin.active',status='old')
+      open(unit=16,file='lcout.active')
       ibef=0
       nf1=1
       nf2=1
@@ -270,8 +270,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $xcl,ycl,zcl,rcl,op1,fcl,edens,xmue,encl,lpimax,ispmax,iclmax)
 
       if(mpage.ne.9) goto 414
-      close(5)
-      close(6)
+      close(15)
+      close(16)
       return
   414 continue
       message(1,1)=0

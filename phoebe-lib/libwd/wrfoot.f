@@ -25,18 +25,18 @@
      $)
 
       do 909 komp=1,2
-      write(6,*)
-      if(message(komp,1).eq.1) write(6,283) komp
-      if(message(komp,2).eq.1) write(6,284) komp
-      if(message(komp,3).eq.1) write(6,285) komp
-      if(message(komp,4).eq.1) write(6,286) komp
+      write(16,*)
+      if(message(komp,1).eq.1) write(16,283) komp
+      if(message(komp,2).eq.1) write(16,284) komp
+      if(message(komp,3).eq.1) write(16,285) komp
+      if(message(komp,4).eq.1) write(16,286) komp
   909 continue
 
       if(mpage.eq.5) return
 
-      write(6,*)
-      write(6,41)
-      write(6,*)
+      write(16,*)
+      write(16,41)
+      write(16,*)
 
       do 119 ii=1,2
       gt1=dfloat(2-ii)
@@ -46,11 +46,11 @@
       call romq(po(ii),rm,f,dp,e,xtha(i),xfia(i),rad(i),drdo(i),
      $drdq,dodq,ii,mode)
   118 continue
-      write(6,40) ii,rad(1),drdo(1),rad(2),drdo(2),rad(3),drdo(3),
+      write(16,40) ii,rad(1),drdo(1),rad(2),drdo(2),rad(3),drdo(3),
      $rad(4),drdo(4)
   119 continue
 
-      write(6,*)
-      if(mpage.eq.2) write(6,74)
+      write(16,*)
+      if(mpage.eq.2) write(16,74)
 
       end

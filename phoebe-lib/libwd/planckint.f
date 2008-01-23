@@ -55,7 +55,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       y=10.d0**ylog
       return
   11  continue
-      write(6,*) "planckint subroutine problem: T=", t, " is illegal."
+      write(16,*) "planckint subroutine problem: T=", t, " is illegal."
       stop
 c 80  format('Program stopped in PLANCKINT,
 c    $T outside 500 - 500,300 K range.')
