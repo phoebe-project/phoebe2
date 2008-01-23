@@ -53,6 +53,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "you don't have permissions to access the file.\n";
 		case ERROR_FILE_IS_INVALID:
 			return "the file is invalid.\n";
+		case ERROR_FILE_OPEN_FAILED:
+			return "the file failed to open.\n";
 		case ERROR_FILE_IS_EMPTY:
 			return "the file is empty.\n";
 		case ERROR_FILE_HAS_NO_DATA:
