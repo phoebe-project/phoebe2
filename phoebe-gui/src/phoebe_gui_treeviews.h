@@ -141,6 +141,7 @@ int gui_para_lum_levels_edit			();
 int gui_para_lum_el3_edit				();
 int gui_fitt_levelweight_edit			();
 int gui_para_lc_coefficents_edit		();
+int gui_para_rv_coefficents_edit 		();
 int gui_data_lc_treeview_remove			();
 int gui_data_rv_treeview_remove			();
 

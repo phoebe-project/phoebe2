@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Wed Sep 26 14:53:08 2007 by gal@brjav-->
+<!--Generated with glade3 3.0.3 on Wed Jan 23 15:52:24 2008 by gal@brjav-->
 <glade-interface>
   <widget class="GtkDialog" id="phoebe_lc_coefficents_dialog">
     <property name="width_request">340</property>
@@ -19,7 +19,6 @@
         <child>
           <widget class="GtkFrame" id="frame1">
             <property name="visible">True</property>
-            <property name="label_xalign">0</property>
             <child>
               <widget class="GtkVBox" id="vbox1">
                 <property name="visible">True</property>
@@ -63,7 +62,7 @@
                     <property name="n_rows">4</property>
                     <property name="n_columns">2</property>
                     <child>
-                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_y2_spinbutton">
+                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_x2_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="adjustment">0 0 100 0.01 1 1</property>
@@ -72,6 +71,54 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_x1_spinbutton">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="adjustment">0 0 100 0.01 0 0</property>
+                        <property name="digits">5</property>
+                      </widget>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label5">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">X2:</property>
+                      </widget>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label4">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">X1:</property>
+                      </widget>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label3">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Y1:</property>
+                      </widget>
+                      <packing>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <widget class="GtkLabel" id="label6">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Y2:</property>
+                      </widget>
+                      <packing>
                         <property name="top_attach">3</property>
                         <property name="bottom_attach">4</property>
                       </packing>
@@ -91,55 +138,7 @@
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="label6">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Y2:</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">3</property>
-                        <property name="bottom_attach">4</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="label3">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Y1:</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">2</property>
-                        <property name="bottom_attach">3</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="label4">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">X1:</property>
-                      </widget>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="label5">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">X2:</property>
-                      </widget>
-                      <packing>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_x1_spinbutton">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="adjustment">0 0 100 0.01 0 0</property>
-                        <property name="digits">5</property>
-                      </widget>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_x2_spinbutton">
+                      <widget class="GtkSpinButton" id="phoebe_lc_coefficents_y2_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="adjustment">0 0 100 0.01 1 1</property>
@@ -148,8 +147,8 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
                       </packing>
                     </child>
                   </widget>
@@ -160,7 +159,7 @@
               </widget>
             </child>
             <child>
-              <widget class="GtkLabel" id="label1">
+              <widget class="GtkLabel" id="phoebe_lc_coefficents_frame_label">
                 <property name="visible">True</property>
                 <property name="xpad">4</property>
                 <property name="label" translatable="yes">&lt;b&gt;LC Coefficents&lt;/b&gt;</property>

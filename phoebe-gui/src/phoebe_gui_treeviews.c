@@ -1872,6 +1872,84 @@ int gui_para_lc_coefficents_edit ()
 }
 
 
+int gui_para_rv_coefficents_edit ()
+{
+	int status = 0;
+
+	PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
+ 	int rvno;
+	phoebe_parameter_get_value(par, &rvno);
+
+	if(rvno>0){
+
+		GtkTreeModel     *model;
+		GtkTreeIter       iter;
+		GtkTreeSelection *selection;
+
+		gchar *passband;
+		gdouble x1,x2,y1,y2;
+
+		GtkWidget *treeview = gui_widget_lookup("phoebe_data_rv_treeview")->gtk;
+		model = gtk_tree_view_get_model((GtkTreeView*)treeview);
+
+		treeview = gui_widget_lookup("phoebe_para_rv_ld_treeview")->gtk;
+
+        selection = gtk_tree_view_get_selection((GtkTreeView*)treeview);
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+			gtk_tree_model_get(model, &iter,    RV_COL_FILTER,	&passband,
+												RV_COL_X1,		&x1,
+												RV_COL_X2,		&x2,
+												RV_COL_Y1,		&y1,
+												RV_COL_Y2,		&y2, -1);
+
+			/* We use the same dialog as in the LC case */
+    		gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_lc_coefficients.glade", NULL);
+			gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+			GladeXML  *phoebe_rv_coefficents_xml	        = glade_xml_new        (glade_xml_file, NULL, NULL);
+
+   			GtkWidget *phoebe_rv_coefficents_dialog         = glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_dialog");
+			GtkWidget *phoebe_rv_coefficents_passband_label	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_passband_label");
+			GtkWidget *phoebe_rv_coefficents_x1_spinbutton	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_x1_spinbutton");
+			GtkWidget *phoebe_rv_coefficents_x2_spinbutton	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_x2_spinbutton");
+			GtkWidget *phoebe_rv_coefficents_y1_spinbutton	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_y1_spinbutton");
+			GtkWidget *phoebe_rv_coefficents_y2_spinbutton	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_y2_spinbutton");
+			GtkWidget *phoebe_rv_coefficents_frame_label	= glade_xml_get_widget (phoebe_rv_coefficents_xml, "phoebe_lc_coefficents_frame_label");
+			g_object_unref (phoebe_rv_coefficents_xml);
+
+			gtk_window_set_icon (GTK_WINDOW (phoebe_rv_coefficents_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+			gtk_window_set_title (GTK_WINDOW(phoebe_rv_coefficents_dialog), "PHOEBE - RV Coefficents");
+			gtk_label_set_markup(GTK_LABEL(phoebe_rv_coefficents_frame_label), "<b>RV Coefficents</b>");
+
+			gtk_label_set_text (GTK_LABEL (phoebe_rv_coefficents_passband_label), passband);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_x1_spinbutton), x1);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_x2_spinbutton), x2);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_y1_spinbutton), y1);
+			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_y2_spinbutton), y2);
+
+    		gint result = gtk_dialog_run ((GtkDialog*)phoebe_rv_coefficents_dialog);
+   			switch (result){
+        		case GTK_RESPONSE_OK:{
+			             		gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_X1, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_x1_spinbutton)),
+																				RV_COL_X2, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_x2_spinbutton)),
+																				RV_COL_Y1, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_y1_spinbutton)),
+																				RV_COL_Y2, gtk_spin_button_get_value (GTK_SPIN_BUTTON (phoebe_rv_coefficents_y2_spinbutton)), -1);
+            		}
+        		break;
+
+       			case GTK_RESPONSE_CANCEL:
+       			break;
+   			}
+
+    		gtk_widget_destroy (phoebe_rv_coefficents_dialog);
+		}
+	}
+
+	return status;
+}
+
+
+
 int gui_spots_add()
 {
 	int status = 0;
