@@ -85,118 +85,118 @@
      $ak',5x,'r2pol',5x,'r2pt',6x,'r2sid',5x,'r2bak')
 
       if(ibef.eq.0) goto 335
-      write(6,*)
-      write(6,*)
-      write(6,*)
-      write(6,*)
-      write(6,*)
-      write(6,204)
-      write(6,*)
-      write(6,*)
-      write(6,*)
-      write(6,*)
+      write(16,*)
+      write(16,*)
+      write(16,*)
+      write(16,*)
+      write(16,*)
+      write(16,204)
+      write(16,*)
+      write(16,*)
+      write(16,*)
+      write(16,*)
   335 continue
 
-      if(dif1.ne.0.d0) write(6,287) abunin,abun(iab)
-      IF(mod.eq.1) write(6,49)
+      if(dif1.ne.0.d0) write(16,287) abunin,abun(iab)
+      IF(mod.eq.1) write(16,49)
 
       if(kfo1.eq.0) goto 380
-      write(6,350)
+      write(16,350)
       goto 381
-  380 IF(KFF1.EQ.1) WRITE(6,50)
+  380 IF(KFF1.EQ.1) WRITE(16,50)
   381 if(kfo2.eq.0) goto 382
-      write(6,351)
+      write(16,351)
       goto 383
-  382 IF(KFF2.EQ.1) WRITE(6,51)
-  383 IF((KFF1+KFF2+kfo1+kfo2).GT.0) WRITE(6,*)
+  382 IF(KFF2.EQ.1) WRITE(16,51)
+  383 IF((KFF1+KFF2+kfo1+kfo2).GT.0) WRITE(16,*)
 
-      write(6,148)
-      write(6,149) mpage,nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
-      write(6,*)
+      write(16,148)
+      write(16,149) mpage,nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
+      write(16,*)
 
-      write(6,171)
-      write(6,170) jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed
-      write(6,*)
+      write(16,171)
+      write(16,170) jdphs,hjd0,period,dpdt,pshift,stdev,noise,seed
+      write(16,*)
 
-      write(6,219)
-      write(6,218) hjdst,hjdsp,hjdin,phstrt,phstop,phin,phn
-      write(6,*)
+      write(16,219)
+      write(16,218) hjdst,hjdsp,hjdin,phstrt,phstop,phin,phn
+      write(16,*)
 
-      write(6,10)
-      write(6,33)mode,ipb,ifat1,ifat2,n1,n2,perr0,dperdt,the,vunit,vfac
-      write(6,*)
+      write(16,10)
+      write(16,33)mode,ipb,ifat1,ifat2,n1,n2,perr0,dperdt,the,vunit,vfac
+      write(16,*)
 
-      write(6,48)
-      write(6,5) e,a,f1,f2,vga,xincl,gr1,gr2,nsp1,nsp2,abunin
-      write(6,*)
+      write(16,48)
+      write(16,5) e,a,f1,f2,vga,xincl,gr1,gr2,nsp1,nsp2,abunin
+      write(16,*)
 
-      write(6,54)
-      write(6,8) tavh,tavc,alb1,alb2,phsv,pcsv,rm,xbol1,xbol2,ybol1,
+      write(16,54)
+      write(16,8) tavh,tavc,alb1,alb2,phsv,pcsv,rm,xbol1,xbol2,ybol1,
      $ybol2
-      write(6,*)
+      write(16,*)
 
-      write(6,47)
-      write(6,34) iband,hlum,clum,xh,xc,yh,yc,el3,opsf,zero,factor,wl
+      write(16,47)
+      write(16,34) iband,hlum,clum,xh,xc,yh,yc,el3,opsf,zero,factor,wl
 
       ns1=1
       ns2=2
       if(mpage.ne.3) goto 174
-      write(6,*)
-      write(6,142)
-      write(6,2049) ns1,binwm1,sc1,sl1,nf1
-      write(6,2049) ns2,binwm2,sc2,sl2,nf2
-      write(6,*)
-      write(6,157) ns1
+      write(16,*)
+      write(16,142)
+      write(16,2049) ns1,binwm1,sc1,sl1,nf1
+      write(16,2049) ns2,binwm2,sc2,sl2,nf2
+      write(16,*)
+      write(16,157) ns1
       do 155 iln=1,nl1
-  155 write(6,152) wll1(iln),ewid1(iln),depth1(iln),kks(1,iln)
-      write(6,*)
-      write(6,157) ns2
+  155 write(16,152) wll1(iln),ewid1(iln),depth1(iln),kks(1,iln)
+      write(16,*)
+      write(16,157) ns2
       do 151 iln=1,nl2
-  151 write(6,152) wll2(iln),ewid2(iln),depth2(iln),kks(2,iln)
+  151 write(16,152) wll2(iln),ewid2(iln),depth2(iln),kks(2,iln)
   174 continue
-      write(6,*)
-      write(6,*)
+      write(16,*)
+      write(16,*)
 
       nstot=nsp1+nsp2
-      if(nstot.gt.0) write(6,83)
+      if(nstot.gt.0) write(16,83)
       do 188 KP=1,2
       if((NSP1+KP-1).EQ.0) goto 188
       if((NSP2+(KP-2)**2).EQ.0) goto 188
       NSPOT=NSP1
       if(KP.EQ.2) NSPOT=NSP2
       do 187 I=1,NSPOT
-  187 write(6,84)KP,XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
-  188 write(6,*)
+  187 write(16,84)KP,XLAT(KP,I),XLONG(KP,I),RADSP(KP,I),TEMSP(KP,I)
+  188 write(16,*)
 
       if(ncl.eq.0) goto 67
-      write(6,69)
+      write(16,69)
       do 68 i=1,ncl
-   68 write(6,64) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
+   68 write(16,64) xcl(i),ycl(i),zcl(i),rcl(i),op1(i),fcl(i),edens(i),
      $xmue(i),encl(i),dens(i)
-      write(6,*)
+      write(16,*)
    67 continue
 
-      write(6,150)
-      write(6,250) ns1,sms1,sr1,bolm1,xlg1
-      write(6,250) ns2,sms2,sr2,bolm2,xlg2
+      write(16,150)
+      write(16,250) ns1,sms1,sr1,bolm1,xlg1
+      write(16,250) ns2,sms2,sr2,bolm2,xlg2
 
       np1=n1+1
       np2=n1+n2+2
-      write(6,*)
-      write(6,43)
-      write(6,44)
-      write(6,46)
-      write(6,94) mmsave(np1),mmsave(np2),sbrh,sbrc,sm1,sm2,phperi,
+      write(16,*)
+      write(16,43)
+      write(16,44)
+      write(16,46)
+      write(16,94) mmsave(np1),mmsave(np2),sbrh,sbrc,sm1,sm2,phperi,
      $pconsc,pconic
-      write(6,*)
+      write(16,*)
       if(stdev.eq.0.d0.or.mpage.ne.1) goto 246
-      write(6,244)
-      write(6,245) stdev
+      write(16,244)
+      write(16,245) stdev
   246 continue
-      write(6,*)
+      write(16,*)
 
-      if (mpage.eq.1) write(6,79)
-      if (mpage.eq.2) write(6,45)
-      if (mpage.eq.4) write(6,96)
+      if (mpage.eq.1) write(16,79)
+      if (mpage.eq.2) write(16,45)
+      if (mpage.eq.4) write(16,96)
 
       end

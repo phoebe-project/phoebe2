@@ -29,42 +29,42 @@
   296 format(f14.6,f13.5,8f10.5)
 
       if(mpage.ne.5) goto 127
-      write(6,*)
-      write(6,*)
-      write(6,128) hjd,phas
-      write(6,*)
-      write(6,131)
+      write(16,*)
+      write(16,*)
+      write(16,128) hjd,phas
+      write(16,*)
+      write(16,131)
       do 129 imp=1,ipc
-      write(6,130) yskp(imp),zskp(imp)
+      write(16,130) yskp(imp),zskp(imp)
   129 continue
       return
   127 continue
 
-      if(mpage.eq.1) write(6,3) hjd,phas,htt,cool,total,tot,d,smagg
-      if(mpage.eq.2) write(6,93) hjd,phas,vsum1,vsum2,vra1,vra2,vkm1,
+      if(mpage.eq.1) write(16,3) hjd,phas,htt,cool,total,tot,d,smagg
+      if(mpage.eq.2) write(16,93) hjd,phas,vsum1,vsum2,vra1,vra2,vkm1,
      $vkm2
 
       ns1=1
       ns2=2
       if(mpage.ne.3) goto 81
-      write(6,92) phas
-      write(6,*)
-      write(6,167) ns1
-      write(6,907)
+      write(16,92) phas
+      write(16,*)
+      write(16,167) ns1
+      write(16,907)
       do 906 i=in1min,in1max
-  906 write(6,903) delv1(i),delwl1(i),wl1(i),fbin1(i),resf1(i)
-      write(6,*)
-      write(6,167) ns2
-      write(6,907)
+  906 write(16,903) delv1(i),delwl1(i),wl1(i),fbin1(i),resf1(i)
+      write(16,*)
+      write(16,167) ns2
+      write(16,907)
       do 908 i=in2min,in2max
-  908 write(6,903) delv2(i),delwl2(i),wl2(i),fbin2(i),resf2(i)
-      write(6,*)
-      write(6,205)
-      write(6,*)
-      write(6,*)
+  908 write(16,903) delv2(i),delwl2(i),wl2(i),fbin2(i),resf2(i)
+      write(16,*)
+      write(16,205)
+      write(16,*)
+      write(16,*)
    81 continue
 
-      if(mpage.eq.4) write(6,296) hjd,phas,rv(1),rv(ll1),rv(llll1),
+      if(mpage.eq.4) write(16,296) hjd,phas,rv(1),rv(ll1),rv(llll1),
      $rv(lll1),rvq(1),rvq(ll2),rvq(llll2),rvq(lll2)
  
       end
