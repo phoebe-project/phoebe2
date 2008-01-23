@@ -2092,3 +2092,218 @@ int phoebe_restore_default_parameters ()
 
 	return SUCCESS;
 }
+
+int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile)
+{
+	/**
+	 * phoebe_parameter_file_import_bm3:
+	 * @bm3file: Binary Maker 3 (bm3) filename
+	 * @datafile: Observed curve filename
+	 *
+	 * Imports Dave Bradstreet's Binary Maker 3 parameter file.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	FILE *bm3input;
+	char line[255];
+	int rint;
+	double rdouble;
+	double ff1 = -1.0, ff2 = -1.0; /* Fillout factors, to get the morphology */
+
+	bm3input = fopen (bm3file, "r");
+	if (!bm3input)
+		return ERROR_FILE_OPEN_FAILED;
+
+	phoebe_restore_default_parameters ();
+
+	/* These are the parameters BM3 assumes by default: */
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lcno"), 1);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_ld_model"), "Linear cosine law");
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_el3_units"), "Flux");
+
+	/* If datafile is passed, initialize it: */
+	if (datafile)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filename"), 0, datafile);
+
+	do {
+		fgets (line, 255, bm3input);
+		if (feof (bm3input)) break;
+		if (strstr (line, "GEOMETRY")) {
+			phoebe_debug ("parameter GEOMETRY has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "LATITUDE_GRID")) {
+			sscanf (line, "LATITUDE_GRID=%d", &rint);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_n1"), rint);
+			continue;
+		}
+		if (strstr (line, "LONGITUDE_GRID")) {
+			phoebe_debug ("parameter LONGITUDE_GRID has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "MASS_RATIO")) {
+			sscanf (line, "MASS_RATIO=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_rm"), rdouble);
+			continue;
+		}
+		if (strstr (line, "INPUT_MODE")) {
+			phoebe_debug ("parameter INPUT_MODE has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "OMEGA_1")) {
+			sscanf (line, "OMEGA_1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot1"), rdouble);
+			continue;
+		}
+		if (strstr (line, "OMEGA_2")) {
+			sscanf (line, "OMEGA_2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), rdouble);
+			continue;
+		}
+		if (strstr (line, "C_1")) {
+			phoebe_debug ("parameter C_1 has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "C_2")) {
+			phoebe_debug ("parameter C_2 has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "R1_BACK")) {
+			phoebe_debug ("parameter R1_BACK has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "R2_BACK")) {
+			phoebe_debug ("parameter R2_BACK has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "FILLOUT_G")) {
+			phoebe_debug ("parameter FILLOUT_G has no PHOEBE counterpart, skipping.\n");
+			sscanf (line, "FILLOUT_G=%lf", &ff1);
+			continue;
+		}
+		if (strstr (line, "FILLOUT_S")) {
+			phoebe_debug ("parameter FILLOUT_S has no PHOEBE counterpart, skipping.\n");
+			sscanf (line, "FILLOUT_S=%lf", &ff2);
+			continue;
+		}
+		if (strstr (line, "WAVELENGTH")) {
+			sscanf (line, "WAVELENGTH=%lf", &rdouble);
+
+			if ((int) rdouble == 8800)
+				phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filter"), 0, "Johnson:I");
+				
+			continue;
+		}
+		if (strstr (line, "TEMPERATURE_1")) {
+			sscanf (line, "TEMPERATURE_1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_teff1"), rdouble);
+			continue;
+		}
+		if (strstr (line, "TEMPERATURE_2")) {
+			sscanf (line, "TEMPERATURE_2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_teff2"), rdouble);
+			continue;
+		}
+		if (strstr (line, "GRAVITY_1")) {
+			sscanf (line, "GRAVITY_1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_grb1"), rdouble);
+			continue;
+		}
+		if (strstr (line, "GRAVITY_2")) {
+			sscanf (line, "GRAVITY_2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_grb2"), rdouble);
+			continue;
+		}
+		if (strstr (line, "LIMB_1")) {
+			sscanf (line, "LIMB_1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_ld_lcx1"), 0, rdouble);
+			continue;
+		}
+		if (strstr (line, "LIMB_2")) {
+			sscanf (line, "LIMB_2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_ld_lcx2"), 0, rdouble);
+			continue;
+		}
+		if (strstr (line, "REFLECTION_1")) {
+			sscanf (line, "REFLECTION_1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_alb1"), rdouble);
+			continue;
+		}
+		if (strstr (line, "REFLECTION_2")) {
+			sscanf (line, "REFLECTION_2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_alb2"), rdouble);
+			continue;
+		}
+		if (strstr (line, "THIRD_LIGHT")) {
+			sscanf (line, "THIRD_LIGHT=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_el3"), 0, rdouble);
+			continue;
+		}
+		if (strstr (line, "INCLINATION")) {
+			sscanf (line, "INCLINATION=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_incl"), rdouble);
+			continue;
+		}
+		if (strstr (line, "NORM_PHASE")) {
+			phoebe_debug ("parameter NORM_PHASE has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "PHASE_INCREMENT")) {
+			phoebe_debug ("parameter PHASE_INCREMENT has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "USE_ADVANCED_PHASE")) {
+			phoebe_debug ("parameter USE_ADVANCED_PHASE has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+#warning IMPLEMENT_SPOT_IMPORT_FROM_BM3
+		if (strstr (line, "ROTATION_F1")) {
+			sscanf (line, "ROTATION_F1=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_f1"), rdouble);
+			continue;
+		}
+		if (strstr (line, "ROTATION_F2")) {
+			sscanf (line, "ROTATION_F2=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_f2"), rdouble);
+			continue;
+		}
+		if (strstr (line, "PSEUDOSYNC")) {
+			phoebe_debug ("parameter PSEUDOSYNC has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+		if (strstr (line, "LONG_OF_PERIASTRON")) {
+			sscanf (line, "LONG_OF_PERIASTRON=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_perr0"), rdouble);
+			continue;
+		}
+		if (strstr (line, "ECCENTRICITY")) {
+			sscanf (line, "ECCENTRICITY=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_ecc"), rdouble);
+			continue;
+		}
+		if (strstr (line, "ZERO_POINT_OF_PHASE")) {
+			sscanf (line, "ZERO_POINT_OF_PHASE=%lf", &rdouble);
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pshift"), rdouble);
+			continue;
+		}
+		if (strstr (line, "USER_NORM_FACTOR")) {
+			phoebe_debug ("parameter USER_NORM_FACTOR has no PHOEBE counterpart, skipping.\n");
+			continue;
+		}
+	} while (1);
+
+	fclose (bm3input);
+
+	/* Determine morphology from the fillout factors: */
+	if (ff1 < 0 && ff2 < 0)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_model"), "Detached binary");
+	else if (ff1 >= 0 && ff2 < 0)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_model"), "Semi-detached binary, primary star fills Roche lobe");
+	else if (ff1 < 0 && ff2 >= 0)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_model"), "Semi-detached binary, secondary star fills Roche lobe");
+	else
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_model"), "Overcontact binary not in thermal contact");
+
+	return SUCCESS;
+}

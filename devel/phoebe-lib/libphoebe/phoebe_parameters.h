@@ -136,4 +136,6 @@ int phoebe_save_parameter_file        (const char *filename);
 
 int phoebe_restore_default_parameters ();
 
+int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile);
+
 #endif
