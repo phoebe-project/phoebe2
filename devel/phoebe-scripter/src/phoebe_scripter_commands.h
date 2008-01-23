@@ -26,6 +26,7 @@ scripter_ast_value scripter_get_parameter_value           (scripter_ast_list *ar
 scripter_ast_value scripter_minimize_using_nms            (scripter_ast_list *args);
 scripter_ast_value scripter_minimize_using_dc             (scripter_ast_list *args);
 scripter_ast_value scripter_adopt_minimizer_results       (scripter_ast_list *args);
+scripter_ast_value scripter_compute_light_levels          (scripter_ast_list *args);
 scripter_ast_value scripter_prompt                        (scripter_ast_list *args);
 scripter_ast_value scripter_transform_hjd_to_phase        (scripter_ast_list *args);
 scripter_ast_value scripter_transform_flux_to_magnitude   (scripter_ast_list *args);

@@ -1,5 +1,11 @@
 ChangeLog:
 
+2007-12-30:
+
+* Streams 5 and 6 changed to 15 and 16 throughout the code so that it 
+  doesn't conflict with the scripter. Required for gfortran backend 
+  only.
+
 2007-08-21:
 
 * Syncing with upstream removes a bug that causes all X-ray light curves
