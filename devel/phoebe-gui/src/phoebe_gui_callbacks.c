@@ -959,6 +959,43 @@ void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer us
 		printf ("%s", phoebe_error (status));
 }
 
+void on_phoebe_file_import_bm3_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+{
+	gint status, import = -1;
+
+	gchar *glade_xml_file    = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe_import_bm3.glade", NULL);
+	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
+
+	GladeXML  *phoebe_import_bm3 = glade_xml_new (glade_xml_file, NULL, NULL);
+	GtkWidget *phoebe_import_bm3_dialog = glade_xml_get_widget (phoebe_import_bm3, "phoebe_import_bm3_dialog");
+	GtkWidget *bm3entry = glade_xml_get_widget (phoebe_import_bm3, "phoebe_import_bm3_input_file_chooser");
+	GtkWidget *dataentry = glade_xml_get_widget (phoebe_import_bm3, "phoebe_import_bm3_data_file_chooser");
+
+	g_object_unref (phoebe_import_bm3);
+
+	gtk_window_set_icon (GTK_WINDOW (phoebe_import_bm3_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+
+	while (import != SUCCESS) {
+		status = gtk_dialog_run ((GtkDialog *) phoebe_import_bm3_dialog);
+		if (status == GTK_RESPONSE_OK) {
+			gchar *bm3file = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (bm3entry));
+			gchar *datafile = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dataentry));
+			import = phoebe_parameter_file_import_bm3 (bm3file, datafile);
+			if (import == SUCCESS) {
+				gui_reinit_treeviews ();
+				gui_set_values_to_widgets ();
+				gtk_widget_destroy (phoebe_import_bm3_dialog);
+			}
+			else {
+				gui_notice ("BM3 file import failed", "The passed Binary Maker 3 parameter file failed to open.\n");
+			}
+		}
+		else /* if clicked on Cancel: */ {
+			import = SUCCESS;
+			gtk_widget_destroy (phoebe_import_bm3_dialog);
+		}
+	}
+}
 
 void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
