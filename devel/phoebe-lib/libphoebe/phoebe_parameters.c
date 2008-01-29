@@ -156,8 +156,8 @@ int phoebe_init_parameters ()
 
 	phoebe_parameter_add ("phoebe_ld_model",             "Limb darkening model",                               KIND_MENU,      NULL,      0,      0,      0, NO, TYPE_STRING, "Logarithmic law");
 	phoebe_parameter_add ("phoebe_ld_xbol1",             "Primary star bolometric LD coefficient x",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_ybol1",             "Secondary star bolometric LD coefficient x",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_xbol2",             "Primary star bolometric LD coefficient y",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_ybol1",             "Primary star bolometric LD coefficient y",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_xbol2",             "Secondary star bolometric LD coefficient x",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
 	phoebe_parameter_add ("phoebe_ld_ybol2",             "Secondary star bolometric LD coefficient y",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
 	phoebe_parameter_add ("phoebe_ld_lcx1",              "Primary star bandpass LD coefficient x",             KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
 	phoebe_parameter_add ("phoebe_ld_lcx2",              "Secondary star bandpass LD coefficient x",           KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
@@ -2192,7 +2192,7 @@ int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile)
 
 			if ((int) rdouble == 8800)
 				phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filter"), 0, "Johnson:I");
-				
+
 			continue;
 		}
 		if (strstr (line, "TEMPERATURE_1")) {
