@@ -1113,9 +1113,9 @@ void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user
 	else
 		status = gui_save_parameter_file ();
 
-	printf("In on_phoebe_save_toolbutton_clicked\n");
-	printf("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
-	printf("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
+//	printf("In on_phoebe_save_toolbutton_clicked\n");
+//	printf("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
+//	printf("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
 
 	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
@@ -1199,7 +1199,7 @@ void on_phoebe_para_ld_lccoefs_edit_button_clicked (GtkButton *button, gpointer 
 
 /* ******************************************************************** *
  *
- *              	phoebe_para_lc_coefficents_treeview events
+ *              	phoebe_para_rv_coefficents_treeview events
  *
  * ******************************************************************** */
 
@@ -2089,4 +2089,39 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_interpolate_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_interpolate_button_clicked), NULL);
 
 	gtk_widget_show (phoebe_ld_dialog);
+}
+
+void on_phoebe_potential_parameter_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
+{
+	int status = 0;
+
+	GtkWidget *phoebe_para_sys_rm_spinbutton = gui_widget_lookup("phoebe_para_sys_rm_spinbutton")->gtk;
+	GtkWidget *phoebe_para_orb_ecc_spinbutton = gui_widget_lookup("phoebe_para_orb_ecc_spinbutton")->gtk;
+	GtkWidget *phoebe_para_orb_f1_spinbutton = gui_widget_lookup("phoebe_para_orb_f1_spinbutton")->gtk;
+
+	GtkTreeView *phoebe_sidesheet_res_treeview = (GtkTreeView*)gui_widget_lookup("phoebe_sidesheet_res_treeview")->gtk;
+	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_sidesheet_res_treeview);
+	GtkTreeIter iter;
+
+	double q, e, F, L1, L2;
+
+	gtk_tree_model_get_iter_first (model, &iter);
+
+	q = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_sys_rm_spinbutton));
+	e = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_ecc_spinbutton));
+	F = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_f1_spinbutton));
+
+	printf("\nq = %f, e = %f, f1 = %f\n", q, e, F);
+
+	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
+
+	printf("L1 = %f, L2 = %f\n", L1, L2);
+
+	/* Conviniently the potentials are in the first two rows */
+
+	gtk_tree_model_get_iter_first (model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>1</sub>)", RS_COL_PARAM_VALUE, L1, -1);
+
+	gtk_tree_model_iter_next (model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 }
