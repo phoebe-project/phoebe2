@@ -228,6 +228,12 @@ int phoebe_star_surface_free (PHOEBE_star_surface *surface)
 		free (surface->phi);
 		free (surface->rho);
 		free (surface->grad);
+
+		free(surface->mmsave);
+		free(surface->sinth);
+		free(surface->costh);
+		free(surface->sinphi);
+		free(surface->cosphi);
 	}
 
 	free (surface);
