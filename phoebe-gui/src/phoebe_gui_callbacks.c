@@ -1942,7 +1942,7 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 	double met1 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met1_spinbutton")));
 	double met2 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_met2_spinbutton")));
 
-	char* ldlaw 	= strdup(phoebe_parameter_lookup ("phoebe_ld_model")->menu->option[gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")))]);
+	char* ldlaw 	= strdup(phoebe_parameter_lookup ("phoebe_ld_model")->menu->option[gtk_combo_box_get_active(GTK_COMBO_BOX(gui_widget_lookup("phoebe_para_ld_model_combobox")->gtk))]);
 
 	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
 	char *id;
@@ -1951,8 +1951,15 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 
 	double x1, x2, y1, y2;
 
+	printf("    LD law: %s\n", ldlaw);
+	printf("    met1 = %f, tavh = %f, logg1 = %f\n", met1, tavh, logg1);
+	printf("    met2 = %f, tavc = %f, logg2 = %f\n", met2, tavc, logg2);
+
+	printf("    Now calculating LD coeefs...\n");
 	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup_by_id(id), met1, tavh, logg1, &x1, &y1);
 	phoebe_get_ld_coefficients (phoebe_ld_model_type (ldlaw), phoebe_passband_lookup_by_id(id), met2, tavc, logg2, &x2, &y2);
+
+	printf("    x1 = %f, y1 = %f, x2 = %f, y2 = %f\n", x1, y1, x2, y2);
 
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")), x1);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")), x2);
