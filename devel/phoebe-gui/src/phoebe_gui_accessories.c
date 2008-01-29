@@ -145,7 +145,7 @@ int gui_save_parameter_file()
 {
 	GtkWidget *dialog;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-	int status = 0;
+	int return_status = 0, local_status = 1;
 
 	dialog = gtk_file_chooser_dialog_new ("Save PHOEBE parameter file",
 										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
@@ -163,26 +163,39 @@ int gui_save_parameter_file()
 		g_free (dir);
 	}
 
-	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+	/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
-		char *filename;
+	while (local_status){
+		/* loop the dialog until the user chooses a valid file or cancels */
+		if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+			char *filename;
 
-		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-		status = phoebe_save_parameter_file(filename);
+			filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 
-		PHOEBE_FILEFLAG = TRUE;
-		PHOEBE_FILENAME = strdup(filename);
-		g_free (filename);
+			if (phoebe_filename_exists(filename))
+				if(!gui_warning("Save parameter file", "This file already exists. Do you want to replace it?")){
+					/* user doesn't want to overwrite, display the dialog again */
+					local_status = 1;
+					continue;
+				}
 
-		PHOEBE_DIRFLAG = TRUE;
-		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
+			return_status = phoebe_save_parameter_file(filename);
+			local_status = 0;
+
+			PHOEBE_FILEFLAG = TRUE;
+			PHOEBE_FILENAME = strdup(filename);
+			g_free (filename);
+
+			PHOEBE_DIRFLAG = TRUE;
+			PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
+		}
+		else local_status = 0;
 	}
 
 	gtk_widget_destroy (dialog);
 
-	return status;
+	return return_status;
 }
 
 int gui_show_configuration_dialog()
