@@ -36,7 +36,6 @@ void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer use
 	gtk_window_set_title (GTK_WINDOW(phoebe_window), title);
 }
 
-
 void on_phoebe_data_lc_seedgen_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	int seed;
@@ -45,6 +44,41 @@ void on_phoebe_data_lc_seedgen_button_clicked (GtkToolButton *toolbutton, gpoint
 	srand (time (0));
 	seed = (int) (100000001.0 + (double) rand () / RAND_MAX * 100000000.0);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON (seed_spin_button), seed);
+}
+
+void on_phoebe_potential_parameter_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
+{
+	int status = 0;
+
+	GtkWidget *phoebe_para_sys_rm_spinbutton = gui_widget_lookup("phoebe_para_sys_rm_spinbutton")->gtk;
+	GtkWidget *phoebe_para_orb_ecc_spinbutton = gui_widget_lookup("phoebe_para_orb_ecc_spinbutton")->gtk;
+	GtkWidget *phoebe_para_orb_f1_spinbutton = gui_widget_lookup("phoebe_para_orb_f1_spinbutton")->gtk;
+
+	GtkTreeView *phoebe_sidesheet_res_treeview = (GtkTreeView*)gui_widget_lookup("phoebe_sidesheet_res_treeview")->gtk;
+	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_sidesheet_res_treeview);
+	GtkTreeIter iter;
+
+	double q, e, F, L1, L2;
+
+	gtk_tree_model_get_iter_first (model, &iter);
+
+	q = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_sys_rm_spinbutton));
+	e = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_ecc_spinbutton));
+	F = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_f1_spinbutton));
+
+	printf("\nq = %f, e = %f, f1 = %f\n", q, e, F);
+
+	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
+
+	printf("L1 = %f, L2 = %f\n", L1, L2);
+
+	/* Conviniently the potentials are in the first two rows */
+
+	gtk_tree_model_get_iter_first (model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>1</sub>)", RS_COL_PARAM_VALUE, L1, -1);
+
+	gtk_tree_model_iter_next (model, &iter);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 }
 
 
@@ -136,7 +170,6 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	gdk_beep ();
 }
 
-
 void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	int status;
@@ -148,7 +181,6 @@ void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointe
 		accept_flag = 0;
 	}
 }
-
 
 void on_phoebe_fitt_method_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
@@ -168,7 +200,6 @@ void on_phoebe_fitt_method_combobox_changed (GtkComboBox *widget, gpointer user_
 		break;
 	}
 }
-
 
 void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
@@ -234,7 +265,6 @@ void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButton *toolbutton, g
 	gtk_widget_destroy(GTK_WIDGET(phoebe_cormat_dialog));
 }
 
-
 void on_phoebe_fitt_nms_nolimit_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkWidget *phoebe_fitt_nms_iters_spinbutton	= gui_widget_lookup("phoebe_fitt_nms_iters_spinbutton")->gtk;
@@ -276,13 +306,11 @@ on_phoebe_data_lc_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *pa
 	gui_data_lc_treeview_edit();
 }
 
-
 void
 on_phoebe_data_lc_add_button_clicked (GtkButton *button, gpointer user_data)
 {
     gui_data_lc_treeview_add();
 }
-
 
 void
 on_phoebe_data_lc_edit_button_clicked (GtkButton *button, gpointer user_data)
@@ -290,13 +318,11 @@ on_phoebe_data_lc_edit_button_clicked (GtkButton *button, gpointer user_data)
     gui_data_lc_treeview_edit();
 }
 
-
 void
 on_phoebe_data_lc_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
     gui_data_lc_treeview_remove();
 }
-
 
 void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
@@ -321,7 +347,6 @@ void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton
 {
 	gui_set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
-
 
 void on_phoebe_data_lc_model_row_changed (GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data)
 {
@@ -356,19 +381,16 @@ on_phoebe_data_rv_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *pa
 	gui_data_rv_treeview_edit();
 }
 
-
 void
 on_phoebe_data_rv_add_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gui_data_rv_treeview_add();
 }
 
-
 void on_phoebe_load_rv_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
 {
 	gui_set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
-
 
 void
 on_phoebe_data_rv_edit_button_clicked (GtkButton *button, gpointer user_data)
@@ -376,13 +398,11 @@ on_phoebe_data_rv_edit_button_clicked (GtkButton *button, gpointer user_data)
 	gui_data_rv_treeview_edit();
 }
 
-
 void
 on_phoebe_data_rv_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
     gui_data_rv_treeview_remove();
 }
-
 
 void on_phoebe_data_rv_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
@@ -402,7 +422,6 @@ void on_phoebe_data_rv_active_checkbutton_toggled (GtkCellRendererToggle *render
             gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE, TRUE, -1);
     }
 }
-
 
 void on_phoebe_data_rv_model_row_changed (GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data)
 {
@@ -528,24 +547,20 @@ void on_phoebe_para_spots_treeview_cursor_changed (GtkTreeView *tree_view, gpoin
     }
 }
 
-
 void on_phoebe_para_spots_add_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gui_spots_add();
 }
-
 
 void on_phoebe_para_spots_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 	gui_spots_edit();
 }
 
-
 void on_phoebe_para_spots_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gui_spots_edit();
 }
-
 
 void on_phoebe_para_spots_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
@@ -571,7 +586,6 @@ void on_phoebe_para_spots_remove_button_clicked (GtkButton *button, gpointer use
     }
 }
 
-
 void on_phoebe_para_spots_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
 	GtkTreeModel *model;
@@ -590,8 +604,6 @@ void on_phoebe_para_spots_active_checkbutton_toggled (GtkCellRendererToggle *ren
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE, TRUE, -1);
     }
 }
-
-
 
 void on_phoebe_para_spots_adjust_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
@@ -628,7 +640,6 @@ void on_phoebe_para_spots_adjust_checkbutton_toggled (GtkCellRendererToggle *ren
     }
 }
 
-
 void on_phoebe_para_spots_latadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -645,7 +656,6 @@ void on_phoebe_para_spots_latadjust_checkbutton_toggled (GtkToggleButton *toggle
 			gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
 }
 
-
 void on_phoebe_para_spots_lat_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -657,7 +667,6 @@ void on_phoebe_para_spots_lat_spinbutton_value_changed (GtkSpinButton *spinbutto
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LAT, gtk_spin_button_get_value(spinbutton), -1);
 }
-
 
 void on_phoebe_para_spots_latstep_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
@@ -671,7 +680,6 @@ void on_phoebe_para_spots_latstep_spinbutton_value_changed (GtkSpinButton *spinb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-
 void on_phoebe_para_spots_latmin_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -684,7 +692,6 @@ void on_phoebe_para_spots_latmin_spinbutton_value_changed (GtkSpinButton *spinbu
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-
 void on_phoebe_para_spots_latmax_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -696,7 +703,6 @@ void on_phoebe_para_spots_latmax_spinbutton_value_changed (GtkSpinButton *spinbu
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LATMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
-
 
 void on_phoebe_para_spots_lonadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
@@ -714,7 +720,6 @@ void on_phoebe_para_spots_lonadjust_checkbutton_toggled (GtkToggleButton *toggle
 			gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
 }
 
-
 void on_phoebe_para_spots_lon_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -726,7 +731,6 @@ void on_phoebe_para_spots_lon_spinbutton_value_changed (GtkSpinButton *spinbutto
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LON, gtk_spin_button_get_value(spinbutton), -1);
 }
-
 
 void on_phoebe_para_spots_lonstep_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
@@ -740,7 +744,6 @@ void on_phoebe_para_spots_lonstep_spinbutton_value_changed (GtkSpinButton *spinb
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONSTEP, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-
 void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -753,7 +756,6 @@ void on_phoebe_para_spots_lonmin_spinbutton_value_changed(GtkSpinButton *spinbut
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMIN, gtk_spin_button_get_value(spinbutton), -1);
 }
 
-
 void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
 	GtkTreeSelection *selection;
@@ -765,7 +767,6 @@ void on_phoebe_para_spots_lonmax_spinbutton_value_changed(GtkSpinButton *spinbut
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
 		gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_LONMAX, gtk_spin_button_get_value(spinbutton), -1);
 }
-
 
 void on_phoebe_para_spots_radadjust_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
@@ -782,7 +783,6 @@ void on_phoebe_para_spots_radadjust_checkbutton_toggled (GtkToggleButton *toggle
 		else
 			gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ADJUST, FALSE, -1);
 }
-
 
 void on_phoebe_para_spots_rad_spinbutton_value_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
@@ -911,12 +911,10 @@ gboolean on_phoebe_window_delete_event (GtkWidget *widget, GdkEvent *event, gpoi
     return TRUE;
 }
 
-
 void on_phoebe_file_new_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 
 }
-
 
 void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
@@ -946,7 +944,6 @@ void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 	if( status != SUCCESS )
 		printf ("%s", phoebe_error (status));
 }
-
 
 void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
@@ -1003,12 +1000,10 @@ void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuitem, gpointer user
     	gtk_main_quit();
 }
 
-
 void on_phoebe_settings_configuration_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	gui_show_configuration_dialog();
 }
-
 
 void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
@@ -1045,7 +1040,6 @@ void on_phoebe_lc_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
-
 void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
@@ -1053,7 +1047,6 @@ void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
-
 
 void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
@@ -1063,18 +1056,15 @@ void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer u
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
 
-
 void on_phoebe_scripter_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 
 }
 
-
 void on_phoebe_settings_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	gui_show_configuration_dialog();
 }
-
 
 void on_phoebe_settings_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
@@ -1082,13 +1072,11 @@ void on_phoebe_settings_checkbutton_toggled (GtkToggleButton *togglebutton, gpoi
 	gtk_widget_set_sensitive (filechooserbutton, gtk_toggle_button_get_active(togglebutton));
 }
 
-
 void on_phoebe_quit_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	if(gui_warning("Quit PHOEBE?", "By quitting Phoebe all unsaved data will be lost. Are you sure you want to quit?") == 1)
     	gtk_main_quit();
 }
-
 
 void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
@@ -1135,7 +1123,6 @@ on_phoebe_para_lum_levels_treeview_row_activated (GtkTreeView *treeview, GtkTree
 	gui_para_lum_levels_edit();
 }
 
-
 void
 on_phoebe_para_lum_levels_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
@@ -1154,7 +1141,6 @@ void on_phoebe_para_lum_el3_treeview_row_activated (GtkTreeView *treeview, GtkTr
 {
 	gui_para_lum_el3_edit();
 }
-
 
 void on_phoebe_para_lum_el3_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
@@ -1230,7 +1216,6 @@ void on_phoebe_sidesheet_detach_button_clicked (GtkButton *button, gpointer user
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
 }
 
-
 void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
@@ -1239,7 +1224,6 @@ void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button, gpointer user_d
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
-
 void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
@@ -1247,7 +1231,6 @@ void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button, gpointer user_d
 
 	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
-
 
 void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *button, gpointer user_data)
 {
@@ -1289,7 +1272,6 @@ void on_phoebe_rv_plot_options_x_combobox_changed (GtkComboBox *widget, gpointer
 	}
 }
 
-
 void on_phoebe_lc_plot_options_x_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
 	GUI_widget *lc_xstart_label 		= gui_widget_lookup("phoebe_lc_plot_options_phstart_label");
@@ -1314,14 +1296,12 @@ void on_phoebe_lc_plot_options_x_combobox_changed (GtkComboBox *widget, gpointer
 	}
 }
 
-
 void on_phoebe_lc_plot_options_obs_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	GUI_widget *combobox = gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox");
 	gtk_widget_set_sensitive (combobox->gtk, gtk_toggle_button_get_active(togglebutton));
 	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
 }
-
 
 void on_phoebe_rv_plot_options_obs_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
@@ -1767,6 +1747,17 @@ void on_phoebe_star_shape_clear_button_clicked (GtkButton *button, gpointer user
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_eb_plot_image")->gtk), NULL);
 }
 
+void on_phoebe_star_shape_phase_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
+{
+	GtkWidget *phoebe_star_shape_autoupdate_checkbutton = gui_widget_lookup("phoebe_star_shape_autoupdate_checkbutton")->gtk;
+
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(phoebe_star_shape_autoupdate_checkbutton))){
+		gui_get_values_from_widgets();
+		gui_plot_eb_using_gnuplot();
+	}
+}
+
+
 
 /* ******************************************************************** *
  *
@@ -1859,8 +1850,6 @@ void on_phoebe_para_comp_phsv_calculate_button_clicked (GtkButton *button, gpoin
 	gtk_widget_show (phoebe_pot_calc_dialog);
 }
 
-
-
 void on_phoebe_para_comp_pcsv_calculate_button_clicked (GtkButton *button, gpointer user_data)
 {
     gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_potential_calculator.glade", NULL);
@@ -1932,7 +1921,6 @@ void on_phoebe_ld_dialog_close_button_clicked (GtkButton *button, gpointer user_
 	gtk_widget_destroy (GTK_WIDGET(user_data));
 }
 
-
 void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer user_data)
 {
 	double tavh 	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_tavh_spinbutton")));
@@ -1966,7 +1954,6 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")), y1);
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")), y2);
 }
-
 
 void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)
 {
@@ -2089,39 +2076,4 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_interpolate_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_interpolate_button_clicked), NULL);
 
 	gtk_widget_show (phoebe_ld_dialog);
-}
-
-void on_phoebe_potential_parameter_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
-{
-	int status = 0;
-
-	GtkWidget *phoebe_para_sys_rm_spinbutton = gui_widget_lookup("phoebe_para_sys_rm_spinbutton")->gtk;
-	GtkWidget *phoebe_para_orb_ecc_spinbutton = gui_widget_lookup("phoebe_para_orb_ecc_spinbutton")->gtk;
-	GtkWidget *phoebe_para_orb_f1_spinbutton = gui_widget_lookup("phoebe_para_orb_f1_spinbutton")->gtk;
-
-	GtkTreeView *phoebe_sidesheet_res_treeview = (GtkTreeView*)gui_widget_lookup("phoebe_sidesheet_res_treeview")->gtk;
-	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_sidesheet_res_treeview);
-	GtkTreeIter iter;
-
-	double q, e, F, L1, L2;
-
-	gtk_tree_model_get_iter_first (model, &iter);
-
-	q = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_sys_rm_spinbutton));
-	e = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_ecc_spinbutton));
-	F = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_f1_spinbutton));
-
-	printf("\nq = %f, e = %f, f1 = %f\n", q, e, F);
-
-	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
-
-	printf("L1 = %f, L2 = %f\n", L1, L2);
-
-	/* Conviniently the potentials are in the first two rows */
-
-	gtk_tree_model_get_iter_first (model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>1</sub>)", RS_COL_PARAM_VALUE, L1, -1);
-
-	gtk_tree_model_iter_next (model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 }

@@ -86,6 +86,7 @@ int gui_init_widgets ()
 	phoebe_parameter_add ("gui_rv_plot_zoom_level",		"Zoom level",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		0);
 	phoebe_parameter_add ("gui_rv_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_rv_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_3d_plot_autoupdate",		"Autoupdate plot on phase change",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL, 	NO);
 	phoebe_parameter_add ("gui_verbosity_level",		"Level of GUI terminal verbosity", 	KIND_PARAMETER, NULL, 0.0, 0.0, 0.0, NO, TYPE_INT, 		1);
 
 	/* *************************** Main Window    **************************** */
@@ -522,9 +523,10 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_options_obs_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_combobox"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_rv_plot_obsmenu"), gui_widget_lookup("phoebe_data_rv_filter"));
 
 	gui_widget_add ("phoebe_lc_plot_options_phstart_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phstart_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
-	gui_widget_add ("phoebe_lc_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_lc_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_label"),								0,					GUI_WIDGET_VALUE,		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_options_phstart_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phstart_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
-	gui_widget_add ("phoebe_rv_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_label"),								0,					GUI_WIDGET_VALUE,		NULL, NULL);
+	gui_widget_add ("phoebe_star_shape_autoupdate_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_star_shape_autoupdate_checkbutton"),						0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_3d_plot_autoupdate"), NULL);
 
 	/* ************************    GUI Containers   ************************* */
 
