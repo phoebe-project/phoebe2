@@ -24,9 +24,9 @@
 #                                                                      #
 ########################################################################
 
-lib_LTLIBRARIES = libphoebe_nof2c.la
+lib_LTLIBRARIES = libphoebe.la
 
-libphoebe_nof2c_la_SOURCES =                                                  \
+libphoebe_la_SOURCES =                                                  \
     phoebe_constraints.grm.y          phoebe_constraints.lng.l          \
     phoebe_accessories.c              phoebe_accessories.h              \
     phoebe_allocations.c              phoebe_allocations.h              \
@@ -58,10 +58,10 @@ EXTRA_DIST = phoebe_constraints.lng.h
 AM_YFLAGS = -d -p pc
 AM_LFLAGS = -P pc
 
-libphoebe_nof2c_la_LDFLAGS = -release $(PACKAGE_VERSION)
-libphoebe_nof2c_la_CFLAGS  = -Wall
+libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
+libphoebe_la_CFLAGS  = -Wall
 
-libphoebe_nof2c_la_LIBADD  = ../libwd/libwd_nof2c.la
+libphoebe_la_LIBADD  = ../libwd/libwd.la
 
 library_includedir=$(includedir)/phoebe
 library_include_HEADERS = phoebe.h                   \

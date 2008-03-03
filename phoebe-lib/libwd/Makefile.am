@@ -24,9 +24,9 @@
 #                                                                      #
 ########################################################################
 
-lib_LTLIBRARIES = libwd_nof2c.la
+lib_LTLIBRARIES = libwd.la
 
-libwd_nof2c_la_SOURCES = \
+libwd_la_SOURCES = \
     atmx.f      bbl.f       binnum.f    cloud.f     conjph.f    dgmprd.f       \
     dminv.f     dura.f      ellone.f    fourls.f    gabs.f      jdph.f         \
     kepler.f    lcr.f       legendre.f  light.f     linpro.f    lum.f          \
@@ -39,7 +39,7 @@ libwd_nof2c_la_SOURCES = \
 
 #CLEANFILES = 
 
-libwd_nof2c_la_LDFLAGS = -release 2007-08-15
+libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
 

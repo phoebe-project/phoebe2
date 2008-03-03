@@ -16,7 +16,7 @@
 
 ########################################################################
 #                                                                      #
-#    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -210,7 +210,7 @@ BUILT_SOURCES = phoebe_scripter.lng.h phoebe_scripter.grm.h
 EXTRA_DIST = phoebe_scripter.lng.h
 AM_YFLAGS = -d
 AM_CFLAGS = -Wall
-phoebe_scripter_LDADD = -lphoebe_nof2c
+phoebe_scripter_LDADD = -lphoebe
 all: $(BUILT_SOURCES) phoebe_scripter_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
