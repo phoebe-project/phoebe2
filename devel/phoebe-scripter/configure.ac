@@ -4,7 +4,7 @@
 #                                                                      #
 ########################################################################
 #                                                                      #
-#   Author of configure.ac: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#   Author of configure.ac: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 #                               * * *                                  #
 #                                                                      #
@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT(phoebe-scripter-nof2c, [0.30-svn], http://phoebe.fiz.uni-lj.si)
+  AC_INIT(phoebe-scripter, [0.30-svn], http://phoebe.fiz.uni-lj.si)
 
 # Create a dedicated header file phoebe_scripter_build_config.h that will
 # contain all #define statements that correspond to whatever ./configure
@@ -137,7 +137,7 @@
 
 # Check if PHOEBE library is installed:
 
-  AC_CHECK_LIB(phoebe_nof2c, phoebe_init, phoebe_check=1, phoebe_check=0)
+  AC_CHECK_LIB(phoebe, phoebe_init, phoebe_check=1, phoebe_check=0)
 
     if test $phoebe_check -eq 0; then
       echo ""

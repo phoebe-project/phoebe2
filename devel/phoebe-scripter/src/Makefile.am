@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -45,4 +45,4 @@ phoebe_scripter.lng.h:
 AM_YFLAGS = -d
 
 AM_CFLAGS = -Wall
-phoebe_scripter_LDADD = -lphoebe_nof2c
+phoebe_scripter_LDADD = -lphoebe

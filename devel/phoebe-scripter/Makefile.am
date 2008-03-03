@@ -1,10 +1,10 @@
 ########################################################################
 #                                                                      #
-#                        PHOEBE 0.30rc2 scripter                       #
+#                          PHOEBE 0.30 scripter                        #
 #                                                                      #
 ########################################################################
 #                                                                      #
-#    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
 #                                                                      #

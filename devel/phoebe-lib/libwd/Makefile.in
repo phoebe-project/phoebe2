@@ -79,18 +79,18 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 	"$(DESTDIR)$(library_includedir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libwd_nof2c_la_LIBADD =
-am_libwd_nof2c_la_OBJECTS = atmx.lo bbl.lo binnum.lo cloud.lo \
-	conjph.lo dgmprd.lo dminv.lo dura.lo ellone.lo fourls.lo \
-	gabs.lo jdph.lo kepler.lo lcr.lo legendre.lo light.lo \
-	linpro.lo lum.lo lump.lo mlrg.lo modlog.lo nekmin.lo olump.lo \
-	planckint.lo rangau.lo ranuni.lo rddata.lo ring.lo romq.lo \
-	sincos.lo spot.lo square.lo surfas.lo volume.lo wrhead.lo \
-	wrdata.lo wrfoot.lo wrlci.lo wrdci.lo lc.sub.lo dc.sub.lo
-libwd_nof2c_la_OBJECTS = $(am_libwd_nof2c_la_OBJECTS)
-libwd_nof2c_la_LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) \
+libwd_la_LIBADD =
+am_libwd_la_OBJECTS = atmx.lo bbl.lo binnum.lo cloud.lo conjph.lo \
+	dgmprd.lo dminv.lo dura.lo ellone.lo fourls.lo gabs.lo jdph.lo \
+	kepler.lo lcr.lo legendre.lo light.lo linpro.lo lum.lo lump.lo \
+	mlrg.lo modlog.lo nekmin.lo olump.lo planckint.lo rangau.lo \
+	ranuni.lo rddata.lo ring.lo romq.lo sincos.lo spot.lo \
+	square.lo surfas.lo volume.lo wrhead.lo wrdata.lo wrfoot.lo \
+	wrlci.lo wrdci.lo lc.sub.lo dc.sub.lo
+libwd_la_OBJECTS = $(am_libwd_la_OBJECTS)
+libwd_la_LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(F77LD) $(AM_FFLAGS) $(FFLAGS) \
-	$(libwd_nof2c_la_LDFLAGS) $(LDFLAGS) -o $@
+	$(libwd_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/libphoebe@am__isrc@
 F77COMPILE = $(F77) $(AM_FFLAGS) $(FFLAGS)
 LTF77COMPILE = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
@@ -99,8 +99,8 @@ F77LD = $(F77)
 F77LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(F77LD) $(AM_FFLAGS) $(FFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libwd_nof2c_la_SOURCES)
-DIST_SOURCES = $(libwd_nof2c_la_SOURCES)
+SOURCES = $(libwd_la_SOURCES)
+DIST_SOURCES = $(libwd_la_SOURCES)
 library_includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(library_include_HEADERS)
 ETAGS = etags
@@ -223,8 +223,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-lib_LTLIBRARIES = libwd_nof2c.la
-libwd_nof2c_la_SOURCES = \
+lib_LTLIBRARIES = libwd.la
+libwd_la_SOURCES = \
     atmx.f      bbl.f       binnum.f    cloud.f     conjph.f    dgmprd.f       \
     dminv.f     dura.f      ellone.f    fourls.f    gabs.f      jdph.f         \
     kepler.f    lcr.f       legendre.f  light.f     linpro.f    lum.f          \
@@ -237,7 +237,7 @@ libwd_nof2c_la_SOURCES = \
 #EXTRA_DIST =
 
 #CLEANFILES = 
-libwd_nof2c_la_LDFLAGS = -release 2007-08-15
+libwd_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
 library_includedir = $(includedir)/phoebe
@@ -302,8 +302,8 @@ clean-libLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-libwd_nof2c.la: $(libwd_nof2c_la_OBJECTS) $(libwd_nof2c_la_DEPENDENCIES) 
-	$(libwd_nof2c_la_LINK) -rpath $(libdir) $(libwd_nof2c_la_OBJECTS) $(libwd_nof2c_la_LIBADD) $(LIBS)
+libwd.la: $(libwd_la_OBJECTS) $(libwd_la_DEPENDENCIES) 
+	$(libwd_la_LINK) -rpath $(libdir) $(libwd_la_OBJECTS) $(libwd_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

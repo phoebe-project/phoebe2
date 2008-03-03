@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT([phoebe-lib-nof2c],[0.30-svn],[phoebe-devel@lists.sourceforge.net])
+  AC_INIT([phoebe-lib],[0.30-svn],[phoebe-devel@lists.sourceforge.net])
 
 # Create a dedicated header file phoebe_build_config.h that will contain
 # all #define statements that correspond to whatever ./configure found:
@@ -83,13 +83,13 @@
     fi
 
   # Fortran compiler:
-    AC_PROG_F77
+    AC_PROG_F77(gfortran g77)
 
     if test -z $F77; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
-      echo "PHOEBE needs a FORTRAN 77 compliant compiler to build."
+      echo "PHOEBE needs a F77 compliant compiler (gfortran) to build."
       echo "Please install it and run the ./configure script again."
       echo ""
       exit
@@ -216,11 +216,6 @@ GTK_DOC_CHECK(1.0)
   AC_FUNC_STAT
   AC_FUNC_VPRINTF
   AC_CHECK_FUNCS([getcwd mkdir mkfifo pow setlocale sqrt strchr strdup strstr])
-
-# Check for FORTRAN library features:
-
-  # Define a switch to tell FORTRAN what architecture it is compiling for:
-# AC_DEFINE(f2cFortran, 1, [This is for Linux x86 architectures:])
 
 # Check for OS features:
 

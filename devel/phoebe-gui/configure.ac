@@ -4,7 +4,7 @@
 #                                                                      #
 ########################################################################
 #                                                                      #
-#   Author of configure.ac: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#   Author of configure.ac: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 #                               * * *                                  #
 #                                                                      #
@@ -127,7 +127,7 @@
 
 # Check if PHOEBE library is installed:
 
-  AC_CHECK_LIB(phoebe_nof2c, phoebe_init, phoebe_check=1, phoebe_check=0)
+  AC_CHECK_LIB(phoebe, phoebe_init, phoebe_check=1, phoebe_check=0)
 
   if test $phoebe_check -eq 0; then
     echo ""
@@ -138,7 +138,7 @@
     echo ""
     exit
   fi
-  PHOEBE_LIBS=-lphoebe_nof2c
+  PHOEBE_LIBS=-lphoebe
   AC_SUBST(PHOEBE_LIBS)
 
 # GNUPlot support:

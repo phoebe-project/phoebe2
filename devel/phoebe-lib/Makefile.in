@@ -63,7 +63,8 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	ChangeLog INSTALL NEWS TODO autoconfig/compile \
 	autoconfig/config.guess autoconfig/config.sub \
 	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
-	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap
+	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap \
+	config.guess config.sub ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
