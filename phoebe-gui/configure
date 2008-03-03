@@ -4261,13 +4261,13 @@ fi
 
 # Check if PHOEBE library is installed:
 
-  { echo "$as_me:$LINENO: checking for phoebe_init in -lphoebe" >&5
-echo $ECHO_N "checking for phoebe_init in -lphoebe... $ECHO_C" >&6; }
-if test "${ac_cv_lib_phoebe_phoebe_init+set}" = set; then
+  { echo "$as_me:$LINENO: checking for phoebe_init in -lphoebe_nof2c" >&5
+echo $ECHO_N "checking for phoebe_init in -lphoebe_nof2c... $ECHO_C" >&6; }
+if test "${ac_cv_lib_phoebe_nof2c_phoebe_init+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lphoebe  $LIBS"
+LIBS="-lphoebe_nof2c  $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -4308,21 +4308,21 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_phoebe_phoebe_init=yes
+  ac_cv_lib_phoebe_nof2c_phoebe_init=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_phoebe_phoebe_init=no
+	ac_cv_lib_phoebe_nof2c_phoebe_init=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_phoebe_phoebe_init" >&5
-echo "${ECHO_T}$ac_cv_lib_phoebe_phoebe_init" >&6; }
-if test $ac_cv_lib_phoebe_phoebe_init = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_phoebe_nof2c_phoebe_init" >&5
+echo "${ECHO_T}$ac_cv_lib_phoebe_nof2c_phoebe_init" >&6; }
+if test $ac_cv_lib_phoebe_nof2c_phoebe_init = yes; then
   phoebe_check=1
 else
   phoebe_check=0
@@ -4338,7 +4338,7 @@ fi
     echo ""
     exit
   fi
-  PHOEBE_LIBS=-lphoebe
+  PHOEBE_LIBS=-lphoebe_nof2c
 
 
 # GNUPlot support:

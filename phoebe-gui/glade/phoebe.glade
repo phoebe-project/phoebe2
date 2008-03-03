@@ -146,16 +146,15 @@
           <widget class="GtkToolbar" id="phoebe_toolbar">
             <property name="visible">True</property>
             <property name="toolbar_style">GTK_TOOLBAR_BOTH</property>
+<!-- Avoid libglade-WARNING **: unknown property `icon_size' for class `GtkToolbar'
             <property name="icon_size">GTK_ICON_SIZE_MENU</property>
+-->
             <child>
               <widget class="GtkToolButton" id="phoebe_open_toolbutton">
                 <property name="visible">True</property>
                 <property name="stock_id">gtk-open</property>
                 <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_save_toolbutton">
@@ -163,18 +162,11 @@
                 <property name="stock_id">gtk-save</property>
                 <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator1">
                 <property name="visible">True</property>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_lc_plot_toolbutton">
@@ -183,9 +175,6 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_lc_plot_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_rv_plot_toolbutton">
@@ -194,18 +183,11 @@
                 <property name="stock_id">gtk-select-color</property>
                 <signal name="clicked" handler="on_phoebe_rv_plot_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_fitting_toolbutton">
@@ -215,18 +197,11 @@
                 <property name="stock_id">gtk-execute</property>
                 <signal name="clicked" handler="on_phoebe_fitting_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator2">
                 <property name="visible">True</property>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_settings_toolbutton">
@@ -236,18 +211,11 @@
                 <property name="stock_id">gtk-preferences</property>
                 <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="phoebe_toolbar_separator3">
                 <property name="visible">True</property>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">False</property>
-              </packing>
             </child>
             <child>
               <widget class="GtkToolButton" id="phoebe_quit_toolbutton">
@@ -255,9 +223,6 @@
                 <property name="stock_id">gtk-quit</property>
                 <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked"/>
               </widget>
-              <packing>
-                <property name="expand">False</property>
-              </packing>
             </child>
           </widget>
           <packing>
@@ -925,9 +890,6 @@
                       </packing>
                     </child>
                   </widget>
-                  <packing>
-                    <property name="tab_expand">False</property>
-                  </packing>
                 </child>
                 <child>
                   <widget class="GtkLabel" id="phoebe_data_label">
@@ -936,7 +898,6 @@
                   </widget>
                   <packing>
                     <property name="type">tab</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -1118,6 +1079,7 @@
                                     <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">10</property>
+                                    <signal name="changed" handler="on_phoebe_para_eph_period_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1583,9 +1545,6 @@
                           <placeholder/>
                         </child>
                       </widget>
-                      <packing>
-                        <property name="tab_expand">False</property>
-                      </packing>
                     </child>
                     <child>
                       <widget class="GtkLabel" id="phoebe_para_eph_label">
@@ -1594,7 +1553,6 @@
                       </widget>
                       <packing>
                         <property name="type">tab</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -1616,6 +1574,7 @@
                                     <property name="adjustment">10 0 10000000000 0.10000000000000001 1 1</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">5</property>
+                                    <signal name="changed" handler="on_phoebe_para_sys_sma_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1771,7 +1730,7 @@
                                     <property name="adjustment">1 0 10000000000 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.10000000149011612</property>
                                     <property name="digits">5</property>
-                                    <signal name="value_changed" handler="on_phoebe_potential_parameter_value_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_sys_rm_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2234,7 +2193,6 @@
                       </widget>
                       <packing>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -2245,7 +2203,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -2574,7 +2531,7 @@
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">5</property>
-                                    <signal name="value_changed" handler="on_phoebe_potential_parameter_value_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_orb_ecc_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2728,7 +2685,7 @@
                                     <property name="adjustment">1 0 1000 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">6</property>
-                                    <signal name="value_changed" handler="on_phoebe_potential_parameter_value_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_orb_f1_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2882,6 +2839,7 @@
                                     <property name="adjustment">1 0 1000 0.01 0.10000000000000001 1</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">6</property>
+                                    <signal name="changed" handler="on_phoebe_para_orb_f2_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3033,7 +2991,6 @@
                       </widget>
                       <packing>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -3044,7 +3001,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -3065,6 +3021,7 @@
                                     <property name="can_focus">True</property>
                                     <property name="adjustment">6000 500 50000 10 100 100</property>
                                     <property name="climb_rate">10</property>
+                                    <signal name="changed" handler="on_phoebe_para_comp_tavh_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3213,6 +3170,7 @@
                                     <property name="can_focus">True</property>
                                     <property name="adjustment">6000 500 50000 10 100 100</property>
                                     <property name="climb_rate">10</property>
+                                    <signal name="changed" handler="on_phoebe_para_comp_tavc_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3367,6 +3325,7 @@
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 1</property>
                                         <property name="climb_rate">0.10000000149011612</property>
                                         <property name="digits">5</property>
+                                        <signal name="changed" handler="on_phoebe_para_comp_phsv_spinbutton_changed"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -3539,6 +3498,7 @@
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 1</property>
                                         <property name="climb_rate">0.10000000149011612</property>
                                         <property name="digits">5</property>
+                                        <signal name="changed" handler="on_phoebe_para_comp_pcsv_spinbutton_changed"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -3708,6 +3668,7 @@
                                     <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">3</property>
+                                    <signal name="changed" handler="on_phoebe_para_comp_met1_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3862,6 +3823,7 @@
                                     <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0.10000000000000001</property>
                                     <property name="climb_rate">0.0099999997764825821</property>
                                     <property name="digits">3</property>
+                                    <signal name="changed" handler="on_phoebe_para_comp_met2_spinbutton_changed"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4005,7 +3967,6 @@
                       </widget>
                       <packing>
                         <property name="position">3</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -4016,7 +3977,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">3</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -4655,7 +4615,6 @@
                       </widget>
                       <packing>
                         <property name="position">4</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -4666,7 +4625,6 @@
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">4</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -5574,7 +5532,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">5</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -5585,7 +5542,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">5</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -5669,6 +5625,7 @@ from temperatures</property>
                                       <widget class="GtkComboBox" id="phoebe_para_ld_model_combobox">
                                         <property name="visible">True</property>
                                         <property name="items" translatable="yes"></property>
+                                        <signal name="changed" handler="on_phoebe_para_ld_model_combobox_changed"/>
                                       </widget>
                                       <packing>
                                         <property name="bottom_attach">2</property>
@@ -6230,7 +6187,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">6</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -6241,7 +6197,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">6</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -6348,6 +6303,36 @@ from temperatures</property>
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkHBox" id="phoebe_para_spots_units_hbox">
+                                <property name="visible">True</property>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_spots_units_label">
+                                    <property name="visible">True</property>
+                                    <property name="xpad">5</property>
+                                    <property name="label" translatable="yes">Spot coordinate and radius units:</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkComboBox" id="phoebe_para_spots_units_combobox">
+                                    <property name="visible">True</property>
+                                    <property name="items" translatable="yes"></property>
+                                    <signal name="changed" handler="on_phoebe_para_spots_units_combobox_changed"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">3</property>
                               </packing>
                             </child>
                             <child>
@@ -6941,8 +6926,8 @@ from temperatures</property>
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">0 0 100 1 10 10</property>
-                                                <property name="climb_rate">1</property>
+                                                <property name="adjustment">1 0 10 0.01 0.1 0.1</property>
+                                                <property name="climb_rate">0.02</property>
                                                 <property name="digits">4</property>
                                                 <signal name="value_changed" handler="on_phoebe_para_spots_temp_spinbutton_value_changed"/>
                                               </widget>
@@ -7003,8 +6988,8 @@ from temperatures</property>
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">0 0 100 1 10 10</property>
-                                                <property name="climb_rate">1</property>
+                                                <property name="adjustment">0.02 0 1 0.01 0.1 0.1</property>
+                                                <property name="climb_rate">0.02</property>
                                                 <property name="digits">4</property>
                                                 <signal name="value_changed" handler="on_phoebe_para_spots_tempstep_spinbutton_value_changed"/>
                                               </widget>
@@ -7033,8 +7018,8 @@ from temperatures</property>
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">0 0 100 1 10 10</property>
-                                                <property name="climb_rate">1</property>
+                                                <property name="adjustment">0.2 0 100 0.1 1 1</property>
+                                                <property name="climb_rate">0.02</property>
                                                 <property name="digits">4</property>
                                                 <signal name="value_changed" handler="on_phoebe_para_spots_tempmin_spinbutton_value_changed"/>
                                               </widget>
@@ -7063,8 +7048,8 @@ from temperatures</property>
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">100 0 100 1 10 10</property>
-                                                <property name="climb_rate">1</property>
+                                                <property name="adjustment">5 0 100 0.1 1 1</property>
+                                                <property name="climb_rate">0.02</property>
                                                 <property name="digits">4</property>
                                                 <signal name="value_changed" handler="on_phoebe_para_spots_tempmax_spinbutton_value_changed"/>
                                               </widget>
@@ -7114,7 +7099,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">7</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -7126,14 +7110,12 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">7</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="position">1</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -7144,7 +7126,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">1</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -7689,7 +7670,6 @@ from temperatures</property>
                   </widget>
                   <packing>
                     <property name="position">2</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -7700,7 +7680,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">2</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>
@@ -8332,9 +8311,6 @@ from temperatures</property>
                           </widget>
                         </child>
                       </widget>
-                      <packing>
-                        <property name="tab_expand">False</property>
-                      </packing>
                     </child>
                     <child>
                       <widget class="GtkLabel" id="phoebe_plot_lc_label">
@@ -8343,7 +8319,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="type">tab</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -8979,7 +8954,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -8990,7 +8964,6 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">1</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
@@ -9082,16 +9055,16 @@ from temperatures</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkCheckButton" id="phoebe_star_shape_autoupdate_checkbutton">
+                                   <widget class="GtkCheckButton" id="phoebe_star_shape_autoupdate_checkbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Auto-update plot on phase change</property>
                                     <property name="draw_indicator">True</property>
-                                  </widget>
-                                  <packing>
+                                   </widget>
+                                   <packing>
                                     <property name="position">2</property>
-                                  </packing>
+                                   </packing>
                                 </child>
                               </widget>
                               <packing>
@@ -9115,7 +9088,6 @@ from temperatures</property>
                       </widget>
                       <packing>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                       </packing>
                     </child>
                     <child>
@@ -9126,14 +9098,12 @@ from temperatures</property>
                       <packing>
                         <property name="type">tab</property>
                         <property name="position">2</property>
-                        <property name="tab_expand">False</property>
                         <property name="tab_fill">False</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="position">3</property>
-                    <property name="tab_expand">False</property>
                   </packing>
                 </child>
                 <child>
@@ -9144,7 +9114,6 @@ from temperatures</property>
                   <packing>
                     <property name="type">tab</property>
                     <property name="position">3</property>
-                    <property name="tab_expand">False</property>
                     <property name="tab_fill">False</property>
                   </packing>
                 </child>

@@ -8,6 +8,7 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 
 int gui_open_parameter_file();
 int gui_save_parameter_file();
+gchar *gui_get_filename_with_overwrite_confirmation(GtkWidget *dialog, char *gui_confirmation_title);
 
 int gui_show_configuration_dialog();
 

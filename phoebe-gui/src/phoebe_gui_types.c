@@ -15,6 +15,24 @@ gboolean PHOEBE_WINDOW_RV_PLOT_IS_DETACHED   = FALSE;
 gboolean PHOEBE_WINDOW_FITTING_IS_DETACHED   = FALSE;
 gboolean PHOEBE_SPOTS_SHOW_ALL				 = FALSE;
 
+void gui_set_button_image (gchar *button_name, gchar *pixmap_file)
+{
+	/*
+	 * Replaces gtk_button_set_image which does not work on cygwin
+	 * Removes the old icon image and then adds a new one
+	 */
+
+	GtkWidget *image = gtk_image_new_from_file(pixmap_file);
+	GtkContainer *button = GTK_CONTAINER(gui_widget_lookup(button_name)->gtk);
+	if (image && button) {
+		GList *glist = gtk_container_get_children(button);
+		if (glist)
+			gtk_container_remove(button, glist->data);
+		gtk_container_add (button, image);
+		gtk_widget_show (image);
+	}
+}
+
 int gui_init_widgets ()
 {
 	/*
@@ -53,7 +71,7 @@ int gui_init_widgets ()
 	/* *************************** GUI Parameters *************************** */
 
 	phoebe_parameter_add ("gui_ld_model_autoupdate",	"Automatically update LD model",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Diferential Corrections");
+	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Differential Corrections");
 	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
@@ -411,6 +429,7 @@ int gui_init_widgets ()
 
 	gui_widget_add ("phoebe_para_spots_primmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_primmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate1"),	NULL);
 	gui_widget_add ("phoebe_para_spots_secmove_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_spots_secmove_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("phoebe_spots_corotate2"),	NULL);
+	gui_widget_add ("phoebe_para_spots_units_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_para_spots_units_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup("phoebe_spots_units"), NULL);
 
 	gui_widget_add ("phoebe_para_spots_active_switch",					(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_ACTIVE,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_spots_active_switch"), NULL);
 	gui_widget_add ("phoebe_para_spots_tba_switch",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_spots_treeview),						SPOTS_COL_ADJUST,	GUI_WIDGET_SWITCH_TBA,	phoebe_parameter_lookup ("phoebe_spots_tba_switch"), NULL);
@@ -549,10 +568,16 @@ int gui_init_widgets ()
 
 	g_object_unref (phoebe_window);
 
+/*  Replaced: does not work on cygwin
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_sidesheet_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_fitt_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
 	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
+*/
+	gui_set_button_image("phoebe_sidesheet_detach_button", detach_pixmap_file);
+	gui_set_button_image("phoebe_fitt_detach_button", detach_pixmap_file);
+	gui_set_button_image("phoebe_lc_plot_detach_button", detach_pixmap_file);
+	gui_set_button_image("phoebe_rv_plot_detach_button", detach_pixmap_file);
 
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_lc_plot_image")->gtk), NULL);
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_rv_plot_image")->gtk), NULL);
@@ -613,7 +638,7 @@ int gui_init_parameter_options()
 	int status = 0;
 
 	par = phoebe_parameter_lookup("gui_fitt_method");
-	phoebe_parameter_add_option (par, "Diferential Corrections");
+	phoebe_parameter_add_option (par, "Differential Corrections");
 	phoebe_parameter_add_option (par, "Nelder & Mead's Simplex");
 
 	par = phoebe_parameter_lookup("gui_lc_plot_x");
@@ -631,6 +656,7 @@ int gui_init_parameter_options()
 	par = phoebe_parameter_lookup("gui_rv_plot_y");
 	phoebe_parameter_add_option (par, "Primary RV");
 	phoebe_parameter_add_option (par, "Secondary RV");
+	phoebe_parameter_add_option (par, "Primary+Secondary RV");
 	return status;
 }
 

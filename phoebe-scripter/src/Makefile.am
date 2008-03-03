@@ -45,4 +45,4 @@ phoebe_scripter.lng.h:
 AM_YFLAGS = -d
 
 AM_CFLAGS = -Wall
-phoebe_scripter_LDADD = -lphoebe
+phoebe_scripter_LDADD = -lphoebe_nof2c

@@ -3,7 +3,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <math.h>
 
 #include "phoebe_accessories.h"
 #include "phoebe_calculations.h"
@@ -13,60 +12,35 @@
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
-int      PHOEBE_ld_table_size;
-LDtable *PHOEBE_ld_table;
+LD_table *PHOEBE_ld_table;
 
-LDelem *phoebe_ld_elem_new (double M, int T, double lg)
+int intern_compare_ints (const void *a, const void *b)
 {
-	LDelem *elem = phoebe_malloc (sizeof (*elem));
-	elem->M  = M;
-	elem->T  = T;
-	elem->lg = lg;
-	return elem;
+	const int *v1 = (const int *) a;
+	const int *v2 = (const int *) b;
+
+	return *v1  - *v2;
 }
 
-int phoebe_ld_table_free ()
+LD_table *phoebe_ld_table_vh1993_load (char *dir)
 {
 	/**
-	 * phoebe_ld_table_free:
+	 * phoebe_ld_table_vh1993_load:
+	 * @dir: directory that contains Van Hamme (1993) LD tables
 	 *
-	 * Frees the contents of the limb darkening table #PHOEBE_ld_table. It
-	 * is safe to call this function on the uninitialized table, so there
-	 * is no need to check for LD presence.
+	 * Scans all files in the passed directory dir and extracts LD triplets (T,
+	 * log g, M/H) from table headers. It then creates a 3D matrix what holds
+	 * all of these elements so that LD[M][T][lg] is structured by indices and
+	 * all non-existing nodes padded with nans. For optimized lookup this
+	 * matrix has a border of nans in all three directions - so that the lookup
+	 * function does not have to check for matrix boundaries.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	int i;
-
-	if (!PHOEBE_ld_table)
-		return SUCCESS;
-
-	for (i = 0; i < PHOEBE_ld_table_size; i++) {
-		free (PHOEBE_ld_table[i].elem);
-		free (PHOEBE_ld_table[i].filename);
-	}
-	free (PHOEBE_ld_table);
-
-	return SUCCESS;
-}
-
-int read_in_ld_nodes (char *dir)
-{
-	/*
-	 * This function scans all files in the passed directory dir and extracts
-	 * LD triplets (T, log g, M/H) from table headers. The structure to hold
-	 * these data is somewhat complicated, that's why this function is fairly
-	 * long. Yet the benefit of it is that the access speed to data files is
-	 * maximized while PHOEBE is running. This table could alternatively be
-	 * hashed in an external file (as was done in PHOEBE 0.2x), yet I don't
-	 * think waiting for 7/10th of a second during startup is that bad. I'm
-	 * pretty confident this scan time can be furtherly reduced, yet I don't
-	 * see a good reason why this would be necessary.
-	 */
-
 	int status;
-	
+	LD_table *LD;
+
 	DIR *dirlist;
 	struct dirent *file;
 
@@ -75,36 +49,47 @@ int read_in_ld_nodes (char *dir)
 	char line[255];
 	char LDfile[255];
 
-	int i, j;
+	int i, j, k, l;
+
+	int na = -1001; /* n/a field in the LD matrix */
 
 	int T;
 	double lg, M;
 	
-	/* The structure above will be filled at readout to the following array:  */
-	int    recno = 1;
-	LDrecord *rec = phoebe_malloc (sizeof (*rec));
-	LDrecord swapper;
+	/* LD readout structure: */
+	int recno = 1;
+	struct {
+		char    *filename;
+		long int pos;
+		int      T;
+		double   lg;
+		double   M;
+	} *rec;
 
 	int counter = 0;
 	
 	status = phoebe_open_directory (&dirlist, dir);
-	if (status != SUCCESS)
-		return status;
+	if (status != SUCCESS) {
+		phoebe_lib_error ("failed to open %s for reading.\n", dir);
+		return NULL;
+	}
+
+	rec = phoebe_malloc (sizeof (*rec));
 
 	while ( (file = readdir (dirlist)) ) {
 		sprintf (LDfile, "%s/%s", dir, file->d_name);
 
-		/* Skip directories and 'ld_availability.data' file:                  */
+		/* Skip directories and 'ld_availability.data' file: */
 		if (phoebe_filename_is_directory (LDfile)) continue;
 		if (strcmp (file->d_name, "ld_availability.data") == 0) continue;
 
 		in = fopen (LDfile, "r");
 
 		if (!in) {
-			phoebe_lib_error ("file %s is invalid, skipping.\n", file->d_name);
+			phoebe_lib_error ("failed to open %s for reading, skipping.\n", file->d_name);
 			continue;
 		}
-		
+
 		while (!feof (in)) {
 			fgets (line, 255, in);
 			if (sscanf (line, " Teff = %d K, log g = %lf, [M/H] = %lf", &T, &lg, &M) == 3) {
@@ -123,132 +108,139 @@ int read_in_ld_nodes (char *dir)
 		fclose (in);
 	}
 
-	status = phoebe_close_directory (&dirlist);
-	if (status != SUCCESS)
-		return status;
+	phoebe_close_directory (&dirlist);
 
-	PHOEBE_ld_table_size = counter;
+	LD = phoebe_malloc (sizeof (*LD));
 
-	/* To this point all available records have been read, along with their   */
-	/* parent filenames and positions therein. We shall now sort these values */
-	/* by M, then by T and finally by log g:                                  */
+	LD->Tnodes = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (LD->Tnodes, 2);
+	LD->Tnodes->val.iarray[0] = LD->Tnodes->val.iarray[1] = na;
 
-	for (i = 0; i < counter-1; i++) {
-		for (j = i+1; j < counter; j++) {
-			if (rec[i].M > rec[j].M) {
-				swapper.M  = rec[j].M;
-				swapper.lg = rec[j].lg;
-				swapper.T  = rec[j].T;
-				swapper.pos = rec[j].pos;
-				swapper.filename = rec[j].filename;
-			
-				rec[j].M        = rec[i].M;
-				rec[j].lg       = rec[i].lg;
-				rec[j].T        = rec[i].T;
-				rec[j].pos      = rec[i].pos;
-				rec[j].filename = rec[i].filename;
+	LD->Mnodes = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (LD->Mnodes, 2);
+	LD->Mnodes->val.iarray[0] = LD->Mnodes->val.iarray[1] = na;
 
-				rec[i].M        = swapper.M; 
-				rec[i].lg       = swapper.lg; 
-				rec[i].T        = swapper.T; 
-				rec[i].pos      = swapper.pos; 
-				rec[i].filename = swapper.filename; 
-			}
-			else if (rec[i].M == rec[j].M) {
-				if (rec[i].T > rec[j].T) {
-					swapper.M  = rec[j].M;
-					swapper.lg = rec[j].lg;
-					swapper.T  = rec[j].T;
-					swapper.pos = rec[j].pos;
-					swapper.filename = rec[j].filename;
-			
-					rec[j].M        = rec[i].M;
-					rec[j].lg       = rec[i].lg;
-					rec[j].T        = rec[i].T;
-					rec[j].pos      = rec[i].pos;
-					rec[j].filename = rec[i].filename;
+	LD->lgnodes = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (LD->lgnodes, 2);
+	LD->lgnodes->val.iarray[0] = LD->lgnodes->val.iarray[1] = na;
 
-					rec[i].M        = swapper.M; 
-					rec[i].lg       = swapper.lg; 
-					rec[i].T        = swapper.T; 
-					rec[i].pos      = swapper.pos; 
-					rec[i].filename = swapper.filename; 
-				}
-				else if (rec[i].T == rec[j].T) {
-					if (rec[i].lg > rec[j].lg) {
-						swapper.M  = rec[j].M;
-						swapper.lg = rec[j].lg;
-						swapper.T  = rec[j].T;
-						swapper.pos = rec[j].pos;
-						swapper.filename = rec[j].filename;
-			
-						rec[j].M        = rec[i].M;
-						rec[j].lg       = rec[i].lg;
-						rec[j].T        = rec[i].T;
-						rec[j].pos      = rec[i].pos;
-						rec[j].filename = rec[i].filename;
+	for (i = 0; i < counter; i++) {
+		for (j = 1; j < LD->Tnodes->dim; j++)
+			if (LD->Tnodes->val.iarray[j] == rec[i].T)
+				break;
+		if (j == LD->Tnodes->dim) {
+			phoebe_array_realloc (LD->Tnodes, LD->Tnodes->dim+1);
+			LD->Tnodes->val.iarray[j-1]   = rec[i].T;
+			LD->Tnodes->val.iarray[j] = na;
+		}
 
-						rec[i].M        = swapper.M; 
-						rec[i].lg       = swapper.lg; 
-						rec[i].T        = swapper.T; 
-						rec[i].pos      = swapper.pos; 
-						rec[i].filename = swapper.filename; 
-					}
-				}
+		for (j = 1; j < LD->Mnodes->dim; j++)
+			if (LD->Mnodes->val.iarray[j] == (int) (10.0*rec[i].M))
+				break;
+		if (j == LD->Mnodes->dim) {
+			phoebe_array_realloc (LD->Mnodes, LD->Mnodes->dim+1);
+			LD->Mnodes->val.iarray[j-1]   = (int) (10.0*rec[i].M);
+			LD->Mnodes->val.iarray[j] = na;
+		}
+
+		for (j = 1; j < LD->lgnodes->dim; j++)
+			if (LD->lgnodes->val.iarray[j] == (int) (10.0*rec[i].lg))
+				break;
+		if (j == LD->lgnodes->dim) {
+			phoebe_array_realloc (LD->lgnodes, LD->lgnodes->dim+1);
+			LD->lgnodes->val.iarray[j-1]   = (int) (10.0*rec[i].lg);
+			LD->lgnodes->val.iarray[j] = na;
+		}
+	}
+
+	/* Sort the node lists: */
+	qsort (&(LD-> Tnodes->val.iarray[1]), LD-> Tnodes->dim-2, sizeof(LD-> Tnodes->val.iarray[1]), intern_compare_ints);
+	qsort (&(LD-> Mnodes->val.iarray[1]), LD-> Mnodes->dim-2, sizeof(LD-> Mnodes->val.iarray[1]), intern_compare_ints);
+	qsort (&(LD->lgnodes->val.iarray[1]), LD->lgnodes->dim-2, sizeof(LD->lgnodes->val.iarray[1]), intern_compare_ints);
+
+/*
+	printf ("Temperatures:\n");
+	for (i = 0; i < LD->Tnodes->dim; i++)
+		printf ("%d ", LD->Tnodes->val.iarray[i]);
+	printf ("\n");
+
+	printf ("Metallicities:\n");
+	for (i = 0; i < LD->Mnodes->dim; i++)
+		printf ("%d ", LD->Mnodes->val.iarray[i]);
+	printf ("\n");
+
+	printf ("Gravities:\n");
+	for (i = 0; i < LD->lgnodes->dim; i++)
+		printf ("%d ", LD->lgnodes->val.iarray[i]);
+	printf ("\n");
+*/
+
+	LD->table = phoebe_malloc (LD->Mnodes->dim * sizeof (*(LD->table)));
+	for (i = 0; i < LD->Mnodes->dim; i++) {
+		LD->table[i] = phoebe_malloc (LD->Tnodes->dim * sizeof (**(LD->table)));
+		for (j = 0; j < LD->Tnodes->dim; j++) {
+			LD->table[i][j] = phoebe_malloc (LD->lgnodes->dim * sizeof (***(LD->table)));
+			for (k = 0; k < LD->lgnodes->dim; k++) {
+				LD->table[i][j][k].fn = NULL;
+				LD->table[i][j][k].pos = -1;
 			}
 		}
 	}
 
-	/* A final step: let's populate the LD table with elements and free the   */
-	/* temporary readout structure rec:                                       */
+	for (l = 0; l < counter; l++) {
+		for (i = 1; i < LD->Mnodes->dim; i++)
+			if (LD->Mnodes->val.iarray[i] == (int) (10.0*rec[l].M))
+				break;
+		for (j = 1; j < LD->Tnodes->dim; j++)
+			if (LD->Tnodes->val.iarray[j] == rec[l].T)
+				break;
+		for (k = 1; k < LD->lgnodes->dim; k++)
+			if (LD->lgnodes->val.iarray[k] == (int) (10.0*rec[l].lg))
+				break;
 
-	PHOEBE_ld_table = phoebe_malloc (counter * sizeof (*PHOEBE_ld_table));
-	for (i = 0; i < counter; i++) {
-		PHOEBE_ld_table[i].elem     = phoebe_ld_elem_new (rec[i].M, rec[i].T, rec[i].lg);
-		PHOEBE_ld_table[i].filename = strdup (rec[i].filename);
-		PHOEBE_ld_table[i].filepos  = rec[i].pos;
-		PHOEBE_ld_table[i].Mnext    = NULL;
-		PHOEBE_ld_table[i].Mprev    = NULL;
-		PHOEBE_ld_table[i].Tnext    = NULL;
-		PHOEBE_ld_table[i].Tprev    = NULL;
-		PHOEBE_ld_table[i].lgnext   = NULL;
-		PHOEBE_ld_table[i].lgprev   = NULL;
-		
-		free (rec[i].filename);
+		LD->table[i][j][k].fn  = strdup (rec[l].filename);
+		LD->table[i][j][k].pos = rec[l].pos;
+
+		free (rec[l].filename);
 	}
 	free (rec);
 
-	for (i = 0; i < counter-1; i++) {
-		if (PHOEBE_ld_table[i].elem->lg < PHOEBE_ld_table[i+1].elem->lg) {
-			PHOEBE_ld_table[i].lgnext   = &PHOEBE_ld_table[i+1];
-			PHOEBE_ld_table[i+1].lgprev = &PHOEBE_ld_table[i];
+	return LD;
+}
+
+int phoebe_ld_table_free (LD_table *LD)
+{
+	/**
+	 * phoebe_ld_table_free:
+	 * @LD: limb darkening table
+	 *
+	 * Frees the contents of the limb darkening table @LD. It is safe to call
+	 * this function on the unallocated table, so there is no need to check
+	 * for LD presence.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, j, k;
+
+	if (!LD)
+		return SUCCESS;
+
+	for (i = 0; i < LD->Mnodes->dim; i++) {
+		for (j = 0; j < LD->Tnodes->dim; j++) {
+			for (k = 0; k < LD->lgnodes->dim; k++)
+				free (LD->table[i][j][k].fn);
+			free (LD->table[i][j]);
 		}
-
-		j = i+1;
-		while (j < counter && PHOEBE_ld_table[i].elem->T == PHOEBE_ld_table[j].elem->T) j++;
-		if (j == counter) continue;
-
-		for (; j < counter; j++) {
-			if (PHOEBE_ld_table[i].elem->M == PHOEBE_ld_table[j].elem->M && PHOEBE_ld_table[i].elem->lg == PHOEBE_ld_table[j].elem->lg) {
-				PHOEBE_ld_table[i].Tnext = &PHOEBE_ld_table[j];
-				PHOEBE_ld_table[j].Tprev = &PHOEBE_ld_table[i];
-				break;
-			}
-		}
-		if (j == counter) continue;
-
-		while (j < counter && PHOEBE_ld_table[i].elem->M == PHOEBE_ld_table[j].elem->M) j++;
-		if (j == counter) continue;
-
-		for (; j < counter; j++) {
-			if (PHOEBE_ld_table[i].elem->T == PHOEBE_ld_table[j].elem->T && PHOEBE_ld_table[i].elem->lg == PHOEBE_ld_table[j].elem->lg) {
-				PHOEBE_ld_table[i].Mnext = &PHOEBE_ld_table[j];
-				PHOEBE_ld_table[j].Mprev = &PHOEBE_ld_table[i];
-				break;
-			}
-		}
-		if (j == counter) continue;
+		free (LD->table[i]);
 	}
+	free (LD->table);
+
+	phoebe_array_free (LD-> Mnodes);
+	phoebe_array_free (LD-> Tnodes);
+	phoebe_array_free (LD->lgnodes);
+
+	free (LD);
 
 	return SUCCESS;
 }
@@ -325,10 +317,11 @@ char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband)
 	if (strcmp (passband->set, "Hipparcos") == 0 && strcmp (passband->name, "BT") == 0) return "TyB";
 	if (strcmp (passband->set, "Hipparcos") == 0 && strcmp (passband->name, "VT") == 0) return "TyV";
 
+	if (strcmp (passband->set, "Bolometric") == 0) return "bolo";
+
 	return NULL;
 /*
 	Still missing:
-		case BOLOMETRIC:   return "bolo";
 		case BLOCK_230:    return "230";
 		case BLOCK_250:    return "250";
 		case BLOCK_270:    return "270";
@@ -339,7 +332,7 @@ char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband)
 */
 }
 
-int intern_get_ld_node (LDtable *table, LDLaw ldlaw, PHOEBE_passband *passband, double *x0, double *y0)
+int intern_get_ld_node (const char *fn, long int pos, LDLaw ldlaw, PHOEBE_passband *passband, double *x0, double *y0)
 {
 	/*
 	 * This is an internal wrapper to get the LD coefficients from a file.
@@ -349,14 +342,14 @@ int intern_get_ld_node (LDtable *table, LDLaw ldlaw, PHOEBE_passband *passband, 
 	char line[255], pass[10];
 	double linx, sqrtx, sqrty, logx, logy;
 
-	/* Read out the values of coefficients:                                   */
-	phoebe_debug ("  opening %s:\n", table->filename);
-	in = fopen (table->filename, "r");
+	/* Read out the values of coefficients: */
+	phoebe_debug ("  opening %s:\n", fn);
+	in = fopen (fn, "r");
 	if (!in) {
-		phoebe_lib_error ("LD table %s not found, aborting.\n", table->filename);
+		phoebe_lib_error ("LD table %s not found, aborting.\n", fn);
 		return ERROR_LD_TABLES_MISSING;
 	}
-	fseek (in, table->filepos, SEEK_SET);
+	fseek (in, pos, SEEK_SET);
 	while (TRUE) {
 		fgets (line, 255, in);
 		if (sscanf (line, " %s %lf (%*f) %lf %lf (%*f) %lf %lf (%*f)", pass, &linx, &logx, &logy, &sqrtx, &sqrty) == 6) {
@@ -374,34 +367,32 @@ int intern_get_ld_node (LDtable *table, LDLaw ldlaw, PHOEBE_passband *passband, 
 			return ERROR_LD_LAW_INVALID;
 	}
 
-	phoebe_debug ("    M = %lf, T = %d, lg = %lf\n", table->elem->M, table->elem->T, table->elem->lg);
-	phoebe_debug ("    %s: %lf, %lf, %lf, %lf, %lf\n", pass, linx, logx, logy, sqrtx, sqrty);
+	phoebe_debug ("  %s[%ld]:  %s: %lf, %lf, %lf, %lf, %lf\n", fn, pos, pass, linx, logx, logy, sqrtx, sqrty);
 
 	return SUCCESS;
 }
 
-int phoebe_get_ld_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M, int T, double lg, double *x, double *y)
+int phoebe_ld_get_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M, double T, double lg, double *x, double *y)
 {
 	/*
 	 *  This function queries the LD coefficients database using the setup
 	 *  stored in LDTable structure.
 	 */
 
-	LDtable *table = &PHOEBE_ld_table[0];
+	LD_table *LD = PHOEBE_ld_table;
+	int i, j, k, l;
 
 	/* Interpolation structures: */
-	int dim, nodes, fixedT = 0, fixedlg = 0, fixedM = 0;
 	double pars[3], lo[3], hi[3];
 	union {
 		double *d;
 		PHOEBE_vector **vec;
 	} fv;
-	int i;
 
 	phoebe_debug ("entering phoebe_get_ld_coefficients () function.\n");
 
 	phoebe_debug ("  checking whether LD tables are present...\n");
-	if (!table)
+	if (!LD)
 		return ERROR_LD_TABLES_MISSING;
 
 	phoebe_debug ("  checking whether LD law is sane...\n");
@@ -412,221 +403,91 @@ int phoebe_get_ld_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M
 	if (!passband)
 		return ERROR_PASSBAND_INVALID;
 
-	phoebe_debug ("  checking whether parameters are out of range...\n");
-	if  (  M  < table->elem->M
-		|| T  < table->elem->T
-		|| lg < table->elem->lg
+	/* Get node array indices: */
+	for (i = 1; i < LD->Mnodes->dim; i++)
+		if (10.0*M < LD->Mnodes->val.iarray[i])
+			break;
+
+	for (j = 1; j < LD->Tnodes->dim; j++)
+		if (T < LD->Tnodes->val.iarray[j])
+			break;
+
+	for (k = 1; k < LD->lgnodes->dim; k++)
+		if (10.0*lg < LD->lgnodes->val.iarray[k])
+			break;
+
+	if  (
+		!LD->table[i-1][j-1][k-1].fn || !LD->table[i-1][j-1][k].fn ||
+		!LD->table[i-1][j  ][k-1].fn || !LD->table[i-1][j  ][k].fn ||
+		!LD->table[i  ][j-1][k-1].fn || !LD->table[i  ][j-1][k].fn ||
+		!LD->table[i  ][j  ][k-1].fn || !LD->table[i  ][j  ][k].fn
 		)
 		return ERROR_LD_PARAMS_OUT_OF_RANGE;
-
-	while ( M > table->elem->M ) {
-		table = table->Mnext;
-		if (!table)
-			return ERROR_LD_PARAMS_OUT_OF_RANGE;
-	}
-
-	while ( lg > table->elem->lg ) {
-		table = table->lgnext;
-		if (!table)
-			return ERROR_LD_PARAMS_OUT_OF_RANGE;
-	}
-
-	while ( T > table->elem->T ) {
-		table = table->Tnext;
-		if (!table)
-			return ERROR_LD_PARAMS_OUT_OF_RANGE;
-	}
-
-	phoebe_debug ("  everything ok, continuing to interpolation.\n");
-
-	dim = 3;
-
-	/* Let's see if any of the nodes is exact and requires no interpolation: */
-	if (fabs (T - table->elem->T) < PHOEBE_NUMERICAL_ACCURACY) {
-		fixedT = 1;
-		dim--;
-	}
-	if (fabs (lg - table->elem->lg) < PHOEBE_NUMERICAL_ACCURACY) {
-		fixedlg = 1;
-		dim--;
-	}
-	if (fabs (M - table->elem->M) < PHOEBE_NUMERICAL_ACCURACY) {
-		fixedM = 1;
-		dim--;
-	}
-printf ("dim = %d\n", dim);
-	/* Do a last node definiteness check: */
-	if (
-		(dim == 3 && table->Mprev
-		          && table->Mprev->Tprev
-		          && table->Mprev->Tprev->lgprev
-		) ||
-		(dim == 2 && (
-					 (fixedM  && table->Tprev && table->Tprev->lgprev) ||
-					 (fixedT  && table->Mprev && table->Mprev->lgprev) ||
-					 (fixedlg && table->Mprev && table->Mprev->Tprev)
-					 )
-		) ||
-		(dim == 1 && (
-					 (fixedM &&  fixedT  && table->lgprev) ||
-					 (fixedM &&  fixedlg && table->Tprev)  ||
-					 (fixedT &&  fixedlg && table->Mprev)
-					 )
-		)
-	   ) /* all is well */;
-	else
-		return ERROR_LD_PARAMS_OUT_OF_RANGE;
-if (table->lgprev)
-		printf ("null not caught, how come?\n");
-	nodes = pow (2, dim);
-
-	if (dim == 0) {
-		/* This means that the requested parameters correspond to a node. */
-		if (ldlaw == LD_LAW_LINEAR)
-			intern_get_ld_node (table, ldlaw, passband, x, NULL);
-		else
-			intern_get_ld_node (table, ldlaw, passband, x, y);
-
-		return SUCCESS;
-	}
-
-	/* Otherwise we have to interpolate. Allocate memory for the result: */
-	if (ldlaw == LD_LAW_LINEAR)
-		fv.d = phoebe_malloc (nodes * sizeof (*(fv.d)));
-	else {
-		fv.vec = phoebe_malloc (nodes * sizeof (*(fv.vec)));
-		for (i = 0; i < nodes; i++) {
-			fv.vec[i] = phoebe_vector_new ();
-			phoebe_vector_alloc (fv.vec[i], 2);
-		}
-	}
-
-	if (dim == 1) {
-		/* This means that 1D interpolation is required. */
-		if (!fixedT) {
-			table = table->Tprev;
-			if (!table)
-				return ERROR_LD_PARAMS_OUT_OF_RANGE;
-			pars[0] = T;
-			  lo[0] = table->Tprev->elem->T;
-			  hi[0] = table->elem->T;
-
-			if (ldlaw == LD_LAW_LINEAR) {
-				intern_get_ld_node (table->Tprev,  ldlaw, passband, &fv.d[0], NULL);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
-			}
-			else {
-				intern_get_ld_node (table->Tprev,  ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
-			}
-		}
-		else if (!fixedlg) {
-			table = table->lgprev;
-			if (!table)
-				return ERROR_LD_PARAMS_OUT_OF_RANGE;
-			fv.d = phoebe_malloc (2 * sizeof (*(fv.d)));
-			pars[0] = lg;
-			  lo[0] = table->lgprev->elem->lg;
-			  hi[0] = table->elem->lg;
-
-			if (ldlaw == LD_LAW_LINEAR) {
-				intern_get_ld_node (table->lgprev, ldlaw, passband, &fv.d[0], NULL);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
-			}
-			else {
-				intern_get_ld_node (table->lgprev, ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
-			}
-		}
-		else {
-			table = table->Mprev;
-			if (!table)
-				return ERROR_LD_PARAMS_OUT_OF_RANGE;
-			fv.d = phoebe_malloc (2 * sizeof (*(fv.d)));
-			pars[0] = M;
-			  lo[0] = table->Mprev->elem->M;
-			  hi[0] = table->elem->M;
-
-			if (ldlaw == LD_LAW_LINEAR) {
-				intern_get_ld_node (table->Mprev,  ldlaw, passband, &fv.d[0], NULL);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.d[1], NULL);
-			}
-			else {
-				intern_get_ld_node (table->Mprev,  ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
-				intern_get_ld_node (table,         ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
-			}
-
-			/* Do the interpolation: */
-			phoebe_interpolate (dim, pars, lo, hi, TYPE_DOUBLE_ARRAY, fv.vec);
-
-			/* Assign the return value and free the array: */
-			*x = fv.vec[0]->val[0]; *y = fv.vec[0]->val[1];
-			for (i = 0; i < 8; i++)
-				phoebe_vector_free (fv.vec[i]);
-		}
-
-		/* Do the interpolation: */
-		phoebe_interpolate (dim, pars, lo, hi, TYPE_DOUBLE, fv.d);
-
-		/* Assign the return value and free the array: */
-		*x = fv.d[0];
-		free (fv.d);
-	}
-
-	return SUCCESS;
-	table = table->Mprev->Tprev->lgprev;
 
 	/* Set the interpolation nodes: */
-	pars[0] = T;                   pars[1] = lg;                    pars[2] = M;
-	  lo[0] = table->elem->T;        lo[1] = table->elem->lg;         lo[2] = table->elem->M;
-	  hi[0] = table->Tnext->elem->T;
-	  hi[1] = table->lgnext->elem->lg;
-	  hi[2] = table->Mnext->elem->M;
+	pars[0] = 10.0*M;
+	  lo[0] = (double) LD->Mnodes->val.iarray[i-1];
+	  hi[0] = (double) LD->Mnodes->val.iarray[i];
+
+	pars[1] = T;
+	  lo[1] = (double) LD->Tnodes->val.iarray[j-1];
+	  hi[1] = (double) LD->Tnodes->val.iarray[j];
+
+	pars[2] = 10.0*lg;
+	  lo[2] = (double) LD->lgnodes->val.iarray[k-1];
+	  hi[2] = (double) LD->lgnodes->val.iarray[k];
+
+	phoebe_debug ("  metallicity: %2.2lf < %2.2lf < %2.2lf\n", lo[0], 10.0* M, hi[0]);
+	phoebe_debug ("  temperature: %2.2lf < %2.2lf < %2.2lf\n", lo[1],       T, hi[1]);
+	phoebe_debug ("  gravity:     %2.2lf < %2.2lf < %2.2lf\n", lo[2], 10.0*lg, hi[2]);
 
 	if (ldlaw == LD_LAW_LINEAR) {
 		fv.d = phoebe_malloc (8 * sizeof (*(fv.d)));
 
-		/* Read out the values of coefficients:                                   */
-		intern_get_ld_node (table, ldlaw, passband, &fv.d[0], NULL);
-		intern_get_ld_node (table->Tnext, ldlaw, passband, &fv.d[1], NULL);
-		intern_get_ld_node (table->lgnext, ldlaw, passband, &fv.d[2], NULL);
-		intern_get_ld_node (table->Tnext->lgnext, ldlaw, passband, &fv.d[3], NULL);
-		intern_get_ld_node (table->Mnext, ldlaw, passband, &fv.d[4], NULL);
-		intern_get_ld_node (table->Tnext->Mnext, ldlaw, passband, &fv.d[5], NULL);
-		intern_get_ld_node (table->lgnext->Mnext, ldlaw, passband, &fv.d[6], NULL);
-		intern_get_ld_node (table->Tnext->lgnext->Mnext, ldlaw, passband, &fv.d[7], NULL);
+		/* Read out the values of coefficients: */
+		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &fv.d[0], NULL);
+		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &fv.d[1], NULL);
+		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &fv.d[2], NULL);
+		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &fv.d[3], NULL);
+		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &fv.d[4], NULL);
+		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &fv.d[5], NULL);
+		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &fv.d[6], NULL);
+		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &fv.d[7], NULL);
 
 		/* Do the interpolation: */
 		phoebe_interpolate (3, pars, lo, hi, TYPE_DOUBLE, fv.d);
 
-		/* Assign the return value and free the array:                        */
-		*x = fv.d[0];
+		/* Assign the return value and free the array: */
+		*x = fv.d[0]; *y = 0;
+		phoebe_debug ("  LD coefficient: %lf\n", *x);
 		free (fv.d);
 	}
 	else {
 		fv.vec = phoebe_malloc (8 * sizeof (*(fv.vec)));
-		for (i = 0; i < 8; i++) {
-			fv.vec[i] = phoebe_vector_new ();
-			phoebe_vector_alloc (fv.vec[i], 2);
+		for (l = 0; l < 8; l++) {
+			fv.vec[l] = phoebe_vector_new ();
+			phoebe_vector_alloc (fv.vec[l], 2);
 		}
 
-		/* Read out the values of coefficients:                                   */
-		intern_get_ld_node (table, ldlaw, passband, &fv.vec[0]->val[0], &fv.vec[0]->val[1]);
-		intern_get_ld_node (table->Tnext, ldlaw, passband, &fv.vec[1]->val[0], &fv.vec[1]->val[1]);
-		intern_get_ld_node (table->lgnext, ldlaw, passband, &fv.vec[2]->val[0], &fv.vec[2]->val[1]);
-		intern_get_ld_node (table->Tnext->lgnext, ldlaw, passband, &fv.vec[3]->val[0], &fv.vec[3]->val[1]);
-		intern_get_ld_node (table->Mnext, ldlaw, passband, &fv.vec[4]->val[0], &fv.vec[4]->val[1]);
-		intern_get_ld_node (table->Tnext->Mnext, ldlaw, passband, &fv.vec[5]->val[0], &fv.vec[5]->val[1]);
-		intern_get_ld_node (table->lgnext->Mnext, ldlaw, passband, &fv.vec[6]->val[0], &fv.vec[6]->val[1]);
-		intern_get_ld_node (table->Tnext->lgnext->Mnext, ldlaw, passband, &fv.vec[7]->val[0], &fv.vec[7]->val[1]);
+		/* Read out the values of coefficients: */
+		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &(fv.vec[0]->val[0]), &(fv.vec[0]->val[1]));
+		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &(fv.vec[1]->val[0]), &(fv.vec[1]->val[1]));
+		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &(fv.vec[2]->val[0]), &(fv.vec[2]->val[1]));
+		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &(fv.vec[3]->val[0]), &(fv.vec[3]->val[1]));
+		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &(fv.vec[4]->val[0]), &(fv.vec[4]->val[1]));
+		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &(fv.vec[5]->val[0]), &(fv.vec[5]->val[1]));
+		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &(fv.vec[6]->val[0]), &(fv.vec[6]->val[1]));
+		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &(fv.vec[7]->val[0]), &(fv.vec[7]->val[1]));
 
 		/* Do the interpolation: */
 		phoebe_interpolate (3, pars, lo, hi, TYPE_DOUBLE_ARRAY, fv.vec);
 
-		/* Assign the return value and free the array:                        */
+		/* Assign the return value and free the array: */
 		*x = fv.vec[0]->val[0]; *y = fv.vec[0]->val[1];
-		for (i = 0; i < 8; i++)
-			phoebe_vector_free (fv.vec[i]);
+		for (l = 0; l < 8; l++)
+			phoebe_vector_free (fv.vec[l]);
+		free (fv.vec);
+		phoebe_debug ("  LD coefficients: %lf, %lf\n", *x, *y);
 	}
 
 	return SUCCESS;

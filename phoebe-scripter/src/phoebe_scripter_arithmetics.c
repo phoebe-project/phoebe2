@@ -1277,3 +1277,72 @@ int scripter_ast_values_raise (scripter_ast_value *out, scripter_ast_value val1,
 
 	return SUCCESS;
 }
+
+int scripter_ast_values_equal (scripter_ast_value *out, scripter_ast_value val1, scripter_ast_value val2)
+{
+	/*
+	 * This function checks whether the first AST value and the second AST
+	 * value are equal. It checks all combinations of value types, propagates
+	 * if necessary and performs the raise operation.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS
+	 *   SUCCESS
+	 */
+
+	if (val1.type != val2.type) {
+		out->value.b = FALSE;
+		return SUCCESS;
+	}
+
+	out->type = type_bool;
+	switch (val1.type) {
+		case type_int:
+			out->value.b = (val1.value.i == val2.value.i);
+		break;
+		case type_bool:
+			out->value.b = (val1.value.b == val2.value.b);
+		break;
+		case type_double:
+			if (fabs (val1.value.d - val2.value.d) > PHOEBE_NUMERICAL_ACCURACY)
+				return FALSE;
+			else
+				return TRUE;
+		break;
+		case type_string:
+			if (strcmp (val1.value.str, val2.value.str) == 0)
+				out->value.b = TRUE;
+			else
+				out->value.b = FALSE;
+		break;
+		case type_vector:
+			out->value.b = phoebe_vector_compare (val1.value.vec, val2.value.vec);
+		break;
+		case type_array:
+			out->value.b = phoebe_array_compare (val1.value.array, val2.value.array);
+		break;
+		case type_spectrum:
+			out->value.b = phoebe_spectra_compare (val1.value.spectrum, val2.value.spectrum);
+		break;
+		case type_curve:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		case type_qualifier:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		case type_minfeedback:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		default:
+			out->type = type_void;
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_nodes_equal(), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+		break;
+	}
+
+	return SUCCESS;
+}

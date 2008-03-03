@@ -38,6 +38,9 @@ char *phoebe_clean_data_line (char *line)
 	if (!line)
 		return NULL;
 
+	if (strlen(line) == 0)
+		return NULL;
+
 	start = line;
 	while (*start != '\0' && (*start == '\n' || *start == '\t' || *start == ' ' || *start == 13))
 		start++;
@@ -47,12 +50,12 @@ char *phoebe_clean_data_line (char *line)
 			stop--;
 	}
 	else
-		stop = &line[strlen(line)-1];
+		stop = &line[strlen(line)];
 
 	while (stop != start && (*stop == '\n' || *stop == '\t' || *stop == ' ' || *stop == 13))
 		stop--;
 
-	printf ("start: %c; stop: %c; length: %ld\n", *start, *stop, stop-start+1);
+	phoebe_debug ("start: %c; stop: %c; length: %ld\n", *start, *stop, stop-start+1);
 	if (start == stop)
 		return NULL;
 

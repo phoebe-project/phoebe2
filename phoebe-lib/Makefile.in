@@ -63,8 +63,7 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	ChangeLog INSTALL NEWS TODO autoconfig/compile \
 	autoconfig/config.guess autoconfig/config.sub \
 	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
-	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap \
-	config.guess config.sub ltmain.sh
+	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -126,6 +125,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
 FFLAGS = @FFLAGS@
+FLIBS = @FLIBS@
 GREP = @GREP@
 HTML_DIR = @HTML_DIR@
 INSTALL = @INSTALL@
@@ -187,8 +187,6 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
-f2c_built_sources = @f2c_built_sources@
-f2c_check_passed = @f2c_check_passed@
 flex_built_sources = @flex_built_sources@
 host = @host@
 host_alias = @host_alias@

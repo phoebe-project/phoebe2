@@ -79,32 +79,28 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 	"$(DESTDIR)$(library_includedir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libwd_la_LIBADD =
-am__objects_1 = atmx.lo bbl.lo binnum.lo cloud.lo conjph.lo dgmprd.lo \
-	dminv.lo dura.lo ellone.lo fourls.lo gabs.lo jdph.lo kepler.lo \
-	lcr.lo legendre.lo light.lo linpro.lo lum.lo lump.lo mlrg.lo \
-	modlog.lo nekmin.lo olump.lo planckint.lo rangau.lo ranuni.lo \
-	rddata.lo ring.lo romq.lo sincos.lo spot.lo square.lo \
-	surfas.lo volume.lo wrhead.lo wrdata.lo wrfoot.lo wrlci.lo \
-	wrdci.lo lc.sub.lo dc.sub.lo
-am_libwd_la_OBJECTS = $(am__objects_1)
-libwd_la_OBJECTS = $(am_libwd_la_OBJECTS)
-libwd_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(libwd_la_LDFLAGS) \
-	$(LDFLAGS) -o $@
+libwd_nof2c_la_LIBADD =
+am_libwd_nof2c_la_OBJECTS = atmx.lo bbl.lo binnum.lo cloud.lo \
+	conjph.lo dgmprd.lo dminv.lo dura.lo ellone.lo fourls.lo \
+	gabs.lo jdph.lo kepler.lo lcr.lo legendre.lo light.lo \
+	linpro.lo lum.lo lump.lo mlrg.lo modlog.lo nekmin.lo olump.lo \
+	planckint.lo rangau.lo ranuni.lo rddata.lo ring.lo romq.lo \
+	sincos.lo spot.lo square.lo surfas.lo volume.lo wrhead.lo \
+	wrdata.lo wrfoot.lo wrlci.lo wrdci.lo lc.sub.lo dc.sub.lo
+libwd_nof2c_la_OBJECTS = $(am_libwd_nof2c_la_OBJECTS)
+libwd_nof2c_la_LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(F77LD) $(AM_FFLAGS) $(FFLAGS) \
+	$(libwd_nof2c_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/libphoebe@am__isrc@
-depcomp = $(SHELL) $(top_srcdir)/autoconfig/depcomp
-am__depfiles_maybe = depfiles
-COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-CCLD = $(CC)
-LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+F77COMPILE = $(F77) $(AM_FFLAGS) $(FFLAGS)
+LTF77COMPILE = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(F77) $(AM_FFLAGS) $(FFLAGS)
+F77LD = $(F77)
+F77LINK = $(LIBTOOL) --tag=F77 $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(F77LD) $(AM_FFLAGS) $(FFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-DIST_SOURCES = $(libwd_la_SOURCES)
+SOURCES = $(libwd_nof2c_la_SOURCES)
+DIST_SOURCES = $(libwd_nof2c_la_SOURCES)
 library_includeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(library_include_HEADERS)
 ETAGS = etags
@@ -137,6 +133,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
 FFLAGS = @FFLAGS@
+FLIBS = @FLIBS@
 GREP = @GREP@
 HTML_DIR = @HTML_DIR@
 INSTALL = @INSTALL@
@@ -198,8 +195,6 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
-f2c_built_sources = @f2c_built_sources@
-f2c_check_passed = @f2c_check_passed@
 flex_built_sources = @flex_built_sources@
 host = @host@
 host_alias = @host_alias@
@@ -228,11 +223,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-lib_LTLIBRARIES = libwd.la
-libwd_la_SOURCES = \
-    $(BUILT_SOURCES)
-
-SOURCES = \
+lib_LTLIBRARIES = libwd_nof2c.la
+libwd_nof2c_la_SOURCES = \
     atmx.f      bbl.f       binnum.f    cloud.f     conjph.f    dgmprd.f       \
     dminv.f     dura.f      ellone.f    fourls.f    gabs.f      jdph.f         \
     kepler.f    lcr.f       legendre.f  light.f     linpro.f    lum.f          \
@@ -241,31 +233,19 @@ SOURCES = \
     spot.f      square.f    surfas.f    volume.f    wrhead.f    wrdata.f       \
     wrfoot.f    wrlci.f     wrdci.f     lc.sub.f    dc.sub.f
 
-BUILT_SOURCES = \
-    atmx.c      bbl.c       binnum.c    cloud.c     conjph.c    dgmprd.c       \
-    dminv.c     dura.c      ellone.c    fourls.c    gabs.c      jdph.c         \
-    kepler.c    lcr.c       legendre.c  light.c     linpro.c    lum.c          \
-    lump.c      mlrg.c      modlog.c    nekmin.c    olump.c     planckint.c    \
-    rangau.c    ranuni.c    rddata.c    ring.c      romq.c      sincos.c       \
-    spot.c      square.c    surfas.c    volume.c    wrhead.c    wrdata.c       \
-    wrfoot.c    wrlci.c     wrdci.c     lc.sub.c    dc.sub.c
 
-EXTRA_DIST = \
-	$(SOURCES) f2c.h
-
+#EXTRA_DIST =
 
 #CLEANFILES = 
-libwd_la_LDFLAGS = -release 2007-08-15
+libwd_nof2c_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
-#libwd_la_LIBADD = -lg2c
 library_includedir = $(includedir)/phoebe
-library_include_HEADERS = f2c.h wd.h
-all: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) all-am
+library_include_HEADERS = wd.h
+all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .lo .o .obj
+.SUFFIXES: .f .lo .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -322,8 +302,8 @@ clean-libLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-libwd.la: $(libwd_la_OBJECTS) $(libwd_la_DEPENDENCIES) 
-	$(libwd_la_LINK) -rpath $(libdir) $(libwd_la_OBJECTS) $(libwd_la_LIBADD) $(LIBS)
+libwd_nof2c.la: $(libwd_nof2c_la_OBJECTS) $(libwd_nof2c_la_DEPENDENCIES) 
+	$(libwd_nof2c_la_LINK) -rpath $(libdir) $(libwd_nof2c_la_OBJECTS) $(libwd_nof2c_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -331,68 +311,14 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/atmx.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bbl.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/binnum.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cloud.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conjph.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dc.sub.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dgmprd.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dminv.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dura.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ellone.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fourls.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gabs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jdph.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kepler.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lc.sub.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lcr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/legendre.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/light.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/linpro.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lum.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lump.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mlrg.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modlog.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nekmin.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/olump.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/planckint.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rangau.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ranuni.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rddata.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ring.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/romq.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sincos.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/spot.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/square.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/surfas.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/volume.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrdata.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrdci.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrfoot.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrhead.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wrlci.Plo@am__quote@
+.f.o:
+	$(F77COMPILE) -c -o $@ $<
 
-.c.o:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c $<
+.f.obj:
+	$(F77COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-.c.obj:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
-
-.c.lo:
-@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+.f.lo:
+	$(LTF77COMPILE) -c -o $@ $<
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -492,15 +418,13 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) check-am
+check: check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS)
 installdirs:
 	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(library_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) install-am
+install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -524,14 +448,12 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -565,7 +487,6 @@ install-ps: install-ps-am
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -603,9 +524,6 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	uninstall-am uninstall-libLTLIBRARIES \
 	uninstall-library_includeHEADERS
 
-
-$(libwd_la_SOURCES):
-	f2c -A -R -Nn802 $(SOURCES)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

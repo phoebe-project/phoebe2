@@ -1434,6 +1434,33 @@ int phoebe_hist_crop (PHOEBE_hist *hist, double ll, double ul)
 	return SUCCESS;
 }
 
+bool phoebe_hist_compare (PHOEBE_hist *hist1, PHOEBE_hist *hist2)
+{
+	/**
+	 * phoebe_hist_compare:
+	 * @hist1: histogram 1 to be compared
+	 * @hist2: histogram 2 to be compared
+	 *
+	 * Compares the contents of histograms @hist1 and @hist2. All ranges and
+	 * values are compared by evaluating the absolute difference between the
+	 * elements and comparing that to #PHOEBE_NUMERICAL_ACCURACY.
+	 *
+	 * Returns: #TRUE if the histograms are the same, #FALSE otherwise.
+	 */
+
+	int i;
+
+	if (hist1->bins != hist2->bins)
+		return FALSE;
+
+	for (i = 0; i <= hist1->bins; i++) {
+		if (fabs (hist1->range[i]-hist2->range[i]) > PHOEBE_NUMERICAL_ACCURACY) return FALSE;
+		if (i != hist1->bins && fabs (hist1->val[i]-hist2->val[i]) > PHOEBE_NUMERICAL_ACCURACY) return FALSE;
+	}
+
+	return TRUE;
+}
+
 int phoebe_hist_evaluate (double *y, PHOEBE_hist *hist, double x)
 {
 	/*
@@ -2091,6 +2118,51 @@ PHOEBE_array *phoebe_array_duplicate (PHOEBE_array *array)
 	return copy;
 }
 
+bool phoebe_array_compare (PHOEBE_array *array1, PHOEBE_array *array2)
+{
+	/**
+	 * phoebe_array_compare:
+	 * @array1:   Array 1.
+	 * @array2:   Array 2.
+	 *
+	 * Compares two passed #PHOEBE_arrays. It returns TRUE if all array
+	 * elements are the same; it returns FALSE otherwise. In cases of double
+	 * precision numbers the comparison is done by comparing the difference of
+	 * both elements to #PHOEBE_NUMERICAL_ACCURACY.
+	 *
+	 * Returns: Boolean indicating whether the two arrays have identical elements.
+	 */
+
+	int i;
+
+	if (array1->type != array2->type) return FALSE;
+	if (array1->dim  != array2->dim) return FALSE;
+
+	switch (array1->type) {
+		case TYPE_INT_ARRAY:
+			for (i = 0; i < array1->dim; i++)
+				if (array1->val.iarray[i] != array2->val.iarray[i]) return FALSE;
+		break;
+		case TYPE_BOOL_ARRAY:
+			for (i = 0; i < array1->dim; i++)
+				if (array1->val.iarray[i] != array2->val.iarray[i]) return FALSE;
+		break;
+		case TYPE_DOUBLE_ARRAY:
+			for (i = 0; i < array1->dim; i++)
+				if (fabs (array1->val.darray[i] - array2->val.darray[i]) > PHOEBE_NUMERICAL_ACCURACY) return FALSE;
+		break;
+		case TYPE_STRING_ARRAY:
+			for (i = 0; i < array1->dim; i++)
+				if (strcmp (array1->val.strarray[i], array2->val.strarray[i]) != 0) return FALSE;
+		break;
+		default:
+			/* can't happen, fall through */
+		break;
+	}
+
+	return TRUE;
+}
+
 int phoebe_array_free (PHOEBE_array *array)
 {
 	/* This function frees the storage memory allocated for array 'array'.       */
@@ -2647,8 +2719,17 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 
 int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype)
 {
-	/*
-	 * This function transforms the data to itype, dtype, wtype column types.
+	/**
+	 * phoebe_curve_transform:
+	 * @curve: #PHOEBE_curve to be transformed
+	 * @itype: requested independent variable (time or phase)
+	 * @dtype: requested dependent variable (flux, magnitude, RV)
+	 * @wtype: requested weight variable (standard weight, standard deviation,
+	 *         none)
+	 *
+	 * Transforms curve columns to requested types.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int status;

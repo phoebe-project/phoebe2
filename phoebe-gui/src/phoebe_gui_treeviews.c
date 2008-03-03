@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include <phoebe/phoebe.h>
 
@@ -7,6 +8,8 @@
 #include "phoebe_gui_callbacks.h"
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_accessories.h"
+
+bool phoebe_para_spots_units_combobox_init = FALSE;
 
 int gui_init_treeviews ()
 {
@@ -519,6 +522,7 @@ int gui_reinit_spots_treeview ()
 	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_para_spots_treeview")->gtk)));
 	GtkTreeIter iter;
 
+	phoebe_para_spots_units_combobox_init = FALSE;
 	status = phoebe_parameter_get_value(par, &spots_no);
 	gtk_list_store_clear(store);
 
@@ -812,6 +816,65 @@ int gui_fill_sidesheet_res_treeview()
 	return status;
 }
 
+int gui_fill_treeview_with_spot_parameter(GtkTreeModel *model, bool sidesheet, char *spot_par_name)
+{
+	PHOEBE_parameter *par = phoebe_parameter_lookup(spot_par_name);
+	PHOEBE_parameter *par_tba = NULL, *par_step = NULL, *par_min = NULL, *par_max = NULL;
+	char par_name[255];
+	char full_qualifier[255];
+	int i, spno;
+	double value, step, min, max;
+	bool tba;
+	GtkTreeIter iter;
+	int status = 0;
+
+	sprintf(par_name, "%s_tba", spot_par_name);
+	par_tba = phoebe_parameter_lookup(par_name);
+	sprintf(par_name, "%s_step", spot_par_name);
+	par_step = phoebe_parameter_lookup(par_name);
+	sprintf(par_name, "%s_min", spot_par_name);
+	par_min = phoebe_parameter_lookup(par_name);
+	sprintf(par_name, "%s_max", spot_par_name);
+	par_max = phoebe_parameter_lookup(par_name);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spno);
+
+	for (i = 0; i < spno; i++){
+		status = phoebe_parameter_get_value(par_tba, i, &tba);
+		if (!tba) continue;
+		status = phoebe_parameter_get_value(par, i, &value);
+		sprintf(full_qualifier, "%s[%d]", spot_par_name, i+1);
+		gtk_list_store_append((GtkListStore*)model, &iter);
+		if (sidesheet) {
+			status = phoebe_parameter_get_value(par_step, i, &step);
+			status = phoebe_parameter_get_value(par_min, i, &min);
+			status = phoebe_parameter_get_value(par_max, i, &max);
+			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+									FS_COL_PARAM_NAME, full_qualifier,
+									FS_COL_PARAM_VALUE, value,
+									FS_COL_PARAM_STEP, step,
+									FS_COL_PARAM_MIN, min,
+									FS_COL_PARAM_MAX, max, -1);
+		}
+		else
+			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+									MF_COL_QUALIFIER, full_qualifier,
+									MF_COL_INITVAL, value, -1);
+	}
+
+	return status;
+}
+
+int gui_fill_treeview_with_spot_parameters(GtkTreeModel *model, bool sidesheet)
+{
+	int status = 0;
+	status = gui_fill_treeview_with_spot_parameter(model, sidesheet, "phoebe_spots_colatitude");
+	status = gui_fill_treeview_with_spot_parameter(model, sidesheet, "phoebe_spots_longitude");
+	status = gui_fill_treeview_with_spot_parameter(model, sidesheet, "phoebe_spots_radius");
+	status = gui_fill_treeview_with_spot_parameter(model, sidesheet, "phoebe_spots_tempfactor");
+
+	return status;
+}
+
 int gui_fill_sidesheet_fit_treeview()
 {
 	int status = 0;
@@ -870,6 +933,9 @@ int gui_fill_sidesheet_fit_treeview()
 		}
 		pars_tba = pars_tba->next;
 	}
+
+	status = gui_fill_treeview_with_spot_parameters(model, TRUE);
+
 	return status;
 }
 
@@ -995,6 +1061,7 @@ int gui_data_lc_treeview_add()
 
             phoebe_parameter_get_value(par, &lcno);
             phoebe_parameter_set_value(par, lcno + 1);
+	    gui_ld_coeffs_need_updating();
 
             printf("Number of light curves: %d\n", lcno + 1);
 
@@ -1130,8 +1197,11 @@ int gui_data_lc_treeview_edit()
 				}
 
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
-					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &filter_number, -1);
-					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[filter_number]->name);
+					gint new_filter_number;
+					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &new_filter_number, -1);
+					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[new_filter_number]->name);
+					if (new_filter_number != filter_number)
+						gui_ld_coeffs_need_updating();
 				}
 
 				gchar *new_id;
@@ -1568,6 +1638,9 @@ int gui_fill_fitt_mf_treeview()
 		}
 		pars_tba = pars_tba->next;
 	}
+
+	status = gui_fill_treeview_with_spot_parameters(model, FALSE);
+
 	return status;
 }
 
@@ -1949,6 +2022,99 @@ int gui_para_rv_coefficents_edit ()
 }
 
 
+void gui_spots_dialog_set_spinbutton_adjustments(bool add_spot,
+						 GtkWidget *phoebe_load_spots_lat_spinbutton, GtkWidget *phoebe_load_spots_latstep_spinbutton, GtkWidget *phoebe_load_spots_latmin_spinbutton, GtkWidget *phoebe_load_spots_latmax_spinbutton,
+						 GtkWidget *phoebe_load_spots_lon_spinbutton, GtkWidget *phoebe_load_spots_lonstep_spinbutton, GtkWidget *phoebe_load_spots_lonmin_spinbutton, GtkWidget *phoebe_load_spots_lonmax_spinbutton,
+						 GtkWidget *phoebe_load_spots_rad_spinbutton, GtkWidget *phoebe_load_spots_radstep_spinbutton, GtkWidget *phoebe_load_spots_radmin_spinbutton, GtkWidget *phoebe_load_spots_radmax_spinbutton)
+{
+	GtkAdjustment *load_spots_lat_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_lat_spinbutton));
+	GtkAdjustment *load_spots_latstep_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_latstep_spinbutton));
+	GtkAdjustment *load_spots_latmin_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_latmin_spinbutton));
+	GtkAdjustment *load_spots_latmax_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_latmax_spinbutton));
+
+	GtkAdjustment *load_spots_lon_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_lon_spinbutton));
+	GtkAdjustment *load_spots_lonstep_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_lonstep_spinbutton));
+	GtkAdjustment *load_spots_lonmin_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_lonmin_spinbutton));
+	GtkAdjustment *load_spots_lonmax_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_lonmax_spinbutton));
+
+	GtkAdjustment *load_spots_rad_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_rad_spinbutton));
+	GtkAdjustment *load_spots_radstep_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_radstep_spinbutton));
+	GtkAdjustment *load_spots_radmin_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_radmin_spinbutton));
+	GtkAdjustment *load_spots_radmax_adjustment	= gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(phoebe_load_spots_radmax_spinbutton));
+
+	GtkWidget *phoebe_para_spots_units_combobox = gui_widget_lookup ("phoebe_para_spots_units_combobox")->gtk;
+
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(phoebe_para_spots_units_combobox)) == 0) {
+		/* Radians */
+		load_spots_lat_adjustment->upper = M_PI;
+		load_spots_latstep_adjustment->upper = M_PI;
+		load_spots_latmin_adjustment->upper = M_PI;
+		load_spots_latmax_adjustment->upper = M_PI;
+		load_spots_lat_adjustment->step_increment = 0.02;
+		load_spots_latstep_adjustment->step_increment = 0.02;
+		load_spots_latmin_adjustment->step_increment = 0.02;
+		load_spots_latmax_adjustment->step_increment = 0.02;
+
+		load_spots_lon_adjustment->upper = 2*M_PI;
+		load_spots_lonstep_adjustment->upper = 2*M_PI;
+		load_spots_lonmin_adjustment->upper = 2*M_PI;
+		load_spots_lonmax_adjustment->upper = 2*M_PI;
+		load_spots_lon_adjustment->step_increment = 0.02;
+		load_spots_lonstep_adjustment->step_increment = 0.02;
+		load_spots_lonmin_adjustment->step_increment = 0.02;
+		load_spots_lonmax_adjustment->step_increment = 0.02;
+
+		load_spots_rad_adjustment->upper = M_PI;
+		load_spots_radstep_adjustment->upper = M_PI;
+		load_spots_radmin_adjustment->upper = M_PI;
+		load_spots_radmax_adjustment->upper = M_PI;
+		load_spots_rad_adjustment->step_increment = 0.02;
+		load_spots_radstep_adjustment->step_increment = 0.02;
+		load_spots_radmin_adjustment->step_increment = 0.02;
+		load_spots_radmax_adjustment->step_increment = 0.02;
+
+		if (add_spot) {
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_latmax_spinbutton), M_PI);
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_lonmax_spinbutton), 2*M_PI);
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_radmax_spinbutton), M_PI);
+		}
+	}
+	else {
+		/* Degrees */
+		load_spots_lat_adjustment->upper = 180;
+		load_spots_latstep_adjustment->upper = 180;
+		load_spots_latmin_adjustment->upper = 180;
+		load_spots_latmax_adjustment->upper = 180;
+		load_spots_lat_adjustment->step_increment = 1;
+		load_spots_latstep_adjustment->step_increment = 1;
+		load_spots_latmin_adjustment->step_increment = 1;
+		load_spots_latmax_adjustment->step_increment = 1;
+
+		load_spots_lon_adjustment->upper = 360;
+		load_spots_lonstep_adjustment->upper = 360;
+		load_spots_lonmin_adjustment->upper = 360;
+		load_spots_lonmax_adjustment->upper = 360;
+		load_spots_lon_adjustment->step_increment = 1;
+		load_spots_lonstep_adjustment->step_increment = 1;
+		load_spots_lonmin_adjustment->step_increment = 1;
+		load_spots_lonmax_adjustment->step_increment = 1;
+
+		load_spots_rad_adjustment->upper = 180;
+		load_spots_radstep_adjustment->upper = 180;
+		load_spots_radmin_adjustment->upper = 180;
+		load_spots_radmax_adjustment->upper = 180;
+		load_spots_rad_adjustment->step_increment = 1;
+		load_spots_radstep_adjustment->step_increment = 1;
+		load_spots_radmin_adjustment->step_increment = 1;
+		load_spots_radmax_adjustment->step_increment = 1;
+
+		if (add_spot) {
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_latmax_spinbutton), 180);
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_lonmax_spinbutton), 360);
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_load_spots_radmax_spinbutton), 180);
+		}
+	}
+}
 
 int gui_spots_add()
 {
@@ -1985,6 +2151,12 @@ int gui_spots_add()
 
    	g_object_unref(phoebe_load_spots_xml);
 
+	gui_spots_dialog_set_spinbutton_adjustments(TRUE,
+							phoebe_load_spots_lat_spinbutton, phoebe_load_spots_latstep_spinbutton, phoebe_load_spots_latmin_spinbutton, phoebe_load_spots_latmax_spinbutton,
+							phoebe_load_spots_lon_spinbutton, phoebe_load_spots_lonstep_spinbutton, phoebe_load_spots_lonmin_spinbutton, phoebe_load_spots_lonmax_spinbutton,
+							phoebe_load_spots_rad_spinbutton, phoebe_load_spots_radstep_spinbutton, phoebe_load_spots_radmin_spinbutton, phoebe_load_spots_radmax_spinbutton);
+
+	gtk_window_set_title (GTK_WINDOW(phoebe_load_spots_dialog), "PHOEBE - Add Spot");
 	int result = gtk_dialog_run ((GtkDialog*)phoebe_load_spots_dialog);
    	switch (result)	{
    	    case GTK_RESPONSE_OK:{
@@ -2031,6 +2203,7 @@ int gui_spots_add()
 			phoebe_parameter_set_value(par, spots_no + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview), &iter);
+			on_phoebe_para_spots_treeview_cursor_changed ((GtkTreeView *)phoebe_para_spots_treeview, (gpointer)NULL);  // Show the new spot as the current one
    	    }
 	}
 	gtk_widget_destroy (phoebe_load_spots_dialog);
@@ -2077,6 +2250,11 @@ int gui_spots_edit()
 		GtkWidget *phoebe_load_spots_source_combobox        = glade_xml_get_widget (phoebe_load_spots_xml, "phoebe_load_spots_source_combobox");
 
 		g_object_unref(phoebe_load_spots_xml);
+
+		gui_spots_dialog_set_spinbutton_adjustments(FALSE,
+								phoebe_load_spots_lat_spinbutton, phoebe_load_spots_latstep_spinbutton, phoebe_load_spots_latmin_spinbutton, phoebe_load_spots_latmax_spinbutton,
+								phoebe_load_spots_lon_spinbutton, phoebe_load_spots_lonstep_spinbutton, phoebe_load_spots_lonmin_spinbutton, phoebe_load_spots_lonmax_spinbutton,
+								phoebe_load_spots_rad_spinbutton, phoebe_load_spots_radstep_spinbutton, phoebe_load_spots_radmin_spinbutton, phoebe_load_spots_radmax_spinbutton);
 
 		double lat, latstep, latmin, latmax;
 		double lon, lonstep, lonmin, lonmax;
@@ -2134,6 +2312,7 @@ int gui_spots_edit()
 			gtk_spin_button_set_value   ((GtkSpinButton*)   phoebe_load_spots_tempmax_spinbutton,       tempmax);
 		}
 
+		gtk_window_set_title (GTK_WINDOW(phoebe_load_spots_dialog), "PHOEBE - Edit Spot Parameters");
 		int result = gtk_dialog_run ((GtkDialog*)phoebe_load_spots_dialog);
         switch (result){
             case GTK_RESPONSE_OK:{
@@ -2175,6 +2354,7 @@ int gui_spots_edit()
 				phoebe_parameter_set_value(par, spots_no + 1);
 
 				gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview), &iter);
+				on_phoebe_para_spots_treeview_cursor_changed ((GtkTreeView *)phoebe_para_spots_treeview, (gpointer)NULL);  // Show the new spot parameters as the current ones
             }
         }
         gtk_widget_destroy (phoebe_load_spots_dialog);

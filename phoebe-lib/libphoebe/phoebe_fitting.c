@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "phoebe_build_config.h"
 
@@ -430,7 +431,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	if (lcno + rvno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
 	/* Copy PHOEBE spot parameters into WD spot structures: */
-	wd_spots_parameters_get ();
+	status = wd_spots_parameters_get ();
+	if (status != SUCCESS) return status;
 
 	/* Get a list of parameters marked for adjustment: */
 	tba = phoebe_parameter_list_get_marked_tba ();
@@ -1029,7 +1031,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	clock_start = clock ();
 
 	/* Copy PHOEBE spot parameters into WD spot structures: */
-	wd_spots_parameters_get ();
+	status = wd_spots_parameters_get ();
+	if (status != SUCCESS) return status;
 
 	/* Get a list of parameters marked for adjustment: */
 	marked_tba = phoebe_parameter_list_get_marked_tba ();
@@ -1097,6 +1100,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
 	fprintf (dc_output, "--------------------------------------------------------------------\n");
 */
+	bool spots_conversion_factor = 1/phoebe_spots_units_to_wd_conversion_factor ();
 
 	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
 	while (tba) {
@@ -1111,10 +1115,33 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 					corrections[i] *= 100.0;
 					errors[i] *= 100.0;
 				}
+				else if ((spots_conversion_factor != 1.0) && ((strcmp (tba->par->qualifier, "wd_spots_lat1") == 0) ||
+					(strcmp (tba->par->qualifier, "wd_spots_lat2") == 0) ||
+					(strcmp (tba->par->qualifier, "wd_spots_lon1") == 0) ||
+					(strcmp (tba->par->qualifier, "wd_spots_lon2") == 0) ||
+					(strcmp (tba->par->qualifier, "wd_spots_rad1") == 0) ||
+					(strcmp (tba->par->qualifier, "wd_spots_rad2") == 0))) {
+					corrections[i] *= spots_conversion_factor;
+					errors[i] *= spots_conversion_factor;
+				}
 				feedback->qualifiers->val.strarray[i] = strdup (tba->par->qualifier);
 				phoebe_parameter_get_value (tba->par, &(feedback->initvals->val[i]));
 				feedback->newvals->val[i] = feedback->initvals->val[i] + corrections[i];
 				feedback->ferrors->val[i] = errors[i];
+
+				/* Handle cyclic values: */
+				if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_perr0") == 0) {
+					if (feedback->newvals->val[i] < 0)
+						feedback->newvals->val[i] += 2*M_PI;
+					else if (feedback->newvals->val[i] > 2*M_PI)
+						feedback->newvals->val[i] -= 2*M_PI;
+				}
+				else if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_pshift") == 0) {
+					if (feedback->newvals->val[i] < -0.5)
+						feedback->newvals->val[i] += 1.0;
+					else if (feedback->newvals->val[i] > 0.5)
+						feedback->newvals->val[i] -= 1;
+				}
 				i++;
 			break;
 			case TYPE_DOUBLE_ARRAY:
@@ -1128,7 +1155,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 				i += lcno;
 			break;
 			default:
-				phoebe_lib_error ("exception handler invoked in phoebe_minimize_using_nms (), please report this!\n");
+				phoebe_lib_error ("exception handler invoked in phoebe_minimize_using_dc (), please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 		tba = tba->next;

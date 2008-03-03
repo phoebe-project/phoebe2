@@ -1204,6 +1204,12 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 
 	while (index <= lcno) {
 		obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index-1);
+		if (!obs) {
+			scripter_ast_value_array_free (vals, 1);
+			phoebe_vector_free (levels);
+			out.type = type_void;
+			return out;
+		}
 		phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
 
 		/* Synthesize a theoretical curve: */
@@ -2245,7 +2251,7 @@ scripter_ast_value scripter_get_ld_coefficients (scripter_ast_list *args)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &ld_str);
 	ldlaw = phoebe_ld_model_type (ld_str);
 
-	status = phoebe_get_ld_coefficients (ldlaw, passband, vals[3].value.d, (int) vals[1].value.d, vals[2].value.d, &x, &y);
+	status = phoebe_ld_get_coefficients (ldlaw, passband, vals[3].value.d, (int) vals[1].value.d, vals[2].value.d, &x, &y);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		scripter_ast_value_array_free (vals, 4);

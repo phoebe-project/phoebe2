@@ -193,8 +193,6 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "star surface is already allocated, aborting.\n";
 		case ERROR_STAR_SURFACE_INVALID_DIMENSION:
 			return "star surface dimension is invalid, aborting.\n";
-		case ERROR_STAR_SURFACE_RADII_NOT_COMPUTED:
-			return "local radii are not computed and they are required for the gradients.\n";
 		case ERROR_UNSUPPORTED_MPAGE:
 			return "unsupported calculation type, aborting.\n";
 		case ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED:

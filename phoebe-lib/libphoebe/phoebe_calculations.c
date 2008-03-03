@@ -5,6 +5,7 @@
 #include <math.h>
 #include <time.h>
 
+#include "phoebe_accessories.h"
 #include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
 #include "phoebe_configuration.h"
@@ -49,34 +50,42 @@ int diff_int (const void *a, const void *b)
 
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...)
 {
-	/*
+	/**
+	 * phoebe_interpolate:
+	 * @N: dimension of the interpolation space
+	 * @x: @N-dimensional vector to the point of interest
+	 * @lo: @N-dimensional vector of lower node values
+	 * @hi: @N-dimensional vector of upper node values
+	 * @type: #PHOEBE_type od interpolation values
+	 * @...: (2^N)-dimensional vector of node function values of type @type.
+	 *
 	 * This is a general multi-dimensional linear interpolation function.
 	 * It should be reasonably optimized - I gave it a lot of thought. It
 	 * should also be reasonably well tested.
-	 *
-	 * Input parameters are:
-	 *
-	 *   N    ..  dimension of the interpolation space
-	 *   x    ..  N-dimensional vector to the interpolated point
-	 *  lo    ..  N-dimensional vector of lower node values
-	 *  hi    ..  N-dimensional vector of upper node values
-	 *  type  ..  function type (double, vector, spectrum, ...)
-	 *  fv    ..  (2^N)-dimensional vector of node function values
 	 *
 	 * The order of nodes and function values is very important; because of
 	 * optimization, its order is inverse-binary:
 	 *
 	 *  lo[0] = lo[par1], lo[1] = lo[par2], ..., lo[N-1] = lo[parN]
+	 *
 	 *  hi[0] = hi[par1], hi[1] = hi[par2], ..., hi[N-1] = hi[parN]
 	 *
 	 *  fv[0] = fv (0 0 0 ... 0)
+	 *
 	 *  fv[1] = fv (1 0 0 ... 0)
+	 *
 	 *  fv[2] = fv (0 1 0 ... 0)
+	 *
 	 *  fv[3] = fv (1 1 0 ... 0)
+	 *
 	 *  fv[4] = fv (0 0 1 ... 0)
+	 *
 	 *  fv[5] = fv (1 0 1 ... 0)
+	 *
 	 *  fv[6] = fv (0 1 1 ... 0)
+	 *
 	 *  fv[7] = fv (1 1 1 ... 0)
+	 *
 	 *   .....................
 	 *
 	 *  where 0 and 1 are used for lower and upper node values, respectively,
@@ -85,6 +94,8 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 	 * The function *modifies* the passed array fv[], so make sure you copy
 	 * its contents if it is needed later. The result of the interpolation is
 	 * contained in the first element of that array, fv[0].
+	 * 
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i, j, k;
@@ -173,7 +184,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	int i, status;
 	char *basedir;
-	char atmcof[255], atmcofplanck[255];
+	char *atmcof, *atmcofplanck;
 	double params[12];
 
 	PHOEBE_el3_units l3units;
@@ -196,9 +207,12 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/atmcofplanck.dat", NULL);
+/*
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
-
+*/
 	request = 1;
 	nodes = (integer) indep->dim;
 
@@ -358,7 +372,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	int dim1 = 0, dim2 = 0;
 
 	integer request, nodes, L3perc;
-	doublereal phs;
+	double phs;
 
 	if (!poscoy || !poscoz)
 		return ERROR_VECTOR_NOT_INITIALIZED;
@@ -398,7 +412,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
 	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
 
-	phs = (doublereal) phase;
+	phs = phase;
 	request = 4;
 	nodes   = 1;
 	L3perc  = 0;
@@ -422,6 +436,59 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
+	return SUCCESS;
+}
+
+int call_wd_to_get_logg_values (double *logg1, double *logg2)
+{
+	char *basedir;
+	char atmcof[255], atmcofplanck[255];
+	double params[12];
+	integer request, nodes, L3perc, status;
+
+	char *filename;
+	WD_LCI_parameters wd_params;
+
+	status = wd_lci_parameters_get (&wd_params, 2, 0);
+	if (status != SUCCESS) return status;
+
+	wd_params.JDPHS = 2;
+
+	filename = phoebe_resolve_relative_filename ("lcin.active");
+	create_lci_file (filename, &wd_params);
+
+	doublereal indep[1], dep[1];
+	indep[0] = 0;
+
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
+	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
+	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
+
+	request = 2;
+	nodes = 1;
+	L3perc = 0;
+
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep, dep, NULL, NULL, params);
+
+	*logg1 = params[ 8];
+	*logg2 = params[ 9];
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
+	remove (filename);
+	free (filename);
 
 	return SUCCESS;
 }
@@ -706,7 +773,7 @@ int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc)
 int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obssig, double scale)
 {
 	/**
-	 * phoebe_compute_cf:
+	 * phoebe_cf_compute:
 	 * @cfval: the computed cost function value.
 	 * @cf: a #PHOEBE_cost_function to be evaluated.
 	 * @syndep: a #PHOEBE_vector of the model data.

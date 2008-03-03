@@ -14,10 +14,6 @@ gchar *PHOEBE_GLADE_PIXMAP_DIR;
 int phoebe_gui_init ()
 {
 	/*
-	 *
-	 */
-
-	/*
 	 * Initialize a global PHOEBE_GLADE_XML_DIR string to point to a valid
 	 * directory. Try the global installation directory first (contained in
 	 * the GLADE_XML_DIR shell variable), then handle the invocation from src/,

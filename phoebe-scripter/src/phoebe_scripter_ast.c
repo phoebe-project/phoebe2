@@ -580,7 +580,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 * dedicated directive or command.
 				 */
 
-				phoebe_restore_default_parameters ();
+				double x, y;
+				phoebe_ld_get_coefficients (LD_LAW_SQRT, phoebe_passband_lookup ("Johnson:V"), 0.5, 6500, 4, &x, &y);
+				printf ("coeffs: %lf, %lf\n", x, y);
 				return out;
 			}
 			if (in->value.node.kind == kind_statement) {
@@ -1700,6 +1702,12 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 							out.value.i = strlen (value.value.str);
 						}
 					break;
+					case type_curve:
+						if (strcmp (func, "dim") == 0) {
+							out.type = type_int;
+							out.value.i = value.value.curve->indep->dim;
+						}
+					break;
 					default:
 						phoebe_scripter_output ("function %s() called with non-numeric argument, aborting.\n", func);
 						out.type = type_void;
@@ -2141,62 +2149,15 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				return out;
 			}
 
-#warning ADD_WRAPPER_FOR_KIND_EQUAL
 			if (in->value.node.kind == kind_equal) {
 				scripter_ast_value val1 = scripter_ast_evaluate (in->value.node.args->elem);
 				scripter_ast_value val2 = scripter_ast_evaluate (in->value.node.args->next->elem);
 
-				if (val1.type == type_int && val2.type == type_int) {
-					out.type = type_bool;
-					out.value.b = (val1.value.i == val2.value.i);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
+				status = scripter_ast_values_equal (&out, val1, val2);
+				if (status != SUCCESS) {
+					phoebe_scripter_output ("%s", phoebe_error (status));
+					out.type = type_void;
 				}
-				if (val1.type == type_int && val2.type == type_double) {
-					out.type = type_bool;
-					out.value.b = (val1.value.i == val2.value.d);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				if (val1.type == type_bool && val2.type == type_bool) {
-					out.type = type_bool;
-					out.value.b = (val1.value.b == val2.value.b);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				if (val1.type == type_double && val2.type == type_int) {
-					out.type = type_bool;
-					out.value.b = (val1.value.d == val2.value.i);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				if (val1.type == type_double && val2.type == type_double) {
-					out.type = type_bool;
-					out.value.b = (val1.value.d == val2.value.d);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				if (val1.type == type_vector && val2.type == type_vector) {
-					out.type = type_bool;
-					out.value.b = phoebe_vector_compare (val1.value.vec, val2.value.vec);
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				if (val1.type == type_string && val2.type == type_string) {
-					out.type = type_bool;
-					if (strcmp (val1.value.str, val2.value.str) == 0) out.value.b = TRUE;
-					else out.value.b = FALSE;
-					scripter_ast_value_free (val1);
-					scripter_ast_value_free (val2);
-					return out;
-				}
-				out.type = type_void;
 				scripter_ast_value_free (val1);
 				scripter_ast_value_free (val2);
 				return out;

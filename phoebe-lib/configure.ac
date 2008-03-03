@@ -35,7 +35,7 @@
   AC_PREREQ(2.50)
 
 # Initialize configure.ac for autoconf:
-  AC_INIT([phoebe-lib],[0.30-svn],[phoebe-devel@lists.sourceforge.net])
+  AC_INIT([phoebe-lib-nof2c],[0.30-svn],[phoebe-devel@lists.sourceforge.net])
 
 # Create a dedicated header file phoebe_build_config.h that will contain
 # all #define statements that correspond to whatever ./configure found:
@@ -82,6 +82,23 @@
       exit
     fi
 
+  # Fortran compiler:
+    AC_PROG_F77
+
+    if test -z $F77; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE needs a FORTRAN 77 compliant compiler to build."
+      echo "Please install it and run the ./configure script again."
+      echo ""
+      exit
+    fi
+
+  # Get $FLIBS for mixing Fortran with C:
+  # (see http://www.gnu.org/software/automake/manual/automake.html#Mixing-Fortran-77-With-C-and-C_002b_002b)
+    AC_F77_LIBRARY_LDFLAGS
+
   # Libtool:
     AC_PROG_LIBTOOL
 
@@ -90,55 +107,6 @@
 
   # Install program:
     AC_PROG_INSTALL
-
-  # f2c program:
-    AC_CHECK_PROG([f2c_check_passed],[f2c],[yes])
-
-  # g2c library:
-    g2c_check_passed=yes
-    AC_CHECK_LIB(g2c,main,,g2c_check_passed=no)
-    if test "x$g2c_check_passed" = "xno"; then
-      echo ""
-      echo "       *** PHOEBE configuration failure ***"
-      echo ""
-      echo "PHOEBE needs a libg2c library (part of g77) to build."
-      echo "Please install it and run ./configure script again."
-      echo ""
-      exit
-    fi
-
-  # Check for existence of all built WD and WD-related sources:
-    AC_SUBST([f2c_built_sources],["                      \
-      atmx.c      bbl.c      binnum.c cloud.c  conjph.c  \
-      dc.sub.c    dgmprd.c   dminv.c  dura.c   ellone.c  \
-      fourls.c    gabs.c     jdph.c   kepler.c lcr.c     \
-      lc.sub.c    legendre.c light.c  linpro.c lum.c     \
-      lump.c      mlrg.c     modlog.c nekmin.c olump.c   \
-      planckint.c rangau.c   ranuni.c rddata.c ring.c    \
-      romq.c      sincos.c   spot.c   square.c surfas.c  \
-      volume.c    wrdata.c   wrdci.c  wrfoot.c wrhead.c  \
-      wrlci.c"
-      ])
-
-    f2c_missing=""
-    AC_MSG_CHECKING([for WD sources built with f2c])
-    for f in $f2c_built_sources; do
-      test -f libwd/$f && found=yes || found=no
-      test "x$found" = "xno" && f2c_missing="$f2c_missing $f"
-    done
-
-    test -n "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_RESULT([no, but may be built])
-    test -z "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_RESULT([no])
-
-    test -z "$f2c_check_passed" && test -n "$f2c_missing" && AC_MSG_ERROR([
-    built source file(s) missing in libwd/ directory:
-      ${f2c_missing}
-
-    The f2c program is required to build these source files, but it does
-    not appear to be installed.
-    ])
-
-    test -z "$f2c_missing" && AC_MSG_RESULT([yes])
 
   # Lexer (needed for PHOEBE constraints); we require flex 2.5.33 or later:
     AC_PROG_LEX
@@ -251,10 +219,6 @@ GTK_DOC_CHECK(1.0)
 
 # Check for FORTRAN library features:
 
-  # Get $FLIBS for mixing Fortran with C:
-  # (see http://www.gnu.org/software/automake/manual/automake.html#Mixing-Fortran-77-With-C-and-C_002b_002b)
-# AC_F77_LIBRARY_LDFLAGS
-
   # Define a switch to tell FORTRAN what architecture it is compiling for:
 # AC_DEFINE(f2cFortran, 1, [This is for Linux x86 architectures:])
 
@@ -284,6 +248,7 @@ GTK_DOC_CHECK(1.0)
   echo "-----------------------------------------------------------"
   echo "System type:                      $build"
   echo "C compiler used:                  $CC"
+  echo "Fortran compiler used:            $F77"
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
   echo "GNU Scientific Library support:   $gslsupport"
@@ -292,16 +257,8 @@ GTK_DOC_CHECK(1.0)
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 
-if test -z "$f2c_check_passed" || test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
+if test -z "$flex_check_passed" || test -z "$bison_check_passed"; then
   echo "Notice(s):"
-  echo ""
-fi
-
-if test -z "$f2c_check_passed"; then
-  echo "The f2c compiler does not appear to be installed; it is required to"
-  echo "rebuild the WD-derived source files that are distributed in this"
-  echo "tarball. If you modify FORTRAN sources in libwd/ directory, you will"
-  echo "be unable to build PHOEBE without first installing f2c."
   echo ""
 fi
 

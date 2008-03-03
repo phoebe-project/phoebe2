@@ -116,6 +116,8 @@ PHOEBE_parameter_list *phoebe_parameter_list_reverse         (PHOEBE_parameter_l
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba  ();
 int                    phoebe_parameter_list_sort_marked_tba (PHOEBE_parameter_list *list);
 
+double phoebe_spots_units_to_wd_conversion_factor ();
+
 /* ***************************   Third light   ****************************** */
 
 typedef enum PHOEBE_el3_units {

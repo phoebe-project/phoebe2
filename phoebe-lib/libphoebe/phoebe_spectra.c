@@ -28,6 +28,8 @@
 #endif
 #endif
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#define max(a,b) ((a) > (b) ? (a) : (b))
 #define pdif(a)  ((a) > 0 ? (a) : 0)
 
 PHOEBE_specrep PHOEBE_spectra_repository;
@@ -1029,6 +1031,28 @@ int phoebe_spectra_multiply (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOE
 	phoebe_spectrum_free (s2);
 
 	return SUCCESS;
+}
+
+bool phoebe_spectra_compare (PHOEBE_spectrum *spec1, PHOEBE_spectrum *spec2)
+{
+	/**
+	 * phoebe_spectra_compare:
+	 * @spec1: spectrum 1 to be compared
+	 * @spec2: spectrum 2 to be compared
+	 *
+	 * Compares spectra @spec1 and @spec2 by comparing the resolving power,
+	 * sampling, dispersion, and by evaluating the absolute value of
+	 * the differences of all elements (both wavelength and flux) and comparing
+	 * it against PHOEBE_NUMERICAL_ACCURACY.
+	 * 
+	 * Returns: #TRUE if the spectra are the same, #FALSE otherwise.
+	 */
+
+	if (fabs (spec1->R  - spec2->R)  > PHOEBE_NUMERICAL_ACCURACY) return FALSE;
+	if (fabs (spec1->Rs - spec2->Rs) > PHOEBE_NUMERICAL_ACCURACY) return FALSE;
+	if (spec1->disp != spec2->disp) return FALSE;
+
+	return phoebe_hist_compare (spec1->data, spec2->data);
 }
 
 int phoebe_spectrum_multiply_by (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double factor)

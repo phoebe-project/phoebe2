@@ -347,7 +347,7 @@
             <child>
               <widget class="GtkButton" id="phoebe_potentialcalc_calculate_button">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Caclculate</property>
+                <property name="label" translatable="yes">Calculate</property>
               </widget>
             </child>
             <child>

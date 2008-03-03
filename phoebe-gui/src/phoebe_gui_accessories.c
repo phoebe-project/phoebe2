@@ -141,11 +141,35 @@ int gui_open_parameter_file()
 	return status;
 }
 
+gchar *gui_get_filename_with_overwrite_confirmation(GtkWidget *dialog, char *gui_confirmation_title)
+{
+	/* Returns a valid filename or NULL if the user canceled 
+	   Replaces functionality of gtk_file_chooser_set_do_overwrite_confirmation avaliable in Gtk 2.8 (PHOEBE only requires 2.6)
+	*/
+	gchar *filename;
+
+	while (TRUE) {
+		if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+			filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+			if (!phoebe_filename_exists(filename))
+				/* file does not exist */
+				return filename;
+			if(gui_warning(gui_confirmation_title, "This file already exists. Do you want to replace it?")){
+				/* file may be overwritten */
+				return filename;
+			}
+			/* user doesn't want to overwrite, display the dialog again */
+			g_free (filename);
+		}
+		else return NULL;
+	}
+}
+
 int gui_save_parameter_file()
 {
 	GtkWidget *dialog;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-	int return_status = 0, local_status = 1;
+	int status = 0;
 
 	dialog = gtk_file_chooser_dialog_new ("Save PHOEBE parameter file",
 										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
@@ -166,36 +190,21 @@ int gui_save_parameter_file()
 	/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
-	while (local_status){
-		/* loop the dialog until the user chooses a valid file or cancels */
-		if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
-			char *filename;
+	gchar *filename = gui_get_filename_with_overwrite_confirmation(dialog, "Save PHOEBE parameter file");
+	if (filename){
+		status = phoebe_save_parameter_file(filename);
 
-			filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		PHOEBE_FILEFLAG = TRUE;
+		PHOEBE_FILENAME = strdup(filename);
+		g_free (filename);
 
-			if (phoebe_filename_exists(filename))
-				if(!gui_warning("Save parameter file", "This file already exists. Do you want to replace it?")){
-					/* user doesn't want to overwrite, display the dialog again */
-					local_status = 1;
-					continue;
-				}
-
-			return_status = phoebe_save_parameter_file(filename);
-			local_status = 0;
-
-			PHOEBE_FILEFLAG = TRUE;
-			PHOEBE_FILENAME = strdup(filename);
-			g_free (filename);
-
-			PHOEBE_DIRFLAG = TRUE;
-			PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
-		}
-		else local_status = 0;
+		PHOEBE_DIRFLAG = TRUE;
+		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 	}
 
 	gtk_widget_destroy (dialog);
 
-	return return_status;
+	return status;
 }
 
 int gui_show_configuration_dialog()
@@ -221,6 +230,8 @@ int gui_show_configuration_dialog()
 	GtkWidget *kurucz_checkbutton				= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_kurucz_checkbutton");
 	GtkWidget *kurucz_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_kurucz_filechooserbutton");
 
+	GtkWidget *confirm_on_overwrite_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_confirmation_save_checkbutton");
+
 	gchar 		*dir;
 	gboolean	toggle;
 	gint 		result;
@@ -242,6 +253,7 @@ int gui_show_configuration_dialog()
 
 	g_signal_connect(G_OBJECT(vh_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)vh_lddir_filechooserbutton);
 	g_signal_connect(G_OBJECT(kurucz_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)kurucz_filechooserbutton);
+	g_signal_connect(G_OBJECT(confirm_on_overwrite_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_confirmation_save_checkbutton_toggled), NULL);
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_settings_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_settings_dialog), "PHOEBE - Settings");
@@ -261,6 +273,12 @@ int gui_show_configuration_dialog()
 			gtk_widget_set_sensitive (kurucz_filechooserbutton, TRUE);
 			gtk_file_chooser_set_filename((GtkFileChooser*)kurucz_filechooserbutton, dir);
 	}
+
+	phoebe_config_entry_get ("GUI_CONFIRM_ON_OVERWRITE", &toggle);
+	if (toggle)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 1);
+	else
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 0);
 
 	result = gtk_dialog_run ((GtkDialog*)phoebe_settings_dialog);
 	switch (result){

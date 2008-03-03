@@ -3,34 +3,17 @@
 
 #include "phoebe_global.h"
 
-typedef struct LDrecord {
-		char    *filename;
+typedef struct LD_table {
+	PHOEBE_array *Mnodes;
+	PHOEBE_array *Tnodes;
+	PHOEBE_array *lgnodes;
+	struct {
+		char *fn;
 		long int pos;
-		int      T;
-		double   lg;
-		double   M;
-	} LDrecord;
+	} ***table;
+} LD_table;
 
-typedef struct LDelem {
-	int T;
-	double lg;
-	double M;
-} LDelem;
-
-typedef struct LDtable {
-	LDelem  *elem;
-	char    *filename;
-	long int filepos;
-	struct LDtable *Tprev;
-	struct LDtable *Tnext;
-	struct LDtable *lgprev;
-	struct LDtable *lgnext;
-	struct LDtable *Mprev;
-	struct LDtable *Mnext;
-} LDtable;
-
-extern int      PHOEBE_ld_table_size;
-extern LDtable *PHOEBE_ld_table;
+extern LD_table *PHOEBE_ld_table;
 
 typedef enum LDLaw {
 	LD_LAW_LINEAR = 1,
@@ -39,15 +22,12 @@ typedef enum LDLaw {
 	LD_LAW_INVALID
 } LDLaw;
 
+LD_table *phoebe_ld_table_vh1993_load (char *dir);
+int       phoebe_ld_table_free        (LD_table *LD);
+int       phoebe_ld_get_coefficients  (LDLaw ldlaw, PHOEBE_passband *passband, double M, double T, double lg, double *x, double *y);
+
 LDLaw   phoebe_ld_model_type (const char *ldlaw);
 
 char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband);
-
-LDelem *phoebe_ld_elem_new (double M, int T, double lg);
-int phoebe_ld_table_free ();
-
-int read_in_ld_nodes (char *dir);
-
-int phoebe_get_ld_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M, int T, double lg, double *x, double *y);
 
 #endif

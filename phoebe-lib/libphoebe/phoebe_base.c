@@ -63,7 +63,6 @@ int intern_phoebe_variables_init ()
 	PHOEBE_passbands_no  = 0;
 	PHOEBE_passbands     = NULL;
 
-	PHOEBE_ld_table_size = 0;
 	PHOEBE_ld_table      = NULL;
 
 	PHOEBE_spectra_repository.no = 0;
@@ -194,7 +193,7 @@ int phoebe_configure ()
 			phoebe_config_import (conffile);
 
 			/* The config file should point to the ~/.phoebe-VERSION dir: */
-			sprintf (homedir,  "%s-%s", USER_HOME_DIR, PACKAGE_VERSION);
+			sprintf (homedir,  "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
 			sprintf (conffile, "%s/phoebe.config", homedir);
 
 			PHOEBE_HOME_DIR = strdup (homedir);
@@ -219,7 +218,7 @@ int phoebe_configure ()
 			phoebe_config_import (conffile);
 
 			/* The config file should point to the ~/.phoebe-VERSION dir: */
-			sprintf (homedir,  "%s-%s", USER_HOME_DIR, PACKAGE_VERSION);
+			sprintf (homedir,  "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
 			sprintf (conffile, "%s/phoebe.config", homedir);
 
 			PHOEBE_HOME_DIR = strdup (homedir);
@@ -244,8 +243,8 @@ int phoebe_configure ()
 	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &switch_state);
 	if (switch_state == 1) {
 		phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
-		status = read_in_ld_nodes (pathname);
-		if (status != SUCCESS) {
+		PHOEBE_ld_table = phoebe_ld_table_vh1993_load (pathname);
+		if (!PHOEBE_ld_table) {
 			phoebe_lib_error ("reading LD table coefficients failed, disabling readouts.\n");
 			phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
 		}
@@ -283,7 +282,7 @@ int phoebe_quit ()
 	setlocale (LC_NUMERIC, PHOEBE_INPUT_LOCALE);
 
 	/* Free the LD table:                                                     */
-	phoebe_ld_table_free ();
+	phoebe_ld_table_free (PHOEBE_ld_table);
 
 	/* Free the spectra table: */
 	phoebe_spectra_free_repository ();

@@ -391,7 +391,7 @@ int intern_config_parse (char *line)
 
 	for (i = 0; i <= PHOEBE_config_table_size; i++) {
 		if (i == PHOEBE_config_table_size) {
-			phoebe_lib_error ("keyword %s in configuration file not recognized, skipping.\n", keyword);
+			phoebe_lib_warning ("keyword %s in configuration file not recognized, skipping.\n", keyword);
 			free (keyword);
 			return ERROR_PHOEBE_CONFIG_INVALID_KEYWORD;
 		}
@@ -515,7 +515,7 @@ int phoebe_config_load (char *filename)
 		if (!fgets (keyword_str, 254, config)) break;
 		status = intern_config_parse (keyword_str);
 
-		if (status != SUCCESS) {
+		if (status != SUCCESS && status != ERROR_PHOEBE_CONFIG_INVALID_KEYWORD) {
 			phoebe_lib_error ("%s", phoebe_error (status));
 			continue;
 		}

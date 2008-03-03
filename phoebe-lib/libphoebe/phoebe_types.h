@@ -140,6 +140,7 @@ PHOEBE_array  *phoebe_array_new_from_column     (char *filename, int col);
 int            phoebe_array_alloc               (PHOEBE_array *array, int dimension);
 int            phoebe_array_realloc             (PHOEBE_array *array, int dimension);
 PHOEBE_array  *phoebe_array_duplicate           (PHOEBE_array *array);
+bool           phoebe_array_compare             (PHOEBE_array *array1, PHOEBE_array *array2);
 int            phoebe_array_free                (PHOEBE_array *array);
 
 PHOEBE_vector *phoebe_vector_new_from_array     (PHOEBE_array *array);
@@ -212,6 +213,7 @@ int          phoebe_hist_shift           (PHOEBE_hist *hist, double shift);
 int          phoebe_hist_correlate       (double *cfval, PHOEBE_hist *h1, PHOEBE_hist *h2, double sigma1, double sigma2, double ll, double ul, double xi);
 int          phoebe_hist_pad             (PHOEBE_hist *hist, double val);
 int          phoebe_hist_crop            (PHOEBE_hist *hist, double ll, double ul);
+bool         phoebe_hist_compare         (PHOEBE_hist *hist1, PHOEBE_hist *hist2);
 int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type);
 
 /* **************************************************************************** */

@@ -151,4 +151,5 @@ int gui_spots_parameters_marked_tba		();
 int gui_spots_add						();
 int gui_spots_edit						();
 
+extern bool phoebe_para_spots_units_combobox_init;
 

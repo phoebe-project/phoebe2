@@ -62,11 +62,21 @@ int parse_startup_line (int argc, char *argv[])
 
 int main (int argc, char *argv[])
 {
+	int status;
+
 	gtk_set_locale ();
 	gtk_init (&argc, &argv);
 	glade_init ();
 
-	phoebe_init ();
+	status = phoebe_init ();
+	if (status != SUCCESS) {
+		printf ("%s", phoebe_gui_error (status));
+		exit (0);
+	}
+
+	/* Add all GUI-related options here: */
+	phoebe_config_entry_add (TYPE_BOOL, "GUI_CONFIRM_ON_OVERWRITE", TRUE);
+
 	phoebe_configure ();
 
 	phoebe_gui_init ();

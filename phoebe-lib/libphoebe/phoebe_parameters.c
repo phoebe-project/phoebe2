@@ -156,8 +156,8 @@ int phoebe_init_parameters ()
 
 	phoebe_parameter_add ("phoebe_ld_model",             "Limb darkening model",                               KIND_MENU,      NULL,      0,      0,      0, NO, TYPE_STRING, "Logarithmic law");
 	phoebe_parameter_add ("phoebe_ld_xbol1",             "Primary star bolometric LD coefficient x",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_ybol1",             "Primary star bolometric LD coefficient y",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_xbol2",             "Secondary star bolometric LD coefficient x",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_ybol1",             "Primary star bolometric LD coefficient y",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_xbol2",             "Secondary star bolometric LD coefficient x",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
 	phoebe_parameter_add ("phoebe_ld_ybol2",             "Secondary star bolometric LD coefficient y",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
 	phoebe_parameter_add ("phoebe_ld_lcx1",              "Primary star bandpass LD coefficient x",             KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
 	phoebe_parameter_add ("phoebe_ld_lcx2",              "Secondary star bandpass LD coefficient x",           KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
@@ -194,6 +194,7 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_spots_tempfactor_max",  "Spot temperature factor maximum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,    100);
 	phoebe_parameter_add ("phoebe_spots_tempfactor_step", "Spot temperature factor adjustment step",            KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
 
+	phoebe_parameter_add ("phoebe_spots_units",          "Spot coordinate and radius units",                   KIND_MENU,       NULL,           0.0,    0.0,    0.0, NO, TYPE_STRING,        "Radians");
 	phoebe_parameter_add ("phoebe_spots_corotate1",      "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
 	phoebe_parameter_add ("phoebe_spots_corotate2",      "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
 
@@ -352,6 +353,10 @@ int phoebe_init_parameter_options ()
 	par = phoebe_parameter_lookup ("phoebe_el3_units");
 	phoebe_parameter_add_option (par, "Total light");
 	phoebe_parameter_add_option (par, "Flux");
+
+	par = phoebe_parameter_lookup ("phoebe_spots_units");
+	phoebe_parameter_add_option (par, "Radians");
+	phoebe_parameter_add_option (par, "Degrees");
 
 	return SUCCESS;
 }
@@ -1579,6 +1584,14 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 	return SUCCESS;
 }
 
+double phoebe_spots_units_to_wd_conversion_factor ()
+{
+	char *phoebe_spots_units;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_units"), &phoebe_spots_units);
+	return (strcmp(phoebe_spots_units, "Radians")) ? M_PI/180.0 : 1.0;
+
+}
+
 int phoebe_open_parameter_file (const char *filename)
 {
 	/*
@@ -1640,6 +1653,9 @@ int phoebe_open_parameter_file (const char *filename)
 		}
 		phoebe_debug ("  PHOEBE parameter file version: %2.2lf\n", version);
 	}
+
+	/* Set default parameters, not provided in earlier versions */
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_spots_units"), "Radians");
 
 	while (!feof (keyword_file)) {
 		fgets (readout_str, 255, keyword_file); lineno++;
@@ -2192,7 +2208,7 @@ int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile)
 
 			if ((int) rdouble == 8800)
 				phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filter"), 0, "Johnson:I");
-
+				
 			continue;
 		}
 		if (strstr (line, "TEMPERATURE_1")) {

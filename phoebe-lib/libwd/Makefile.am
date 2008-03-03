@@ -24,12 +24,9 @@
 #                                                                      #
 ########################################################################
 
-lib_LTLIBRARIES = libwd.la
+lib_LTLIBRARIES = libwd_nof2c.la
 
-libwd_la_SOURCES = \
-    $(BUILT_SOURCES)
-
-SOURCES = \
+libwd_nof2c_la_SOURCES = \
     atmx.f      bbl.f       binnum.f    cloud.f     conjph.f    dgmprd.f       \
     dminv.f     dura.f      ellone.f    fourls.f    gabs.f      jdph.f         \
     kepler.f    lcr.f       legendre.f  light.f     linpro.f    lum.f          \
@@ -38,27 +35,13 @@ SOURCES = \
     spot.f      square.f    surfas.f    volume.f    wrhead.f    wrdata.f       \
     wrfoot.f    wrlci.f     wrdci.f     lc.sub.f    dc.sub.f
 
-BUILT_SOURCES = \
-    atmx.c      bbl.c       binnum.c    cloud.c     conjph.c    dgmprd.c       \
-    dminv.c     dura.c      ellone.c    fourls.c    gabs.c      jdph.c         \
-    kepler.c    lcr.c       legendre.c  light.c     linpro.c    lum.c          \
-    lump.c      mlrg.c      modlog.c    nekmin.c    olump.c     planckint.c    \
-    rangau.c    ranuni.c    rddata.c    ring.c      romq.c      sincos.c       \
-    spot.c      square.c    surfas.c    volume.c    wrhead.c    wrdata.c       \
-    wrfoot.c    wrlci.c     wrdci.c     lc.sub.c    dc.sub.c
-
-EXTRA_DIST = \
-	$(SOURCES) f2c.h
-
-$(libwd_la_SOURCES):
-	f2c -A -R -Nn802 $(SOURCES)
+#EXTRA_DIST =
 
 #CLEANFILES = 
 
-libwd_la_LDFLAGS = -release 2007-08-15
+libwd_nof2c_la_LDFLAGS = -release 2007-08-15
 #libwd_la_FFLAGS  =
 #libwd_la_CFLAGS  =
-#libwd_la_LIBADD = -lg2c
 
 library_includedir=$(includedir)/phoebe
-library_include_HEADERS = f2c.h wd.h
+library_include_HEADERS = wd.h

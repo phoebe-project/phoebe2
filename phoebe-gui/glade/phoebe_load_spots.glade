@@ -39,8 +39,8 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_lat_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 100 1 10 10</property>
-                                <property name="climb_rate">1</property>
+                                <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
                             </child>
@@ -74,7 +74,8 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                    <property name="adjustment">0.02 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
                                   <packing>
@@ -101,8 +102,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_latmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -129,8 +130,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_latmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">3.14159 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -182,8 +183,8 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_lon_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 100 1 10 10</property>
-                                <property name="climb_rate">1</property>
+                                <property name="adjustment">0 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
                             </child>
@@ -217,7 +218,8 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                    <property name="adjustment">0.02 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
                                   <packing>
@@ -244,8 +246,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_lonmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">0 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -272,8 +274,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_lonmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">6.2831849999999996 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -326,8 +328,8 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_rad_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 100 1 10 10</property>
-                                <property name="climb_rate">1</property>
+                                <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
                             </child>
@@ -361,7 +363,8 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                    <property name="adjustment">0.02 0 1 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
                                   <packing>
@@ -388,8 +391,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_radmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -416,8 +419,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_radmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">3.14159 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -470,8 +473,8 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_temp_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 100 1 10 10</property>
-                                <property name="climb_rate">1</property>
+                                <property name="adjustment">1 0 10 0.01 0.1 0.1</property>
+                                <property name="climb_rate">0.02</property>
                                 <property name="digits">4</property>
                               </widget>
                             </child>
@@ -505,7 +508,8 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                                    <property name="adjustment">0.02 0 1 0.01 0.1 0.1</property>
+                                    <property name="climb_rate">0.02</property>
                                     <property name="digits">3</property>
                                   </widget>
                                   <packing>
@@ -532,8 +536,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_tempmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">0.2 0 100 0.1 1 1</property>
+                                    <property name="climb_rate">0.02</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>
@@ -560,8 +564,8 @@
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_tempmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 100 1 10 10</property>
-                                    <property name="climb_rate">1</property>
+                                    <property name="adjustment">5 0 100 0.1 1 1</property>
+                                    <property name="climb_rate">0.02</property>
                                     <property name="digits">4</property>
                                   </widget>
                                   <packing>

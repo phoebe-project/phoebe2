@@ -166,49 +166,6 @@ int phoebe_star_surface_compute_radii (PHOEBE_star_surface *surface, double Omeg
 	return SUCCESS;
 }
 
-int phoebe_star_surface_compute_grads (PHOEBE_star_surface *surface, double q, double D, double F)
-{
-	/**
-	 * phoebe_star_surface_compute_grads:
-	 * @surface: surface for which to compute the local radii
-	 * @q: mass ratio
-	 * @D: instantaneous separation
-	 * @F: asynchronicity parameter
-	 *
-	 * Computes local gradients of all surface elements of the
-	 * #PHOEBE_star_surface @surface. It allocates and assigns values to the
-	 * #grad field. It requires @surface field #rho to already be allocated
-	 * and its values assigned. See phoebe_star_surface_compute_radii() for
-	 * details.
-	 *
-	 * Returns: #PHOEBE_error_code.
-	 */
-
-	int i;
-	double lambda, nu;
-
-	if (!surface)
-		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
-
-	if (surface->elemno <= 0)
-		return ERROR_STAR_SURFACE_NOT_ALLOCATED;
-
-	if (!surface->rho)
-		return ERROR_STAR_SURFACE_RADII_NOT_COMPUTED;
-
-	if (surface->grad)
-		free (surface->grad);
-	surface->grad = phoebe_malloc (surface->elemno * sizeof(*(surface->grad)));
-
-	for (i = 0; i < surface->elemno; i++) {
-		lambda = surface->sinth[i] * surface->cosphi[i];
-		    nu = surface->costh[i];
-		surface->grad[i] = phoebe_compute_gradient (surface->rho[i], q, D, F, lambda, nu);
-	}
-
-	return SUCCESS;
-}
-
 int phoebe_star_surface_free (PHOEBE_star_surface *surface)
 {
 	/**
@@ -311,39 +268,6 @@ double intern_radius_implicit (double rp, double r, double q, double D, double l
 		-0.5*F*F*(1.0+q)*r*r*(1-n*n));
 }
 
-double intern_dOmegadx (double x, double y, double z, double q, double D, double F)
-{
-	/**
-	 *
-	 */
-
-	return -x/pow(x*x+y*y+z*z,3./2.)
-			+q*(D-x)/pow((D-x)*(D-x)+y*y+z*z,3./2.)
-			+F*F*(1.+q)*x
-			-q/D/D;
-}
-
-double intern_dOmegady (double x, double y, double z, double q, double D, double F)
-{
-	/**
-	 *
-	 */
-
-	return -y*(1./pow(x*x+y*y+z*z,3./2.)
-			+q/pow((D-x)*(D-x)+y*y+z*z,3./2.)
-			-F*F*(1.+q));
-}
-
-double intern_dOmegadz (double x, double y, double z, double q, double D, double F)
-{
-	/**
-	 *
-	 */
-
-	return -z*(1./pow(x*x+y*y+z*z,3./2.)
-			+q/pow((D-x)*(D-x)+y*y+z*z,3./2.));
-}
-
 
 double phoebe_compute_polar_radius (double Omega, double D, double q)
 {
@@ -399,15 +323,4 @@ double phoebe_compute_radius (double rp, double q, double D, double F, double la
 	} while (fabs (r-r0) > 1e-6);
 	
 	return r;
-}
-
-double phoebe_compute_gradient (double r, double q, double D, double F, double lambda, double nu)
-{
-	double dOdx, dOdy, dOdz;
-
-	dOdx = intern_dOmegadx (r*lambda, r*sqrt(1-lambda*lambda-nu*nu), r*nu, q, 1.0, F);
-	dOdy = intern_dOmegady (r*lambda, r*sqrt(1-lambda*lambda-nu*nu), r*nu, q, 1.0, F);
-	dOdz = intern_dOmegadz (r*lambda, r*sqrt(1-lambda*lambda-nu*nu), r*nu, q, 1.0, F);
-
-	return sqrt (dOdx*dOdx + dOdy*dOdy + dOdz*dOdz);
 }
