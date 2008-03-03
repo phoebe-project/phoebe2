@@ -1,9 +1,0 @@
-  Synopsis:     set out = get_spectrum_from_repository (Teff, log g, [M/H])
-  Summary:      Returns a spectrum by interpolating from the repository
-  Description:  This command accesses the spectra repository (set by the
-                set_spectra_repository () command), reads in the spectra
-                that are in the immediate parameter vicinity, and interpolates
-                linearly to obtain the resulting spectrum.
-  Arguments:    Teff:  effective temperature in K
-                log g: surface gravity acceleration in cgs units
-                [M/H]: metallicity in log scale (0 ~ Sun abundance)

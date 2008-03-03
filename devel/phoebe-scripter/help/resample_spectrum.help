@@ -1,8 +1,0 @@
-  Synopsis:     set out = resample_spectrum (in, ll, ul, Rs)
-  Summary:      Resample the input spectrum on the given interval.
-  Description:  This command resamples the input spectrum 'in' to the
-                wavelength interval [ll, ul] and sampling power 'Rs'. The
-                bins are distributed in log scale, so the value of 'Rs' is
-                preserved throughout the wavelength range. If there is no
-                overlap between the input spectrum and the passed wavelength
-                range, the command will abort.
