@@ -1,0 +1,20 @@
+# PASS_SET  Geneva
+# PASSBAND  G
+# EFFWL     5805
+# WLFACTOR  1
+# REFERENCE Golay, M. 1962, Pub. Obs. Geneve No. 15 (serie A), 29              
+# Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
+5400  0.00
+5500  6.73
+5600 25.25
+5700 28.30
+5800 23.97
+5900 18.38
+6000 13.23
+6100  8.79
+6200  5.35
+6300  2.87
+6400  1.31
+6500  0.47
+6600  0.07
+6700  0.00
