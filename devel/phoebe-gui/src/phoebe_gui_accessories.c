@@ -294,6 +294,7 @@ int gui_show_configuration_dialog()
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	TRUE);
 				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
+				phoebe_load_ld_tables();
 			}
 			else if (!toggle)
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);
@@ -320,6 +321,7 @@ int gui_show_configuration_dialog()
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	TRUE);
 				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
+				phoebe_load_ld_tables();
 			}
 			else if (toggle)
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);

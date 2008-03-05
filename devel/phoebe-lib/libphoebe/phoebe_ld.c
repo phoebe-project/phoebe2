@@ -108,6 +108,12 @@ LD_table *phoebe_ld_table_vh1993_load (char *dir)
 		fclose (in);
 	}
 
+	if (!counter) {
+		/* No lines have been read */
+		free(rec);
+		return NULL;
+	}
+
 	phoebe_close_directory (&dirlist);
 
 	LD = phoebe_malloc (sizeof (*LD));
