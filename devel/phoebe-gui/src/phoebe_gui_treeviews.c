@@ -1062,6 +1062,8 @@ int gui_data_lc_treeview_add()
             phoebe_parameter_get_value(par, &lcno);
             phoebe_parameter_set_value(par, lcno + 1);
 	    gui_ld_coeffs_need_updating();
+	    gui_fill_sidesheet_fit_treeview ();
+	    gui_fill_fitt_mf_treeview();
 
             printf("Number of light curves: %d\n", lcno + 1);
 
@@ -1250,6 +1252,8 @@ int gui_data_lc_treeview_remove()
 
         phoebe_parameter_get_value(par, &lcno);
         phoebe_parameter_set_value(par, lcno - 1);
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_fitt_mf_treeview();
 
         printf("Number of light curves: %d\n", lcno - 1);
     }
