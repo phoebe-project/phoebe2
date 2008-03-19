@@ -918,6 +918,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+
+	if (rvno > 2) {
+		phoebe_lib_warning ("More than 2 RV curves are currently not supported.\n");
+		phoebe_lib_warning ("Discarding all RV curves beyond the first two.\n");
+		rvno = 2;
+	}
+
 	cno = lcno + rvno;
 
 	*marked_tba = 0;
@@ -952,7 +959,6 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->step = step;
 
 	/* Check for presence of RV and LC data: */
-	{
 	params->rv1data = FALSE; params->rv2data = FALSE;
 	for (i = 0; i < rvno; i++) {
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &readout_str);
@@ -973,7 +979,6 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		}
 	}
 	params->nlc = lcno;
-	}
 
 	/* DC-related parameters:                                                 */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dc_lambda"), &readout_dbl);
@@ -1030,18 +1035,16 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	}
 
 	/* Do we work in HJD-space or in phase-space? */
-	{
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
-		status = phoebe_column_get_type (&master_indep, readout_str);
-		if (status != SUCCESS) return status;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
+	status = phoebe_column_get_type (&master_indep, readout_str);
+	if (status != SUCCESS) return status;
 
-		if (master_indep == PHOEBE_COLUMN_HJD)
-			params->indep = 1;
-		else if (master_indep == PHOEBE_COLUMN_PHASE)
-			params->indep = 2;
-		else
-			return ERROR_INVALID_INDEP;
-	}
+	if (master_indep == PHOEBE_COLUMN_HJD)
+		params->indep = 1;
+	else if (master_indep == PHOEBE_COLUMN_PHASE)
+		params->indep = 2;
+	else
+		return ERROR_INVALID_INDEP;
 
 	/* Luminosity decoupling:                                                   */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_usecla_switch"), &readout_bool);
