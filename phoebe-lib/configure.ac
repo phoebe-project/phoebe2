@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-01-05 #
+#                                            Last revision: 2008-03-21 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -83,7 +83,7 @@
     fi
 
   # Fortran compiler:
-    AC_PROG_F77(gfortran g77)
+    AC_PROG_F77([gfortran g77])
 
     if test -z $F77; then
       echo ""
