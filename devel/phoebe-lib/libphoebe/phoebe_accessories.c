@@ -395,6 +395,54 @@ char *phoebe_concatenate_strings (const char *str, ...)
 	return out;
 }
 
+char *phoebe_clean_data_line (char *line)
+{
+	/**
+	 * phoebe_clean_data_line:
+	 * @line: input string to be cleaned
+	 *
+	 * Takes a string, cleans it of all comment delimeters, spaces, tabs and
+	 * newlines, and copies the contents to a newly allocated string. The
+	 * original string is not modified in any way.
+	 *
+	 * Returns: clean string.
+	 */
+
+	/* This function has been thorougly tested. */
+
+	char *value, *start, *stop;
+
+	if (!line)
+		return NULL;
+
+	if (strlen(line) == 0)
+		return NULL;
+
+	start = line;
+	while (*start != '\0' && (*start == '\n' || *start == '\t' || *start == ' ' || *start == 13))
+		start++;
+
+	if ((stop = strchr (line, '#'))) {
+		if (stop > start)
+			stop--;
+	}
+	else
+		stop = &line[strlen(line)];
+
+	while (stop != start && (*stop == '\n' || *stop == '\t' || *stop == ' ' || *stop == 13))
+		stop--;
+
+	phoebe_debug ("start: %c; stop: %c; length: %ld\n", *start, *stop, stop-start+1);
+	if (start == stop)
+		return NULL;
+
+	value = phoebe_malloc ((stop-start+2)*sizeof(*value));
+	memcpy (value, start, (stop-start+1)*sizeof(*value));
+	value[stop-start+1] = '\0';
+
+	return value;
+}
+
 bool atob (char *str)
 {
 	/**
