@@ -28,7 +28,6 @@
 	#define PHOEBE_H 1
 
 #include <phoebe/phoebe_accessories.h>
-#include <phoebe/phoebe_allocations.h>
 #include <phoebe/phoebe_base.h>
 #include <phoebe/phoebe_calculations.h>
 #include <phoebe/phoebe_configuration.h>

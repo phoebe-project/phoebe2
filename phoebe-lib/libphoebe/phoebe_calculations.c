@@ -6,10 +6,10 @@
 #include <time.h>
 
 #include "phoebe_accessories.h"
-#include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
 #include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
+#include "phoebe_fortran_interface.h"
 #include "phoebe_global.h"
 #include "phoebe_parameters.h"
 #include "phoebe_spectra.h"

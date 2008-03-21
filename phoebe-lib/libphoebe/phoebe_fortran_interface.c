@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "phoebe_allocations.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fortran_interface.h"
@@ -150,6 +149,29 @@ int create_dci_file (char *filename, void *pars)
 	free (step);
 
 	return SUCCESS;
+}
+
+int intern_get_level_weighting_id (const char *type)
+{
+	/**
+	 * intern_get_level_weighting_id:
+	 * @type: level-weighting scheme
+	 *
+	 * Returns: WD code for the level-weighting scheme.
+	 */
+
+	int id = -1;
+
+	if (strcmp (type, "None") == 0)               id = 0;
+	if (strcmp (type, "Poissonian scatter") == 0) id = 1;
+	if (strcmp (type, "Low light scatter") == 0)  id = 2;
+
+	if (id == -1)
+		{
+		phoebe_lib_error ("level weighting type invalid, assuming Poissonian scatter.\n");
+		return 1;
+		}
+	return id;
 }
 
 int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
@@ -1184,7 +1206,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), i-rvno, &(params->el3[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"), i-rvno, &(params->opsf[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), i-rvno, &readout_str);
-		params->levweight[i]  = get_level_weighting_id (readout_str);
+
+		params->levweight[i]  = intern_get_level_weighting_id (readout_str);
 	}
 	}
 

@@ -5,7 +5,6 @@
 #include "phoebe_global.h"
 
 #include "phoebe_accessories.h"
-#include "phoebe_allocations.h"
 #include "phoebe_calculations.h"
 #include "phoebe_constraints.h"
 #include "phoebe_data.h"
@@ -2717,6 +2716,24 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	return SUCCESS;
 }
 
+int intern_read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, double *pshift)
+{
+	/*
+	 * This function speeds up the ephemeris readout.
+	 *
+	 * Return values:
+	 *
+	 *   SUCCESS
+	 */
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"), hjd0);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"), period);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"), dpdt);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pshift"), pshift);
+
+	return SUCCESS;
+}
+
 int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype)
 {
 	/**
@@ -2754,7 +2771,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 
 	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
 		double hjd0, period, dpdt, pshift;
-		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+		intern_read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
 		status = transform_hjd_to_phase (curve->indep, hjd0, period, dpdt, 0.0);
 		if (status != SUCCESS) return status;
 		curve->itype = itype;
@@ -2762,7 +2779,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 
 	if (curve->itype == PHOEBE_COLUMN_PHASE && itype == PHOEBE_COLUMN_HJD) {
 		double hjd0, period, dpdt, pshift;
-		read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+		intern_read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
 		status = transform_phase_to_hjd (curve->indep, hjd0, period, dpdt, 0.0);
 		if (status != SUCCESS) return status;
 		curve->itype = itype;

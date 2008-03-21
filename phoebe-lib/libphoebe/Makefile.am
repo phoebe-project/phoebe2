@@ -29,7 +29,6 @@ lib_LTLIBRARIES = libphoebe.la
 libphoebe_la_SOURCES =                                                  \
     phoebe_constraints.grm.y          phoebe_constraints.lng.l          \
     phoebe_accessories.c              phoebe_accessories.h              \
-    phoebe_allocations.c              phoebe_allocations.h              \
     phoebe_base.c                     phoebe_base.h                     \
     phoebe_build_config.h             phoebe_global.h                   \
     phoebe_calculations.c             phoebe_calculations.h             \
@@ -66,7 +65,6 @@ libphoebe_la_LIBADD  = ../libwd/libwd.la
 library_includedir=$(includedir)/phoebe
 library_include_HEADERS = phoebe.h                   \
                           phoebe_accessories.h       \
-                          phoebe_allocations.h       \
                           phoebe_base.h              \
                           phoebe_calculations.h      \
                           phoebe_configuration.h     \
