@@ -16,34 +16,47 @@ PHOEBE_star_surface *phoebe_star_surface_new ()
 
 	PHOEBE_star_surface *surface = phoebe_malloc (sizeof (*surface));
 
-	surface->elemno = 0;
-	surface->theta  = NULL;
-	surface->phi    = NULL;
-	surface->rho    = NULL;
-	surface->grad   = NULL;
+	surface->elemno  = 0;
+	surface->theta   = NULL;
+	surface->phi     = NULL;
+	surface->rho     = NULL;
+	surface->grad    = NULL;
+	surface->cosbeta = NULL;
 
-	surface->mmsave = NULL;
-	surface->sinth  = NULL;
-	surface->costh  = NULL;
-	surface->sinphi = NULL;
-	surface->cosphi = NULL;
+	surface->mmsave  = NULL;
+	surface->sinth   = NULL;
+	surface->costh   = NULL;
+	surface->sinphi  = NULL;
+	surface->cosphi  = NULL;
 
 	return surface;
 }
 
-int phoebe_star_surface_alloc (PHOEBE_star_surface *surface, int elemno)
+int phoebe_star_surface_alloc (PHOEBE_star_surface *surface, int lat_raster)
 {
 	/**
 	 * phoebe_star_surface_alloc:
 	 * @surface: star surface elements to be allocated
-	 * @elemno: number of elements on the surface
+	 * @lat_raster: latitude raster size (number of latitude circles)
 	 * 
-	 * This function should not be used, it is meant for future expansion.
-	 * It will allocate a given number of surface elements instead of gridded
-	 * sampling strategy.
+	 * Computes the number of elements from the passed latitude raster size
+	 * @lat_raster, and allocates memory for local surface quantities. The
+	 * number of elements on one half of the stellar hemisphere is computed by
+	 * dividing each of @theta = pi/(2@lat_raster) latitude circles into 1.3
+	 * @lat_raster sin(@theta) longitude steps and adding them up. Factor 1.3 is
+	 * introduced to make rasterization along longitude more dense, needed for
+	 * a better edge determination. This number is then multiplied by 4 to get
+	 * the whole star surface.
+	 *
+	 * Allocated local surface quantities are: stellar co-latitude (@theta),
+	 * longitude (@phi), local radius (@rho), and local gradient (@grad).
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
+
+	double DENSITY_FACTOR = 1.3;
+	int i, gridsize;
+	double theta;
 
 	if (!surface)
 		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
@@ -51,59 +64,85 @@ int phoebe_star_surface_alloc (PHOEBE_star_surface *surface, int elemno)
 	if (surface->elemno != 0)
 		return ERROR_STAR_SURFACE_ALREADY_ALLOCATED;
 
-	if (elemno <= 0)
+	if (lat_raster <= 2)
 		return ERROR_STAR_SURFACE_INVALID_DIMENSION;
 
-	surface->elemno = elemno;
-	surface->theta  = phoebe_malloc (elemno * sizeof (*(surface->theta)));
-	surface->phi    = phoebe_malloc (elemno * sizeof (*(surface->phi)));
-	surface->rho    = phoebe_malloc (elemno * sizeof (*(surface->rho)));
-	surface->grad   = phoebe_malloc (elemno * sizeof (*(surface->grad)));
+	gridsize = 0;
+	for (i = 0; i < lat_raster; i++) {
+		theta = M_PI/2.0 * ((double) i + 0.5) / ((double) lat_raster);
+		gridsize += 1 + (int) (DENSITY_FACTOR * lat_raster * sin (theta));
+	}
+
+	/* PHOEBE arrays: */
+	surface->elemno  = 4*gridsize;
+	surface->theta   = phoebe_malloc (surface->elemno * sizeof (*(surface->theta)));
+	surface->phi     = phoebe_malloc (surface->elemno * sizeof (*(surface->phi)));
+	surface->rho     = phoebe_malloc (surface->elemno * sizeof (*(surface->rho)));
+	surface->grad    = phoebe_malloc (surface->elemno * sizeof (*(surface->grad)));
+	surface->cosbeta = phoebe_malloc (surface->elemno * sizeof (*(surface->cosbeta)));
+
+	/* WD arrays: */
+/*
+	surface->mmsave = phoebe_malloc ((lat_raster+1) * sizeof (*(surface->mmsave)));
+	surface->sinth  = phoebe_malloc (gridsize * sizeof (*(surface->sinth)));
+	surface->costh  = phoebe_malloc (gridsize * sizeof (*(surface->costh)));
+	surface->sinphi = phoebe_malloc (gridsize * sizeof (*(surface->sinphi)));
+	surface->cosphi = phoebe_malloc (gridsize * sizeof (*(surface->cosphi)));
+*/
 
 	return SUCCESS;
 }
 
-PHOEBE_star_surface *phoebe_star_surface_rasterize (int gridsize)
+int phoebe_star_surface_rasterize (PHOEBE_star_surface *surface, int lat_raster)
 {
 	/**
 	 * phoebe_star_surface_rasterize:
-	 * @gridsize: raster size
+	 * @surface: stellar surface to be rasterized
+	 * @lat_raster: raster size
 	 *
-	 * Rasterizes surface onto a gridded mesh with @gridsize elements in co-
-	 * latitude and 1.3 @gridsize sin(#theta) elements in longitude. The
-	 * function allocates and assigns values to the following
-	 * #PHOEBE_star_surface fields: #elemno, #theta, #phi, #sinth, #costh,
-	 * #sinph, #cosph, #mmsave.
+	 * Rasterizes @surface onto a gridded mesh with @lat_raster elements in co-
+	 * latitude and 1.3 @lat_raster sin(@theta) elements in longitude. Memory
+	 * for the raster is allocated by the function and should be freed by the
+	 * user after use.
 	 * 
-	 * Returns: rasterized star surface.
+	 * Returns: #PHOEBE_error_code.
 	 */
 
-	PHOEBE_star_surface *surface = phoebe_star_surface_new ();
+	int i, j, status;
 
-	double DENSITY_FACTOR = 1.3;
-	int i, j;
-
-	double theta, sinth, costh;
+	double theta, phi;
 	int mm;
 
 	int index = 0;
 
-	if (gridsize < 3) {
-		phoebe_lib_error ("surface grid size %d is invalid, aborting.\n", gridsize);
-		return NULL;
+	/* No need to do any error handling, the following function does that. */
+
+	status = phoebe_star_surface_alloc (surface, lat_raster);
+	if (status != SUCCESS) {
+		phoebe_lib_error ("%s", phoebe_error (status));
+		return status;
 	}
 
-	/* Allocate memory for PHOEBE arrays: */
-	surface->theta  = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof(*(surface->theta)));
-	surface->phi    = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof(*(surface->phi)));
+	for (i = 1; i <= lat_raster; i++) {
+		theta = M_PI/2.0 * ((double) i - 0.5) / ((double) lat_raster);
+		mm = 1 + (int) (1.3 * lat_raster * sin(theta));
+		for (j = 0; j < mm; j++) {
+			surface->theta[index] = theta;
+			surface->theta[surface->elemno/2-index-1] = M_PI - theta;
+			surface->theta[surface->elemno/2+index]   = theta;
+			surface->theta[surface->elemno-index-1]   = M_PI - theta;
 
-	/* Allocate memory for WD arrays: */
-	surface->mmsave = phoebe_malloc ((gridsize+1) * sizeof (*(surface->mmsave)));
-	surface->sinth  = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof (*(surface->sinth)));
-	surface->costh  = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof (*(surface->costh)));
-	surface->sinphi = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof(*(surface->sinphi)));
-	surface->cosphi = phoebe_malloc (DENSITY_FACTOR*gridsize*gridsize * sizeof(*(surface->cosphi)));
+			phi = M_PI*((double)j+0.5)/mm;
+			surface->phi[index] = phi;
+			surface->phi[surface->elemno/2-index-1] = phi;
+			surface->phi[surface->elemno/2+index] = 2*M_PI - phi;
+			surface->phi[surface->elemno-index-1] = 2*M_PI - phi;
 
+			index++;
+		}
+	}
+
+/*
 	surface->mmsave[0] = 0;
 
 	for (i = 1; i <= gridsize; i++) {
@@ -123,8 +162,8 @@ PHOEBE_star_surface *phoebe_star_surface_rasterize (int gridsize)
 		}
 	}
 	surface->elemno = index;
-
-	return surface;
+*/
+	return SUCCESS;
 }
 
 int phoebe_star_surface_compute_radii (PHOEBE_star_surface *surface, double Omega, double q, double D, double F)
@@ -138,7 +177,8 @@ int phoebe_star_surface_compute_radii (PHOEBE_star_surface *surface, double Omeg
 	 * @F: asynchronicity parameter
 	 *
 	 * Computes local radii of all surface elements of the #PHOEBE_star_surface
-	 * @surface. It allocates and assigns values to the #rho field.
+	 * @surface. Memory for @surface needs to be allocated prior to calling
+	 * this function.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -149,18 +189,121 @@ int phoebe_star_surface_compute_radii (PHOEBE_star_surface *surface, double Omeg
 	if (!surface)
 		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
 
-	if (surface->elemno <= 0)
+	if (!surface->rho || surface->elemno == 0)
 		return ERROR_STAR_SURFACE_NOT_ALLOCATED;
 
-	if (surface->rho)
-		free (surface->rho);
-	surface->rho = phoebe_malloc (surface->elemno * sizeof(*(surface->rho)));
-
 	rp = phoebe_compute_polar_radius (Omega, D, q);
-	for (i = 0; i < surface->elemno; i++) {
-		lambda = surface->sinth[i] * surface->cosphi[i];
-		    nu = surface->costh[i];
-		surface->rho[i] = phoebe_compute_radius (rp, q, D, F, lambda, nu);
+
+	/* Local radii need to be computed for only 1/4 of the stellar surface;
+	 * the rest we can get by invoking symmetry.
+	 */
+	for (i = 0; i < surface->elemno/4; i++) {
+		lambda = sin (surface->theta[i]) * cos (surface->phi[i]);
+		    nu = cos (surface->theta[i]);
+		surface->rho[i] =
+			surface->rho[surface->elemno/2-i-1] =
+			surface->rho[surface->elemno/2+i] =
+			surface->rho[surface->elemno-i-1] =
+				phoebe_compute_radius (rp, q, D, F, lambda, nu);
+	}
+
+	return SUCCESS;
+}
+
+double intern_dOmegadx (double x, double y, double z, double q, double D, double F)
+{
+	return -x/pow(x*x+y*y+z*z,3./2.)+q*(D-x)/pow((D-x)*(D-x)+y*y+z*z,3./2.)
+	       +F*F*(1.+q)*x-q/D/D;
+}
+
+double intern_dOmegady (double x, double y, double z, double q, double D, double F)
+{
+	return -y*(1./pow(x*x+y*y+z*z,3./2.)+q/pow((D-x)*(D-x)+y*y+z*z,3./2.)
+	       -F*F*(1.+q));
+}
+
+double intern_dOmegadz (double x, double y, double z, double q, double D, double F)
+{
+	return -z*(1./pow(x*x+y*y+z*z,3./2.)+q/pow((D-x)*(D-x)+y*y+z*z,3./2.));
+}
+
+int phoebe_star_surface_compute_gradients (PHOEBE_star_surface *surface, double q, double D, double F)
+{
+	/**
+	 * phoebe_star_surface_compute_gradients:
+	 * @surface: surface for which to compute local gradients
+	 * @q: mass ratio
+	 * @D: instantaneous separation
+	 * @F: asynchronicity parameter
+	 *
+	 * Returns: #PHOEBE_error_code
+	 */
+
+	int i;
+	double r, l, n;
+
+	if (!surface)
+		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
+
+	if (!surface->grad || surface->elemno == 0)
+		return ERROR_STAR_SURFACE_NOT_ALLOCATED;
+
+	for (i = 0; i < surface->elemno/4; i++) {
+		r = surface->rho[i];
+		l = sin(surface->theta[i])*cos(surface->phi[i]);
+		n = cos(surface->theta[i]);
+
+		surface->grad[i].x =
+			surface->grad[surface->elemno/2-i-1].x =
+			surface->grad[surface->elemno/2+i].x =
+			surface->grad[surface->elemno-i-1].x =
+				intern_dOmegadx (r*l, r*sqrt(1-l*l-n*n), r*n, q, D, F);
+
+		surface->grad[i].y =
+			surface->grad[surface->elemno/2-i-1].y =
+			surface->grad[surface->elemno/2+i].y =
+			surface->grad[surface->elemno-i-1].y =
+				intern_dOmegady (r*l, r*sqrt(1-l*l-n*n), r*n, q, D, F);
+
+		surface->grad[i].z =
+			surface->grad[surface->elemno/2-i-1].z =
+			surface->grad[surface->elemno/2+i].z =
+			surface->grad[surface->elemno-i-1].z =
+				intern_dOmegadz (r*l, r*sqrt(1-l*l-n*n), r*n, q, D, F);
+	}
+
+	return SUCCESS;
+}
+
+int phoebe_star_surface_compute_cosbeta (PHOEBE_star_surface *surface)
+{
+	/**
+	 * phoebe_star_surface_compute_cosbeta:
+	 * @surface: surface for which to compute cos(beta)
+	 *
+	 * Computes the cosine of the angle between surface normal (normalized
+	 * gradient of the surface potential) and radius vector. This angle is
+	 * directly related to surface deformation and thus surface element. The
+	 * function requires gradients to be computed already.
+	 *
+	 * Returns: #PHOEBE_error_code
+	 */
+
+	int i;
+
+	double l, n;
+
+	for (i = 0; i < surface->elemno/4; i++) {
+		l = sin(surface->theta[i])*cos(surface->phi[i]);
+		n = cos(surface->theta[i]);
+
+		surface->cosbeta[i] =
+			surface->cosbeta[surface->elemno/2-i-1] =
+			surface->cosbeta[surface->elemno/2+i] =
+			surface->cosbeta[surface->elemno-i-1] =
+				-(l*surface->grad[i].x+n*surface->grad[i].z
+				+sqrt(1-l*l-n*n)*surface->grad[i].y)
+				/sqrt(surface->grad[i].x*surface->grad[i].x+surface->grad[i].y*surface->grad[i].y+surface->grad[i].z*surface->grad[i].z);
 	}
 
 	return SUCCESS;
@@ -185,12 +328,14 @@ int phoebe_star_surface_free (PHOEBE_star_surface *surface)
 		free (surface->phi);
 		free (surface->rho);
 		free (surface->grad);
-
+		free (surface->cosbeta);
+/*
 		free(surface->mmsave);
 		free(surface->sinth);
 		free(surface->costh);
 		free(surface->sinphi);
 		free(surface->cosphi);
+*/
 	}
 
 	free (surface);
