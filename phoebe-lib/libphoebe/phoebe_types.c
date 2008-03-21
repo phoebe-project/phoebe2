@@ -2642,7 +2642,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			jdphs = 2;
 		break;
 		default:
-			phoebe_lib_error ("exception handler invoked by itype switch in read_in_synthetic_data (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked by itype switch in phoebe_curve_compute (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
@@ -2664,7 +2664,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			curve->type = PHOEBE_CURVE_RV;
 		break;
 		default:
-			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked by dtype switch in phoebe_curve_compute (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
@@ -2696,7 +2696,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			call_wd_to_get_rv2 (curve, nodes);
 		break;
 		default:
-			phoebe_lib_error ("exception handler invoked by dtype switch in read_in_synthetic_data (), please report this!\n");
+			phoebe_lib_error ("exception handler invoked by dtype switch in phoebe_curve_compute (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 

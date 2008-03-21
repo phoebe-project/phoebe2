@@ -15,7 +15,7 @@
 PHOEBE_passband **PHOEBE_passbands;
 int               PHOEBE_passbands_no;
 
-int intern_compare_passbands_by_effwl(const void *a, const void *b)
+int intern_compare_passbands_by_effwl (const void *a, const void *b)
 {
 	/*
 	 * This function is needed by qsort function that sorts passbands by 
@@ -25,10 +25,10 @@ int intern_compare_passbands_by_effwl(const void *a, const void *b)
 	PHOEBE_passband * const *ia = a;
 	PHOEBE_passband * const *ib = b;
 
-	return (int)((*ia)->effwl - (*ib)->effwl);
+	return (int) ((*ia)->effwl - (*ib)->effwl);
 } 
 
-int intern_compare_passbands_by_set(const void *a, const void *b)
+int intern_compare_passbands_by_set (const void *a, const void *b)
 {
 	/*
 	 * This function is needed by qsort function that sorts passbands by set.
@@ -37,7 +37,7 @@ int intern_compare_passbands_by_set(const void *a, const void *b)
 	PHOEBE_passband * const *ia = a;
 	PHOEBE_passband * const *ib = b;
 
-	return strcmp((*ia)->set, (*ib)->set);
+	return strcmp ((*ia)->set, (*ib)->set);
 }
 
 PHOEBE_passband *phoebe_passband_new ()
@@ -325,4 +325,48 @@ int phoebe_free_passbands ()
 	free (PHOEBE_passbands);
 
 	return SUCCESS;
+}
+
+int wd_passband_id_lookup (int *id, const char *passband)
+{
+	/**
+	 * wd_passband_id_lookup:
+	 * @id: WD passband ID
+	 * @passband: PHOEBE passband name
+	 * 
+	 * Looks up the WD ID of the passband. If the passband is not set or if it
+	 * is not supported by WD, ERROR_PASSBAND_INVALID is returned.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	if (strcmp (passband,  "Stromgren:u") == 0) { *id =  1; return SUCCESS; }
+	if (strcmp (passband,  "Stromgren:v") == 0) { *id =  2; return SUCCESS; }
+	if (strcmp (passband,  "Stromgren:b") == 0) { *id =  3; return SUCCESS; }
+	if (strcmp (passband,  "Strongren:y") == 0) { *id =  4; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:U") == 0) { *id =  5; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:B") == 0) { *id =  6; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:V") == 0) { *id =  7; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:R") == 0) { *id =  8; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:I") == 0) { *id =  9; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:J") == 0) { *id = 10; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:H") == 0) { *id = 26; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:K") == 0) { *id = 11; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:L") == 0) { *id = 12; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:M") == 0) { *id = 13; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:N") == 0) { *id = 14; return SUCCESS; }
+	if (strcmp (passband,    "Cousins:R") == 0) { *id = 15; return SUCCESS; }
+	if (strcmp (passband,    "Cousins:I") == 0) { *id = 16; return SUCCESS; }
+	/*                              230           *id = 17;                 */
+	/*                              250           *id = 18;                 */
+	/*                              270           *id = 19;                 */
+	/*                              290           *id = 20;                 */
+	/*                              310           *id = 21;                 */
+	/*                              330           *id = 22;                 */
+	if (strcmp (passband, "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
+	if (strcmp (passband, "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
+	if (strcmp (passband, "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
+
+	*id = -1;
+	return ERROR_PASSBAND_INVALID;
 }

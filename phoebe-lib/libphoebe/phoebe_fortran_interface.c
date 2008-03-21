@@ -155,7 +155,9 @@ int create_dci_file (char *filename, void *pars)
 int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 {
 	/*
-	 * This function reads out all variables that build up the LCI file.
+	 * This function reads out all variables that build up the LCI file. It
+	 * is written in such a way that any failed step can return the error
+	 * code without memory leaks.
 	 * 
 	 * Return values:
 	 * 
@@ -166,7 +168,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	 *   SUCCESS
 	 */
 
-	int i;
+	int i, status;
 
 	int lcno, rvno, spotno;
 
@@ -403,10 +405,14 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 				params->IBAND = 7;
 				params->WLA   = 550.0;
 			} else {
-				params->IBAND = get_passband_id (filter);
-				params->WLA   = passband->effwl;
+				status = wd_passband_id_lookup (&(params->IBAND), filter);
+				if (status != SUCCESS) {
+					phoebe_lib_error ("passband %s not supported by WD, aborting.\n", filter);
+					return status;
+				}
+				params->WLA = passband->effwl;
 			}
-			
+
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), curve, &readout_dbl);
 			params->HLA = readout_dbl;
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), curve, &readout_dbl);
@@ -434,7 +440,11 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 				params->IBAND = 7;
 				params->WLA   = 550.0;
 			} else {
-				params->IBAND = get_passband_id (filter);
+				status = wd_passband_id_lookup (&(params->IBAND), filter);
+				if (status != SUCCESS) {
+					phoebe_lib_error ("passband %s not supported by WD, aborting.\n", filter);
+					return status;
+				}
 				params->WLA   = passband->effwl;
 			}
 
@@ -1126,7 +1136,11 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			return ERROR_PASSBAND_INVALID;
 		}
 
-		params->passband[index]   = get_passband_id (readout_str);
+		status = wd_passband_id_lookup (&(params->passband[index]), readout_str);
+		if (status != SUCCESS) {
+			phoebe_lib_error ("passband %s not supported by WD, aborting.\n", readout_str);
+			return status;
+		}
 		params->wavelength[index] = passband->effwl;
 
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), i, &(params->sigma[index]));
@@ -1153,8 +1167,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			return ERROR_PASSBAND_INVALID;
 		}
 
-		params->passband[i]   = get_passband_id (readout_str);
+		status = wd_passband_id_lookup (&(params->passband[i]), readout_str);
+		if (status != SUCCESS) {
+			phoebe_lib_error ("passband %s not supported by WD, aborting.\n", readout_str);
+			return status;
+		}
 		params->wavelength[i] = passband->effwl;
+
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i-rvno, &(params->sigma[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), i-rvno, &(params->hla[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), i-rvno, &(params->cla[i]));

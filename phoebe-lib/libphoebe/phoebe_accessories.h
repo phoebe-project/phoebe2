@@ -21,6 +21,7 @@ char *phoebe_get_current_working_directory    ();
 char *phoebe_resolve_relative_filename        (char *filename);
 int   phoebe_list_directory_contents          (char *dir);
 char *phoebe_concatenate_strings              (const char *str, ...);
+char *phoebe_clean_data_line                  (char *line);
 
 bool  atob                                    (char *str);
 char *phoebe_strdup                           (const char *s);
