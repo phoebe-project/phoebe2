@@ -1290,6 +1290,24 @@ scripter_ast_value scripter_compute_perr0_phase (scripter_ast_list *args)
 	return out;
 }
 
+int intern_read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, double *pshift)
+{
+	/*
+	 * This function speeds up the ephemeris readout.
+	 *
+	 * Return values:
+	 *
+	 *   SUCCESS
+	 */
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hjd0"), hjd0);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_period"), period);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_dpdt"), dpdt);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_pshift"), pshift);
+
+	return SUCCESS;
+}
+
 scripter_ast_value scripter_transform_hjd_to_phase (scripter_ast_list *args)
 {
 	/*
@@ -1329,7 +1347,7 @@ scripter_ast_value scripter_transform_hjd_to_phase (scripter_ast_list *args)
 		return out;
 	}
 
-	read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+	intern_read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
 
 	/* If we have any optional arguments, use them to overwrite original values */
 	if (vals[1].type != type_void)
