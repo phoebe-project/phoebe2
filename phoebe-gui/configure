@@ -4396,7 +4396,7 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_SUPPORT 1
 _ACEOF
 
-    if ldd $GNUPLOT | grep libgd > /dev/null 2>&1; then
+    if ${LDD:-ldd} $GNUPLOT | grep libgd > /dev/null 2>&1; then
 
 cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_LIBGD 1
@@ -4411,7 +4411,7 @@ _ACEOF
 
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot
-  if test x$plotters = x; then
+  if test x"$plotters" = x; then
     plotters="none"
   fi
 

@@ -149,7 +149,7 @@
   AC_PROG_GNUPLOT
   if test -n "$GNUPLOT"; then
     AC_DEFINE(PHOEBE_GUI_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
-    if ldd $GNUPLOT | grep libgd > /dev/null 2>&1; then
+    if ${LDD:-ldd} $GNUPLOT | grep libgd > /dev/null 2>&1; then
       AC_DEFINE(PHOEBE_GUI_GNUPLOT_LIBGD, 1, Define if GNUPlot version is linked against libgd (supports "size"):)
       gnuplot="gnuplot (with libgd)"
     else
@@ -160,7 +160,7 @@
 
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot
-  if test x$plotters = x; then
+  if test x"$plotters" = x; then
     plotters="none"
   fi
 
