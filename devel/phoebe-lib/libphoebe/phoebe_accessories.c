@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include "phoebe_accessories.h"
-#include "phoebe_allocations.h"
 #include "phoebe_build_config.h"
 #include "phoebe_calculations.h"
 #include "phoebe_error_handling.h"
