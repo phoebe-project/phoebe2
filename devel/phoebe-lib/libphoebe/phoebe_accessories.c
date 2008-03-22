@@ -415,9 +415,10 @@ char *phoebe_concatenate_strings (const char *str, ...)
 	 * @...: a %NULL-terminated list of strings to be concatenated
 	 *
 	 * Concatenates all passed strings into one string. The last argument to
-	 * be passed must be %NULL.
+	 * be passed must be %NULL. The user should free the returned string when
+	 * it is no longer necessary.
 	 * 
-	 * Returns: #bool.
+	 * Returns: a newly allocated, concatenated string.
 	 */
 
 	va_list args;
