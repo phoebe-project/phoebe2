@@ -67,7 +67,7 @@ LD_table *phoebe_ld_table_vh1993_load (char *dir)
 	} *rec;
 
 	int counter = 0;
-	
+
 	status = phoebe_open_directory (&dirlist, dir);
 	if (status != SUCCESS) {
 		phoebe_lib_error ("failed to open %s for reading.\n", dir);
