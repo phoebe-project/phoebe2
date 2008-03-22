@@ -4,10 +4,17 @@
 #include <math.h>
 #include <dirent.h>
 
-/* ftw.h contains ftw (), a function for manipulating directory trees */
-#include <ftw.h>
-
 #include "phoebe_build_config.h"
+
+/*
+ * ftw.h contains ftw (), a function for manipulating directory trees.
+ * Unfortunately, this is a POSIX extension and is present in glibc only.
+ * For windows we need to make workarounds.
+ */
+
+#ifdef HAVE_FTW_H
+	#include <ftw.h>
+#endif
 
 #include "phoebe_accessories.h"
 #include "phoebe_calculations.h"
@@ -36,7 +43,7 @@ PHOEBE_specrep PHOEBE_spectra_repository;
 
 int intern_spectra_repository_process (const char *filename, const struct stat *filestat, int flag)
 {
-	/**
+	/*
 	 *
 	 */
 
@@ -155,10 +162,41 @@ int phoebe_spectra_set_repository (char *rep_name)
 	if (!phoebe_filename_is_directory (rep_name))
 		return ERROR_SPECTRA_REPOSITORY_NOT_DIRECTORY;
 
+#ifdef HAVE_FTW_H
+	/* Under Linux we can use glibc's ftw() function to walk the file tree: */
 	ftw (rep_name, intern_spectra_repository_process, 10);
+#else
+{
+	/*
+	 * Under Windows, unfortunately, we can't... Traversing the tree manually
+	 * is very complicated to write from scratch. So if you want to use the
+	 * spectra repository under windows, make sure all spectra are in a single
+	 * subdirectory!
+	 */
+
+	int status;
+	DIR *dirlist;
+	struct dirent *file;
+	char *filename;
+
+	status = phoebe_open_directory (&dirlist, rep_name);
+	if (status != SUCCESS) {
+		phoebe_lib_error ("directory %s cannot be opened, aborting.\n", rep_name);
+		return status;
+	}
+
+	while ((file = readdir (dirlist))) {
+		filename = phoebe_concatenate_strings (rep_name, "/", file->d_name, NULL);
+		intern_spectra_repository_process (filename, NULL, 0);
+		free (filename);
+	}
+
+	phoebe_close_directory (&dirlist);
+}
+#endif
 
 	/*
-	 * The ftw function put all the T, log g, M/H values into arrays that we
+	 * The above snippets put all the T, log g, M/H values into arrays that we
 	 * will use to generate a 3D grid. However, these values are added in
 	 * order of appearance, whereas we need them sorted. That is why:
 	 */

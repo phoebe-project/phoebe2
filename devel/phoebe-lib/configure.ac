@@ -171,6 +171,7 @@
 
   # Functions in linux libc, but not windows libc:
     AC_CHECK_FUNCS([geteuid getegid])
+    AC_CHECK_HEADERS([ftw.h])
 
   # GSL support:
     AC_ARG_ENABLE(gsl,
