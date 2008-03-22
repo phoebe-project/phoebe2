@@ -126,6 +126,10 @@ bool phoebe_filename_has_write_permissions (const char *filename)
 	if (filename == NULL) return FALSE;
 
 	check = stat (filename, &log);
+
+	/* On linux we can use geteuid() and getegid() to check for permissions: */
+
+#if defined HAVE_GETEUID && defined HAVE_GETGUID
 	if (check == 0) {
 		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IWUSR) ) ||
 			( (log.st_gid == getegid ()) && (log.st_mode & S_IWGRP) ) ||
@@ -134,6 +138,13 @@ bool phoebe_filename_has_write_permissions (const char *filename)
 
 		return FALSE;
 	}
+
+	/* On windows, however, there is no counterpart, so it suffices to do: */
+
+#else
+	if (check == 0 && (log.st_mode & S_IWRITE) )
+		return TRUE;
+#endif
 
 	return FALSE;
 }
@@ -156,14 +167,25 @@ bool phoebe_filename_has_read_permissions (const char *filename)
 	if (filename == NULL) return FALSE;
 
 	check = stat (filename, &log);
+
+	/* On linux we can use geteuid() and getegid() to check for permissions: */
+
+#if defined HAVE_GETEUID && defined HAVE_GETGUID
 	if (check == 0) {
 		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) ) ||
 			( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) ) ||
-			( (log.st_mode & S_IROTH) ) )
+			( (log.st_mode & S_IROTH) ))
 			return TRUE;
 
 		return FALSE;
 	}
+
+	/* On windows, however, there is no counterpart, so it suffices to do: */
+
+#else
+	if (check == 0 && (log.st_mode & S_IREAD) )
+		return TRUE;
+#endif
 
 	return FALSE;
 }
@@ -186,14 +208,25 @@ bool phoebe_filename_has_execute_permissions (const char *filename)
 	if (filename == NULL) return FALSE;
 
 	check = stat (filename, &log);
+
+	/* On linux we can use geteuid() and getegid() to check for permissions: */
+
+#if defined HAVE_GETEUID && defined HAVE_GETGUID
 	if (check == 0) {
 		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IXUSR) ) ||
 			( (log.st_gid == getegid ()) && (log.st_mode & S_IXGRP) ) ||
-			( (log.st_mode & S_IXOTH) ) )
+			( (log.st_mode & S_IXOTH) ))
 			return TRUE;
 
 		return FALSE;
 	}
+
+	/* On windows, however, there is no counterpart, so it suffices to do: */
+
+#else
+	if (check == 0 && (log.st_mode & S_IEXEC) )
+		return TRUE;
+#endif
 
 	return FALSE;
 }
@@ -216,6 +249,10 @@ bool phoebe_filename_has_full_permissions (const char *filename)
 	if (filename == NULL) return FALSE;
 
 	check = stat (filename, &log);
+
+	/* On linux we can use geteuid() and getegid() to check for permissions: */
+
+#if defined HAVE_GETEUID && defined HAVE_GETGUID
 	if (check == 0) {
 		if (( (log.st_uid == geteuid ()) && (log.st_mode & S_IRUSR) && (log.st_mode & S_IWUSR) && (log.st_mode & S_IXUSR) ) ||
 			( (log.st_gid == getegid ()) && (log.st_mode & S_IRGRP) && (log.st_mode & S_IWGRP) && (log.st_mode & S_IXGRP) ) ||
@@ -224,6 +261,13 @@ bool phoebe_filename_has_full_permissions (const char *filename)
 
 		return FALSE;
 	}
+
+	/* On windows, however, there is no counterpart, so it suffices to do: */
+
+#else
+	if (check == 0 && (log.st_mode & S_IREAD) && (log.st_mode & S_IWRITE) && (log.st_mode & S_IEXEC))
+		return TRUE;
+#endif
 
 	return FALSE;
 }
@@ -247,7 +291,7 @@ bool phoebe_filename_is_directory (const char *filename)
 
 	check = stat (filename, &log);
 	if (check == 0) {
-		if (S_ISDIR (log.st_mode)) return TRUE;
+		if (log.st_mode & S_IFDIR) return TRUE;
 		return FALSE;
 	}
 
@@ -273,7 +317,7 @@ bool phoebe_filename_is_regular_file (const char *filename)
 
 	check = stat (filename, &log);
 	if (check == 0) {
-		if (S_ISREG (log.st_mode)) return TRUE;
+		if (log.st_mode & S_IFREG) return TRUE;
 		return FALSE;
 	}
 

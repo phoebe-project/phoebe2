@@ -10,7 +10,6 @@
     <title>PHOEBE library consists of the following sources:</title>
     <xi:include href="xml/phoebe_base.xml"/>
     <xi:include href="xml/phoebe_global.xml"/>
-    <xi:include href="xml/phoebe_allocations.xml"/>
     <xi:include href="xml/phoebe_model.xml"/>
     <xi:include href="xml/phoebe_fitting.xml"/>
     <xi:include href="xml/phoebe_ld.xml"/>

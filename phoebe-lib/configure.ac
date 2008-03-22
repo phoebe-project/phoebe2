@@ -169,6 +169,9 @@
   # System type:
     AC_DEFINE_UNQUOTED(PHOEBE_SYSTEM_TYPE,"$build",[System type])
 
+  # Functions in linux libc, but not windows libc:
+    AC_CHECK_FUNCS([geteuid getegid])
+
   # GSL support:
     AC_ARG_ENABLE(gsl,
         [  --enable-gsl            Use GNU Scientific Library (default=yes)],
