@@ -1290,7 +1290,7 @@ scripter_ast_value scripter_compute_perr0_phase (scripter_ast_list *args)
 	return out;
 }
 
-int intern_read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, double *pshift)
+int intern_scripter_read_in_ephemeris_parameters (double *hjd0, double *period, double *dpdt, double *pshift)
 {
 	/*
 	 * This function speeds up the ephemeris readout.
@@ -1347,7 +1347,7 @@ scripter_ast_value scripter_transform_hjd_to_phase (scripter_ast_list *args)
 		return out;
 	}
 
-	intern_read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
+	intern_scripter_read_in_ephemeris_parameters (&hjd0, &period, &dpdt, &pshift);
 
 	/* If we have any optional arguments, use them to overwrite original values */
 	if (vals[1].type != type_void)
