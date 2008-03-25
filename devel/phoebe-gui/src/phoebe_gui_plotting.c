@@ -8,6 +8,31 @@
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_types.h"
 
+#ifdef __MINGW32__
+#include <glib/gfileutils.h>
+#endif
+
+int gui_tempfile(char *filename) 
+{
+#ifdef __MINGW32__
+	return g_mkstemp(filename);
+#else
+	return mkstemp(filename);
+#endif
+}
+
+void gui_plot(char *filename) 
+{
+	char line[255];
+
+#ifdef __MINGW32__
+	sprintf(line,"pgnuplot \"%s\"", filename);
+#else
+	sprintf(line,"gnuplot \"%s\"", filename);
+#endif
+	system(line);
+}
+
 int gui_plot_get_curve_limits (PHOEBE_curve *curve, double *xmin, double *ymin, double *xmax, double *ymax)
 {
 	int i;
@@ -191,7 +216,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	/* Write the data to a file: */
 	if (plot_obs) {
 		sprintf(oname, "%s/phoebe-lc-XXXXXX", tmpdir);
-		ofd = mkstemp (oname);
+		ofd = gui_tempfile (oname);
 		for (i=0;i<obs->indep->dim;i++) {
 			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
 			write(ofd, line, strlen(line));
@@ -200,7 +225,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	}
 	if (plot_syn) {
 		sprintf(sname, "%s/phoebe-lc-XXXXXX", tmpdir);
-		sfd = mkstemp (sname);
+		sfd = gui_tempfile (sname);
 		for (i = 0; i < syn->indep->dim; i++) {
 			sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
 			write(sfd, line, strlen(line));
@@ -210,7 +235,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	/* open command file */
 	sprintf(cname, "%s/phoebe-lc-XXXXXX", tmpdir);
-	cfd = mkstemp (cname);
+	cfd = gui_tempfile (cname);
 
 	/* gnuplot 4.0 has a bug in the docs that says keyword "size" is recognized
 	 * whereas it isn't. That is why we check for the gnuplot version in the
@@ -251,7 +276,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		{sprintf(line, "set format x '%%7.0f'\n");			 			write(cfd, line, strlen(line));}
 
 	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
-	pfd = mkstemp (pname);
+	pfd = gui_tempfile (pname);
 
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
@@ -264,9 +289,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	close(cfd);
 
-	sprintf(line,"gnuplot \"%s\"", cname);
-
-	system(line);
+	gui_plot(cname);
 
 	if (plot_syn || plot_obs)
 		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
@@ -554,7 +577,7 @@ int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean 
 		if (plot_syn) {
 			/* Write the data to a file: */
 			sprintf(sname, "%s/phoebe-rv-XXXXXX", tmpdir);
-			sfd = mkstemp (sname);
+			sfd = gui_tempfile (sname);
 			for (i = 0; i < syn->indep->dim; i++) {
 				sprintf(line, "%lf\t%lf\n", syn->indep->val[i], syn->dep->val[i]) ;
 				write(sfd, line, strlen(line));
@@ -566,7 +589,7 @@ int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean 
 	if (plot_obs) {
 		/* Write the data to a file: */
 		sprintf(oname, "%s/phoebe-rv-XXXXXX", tmpdir);
-		ofd = mkstemp (oname);
+		ofd = gui_tempfile (oname);
 
 		for (i=0;i<obs->indep->dim;i++) {
 			sprintf(line, "%lf\t%lf\t%lf\n", obs->indep->val[i], obs->dep->val[i], obs->weight->val[i]) ;
@@ -670,7 +693,7 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	}
 
 	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
-	cfd = mkstemp (cname);
+	cfd = gui_tempfile (cname);
 
 #ifdef PHOEBE_GUI_GNUPLOT_LIBGD
 	sprintf(line, "set terminal png small size 590,310\n"); 			write(cfd, line, strlen(line));
@@ -701,7 +724,7 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		{sprintf(line, "set format x '%%7.0f'\n");			 			write(cfd, line, strlen(line));}
 
 	sprintf(pname, "%s/phoebe-lc-plot-XXXXXX", tmpdir);
-	pfd = mkstemp (pname);
+	pfd = gui_tempfile (pname);
 
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
@@ -731,9 +754,7 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	close(cfd);
 
-	sprintf(line,"gnuplot \"%s\"", cname);
-
-	system(line);
+	gui_plot(cname);
 
 	if (plot_syn || plot_obs1 || plot_obs2)
 		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
@@ -936,7 +957,7 @@ int gui_plot_eb_using_gnuplot ()
 	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, phase);
 
 	sprintf(ebname, "%s/phoebe-eb-XXXXXX", tmpdir);
-	ebfd = mkstemp (ebname);
+	ebfd = gui_tempfile (ebname);
 	for (i=0;i<poscoy->dim;i++) {
 		sprintf(line, "%lf\t%lf\n", poscoy->val[i], poscoz->val[i]) ;
 		write(ebfd, line, strlen(line));
@@ -945,7 +966,7 @@ int gui_plot_eb_using_gnuplot ()
 
 
 	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
-	cfd = mkstemp (cname);
+	cfd = gui_tempfile (cname);
 
 #ifdef PHOEBE_GUI_GNUPLOT_LIBGD
 	sprintf(line, "set terminal png small size 694,458\n"); 			write(cfd, line, strlen(line));
@@ -963,7 +984,7 @@ int gui_plot_eb_using_gnuplot ()
 	sprintf(line, "set xrange [-1.3:1.3]\n"); 							write(cfd, line, strlen(line));
 
 	sprintf(pname, "%s/phoebe-eb-plot-XXXXXX", tmpdir);
-	pfd = mkstemp (pname);
+	pfd = gui_tempfile (pname);
 
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
@@ -972,9 +993,7 @@ int gui_plot_eb_using_gnuplot ()
 	close(cfd);
 
 
-	sprintf(line,"gnuplot \"%s\"", cname);
-
-	system(line);
+	gui_plot(cname);
 
 	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
 

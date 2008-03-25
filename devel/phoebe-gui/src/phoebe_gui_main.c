@@ -13,6 +13,29 @@
 #include "phoebe_gui_treeviews.h"
 #include "phoebe_gui_types.h"
 
+#ifdef __MINGW32__
+#include <glade/glade-build.h>
+
+// GtkFileChooserButton is not defined in libglade for MinGW/MSYS, so it has to be defined here
+GtkWidget *gui_GtkFileChooserButton(GladeXML *xml, GType widget_type, GladeWidgetInfo *info)
+{
+	gint width_chars = 0;
+	gint i;
+
+	for (i = 0; i < info->n_properties; i++) {
+		if (!strcmp (info->properties[i].name, "width_chars")) {
+			width_chars = atoi(info->properties[i].value);
+			break;
+		}
+	}
+	GtkWidget *filechooserbutton = gtk_file_chooser_button_new (NULL, GTK_FILE_CHOOSER_ACTION_OPEN);
+	gtk_widget_show(filechooserbutton);
+	if (width_chars > 0)
+		gtk_file_chooser_button_set_width_chars(GTK_FILE_CHOOSER_BUTTON(filechooserbutton), width_chars);
+	return filechooserbutton;
+}
+#endif
+
 int parse_startup_line (int argc, char *argv[])
 {
 	/*
@@ -67,6 +90,9 @@ int main (int argc, char *argv[])
 	gtk_set_locale ();
 	gtk_init (&argc, &argv);
 	glade_init ();
+#ifdef __MINGW32__
+	glade_register_widget (GTK_TYPE_FILE_CHOOSER_BUTTON, gui_GtkFileChooserButton, NULL, NULL);
+#endif
 
 	status = phoebe_init ();
 	if (status != SUCCESS) {
