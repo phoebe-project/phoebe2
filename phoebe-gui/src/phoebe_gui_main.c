@@ -20,6 +20,8 @@
 GtkWidget *gui_GtkFileChooserButton(GladeXML *xml, GType widget_type, GladeWidgetInfo *info)
 {
 	gint width_chars = 0;
+	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN; 
+	gchar *title = NULL; 
 	gint i;
 
 	for (i = 0; i < info->n_properties; i++) {
@@ -27,11 +29,21 @@ GtkWidget *gui_GtkFileChooserButton(GladeXML *xml, GType widget_type, GladeWidge
 			width_chars = atoi(info->properties[i].value);
 			break;
 		}
+		else if (!strcmp (info->properties[i].name, "action")) {
+			if (!strcmp (info->properties[i].value, "GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER"))
+				action = GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;
+			break;
+		}
+		else if (!strcmp (info->properties[i].name, "title")) {
+			title = info->properties[i].value;
+			break;
+		}
 	}
-	GtkWidget *filechooserbutton = gtk_file_chooser_button_new (NULL, GTK_FILE_CHOOSER_ACTION_OPEN);
+	GtkWidget *filechooserbutton = gtk_file_chooser_button_new (title, action);
 	gtk_widget_show(filechooserbutton);
 	if (width_chars > 0)
 		gtk_file_chooser_button_set_width_chars(GTK_FILE_CHOOSER_BUTTON(filechooserbutton), width_chars);
+
 	return filechooserbutton;
 }
 #endif
