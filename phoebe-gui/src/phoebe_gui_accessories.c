@@ -343,7 +343,11 @@ int gui_show_configuration_dialog()
 				PHOEBE_HOME_DIR = strdup (homedir);
 				PHOEBE_CONFIG   = strdup (confdir);
 
+#ifdef __MINGW32__
+				mkdir (PHOEBE_HOME_DIR);
+#else
 				mkdir (PHOEBE_HOME_DIR, 0755);
+#endif
 			}
 
 			phoebe_config_save (PHOEBE_CONFIG);

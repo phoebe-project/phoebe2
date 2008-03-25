@@ -38,7 +38,11 @@ int scripter_create_config_file ()
 		exit (0);
 	}
 
+#ifdef __MINGW32__
+	status = mkdir (PHOEBE_HOME_DIR);
+#else
 	status = mkdir (PHOEBE_HOME_DIR, 0755);
+#endif
 	error = errno;
 
 	if (status == -1) {
