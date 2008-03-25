@@ -104,9 +104,17 @@ int phoebe_init ()
 	PHOEBE_INPUT_LOCALE = strdup (setlocale (LC_NUMERIC, NULL));
 	setlocale (LC_NUMERIC, "C");
 
+#ifdef __MINGW32__
+// If HOME is not defined on Windows, take the current directory where the program is started
+	if (!getenv ("HOME"))
+		USER_HOME_DIR = ".";
+	else
+		USER_HOME_DIR = strdup (getenv ("HOME"));
+#else
 	if (!getenv ("HOME"))
 		return ERROR_HOME_ENV_NOT_DEFINED;
 	USER_HOME_DIR = strdup (getenv ("HOME"));
+#endif
 
 	/* Choose a randomizer seed: */
 	srand (time (0));

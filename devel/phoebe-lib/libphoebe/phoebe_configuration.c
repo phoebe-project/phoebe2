@@ -7,6 +7,10 @@
 #include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 
+#ifdef __MINGW32__
+#include <io.h>
+#endif
+
 PHOEBE_config_entry **PHOEBE_config_table;
 int                   PHOEBE_config_table_size;
 
@@ -44,6 +48,30 @@ int phoebe_config_populate ()
 	 * Returns: #PHOEBE_error_code.
 	 */
 
+#ifdef __MINGW32__
+// Use different initial values for Windows
+	char path[255];
+	char buffer[255];
+	getcwd(path, sizeof(path));
+
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    path);
+	sprintf(buffer, "%s\\defaults", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  buffer);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_TEMP_DIR",      getenv("TEMP"));
+	sprintf(buffer, "%s\\data", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DATA_DIR",      buffer);
+	sprintf(buffer, "%s\\ptf", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_PTF_DIR",       buffer);
+
+	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_LD_SWITCH",     TRUE);
+	sprintf(buffer, "%s\\ld", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_LD_DIR",        buffer);
+
+	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
+	sprintf(buffer, "%s\\kurucz", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    buffer);
+#else
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      "/usr/local/share/phoebe");
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    "/usr/local/src/phoebe");
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  "/usr/local/share/phoebe/defaults");
@@ -56,6 +84,7 @@ int phoebe_config_populate ()
 
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    "/usr/local/share/phoebe/kurucz");
+#endif
 
 /*
 	PHOEBE_PLOTTING_PACKAGE = strdup ("");
