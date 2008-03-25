@@ -4396,16 +4396,27 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_SUPPORT 1
 _ACEOF
 
-    if ${LDD:-ldd} $GNUPLOT | grep libgd > /dev/null 2>&1; then
+# Check whether to use "picsize" or "size" with gnuplot
+cat >testgnuplot <<\_ACEOF
+set terminal png small picsize 590 310
+set output 'testgnuplot.png'
+plot x
+set output
+_ACEOF
 
+$GNUPLOT testgnuplot> /dev/null 2>&1
+
+    if test -s "testgnuplot.png"; then
+      gnuplot="gnuplot (with libpng)"
+    else
 cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_LIBGD 1
 _ACEOF
 
       gnuplot="gnuplot (with libgd)"
-    else
-      gnuplot="gnuplot (with libpng)"
     fi
+    rm -f testgnuplot.png
+    rm -f testgnuplot
   fi
 
 
