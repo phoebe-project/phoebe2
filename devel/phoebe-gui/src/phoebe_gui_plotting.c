@@ -10,6 +10,8 @@
 
 #ifdef __MINGW32__
 #include <glib/gfileutils.h>
+#include <windows.h>
+#include <winuser.h>
 #endif
 
 int gui_tempfile(char *filename) 
@@ -23,14 +25,15 @@ int gui_tempfile(char *filename)
 
 void gui_plot(char *filename) 
 {
-	char line[255];
+	char command[255];
 
 #ifdef __MINGW32__
-	sprintf(line,"pgnuplot \"%s\"", filename);
+	sprintf(command,"wgnuplot \"%s\"", filename);
+	WinExec(command, SW_SHOWMINIMIZED);
 #else
-	sprintf(line,"gnuplot \"%s\"", filename);
+	sprintf(command,"gnuplot \"%s\"", filename);
+	system(command);
 #endif
-	system(line);
 }
 
 int gui_plot_get_curve_limits (PHOEBE_curve *curve, double *xmin, double *ymin, double *xmax, double *ymax)
