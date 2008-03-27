@@ -593,6 +593,7 @@ c
       KOSQ=(KO-2)*(KO-2)
       IF(NVC.EQ.0) GOTO 195
       DO 90 I=1,NVC
+      EL3A(I)=0.d0
    90 READ(15,218) iband(i),HLA(I),CLA(I),X1A(I),X2A(I),y1a(i),y2a(i),
      $opsfa(i),sigma(i),wla(i)
   195 CONTINUE
