@@ -149,14 +149,25 @@
   AC_PROG_GNUPLOT
   if test -n "$GNUPLOT"; then
     AC_DEFINE(PHOEBE_GUI_GNUPLOT_SUPPORT, 1, Define if GNUPlot is supported:)
-    if ${LDD:-ldd} $GNUPLOT | grep libgd > /dev/null 2>&1; then
+
+    # The following test checks whether gnuplot supports keyword 'picsize'
+    # for png images (depends what png library gnuplot is linked against)
+    # by attempting to create a test png:
+
+    echo "set terminal png small picsize 590 310" > testgp.gp
+    echo "set output \"testgp.png\"" >> testgp.gp
+    echo "plot x" >> testgp.gp
+    echo "set output" >> testgp.gp
+
+    $GNUPLOT testgp.gp > /dev/null 2>&1
+    if test -s "testgp.png"; then
+      gnuplot="gnuplot (with libpng)"
+    else
       AC_DEFINE(PHOEBE_GUI_GNUPLOT_LIBGD, 1, Define if GNUPlot version is linked against libgd (supports "size"):)
       gnuplot="gnuplot (with libgd)"
-    else
-      gnuplot="gnuplot (with libpng)"
     fi
+    rm -rf testgp.gp testgp.png
   fi
-
 
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot

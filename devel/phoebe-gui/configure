@@ -4396,29 +4396,29 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_SUPPORT 1
 _ACEOF
 
-# Check whether to use "picsize" or "size" with gnuplot
-cat >testgnuplot <<\_ACEOF
-set terminal png small picsize 590 310
-set output 'testgnuplot.png'
-plot x
-set output
-_ACEOF
 
-$GNUPLOT testgnuplot> /dev/null 2>&1
+    # The following test checks whether gnuplot supports keyword 'picsize'
+    # for png images (depends what png library gnuplot is linked against)
+    # by attempting to create a test png:
 
-    if test -s "testgnuplot.png"; then
+    echo "set terminal png small picsize 590 310" > testgp.gp
+    echo "set output \"testgp.png\"" >> testgp.gp
+    echo "plot x" >> testgp.gp
+    echo "set output" >> testgp.gp
+
+    $GNUPLOT testgp.gp > /dev/null 2>&1
+    if test -s "testgp.png"; then
       gnuplot="gnuplot (with libpng)"
     else
+
 cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_GNUPLOT_LIBGD 1
 _ACEOF
 
       gnuplot="gnuplot (with libgd)"
     fi
-    rm -f testgnuplot.png
-    rm -f testgnuplot
+    rm -rf testgp.gp testgp.png
   fi
-
 
 # Concatenate all supporting plotting programs into $plotters:
   plotters=$gnuplot
