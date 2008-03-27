@@ -33,12 +33,13 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	char command_line[255];
 	char *tmpdir;
 
-	char **temp_files = phoebe_malloc (dim * sizeof (*temp_files));
-	FILE **data_files = phoebe_malloc (dim * sizeof (*data_files));
-
 	for (i = 0; i < dim; i++)
 		if (indep[i]->dim != dep[i]->dim)
 			return ERROR_PLOT_DIMENSION_MISMATCH;
+
+#ifndef __MINGW32__
+	char **temp_files = phoebe_malloc (dim * sizeof (*temp_files));
+	FILE **data_files = phoebe_malloc (dim * sizeof (*data_files));
 
 	for (i = 0; i < dim; i++) {
 		temp_files[i] = phoebe_malloc (255 * sizeof (**temp_files));
@@ -70,19 +71,32 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 					return ERROR_PLOT_FIFO_FAILURE;
 			}
 	}
+#endif
 
 	sprintf (buffer, "plot ");
 	for (i = 0; i < dim; i++) {
 		if (props[i].lines)
+#ifdef __MINGW32__
+			sprintf (command_line, "\"%s\" with lines lt %d", "-", props[i].ltype);
+#else
 			sprintf (command_line, "\"%s\" with lines lt %d", temp_files[i], props[i].ltype);
+#endif
 		else
+#ifdef __MINGW32__
+			sprintf (command_line, "\"%s\" with points lt %d pt %d", "-", props[i].ltype, props[i].ptype);
+#else
 			sprintf (command_line, "\"%s\" with points lt %d pt %d", temp_files[i], props[i].ltype, props[i].ptype);
+#endif
 
 		strcat  (buffer, command_line);
 		if (i < dim-1) strcat (buffer, ", "); else strcat (buffer, "\n");
 	}
 
+#ifdef __MINGW32__
+	command = popen ("pgnuplot -persist", "w");
+#else
 	command = popen ("gnuplot -persist", "w");
+#endif
 	fprintf (command, "unset key\n");
 	fprintf (command, "set offsets 0.05, 0.05, 0, 0\n");
 	if (reverse_y) fprintf (command, "set yrange [] reverse\n");
@@ -90,20 +104,29 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	fflush (command);
 
 	for (i = 0; i < dim; i++) {
+#ifdef __MINGW32__
+		for (j = 0; j < indep[i]->dim; j++) {
+			fprintf (command, "%lf\t%lf\n", indep[i]->val[j], dep[i]->val[j]);
+		}
+		fprintf(command, "e\n");
+#else
 		data_files[i] = fopen (temp_files[i], "w");
 		for (j = 0; j < indep[i]->dim; j++)
 			fprintf (data_files[i], "%lf\t%lf\n", indep[i]->val[j], dep[i]->val[j]);
 		fclose (data_files[i]);
+#endif
 	}
 
 	pclose (command);
 
+#ifndef __MINGW32__
 	for (i = 0; i < dim; i++) {
 		unlink (temp_files[i]);
 		free (temp_files[i]);
 	}
 	free (temp_files);
 	free (data_files);
+#endif
 
 	return SUCCESS;
 #endif
