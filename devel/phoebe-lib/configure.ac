@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-03-21 #
+#                                            Last revision: 2008-03-27 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -168,6 +168,9 @@
 
   # System type:
     AC_DEFINE_UNQUOTED(PHOEBE_SYSTEM_TYPE,"$build",[System type])
+
+  # Math library:
+    AC_CHECK_LIB([m],[cos])
 
   # Functions in linux libc, but not windows libc:
     AC_CHECK_FUNCS([geteuid getegid])
