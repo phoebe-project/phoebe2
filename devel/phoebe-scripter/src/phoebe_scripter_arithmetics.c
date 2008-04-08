@@ -1339,7 +1339,76 @@ int scripter_ast_values_equal (scripter_ast_value *out, scripter_ast_value val1,
 		break;
 		default:
 			out->type = type_void;
-			phoebe_scripter_output ("exception handler invoked in scripter_ast_nodes_equal(), please report this!\n");
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_values_equal(), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+		break;
+	}
+
+	return SUCCESS;
+}
+
+int scripter_ast_values_nequal (scripter_ast_value *out, scripter_ast_value val1, scripter_ast_value val2)
+{
+	/*
+	 * This function checks whether the first AST value and the second AST
+	 * value are not equal. It checks all combinations of value types,
+	 * propagates if necessary and performs the != operation.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS
+	 *   SUCCESS
+	 */
+
+	if (val1.type != val2.type) {
+		out->value.b = TRUE;
+		return SUCCESS;
+	}
+
+	out->type = type_bool;
+	switch (val1.type) {
+		case type_int:
+			out->value.b = (val1.value.i != val2.value.i);
+		break;
+		case type_bool:
+			out->value.b = (val1.value.b != val2.value.b);
+		break;
+		case type_double:
+			if (fabs (val1.value.d - val2.value.d) > PHOEBE_NUMERICAL_ACCURACY)
+				return TRUE;
+			else
+				return FALSE;
+		break;
+		case type_string:
+			if (strcmp (val1.value.str, val2.value.str) == 0)
+				out->value.b = FALSE;
+			else
+				out->value.b = TRUE;
+		break;
+		case type_vector:
+			out->value.b = ! phoebe_vector_compare (val1.value.vec, val2.value.vec);
+		break;
+		case type_array:
+			out->value.b = ! phoebe_array_compare (val1.value.array, val2.value.array);
+		break;
+		case type_spectrum:
+			out->value.b = ! phoebe_spectra_compare (val1.value.spectrum, val2.value.spectrum);
+		break;
+		case type_curve:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		case type_qualifier:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		case type_minfeedback:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		default:
+			out->type = type_void;
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_values_nequal(), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}
@@ -1645,7 +1714,7 @@ int scripter_ast_values_gequal (scripter_ast_value *out, scripter_ast_value val1
 					}
 				break;
 				default:
-					printf ("exception handler invoked in scripter_ast_values_lequal (), please report this!\n");
+					printf ("exception handler invoked in scripter_ast_values_gequal (), please report this!\n");
 				break;
 			}
 		break;
@@ -1656,6 +1725,322 @@ int scripter_ast_values_gequal (scripter_ast_value *out, scripter_ast_value val1
 		default:
 			out->type = type_void;
 			phoebe_scripter_output ("exception handler invoked in scripter_ast_values_gequal(), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+		break;
+	}
+
+	return SUCCESS;
+}
+
+int scripter_ast_values_greater (scripter_ast_value *out, scripter_ast_value val1, scripter_ast_value val2)
+{
+	/*
+	 * This function checks whether the first AST value is greater than
+	 * the second AST value. It checks all combinations of value types,
+	 * propagates if necessary and performs the > operation.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS
+	 *   SUCCESS
+	 */
+
+	int status;
+
+	if (val1.type == type_void || val2.type == type_void) {
+		out->type = type_void;
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_bool || val2.type == type_bool) {
+		phoebe_scripter_output ("operator '>' cannot act on booleans, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_string || val2.type == type_string) {
+		phoebe_scripter_output ("operator '>' cannot act on strings, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_array || val2.type == type_array) {
+		phoebe_scripter_output ("operator '>' cannot act on non-numeric arrays, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_minfeedback || val2.type == type_minfeedback) {
+		phoebe_scripter_output ("operator '>' cannot act on minimizer feedback, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_curve || val2.type == type_curve) {
+		phoebe_scripter_output ("operator '>' cannot act on curves, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_qualifier || val2.type == type_qualifier) {
+		phoebe_scripter_output ("operator '>' cannot act on qualifiers, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	out->type = type_bool;
+	switch (val1.type) {
+		case type_int:
+			switch (val2.type) {
+				case type_int:
+					out->value.b = (val1.value.i > val2.value.i);
+				break;
+				case type_double:
+					out->value.b = (val1.value.i > val2.value.d);
+				break;
+				case type_vector: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val2.value.vec->dim);
+					phoebe_vector_pad (vec, (double) val1.value.i);
+					status = phoebe_vector_greater_than (&out->value.b, vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_greater (), please report this!\n");
+				break;
+			}
+		break;
+		case type_double:
+			switch (val2.type) {
+				case type_int:
+					out->value.b = (val1.value.d > val2.value.i);
+				break;
+				case type_double:
+					out->value.b = (val1.value.d > val2.value.d);
+				break;
+				case type_vector: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val2.value.vec->dim);
+					phoebe_vector_pad (vec, val1.value.d);
+					status = phoebe_vector_greater_than (&out->value.b, vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_greater (), please report this!\n");
+				break;
+			}
+		break;
+		case type_vector:
+			switch (val2.type) {
+				case type_int: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val1.value.vec->dim);
+					phoebe_vector_pad (vec, (double) val2.value.i);
+					status = phoebe_vector_greater_than (&out->value.b, val1.value.vec, vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				case type_double: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val1.value.vec->dim);
+					phoebe_vector_pad (vec, val2.value.d);
+					status = phoebe_vector_greater_than (&out->value.b, val1.value.vec, vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				case type_vector:
+					status = phoebe_vector_greater_than (&out->value.b, val1.value.vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+					}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_greater (), please report this!\n");
+				break;
+			}
+		break;
+		case type_spectrum:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		default:
+			out->type = type_void;
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_values_greater(), please report this!\n");
+			return ERROR_EXCEPTION_HANDLER_INVOKED;
+		break;
+	}
+
+	return SUCCESS;
+}
+
+int scripter_ast_values_less (scripter_ast_value *out, scripter_ast_value val1, scripter_ast_value val2)
+{
+	/*
+	 * This function checks whether the first AST value is less than
+	 * the second AST value. It checks all combinations of value types,
+	 * propagates if necessary and performs the < operation.
+	 *
+	 * Return values:
+	 *
+	 *   ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS
+	 *   SUCCESS
+	 */
+
+	int status;
+
+	if (val1.type == type_void || val2.type == type_void) {
+		out->type = type_void;
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_bool || val2.type == type_bool) {
+		phoebe_scripter_output ("operator '<' cannot act on booleans, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_string || val2.type == type_string) {
+		phoebe_scripter_output ("operator '<' cannot act on strings, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_array || val2.type == type_array) {
+		phoebe_scripter_output ("operator '<' cannot act on non-numeric arrays, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_minfeedback || val2.type == type_minfeedback) {
+		phoebe_scripter_output ("operator '<' cannot act on minimizer feedback, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_curve || val2.type == type_curve) {
+		phoebe_scripter_output ("operator '<' cannot act on curves, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	if (val1.type == type_qualifier || val2.type == type_qualifier) {
+		phoebe_scripter_output ("operator '<' cannot act on qualifiers, aborting.\n");
+		return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+	}
+
+	out->type = type_bool;
+	switch (val1.type) {
+		case type_int:
+			switch (val2.type) {
+				case type_int:
+					out->value.b = (val1.value.i < val2.value.i);
+				break;
+				case type_double:
+					out->value.b = (val1.value.i < val2.value.d);
+				break;
+				case type_vector: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val2.value.vec->dim);
+					phoebe_vector_pad (vec, (double) val1.value.i);
+					status = phoebe_vector_less_than (&out->value.b, vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_less (), please report this!\n");
+				break;
+			}
+		break;
+		case type_double:
+			switch (val2.type) {
+				case type_int:
+					out->value.b = (val1.value.d < val2.value.i);
+				break;
+				case type_double:
+					out->value.b = (val1.value.d < val2.value.d);
+				break;
+				case type_vector: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val2.value.vec->dim);
+					phoebe_vector_pad (vec, val1.value.d);
+					status = phoebe_vector_less_than (&out->value.b, vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_less (), please report this!\n");
+				break;
+			}
+		break;
+		case type_vector:
+			switch (val2.type) {
+				case type_int: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val1.value.vec->dim);
+					phoebe_vector_pad (vec, (double) val2.value.i);
+					status = phoebe_vector_less_than (&out->value.b, val1.value.vec, vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				case type_double: {
+					PHOEBE_vector *vec = phoebe_vector_new ();
+					phoebe_vector_alloc (vec, val1.value.vec->dim);
+					phoebe_vector_pad (vec, val2.value.d);
+					status = phoebe_vector_less_than (&out->value.b, val1.value.vec, vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+						return status;
+					}
+					phoebe_vector_free (vec);
+				}
+				break;
+				case type_vector:
+					status = phoebe_vector_less_than (&out->value.b, val1.value.vec, val2.value.vec);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						out->type = type_void;
+					}
+				break;
+				default:
+					printf ("exception handler invoked in scripter_ast_values_less (), please report this!\n");
+				break;
+			}
+		break;
+		case type_spectrum:
+			out->type = type_void;
+			phoebe_scripter_output ("not yet implemented.\n");
+		break;
+		default:
+			out->type = type_void;
+			phoebe_scripter_output ("exception handler invoked in scripter_ast_values_less(), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 		break;
 	}
