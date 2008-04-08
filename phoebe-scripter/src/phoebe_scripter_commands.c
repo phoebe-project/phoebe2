@@ -2182,6 +2182,10 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 	while (index <= lcno + rvno) {
 		if (index <= lcno) {
 			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index-1);
+			if (!obs) {
+				out.type = type_void;
+				return out;
+			}
 			phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
 
 			/* Synthesize a theoretical curve: */
@@ -2190,6 +2194,10 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 		}
 		else {
 			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, index-lcno-1);
+			if (!obs) {
+				out.type = type_void;
+				return out;
+			}
 			phoebe_curve_transform (obs, obs->itype, obs->dtype, PHOEBE_COLUMN_SIGMA);
 
 			syncurve = phoebe_curve_new ();
