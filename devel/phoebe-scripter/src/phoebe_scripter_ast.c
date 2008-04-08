@@ -2033,7 +2033,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_add (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2047,7 +2047,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_subtract (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2061,7 +2061,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_multiply (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2075,7 +2075,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_divide (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2106,7 +2106,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_raise (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2154,7 +2154,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_equal (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2229,7 +2229,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_lequal (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
@@ -2243,7 +2243,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				status = scripter_ast_values_gequal (&out, val1, val2);
 				if (status != SUCCESS) {
-					phoebe_scripter_output ("%s", phoebe_error (status));
+					phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 					out.type = type_void;
 				}
 				scripter_ast_value_free (val1);
