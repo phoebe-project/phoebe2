@@ -201,7 +201,7 @@ c
       common /ipro/ nbins,nl,inmax,inmin,nf1,nf2
       common /prof2/ duma,dumb,dumc,dumd,du1,du2,du3,du4,du5,du6,du7
       common /inprof/ in1min,in1max,in2min,in2max,mpage,nl1,nl2
-      DATA ARAD(1),ARAD(2),ARAD(3),ARAD(4)/4HPOLE,5HPOINT,4HSIDE,4HBACK/
+      DATA ARAD(1),ARAD(2),ARAD(3),ARAD(4)/'POLE','POINT','SIDE','BACK'/
 c
 c           Bandpass Label Assignments for Stellar Atmospheres
 c
