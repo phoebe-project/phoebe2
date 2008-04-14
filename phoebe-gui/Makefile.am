@@ -26,7 +26,23 @@
 
 SUBDIRS = glade pixmaps src
 
-EXTRA_DIST = autoconfig/compile                      \
-             autoconfig/depcomp                      \
+mimedir = $(datarootdir)/mime/packages
+mime_DATA = phoebe-gui.xml
+
+mimeinfodir = $(datarootdir)/mime-info
+mimeinfo_DATA = phoebe-gui.mime
+
+desktopdir = $(datarootdir)/applications
+desktop_DATA = phoebe-gui.desktop
+
+EXTRA_DIST = autoconfig/depcomp                      \
              autoconfig/install-sh                   \
-             autoconfig/missing
+             autoconfig/missing                      \
+             phoebe-gui.xml                          \
+             phoebe-gui.mime                         \
+             phoebe-gui.desktop
+
+install-data-hook:
+	if test "x@use_mime@" = "xyes"; then \
+	update-mime-database -V $(datarootdir)/mime; \
+	fi

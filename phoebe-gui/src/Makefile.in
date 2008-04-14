@@ -162,6 +162,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+use_mime = @use_mime@
 AM_CPPFLAGS = \
 	@GTK_CFLAGS@ @LIBGLADE_CFLAGS@ \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \

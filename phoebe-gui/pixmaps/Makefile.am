@@ -24,4 +24,7 @@ guipixmapsdir = $(datarootdir)/phoebe/gui/pixmaps
 guipixmaps_DATA = ico.png          \
                   detach.png
 
-EXTRA_DIST = $(guipixmaps_DATA)
+icondir = $(datarootdir)/pixmaps
+icon_DATA = phoebe-gui.png
+
+EXTRA_DIST = $(guipixmaps_DATA) $(icon_DATA)

@@ -69,9 +69,10 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(guipixmapsdir)"
+am__installdirs = "$(DESTDIR)$(guipixmapsdir)" "$(DESTDIR)$(icondir)"
 guipixmapsDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(guipixmaps_DATA)
+iconDATA_INSTALL = $(INSTALL_DATA)
+DATA = $(guipixmaps_DATA) $(icon_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -170,11 +171,14 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+use_mime = @use_mime@
 guipixmapsdir = $(datarootdir)/phoebe/gui/pixmaps
 guipixmaps_DATA = ico.png          \
                   detach.png
 
-EXTRA_DIST = $(guipixmaps_DATA)
+icondir = $(datarootdir)/pixmaps
+icon_DATA = phoebe-gui.png
+EXTRA_DIST = $(guipixmaps_DATA) $(icon_DATA)
 all: all-am
 
 .SUFFIXES:
@@ -224,6 +228,23 @@ uninstall-guipixmapsDATA:
 	  echo " rm -f '$(DESTDIR)$(guipixmapsdir)/$$f'"; \
 	  rm -f "$(DESTDIR)$(guipixmapsdir)/$$f"; \
 	done
+install-iconDATA: $(icon_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(icondir)" || $(MKDIR_P) "$(DESTDIR)$(icondir)"
+	@list='$(icon_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(iconDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(icondir)/$$f'"; \
+	  $(iconDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(icondir)/$$f"; \
+	done
+
+uninstall-iconDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(icon_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(icondir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(icondir)/$$f"; \
+	done
 tags: TAGS
 TAGS:
 
@@ -261,7 +282,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(guipixmapsdir)"; do \
+	for dir in "$(DESTDIR)$(guipixmapsdir)" "$(DESTDIR)$(icondir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -306,7 +327,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-guipixmapsDATA
+install-data-am: install-guipixmapsDATA install-iconDATA
 
 install-dvi: install-dvi-am
 
@@ -340,7 +361,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-guipixmapsDATA
+uninstall-am: uninstall-guipixmapsDATA uninstall-iconDATA
 
 .MAKE: install-am install-strip
 
@@ -349,12 +370,12 @@ uninstall-am: uninstall-guipixmapsDATA
 	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am \
 	install-guipixmapsDATA install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
-	pdf-am ps ps-am uninstall uninstall-am \
-	uninstall-guipixmapsDATA
+	install-iconDATA install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic pdf pdf-am ps ps-am uninstall uninstall-am \
+	uninstall-guipixmapsDATA uninstall-iconDATA
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
