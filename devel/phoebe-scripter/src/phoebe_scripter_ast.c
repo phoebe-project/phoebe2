@@ -903,7 +903,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 			}
 
 			if (in->value.node.kind == kind_inc) {
-				/* This is the increment operator ++.                         */
+				/* This is the increment operator ++. */
 
 				char *ident = in->value.node.args->elem->value.variable;
 				scripter_symbol *symb = scripter_symbol_lookup (symbol_table, ident);
@@ -1387,11 +1387,27 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 * variable. Synopsis:
 				 * 
 				 *   set ident = expr
+				 *   set idexpr        (for ++, --, +=, -=, *=, and /=)
 				 */
 
 				scripter_ast_value value;
 
-				/* The following line always evaluates because of the grammar:      */
+				/* Handle identifier expressions first: */
+				if (in->value.node.args->elem->value.node.kind == kind_inc    ||
+					in->value.node.args->elem->value.node.kind == kind_dec    ||
+					in->value.node.args->elem->value.node.kind == kind_incby  ||
+					in->value.node.args->elem->value.node.kind == kind_decby  ||
+					in->value.node.args->elem->value.node.kind == kind_multby ||
+					in->value.node.args->elem->value.node.kind == kind_divby
+					) {
+					scripter_ast_evaluate (in->value.node.args->elem);
+					out.type = type_void;
+					return out;
+				}
+
+				/* It is a regular set statement. */
+
+				/* The following line always evaluates because of the grammar: */
 				char *ident = in->value.node.args->elem->value.variable;
 
 				/* We need to evaluate the expression AST node and to store   */

@@ -280,6 +280,9 @@ set_line
 	: SET ident '=' expr {
 		$$ = scripter_ast_add_node (kind_set, scripter_ast_construct_list ($2, scripter_ast_construct_list ($4, NULL)));
 	}
+	| SET idexpr {
+		$$ = scripter_ast_add_node (kind_set, scripter_ast_construct_list ($2, NULL));
+	}
 	| SET ident '[' expr ']' '=' expr {
 		$$ = scripter_ast_add_node (kind_set_element, scripter_ast_construct_list ($2, scripter_ast_construct_list ($4, scripter_ast_construct_list ($7, NULL))));
 	}
