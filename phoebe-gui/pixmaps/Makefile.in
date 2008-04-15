@@ -148,6 +148,8 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+have_update_database_database = @have_update_database_database@
+have_update_mime_database = @have_update_mime_database@
 host_alias = @host_alias@
 htmldir = @htmldir@
 includedir = @includedir@
@@ -171,7 +173,6 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-use_mime = @use_mime@
 guipixmapsdir = $(datarootdir)/phoebe/gui/pixmaps
 guipixmaps_DATA = ico.png          \
                   detach.png

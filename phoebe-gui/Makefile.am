@@ -43,6 +43,9 @@ EXTRA_DIST = autoconfig/depcomp                      \
              phoebe-gui.desktop
 
 install-data-hook:
-	if test "x@use_mime@" = "xyes"; then \
-	update-mime-database -V $(datarootdir)/mime; \
+	if test "x@have_update_mime_database@" = "xyes"; then \
+	update-mime-database $(datarootdir)/mime; \
+	fi
+	if test "x@have_update_desktop_database@" = "xyes"; then \
+	update-desktop-database; \
 	fi

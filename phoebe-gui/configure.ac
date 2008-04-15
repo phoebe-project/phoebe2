@@ -175,8 +175,9 @@
     plotters="none"
   fi
 
-  # Do we have update-mime-database:
-  AC_CHECK_PROG(use_mime, [update-mime-database], [yes])
+  # Do we have update-mime-database and update-desktop-database:
+  AC_CHECK_PROG(have_update_mime_database, [update-mime-database], [yes])
+  AC_CHECK_PROG(have_update_database_database, [update-database-database], [yes])
 
   # Make program:
     AC_PROG_MAKE_SET
