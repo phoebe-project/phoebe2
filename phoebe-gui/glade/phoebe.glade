@@ -7947,7 +7947,6 @@ from temperatures</property>
                                           <widget class="GtkComboBox" id="phoebe_lc_plot_options_obs_combobox">
                                             <property name="width_request">100</property>
                                             <property name="visible">True</property>
-                                            <property name="sensitive">False</property>
                                             <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
@@ -7965,7 +7964,6 @@ from temperatures</property>
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_lc_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">1</property>
@@ -8608,7 +8606,6 @@ from temperatures</property>
                                           <widget class="GtkComboBox" id="phoebe_rv_plot_options_obs_combobox">
                                             <property name="width_request">100</property>
                                             <property name="visible">True</property>
-                                            <property name="sensitive">False</property>
                                             <property name="items" translatable="yes"></property>
                                           </widget>
                                           <packing>
@@ -8626,7 +8623,6 @@ from temperatures</property>
                                             <property name="use_underline">True</property>
                                             <property name="response_id">0</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_rv_plot_options_obs_checkbutton_toggled"/>
                                           </widget>
                                           <packing>
                                             <property name="top_attach">1</property>
