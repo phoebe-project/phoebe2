@@ -343,7 +343,7 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband,  "Stromgren:u") == 0) { *id =  1; return SUCCESS; }
 	if (strcmp (passband,  "Stromgren:v") == 0) { *id =  2; return SUCCESS; }
 	if (strcmp (passband,  "Stromgren:b") == 0) { *id =  3; return SUCCESS; }
-	if (strcmp (passband,  "Strongren:y") == 0) { *id =  4; return SUCCESS; }
+	if (strcmp (passband,  "Stromgren:y") == 0) { *id =  4; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:U") == 0) { *id =  5; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:B") == 0) { *id =  6; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:V") == 0) { *id =  7; return SUCCESS; }
