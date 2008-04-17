@@ -1201,7 +1201,7 @@ int gui_data_lc_treeview_edit()
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
 					gint new_filter_number;
 					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &new_filter_number, -1);
-					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[filter_number]->set, PHOEBE_passbands[new_filter_number]->name);
+					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[new_filter_number]->set, PHOEBE_passbands[new_filter_number]->name);
 					if (new_filter_number != filter_number)
 						gui_ld_coeffs_need_updating();
 				}
