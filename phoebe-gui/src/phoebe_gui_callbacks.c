@@ -318,9 +318,10 @@ G_MODULE_EXPORT void on_phoebe_para_orb_f2_spinbutton_changed (GtkComboBox *widg
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 int accept_flag = 0;
 
-G_MODULE_EXPORT void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new();
+	PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 
 	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
 	GtkTreeView		*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
@@ -335,20 +336,28 @@ G_MODULE_EXPORT void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *too
 
 	int status = 0;
 
+	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
+
 	gui_update_ld_coefficients_when_needed();
 	status = gui_get_values_from_widgets();
 
-	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 0){
-		status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
-		phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
+	switch (gtk_combo_box_get_active (phoebe_fitt_method_combobox)) {
+		case 0:
+			status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
+			phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
+		break;
+		case 1:	
+			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
+			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
+		break;
+		default:
+			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
+			gui_error ("Invalid minimization algorithm", "The minimization algorithm is not selected or is invalid. Please select a valid entry in the fitting tab and try again.");
+			return;
+		break;
 	}
 
-	if (gtk_combo_box_get_active(phoebe_fitt_method_combobox) == 1){
-		status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
-		phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
-	}
-
-	if (status == SUCCESS){
+	if (status == SUCCESS) {
 		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
