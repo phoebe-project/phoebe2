@@ -117,7 +117,6 @@ int gui_open_parameter_file()
 		gchar *dir;
 		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
 		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
-		g_free(dir);
 	}
 
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
@@ -184,7 +183,6 @@ int gui_save_parameter_file()
 		gchar *dir;
 		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
 		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
-		g_free (dir);
 	}
 
 	/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
