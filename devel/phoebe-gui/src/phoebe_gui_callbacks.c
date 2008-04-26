@@ -321,8 +321,6 @@ int accept_flag = 0;
 G_MODULE_EXPORT
 void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
-
 	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
 	GtkTreeView		*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
 	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
@@ -461,11 +459,13 @@ void gui_set_spot_parameters()
 	gui_set_spot_parameter ("wd_spots_temp2", "phoebe_spots_tempfactor", spotsrc, spotid);
 }
 
-G_MODULE_EXPORT void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	int status;
-	if (accept_flag){
-		status = phoebe_minimizer_feedback_accept(phoebe_minimizer_feedback);
+
+	if (accept_flag) {
+		status = phoebe_minimizer_feedback_accept (phoebe_minimizer_feedback);
 		gui_set_spot_parameters();
 		status = gui_set_values_to_widgets();
 		on_phoebe_para_spots_treeview_cursor_changed((GtkTreeView *)NULL, (gpointer)NULL);  // Change the values of the current spot
