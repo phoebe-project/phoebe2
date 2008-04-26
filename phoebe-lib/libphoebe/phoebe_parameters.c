@@ -1966,7 +1966,10 @@ int intern_save_to_parameter_file (PHOEBE_parameter *par, FILE *file)
 	if (par->kind == KIND_ADJUSTABLE) {
 		switch (par->type) {
 			case TYPE_DOUBLE:
-				fprintf (file, "%s.VAL  = %lf\n", par->qualifier, par->value.d);
+				if (strcmp(par->qualifier, "phoebe_period"))
+					fprintf (file, "%s.VAL  = %lf\n", par->qualifier, par->value.d);
+				else
+					fprintf (file, "%s.VAL  = %.10lf\n", par->qualifier, par->value.d);
 			break;
 			case TYPE_DOUBLE_ARRAY:
 				if (par->value.vec)
