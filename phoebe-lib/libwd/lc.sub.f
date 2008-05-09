@@ -21,7 +21,7 @@ C     ARBITRARY PHASE SHIFT.
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c                      ARRAY DIMENSIONING WRAPPER
-c                            March 6, 2007
+c                             May 8, 2008
 c
 c     The following parameters determine array sizing in the program.
 c     There is no need to change any numbers in the code except these
@@ -40,6 +40,8 @@ c      ispmax    ..    maximum number of spots
 c                        default: ispmax =    100
 c      iclmax    ..    maximum number of clouds
 c                        default: iclmax =    100
+c      iplmax    ..    maximum number of passbands
+c                        default: iplmax =     26
 c
       parameter (Nmax=     100)
       parameter (igsmax=  8331)
@@ -47,6 +49,7 @@ c
       parameter (lpomax=100000)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
+      parameter (iplmax=    26)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -71,6 +74,7 @@ c
       parameter (MMmax=2*Nmax+4)
       parameter (immax=4*igsmax+100)
       parameter (ifrmax=4*Nmax)
+      parameter (iplcof=50*iplmax)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -78,7 +82,7 @@ c     Finally, the following dimensions are considered static and
 c     their size does not depend on parameters.
 c
       dimension po(2)
-      dimension abun(19),glog(11),grand(250800),plcof(1250)
+      dimension abun(19),glog(11),grand(250800)
       dimension message(2,4)
       dimension aa(20),bb(20)
 c
@@ -145,6 +149,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dimension yskp(immax),zskp(immax)
       dimension theta(ifrmax),rho(ifrmax)
       dimension hld(igsmax),tld(2*igsmax)
+      dimension plcof(iplcof)
 
       common /abung/ abun,glog
       common /arrayleg/ grand,istart

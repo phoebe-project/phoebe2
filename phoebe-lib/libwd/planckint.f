@@ -9,7 +9,7 @@ c  The subroutine ONLY WORKS FOR TEMPERATURES GREATER THAN OR EQUAL
 c  500 K OR LOWER THAN 500,300 K. For teperatures outside this range,
 c  the program stops and prints a message.
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-      dimension plcof(1250)
+      dimension plcof(1300)
       dimension pl(10)
       common /invar/ id1,id2,id3,id4,id5,id6,id7,id8,id9,
      $id10,id11,ld,id13,id14,id15
