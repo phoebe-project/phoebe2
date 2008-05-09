@@ -197,7 +197,8 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 phoebewddir = $(datarootdir)/phoebe/wd
 phoebewd_DATA = atmcof.dat       \
-                atmcofplanck.dat
+                atmcofplanck.dat \
+		phoebe_atmcofplanck.dat
 
 EXTRA_DIST = $(phoebewd_DATA)
 all: all-am

@@ -48,6 +48,8 @@ c                        data sets and on stop lines
 c                        default: iptmax =  10000
 c       ncmax    ..    maximum number of input data curves (velocity +light)
 c                        default: 50
+c      iplmax    ..    maximum number of passbands
+c                        default: iplmax =     26
 c       ipmax    ..    maximum number of parameters that are actually
 c            adjusted, with band-independent parameters counted once each and
 c            band-dependent parameters counted N_band times each.
@@ -59,6 +61,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
+      parameter (iplmax=    26)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -84,6 +87,7 @@ c
       parameter (MMmax=2*Nmax+4)
       parameter (ifrmax=4*Nmax)
       parameter (istmax=iptmax*ipmax)
+      parameter (iplcof=50*iplmax)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -94,7 +98,7 @@ c       ichno    ..    number of parameter channels (currently 35)
 c
       parameter (ichno=35)
       dimension xtha(4),xfia(4),po(2),omcr(2)
-      dimension abun(19),glog(11),grand(250800),plcof(1250)
+      dimension abun(19),glog(11),grand(250800)
       dimension message(2,4)
       character arad(4)*10
       dimension aa(20),bb(20)
@@ -171,6 +175,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dimension clc(ipmax),out(ipmax),sd(ipmax),ccl(ipmax),ll(ipmax),
      $mm(ipmax),cnc(ipmax**2),cn(ipmax**2),cnn(ipmax**2)
       dimension para(30+5*ncmax),v(ipmax),cnout(ipmax**2)
+      dimension plcof(iplcof)
 c
 c The following dimensioned variables are not used by DC. They are
 c    dimensioned only for compatibility with usage of subroutine
