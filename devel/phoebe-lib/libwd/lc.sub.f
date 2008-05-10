@@ -70,6 +70,8 @@ c        MMmax    ..    dimension of the array MMSAVE
 c        immax    ..    maximum number of surface grid points in sky
 c                       images
 c       ifrmax    ..    dimension of the Fourier arrays
+c       iplcof    ..    dimension of the atmcofplanck matrix, 50 per
+c                       passband
 c
       parameter (MMmax=2*Nmax+4)
       parameter (immax=4*igsmax+100)
