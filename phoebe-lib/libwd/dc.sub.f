@@ -80,9 +80,12 @@ c     below and should not be changed, as the above parameter statements
 c     determine their values.
 c
 c        MMmax    ..    maximum dimension of the MMSAVE array
-c       ifrmax    ..    maximum dimension of the horizon polar coordinate arrays
+c       ifrmax    ..    maximum dimension of the horizon polar
+c                       coordinate arrays
 c       istmax    ..    maximum dimension of storage arrays OBS and HOLD 
 c                         (iptmax * (no. of adjusted parameters + 1).
+c       iplcof    ..    dimension of the atmcofplanck matrix, 50 per
+c                       passband
 c
       parameter (MMmax=2*Nmax+4)
       parameter (ifrmax=4*Nmax)
