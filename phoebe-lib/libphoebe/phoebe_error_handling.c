@@ -183,6 +183,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "the spectrum's sampling power is invalid, aborting.\n";
 		case ERROR_INVALID_PHASE_INTERVAL:
 			return "phase interval is invalid (phmax <= phmin), aborting.\n";
+		case ERROR_INVALID_NORMAL_MAG: 
+			return "overflow error for luminosity, please lower the value of the normal magnitude.\n"; 
 		case ERROR_UNINITIALIZED_CURVE:
 			return "the curve you are trying to compute is not initialized.\n";
 		case ERROR_STAR_SURFACE_NOT_INITIALIZED:
