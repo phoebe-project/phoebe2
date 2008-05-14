@@ -96,6 +96,8 @@ int create_dci_file (char *filename, void *pars)
 			for (j = 0; j < params->obs[i]->indep->dim; j++) {
 				 indep[index] = params->obs[i]->indep->val[j];
 				   dep[index] = params->obs[i]->dep->val[j];
+				 if(dep[index] >= 1000.0)
+					return ERROR_INVALID_NORMAL_MAG;
 				weight[index] = params->obs[i]->weight->val[j];
 				index++;
 			}

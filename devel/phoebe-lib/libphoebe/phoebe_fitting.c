@@ -990,6 +990,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	 *   ERROR_INVALID_DEP
 	 *   ERROR_INVALID_WEIGHT
 	 *   ERROR_INVALID_DATA
+	 *   ERROR_INVALID_NORMAL_MAG
 	 *   ERROR_MINIMIZER_NO_CURVES
 	 *   ERROR_MINIMIZER_NO_PARAMS
 	 *   ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE
@@ -1054,7 +1055,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	cormat      = phoebe_malloc (no_tba * no_tba * sizeof (*cormat));
 
 	/* Create the DCI file from the params variable: */
-	create_dci_file ("dcin.active", params);
+	status = create_dci_file ("dcin.active", params);
+	if (status != SUCCESS)
+		return status;
 
 	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
