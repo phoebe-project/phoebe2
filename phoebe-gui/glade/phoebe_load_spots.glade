@@ -151,7 +151,7 @@
                       <widget class="GtkLabel" id="phoebe_load_spots_lat_frame_label3">
                         <property name="visible">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="label" translatable="yes">&lt;b&gt;Latitude&lt;/b&gt;</property>
+                        <property name="label" translatable="yes">&lt;b&gt;Colatitude&lt;/b&gt;</property>
                         <property name="use_markup">True</property>
                       </widget>
                       <packing>

@@ -407,7 +407,7 @@ int gui_init_spots_treeview  ()
     gtk_tree_view_column_set_cell_data_func(column, renderer, (GtkTreeCellDataFunc)gui_spots_cell_data_function, NULL, FALSE);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Latitude", renderer, "text", SPOTS_COL_LAT, NULL);
+    column      = gtk_tree_view_column_new_with_attributes("Colatitude", renderer, "text", SPOTS_COL_LAT, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
 
 	renderer    = gtk_cell_renderer_toggle_new ();

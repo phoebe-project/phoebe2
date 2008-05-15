@@ -807,7 +807,7 @@ G_MODULE_EXPORT void on_phoebe_para_spots_treeview_cursor_changed (GtkTreeView *
 										SPOTS_COL_TEMPMIN, &tempmin,
 										SPOTS_COL_TEMPMAX, &tempmax, -1);
 
-		markup = g_markup_printf_escaped ("<b>Latitude of spot %d</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1);
+		markup = g_markup_printf_escaped ("<b>Colatitude of spot %d</b>", atoi(gtk_tree_model_get_string_from_iter(model, &iter))+1);
 		gtk_label_set_markup (GTK_LABEL (lat_label), markup);
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(latadjust_checkbutton), latadjust);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lat_spinbutton), lat);
