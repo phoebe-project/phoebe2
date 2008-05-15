@@ -89,7 +89,7 @@ static PHOEBE_passband *phoebe_bolometric_passband()
 	/*
 	 * Creates the bolometric "passband", used for calculating bolometric limb darkening coefficients.
 	 */
- 
+
 	PHOEBE_passband *passband = phoebe_passband_new();
 	passband->id = 0;
 	passband->set = "Bolometric";
@@ -124,7 +124,7 @@ int gui_interpolate_all_ld_coefficients (char* ldlaw, double tavh, double tavc, 
 			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
 			passband = phoebe_passband_lookup_by_id(id);
 			gtk_tree_model_get_iter_first (model, &iter);
-			for (i = 0; i < index; i++) 
+			for (i = 0; i < index; i++)
 				gtk_tree_model_iter_next (model, &iter);
 		}
 
@@ -344,7 +344,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
 			phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
 		break;
-		case 1:	
+		case 1:
 			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
 			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
 		break;
@@ -1028,7 +1028,7 @@ G_MODULE_EXPORT void on_phoebe_para_spots_units_combobox_changed (GtkComboBox *w
 		radmax_adjustment->step_increment = 1;
 	}
 
-	if (phoebe_para_spots_units_combobox_init) {
+	/* if (phoebe_para_spots_units_combobox_init) { */
 		GtkWidget *phoebe_para_spots_treeview = gui_widget_lookup("phoebe_para_spots_treeview")->gtk;
 		GtkTreeModel *model = gtk_tree_view_get_model((GtkTreeView*)phoebe_para_spots_treeview);
 		double lat, latstep, latmin, latmax;
@@ -1082,9 +1082,9 @@ G_MODULE_EXPORT void on_phoebe_para_spots_units_combobox_changed (GtkComboBox *w
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radstep_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(radstep_spinbutton)) * change_factor);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radmin_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(radmin_spinbutton)) * change_factor);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(radmax_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(radmax_spinbutton)) * change_factor);
-	}
-	else
-		phoebe_para_spots_units_combobox_init = TRUE;
+	/* }
+	 else
+		phoebe_para_spots_units_combobox_init = TRUE; */
 }
 
 void gui_adjust_spot_parameter(char *par_name, int index, bool tba)
@@ -2455,7 +2455,7 @@ G_MODULE_EXPORT void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *
 		case ERROR_LD_PARAMS_OUT_OF_RANGE:
 			gui_notice(title, "Parameters for the secondary component are out of range");
 			break;
-	}	
+	}
 }
 
 G_MODULE_EXPORT void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)

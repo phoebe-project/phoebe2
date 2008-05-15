@@ -9,7 +9,7 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_accessories.h"
 
-bool phoebe_para_spots_units_combobox_init = FALSE;
+/* bool phoebe_para_spots_units_combobox_init = FALSE;*/
 
 int gui_init_treeviews ()
 {
@@ -522,7 +522,7 @@ int gui_reinit_spots_treeview ()
 	GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(gui_widget_lookup("phoebe_para_spots_treeview")->gtk)));
 	GtkTreeIter iter;
 
-	phoebe_para_spots_units_combobox_init = FALSE;
+	/* phoebe_para_spots_units_combobox_init = FALSE; */
 	status = phoebe_parameter_get_value(par, &spots_no);
 	gtk_list_store_clear(store);
 
