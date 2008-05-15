@@ -133,8 +133,8 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	gint VERTICES 	= gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(vertices_no_spinbutton));
 	gint INDEX		= -1;
-	gint INDEP;
-	gint DEP;
+	gint INDEP = (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0) ? PHOEBE_COLUMN_PHASE : PHOEBE_COLUMN_HJD;
+	gint DEP   = (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0) ? PHOEBE_COLUMN_FLUX  : PHOEBE_COLUMN_MAGNITUDE;
 
 	gdouble XMIN = 0.0, XMAX = 0.0, YMIN = 0.0, YMAX = 0.0;
 
@@ -151,15 +151,10 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	//----------------
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
-
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == -1){
 		gtk_combo_box_set_active (GTK_COMBO_BOX(y_combobox), 0);
 		DEP 	= PHOEBE_COLUMN_FLUX;
 	}
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_FLUX;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_MAGNITUDE;
 
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
@@ -347,8 +342,8 @@ int gui_plot_lc_to_ascii (gchar *filename)
 
 	gint VERITCES 	= gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(vertices_no_spinbutton));
 	gint INDEX		= -1;
-	gint INDEP;
-	gint DEP;
+	gint INDEP = (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0) ? PHOEBE_COLUMN_PHASE : PHOEBE_COLUMN_HJD;
+	gint DEP   = (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0) ? PHOEBE_COLUMN_FLUX  : PHOEBE_COLUMN_MAGNITUDE;
 
 	gboolean plot_obs = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(obs_checkbutton));
 	gboolean plot_syn = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(syn_checkbutton));
@@ -359,15 +354,10 @@ int gui_plot_lc_to_ascii (gchar *filename)
 	gdouble phstart = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phstart_spinbutton));
 	gdouble phend = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phend_spinbutton));
 
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 0)	INDEP 	= PHOEBE_COLUMN_PHASE;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(x_combobox)) == 1)	INDEP 	= PHOEBE_COLUMN_HJD;
-
 	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == -1){
 		gtk_combo_box_set_active (GTK_COMBO_BOX(y_combobox), 0);
 		DEP 	= PHOEBE_COLUMN_FLUX;
 	}
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 0)	DEP 	= PHOEBE_COLUMN_FLUX;
-	if (gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox)) == 1)	DEP 	= PHOEBE_COLUMN_MAGNITUDE;
 
 	INDEX = gtk_combo_box_get_active(GTK_COMBO_BOX(obs_combobox));
 
@@ -1045,7 +1035,7 @@ int gui_plot_eb_using_gnuplot ()
 
 	GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(pname, &err);
 	if (err != NULL)
-		phoebe_gui_error("Error in gdk_pixbuf_new_from_file(%s): (%d) %s", pname, err->code, err->message);
+		phoebe_debug("Error in gdk_pixbuf_new_from_file(%s): (%d) %s", pname, err->code, err->message);
 	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), pixbuf);
 	gdk_pixbuf_unref(pixbuf);
 
