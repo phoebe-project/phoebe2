@@ -204,6 +204,11 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (status != SUCCESS) {
+			gui_notice("LC plot", phoebe_error(status));
+			return status;
+		}
+
 		if (ALIAS)
 			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
@@ -403,6 +408,11 @@ int gui_plot_lc_to_ascii (gchar *filename)
 			}
 		}
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (status != SUCCESS) {
+			gui_notice("LC plot", phoebe_error(status));
+			return status;
+		}
+
 		if (ALIAS)
 			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals && plot_obs) {
@@ -489,7 +499,7 @@ int gui_rv_hjd_minmax (double *hjd_min, double *hjd_max)
 
 int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean plot_obs, gboolean plot_syn, gboolean plot_residuals, gchar *oname, gchar *sname, 
 					gdouble *XMIN, gdouble *XMAX, gdouble *YMIN, gdouble *YMAX,
-					gdouble x_offset, gdouble y_offset, gdouble zoom, double hjd_min, double hjd_max)
+					gdouble x_offset, gdouble y_offset, gdouble zoom, double hjd_min, double hjd_max, gboolean *plot_observations)
 {
 	/* Sets up the data and synthetic files for one of the radial velocity curves. */
 	PHOEBE_curve *obs = NULL;
@@ -565,6 +575,11 @@ int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean 
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (status != SUCCESS) {
+			gui_notice("RV plot", phoebe_error(status));
+			return status;
+		}
+
 		if (ALIAS)
 			phoebe_curve_alias (syn, phstart, phend);
 		if (plot_residuals) {
@@ -606,7 +621,8 @@ int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean 
 	if (plot_obs) phoebe_curve_free(obs);
 	if (plot_syn) phoebe_curve_free(syn);
 
-	return plot_obs;
+	*plot_observations = plot_obs;
+	return SUCCESS;
 }
 
 int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
@@ -620,7 +636,7 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	gchar pname[255];
 	gchar  line[255];
 
-	gint cfd, pfd;
+	gint cfd, pfd, status;
 
 	gboolean plot_obs1 = 0, plot_obs2 = 0, plot_component;
 	gchar *plot = "plot";
@@ -666,16 +682,20 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	plot_component = gtk_combo_box_get_active (GTK_COMBO_BOX(y_combobox));
 	switch (plot_component) {
-		case 0:	plot_obs1 = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_PRIMARY_RV, INDEP, plot_obs, plot_syn, residuals, o1name, s1name, 
-					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max);
+		case 0:	status = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_PRIMARY_RV, INDEP, plot_obs, plot_syn, residuals, o1name, s1name, 
+					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max, &plot_obs1);
+			if (status != SUCCESS) return status;
 			break;
-		case 1:	plot_obs2 = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_SECONDARY_RV, INDEP, plot_obs, plot_syn, residuals, o2name, s2name, 
-					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max);
+		case 1:	status = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_SECONDARY_RV, INDEP, plot_obs, plot_syn, residuals, o2name, s2name, 
+					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max, &plot_obs2);
+			if (status != SUCCESS) return status;
 			break;
-		case 2:	plot_obs1 = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_PRIMARY_RV, INDEP, plot_obs, plot_syn, residuals, o1name, s1name, 
-					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max);
-			plot_obs2 = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_SECONDARY_RV, INDEP, plot_obs, plot_syn, residuals, o2name, s2name, 
-					&XMIN2, &XMAX2, &YMIN2, &YMAX2, x_offset, y_offset, zoom, hjd_min, hjd_max);
+		case 2:	status = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_PRIMARY_RV, INDEP, plot_obs, plot_syn, residuals, o1name, s1name, 
+					&XMIN, &XMAX, &YMIN, &YMAX, x_offset, y_offset, zoom, hjd_min, hjd_max, &plot_obs1);
+			if (status != SUCCESS) return status;
+			status = gui_plot_rv_using_gnuplot_setup (INDEX, PHOEBE_COLUMN_SECONDARY_RV, INDEP, plot_obs, plot_syn, residuals, o2name, s2name, 
+					&XMIN2, &XMAX2, &YMIN2, &YMAX2, x_offset, y_offset, zoom, hjd_min, hjd_max, &plot_obs2);
+			if (status != SUCCESS) return status;
 			if ((INDEP == PHOEBE_COLUMN_HJD) && (!plot_obs1)) {
 				XMIN = XMIN2;
 				XMAX = XMAX2;
@@ -852,6 +872,11 @@ int gui_plot_rv_to_ascii_one_component (FILE *file, gint INDEX, gint INDEP, gint
 		}
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
+		if (status != SUCCESS) {
+			gui_notice("RV plot", phoebe_error(status));
+			return status;
+		}
+
 		if (ALIAS)
 			phoebe_curve_alias (syn, phstart, phend);
 		if (residuals) {
