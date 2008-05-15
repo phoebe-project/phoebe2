@@ -149,7 +149,7 @@ int phoebe_init_parameters ()
 
 	/* **********************   NMS fit parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_nms_iter_max",     	"Maximal number of iterations to do",				   KIND_PARAMETER, NULL,      0,1000000,      1, NO, TYPE_INT, 200);
+	phoebe_parameter_add ("phoebe_nms_iters_max",     	"Maximal number of iterations to do",				   KIND_PARAMETER, NULL,      0,1000000,      1, NO, TYPE_INT, 200);
 	phoebe_parameter_add ("phoebe_nms_accuracy",     	"Desired accuracy",				   					   KIND_PARAMETER, NULL,      0,      1,      1, NO, TYPE_DOUBLE, 0.01);
 
 	/* *******************   Perturbations parameters   ********************* */
@@ -2211,7 +2211,7 @@ int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile)
 
 			if ((int) rdouble == 8800)
 				phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filter"), 0, "Johnson:I");
-				
+
 			continue;
 		}
 		if (strstr (line, "TEMPERATURE_1")) {
