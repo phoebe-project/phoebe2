@@ -299,8 +299,11 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	gui_plot(cname);
 
-	if (plot_syn || plot_obs)
-		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
+	if (plot_syn || plot_obs) {
+		GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(pname, NULL);
+		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), pixbuf);
+		gdk_pixbuf_unref(pixbuf);
+	}
 
 	close(pfd);
 
@@ -779,8 +782,11 @@ int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 	gui_plot(cname);
 
-	if (plot_syn || plot_obs1 || plot_obs2)
-		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
+	if (plot_syn || plot_obs1 || plot_obs2) {
+		GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(pname, NULL);
+		gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), pixbuf);
+		gdk_pixbuf_unref(pixbuf);
+	}
 	else if (!plot_syn && !plot_obs1 && !plot_obs2)
 		gui_notice("RV plot", "Nothing to plot.");
 
@@ -969,6 +975,7 @@ int gui_plot_eb_using_gnuplot ()
 
 	GtkWidget *plot_image 		= gui_widget_lookup ("phoebe_eb_plot_image")->gtk;
 	GtkWidget *phase_spinbutton = gui_widget_lookup ("phoebe_star_shape_phase_spinbutton")->gtk;
+	GError *err = NULL;
 
 	gdouble phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phase_spinbutton));
 
@@ -976,13 +983,22 @@ int gui_plot_eb_using_gnuplot ()
 
 	params = phoebe_malloc (sizeof (*params));
 	status = wd_lci_parameters_get (params, 5, 0);
+	if (status != SUCCESS) {
+		gui_notice ("Star shape plot", phoebe_error(status));
+		return status;
+	}
 
 	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
+	free (params);
 
 	poscoy = phoebe_vector_new ();
 	poscoz = phoebe_vector_new ();
 	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, phase);
+	if (status != SUCCESS) {
+		gui_notice ("Star shape plot", phoebe_error(status));
+		return status;
+	}
 
 	sprintf(ebname, "%s/phoebe-eb-XXXXXX", tmpdir);
 	ebfd = gui_tempfile (ebname);
@@ -990,10 +1006,13 @@ int gui_plot_eb_using_gnuplot ()
 		sprintf(line, "%lf\t%lf\n", poscoy->val[i], poscoz->val[i]) ;
 		write(ebfd, line, strlen(line));
 	}
+
+	phoebe_vector_free (poscoy);
+	phoebe_vector_free (poscoz);
+
 	close(ebfd);
 
-
-	sprintf(cname, "%s/phoebe-rv-XXXXXX", tmpdir);
+	sprintf(cname, "%s/phoebe-eb-XXXXXX", tmpdir);
 	cfd = gui_tempfile (cname);
 
 #ifdef PHOEBE_GUI_GNUPLOT_LIBGD
@@ -1013,6 +1032,7 @@ int gui_plot_eb_using_gnuplot ()
 
 	sprintf(pname, "%s/phoebe-eb-plot-XXXXXX", tmpdir);
 	pfd = gui_tempfile (pname);
+	close(pfd);
 
 	sprintf(line, "set output '%s'\n", pname);							write(cfd, line, strlen(line));
 
@@ -1023,20 +1043,17 @@ int gui_plot_eb_using_gnuplot ()
 
 	gui_plot(cname);
 
-	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), gdk_pixbuf_new_from_file(pname, NULL));
-
-	close(pfd);
+	GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(pname, &err);
+	if (err != NULL)
+		phoebe_gui_error("Error in gdk_pixbuf_new_from_file(%s): (%d) %s", pname, err->code, err->message);
+	gtk_image_set_from_pixbuf(GTK_IMAGE(plot_image), pixbuf);
+	gdk_pixbuf_unref(pixbuf);
 
 	//----------------
 
 	remove(ebname);
 	remove(cname);
 	remove(pname);
-
-
-	phoebe_vector_free (poscoy);
-	phoebe_vector_free (poscoz);
-	free (params);
 
 	return SUCCESS;
 }
