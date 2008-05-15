@@ -2667,7 +2667,15 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &filter);
+	switch (mpage) {
+		case 1:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), index, &filter);
+			break;
+		case 2:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), index, &filter);
+			break;
+	}
+
 	curve->passband = phoebe_passband_lookup (filter);
 
 	status = wd_lci_parameters_get (&params, mpage, index);
