@@ -1818,6 +1818,8 @@ int phoebe_gui_lc_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 		LOGG_VALUES_NEED_RECALCULATING = FALSE;
 		gui_fill_sidesheet_res_treeview();
 	}
+	else
+		gui_notice ("No light curves have been defined", "To plot a light curve, you need to define it first in the Data tab.");
 
 	return SUCCESS;
 }
@@ -1877,6 +1879,9 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 
 		gui_fill_sidesheet_res_treeview();
 	}
+	else
+		gui_notice ("No light curves have been defined", "To save a light curve, you need to define it first in the Data tab.");
+
 }
 
 G_MODULE_EXPORT void on_phoebe_lc_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
@@ -2031,6 +2036,8 @@ int phoebe_gui_rv_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 		gui_fill_sidesheet_res_treeview();
 	}
+	else
+		gui_notice ("No RV curves have been defined", "To plot an RV curve, you need to define it first in the Data tab.");
 
 	return SUCCESS;
 }
@@ -2089,6 +2096,8 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 
 		gui_fill_sidesheet_res_treeview();
 	}
+	else
+		gui_notice ("No RV curves have been defined", "To save an RV curve, you need to define it first in the Data tab.");
 }
 
 G_MODULE_EXPORT void on_phoebe_rv_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
