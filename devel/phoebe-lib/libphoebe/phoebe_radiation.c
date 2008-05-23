@@ -1,5 +1,6 @@
 #include <math.h>
 
+#include "phoebe_build_config.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_types.h"
 
