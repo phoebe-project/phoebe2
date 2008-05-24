@@ -49,7 +49,7 @@ c
       parameter (lpomax=100000)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
-      parameter (iplmax=    26)
+      parameter (iplmax=    28)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -207,7 +207,9 @@ c      22      330         "             "             "           "
 c      23     'TyB'    Tycho catalog B
 c      24     'TyV'    Tycho catalog V
 c      25     'HIP'    Hipparcos catalog
-c
+c      26        H      Johnson, H.L. 1965, ApJ, 141, 923
+c      27   CoRoT-exo  Carla Maceroni, private communication
+c      28   CoRoT-sis  Carla Maceroni, private communication
 
       ot=1.d0/3.d0
       pi=dacos(-1.d0)
