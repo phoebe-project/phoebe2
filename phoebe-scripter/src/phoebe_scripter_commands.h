@@ -31,6 +31,7 @@ scripter_ast_value scripter_prompt                        (scripter_ast_list *ar
 scripter_ast_value scripter_transform_hjd_to_phase        (scripter_ast_list *args);
 scripter_ast_value scripter_transform_flux_to_magnitude   (scripter_ast_list *args);
 scripter_ast_value scripter_compute_lc                    (scripter_ast_list *args);
+scripter_ast_value scripter_compute_critical_potentials   (scripter_ast_list *args);
 scripter_ast_value scripter_set_lc_properties             (scripter_ast_list *args);
 scripter_ast_value scripter_compute_rv                    (scripter_ast_list *args);
 scripter_ast_value scripter_compute_chi2                  (scripter_ast_list *args);
