@@ -47,6 +47,7 @@ int scripter_register_all_commands ()
 	scripter_command_register ("compute_chi2",                 scripter_compute_chi2);
 	scripter_command_register ("transform_hjd_to_phase",       scripter_transform_hjd_to_phase);
 	scripter_command_register ("transform_flux_to_magnitude",  scripter_transform_flux_to_magnitude);
+	scripter_command_register ("compute_critical_potentials",  scripter_compute_critical_potentials);
 
 	/* Commands for minimization methods:                                     */
 	scripter_command_register ("minimize_using_nms",           scripter_minimize_using_nms);
@@ -1421,6 +1422,59 @@ scripter_ast_value scripter_transform_flux_to_magnitude (scripter_ast_list *args
 	out.type = type_vector;
 	out.value.vec = vec;
 	scripter_ast_value_array_free (vals, 2);
+	return out;
+}
+
+scripter_ast_value scripter_compute_critical_potentials (scripter_ast_list *args)
+{
+	/*
+	 * This functions computes the critical potentials.
+	 *
+	 * Synopsis:
+	 *
+	 *   set new = compute_crit_pot (double q, double F, double e)
+	 *
+	 * Where:
+	 *
+	 *  q      ..  the mass ratio
+	 *  F      ..  the asynchronicity parameter
+	 *  e      ..  the eccentricity
+	 *
+	 */
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+	int status;
+	double L1crit;
+	double L2crit;
+
+	out.type = type_void;
+
+	status = scripter_command_args_evaluate (args, &vals, 3, 3, type_double, type_double, type_double);
+	if (status != SUCCESS) return out;
+
+	status = phoebe_calculate_critical_potentials (vals[0].value.d, vals[1].value.d, vals[2].value.d, &L1crit, &L2crit);
+
+	switch (status) {
+		case SUCCESS:
+			/* enjoy life, everything is fine! :) */
+		break;
+		default:
+			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+			scripter_ast_value_array_free (vals, 3);
+			out.type = type_void;
+			return out;			
+	}
+	
+
+	out.type = type_vector;
+	out.value.vec = phoebe_vector_new ();
+	phoebe_vector_alloc (out.value.vec, 2);
+	out.value.vec->val[0] = L1crit;
+	out.value.vec->val[1] = L2crit;	
+
+	scripter_ast_value_array_free (vals, 3);
+
 	return out;
 }
 
