@@ -366,6 +366,8 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband, "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
+	if (strcmp (passband, "CoRoT:exo")    == 0) { *id = 27; return SUCCESS; }
+	if (strcmp (passband, "CoRoT:sismo")  == 0) { *id = 28; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;

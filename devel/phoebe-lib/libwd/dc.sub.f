@@ -61,7 +61,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
-      parameter (iplmax=    26)
+      parameter (iplmax=    28)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -241,6 +241,9 @@ c      22      330         "             "             "           "
 c      23     'TyB'    Tycho catalog B
 c      24     'TyV'    Tycho catalog V
 c      25     'HIP'    Hipparcos catalog
+c      26        H      Johnson, H.L. 1965, ApJ, 141, 923
+c      27   CoRoT-exo  Carla Maceroni, private communication
+c      28   CoRoT-sis  Carla Maceroni, private communication
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))
