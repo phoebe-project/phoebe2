@@ -438,7 +438,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 	 */
 
 	int i, j, k, l, m;
-	int imin, imax, jmin, jmax, kmin, kmax;
+	int imin, imax, jmin, jmax, kmin, kmax, loop;
 	int status;
 	double x[3], lo[3], hi[3];
 	PHOEBE_spectrum *result;
@@ -459,25 +459,55 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 	 * cells to be used as nodes. If these are also not available, bail out.
 	 */
 
-	if (PHOEBE_spectra_repository.table[i][j][k])
-		imin = i, jmin = j, kmin = k;
-	else if (i >= 1 && PHOEBE_spectra_repository.table[i-1][j][k])
-		imin = i-1, jmin = j, kmin = k;
-	else if (j >= 1 && PHOEBE_spectra_repository.table[i][j-1][k])
-		imin = i, jmin = j-1, kmin = k;
-	else if (k >= 1 && PHOEBE_spectra_repository.table[i][j][k-1])
-		imin = i, jmin = j, kmin = k-1;
-	else return NULL;
-
-	if (PHOEBE_spectra_repository.table[i+1][j+1][k+1])
-		imax = i+1, jmax = j+1, kmax = k+1;
-	else if (i < PHOEBE_spectra_repository.Teffnodes->dim-2 && PHOEBE_spectra_repository.table[i+2][j+1][k+1])
-		imax = i+2, jmax = j+1, kmax = k+1;
-	else if (j < PHOEBE_spectra_repository.loggnodes->dim-2 && PHOEBE_spectra_repository.table[i+1][j+2][k+1])
-		imax = i+1, jmax = j+2, kmax = k+1;
-	else if (k < PHOEBE_spectra_repository.metnodes ->dim-2 && PHOEBE_spectra_repository.table[i+1][j+1][k+2])
-		imax = i+1, jmax = j+1, kmax = k+2;
-	else return NULL;
+	loop = 0;
+	while (TRUE) {
+		switch (loop) {
+			case  0: imin = i;   jmin = j;   kmin = k;   imax = i+1; jmax = j+1; kmax = k+1; break;
+			case  1: imin = i;   jmin = j;   kmin = k;   imax = i+1; jmax = j+1; kmax = k+2; break;
+			case  2: imin = i;   jmin = j;   kmin = k;   imax = i+1; jmax = j+2; kmax = k+1; break;
+			case  3: imin = i;   jmin = j;   kmin = k;   imax = i+1; jmax = j+2; kmax = k+2; break;
+			case  4: imin = i;   jmin = j;   kmin = k-1; imax = i+1; jmax = j+1; kmax = k+1; break;
+			case  5: imin = i;   jmin = j;   kmin = k-1; imax = i+1; jmax = j+2; kmax = k+1; break;
+			case  6: imin = i;   jmin = j-1; kmin = k;   imax = i+1; jmax = j+1; kmax = k+1; break;
+			case  7: imin = i;   jmin = j-1; kmin = k;   imax = i+1; jmax = j+1; kmax = k+2; break;
+			case  8: imin = i;   jmin = j-1; kmin = k-1; imax = i+1; jmax = j+1; kmax = k+1; break;
+			case  9: imin = i;   jmin = j-1; kmin = k-1; imax = i+2; jmax = j+1; kmax = k+1; break;
+			case 10: imin = i;   jmin = j;   kmin = k;   imax = i+2; jmax = j+1; kmax = k+1; break;
+			case 11: imin = i;   jmin = j;   kmin = k;   imax = i+2; jmax = j+1; kmax = k+2; break;
+			case 12: imin = i;   jmin = j;   kmin = k;   imax = i+2; jmax = j+2; kmax = k+1; break;
+			case 13: imin = i;   jmin = j;   kmin = k;   imax = i+2; jmax = j+2; kmax = k+2; break;
+			case 14: imin = i;   jmin = j;   kmin = k-1; imax = i+2; jmax = j+1; kmax = k+1; break;
+			case 15: imin = i;   jmin = j;   kmin = k-1; imax = i+2; jmax = j+2; kmax = k+1; break;
+			case 16: imin = i;   jmin = j-1; kmin = k;   imax = i+2; jmax = j+1; kmax = k+1; break;
+			case 17: imin = i;   jmin = j-1; kmin = k;   imax = i+2; jmax = j+1; kmax = k+2; break;
+			case 18: imin = i-1; jmin = j;   kmin = k;   imax = i+1; jmax = j+1; kmax = k+1; break;
+			case 19: imin = i-1; jmin = j;   kmin = k;   imax = i+1; jmax = j+1; kmax = k+2; break;
+			case 20: imin = i-1; jmin = j;   kmin = k;   imax = i+1; jmax = j+2; kmax = k+1; break;
+			case 21: imin = i-1; jmin = j;   kmin = k;   imax = i+1; jmax = j+2; kmax = k+2; break;
+			case 22: imin = i-1; jmin = j;   kmin = k-1; imax = i+1; jmax = j+1; kmax = k+1; break;
+			case 23: imin = i-1; jmin = j;   kmin = k-1; imax = i+1; jmax = j+2; kmax = k+1; break;
+			case 24: imin = i-1; jmin = j-1; kmin = k;   imax = i+1; jmax = j+1; kmax = k+1; break;
+			case 25: imin = i-1; jmin = j-1; kmin = k;   imax = i+1; jmax = j+1; kmax = k+2; break;
+			case 26: imin = i-1; jmin = j-1; kmin = k-1; imax = i+1; jmax = j+1; kmax = k+1; break;
+			default:
+				return NULL;
+		}
+		phoebe_debug ("loop %2d: testing [%d][%d][%d], [%d][%d][%d]:\n", loop, imin, jmin, kmin, imax, jmax, kmax);
+		if (imin >= 0 && jmin >= 0 && kmin >= 0               &&
+			imax < PHOEBE_spectra_repository.Teffnodes->dim   &&
+			jmax < PHOEBE_spectra_repository.loggnodes->dim   &&
+			kmax < PHOEBE_spectra_repository.metnodes->dim    &&
+			PHOEBE_spectra_repository.table[imin][jmin][kmin] &&
+			PHOEBE_spectra_repository.table[imin][jmin][kmax] &&
+			PHOEBE_spectra_repository.table[imin][jmax][kmin] &&
+			PHOEBE_spectra_repository.table[imin][jmax][kmax] &&
+			PHOEBE_spectra_repository.table[imax][jmin][kmin] &&
+			PHOEBE_spectra_repository.table[imax][jmin][kmax] &&
+			PHOEBE_spectra_repository.table[imax][jmax][kmin] &&		
+			PHOEBE_spectra_repository.table[imax][jmax][kmax])
+			break;
+		else loop++;
+	}
 
 	phoebe_debug ("i = %d, j = %d, k = %d\n", i, j, k);
 	phoebe_debug ("T[%d] = %d, T[%d] = %d, T = %lf.\n", imin, PHOEBE_spectra_repository.Teffnodes->val.iarray[imin], imax, PHOEBE_spectra_repository.Teffnodes->val.iarray[imax], Teff);
