@@ -2448,8 +2448,8 @@ scripter_ast_value scripter_get_spectrum_from_repository (scripter_ast_list *arg
 		return out;
 	}
 
-	status = phoebe_spectrum_new_from_repository (&spectrum, (int) vals[0].value.d, (int) (10.0*vals[1].value.d), (int) vals[2].value.d);
-	if (status != SUCCESS) {
+	spectrum = phoebe_spectrum_new_from_repository (vals[0].value.d, vals[1].value.d, vals[2].value.d);
+	if (!spectrum) {
 		scripter_ast_value_array_free (vals, 3);
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		out.type = type_void;
