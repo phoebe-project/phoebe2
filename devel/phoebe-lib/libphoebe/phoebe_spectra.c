@@ -41,10 +41,34 @@
 
 PHOEBE_specrep PHOEBE_spectra_repository;
 
+/**
+ * SECTION:phoebe_spectra
+ * @title: PHOEBE spectra
+ * @short_description: functions that facilitate spectra manipulation
+ *
+ * These are the functions that facilitate spectra manipulation, including
+ * the repository I/O.
+ */
+
 int intern_spectra_repository_process (const char *filename, const struct stat *filestat, int flag)
 {
 	/*
+	 * intern_spectra_repository_process:
+	 * @filename: filename (relative to dirpath) to be processed
+	 * @filestat: a variable for all file properties
+	 * @flag: file type passed by ftw(), which we don't use.
+	 * 
+	 * This is an internal function and should not be used by any function
+	 * except phoebe_spectra_set_repository (). It parses a filename passed
+	 * by the ftw() function and compares it to the following predefined
+	 * format:
+	 * 
+	 *   T%%5dG%%2d%%c%%2dV000K%%1dS%%2cNV%%3c%%c.ASC
 	 *
+	 * Only 0 rotational velocities are matched because phoebe uses the internal
+	 * function for rotational broadening.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i, argmatch;
@@ -137,6 +161,26 @@ int intern_spectra_repository_process (const char *filename, const struct stat *
 
 int phoebe_spectra_set_repository (char *rep_name)
 {
+	/**
+	 * phoebe_spectra_set_repository:
+	 * @rep_name: path to the repository
+	 *
+	 * Traverses the path @rep_name and parses all found filenames for spectra.
+	 * Filenames must match the predefined format:
+	 * 
+	 *   T%%5dG%%2d%%c%%2dV000K%%1dS%%2cNV%%3c%%c.ASC
+	 *
+	 * Only 0 rotational velocity spectra are parsed because PHOEBE uses its
+	 * internal function for rotational broadening. Where available, this
+	 * function calls ftw() for traversing the tree; the spectra can then be
+	 * separated into subdirectories (i.e. Munari et al. 2005) and ftw() will
+	 * traverse up to 10 subdirectories deep. When ftw() is not available,
+	 * a simplified parsing function is used that requires the spectra to be
+	 * all in a single subdirectory.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i, j, k, s;
 
 	if (PHOEBE_spectra_repository.no != 0) {
@@ -255,6 +299,15 @@ int phoebe_spectra_set_repository (char *rep_name)
 
 int phoebe_spectra_free_repository ()
 {
+	/**
+	 * phoebe_spectra_free_repository:
+	 *
+	 * Frees all fields of the spectrum repository. Since PHOEBE currently
+	 * allows for a single spectrum repository, the function takes no arguments.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i, j;
 
 	if (PHOEBE_spectra_repository.no == 0)
@@ -283,6 +336,14 @@ int phoebe_spectra_free_repository ()
 
 PHOEBE_spectrum *phoebe_spectrum_new ()
 {
+	/**
+	 * phoebe_spectrum_new:
+	 *
+	 * Allocates memory for the new spectrum.
+	 *
+	 * Returns: a newly allocated #PHOEBE_spectrum.
+	 */
+
 	PHOEBE_spectrum *spectrum = phoebe_malloc (sizeof (*spectrum));
 	spectrum->R   = 0;
 	spectrum->Rs  = 0;
@@ -293,10 +354,16 @@ PHOEBE_spectrum *phoebe_spectrum_new ()
 
 PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 {
-	/*
-	 * This function opens a two-column file 'filename' and reads its contents
-	 * to a newly allocated spectrum. The columns are assumed to contain bin
-	 * centers and fluxes.
+	/**
+	 * phoebe_spectrum_new_from_file:
+	 * @filename: spectrum filename
+	 *
+	 * Opens a two-column @filename and reads its contents to a newly allocated
+	 * spectrum. The columns are assumed to contain bin centers and fluxes. The
+	 * function tries to guess the dispersion type and assigns all spectrum
+	 * fields accordingly.
+	 * 
+	 * Returns: a read-in #PHOEBE_spectrum.
 	 */
 
 	FILE *input;
@@ -352,15 +419,141 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	return spectrum;
 }
 
+PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, double met)
+{
+	/**
+	 * phoebe_spectrum_new_from_repository:
+	 * @Teff: effective temperature in K
+	 * @logg: surface gravity in cgs units
+	 * @met:  metallicity in solar abundances
+	 *
+	 * Queries the spectrum repository and interpolates a spectrum with the
+	 * passed parameters. If the parameters are out of range for the given
+	 * repository, NULL is returned. The function uses all available nodes in
+	 * the repository for the interpolation; if the queried spectrum is
+	 * missing, the first adjacent spectrum is looked up. The interpolation
+	 * is linear.
+	 *
+	 * Returns: a queried #PHOEBE_spectrum, or %NULL in case of failure.
+	 */
+
+	int i, j, k, l, m;
+	int imin, imax, jmin, jmax, kmin, kmax;
+	int status;
+	double x[3], lo[3], hi[3];
+	PHOEBE_spectrum *result;
+	PHOEBE_spectrum *fv[8];
+	PHOEBE_vector *specvals;
+
+	i = j = k = 0;
+	while (Teff      >= PHOEBE_spectra_repository.Teffnodes->val.iarray[i] && i < PHOEBE_spectra_repository.Teffnodes->dim) i++;
+	while (10.0*logg >= PHOEBE_spectra_repository.loggnodes->val.iarray[j] && j < PHOEBE_spectra_repository.loggnodes->dim) j++;
+	while (10.0*met  >= PHOEBE_spectra_repository.metnodes-> val.iarray[k] && k < PHOEBE_spectra_repository.metnodes-> dim) k++;
+	i--; j--; k--;
+
+	if (i < 0 || j < 0 || k < 0)
+		return NULL;
+
+	/*
+	 * Because of the gaps in parameter values we need to allow adjacent
+	 * cells to be used as nodes. If these are also not available, bail out.
+	 */
+
+	if (PHOEBE_spectra_repository.table[i][j][k])
+		imin = i, jmin = j, kmin = k;
+	else if (i >= 1 && PHOEBE_spectra_repository.table[i-1][j][k])
+		imin = i-1, jmin = j, kmin = k;
+	else if (j >= 1 && PHOEBE_spectra_repository.table[i][j-1][k])
+		imin = i, jmin = j-1, kmin = k;
+	else if (k >= 1 && PHOEBE_spectra_repository.table[i][j][k-1])
+		imin = i, jmin = j, kmin = k-1;
+	else return NULL;
+
+	if (PHOEBE_spectra_repository.table[i+1][j+1][k+1])
+		imax = i+1, jmax = j+1, kmax = k+1;
+	else if (i < PHOEBE_spectra_repository.Teffnodes->dim-2 && PHOEBE_spectra_repository.table[i+2][j+1][k+1])
+		imax = i+2, jmax = j+1, kmax = k+1;
+	else if (j < PHOEBE_spectra_repository.loggnodes->dim-2 && PHOEBE_spectra_repository.table[i+1][j+2][k+1])
+		imax = i+1, jmax = j+2, kmax = k+1;
+	else if (k < PHOEBE_spectra_repository.metnodes ->dim-2 && PHOEBE_spectra_repository.table[i+1][j+1][k+2])
+		imax = i+1, jmax = j+1, kmax = k+2;
+	else return NULL;
+
+	phoebe_debug ("i = %d, j = %d, k = %d\n", i, j, k);
+	phoebe_debug ("T[%d] = %d, T[%d] = %d, T = %lf.\n", imin, PHOEBE_spectra_repository.Teffnodes->val.iarray[imin], imax, PHOEBE_spectra_repository.Teffnodes->val.iarray[imax], Teff);
+	phoebe_debug ("l[%d] = %d, l[%d] = %d, l = %lf.\n", jmin, PHOEBE_spectra_repository.loggnodes->val.iarray[jmin], jmax, PHOEBE_spectra_repository.loggnodes->val.iarray[jmax], logg);
+	phoebe_debug ("m[%d] = %d, m[%d] = %d, m = %lf.\n", kmin, PHOEBE_spectra_repository.metnodes-> val.iarray[kmin], kmax, PHOEBE_spectra_repository.metnodes-> val.iarray[kmax], met);
+
+	/* Let's build interpolation structures: */
+
+	x[0] = Teff;
+	lo[0] = (double) PHOEBE_spectra_repository.Teffnodes->val.iarray[imin];
+	hi[0] = (double) PHOEBE_spectra_repository.Teffnodes->val.iarray[imax];
+
+	 x[1] = logg;
+	lo[1] = (double) PHOEBE_spectra_repository.loggnodes->val.iarray[jmin] / 10.0;
+	hi[1] = (double) PHOEBE_spectra_repository.loggnodes->val.iarray[jmax] / 10.0;
+
+     x[2] = met;
+	lo[2] = (double) PHOEBE_spectra_repository.metnodes->val.iarray[kmin] / 10.0;
+	hi[2] = (double) PHOEBE_spectra_repository.metnodes->val.iarray[kmax] / 10.0;
+
+	/* Read in the node spectra; if the readout fails, free memory and abort. */
+	for (l = 0; l < 8; l++) {
+		fv[l] = phoebe_spectrum_create (2500, 10500, 1, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+		phoebe_debug ("created spectrum %d with dim %d: ", l, fv[l]->data->bins);
+		if (!PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)])
+			return NULL;
+
+		phoebe_debug ("%s\n", PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
+		specvals = phoebe_vector_new_from_column (PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename, 1);
+		if (!specvals) {
+			phoebe_lib_error ("spectrum %s not found, aborting.\n", PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
+			for (m = 0; m < l-1; m++)
+				phoebe_spectrum_free (fv[m]);
+			return NULL;
+		}
+
+		status = phoebe_hist_set_values (fv[l]->data, specvals);
+		if (status != SUCCESS)
+			phoebe_lib_error ("%s", phoebe_error (status));
+		phoebe_vector_free (specvals);
+	}
+
+	/* Everything seems to be ok; proceed to the interpolation.               */
+	phoebe_interpolate (3, x, lo, hi, TYPE_SPECTRUM, fv);
+
+	/* Free all except the first spectrum: */
+	for (i = 1; i < 8; i++)
+		phoebe_spectrum_free (fv[i]);
+
+	/* Assign the passed argument to the first spectrum: */
+	result = fv[0];
+
+	/* All spectra in the repository are in pixel space: */
+	result->disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
+
+	return result;
+}
+
 PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_spectrum_dispersion disp)
 {
-	/*
-	 * This function creates an empty spectrum of resolving power R, sampled on
-	 * the wavelength interval [ll, ul]. If the dispersion type is log, the
-	 * resolving power is constant and the dispersion changes throughout the
-	 * spectrum. If the dispersion type is linear, the dispersion is constant
-	 * and the resolving power changes. Dispersion relates to resolving power
-	 * simply as \delta = 1/R.
+	/**
+	 * phoebe_spectrum_create:
+	 * @ll: lower wavelength limit in angstroms
+	 * @ul: upper wavelength limit in angstroms
+	 * @R:  spectrum resolving power
+	 * @disp: spectrum dispersion type
+	 *
+	 * Creates an empty spectrum of resolving power @R, sampled on the
+	 * wavelength interval [@ll, @ul]. If the dispersion type is
+	 * %PHOEBE_SPECTRUM_DISPERSION_LOG, the resolving power is constant and the
+	 * dispersion changes throughout the spectrum. If the dispersion type is
+	 * %PHOEBE_SPECTRUM_DISPERSION_LINEAR, the dispersion is constant and the
+	 * resolving power changes. Dispersion relates to resolving power simply
+	 * as delta = 1/@R.
+	 * 
+	 * Returns: a newly created #PHOEBE_spectrum.
 	 */
 
 	int status;
@@ -423,10 +616,19 @@ PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_
 
 PHOEBE_spectrum *phoebe_spectrum_duplicate (PHOEBE_spectrum *spectrum)
 {
+	/**
+	 * phoebe_spectrum_duplicate:
+	 * @spectrum: spectrum to be duplicated
+	 * 
+	 * Makes a duplicate copy of @spectrum.
+	 *
+	 * Returns: a duplicated #PHOEBE_spectrum.
+	 */
+
 	/*
-	 * This function makes a duplicate copy of the spectrum 'spectrum'. It
-	 * is somewhat tricky to avoid memory leaks in this function: the call to
-	 * phoebe_spectrum_new () initializes an empty histogram as convenience
+	 * It is somewhat tricky to avoid
+	 * memory leaks in this function: the call to phoebe_spectrum_new ()
+	 * initializes an empty histogram as convenience
 	 * for a range of other functions, but in this case it is undesireable,
 	 * so it has to be undone. The reason is that phoebe_hist_duplicate ()
 	 * function also initializes an empty histogram and allocates space for
@@ -453,11 +655,15 @@ PHOEBE_spectrum *phoebe_spectrum_duplicate (PHOEBE_spectrum *spectrum)
 
 PHOEBE_vector *phoebe_spectrum_get_column (PHOEBE_spectrum *spectrum, int col)
 {
-	/*
-	 * This function allocates a vector and copies the contents of the col-th
-	 * column in the spectrum 'spectrum' to it. The values of 'col' may be 1
-	 * (usually a wavelength) or 2 (usually a flux). If an error occurs, NULL
-	 * is returned.
+	/**
+	 * phoebe_spectrum_get_column:
+	 * @spectrum: input spectrum
+	 * @col: column index
+	 *
+	 * Allocates a vector and copies the contents of the @col-th @spectrum
+	 * column to it. The value of @col may be 1 (wavelength) or 2 (flux).
+	 *
+	 * Returns: #PHOEBE_vector, or #NULL in case of a failure.
 	 */
 
 	int i;
@@ -486,15 +692,15 @@ PHOEBE_vector *phoebe_spectrum_get_column (PHOEBE_spectrum *spectrum, int col)
 
 int phoebe_spectrum_alloc (PHOEBE_spectrum *spectrum, int dim)
 {
-	/*
-	 * This function allocates storage memory for a spectrum of 'dim'.
+	/**
+	 * phoebe_spectrum_alloc:
+	 * @spectrum: initialized spectrum
+	 * @dim: spectrum dimension
+	 * 
+	 * Allocates memory for @spectrum with dimension @dim. The @spectrum must
+	 * be initialized with phoebe_spectrum_new().
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_SPECTRUM_NOT_INITIALIZED
-	 *   ERROR_SPECTRUM_ALREADY_ALLOCATED
-	 *   ERROR_SPECTRUM_INVALID_DIMENSION
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	if (!spectrum)
@@ -513,14 +719,16 @@ int phoebe_spectrum_alloc (PHOEBE_spectrum *spectrum, int dim)
 
 int phoebe_spectrum_realloc (PHOEBE_spectrum *spectrum, int dim)
 {
-	/*
-	 * This function reallocates storage memory for a spectrum of 'dim'.
+	/**
+	 * phoebe_spectrum_realloc:
+	 * @spectrum: initialized or allocated spectrum
+	 * @dim: new spectrum dimension
+	 * 
+	 * Reallocates memory for @spectrum with the new dimension @dim. If @dim
+	 * is smaller than the current dimension, @spectrum will be truncated.
+	 * Otherwise all original values are retained.
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_SPECTRUM_NOT_INITIALIZED
-	 *   ERROR_SPECTRUM_INVALID_DIMENSION
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	if (!spectrum)
@@ -535,8 +743,13 @@ int phoebe_spectrum_realloc (PHOEBE_spectrum *spectrum, int dim)
 
 int phoebe_spectrum_free (PHOEBE_spectrum *spectrum)
 {
-	/*
-	 * This function frees the allocated space for a spectrum.
+	/**
+	 * phoebe_spectrum_free:
+	 * @spectrum: spectrum to be freed
+	 *
+	 * Frees the allocated space for @spectrum.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	if (!spectrum) return SUCCESS;
@@ -551,8 +764,13 @@ int phoebe_spectrum_free (PHOEBE_spectrum *spectrum)
 
 char *phoebe_spectrum_dispersion_type_get_name (PHOEBE_spectrum_dispersion disp)
 {
-	/*
-	 * This function translates the enumerated value to a string.
+	/**
+	 * phoebe_spectrum_dispersion_type_get_name:
+	 * @disp: enumerated #PHOEBE_spectrum_dispersion
+	 * 
+	 * Converts the enumerated value to a string.
+	 *
+	 * Returns: string
 	 */
 
 	switch (disp) {
@@ -568,17 +786,27 @@ char *phoebe_spectrum_dispersion_type_get_name (PHOEBE_spectrum_dispersion disp)
 	}
 }
 
-int phoebe_spectrum_dispersion_guess (PHOEBE_spectrum_dispersion *disp, PHOEBE_spectrum *s)
+int phoebe_spectrum_dispersion_guess (PHOEBE_spectrum_dispersion *disp, PHOEBE_spectrum *spectrum)
 {
-	/*
-	 * This function guesses the type of the spectrum dispersion.
+	/**
+	 * phoebe_spectrum_dispersion_guess:
+	 * @disp: placeholder for the guessed dispersion
+	 * @spectrum: spectrum for which the dispersion should be guessed
+	 *
+	 * Tries to guess the type of the spectrum dispersion by evaluating all
+	 * bin differences and quotients. If a difference is constant, @disp is
+	 * set to linear dispersion; if a quotient is constant, @disp is set to
+	 * log dispersion; otherwise @disp is set to no dispersion. The constancy
+	 * of the differences and quotients is checked to 1e-6 numerical accuracy.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;
 
 	*disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
-	for (i = 0; i < s->data->bins-1; i++) {
-		if (fabs (2*s->data->range[i+1]-s->data->range[i]-s->data->range[i+2]) > 1e-6) {
+	for (i = 0; i < spectrum->data->bins-1; i++) {
+		if (fabs (2*spectrum->data->range[i+1]-spectrum->data->range[i]-spectrum->data->range[i+2]) > 1e-6) {
 			*disp = PHOEBE_SPECTRUM_DISPERSION_NONE;
 			break;
 		}
@@ -587,8 +815,8 @@ int phoebe_spectrum_dispersion_guess (PHOEBE_spectrum_dispersion *disp, PHOEBE_s
 		return SUCCESS;
 
 	*disp = PHOEBE_SPECTRUM_DISPERSION_LOG;
-	for (i = 0; i < s->data->bins-1; i++)
-		if (fabs (s->data->range[i+1]/s->data->range[i] - s->data->range[i+2]/s->data->range[i+1]) > 1e-6) {
+	for (i = 0; i < spectrum->data->bins-1; i++)
+		if (fabs (spectrum->data->range[i+1]/spectrum->data->range[i] - spectrum->data->range[i+2]/spectrum->data->range[i+1]) > 1e-6) {
 			*disp = PHOEBE_SPECTRUM_DISPERSION_NONE;
 			break;
 		}
@@ -598,247 +826,38 @@ int phoebe_spectrum_dispersion_guess (PHOEBE_spectrum_dispersion *disp, PHOEBE_s
 
 int phoebe_spectrum_crop (PHOEBE_spectrum *spectrum, double ll, double ul)
 {
-	/*
-	 * This function crops the passed spectrum to the [ll, ul] interval.
-	 * All error handling is done by the called function, so we don't have
-	 * to worry about anything here.
+	/**
+	 * phoebe_spectrum_crop:
+	 * @spectrum: spectrum to be cropped
+	 * @ll: lower wavelength limit
+	 * @ul: upper wavelength limit
+	 * 
+	 * Crops the passed spectrum to the [ll, ul] interval. All other spectrum
+	 * properties are retained.
+	 * 
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	return phoebe_hist_crop (spectrum->data, ll, ul);
 }
 
-int phoebe_spectrum_new_from_repository (PHOEBE_spectrum **spectrum, int T, int g, int M)
-{
-	/*
-	 * This function queries the spectra repository, takes closest gridded spe-
-	 * ctra from it and linearly interpolates to the spectrum represented by
-	 * the passed parameters.
-	 *
-	 * Input parameters:
-	 *
-	 *   T    ..  effective temperature
-	 *   g    ..  log g/g0 in cgs units
-	 *   M    ..  metallicity [M/H] in Solar units
-	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
-	 *   ERROR_SPECTRA_REPOSITORY_EMPTY
-	 *   ERROR_SPECTRA_REPOSITORY_INVALID_NAME
-	 *   ERROR_SPECTRA_REPOSITORY_NOT_DIRECTORY
-	 *   ERROR_SPECTRA_REPOSITORY_NOT_FOUND
-	 */
-
-	int i, j;
-	int Tlow, Thigh, Mlow, Mhigh, glow, ghigh;
-	char Mlostr[5], Mhistr[5];
-
-	double square, minsquare;
-	int    minindex = 0;
-	int    status;
-
-	/* 3-D interpolation requires 2^3 = 8 nodes: */
-	double x[3], lo[3], hi[3];
-	PHOEBE_spectrum *fv[8];
-	char filename[8][255];
-	PHOEBE_vector *specvals;
-
-	char *kuruczdir;
-
-	phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &kuruczdir);
-
-	if (PHOEBE_spectra_repository.no == 0)
-		return ERROR_SPECTRA_REPOSITORY_EMPTY;
-
-	phoebe_debug ("\n");
-	phoebe_debug ("Synthetic spectra in the repository: %d\n\n", PHOEBE_spectra_repository.no);
-
-	/*
-	 * Now we have to find the closest match from the grid; we shall use
-	 * least squares for this ;) :
-	 */
-
-	minsquare = pow (T - PHOEBE_spectra_repository.prop[0].temperature, 2) + 
-                pow (g - PHOEBE_spectra_repository.prop[0].gravity,     2) +
-                pow (M - PHOEBE_spectra_repository.prop[0].metallicity, 2);
-
-	for (i = 1; i < PHOEBE_spectra_repository.no; i++) {
-		square = pow (T - PHOEBE_spectra_repository.prop[i].temperature, 2) + 
-                 pow (g - PHOEBE_spectra_repository.prop[i].gravity,     2) +
-		         pow (M - PHOEBE_spectra_repository.prop[i].metallicity, 2);
-		if (square < minsquare) {
-			minsquare = square; minindex = i;
-		}
-	}
-
-	phoebe_debug ("The closest spectrum is: R=%d at [%d, %d]\n                         T=%d, [M/H]=%d, logg=%d\n", PHOEBE_spectra_repository.prop[minindex].resolution, 
-		PHOEBE_spectra_repository.prop[minindex].lambda_min, PHOEBE_spectra_repository.prop[minindex].lambda_max, PHOEBE_spectra_repository.prop[minindex].temperature,
-		PHOEBE_spectra_repository.prop[minindex].metallicity, PHOEBE_spectra_repository.prop[minindex].gravity);
-
-	/*
-	 * Since we now know which is the closest spectrum, let's find the limiting
-	 * values for all parameters:
-	 */
-
-	if (T >= PHOEBE_spectra_repository.prop[minindex].temperature) {
-		Tlow  = PHOEBE_spectra_repository.prop[minindex].temperature;
-		Thigh = 2 * PHOEBE_spectra_repository.prop[minindex].temperature;  /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature > 0) &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity)    &&
-			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
-				if (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature < Thigh - Tlow)
-					Thigh = PHOEBE_spectra_repository.prop[i].temperature;
-	}
-	if (T < PHOEBE_spectra_repository.prop[minindex].temperature) {
-		Thigh = PHOEBE_spectra_repository.prop[minindex].temperature;
-		Tlow  = PHOEBE_spectra_repository.prop[minindex].temperature / 2;  /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].temperature - PHOEBE_spectra_repository.prop[minindex].temperature < 0) &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity)    &&
-			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
-				if (PHOEBE_spectra_repository.prop[minindex].temperature - PHOEBE_spectra_repository.prop[i].temperature < Thigh - Tlow)
-					Tlow = PHOEBE_spectra_repository.prop[i].temperature;
-	}
-
-	if (M >= PHOEBE_spectra_repository.prop[minindex].metallicity) {
-		Mlow  = PHOEBE_spectra_repository.prop[minindex].metallicity;
-		Mhigh = 5 + PHOEBE_spectra_repository.prop[minindex].metallicity;  /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity > 0) &&
-			     (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity < Mhigh - Mlow) &&
-				 (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
-			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
-					Mhigh = PHOEBE_spectra_repository.prop[i].metallicity;
-	}
-	if (M < PHOEBE_spectra_repository.prop[minindex].metallicity) {
-		Mhigh = PHOEBE_spectra_repository.prop[minindex].metallicity;
-		Mlow  = PHOEBE_spectra_repository.prop[minindex].metallicity - 5;  /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].metallicity - PHOEBE_spectra_repository.prop[minindex].metallicity < 0) &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
-			     (PHOEBE_spectra_repository.prop[i].gravity     == PHOEBE_spectra_repository.prop[minindex].gravity) )
-				if (PHOEBE_spectra_repository.prop[minindex].metallicity - PHOEBE_spectra_repository.prop[i].metallicity < Mhigh - Mlow)
-					Mlow = PHOEBE_spectra_repository.prop[i].metallicity;
-	}
-
-	if (g >= PHOEBE_spectra_repository.prop[minindex].gravity) {
-		glow  = PHOEBE_spectra_repository.prop[minindex].gravity;
-		ghigh = 2 * PHOEBE_spectra_repository.prop[minindex].gravity;      /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity > 0) &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
-			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity) )
-				if (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity < ghigh - glow)
-					ghigh = PHOEBE_spectra_repository.prop[i].gravity;
-	}
-	if (g < PHOEBE_spectra_repository.prop[minindex].gravity) {
-		ghigh = PHOEBE_spectra_repository.prop[minindex].gravity;
-		glow  = PHOEBE_spectra_repository.prop[minindex].gravity / 2;      /* This should suffice! */
-		for (i = 0; i < PHOEBE_spectra_repository.no; i++)
-			if ( (PHOEBE_spectra_repository.prop[i].gravity - PHOEBE_spectra_repository.prop[minindex].gravity < 0) &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_min  == PHOEBE_spectra_repository.prop[minindex].lambda_min)     &&
-			     (PHOEBE_spectra_repository.prop[i].lambda_max  == PHOEBE_spectra_repository.prop[minindex].lambda_max)     &&
-			     (PHOEBE_spectra_repository.prop[i].temperature == PHOEBE_spectra_repository.prop[minindex].temperature)    &&
-			     (PHOEBE_spectra_repository.prop[i].metallicity == PHOEBE_spectra_repository.prop[minindex].metallicity) )
-				if (PHOEBE_spectra_repository.prop[minindex].gravity - PHOEBE_spectra_repository.prop[i].gravity < ghigh - glow)
-					glow = PHOEBE_spectra_repository.prop[i].gravity;
-	}
-
-	phoebe_debug ("\n");
-	phoebe_debug ("Temperature range: [%d, %d]\n", Tlow, Thigh);
-	phoebe_debug ("Metallicity range: [%d, %d]\n", Mlow, Mhigh);
-	phoebe_debug ("Gravity range:     [%d, %d]\n", glow, ghigh);
-
-	/* Let's build interpolation structures:                                  */
-	 x[0] = T;      x[1] = g;      x[2] = M;
-	lo[0] = Tlow;  lo[1] = glow;  lo[2] = Mlow;
-	hi[0] = Thigh; hi[1] = ghigh; hi[2] = Mhigh;
-
-	/* The filename changes depending on the sign of the metallicity: */
-	if (Mlow < 0)
-		sprintf (Mlostr, "M%02d", -Mlow);
-	else
-		sprintf (Mlostr, "P%02d", Mlow);
-
-	if (Mhigh < 0)
-		sprintf (Mhistr, "M%02d", -Mhigh);
-	else
-		sprintf (Mhistr, "P%02d", Mhigh);
-
-	/* Node  0: (0, 0, 0) */
-		sprintf (filename[ 0], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, glow, Mlostr);
-	/* Node  1: (1, 0, 0) */
-		sprintf (filename[ 1], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, glow, Mlostr);
-	/* Node  2: (0, 1, 0) */
-		sprintf (filename[ 2], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, ghigh, Mlostr);
-	/* Node  3: (1, 1, 0) */
-		sprintf (filename[ 3], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, ghigh, Mlostr);
-	/* Node  4: (0, 0, 1) */
-		sprintf (filename[ 4], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, glow, Mhistr);
-	/* Node  5: (1, 0, 1) */
-		sprintf (filename[ 5], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, glow, Mhistr);
-	/* Node  6: (0, 1, 1) */
-		sprintf (filename[ 6], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Tlow, ghigh, Mhistr);
-	/* Node  7: (1, 1, 1) */
-		sprintf (filename[ 7], "%s/T%05dG%2d%sV000K2SNWNVD01F.ASC", kuruczdir, Thigh, ghigh, Mhistr);
-
-	/* Read in the node spectra; if the readout fails, free memory and abort. */
-	for (i = 0; i < 8; i++) {
-		fv[i] = phoebe_spectrum_create (2500, 10500, 2500, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
-		specvals = phoebe_vector_new_from_column (filename[i], 1);
-		if (!specvals) {
-			phoebe_lib_error ("spectrum %s not found, aborting.\n", filename[i]);
-			for (j = 0; j < i-1; j++)
-				phoebe_spectrum_free (fv[j]);
-			return ERROR_SPECTRUM_NOT_IN_REPOSITORY;
-		}
-
-		status = phoebe_hist_set_values (fv[i]->data, specvals);
-		if (status != SUCCESS)
-			phoebe_lib_error ("%s", phoebe_error (status));
-		phoebe_vector_free (specvals);
-	}
-
-	/* Everything seems to be ok; proceed to the interpolation.               */
-	phoebe_interpolate (3, x, lo, hi, TYPE_SPECTRUM, fv);
-
-	/* Free all except the first spectrum: */
-	for (i = 1; i < 8; i++)
-		phoebe_spectrum_free (fv[i]);
-
-	/* Assign the passed argument to the first spectrum: */
-	*spectrum = fv[0];
-
-	/* All spectra in the repository are in pixel space: */
-	(*spectrum)->disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
-
-	return SUCCESS;
-}
-
 int phoebe_spectrum_apply_doppler_shift (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double velocity)
 {
-	/*
-	 * This function applies a Doppler shift to the spectrum. It does that by
-	 * first shifting the ranges according to the passed velocity and then
-	 * rebins the obtained histogram to the original bins.
+	/**
+	 * phoebe_spectrum_apply_doppler_shift:
+	 * @dest: a placeholter for the shifted spectrum
+	 * @src:  original (unshifted) spectrum
+	 * @velocity: radial velocity in km/s
+	 * 
+	 * Applies a non-relativistic Doppler shift to the spectrum. It does that
+	 * by first shifting the ranges according to the passed velocity and then
+	 * rebinning the obtained histogram to the original bins. c=299791 km/s is
+	 * used for the speed of light.
 	 *
-	 * Input parameters:
-	 *
-	 *   dest      ..  Doppler-shifted spectrum
-	 *   src       ..  Original (unmodified) spectrum
-	 *   velocity  ..  Radial velocity in km/s
+	 * Returns: #PHOEBE_error_code.
 	 */
+#warning REVIEW_PHOEBE_SPECTRUM_APPLY_DOPPLER_SHIFT
+	/* 	consider: phoebe_hist_shift (spectrum->data, velocity/299791.0); */
 
 	int i, status;
 
