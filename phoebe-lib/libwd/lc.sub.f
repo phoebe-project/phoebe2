@@ -41,7 +41,7 @@ c                        default: ispmax =    100
 c      iclmax    ..    maximum number of clouds
 c                        default: iclmax =    100
 c      iplmax    ..    maximum number of passbands
-c                        default: iplmax =     26
+c                        default: iplmax =     25
 c
       parameter (Nmax=     100)
       parameter (igsmax=  8331)
@@ -50,6 +50,33 @@ c
       parameter (ispmax=   100)
       parameter (iclmax=   100)
       parameter (iplmax=    28)
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     Model atmosphere grid properties:
+c
+c       itemppts  ..   number of temperature coefficients per spectrum
+c                        default: itemppts=48 (4x12)
+c       iloggpts  ..   number of log(g) nodes
+c                        default: iloggpts=11 (atmosphere grid)
+c       imetpts   ..   number of metallicity nodes
+c                        default: imetpts=19  (atmosphere grid)
+c       iatmpts   ..   size of the atmosphere grid per passband per
+c                      metallicity
+c                        default: iatmpts = 11*48 = 528
+c                        11 log(g) values and
+c                        48=4x12 temperature coefficients
+c       iatmchunk ..   size of the atmosphere grid per metallicity
+c                        default: iatmchunk = 528*25 = 13200
+c       iatmsize  ..   size of the atmosphere grid
+c                        default: iatmsize = 13200*19 = 250800
+c
+      parameter (itemppts=48)
+      parameter (iloggpts=11)
+      parameter (imetpts =19)
+      parameter (iatmpts=iloggpts*itemppts)
+      parameter (iatmchunk=iatmpts*iplmax)
+      parameter (iatmsize=iatmchunk*imetpts)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -84,7 +111,6 @@ c     Finally, the following dimensions are considered static and
 c     their size does not depend on parameters.
 c
       dimension po(2)
-      dimension abun(19),glog(11),grand(250800)
       dimension message(2,4)
       dimension aa(20),bb(20)
 c
@@ -152,6 +178,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dimension theta(ifrmax),rho(ifrmax)
       dimension hld(igsmax),tld(2*igsmax)
       dimension plcof(iplcof)
+      dimension abun(imetpts),glog(iloggpts),grand(iatmsize)
 
       common /abung/ abun,glog
       common /arrayleg/ grand,istart
@@ -207,9 +234,12 @@ c      22      330         "             "             "           "
 c      23     'TyB'    Tycho catalog B
 c      24     'TyV'    Tycho catalog V
 c      25     'HIP'    Hipparcos catalog
-c      26        H      Johnson, H.L. 1965, ApJ, 141, 923
-c      27   CoRoT-exo  Carla Maceroni, private communication
-c      28   CoRoT-sis  Carla Maceroni, private communication
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c      PHOEBE extensions:
+c
+c      26   CoRoT-exo  Carla Maceroni, private communication
+c      27   CoRoT-sis  Carla Maceroni, private communication
+c      28       H      Johnson, H.L. 1965, ApJ, 141, 923
 
       ot=1.d0/3.d0
       pi=dacos(-1.d0)
@@ -295,9 +325,9 @@ c***************************************************************
 c  The following lines take care of abundances that may not be among
 c  the 19 Kurucz values (see abun array). abunin is reset at the allowed value nearest
 c  the input value.
-      call binnum(abun,19,abunin,iab)
+      call binnum(abun,imetpts,abunin,iab)
       dif1=abunin-abun(iab)
-      if(iab.eq.19) goto 702
+      if(iab.eq.imetpts) goto 702
       dif2=abun(iab+1)-abun(iab)
       dif=dif1/dif2
       if((dif.ge.0.d0).and.(dif.le.0.5d0)) goto 702
@@ -305,7 +335,7 @@ c  the input value.
   702 continue
       abunir=abunin
       abunin=abun(iab)
-      istart=1+(iab-1)*13200
+      istart=1+(iab-1)*iatmchunk
 c***************************************************************
       if(mpage.ne.3) goto 897
       colam=clight/wl

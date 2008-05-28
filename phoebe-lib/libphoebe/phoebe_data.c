@@ -350,7 +350,7 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband,    "Johnson:R") == 0) { *id =  8; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:I") == 0) { *id =  9; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:J") == 0) { *id = 10; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:H") == 0) { *id = 26; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:H") == 0) { *id = 28; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:K") == 0) { *id = 11; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:L") == 0) { *id = 12; return SUCCESS; }
 	if (strcmp (passband,    "Johnson:M") == 0) { *id = 13; return SUCCESS; }
@@ -366,8 +366,8 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband, "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
-	if (strcmp (passband, "CoRoT:exo")    == 0) { *id = 27; return SUCCESS; }
-	if (strcmp (passband, "CoRoT:sismo")  == 0) { *id = 28; return SUCCESS; }
+	if (strcmp (passband, "CoRoT:exo")    == 0) { *id = 26; return SUCCESS; }
+	if (strcmp (passband, "CoRoT:sismo")  == 0) { *id = 27; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;

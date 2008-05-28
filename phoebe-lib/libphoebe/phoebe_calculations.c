@@ -207,12 +207,9 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
-/*
-	sprintf (atmcof,       "%s/wd/atmcof.dat",       basedir);
-	sprintf (atmcofplanck, "%s/wd/atmcofplanck.dat", basedir);
-*/
+
 	request = 1;
 	nodes = (integer) indep->dim;
 
@@ -267,7 +264,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	phoebe_vector_alloc (rv1->dep, indep->dim);
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 2;
@@ -318,7 +315,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	phoebe_vector_alloc (rv2->dep, indep->dim);
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 3;
@@ -409,7 +406,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	phs = phase;
@@ -463,7 +460,7 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 2;

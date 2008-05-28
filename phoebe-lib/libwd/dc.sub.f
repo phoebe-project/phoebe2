@@ -66,6 +66,33 @@ c
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
+c     Model atmosphere grid properties:
+c
+c       itemppts  ..   number of temperature coefficients per spectrum
+c                        default: itemppts=48 (4x12)
+c       iloggpts  ..   number of log(g) nodes
+c                        default: iloggpts=11 (atmosphere grid)
+c       imetpts   ..   number of metallicity nodes
+c                        default: imetpts=19  (atmosphere grid)
+c       iatmpts   ..   size of the atmosphere grid per passband per
+c                      metallicity
+c                        default: iatmpts = 11*48 = 528
+c                        11 log(g) values and
+c                        48=4x12 temperature coefficients
+c       iatmchunk ..   size of the atmosphere grid per metallicity
+c                        default: iatmchunk = 528*25 = 13200
+c       iatmsize  ..   size of the atmosphere grid
+c                        default: iatmsize = 13200*19 = 250800
+c
+      parameter (itemppts=48)
+      parameter (iloggpts=11)
+      parameter (imetpts =19)
+      parameter (iatmpts=iloggpts*itemppts)
+      parameter (iatmchunk=iatmpts*iplmax)
+      parameter (iatmsize=iatmchunk*imetpts)
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
 c     Locations of the auxiliary files atmcof.dat and atmcofplanck.dat:
 c
       character atmtab*(*),pltab*(*)
@@ -101,7 +128,6 @@ c       ichno    ..    number of parameter channels (currently 35)
 c
       parameter (ichno=35)
       dimension xtha(4),xfia(4),po(2),omcr(2)
-      dimension abun(19),glog(11),grand(250800)
       dimension message(2,4)
       character arad(4)*10
       dimension aa(20),bb(20)
@@ -179,6 +205,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $mm(ipmax),cnc(ipmax**2),cn(ipmax**2),cnn(ipmax**2)
       dimension para(30+5*ncmax),v(ipmax),cnout(ipmax**2)
       dimension plcof(iplcof)
+      dimension abun(imetpts),glog(iloggpts),grand(iatmsize)
 c
 c The following dimensioned variables are not used by DC. They are
 c    dimensioned only for compatibility with usage of subroutine
@@ -241,9 +268,12 @@ c      22      330         "             "             "           "
 c      23     'TyB'    Tycho catalog B
 c      24     'TyV'    Tycho catalog V
 c      25     'HIP'    Hipparcos catalog
-c      26        H      Johnson, H.L. 1965, ApJ, 141, 923
-c      27   CoRoT-exo  Carla Maceroni, private communication
-c      28   CoRoT-sis  Carla Maceroni, private communication
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c      PHOEBE extensions:
+c
+c      26   CoRoT-exo  Carla Maceroni, private communication
+c      27   CoRoT-sis  Carla Maceroni, private communication
+c      28       H      Johnson, H.L. 1965, ApJ, 141, 923
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))
@@ -706,9 +736,9 @@ c***************************************************************
 c  The following lines take care of abundances that may not be among
 c  the 19 Kurucz values (see abun array). abunin is reset at the
 c  allowed value nearest the input value.
-      call binnum(abun,19,abunin,iab)
+      call binnum(abun,imetpts,abunin,iab)
       dif1=abunin-abun(iab)
-      if(iab.eq.19) goto 7702
+      if(iab.eq.imetpts) goto 7702
       dif2=abun(iab+1)-abun(iab)
       dif=dif1/dif2
       if((dif.ge.0.d0).and.(dif.le.0.5d0)) goto 7702
@@ -716,7 +746,7 @@ c  allowed value nearest the input value.
  7702 continue
       if(dif1.ne.0.d0) write(16,287) abunin,abun(iab)
       abunin=abun(iab)
-      istart=1+(iab-1)*13200
+      istart=1+(iab-1)*iatmchunk
 c***************************************************************
       CALL MODLOG(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVH,FR1,FR2,HLD,
      $RM,PHSV,PCSV,GR1,GR2,ALB1,ALB2,N1,N2,F1,F2,MOD,XINCL,THE,MODE,
