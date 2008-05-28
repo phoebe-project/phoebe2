@@ -169,6 +169,6 @@ char *scripter_ast_value_type_get_name (int type);
 /* *********  This part of the code describes auxiliary functions:  ********* */
 
 PHOEBE_vector *phoebe_vector_new_from_list (scripter_ast_list *list);
-
+PHOEBE_array *phoebe_array_new_from_list (scripter_ast_list *list);
 
 #endif
