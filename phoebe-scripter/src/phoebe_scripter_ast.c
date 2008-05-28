@@ -766,7 +766,11 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				out.value.vec = phoebe_vector_new_from_list (in->value.node.args);
 				if (out.value.vec) out.type = type_vector;
-				else               out.type = type_void;
+				else {
+					out.value.array = phoebe_array_new_from_list (in->value.node.args);
+					if (out.value.array) out.type = type_array;
+					else out.type = type_void;
+				}
 				return out;
 			}
 
@@ -2354,4 +2358,31 @@ PHOEBE_vector *phoebe_vector_new_from_list (scripter_ast_list *list)
 	}
 
 	return vec;
+}
+
+PHOEBE_array *phoebe_array_new_from_list (scripter_ast_list *list)
+{
+	/*
+	 * This function returns a string array which is defined by the list, e.g.
+	 * set a={"a1", "a2", "b"}. If the array is not valid, NULL is returned.
+	 */
+
+	PHOEBE_array *array = phoebe_array_new (TYPE_STRING_ARRAY);
+	int dim = scripter_ast_list_length (list);
+	scripter_ast_value val;
+	int i;
+
+	phoebe_array_alloc (array, dim);
+
+	for (i = 0; i < dim; i++) {
+		val = scripter_ast_evaluate (list->elem);
+		if (val.type != type_string) {
+			phoebe_array_free (array);
+			return NULL;
+		}
+		array->val.strarray[i] = strdup (val.value.str);
+		list = list->next;
+	}
+
+	return array;
 }
