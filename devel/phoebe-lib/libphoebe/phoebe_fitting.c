@@ -1061,7 +1061,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/atmcof.dat",       NULL);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
 	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	/* Get third light units: */

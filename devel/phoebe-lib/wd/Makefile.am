@@ -21,8 +21,9 @@
 ########################################################################
 
 phoebewddir = $(datarootdir)/phoebe/wd
-phoebewd_DATA = atmcof.dat       \
-                atmcofplanck.dat \
+phoebewd_DATA = atmcof.dat        \
+                atmcofplanck.dat  \
+		phoebe_atmcof.dat \
 		phoebe_atmcofplanck.dat
 
 EXTRA_DIST = $(phoebewd_DATA)

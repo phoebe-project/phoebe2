@@ -1,5 +1,15 @@
 ChangeLog:
 
+2008-05-28:
+
+* Model atmosphere arrays parametrized in lc.sub.f, dc.sub.f and atmx.f.
+* Legendre polynomials for monochromatic CoRoT exo and sismo passbands
+  added to slots 26 and 27, Johnson H moved from slot 26 to slot 28.
+  The reason for this is that I don't have IR model atmospheres and I
+  couldn't compute the intensities for the H band. Effective wavelengths
+  for these three passbands added to the array in atmx.f.
+* atmcof.dat replaced by phoebe_atmcof.dat.
+
 2007-12-30:
 
 * Streams 5 and 6 changed to 15 and 16 throughout the code so that it 
