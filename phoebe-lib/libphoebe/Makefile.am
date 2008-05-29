@@ -39,6 +39,7 @@ libphoebe_la_SOURCES =                                                  \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
     phoebe_ld.c                       phoebe_ld.h                       \
+    phoebe_legacy.c                   phoebe_legacy.h                   \
     phoebe_model.c                    phoebe_model.h                    \
     phoebe_nms.c                      phoebe_nms.h                      \
     phoebe_parameters.c               phoebe_parameters.h               \

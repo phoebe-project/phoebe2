@@ -7,11 +7,13 @@
 #include "phoebe_build_config.h"
 
 #include "phoebe_accessories.h"
+#include "phoebe_configuration.h"
 #include "phoebe_constraints.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fortran_interface.h"
 #include "phoebe_global.h"
+#include "phoebe_legacy.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
@@ -194,9 +196,9 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_spots_tempfactor_max",  "Spot temperature factor maximum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,    100);
 	phoebe_parameter_add ("phoebe_spots_tempfactor_step", "Spot temperature factor adjustment step",            KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
 
-	phoebe_parameter_add ("phoebe_spots_units",          "Spot coordinate and radius units",                   KIND_MENU,       NULL,           0.0,    0.0,    0.0, NO, TYPE_STRING,        "Radians");
-	phoebe_parameter_add ("phoebe_spots_corotate1",      "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
-	phoebe_parameter_add ("phoebe_spots_corotate2",      "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
+	phoebe_parameter_add ("phoebe_spots_units",           "Spot coordinate and radius units",                   KIND_MENU,       NULL,    0,      0,      0, NO, TYPE_STRING,       "Radians");
+	phoebe_parameter_add ("phoebe_spots_corotate1",       "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
+	phoebe_parameter_add ("phoebe_spots_corotate2",       "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
 
 	/* These pertain to WD's DC that can fit up to two spots simultaneously. */
 	phoebe_parameter_add ("wd_spots_lat1",               "Latitude of the 1st adjusted spot",                  KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
@@ -1653,9 +1655,10 @@ int phoebe_open_parameter_file (const char *filename)
 		}
 		phoebe_debug ("  PHOEBE parameter file version: %2.2lf\n", version);
 	}
-
-	/* Set default parameters, not provided in earlier versions */
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_spots_units"), "Radians");
+	else if (strstr (readout_str, "NAME")) {
+		/* Aha, a 0.2x keyword file! */
+		return phoebe_open_legacy_parameter_file (filename);
+	}
 
 	while (!feof (keyword_file)) {
 		fgets (readout_str, 255, keyword_file); lineno++;
@@ -2076,8 +2079,47 @@ int phoebe_save_parameter_file (const char *filename)
 
 int phoebe_open_legacy_parameter_file (const char *filename)
 {
-	phoebe_lib_error ("Not yet implemented!\n");
-	return SUCCESS;
+	/**
+	 * phoebe_open_legacy_parameter_file:
+	 * @filename: legacy (0.2x) keyword file
+	 *
+	 * Runs the lex converter on a legacy keyword file (i.e. a file pertaining
+	 * to PHOEBE versions 0.2x), creates a parameter file in the temporary
+	 * directory, opens it and removes it when done.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int status;
+	char *tempdir, *tempname;
+
+	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tempdir);
+	tempname = phoebe_concatenate_strings (tempdir, "/legacy.phoebe", NULL);
+
+	phoebe_legacyin  = fopen (filename, "r");
+	if (!phoebe_legacyin) {
+		free (tempname);
+		return ERROR_FILE_NOT_FOUND;
+	}
+
+	phoebe_legacyout = fopen (tempname, "w");
+	if (!phoebe_legacyout) {
+		fclose (phoebe_legacyin);
+		free (tempname);
+		return ERROR_FILE_IS_INVALID;
+	}
+
+	phoebe_legacylex ();
+
+	fclose (phoebe_legacyout);
+	fclose (phoebe_legacyin);
+
+	status = phoebe_open_parameter_file (tempname);
+	remove (tempname);
+
+	free (tempname);
+
+	return status;
 }
 
 int phoebe_restore_default_parameters ()

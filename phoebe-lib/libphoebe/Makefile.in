@@ -91,8 +91,9 @@ am_libphoebe_la_OBJECTS = libphoebe_la-phoebe_constraints.grm.lo \
 	libphoebe_la-phoebe_error_handling.lo \
 	libphoebe_la-phoebe_fitting.lo \
 	libphoebe_la-phoebe_fortran_interface.lo \
-	libphoebe_la-phoebe_ld.lo libphoebe_la-phoebe_model.lo \
-	libphoebe_la-phoebe_nms.lo libphoebe_la-phoebe_parameters.lo \
+	libphoebe_la-phoebe_ld.lo libphoebe_la-phoebe_legacy.lo \
+	libphoebe_la-phoebe_model.lo libphoebe_la-phoebe_nms.lo \
+	libphoebe_la-phoebe_parameters.lo \
 	libphoebe_la-phoebe_radiation.lo \
 	libphoebe_la-phoebe_spectra.lo libphoebe_la-phoebe_types.lo
 libphoebe_la_OBJECTS = $(am_libphoebe_la_OBJECTS)
@@ -261,6 +262,7 @@ libphoebe_la_SOURCES = \
     phoebe_fitting.c                  phoebe_fitting.h                  \
     phoebe_fortran_interface.c        phoebe_fortran_interface.h        \
     phoebe_ld.c                       phoebe_ld.h                       \
+    phoebe_legacy.c                   phoebe_legacy.h                   \
     phoebe_model.c                    phoebe_model.h                    \
     phoebe_nms.c                      phoebe_nms.h                      \
     phoebe_parameters.c               phoebe_parameters.h               \
@@ -399,6 +401,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fitting.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_fortran_interface.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_ld.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_legacy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_nms.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libphoebe_la-phoebe_parameters.Plo@am__quote@
@@ -510,6 +513,13 @@ libphoebe_la-phoebe_ld.lo: phoebe_ld.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_ld.c' object='libphoebe_la-phoebe_ld.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_ld.lo `test -f 'phoebe_ld.c' || echo '$(srcdir)/'`phoebe_ld.c
+
+libphoebe_la-phoebe_legacy.lo: phoebe_legacy.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_legacy.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_legacy.Tpo -c -o libphoebe_la-phoebe_legacy.lo `test -f 'phoebe_legacy.c' || echo '$(srcdir)/'`phoebe_legacy.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libphoebe_la-phoebe_legacy.Tpo $(DEPDIR)/libphoebe_la-phoebe_legacy.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='phoebe_legacy.c' object='libphoebe_la-phoebe_legacy.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -c -o libphoebe_la-phoebe_legacy.lo `test -f 'phoebe_legacy.c' || echo '$(srcdir)/'`phoebe_legacy.c
 
 libphoebe_la-phoebe_model.lo: phoebe_model.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libphoebe_la_CFLAGS) $(CFLAGS) -MT libphoebe_la-phoebe_model.lo -MD -MP -MF $(DEPDIR)/libphoebe_la-phoebe_model.Tpo -c -o libphoebe_la-phoebe_model.lo `test -f 'phoebe_model.c' || echo '$(srcdir)/'`phoebe_model.c
