@@ -291,7 +291,7 @@ extern int phoebe_legacylex (void);
 #undef YY_DECL
 #endif
 
-#line 290 "phoebe_legacy.lex"
+#line 343 "phoebe_legacy.lex"
 
 
 #line 298 "phoebe_legacy.h"
