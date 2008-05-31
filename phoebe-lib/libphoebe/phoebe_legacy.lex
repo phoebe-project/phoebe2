@@ -3,6 +3,7 @@
 #include <string.h>
 
 int _spotsno = 0;
+int _spotidx = 0;
 %}
 
 %option prefix="phoebe_legacy"
@@ -204,16 +205,68 @@ GR2_ADJ			fprintf (phoebe_legacyout, "phoebe_grb2.ADJ");
 GR2_DEL			fprintf (phoebe_legacyout, "phoebe_grb2.STEP");
 GR2_MIN			fprintf (phoebe_legacyout, "phoebe_grb2.MIN");
 GR2_MAX			fprintf (phoebe_legacyout, "phoebe_grb2.MAX");
-NSPOTSPRIM[^\n]*"\n"	{ int idx; sscanf (yytext, "NSPOTPRIM = %d", &idx); _spotsno += idx; }
-NSPOTSSEC[^\n]*"\n"	{ int idx; sscanf (yytext, "NSPOTPRIM = %d", &idx); _spotsno += idx; fprintf (phoebe_legacyout, "phoebe_spots_no = %d\n", _spotsno); }
-XLAT1{DIGIT}+	{ int idx; char *ptr = yytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_lat1[%d].VAL", idx); }
-XLONG1{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_long1[%d].VAL", idx); }
-RADSP1{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_rad1[%d].VAL", idx); }
-TEMSP1{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_temp1[%d].VAL", idx); }
-XLAT2{DIGIT}+	{ int idx; char *ptr = yytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_lat2[%d].VAL", idx); }
-XLONG2{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_long2[%d].VAL", idx); }
-RADSP2{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_rad2[%d].VAL", idx); }
-TEMSP2{DIGIT}+	{ int idx; char *ptr = yytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_temp2[%d].VAL", idx); }
+NSPOTSPRIM[^\n]*"\n" {
+				int idx;
+				sscanf (yytext, "NSPOTSPRIM = %d", &idx);
+				_spotsno += idx;
+				_spotidx = idx;
+				}
+NSPOTSSEC[^\n]*"\n" {
+				int idx;
+				sscanf (yytext, "NSPOTSSEC = %d", &idx);
+				_spotsno += idx;
+				fprintf (phoebe_legacyout, "phoebe_spots_no = %d\n", _spotsno);
+				}
+XLAT1{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 5;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_colatitude[%d].VAL", idx);
+				}
+XLONG1{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_source[%d] = 1\n", idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_longitude[%d].VAL", idx);
+				}
+RADSP1{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_radius[%d].VAL", idx);
+				}
+TEMSP1{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_tempfactor[%d].VAL", idx);
+				}
+XLAT2{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 5;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_colatitude[%d].VAL", _spotidx+idx);
+				}
+XLONG2{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_source[%d] = 2\n", _spotidx+idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_longitude[%d].VAL", _spotidx+idx);
+				}
+RADSP2{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_radius[%d].VAL", _spotidx+idx);
+				}
+TEMSP2{DIGIT}+	{
+				int idx;
+				char *ptr = yytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_tempfactor[%d].VAL", _spotidx+idx);
+				}
 N1_VAL			fprintf (phoebe_legacyout, "phoebe_grid_finesize1");
 N2_VAL			fprintf (phoebe_legacyout, "phoebe_grid_finesize2");
 N1L_VAL			fprintf (phoebe_legacyout, "phoebe_grid_coarsesize1");

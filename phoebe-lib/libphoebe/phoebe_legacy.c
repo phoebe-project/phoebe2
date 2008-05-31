@@ -1431,7 +1431,8 @@ char *phoebe_legacytext;
 #include <string.h>
 
 int _spotsno = 0;
-#line 1435 "phoebe_legacy.c"
+int _spotidx = 0;
+#line 1436 "phoebe_legacy.c"
 
 #define INITIAL 0
 
@@ -1584,10 +1585,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 14 "phoebe_legacy.lex"
+#line 15 "phoebe_legacy.lex"
 
 
-#line 1591 "phoebe_legacy.c"
+#line 1592 "phoebe_legacy.c"
 
 	if ( !(yy_init) )
 		{
@@ -1672,1323 +1673,1375 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 16 "phoebe_legacy.lex"
+#line 17 "phoebe_legacy.lex"
 { double val; sscanf (phoebe_legacytext, "\"%lf\"", &val); fprintf (phoebe_legacyout, "%lf", val); }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 18 "phoebe_legacy.lex"
+#line 19 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_name");
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 19 "phoebe_legacy.lex"
+#line 20 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_model");
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 20 "phoebe_legacy.lex"
+#line 21 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_lcno");
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 21 "phoebe_legacy.lex"
+#line 22 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rvno");
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 22 "phoebe_legacy.lex"
+#line 23 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_spno");
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 23 "phoebe_legacy.lex"
+#line 24 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_mnorm");
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 24 "phoebe_legacy.lex"
+#line 25 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_bins_switch");
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 25 "phoebe_legacy.lex"
+#line 26 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_bins");
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 26 "phoebe_legacy.lex"
+#line 27 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ie_switch");
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 27 "phoebe_legacy.lex"
+#line 28 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ie_factor");
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 28 "phoebe_legacy.lex"
+#line 29 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ie_excess");
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 29 "phoebe_legacy.lex"
+#line 30 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_indep[%d]", idx); }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 30 "phoebe_legacy.lex"
+#line 31 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_dep[%d]", idx); }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 31 "phoebe_legacy.lex"
+#line 32 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_indweight[%d]", idx); }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 32 "phoebe_legacy.lex"
+#line 33 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 4; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_filename[%d]", idx); }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 33 "phoebe_legacy.lex"
+#line 34 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_sigma[%d]", idx); }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 34 "phoebe_legacy.lex"
+#line 35 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_filter[%d]", idx); }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 35 "phoebe_legacy.lex"
+#line 36 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_lc_levweight[%d]", idx); }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 36 "phoebe_legacy.lex"
+#line 37 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_indep[%d]", idx); }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 37 "phoebe_legacy.lex"
+#line 38 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_dep[%d]", idx); }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 38 "phoebe_legacy.lex"
+#line 39 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_indweight[%d]", idx); }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 39 "phoebe_legacy.lex"
+#line 40 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 4; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_filename[%d]", idx); }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 40 "phoebe_legacy.lex"
+#line 41 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_sigma[%d]", idx); }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 41 "phoebe_legacy.lex"
+#line 42 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_rv_filter[%d]", idx); }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 42 "phoebe_legacy.lex"
+#line 43 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hjd0.VAL");
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 43 "phoebe_legacy.lex"
+#line 44 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hjd0.ADJ");
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 44 "phoebe_legacy.lex"
+#line 45 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hjd0.STEP");
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 45 "phoebe_legacy.lex"
+#line 46 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hjd0.MIN");
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 46 "phoebe_legacy.lex"
+#line 47 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hjd0.MAX");
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 47 "phoebe_legacy.lex"
+#line 48 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_period.VAL");
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 48 "phoebe_legacy.lex"
+#line 49 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_period.ADJ");
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 49 "phoebe_legacy.lex"
+#line 50 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_period.STEP");
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 50 "phoebe_legacy.lex"
+#line 51 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_period.MIN");
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 51 "phoebe_legacy.lex"
+#line 52 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_period.MAX");
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 52 "phoebe_legacy.lex"
+#line 53 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dpdt.VAL");
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 53 "phoebe_legacy.lex"
+#line 54 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dpdt.ADJ");
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 54 "phoebe_legacy.lex"
+#line 55 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dpdt.STEP");
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 55 "phoebe_legacy.lex"
+#line 56 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dpdt.MIN");
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 56 "phoebe_legacy.lex"
+#line 57 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dpdt.MAX");
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 57 "phoebe_legacy.lex"
+#line 58 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pshift.VAL");
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 58 "phoebe_legacy.lex"
+#line 59 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pshift.ADJ");
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 59 "phoebe_legacy.lex"
+#line 60 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pshift.STEP");
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 60 "phoebe_legacy.lex"
+#line 61 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pshift.MIN");
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 61 "phoebe_legacy.lex"
+#line 62 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pshift.MAX");
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 62 "phoebe_legacy.lex"
+#line 63 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_sma.VAL");
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 63 "phoebe_legacy.lex"
+#line 64 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_sma.ADJ");
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 64 "phoebe_legacy.lex"
+#line 65 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_sma.STEP");
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 65 "phoebe_legacy.lex"
+#line 66 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_sma.MIN");
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 66 "phoebe_legacy.lex"
+#line 67 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_sma.MAX");
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 67 "phoebe_legacy.lex"
+#line 68 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rm.VAL");
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 68 "phoebe_legacy.lex"
+#line 69 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rm.ADJ");
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 69 "phoebe_legacy.lex"
+#line 70 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rm.STEP");
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 70 "phoebe_legacy.lex"
+#line 71 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rm.MIN");
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 71 "phoebe_legacy.lex"
+#line 72 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_rm.MAX");
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 72 "phoebe_legacy.lex"
+#line 73 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_incl.VAL");
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 73 "phoebe_legacy.lex"
+#line 74 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_incl.ADJ");
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 74 "phoebe_legacy.lex"
+#line 75 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_incl.STEP");
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 75 "phoebe_legacy.lex"
+#line 76 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_incl.MIN");
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 76 "phoebe_legacy.lex"
+#line 77 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_incl.MAX");
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 77 "phoebe_legacy.lex"
+#line 78 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_vga.VAL");
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 78 "phoebe_legacy.lex"
+#line 79 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_vga.ADJ");
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 79 "phoebe_legacy.lex"
+#line 80 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_vga.STEP");
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 80 "phoebe_legacy.lex"
+#line 81 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_vga.MIN");
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 81 "phoebe_legacy.lex"
+#line 82 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_vga.MAX");
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 82 "phoebe_legacy.lex"
+#line 83 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff1.VAL");
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 83 "phoebe_legacy.lex"
+#line 84 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff1.ADJ");
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 84 "phoebe_legacy.lex"
+#line 85 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff1.STEP");
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 85 "phoebe_legacy.lex"
+#line 86 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff1.MIN");
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 86 "phoebe_legacy.lex"
+#line 87 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff1.MAX");
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 87 "phoebe_legacy.lex"
+#line 88 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff2.VAL");
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 88 "phoebe_legacy.lex"
+#line 89 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff2.ADJ");
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 89 "phoebe_legacy.lex"
+#line 90 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff2.STEP");
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 90 "phoebe_legacy.lex"
+#line 91 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff2.MIN");
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 91 "phoebe_legacy.lex"
+#line 92 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_teff2.MAX");
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 92 "phoebe_legacy.lex"
+#line 93 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot1.VAL");
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 93 "phoebe_legacy.lex"
+#line 94 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot1.ADJ");
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 94 "phoebe_legacy.lex"
+#line 95 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot1.STEP");
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 95 "phoebe_legacy.lex"
+#line 96 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot1.MIN");
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 96 "phoebe_legacy.lex"
+#line 97 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot1.MAX");
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 97 "phoebe_legacy.lex"
+#line 98 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot2.VAL");
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 98 "phoebe_legacy.lex"
+#line 99 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot2.ADJ");
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 99 "phoebe_legacy.lex"
+#line 100 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot2.STEP");
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 100 "phoebe_legacy.lex"
+#line 101 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot2.MIN");
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 101 "phoebe_legacy.lex"
+#line 102 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_pot2.MAX");
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 102 "phoebe_legacy.lex"
+#line 103 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg1.VAL");
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 103 "phoebe_legacy.lex"
+#line 104 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg1.ADJ");
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 104 "phoebe_legacy.lex"
+#line 105 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg1.STEP");
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 105 "phoebe_legacy.lex"
+#line 106 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg1.MIN");
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 106 "phoebe_legacy.lex"
+#line 107 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg1.MAX");
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 107 "phoebe_legacy.lex"
+#line 108 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg2.VAL");
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 108 "phoebe_legacy.lex"
+#line 109 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg2.ADJ");
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 109 "phoebe_legacy.lex"
+#line 110 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg2.STEP");
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 110 "phoebe_legacy.lex"
+#line 111 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg2.MIN");
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 111 "phoebe_legacy.lex"
+#line 112 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_logg2.MAX");
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 112 "phoebe_legacy.lex"
+#line 113 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met1.VAL");
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 113 "phoebe_legacy.lex"
+#line 114 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met1.ADJ");
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 114 "phoebe_legacy.lex"
+#line 115 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met1.STEP");
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 115 "phoebe_legacy.lex"
+#line 116 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met1.MIN");
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 116 "phoebe_legacy.lex"
+#line 117 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met1.MAX");
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 117 "phoebe_legacy.lex"
+#line 118 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met2.VAL");
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 118 "phoebe_legacy.lex"
+#line 119 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met2.ADJ");
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 119 "phoebe_legacy.lex"
+#line 120 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met2.STEP");
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 120 "phoebe_legacy.lex"
+#line 121 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met2.MIN");
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 121 "phoebe_legacy.lex"
+#line 122 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_met2.MAX");
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 122 "phoebe_legacy.lex"
+#line 123 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ecc.VAL");
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 123 "phoebe_legacy.lex"
+#line 124 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ecc.ADJ");
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 124 "phoebe_legacy.lex"
+#line 125 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ecc.STEP");
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 125 "phoebe_legacy.lex"
+#line 126 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ecc.MIN");
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 126 "phoebe_legacy.lex"
+#line 127 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ecc.MAX");
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 127 "phoebe_legacy.lex"
+#line 128 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_perr0.VAL");
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 128 "phoebe_legacy.lex"
+#line 129 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_perr0.ADJ");
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 129 "phoebe_legacy.lex"
+#line 130 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_perr0.STEP");
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 130 "phoebe_legacy.lex"
+#line 131 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_perr0.MIN");
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 131 "phoebe_legacy.lex"
+#line 132 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_perr0.MAX");
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 132 "phoebe_legacy.lex"
+#line 133 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dperdt.VAL");
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 133 "phoebe_legacy.lex"
+#line 134 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dperdt.ADJ");
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
-#line 134 "phoebe_legacy.lex"
+#line 135 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dperdt.STEP");
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 135 "phoebe_legacy.lex"
+#line 136 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dperdt.MIN");
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 136 "phoebe_legacy.lex"
+#line 137 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_dperdt.MAX");
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 137 "phoebe_legacy.lex"
+#line 138 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f1.VAL");
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
-#line 138 "phoebe_legacy.lex"
+#line 139 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f1.ADJ");
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
-#line 139 "phoebe_legacy.lex"
+#line 140 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f1.STEP");
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 140 "phoebe_legacy.lex"
+#line 141 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f1.MIN");
 	YY_BREAK
 case 125:
 YY_RULE_SETUP
-#line 141 "phoebe_legacy.lex"
+#line 142 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f1.MAX");
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 142 "phoebe_legacy.lex"
+#line 143 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f2.VAL");
 	YY_BREAK
 case 127:
 YY_RULE_SETUP
-#line 143 "phoebe_legacy.lex"
+#line 144 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f2.ADJ");
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 144 "phoebe_legacy.lex"
+#line 145 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f2.STEP");
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
-#line 145 "phoebe_legacy.lex"
+#line 146 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f2.MIN");
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 146 "phoebe_legacy.lex"
+#line 147 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_f2.MAX");
 	YY_BREAK
 case 131:
 YY_RULE_SETUP
-#line 147 "phoebe_legacy.lex"
+#line 148 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_hla[%d].VAL", idx); }
 	YY_BREAK
 case 132:
 YY_RULE_SETUP
-#line 148 "phoebe_legacy.lex"
+#line 149 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hla.ADJ");
 	YY_BREAK
 case 133:
 YY_RULE_SETUP
-#line 149 "phoebe_legacy.lex"
+#line 150 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_hla.STEP");
 	YY_BREAK
 case 134:
 YY_RULE_SETUP
-#line 150 "phoebe_legacy.lex"
+#line 151 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_cla[%d].VAL", idx); }
 	YY_BREAK
 case 135:
 YY_RULE_SETUP
-#line 151 "phoebe_legacy.lex"
+#line 152 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_cla.ADJ");
 	YY_BREAK
 case 136:
 YY_RULE_SETUP
-#line 152 "phoebe_legacy.lex"
+#line 153 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_cla.STEP");
 	YY_BREAK
 case 137:
 YY_RULE_SETUP
-#line 153 "phoebe_legacy.lex"
+#line 154 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 3; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_el3[%d].VAL", idx); }
 	YY_BREAK
 case 138:
 YY_RULE_SETUP
-#line 154 "phoebe_legacy.lex"
+#line 155 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_el3.ADJ");
 	YY_BREAK
 case 139:
 YY_RULE_SETUP
-#line 155 "phoebe_legacy.lex"
+#line 156 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_el3.STEP");
 	YY_BREAK
 case 140:
 YY_RULE_SETUP
-#line 156 "phoebe_legacy.lex"
+#line 157 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 4; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_opsf[%d].VAL", idx); }
 	YY_BREAK
 case 141:
 YY_RULE_SETUP
-#line 157 "phoebe_legacy.lex"
+#line 158 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_opsf.ADJ");
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 158 "phoebe_legacy.lex"
+#line 159 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_opsf.STEP");
 	YY_BREAK
 case 143:
 YY_RULE_SETUP
-#line 159 "phoebe_legacy.lex"
+#line 160 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_usecla_switch");
 	YY_BREAK
 case 144:
 YY_RULE_SETUP
-#line 160 "phoebe_legacy.lex"
+#line 161 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_reffect_switch");
 	YY_BREAK
 case 145:
 YY_RULE_SETUP
-#line 161 "phoebe_legacy.lex"
+#line 162 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_reffect_reflections");
 	YY_BREAK
 case 146:
 YY_RULE_SETUP
-#line 162 "phoebe_legacy.lex"
+#line 163 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_atm1_switch");
 	YY_BREAK
 case 147:
 YY_RULE_SETUP
-#line 163 "phoebe_legacy.lex"
+#line 164 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_atm2_switch");
 	YY_BREAK
 case 148:
 YY_RULE_SETUP
-#line 164 "phoebe_legacy.lex"
+#line 165 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_synscatter_switch");
 	YY_BREAK
 case 149:
 YY_RULE_SETUP
-#line 165 "phoebe_legacy.lex"
+#line 166 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_synscatter_levweight");
 	YY_BREAK
 case 150:
 YY_RULE_SETUP
-#line 166 "phoebe_legacy.lex"
+#line 167 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_synscatter_sigma");
 	YY_BREAK
 case 151:
 YY_RULE_SETUP
-#line 167 "phoebe_legacy.lex"
+#line 168 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_synscatter_seed");
 	YY_BREAK
 case 152:
 YY_RULE_SETUP
-#line 168 "phoebe_legacy.lex"
+#line 169 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_proximity_rv1_switch");
 	YY_BREAK
 case 153:
 YY_RULE_SETUP
-#line 169 "phoebe_legacy.lex"
+#line 170 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_proximity_rv2_switch");
 	YY_BREAK
 case 154:
 YY_RULE_SETUP
-#line 170 "phoebe_legacy.lex"
+#line 171 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_model");
 	YY_BREAK
 case 155:
 YY_RULE_SETUP
-#line 171 "phoebe_legacy.lex"
+#line 172 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_xbol1");
 	YY_BREAK
 case 156:
 YY_RULE_SETUP
-#line 172 "phoebe_legacy.lex"
+#line 173 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_xbol2");
 	YY_BREAK
 case 157:
 YY_RULE_SETUP
-#line 173 "phoebe_legacy.lex"
+#line 174 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_ybol1");
 	YY_BREAK
 case 158:
 YY_RULE_SETUP
-#line 174 "phoebe_legacy.lex"
+#line 175 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_ybol2");
 	YY_BREAK
 case 159:
 YY_RULE_SETUP
-#line 175 "phoebe_legacy.lex"
+#line 176 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_lcx1[%d].VAL", idx); }
 	YY_BREAK
 case 160:
 YY_RULE_SETUP
-#line 176 "phoebe_legacy.lex"
+#line 177 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_lcx2[%d].VAL", idx); }
 	YY_BREAK
 case 161:
 YY_RULE_SETUP
-#line 177 "phoebe_legacy.lex"
+#line 178 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_lcy1[%d].VAL", idx); }
 	YY_BREAK
 case 162:
 YY_RULE_SETUP
-#line 178 "phoebe_legacy.lex"
+#line 179 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_lcy2[%d].VAL", idx); }
 	YY_BREAK
 case 163:
 YY_RULE_SETUP
-#line 179 "phoebe_legacy.lex"
+#line 180 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_rvx1[%d].VAL", idx); }
 	YY_BREAK
 case 164:
 YY_RULE_SETUP
-#line 180 "phoebe_legacy.lex"
+#line 181 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_rvx2[%d].VAL", idx); }
 	YY_BREAK
 case 165:
 YY_RULE_SETUP
-#line 181 "phoebe_legacy.lex"
+#line 182 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_rvy1[%d].VAL", idx); }
 	YY_BREAK
 case 166:
 YY_RULE_SETUP
-#line 182 "phoebe_legacy.lex"
+#line 183 "phoebe_legacy.lex"
 { int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_ld_rvy2[%d].VAL", idx); }
 	YY_BREAK
 case 167:
 YY_RULE_SETUP
-#line 183 "phoebe_legacy.lex"
+#line 184 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_lcx1.STEP");
 	YY_BREAK
 case 168:
 YY_RULE_SETUP
-#line 184 "phoebe_legacy.lex"
+#line 185 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_lcx2.STEP");
 	YY_BREAK
 case 169:
 YY_RULE_SETUP
-#line 185 "phoebe_legacy.lex"
+#line 186 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_lcx1.ADJ");
 	YY_BREAK
 case 170:
 YY_RULE_SETUP
-#line 186 "phoebe_legacy.lex"
+#line 187 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_ld_lcx2.ADJ");
 	YY_BREAK
 case 171:
 YY_RULE_SETUP
-#line 187 "phoebe_legacy.lex"
+#line 188 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb1.VAL");
 	YY_BREAK
 case 172:
 YY_RULE_SETUP
-#line 188 "phoebe_legacy.lex"
+#line 189 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb1.ADJ");
 	YY_BREAK
 case 173:
 YY_RULE_SETUP
-#line 189 "phoebe_legacy.lex"
+#line 190 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb1.STEP");
 	YY_BREAK
 case 174:
 YY_RULE_SETUP
-#line 190 "phoebe_legacy.lex"
+#line 191 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb1.MIN");
 	YY_BREAK
 case 175:
 YY_RULE_SETUP
-#line 191 "phoebe_legacy.lex"
+#line 192 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb1.MAX");
 	YY_BREAK
 case 176:
 YY_RULE_SETUP
-#line 192 "phoebe_legacy.lex"
+#line 193 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb2.VAL");
 	YY_BREAK
 case 177:
 YY_RULE_SETUP
-#line 193 "phoebe_legacy.lex"
+#line 194 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb2.ADJ");
 	YY_BREAK
 case 178:
 YY_RULE_SETUP
-#line 194 "phoebe_legacy.lex"
+#line 195 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb2.STEP");
 	YY_BREAK
 case 179:
 YY_RULE_SETUP
-#line 195 "phoebe_legacy.lex"
+#line 196 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb2.MIN");
 	YY_BREAK
 case 180:
 YY_RULE_SETUP
-#line 196 "phoebe_legacy.lex"
+#line 197 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_alb2.MAX");
 	YY_BREAK
 case 181:
 YY_RULE_SETUP
-#line 197 "phoebe_legacy.lex"
+#line 198 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb1.VAL");
 	YY_BREAK
 case 182:
 YY_RULE_SETUP
-#line 198 "phoebe_legacy.lex"
+#line 199 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb1.ADJ");
 	YY_BREAK
 case 183:
 YY_RULE_SETUP
-#line 199 "phoebe_legacy.lex"
+#line 200 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb1.STEP");
 	YY_BREAK
 case 184:
 YY_RULE_SETUP
-#line 200 "phoebe_legacy.lex"
+#line 201 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb1.MIN");
 	YY_BREAK
 case 185:
 YY_RULE_SETUP
-#line 201 "phoebe_legacy.lex"
+#line 202 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb1.MAX");
 	YY_BREAK
 case 186:
 YY_RULE_SETUP
-#line 202 "phoebe_legacy.lex"
+#line 203 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb2.VAL");
 	YY_BREAK
 case 187:
 YY_RULE_SETUP
-#line 203 "phoebe_legacy.lex"
+#line 204 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb2.ADJ");
 	YY_BREAK
 case 188:
 YY_RULE_SETUP
-#line 204 "phoebe_legacy.lex"
+#line 205 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb2.STEP");
 	YY_BREAK
 case 189:
 YY_RULE_SETUP
-#line 205 "phoebe_legacy.lex"
+#line 206 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb2.MIN");
 	YY_BREAK
 case 190:
 YY_RULE_SETUP
-#line 206 "phoebe_legacy.lex"
+#line 207 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grb2.MAX");
 	YY_BREAK
 case 191:
 /* rule 191 can match eol */
 YY_RULE_SETUP
-#line 207 "phoebe_legacy.lex"
-{ int idx; sscanf (phoebe_legacytext, "NSPOTPRIM = %d", &idx); _spotsno += idx; }
+#line 208 "phoebe_legacy.lex"
+{
+				int idx;
+				sscanf (phoebe_legacytext, "NSPOTSPRIM = %d", &idx);
+				_spotsno += idx;
+				_spotidx = idx;
+				}
 	YY_BREAK
 case 192:
 /* rule 192 can match eol */
 YY_RULE_SETUP
-#line 208 "phoebe_legacy.lex"
-{ int idx; sscanf (phoebe_legacytext, "NSPOTPRIM = %d", &idx); _spotsno += idx; fprintf (phoebe_legacyout, "phoebe_spots_no = %d\n", _spotsno); }
+#line 214 "phoebe_legacy.lex"
+{
+				int idx;
+				sscanf (phoebe_legacytext, "NSPOTSSEC = %d", &idx);
+				_spotsno += idx;
+				fprintf (phoebe_legacyout, "phoebe_spots_no = %d\n", _spotsno);
+				}
 	YY_BREAK
 case 193:
 YY_RULE_SETUP
-#line 209 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_lat1[%d].VAL", idx); }
+#line 220 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 5;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_colatitude[%d].VAL", idx);
+				}
 	YY_BREAK
 case 194:
 YY_RULE_SETUP
-#line 210 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_long1[%d].VAL", idx); }
+#line 226 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_source[%d] = 1\n", idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_longitude[%d].VAL", idx);
+				}
 	YY_BREAK
 case 195:
 YY_RULE_SETUP
-#line 211 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_rad1[%d].VAL", idx); }
+#line 233 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_radius[%d].VAL", idx);
+				}
 	YY_BREAK
 case 196:
 YY_RULE_SETUP
-#line 212 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_temp1[%d].VAL", idx); }
+#line 239 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_tempfactor[%d].VAL", idx);
+				}
 	YY_BREAK
 case 197:
 YY_RULE_SETUP
-#line 213 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 5; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_lat2[%d].VAL", idx); }
+#line 245 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 5;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_colatitude[%d].VAL", _spotidx+idx);
+				}
 	YY_BREAK
 case 198:
 YY_RULE_SETUP
-#line 214 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_long2[%d].VAL", idx); }
+#line 251 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_source[%d] = 2\n", _spotidx+idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_longitude[%d].VAL", _spotidx+idx);
+				}
 	YY_BREAK
 case 199:
 YY_RULE_SETUP
-#line 215 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_rad2[%d].VAL", idx); }
+#line 258 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_radius[%d].VAL", _spotidx+idx);
+				}
 	YY_BREAK
 case 200:
 YY_RULE_SETUP
-#line 216 "phoebe_legacy.lex"
-{ int idx; char *ptr = phoebe_legacytext+ 6; sscanf (ptr, "%d", &idx); fprintf (phoebe_legacyout, "phoebe_spots_temp2[%d].VAL", idx); }
+#line 264 "phoebe_legacy.lex"
+{
+				int idx;
+				char *ptr = phoebe_legacytext+ 6;
+				sscanf (ptr, "%d", &idx);
+				fprintf (phoebe_legacyout, "phoebe_spots_tempfactor[%d].VAL", _spotidx+idx);
+				}
 	YY_BREAK
 case 201:
 YY_RULE_SETUP
-#line 217 "phoebe_legacy.lex"
+#line 270 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grid_finesize1");
 	YY_BREAK
 case 202:
 YY_RULE_SETUP
-#line 218 "phoebe_legacy.lex"
+#line 271 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grid_finesize2");
 	YY_BREAK
 case 203:
 YY_RULE_SETUP
-#line 219 "phoebe_legacy.lex"
+#line 272 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grid_coarsesize1");
 	YY_BREAK
 case 204:
 YY_RULE_SETUP
-#line 220 "phoebe_legacy.lex"
+#line 273 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "phoebe_grid_coarsesize2");
 	YY_BREAK
 case 205:
 YY_RULE_SETUP
-#line 222 "phoebe_legacy.lex"
+#line 275 "phoebe_legacy.lex"
 { int idx; sscanf (phoebe_legacytext, "JDPHS_TIME = %d", &idx); if (idx == 1) fprintf (phoebe_legacyout, "phoebe_indep = \"Time (HJD)\""); else fprintf (phoebe_legacyout, "phoebe_indep = \"Phase\""); }
 	YY_BREAK
 case 206:
 YY_RULE_SETUP
-#line 223 "phoebe_legacy.lex"
+#line 276 "phoebe_legacy.lex"
 { int idx; sscanf (phoebe_legacytext, "EL3_FLUX = %d", &idx); if (idx == 0) fprintf (phoebe_legacyout, "phoebe_el3_units = \"Total light\""); else fprintf (phoebe_legacyout, "phoebe_el3_units = \"Flux\""); }
 	YY_BREAK
 case 207:
 YY_RULE_SETUP
-#line 225 "phoebe_legacy.lex"
+#line 278 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Time (HJD)");
 	YY_BREAK
 case 208:
 YY_RULE_SETUP
-#line 227 "phoebe_legacy.lex"
+#line 280 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Standard weight");
 	YY_BREAK
 case 209:
 YY_RULE_SETUP
-#line 228 "phoebe_legacy.lex"
+#line 281 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Standard weight");
 	YY_BREAK
 case 210:
 YY_RULE_SETUP
-#line 229 "phoebe_legacy.lex"
+#line 282 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Standard deviation");
 	YY_BREAK
 case 211:
 YY_RULE_SETUP
-#line 231 "phoebe_legacy.lex"
+#line 284 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "[CHANGED IN 0.30]");
 	YY_BREAK
 case 212:
 YY_RULE_SETUP
-#line 232 "phoebe_legacy.lex"
+#line 285 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "[CHANGED IN 0.30]");
 	YY_BREAK
 case 213:
 YY_RULE_SETUP
-#line 234 "phoebe_legacy.lex"
+#line 287 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:U");
 	YY_BREAK
 case 214:
 YY_RULE_SETUP
-#line 235 "phoebe_legacy.lex"
+#line 288 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:B");
 	YY_BREAK
 case 215:
 YY_RULE_SETUP
-#line 236 "phoebe_legacy.lex"
+#line 289 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:V");
 	YY_BREAK
 case 216:
 YY_RULE_SETUP
-#line 237 "phoebe_legacy.lex"
+#line 290 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:R");
 	YY_BREAK
 case 217:
 YY_RULE_SETUP
-#line 238 "phoebe_legacy.lex"
+#line 291 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:I");
 	YY_BREAK
 case 218:
 YY_RULE_SETUP
-#line 239 "phoebe_legacy.lex"
+#line 292 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:J");
 	YY_BREAK
 case 219:
 YY_RULE_SETUP
-#line 240 "phoebe_legacy.lex"
+#line 293 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:H");
 	YY_BREAK
 case 220:
 YY_RULE_SETUP
-#line 241 "phoebe_legacy.lex"
+#line 294 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:K");
 	YY_BREAK
 case 221:
 YY_RULE_SETUP
-#line 242 "phoebe_legacy.lex"
+#line 295 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:L");
 	YY_BREAK
 case 222:
 YY_RULE_SETUP
-#line 243 "phoebe_legacy.lex"
+#line 296 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:M");
 	YY_BREAK
 case 223:
 YY_RULE_SETUP
-#line 244 "phoebe_legacy.lex"
+#line 297 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Johnson:N");
 	YY_BREAK
 case 224:
 YY_RULE_SETUP
-#line 246 "phoebe_legacy.lex"
+#line 299 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Cousins:R");
 	YY_BREAK
 case 225:
 YY_RULE_SETUP
-#line 247 "phoebe_legacy.lex"
+#line 300 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Cousins:I");
 	YY_BREAK
 case 226:
 YY_RULE_SETUP
-#line 249 "phoebe_legacy.lex"
+#line 302 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Hipparcos:BT");
 	YY_BREAK
 case 227:
 YY_RULE_SETUP
-#line 250 "phoebe_legacy.lex"
+#line 303 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Hipparcos:Hp");
 	YY_BREAK
 case 228:
 YY_RULE_SETUP
-#line 251 "phoebe_legacy.lex"
+#line 304 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Hipparcos:VT");
 	YY_BREAK
 case 229:
 YY_RULE_SETUP
-#line 253 "phoebe_legacy.lex"
+#line 306 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Stromgren:u");
 	YY_BREAK
 case 230:
 YY_RULE_SETUP
-#line 254 "phoebe_legacy.lex"
+#line 307 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Stromgren:v");
 	YY_BREAK
 case 231:
 YY_RULE_SETUP
-#line 255 "phoebe_legacy.lex"
+#line 308 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Stromgren:b");
 	YY_BREAK
 case 232:
 YY_RULE_SETUP
-#line 256 "phoebe_legacy.lex"
+#line 309 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Stromgren:y");
 	YY_BREAK
 case 233:
 YY_RULE_SETUP
-#line 258 "phoebe_legacy.lex"
+#line 311 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "[CHANGED IN 0.30]");
 	YY_BREAK
 case 234:
 YY_RULE_SETUP
-#line 260 "phoebe_legacy.lex"
+#line 313 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Linear cosine law");
 	YY_BREAK
 case 235:
 YY_RULE_SETUP
-#line 261 "phoebe_legacy.lex"
+#line 314 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Logarithmic law");
 	YY_BREAK
 case 236:
 YY_RULE_SETUP
-#line 262 "phoebe_legacy.lex"
+#line 315 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Square root law");
 	YY_BREAK
 case 237:
 YY_RULE_SETUP
-#line 264 "phoebe_legacy.lex"
+#line 317 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Unconstrained binary system");
 	YY_BREAK
 case 238:
 YY_RULE_SETUP
-#line 266 "phoebe_legacy.lex"
+#line 319 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "None");
 	YY_BREAK
 case 239:
 YY_RULE_SETUP
-#line 267 "phoebe_legacy.lex"
+#line 320 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "None");
 	YY_BREAK
 case 240:
 YY_RULE_SETUP
-#line 268 "phoebe_legacy.lex"
+#line 321 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Poissonian scatter");
 	YY_BREAK
 case 241:
 YY_RULE_SETUP
-#line 269 "phoebe_legacy.lex"
+#line 322 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Low light scatter");
 	YY_BREAK
 case 242:
 YY_RULE_SETUP
-#line 270 "phoebe_legacy.lex"
+#line 323 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Poissonian scatter");
 	YY_BREAK
 case 243:
 YY_RULE_SETUP
-#line 271 "phoebe_legacy.lex"
+#line 324 "phoebe_legacy.lex"
 fprintf (phoebe_legacyout, "Low light scatter");
 	YY_BREAK
 case 244:
 /* rule 244 can match eol */
 YY_RULE_SETUP
-#line 273 "phoebe_legacy.lex"
+#line 326 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 245:
 /* rule 245 can match eol */
 YY_RULE_SETUP
-#line 274 "phoebe_legacy.lex"
+#line 327 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 246:
 /* rule 246 can match eol */
 YY_RULE_SETUP
-#line 275 "phoebe_legacy.lex"
+#line 328 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 247:
 /* rule 247 can match eol */
 YY_RULE_SETUP
-#line 276 "phoebe_legacy.lex"
+#line 329 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 248:
 /* rule 248 can match eol */
 YY_RULE_SETUP
-#line 277 "phoebe_legacy.lex"
+#line 330 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 249:
 /* rule 249 can match eol */
 YY_RULE_SETUP
-#line 278 "phoebe_legacy.lex"
+#line 331 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 250:
 /* rule 250 can match eol */
 YY_RULE_SETUP
-#line 279 "phoebe_legacy.lex"
+#line 332 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 251:
 /* rule 251 can match eol */
 YY_RULE_SETUP
-#line 280 "phoebe_legacy.lex"
+#line 333 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 252:
 /* rule 252 can match eol */
 YY_RULE_SETUP
-#line 281 "phoebe_legacy.lex"
+#line 334 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 253:
 /* rule 253 can match eol */
 YY_RULE_SETUP
-#line 282 "phoebe_legacy.lex"
+#line 335 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 254:
 /* rule 254 can match eol */
 YY_RULE_SETUP
-#line 283 "phoebe_legacy.lex"
+#line 336 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 255:
 /* rule 255 can match eol */
 YY_RULE_SETUP
-#line 284 "phoebe_legacy.lex"
+#line 337 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 256:
 /* rule 256 can match eol */
 YY_RULE_SETUP
-#line 285 "phoebe_legacy.lex"
+#line 338 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 257:
 /* rule 257 can match eol */
 YY_RULE_SETUP
-#line 286 "phoebe_legacy.lex"
+#line 339 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 258:
 /* rule 258 can match eol */
 YY_RULE_SETUP
-#line 287 "phoebe_legacy.lex"
+#line 340 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 259:
 /* rule 259 can match eol */
 YY_RULE_SETUP
-#line 288 "phoebe_legacy.lex"
+#line 341 "phoebe_legacy.lex"
 
 	YY_BREAK
 case 260:
 YY_RULE_SETUP
-#line 290 "phoebe_legacy.lex"
+#line 343 "phoebe_legacy.lex"
 ECHO;
 	YY_BREAK
-#line 2992 "phoebe_legacy.c"
+#line 3045 "phoebe_legacy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -3986,7 +4039,7 @@ void phoebe_legacyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 290 "phoebe_legacy.lex"
+#line 343 "phoebe_legacy.lex"
 
 
 
