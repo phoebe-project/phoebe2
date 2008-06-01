@@ -1743,6 +1743,8 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_options_x_combobox_changed (GtkComboBox *
 		/* Phase */
 		gtk_label_set_text(GTK_LABEL(rv_xstart_label->gtk), "Phase start:");
 		gtk_label_set_text(GTK_LABEL(rv_xend_label->gtk), "Phase end:");
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(rv_xstart_spinbutton->gtk), -10.0, 10.0);
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(rv_xend_spinbutton->gtk), -10.0, 10.0);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(rv_xstart_spinbutton->gtk), -0.6);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(rv_xend_spinbutton->gtk), 0.6);
 	}
@@ -1750,6 +1752,8 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_options_x_combobox_changed (GtkComboBox *
 		/* Time */
 		gtk_label_set_text(GTK_LABEL(rv_xstart_label->gtk), "Time start: ");
 		gtk_label_set_text(GTK_LABEL(rv_xend_label->gtk), "Time end: ");
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(rv_xstart_spinbutton->gtk), -1e10, 1e10);
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(rv_xend_spinbutton->gtk), -1e10, 1e10);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(rv_xstart_spinbutton->gtk), -0.1);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(rv_xend_spinbutton->gtk), 1.1);
 	}
@@ -1767,6 +1771,8 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_options_x_combobox_changed (GtkComboBox *
 		/* Phase */
 		gtk_label_set_text(GTK_LABEL(lc_xstart_label->gtk), "Phase start:");
 		gtk_label_set_text(GTK_LABEL(lc_xend_label->gtk), "Phase end:");
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(lc_xstart_spinbutton->gtk), -10.0, 10.0);
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(lc_xend_spinbutton->gtk), -10.0, 10.0);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lc_xstart_spinbutton->gtk), -0.6);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lc_xend_spinbutton->gtk), 0.6);
 	}
@@ -1774,6 +1780,8 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_options_x_combobox_changed (GtkComboBox *
 		/* Time */
 		gtk_label_set_text(GTK_LABEL(lc_xstart_label->gtk), "Time start: ");
 		gtk_label_set_text(GTK_LABEL(lc_xend_label->gtk), "Time end: ");
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(lc_xstart_spinbutton->gtk), -1e10, 1e10);
+		gtk_spin_button_set_range(GTK_SPIN_BUTTON(lc_xend_spinbutton->gtk), -1e10, 1e10);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lc_xstart_spinbutton->gtk), -0.1);
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(lc_xend_spinbutton->gtk), 1.1);
 	}
