@@ -978,6 +978,9 @@ int gui_plot_eb_using_gnuplot ()
 		return status;
 	}
 
+	/* 3D plotting is always done in phase space, regardless of the settings: */
+	params->JDPHS = 2;
+
 	filename = phoebe_resolve_relative_filename ("lcin.active");
 	create_lci_file (filename, params);
 	free (params);
