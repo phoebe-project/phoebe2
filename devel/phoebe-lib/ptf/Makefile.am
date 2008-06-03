@@ -29,8 +29,6 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  bessell_1988_m.txt          \
                  cousins.R                   \
                  cousins.I                   \
-                 #corot.exo                   \
-                 #corot.sis                   \
                  geneva_1962_b1.txt          \
                  geneva_1962_b2.txt          \
                  geneva_1962_b.txt           \
