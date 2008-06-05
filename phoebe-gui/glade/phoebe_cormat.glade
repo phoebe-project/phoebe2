@@ -9,7 +9,7 @@
     <property name="default_width">500</property>
     <property name="default_height">250</property>
     <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
-    <property name="deletable">False</property>
+    <property name="deletable">True</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
