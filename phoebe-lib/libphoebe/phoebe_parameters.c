@@ -1594,6 +1594,106 @@ double phoebe_spots_units_to_wd_conversion_factor ()
 
 }
 
+int phoebe_active_lcno_get (int *active_lcno, PHOEBE_array **active_lcindices)
+{
+	/**
+	 * phoebe_active_lcno_get:
+	 * @active_lcno: placeholder for the number of active light curves.
+	 * @active_lcindices: placeholder for the array of active light curve indices 
+	 *
+	 * Sweeps through all defined light curves and counts the ones that are
+	 * active (i.e. their activity switch is set to 1). Active light curve
+	 * indices are stored in the passed array @active_lcindices. The array
+	 * should not be initialized or allocated by the calling function, but
+	 * it should be freed afrer use.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, lcno;
+	bool active;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	if (lcno == 0) {
+		*active_lcno = 0;
+		*active_lcindices = NULL;
+		return SUCCESS;
+	}
+
+	*active_lcindices = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (*active_lcindices, lcno);
+
+	*active_lcno = 0;
+	for (i = 0; i < lcno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_active"), i, &active);
+		if (active) {
+			(*active_lcindices)->val.iarray[*active_lcno] = i;
+			(*active_lcno)++;
+		}
+	}
+
+	if (*active_lcno == 0) {
+		phoebe_array_free (*active_lcindices);
+		*active_lcindices = NULL;
+		return SUCCESS;
+	}
+
+	if (*active_lcno != lcno)
+		phoebe_array_realloc (*active_lcindices, *active_lcno);
+
+	return SUCCESS;
+}
+
+int phoebe_active_rvno_get (int *active_rvno, PHOEBE_array **active_rvindices)
+{
+	/**
+	 * phoebe_active_rvno_get:
+	 * @active_rvno: placeholder for the number of active RV curves.
+	 * @active_rvindices: placeholder for the array of active RV curve indices 
+	 *
+	 * Sweeps through all defined RV curves and counts the ones that are
+	 * active (i.e. their activity switch is set to 1). Active RV curve
+	 * indices are stored in the passed array @active_rvindices. The array
+	 * should not be initialized or allocated by the calling function, but
+	 * it should be freed afrer use.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, rvno;
+	bool active;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+	if (rvno == 0) {
+		*active_rvno = 0;
+		*active_rvindices = NULL;
+		return SUCCESS;
+	}
+
+	*active_rvindices = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (*active_rvindices, rvno);
+
+	*active_rvno = 0;
+	for (i = 0; i < rvno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_active"), i, &active);
+		if (active) {
+			(*active_rvindices)->val.iarray[*active_rvno] = i;
+			(*active_rvno)++;
+		}
+	}
+
+	if (*active_rvno == 0) {
+		phoebe_array_free (*active_rvindices);
+		*active_rvindices = NULL;
+		return SUCCESS;
+	}
+
+	if (*active_rvno != rvno)
+		phoebe_array_realloc (*active_rvindices, *active_rvno);
+
+	return SUCCESS;
+}
+
 int phoebe_open_parameter_file (const char *filename)
 {
 	/*
