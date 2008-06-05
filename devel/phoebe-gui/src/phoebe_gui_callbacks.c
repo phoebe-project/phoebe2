@@ -365,6 +365,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		count = phoebe_minimizer_feedback->qualifiers->dim;
 		for(index = 0; index < count; index++){
 			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+
 			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
 			MF_COL_QUALIFIER, phoebe_minimizer_feedback->qualifiers->val.strarray[index],
 			MF_COL_INITVAL, phoebe_minimizer_feedback->initvals->val[index],
@@ -1401,17 +1402,15 @@ G_MODULE_EXPORT void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuite
 {
 	int status = 0;
 
-	//status = gui_get_values_from_widgets();
+	status = gui_get_values_from_widgets();
 
-	//if(PHOEBE_FILEFLAG)
-		//status = phoebe_save_parameter_file(PHOEBE_FILENAME);
-	//else
-		//status = gui_save_parameter_file ();
-
-	printf("In on_phoebe_file_save_menuitem_activate\n");
+	if(PHOEBE_FILEFLAG)
+		status = phoebe_save_parameter_file(PHOEBE_FILENAME);
+	else
+		status = gui_save_parameter_file ();
 
 	if( status != SUCCESS )
-		printf ("%s", phoebe_error (status));
+		printf ("%s\n", phoebe_error (status));
 }
 
 G_MODULE_EXPORT void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
