@@ -130,6 +130,11 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units);
 
 /* ************************************************************************** */
 
+int phoebe_active_lcno_get (int *active_lcno, PHOEBE_array **active_lcindices);
+int phoebe_active_rvno_get (int *active_rvno, PHOEBE_array **active_rvindices);
+
+/* ************************************************************************** */
+
 /* Opening and saving keyword files:                                          */
 
 int phoebe_open_parameter_file        (const char *filename);
