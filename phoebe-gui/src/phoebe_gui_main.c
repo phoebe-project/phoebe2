@@ -15,6 +15,9 @@
 
 #ifdef __MINGW32__
 #include <glade/glade-build.h>
+#include <libgen.h>
+
+gchar *PROGRAM_NAME = "";
 
 // GtkFileChooserButton is not defined in libglade for MinGW/MSYS, so it has to be defined here
 GtkWidget *gui_GtkFileChooserButton(GladeXML *xml, GType widget_type, GladeWidgetInfo *info)
@@ -88,7 +91,7 @@ GtkWidget *gui_GtkAboutDialog(GladeXML *xml, GType widget_type, GladeWidgetInfo 
 		}
 	}
 	GtkWidget *aboutdialog = gtk_about_dialog_new ();
-	gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(aboutdialog), program_name);
+	gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(aboutdialog), (PROGRAM_NAME) ? PROGRAM_NAME : program_name);
 	gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(aboutdialog), version);
 	gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(aboutdialog), comments);
 	gtk_about_dialog_set_license(GTK_ABOUT_DIALOG(aboutdialog), license);
@@ -158,6 +161,10 @@ int main (int argc, char *argv[])
 	gtk_init (&argc, &argv);
 	glade_init ();
 #ifdef __MINGW32__
+	PROGRAM_NAME = basename(argv[0]);
+	char *exe = strstr(PROGRAM_NAME, ".exe");
+	if (exe)
+		*exe = '\0';
 	glade_register_widget (GTK_TYPE_FILE_CHOOSER_BUTTON, gui_GtkFileChooserButton, NULL, NULL);
 	glade_register_widget (GTK_TYPE_ABOUT_DIALOG, gui_GtkAboutDialog, NULL, NULL);
 #endif
