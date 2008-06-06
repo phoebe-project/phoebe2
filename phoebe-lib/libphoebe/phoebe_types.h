@@ -281,9 +281,10 @@ int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
  * @itype:    Column type of the independant variable.
  * @dtype:    Column type of the dependant variable.
  * @wtype:    Column type of the weights.
- * @filename: Absoulte path to the file containing the curve.
+ * @filename: Absolute path to the file containing the curve.
  * @sigma:    Sigma value of the curve.
  */
+
 typedef struct PHOEBE_curve {
 	PHOEBE_curve_type  type;
 	PHOEBE_passband   *passband;
