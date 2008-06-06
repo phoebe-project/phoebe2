@@ -11,6 +11,7 @@
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_error_handling.h"
+#include "phoebe_gui_build_config.h"
 
 bool LD_COEFFS_NEED_UPDATING = TRUE;
 bool LOGG_VALUES_NEED_RECALCULATING = TRUE;
@@ -1487,6 +1488,7 @@ G_MODULE_EXPORT void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuit
 	GtkWidget *phoebe_about_dialog                = glade_xml_get_widget (phoebe_about_xml, "phoebe_about_dialog");
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_about_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(phoebe_about_dialog), PHOEBE_GUI_RELEASE_NAME);
 
 	gint result = gtk_dialog_run ((GtkDialog*)phoebe_about_dialog);
 	switch (result){
