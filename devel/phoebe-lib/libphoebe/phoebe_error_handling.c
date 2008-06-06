@@ -313,6 +313,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "rotational broadening cannot be accurately applied for |vsini| < 5km/s, aborting.\n";
 		case ERROR_DC_TOO_MANY_SPOTS_TBA:
 			return "too many spots are marked for adjustment (up to two are allowed), aborting.\n";
+		case ERROR_DC_TOO_MANY_RVS:
+			return "too many RV curves for WD's DC fit, aborting.\n";
 		case ERROR_SPOT_NOT_INITIALIZED:
 			return "the spot is not initialized, aborting.\n";
 		case ERROR_SPOT_INVALID_SOURCE:
