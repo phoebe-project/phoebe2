@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Thu Nov 15 09:32:53 2007 by gal@brjav-->
+<!--Generated with glade3 3.4.5 on Fri Jun  6 12:28:06 2008 -->
 <glade-interface>
   <widget class="GtkAboutDialog" id="phoebe_about_dialog">
     <property name="border_width">5</property>
+    <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
     <property name="has_separator">False</property>
     <property name="program_name">PHOEBE</property>
     <property name="version">0.31</property>
@@ -26,11 +27,11 @@ along with Gcalctool; if not, write to the Free Software Foundation, Inc.,
 
 </property>
     <property name="authors">Andrej Prša &lt;andrej.prsa@villanova.edu&gt;
+Gal Matijevič &lt;gal.matijevic@fmf.uni-lj.si&gt;
 Olivera Latković &lt;olatkovic@aob.bg.ac.yu&gt;
-Tomaž Zwitter &lt;tomaz.zwitter@fmf.uni-lj.si&gt;
-Gal Matijevič &lt;gal.matijevic@fmf.uni-lj.si&gt;</property>
-    <property name="documenters">Andrej Prša &lt;andrej.prsa@villanova.edu&gt;
-Olivera Latković &lt;olatkovic@aob.bg.ac.yu&gt;</property>
+Francesc Vilardell &lt;francesc.vilardell@am.ub.es&gt;
+Patrick Wils &lt;patrickwils@yahoo.com&gt;</property>
+    <property name="documenters"></property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
         <property name="visible">True</property>
