@@ -177,6 +177,7 @@ int main (int argc, char *argv[])
 
 	/* Add all GUI-related options here: */
 	phoebe_config_entry_add (TYPE_BOOL, "GUI_CONFIRM_ON_OVERWRITE", TRUE);
+	phoebe_config_entry_add (TYPE_BOOL, "GUI_BEEP_AFTER_PLOT_AND_FIT", FALSE);
 
 	phoebe_configure ();
 

@@ -409,7 +409,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		sprintf(status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_error(status));
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 	}
-	gdk_beep ();
+	gui_beep ();
 }
 
 int gui_spot_index(int spotsrc, int spotid)
@@ -2700,12 +2700,12 @@ G_MODULE_EXPORT void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (Gtk
 	gtk_widget_show (phoebe_ld_dialog);
 }
 
-void on_phoebe_settings_confirmation_save_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+G_MODULE_EXPORT void on_phoebe_settings_confirmation_save_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	/*
 	 * This handler is invoked when Settings->Options->ConfirmOnOverwrite has
-	 * been toggled. It changes the configuration parameter GUI_CONFIRM_ON_
-	 * OVERWRITE.
+	 * been toggled. It changes the configuration parameter
+	 * GUI_CONFIRM_ON_OVERWRITE.
 	 */
 
 	printf ("entered.\n");
@@ -2713,4 +2713,19 @@ void on_phoebe_settings_confirmation_save_checkbutton_toggled (GtkToggleButton *
 		phoebe_config_entry_set ("GUI_CONFIRM_ON_OVERWRITE", TRUE);
 	else
 		phoebe_config_entry_set ("GUI_CONFIRM_ON_OVERWRITE", FALSE);
+}
+
+G_MODULE_EXPORT void on_phoebe_beep_after_plot_and_fit_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	/*
+	 * This handler is invoked when Settings->Options->BeepAfterPlotAndFit has
+	 * been toggled. It changes the configuration parameter
+	 * GUI_BEEP_AFTER_PLOT_AND_FIT.
+	 */
+
+	printf ("entered.\n");
+	if (togglebutton->active == TRUE)
+		phoebe_config_entry_set ("GUI_BEEP_AFTER_PLOT_AND_FIT", TRUE);
+	else
+		phoebe_config_entry_set ("GUI_BEEP_AFTER_PLOT_AND_FIT", FALSE);
 }
