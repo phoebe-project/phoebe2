@@ -63,8 +63,23 @@ void tmp_circumvent_delete_event (GtkWidget *widget, gpointer user_data)
 	*flag = !(*flag);
 }
 
+GtkWidget *gui_show_temp_window()
+{
+	GtkWidget *temp_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_title(GTK_WINDOW(temp_window), "Working...");
+	gtk_window_set_default_size(GTK_WINDOW(temp_window), 300, 0);
+	gtk_window_set_position(GTK_WINDOW(temp_window), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_widget_show_all(temp_window);
+	return temp_window;
+}
 
-void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
+void gui_hide_temp_window(GtkWidget *temp_window, GtkWidget *new_active_window)
+{
+	gtk_widget_destroy(temp_window);
+	gtk_window_present(GTK_WINDOW(new_active_window));
+}
+
+GtkWidget *gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *flag, gchar *window_title, gint x, gint y)
 {
 	/*
 	 * This function detaches the box from its parent. If the flag=FALSE, than
@@ -96,6 +111,7 @@ void gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboolean *fl
 		gtk_widget_show_all (window);
 	}
 	*flag = !(*flag);
+	return window;
 }
 
 int gui_open_parameter_file()

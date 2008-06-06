@@ -15,6 +15,11 @@
 bool LD_COEFFS_NEED_UPDATING = TRUE;
 bool LOGG_VALUES_NEED_RECALCULATING = TRUE;
 
+GtkWidget *GUI_DETACHED_LC_PLOT_WINDOW;
+GtkWidget *GUI_DETACHED_RV_PLOT_WINDOW;
+GtkWidget *GUI_DETACHED_FITTING_WINDOW;
+GtkWidget *GUI_DETACHED_SIDESHEET_WINDOW;
+
 G_MODULE_EXPORT void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
 	char *widget_name = (char*)gtk_widget_get_name(GTK_WIDGET(togglebutton));
@@ -1505,7 +1510,7 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_toolbutton_clicked (GtkToolButton *toolbu
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
+	GUI_DETACHED_LC_PLOT_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
 G_MODULE_EXPORT void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
@@ -1513,7 +1518,7 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_toolbutton_clicked (GtkToolButton *toolbu
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
+	GUI_DETACHED_RV_PLOT_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
 
 G_MODULE_EXPORT void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
@@ -1521,7 +1526,7 @@ G_MODULE_EXPORT void on_phoebe_fitting_toolbutton_clicked (GtkToolButton *toolbu
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
+	GUI_DETACHED_FITTING_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
 
 G_MODULE_EXPORT void on_phoebe_scripter_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
@@ -1695,7 +1700,7 @@ G_MODULE_EXPORT void on_phoebe_sidesheet_detach_button_clicked (GtkButton *butto
 	GUI_widget *box = gui_widget_lookup ("phoebe_sidesheet_vbox");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_sidesheet_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
+	GUI_DETACHED_SIDESHEET_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_SIDESHEET_IS_DETACHED, "PHOEBE - Data sheets", 300, 600);
 }
 
 G_MODULE_EXPORT void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
@@ -1703,7 +1708,7 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_detach_button_clicked (GtkButton *button,
 	GUI_widget *box = gui_widget_lookup ("phoebe_lc_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_lc_plot_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
+	GUI_DETACHED_LC_PLOT_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_LC_PLOT_IS_DETACHED, "PHOEBE - LC Plot", 726, 522);
 }
 
 G_MODULE_EXPORT void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button, gpointer user_data)
@@ -1711,7 +1716,7 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_detach_button_clicked (GtkButton *button,
 	GUI_widget *box = gui_widget_lookup ("phoebe_rv_plot_table");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_rv_plot_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
+	GUI_DETACHED_RV_PLOT_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_RV_PLOT_IS_DETACHED, "PHOEBE - RV Plot", 726, 522);
 }
 
 G_MODULE_EXPORT void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *button, gpointer user_data)
@@ -1719,7 +1724,7 @@ G_MODULE_EXPORT void on_phoebe_fitt_fitting_detach_button_clicked (GtkButton *bu
 	GUI_widget *box = gui_widget_lookup ("phoebe_fitt_frame");
 	GUI_widget *parent = gui_widget_lookup ("phoebe_fitt_parent_table");
 
-	gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
+	GUI_DETACHED_FITTING_WINDOW = gui_detach_box_from_parent (box->gtk, parent->gtk, &PHOEBE_WINDOW_FITTING_IS_DETACHED, "PHOEBE - Fitting", 600, 400);
 }
 
 /* ******************************************************************** *
@@ -1818,12 +1823,21 @@ int phoebe_gui_lc_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	phoebe_parameter_get_value(par, &lcno);
 
 	if(lcno > 0){
+#ifdef __MINGW32__
+			GtkWidget *temp_window;
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED) 
+				temp_window = gui_show_temp_window();
+#endif
 		gui_update_ld_coefficients_when_needed();
 		gui_get_values_from_widgets();
 		gui_plot_lc_using_gnuplot(x_offset, y_offset, zoom);
 
 		LOGG_VALUES_NEED_RECALCULATING = FALSE;
 		gui_fill_sidesheet_res_treeview();
+#ifdef __MINGW32__
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED)
+				gui_hide_temp_window(temp_window, GUI_DETACHED_LC_PLOT_WINDOW);
+#endif
 	}
 	else
 		gui_notice ("No light curves have been defined", "To plot a light curve, you need to define it first in the Data tab.");
@@ -1874,17 +1888,25 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 
 		gchar *filename = gui_get_filename_with_overwrite_confirmation(dialog, "Save LC Curves to ASCII File");
 		if (filename){
+#ifdef __MINGW32__
+			GtkWidget *temp_window;
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED) 
+				temp_window = gui_show_temp_window();
+#endif
 			gui_update_ld_coefficients_when_needed();
 			gui_get_values_from_widgets();
 			status =gui_plot_lc_to_ascii (filename);
 			LOGG_VALUES_NEED_RECALCULATING = FALSE;
+			gui_fill_sidesheet_res_treeview();
+#ifdef __MINGW32__
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED)
+				gui_hide_temp_window(temp_window, GUI_DETACHED_LC_PLOT_WINDOW);
+#endif
 
 			g_free (filename);
 		}
 
 		gtk_widget_destroy (dialog);
-
-		gui_fill_sidesheet_res_treeview();
 	}
 	else
 		gui_notice ("No light curves have been defined", "To save a light curve, you need to define it first in the Data tab.");
@@ -2037,11 +2059,20 @@ int phoebe_gui_rv_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	phoebe_parameter_get_value(par, &rvno);
 
 	if(rvno > 0){
+#ifdef __MINGW32__
+		GtkWidget *temp_window;
+		if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED) 
+			temp_window = gui_show_temp_window();
+#endif
 		gui_get_values_from_widgets();
 		gui_plot_rv_using_gnuplot (x_offset, y_offset, zoom);
 		LOGG_VALUES_NEED_RECALCULATING = FALSE;
 
 		gui_fill_sidesheet_res_treeview();
+#ifdef __MINGW32__
+		if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED)
+			gui_hide_temp_window(temp_window, GUI_DETACHED_RV_PLOT_WINDOW);
+#endif
 	}
 	else
 		gui_notice ("No RV curves have been defined", "To plot an RV curve, you need to define it first in the Data tab.");
@@ -2092,16 +2123,25 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 
 		gchar *filename = gui_get_filename_with_overwrite_confirmation(dialog, "Save RV Curves to ASCII File");
 		if (filename){
+#ifdef __MINGW32__
+			GtkWidget *temp_window;
+			if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED) 
+				temp_window = gui_show_temp_window();
+#endif
 			gui_get_values_from_widgets();
 			status =gui_plot_rv_to_ascii (filename);
 			LOGG_VALUES_NEED_RECALCULATING = FALSE;
+			gui_fill_sidesheet_res_treeview();
+#ifdef __MINGW32__
+			if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED)
+				gui_hide_temp_window(temp_window, GUI_DETACHED_RV_PLOT_WINDOW);
+#endif
 
 			g_free (filename);
 		}
 
 		gtk_widget_destroy (dialog);
 
-		gui_fill_sidesheet_res_treeview();
 	}
 	else
 		gui_notice ("No RV curves have been defined", "To save an RV curve, you need to define it first in the Data tab.");
