@@ -1005,9 +1005,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	char *atmcof, *atmcofplanck;
 	WD_DCI_parameters *params;
 	PHOEBE_parameter_list *marked_tba, *tba;
-	int no_tba;
-	int lcno = 0, rvno = 0;
+	int lcno, rvno, no_tba;
 	bool calchla = FALSE, calcvga = FALSE;
+	PHOEBE_array *active_lcindices, *active_rvindices;
 
 	/* Minimizer results: */
 	double *corrections;
@@ -1039,13 +1039,16 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	if (!marked_tba)
 		return ERROR_MINIMIZER_NO_PARAMS;
 
+	/* Get a list of active light and RV curves: */
+	phoebe_active_lcno_get (&lcno, &active_lcindices);
+	phoebe_active_lcno_get (&rvno, &active_rvindices);
+
 	/* Read in WD DCI parameters: */
 	params = wd_dci_parameters_new ();
 	status = read_in_wd_dci_parameters (params, &no_tba);
 	if (status != SUCCESS) return status;
 
-	/* Count the number of light and RV curves: */
-	lcno = params->nlc;
+	/* Count the true number of RV curves: */
 	rvno = params->rv1data + params->rv2data;
 
 	/* Allocate memory for the results: */
@@ -1149,8 +1152,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 			case TYPE_DOUBLE_ARRAY:
 				for (j = 0; j < lcno; j++) {
 					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
-					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, j+1);
-					phoebe_parameter_get_value (tba->par, j, &(feedback->initvals->val[i+j]));
+					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, active_lcindices->val.iarray[j]+1);
+					phoebe_parameter_get_value (tba->par, active_lcindices->val.iarray[j], &(feedback->initvals->val[i+j]));
 					feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
 					feedback->ferrors->val[i+j] = errors[i+j];
 				}
@@ -1168,6 +1171,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 			feedback->cormat->val[i][j] = cormat[i*no_tba+j];
 
 	/* Free all the allocated structures: */
+	phoebe_array_free (active_lcindices);
+	phoebe_array_free (active_rvindices);
 	wd_dci_parameters_free (params);
 	free (corrections);
 	free (errors);
