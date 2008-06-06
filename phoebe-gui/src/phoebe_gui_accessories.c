@@ -114,6 +114,18 @@ GtkWidget *gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboole
 	return window;
 }
 
+void gui_beep()
+{
+	int status;
+	bool beep;
+
+	status = gui_get_values_from_widgets ();
+
+	phoebe_config_entry_get ("GUI_BEEP_AFTER_PLOT_AND_FIT", &beep);
+	if (beep)
+		gdk_beep();
+}
+
 int gui_open_parameter_file()
 {
 	GtkWidget *dialog;
@@ -245,6 +257,7 @@ int gui_show_configuration_dialog()
 	GtkWidget *kurucz_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_kurucz_filechooserbutton");
 
 	GtkWidget *confirm_on_overwrite_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_confirmation_save_checkbutton");
+	GtkWidget *beep_after_plot_and_fit_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_beep_after_plot_and_fit_checkbutton");
 
 	gchar 		*dir;
 	gboolean	toggle;
@@ -268,6 +281,7 @@ int gui_show_configuration_dialog()
 	g_signal_connect(G_OBJECT(vh_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)vh_lddir_filechooserbutton);
 	g_signal_connect(G_OBJECT(kurucz_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)kurucz_filechooserbutton);
 	g_signal_connect(G_OBJECT(confirm_on_overwrite_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_confirmation_save_checkbutton_toggled), NULL);
+	g_signal_connect(G_OBJECT(beep_after_plot_and_fit_checkbutton), "toggled", G_CALLBACK(on_phoebe_beep_after_plot_and_fit_checkbutton_toggled), NULL);
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_settings_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_settings_dialog), "PHOEBE - Settings");
@@ -293,6 +307,12 @@ int gui_show_configuration_dialog()
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 1);
 	else
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 0);
+
+	phoebe_config_entry_get ("GUI_BEEP_AFTER_PLOT_AND_FIT", &toggle);
+	if (toggle)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 1);
+	else
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 0);
 
 	result = gtk_dialog_run ((GtkDialog*)phoebe_settings_dialog);
 	switch (result){

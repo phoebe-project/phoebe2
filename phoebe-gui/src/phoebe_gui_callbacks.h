@@ -57,6 +57,7 @@ G_MODULE_EXPORT void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton
 G_MODULE_EXPORT void on_phoebe_fitt_updateall_button_clicked 				(GtkToolButton   *toolbutton, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_fitt_method_combobox_changed 				(GtkComboBox *widget, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_settings_confirmation_save_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data);
+G_MODULE_EXPORT void on_phoebe_beep_after_plot_and_fit_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_spots_treeview_cursor_changed (GtkTreeView *tree_view, gpointer user_data);
 
 void gui_ld_coeffs_need_updating();

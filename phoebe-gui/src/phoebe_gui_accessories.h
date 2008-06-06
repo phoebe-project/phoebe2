@@ -18,3 +18,5 @@ int gui_question	(char* title, char* message);
 int gui_warning		(char* title, char* message);
 int gui_notice		(char* title, char* message);
 int gui_error		(char* title, char* message);
+
+void gui_beep();
