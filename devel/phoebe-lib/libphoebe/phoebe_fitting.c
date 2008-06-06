@@ -395,6 +395,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	int iter_max;
 
 	int lcno, rvno;
+	PHOEBE_array *active_lcindices, *active_rvindices;
 	char *qualifier;
 	int dim_tba;
 	PHOEBE_array *qualifiers;
@@ -424,9 +425,10 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_nms_accuracy"), &accuracy);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_nms_iters_max"), &iter_max);
 
-	/* Get the number of LC and RV curves: */
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+	/* Get the number of active LC and RV curves: */
+	phoebe_active_lcno_get (&lcno, &active_lcindices);
+	phoebe_active_rvno_get (&rvno, &active_rvindices);
+
 	if (lcno + rvno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
 	/* Copy PHOEBE spot parameters into WD spot structures: */
@@ -465,7 +467,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		else /* if (tba->par->type == TYPE_DOUBLE_ARRAY) */ {
 			for (i = 0; i < lcno; i++) {
 				qualifier = phoebe_malloc ((strlen(tba->par->qualifier)+5)*sizeof(*qualifier));
-				sprintf (qualifier, "%s[%d]", tba->par->qualifier, i+1);
+				sprintf (qualifier, "%s[%d]", tba->par->qualifier, active_lcindices->val.iarray[i]+1);
 				if (phoebe_qualifier_is_constrained (qualifier)) {
 					printf ("parameter %s is constrained, skipping.\n", qualifier);
 					free (qualifier);
@@ -493,7 +495,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 
 	phoebe_debug ("* parameters set for adjustment:\n");
 	for (i = 0; i < dim_tba; i++)
-		printf ("  %d: %s\n", i+1, qualifiers->val.strarray[i]);
+		phoebe_debug ("  %d: %s\n", i+1, qualifiers->val.strarray[i]);
 
 	/* Allocate the memory for the feedback structure: */
 	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
@@ -505,7 +507,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	/* Read in the observed data and transform them appropriately: */
 	obs = phoebe_malloc ( (lcno+rvno) * sizeof (*obs));
 	for (i = 0; i < lcno; i++) {
-		obs[i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, i);
+		obs[i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, active_lcindices->val.iarray[i]);
 		if (!obs[i]) {
 			for (j = 0; j < i; j++)
 				phoebe_curve_free (obs[j]);
@@ -515,7 +517,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		phoebe_curve_transform (obs[i], indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 	}
 	for (i = 0; i < rvno; i++) {
-		obs[lcno+i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, i);
+		obs[lcno+i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, active_rvindices->val.iarray[i]);
 		if (!obs[lcno+i]) {
 			for (j = 0; j < lcno+i; j++)
 				phoebe_curve_free (obs[j]);
@@ -529,9 +531,9 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	weights = phoebe_vector_new ();
 	phoebe_vector_alloc (weights, lcno+rvno);
 	for (i = 0; i < lcno; i++)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i, &(weights->val[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), active_lcindices->val.iarray[i], &(weights->val[i]));
 	for (i = 0; i < rvno; i++)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), i, &(weights->val[lcno+i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), active_rvindices->val.iarray[i], &(weights->val[lcno+i]));
 
 	/* Initialize and allocate the vector of passband chi2 values: */
 	chi2s = phoebe_vector_new ();
@@ -623,6 +625,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_vector_free (chi2s);
 	phoebe_vector_free (weights);
 	phoebe_array_free (qualifiers);
+	phoebe_array_free (active_lcindices);
+	phoebe_array_free (active_rvindices);
 
 	/* Free the passed parameters structure: */
 	free (passed);
