@@ -977,12 +977,14 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	phoebe_debug ("     %d active:\t", active_lcno);
 	for (i = 0; i < active_lcno-1; i++)
 		phoebe_debug ("%d, ", active_lcindices->val.iarray[i]);
-	phoebe_debug ("%d\n", active_lcindices->val.iarray[i]);
+	if (active_lcno > 0)
+		phoebe_debug ("%d\n", active_lcindices->val.iarray[i]);
 	phoebe_debug ("RV#: %d\n", rvno);
 	phoebe_debug ("     %d active:\t", active_rvno);
 	for (i = 0; i < active_rvno-1; i++)
 		phoebe_debug ("%d, ", active_rvindices->val.iarray[i]);
-	phoebe_debug ("%d\n", active_rvindices->val.iarray[i]);
+	if (active_rvno > 0)
+		phoebe_debug ("%d\n", active_rvindices->val.iarray[i]);
 /***************************************************************/
 
 	/* Allocate memory: */
