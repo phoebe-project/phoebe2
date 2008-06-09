@@ -69,6 +69,7 @@ GtkWidget *gui_show_temp_window()
 	gtk_window_set_title(GTK_WINDOW(temp_window), "Working...");
 	gtk_window_set_default_size(GTK_WINDOW(temp_window), 300, 0);
 	gtk_window_set_position(GTK_WINDOW(temp_window), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_set_decorated(GTK_WINDOW(temp_window), FALSE);
 	gtk_widget_show_all(temp_window);
 	return temp_window;
 }
