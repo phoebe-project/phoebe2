@@ -369,7 +369,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	int dim1 = 0, dim2 = 0;
 
 	integer request, nodes, L3perc;
-	double phs;
+	double phs, dummy;
 
 	if (!poscoy || !poscoz)
 		return ERROR_VECTOR_NOT_INITIALIZED;
@@ -414,7 +414,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	nodes   = 1;
 	L3perc  = 0;
 
-	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, &phs, NULL, poscoy->val, poscoz->val, params);
+	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, &phs, &dummy, poscoy->val, poscoz->val, params);
 
 	i = 0;
 	while (!isnan(poscoy->val[i]) && i < poscoy->dim) i++;
