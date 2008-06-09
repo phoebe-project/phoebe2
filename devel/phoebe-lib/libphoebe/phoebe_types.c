@@ -276,8 +276,8 @@ int phoebe_vector_realloc (PHOEBE_vector *vec, int dimension)
 {
 	/**
 	 * phoebe_vector_realloc:
-	 * @vec:       The #PHOEBE_vector to reallocate.
-	 * @dimension: The new size for @vec.
+	 * @vec:       #PHOEBE_vector to reallocate.
+	 * @dimension: new size for @vec.
 	 *
 	 * Reallocates storage memory for a #PHOEBE_vector of @dimension.
 	 *
