@@ -7460,7 +7460,6 @@ from temperatures</property>
                                     <property name="label" translatable="yes">Symmetric derivatives</property>
                                     <property name="response_id">0</property>
                                     <property name="draw_indicator">True</property>
-                                    <xsignal name="toggled" handler="on_phoebe_dc_symder_switch_checkbutton_toggled"/>
                                   </widget>
                                   <packing>
                                     <property name="right_attach">2</property>
