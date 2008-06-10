@@ -495,6 +495,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_parameters_coarsize1_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize1_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize1"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_coarsize2_spinbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_coarsize2_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_grid_coarsesize2"), NULL);
 	gui_widget_add ("phoebe_fitt_parameters_lambda_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_fitt_parameters_lambda_spinbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_dc_lambda"), 		NULL);
+	gui_widget_add ("phoebe_fitt_dc_symder_switch_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_fitt_dc_symder_switch_checkbutton"),						0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_dc_symder_switch"), 	NULL);
 
 	gui_widget_add ("phoebe_fitt_nms_iters_spinbutton",					glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_iters_spinbutton"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_nms_iters_max"),	NULL);
 	gui_widget_add ("phoebe_fitt_nms_accuracy_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_fitt_nms_accuracy_spinbutton"),								0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_nms_accuracy"),	NULL);
