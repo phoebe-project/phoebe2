@@ -6,6 +6,7 @@
 #include <string.h>
 #include <phoebe/phoebe.h>
 
+#include "phoebe_gui_accessories.h"
 #include "phoebe_gui_base.h"
 #include "phoebe_gui_callbacks.h"
 #include "phoebe_gui_error_handling.h"
@@ -156,6 +157,7 @@ int parse_startup_line (int argc, char *argv[])
 int main (int argc, char *argv[])
 {
 	int status;
+	bool configswitch = FALSE;
 
 	gtk_set_locale ();
 	gtk_init (&argc, &argv);
@@ -179,12 +181,32 @@ int main (int argc, char *argv[])
 	phoebe_config_entry_add (TYPE_BOOL, "GUI_CONFIRM_ON_OVERWRITE", TRUE);
 	phoebe_config_entry_add (TYPE_BOOL, "GUI_BEEP_AFTER_PLOT_AND_FIT", FALSE);
 
-	phoebe_configure ();
+	status = phoebe_configure ();
+	if (status == ERROR_PHOEBE_CONFIG_SUPPORTED_FILE ||
+		status == ERROR_PHOEBE_CONFIG_LEGACY_FILE    ||
+		status == ERROR_PHOEBE_CONFIG_NOT_FOUND)
+		/* This happens when the configuration file is imported from a recent
+		 * version (that is fully supported) or from a pre-0.30 (legacy)
+		 * version. In these cases we should pop up the configuration screen
+		 * for the user to review the settings.
+		 */
+		configswitch = TRUE;
 
 	phoebe_gui_init ();
 	parse_startup_line (argc, argv);
 
+	if (status == ERROR_PHOEBE_CONFIG_NOT_FOUND)
+		gui_notice ("Welcome to PHOEBE!", "PHOEBE will create a configuration directory and take you to the Settings window.");
+	if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE)
+		gui_notice ("Importing legacy configuration file", "PHOEBE imported a legacy (pre-0.30) configuration file. Please review your settings and click on Save to store them permanently.");
+	if (status == ERROR_PHOEBE_CONFIG_SUPPORTED_FILE)
+		gui_notice ("Importing recent configuration file", "PHOEBE imported your previous configuration file. Please review your settings and click on Save to store them permanently.");
+
+	if (configswitch)
+		gui_show_configuration_dialog();
+
 	gtk_main ();
+
 	phoebe_gui_quit ();
 
 	phoebe_quit ();

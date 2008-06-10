@@ -156,24 +156,29 @@ int phoebe_configure ()
 	/**
 	 * phoebe_configure:
 	 *
-	 * Probes the existence of the configuration file, loads it and reads in
-	 * the configuration entries. The configuration filename is hardcoded to
+	 * Looks for the configuration file, loads it (if found) and reads in the
+	 * configuration entries. The configuration filename is hardcoded to
 	 * phoebe.config (this should be changed in future), but the configuration
 	 * directory PHOEBE_HOME_DIR can be set by the drivers.
 	 *
 	 * The order of the checked config directories is:
 	 *
 	 * 1) PHOEBE_HOME_DIR if not NULL,
-	 * 2) ~/.phoebe-VERSION (i.e. ~/.phoebe-0.30),
-	 * 3) ~/.phoebe
+	 * 2) Current ~/.phoebe-VERSION (i.e. ~/.phoebe-0.32),
+	 * 3) Previous (but compatible) ~/.phoebe-VERSIONs (i.e. ~/.phoebe-0.31,
+	 *    ~/.phoebe-0.30), in the decreasing order (most recent come first),
+	 * 4) Legacy ~/.phoebe
 	 *
 	 * If a legacy (pre-0.30) config file is found, its configuration entries
-	 * will get imported, but the configuration directory will be set to
-	 * ~/.phoebe-VERSION.
+	 * will be imported. In all cases the configuration directory will be set to
+	 * the current ~/.phoebe-VERSION so that saving a configuration file stores
+	 * the settings to the current directory.
 	 * 
 	 * Once the configuration file is open, the function configures all
 	 * PHOEBE features (passband transmission functions, limb darkening
 	 * coefficients etc).
+	 *
+	 * If the configuration file is not found, defaults are assumed.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -181,12 +186,12 @@ int phoebe_configure ()
 	int status;
 	char homedir[255], conffile[255];
 	char *pathname;
-	bool switch_state;
+	bool switch_state, return_flag = SUCCESS;
 
 	phoebe_debug ("* adding configuration entries...\n");
 	phoebe_config_populate ();
 
-	phoebe_debug ("* probing configuration directories...\n");
+	phoebe_debug ("* looking for a configuration directory...\n");
 	if (PHOEBE_HOME_DIR) {
 		/* This happens when the driver supplied PHOEBE_HOME_DIR variable. */
 		sprintf (conffile, "%s/phoebe.config", PHOEBE_HOME_DIR);
@@ -196,17 +201,18 @@ int phoebe_configure ()
 			phoebe_config_load (PHOEBE_CONFIG);
 		}
 		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
-			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			return_flag = status;
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).\n");
 			phoebe_config_import (conffile);
 			PHOEBE_CONFIG = strdup (conffile);
 		}
 		else {
+			return_flag = ERROR_PHOEBE_CONFIG_NOT_FOUND;
 			phoebe_lib_error ("Config file not found in %s, reverting to defaults.\n", PHOEBE_HOME_DIR);
 		}
 	}
-
-	if (!PHOEBE_HOME_DIR) {
-		/* Check for config in ~/phoebe-VERSION: */
+	else {
+		/* Check for config in ~/.phoebe-VERSION: */
 		sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
 		sprintf (conffile, "%s/phoebe.config", homedir);
 
@@ -218,7 +224,8 @@ int phoebe_configure ()
 			phoebe_config_load (PHOEBE_CONFIG);
 		}
 		else if (status == ERROR_PHOEBE_CONFIG_LEGACY_FILE) {
-			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).");
+			return_flag = status;
+			phoebe_lib_warning ("importing legacy configuration file (pre-0.30).\n");
 			phoebe_config_import (conffile);
 
 			/* The config file should point to the ~/.phoebe-VERSION dir: */
@@ -227,6 +234,28 @@ int phoebe_configure ()
 
 			PHOEBE_HOME_DIR = strdup (homedir);
 			PHOEBE_CONFIG = strdup (conffile);
+		}
+		else {
+			/* Check for config in ~/.phoebe-{ext} directories: */
+			char ext[2][5] = {"0.31", "0.30"};
+			int i;
+
+			for (i = 0; i < 2; i++) {
+				sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, ext[i]);
+				sprintf (conffile, "%s/phoebe.config", homedir);
+
+				status = phoebe_config_peek (conffile);
+				if (status == SUCCESS) {
+					return_flag = ERROR_PHOEBE_CONFIG_SUPPORTED_FILE;
+					phoebe_lib_warning ("importing PHOEBE %s configuration file; please review your configuration settings.\n", ext[i]);
+					phoebe_config_load (conffile);
+
+					/* The config file should point to the ~/.phoebe-VERSION dir: */
+					sprintf (homedir,  "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
+					sprintf (conffile, "%s/phoebe.config", homedir);
+					break;
+				}
+			}
 		}
 	}
 
@@ -257,6 +286,7 @@ int phoebe_configure ()
 
 	if (!PHOEBE_HOME_DIR) {
 		/* Admit defeat and revert to defaults. */
+		return_flag = ERROR_PHOEBE_CONFIG_NOT_FOUND;
 		phoebe_lib_warning ("configuration file not found, reverting to defaults.\n");
 	}
 
@@ -288,7 +318,7 @@ int phoebe_configure ()
 	phoebe_debug ("* declaring parameter options...\n");
 	phoebe_init_parameter_options ();
 
-	return SUCCESS;
+	return return_flag;
 }
 
 int phoebe_quit ()
