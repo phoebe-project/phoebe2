@@ -53,8 +53,37 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 						out->value.vec->val[i] = val1.value.d + val2.value.vec->val[i];
 				break;
 				case type_array:
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					switch (val2.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_INT_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.array->val.iarray[i] = val1.value.i + val2.value.array->val.iarray[i];
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_DOUBLE_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.array->val.darray[i] = val1.value.i + val2.value.array->val.darray[i];
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							sprintf (str, "%d", val1.value.i);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (str, val2.value.array->val.strarray[i], NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_spectrum:
 					out->type = type_spectrum;
@@ -110,8 +139,37 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 						out->value.vec->val[i] = val1.value.d + val2.value.vec->val[i];
 				break;
 				case type_array:
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					switch (val2.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.d + val2.value.array->val.iarray[i];
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.d + val2.value.array->val.darray[i];
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							sprintf (str, "%lf", val1.value.d);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (str, val2.value.array->val.strarray[i], NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_spectrum:
 					out->type = type_spectrum;
@@ -160,8 +218,40 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
 				break;
 				case type_array:
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					switch (val2.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++) {
+								sprintf (str, "%d", val2.value.array->val.iarray[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.str, str, NULL);
+							}
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++) {
+								sprintf (str, "%lf", val2.value.array->val.darray[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.str, str, NULL);
+							}
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.str, val2.value.array->val.strarray[i], NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_spectrum:
 					phoebe_scripter_output ("operator '+' cannot act between strings and spectra, aborting.\n");
@@ -214,8 +304,42 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 					}
 				break;
 				case type_array:
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					if (val1.value.vec->dim != val2.value.array->dim) {
+						out->type = type_void;
+						return ERROR_VECTOR_DIMENSIONS_MISMATCH;
+					}
+					switch (val2.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.vec->val[i] + val2.value.array->val.iarray[i];
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.vec->val[i] + val2.value.array->val.darray[i];
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val2.value.array->dim);
+							for (i = 0; i < val2.value.array->dim; i++) {
+								sprintf (str, "%lf", val1.value.vec->val[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (str, val2.value.array->val.strarray[i], NULL);
+							}
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_spectrum:
 					phoebe_scripter_output ("operator '+' cannot act between arrays and spectra, aborting.\n");
@@ -236,28 +360,183 @@ int scripter_ast_values_add (scripter_ast_value *out, scripter_ast_value val1, s
 		case type_array:
 			switch (val2.type) {
 				case type_int:
-					out->type = type_void;
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
+					switch (val1.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_INT_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.array->val.iarray[i] =  val1.value.array->val.iarray[i] + val2.value.i;
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_DOUBLE_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.array->val.darray[i] =  val1.value.array->val.darray[i] + val2.value.i;
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							sprintf (str, "%d", val2.value.i);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.array->val.strarray[i], str, NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_bool:
 					phoebe_scripter_output ("operator '+' cannot act on booleans, aborting.\n");
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
 				break;
 				case type_double:
-					out->type = type_void;
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
+					switch (val1.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.vec->val[i] =  val1.value.array->val.iarray[i] + val2.value.d;
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.vec->val[i] =  val1.value.array->val.darray[i] + val2.value.d;
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							sprintf (str, "%lf", val2.value.d);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.array->val.strarray[i], str, NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_string:
-					phoebe_scripter_output ("operator '+' cannot act between strings and arrays, aborting.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					switch (val1.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++) {
+								sprintf (str, "%d", val1.value.array->val.iarray[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (str, val2.value.str, NULL);
+							}
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++) {
+								sprintf (str, "%lf", val1.value.array->val.darray[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (str, val2.value.str, NULL);
+							}
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.array->val.strarray[i], val2.value.str, NULL);
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_vector:
-					phoebe_scripter_output ("operator '+' cannot act between numeric and non-numeric arrays, aborting.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					if (val2.value.vec->dim != val1.value.array->dim) {
+						out->type = type_void;
+						return ERROR_VECTOR_DIMENSIONS_MISMATCH;
+					}
+					switch (val1.value.array->type) {
+						case TYPE_INT_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.array->val.iarray[i] + val2.value.vec->val[i];
+						break;
+						case TYPE_BOOL_ARRAY:
+							phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+							return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+						break;
+						case TYPE_DOUBLE_ARRAY:
+							out->type = type_vector;
+							out->value.vec = phoebe_vector_new ();
+							phoebe_vector_alloc (out->value.vec, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++)
+								out->value.vec->val[i] = val1.value.array->val.darray[i] + val2.value.vec->val[i];
+						break;
+						case TYPE_STRING_ARRAY:
+							out->type = type_array;
+							out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+							phoebe_array_alloc (out->value.array, val1.value.array->dim);
+							for (i = 0; i < val1.value.array->dim; i++) {
+								sprintf (str, "%lf", val2.value.vec->val[i]);
+								out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.array->val.strarray[i], str, NULL);
+							}
+						break;
+						default:
+							phoebe_scripter_output ("exception handler invoked in scripter_ast_values_add, please report this!\n");
+							out->type = type_void;
+					}
 				break;
 				case type_array:
-					out->type = type_void;
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
+					if (val1.value.array->type != val2.value.array->type) {
+						phoebe_scripter_output ("not yet implemented, sorry.\n");
+						out->type = type_void;
+					}
+					if (val1.value.array->dim != val2.value.array->dim) {
+						out->type = type_void;
+						return ERROR_VECTOR_DIMENSIONS_MISMATCH;
+					}
+					else if (val1.value.array->type == TYPE_INT_ARRAY) {
+						out->type = type_array;
+						out->value.array = phoebe_array_new (TYPE_INT_ARRAY);
+						phoebe_array_alloc (out->value.array, val1.value.array->dim);
+						for (i = 0; i < val1.value.array->dim; i++)
+							out->value.array->val.iarray[i] = val1.value.array->val.iarray[i] + val2.value.array->val.iarray[i];
+					}
+					else if (val1.value.array->type == TYPE_BOOL_ARRAY) {
+						phoebe_scripter_output ("operator '+' cannot act on boolean arrays, aborting.\n");
+						return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					}
+					else if (val1.value.array->type == TYPE_DOUBLE_ARRAY) {
+						out->type = type_array;
+						out->value.array = phoebe_array_new (TYPE_DOUBLE_ARRAY);
+						phoebe_array_alloc (out->value.array, val1.value.array->dim);
+						for (i = 0; i < val1.value.array->dim; i++)
+							out->value.array->val.darray[i] = val1.value.array->val.darray[i] + val2.value.array->val.darray[i];
+					}
+					else if (val1.value.array->type == TYPE_STRING_ARRAY) {
+						out->type = type_array;
+						out->value.array = phoebe_array_new (TYPE_STRING_ARRAY);
+						phoebe_array_alloc (out->value.array, val1.value.array->dim);
+						for (i = 0; i < val1.value.array->dim; i++)
+							out->value.array->val.strarray[i] = phoebe_concatenate_strings (val1.value.array->val.strarray[i], val2.value.array->val.strarray[i], NULL);
+					}
 				break;
 				case type_spectrum:
 					phoebe_scripter_output ("operator '+' cannot act between arrays and spectra, aborting.\n");
