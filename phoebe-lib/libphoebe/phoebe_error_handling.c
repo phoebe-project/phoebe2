@@ -41,6 +41,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "PHOEBE configuration file failed to open.\n";
 		case ERROR_PHOEBE_CONFIG_LEGACY_FILE:
 			return "configuration file pertains to a pre-0.30 version of PHOEBE.\n";
+		case ERROR_PHOEBE_CONFIG_SUPPORTED_FILE:
+			return "configuration file pertains to a compatible but older version of PHOEBE.\n";
 		case ERROR_PHOEBE_CONFIG_INVALID_LINE:
 			return "invalid line encountered in the configuration file, skipping.\n";
 		case ERROR_PHOEBE_CONFIG_INVALID_KEYWORD:
