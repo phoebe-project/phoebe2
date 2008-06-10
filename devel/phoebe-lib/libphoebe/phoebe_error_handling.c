@@ -45,6 +45,10 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "invalid line encountered in the configuration file, skipping.\n";
 		case ERROR_PHOEBE_CONFIG_INVALID_KEYWORD:
 			return "invalid keyword encountered in the configuration file, skipping.\n";
+		case ERROR_ATMCOF_NOT_FOUND:
+			return "auxiliary file phoebe_atmcof.dat not found; please review your configuration.\n";
+		case ERROR_ATMCOFPLANCK_NOT_FOUND:
+			return "auxiliary file phoebe_atmcofplanck.dat not found; please review your configuration.\n";
 		case ERROR_FILE_NOT_FOUND:
 			return "the file doesn't exist.\n";
 		case ERROR_FILE_NOT_REGULAR:

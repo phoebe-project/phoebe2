@@ -43,6 +43,9 @@ int gui_plot_get_curve_limits (PHOEBE_curve *curve, double *xmin, double *ymin, 
 	*xmin = 0; *xmax = 0;
 	*ymin = 0; *ymax = 0;
 
+	if (!curve)
+		return ERROR_CURVE_NOT_INITIALIZED;
+
 	*xmin = curve->indep->val[0]; *xmax = curve->indep->val[0];
 	*ymin = curve->dep->val[0];   *ymax = curve->dep->val[0];
 
@@ -68,6 +71,9 @@ int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin
 {
 	double xmin1, xmax1, ymin1, ymax1;              /* Synthetic data limits    */
 	double xmin2, xmax2, ymin2, ymax2;              /* Experimental data limits */
+
+	if (!syn)
+		return ERROR_CURVE_NOT_INITIALIZED;
 
 	if (plot_syn)	gui_plot_get_curve_limits (syn, &xmin1, &ymin1, &xmax1, &ymax1);
 	if (plot_obs)	gui_plot_get_curve_limits (obs, &xmin2, &ymin2, &xmax2, &ymax2);
@@ -200,7 +206,9 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		if (status != SUCCESS) {
-			gui_notice("LC plot", phoebe_error(status));
+			char *message = phoebe_concatenate_strings ("Configuration problem: ", phoebe_error (status), NULL);
+			gui_notice ("LC plot", message);
+			free (message);
 			return status;
 		}
 
@@ -967,7 +975,7 @@ int gui_plot_eb_using_gnuplot ()
 	GtkWidget *phase_spinbutton = gui_widget_lookup ("phoebe_star_shape_phase_spinbutton")->gtk;
 	GError *err = NULL;
 
-	gdouble phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON(phase_spinbutton));
+	double phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON (phase_spinbutton));
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
@@ -989,7 +997,7 @@ int gui_plot_eb_using_gnuplot ()
 	poscoz = phoebe_vector_new ();
 	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, phase);
 	if (status != SUCCESS) {
-		gui_notice ("Star shape plot", phoebe_error(status));
+		gui_notice ("Star shape plot", phoebe_error (status));
 		return status;
 	}
 
