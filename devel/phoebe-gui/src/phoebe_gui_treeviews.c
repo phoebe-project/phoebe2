@@ -2350,12 +2350,6 @@ int gui_spots_edit()
                                                                 SPOTS_COL_TEMPSTEP,     gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempstep_spinbutton),
                                                                 SPOTS_COL_TEMPMIN,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmin_spinbutton),
                                                                 SPOTS_COL_TEMPMAX,      gtk_spin_button_get_value   ((GtkSpinButton*)  phoebe_load_spots_tempmax_spinbutton), -1);
-				PHOEBE_parameter *par;
-				int spots_no;
-
-				par = phoebe_parameter_lookup("phoebe_spots_no");
-				phoebe_parameter_get_value(par, &spots_no);
-				phoebe_parameter_set_value(par, spots_no + 1);
 
 				gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview), &iter);
 				on_phoebe_para_spots_treeview_cursor_changed ((GtkTreeView *)phoebe_para_spots_treeview, (gpointer)NULL);  // Show the new spot parameters as the current ones
