@@ -1404,19 +1404,41 @@ G_MODULE_EXPORT void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuite
 		printf ("%s", phoebe_error (status));
 }
 
-G_MODULE_EXPORT void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+void gui_save_parameter_file_with_confirmation ()
 {
-	int status = 0;
+	int status;
+	bool confirm;
 
-	status = gui_get_values_from_widgets();
+	status = gui_get_values_from_widgets ();
 
-	if(PHOEBE_FILEFLAG)
-		status = phoebe_save_parameter_file(PHOEBE_FILENAME);
+	if (PHOEBE_FILEFLAG) {
+		phoebe_config_entry_get ("GUI_CONFIRM_ON_OVERWRITE", &confirm);
+		if (!confirm)
+			status = phoebe_save_parameter_file (PHOEBE_FILENAME);
+		else {
+			char *message = phoebe_concatenate_strings ("Do you want to overwrite file ", PHOEBE_FILENAME, "?", NULL);
+			int answer = gui_question ("Overwrite?", message);
+			free (message);
+
+			if (answer == 1)
+				status = phoebe_save_parameter_file (PHOEBE_FILENAME);
+			else
+				status = gui_save_parameter_file ();
+		}
+	}
 	else
 		status = gui_save_parameter_file ();
 
+	phoebe_gui_debug ("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
+	phoebe_gui_debug ("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
+
 	if( status != SUCCESS )
-		printf ("%s\n", phoebe_error (status));
+		gui_error ("Error on Save", phoebe_error (status));
+}
+
+G_MODULE_EXPORT void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+{
+	gui_save_parameter_file_with_confirmation();
 }
 
 G_MODULE_EXPORT void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
@@ -1567,35 +1589,8 @@ G_MODULE_EXPORT void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutto
 
 G_MODULE_EXPORT void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
-	int status;
-	bool confirm;
-
-	status = gui_get_values_from_widgets ();
-
-	if (PHOEBE_FILEFLAG) {
-		phoebe_config_entry_get ("GUI_CONFIRM_ON_OVERWRITE", &confirm);
-		if (!confirm)
-			status = phoebe_save_parameter_file (PHOEBE_FILENAME);
-		else {
-			char *message = phoebe_concatenate_strings ("Do you want to overwrite file ", PHOEBE_FILENAME, "?", NULL);
-			int answer = gui_question ("Overwrite?", message);
-			free (message);
-
-			if (answer == 1)
-				status = phoebe_save_parameter_file (PHOEBE_FILENAME);
-			else
-				status = gui_save_parameter_file ();
-		}
-	}
-	else
-		status = gui_save_parameter_file ();
-
 	phoebe_gui_debug ("In on_phoebe_save_toolbutton_clicked\n");
-	phoebe_gui_debug ("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
-	phoebe_gui_debug ("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
-
-	if( status != SUCCESS )
-		printf ("%s", phoebe_error (status));
+	gui_save_parameter_file_with_confirmation ();
 }
 
 
