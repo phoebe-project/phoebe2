@@ -317,40 +317,21 @@ int gui_show_configuration_dialog()
 
 	result = gtk_dialog_run ((GtkDialog*)phoebe_settings_dialog);
 	switch (result){
-		case GTK_RESPONSE_OK:{
-			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)basedir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_SOURCE_DIR",	gtk_file_chooser_get_filename ((GtkFileChooser*)srcdir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_PTF_DIR", 		gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton));
-
-			phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
-			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
-				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	TRUE);
-				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
-				phoebe_load_ld_tables();
-			}
-			else if (!toggle)
-				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);
-
-			phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &toggle);
-			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(kurucz_checkbutton))){
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	TRUE);
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)kurucz_filechooserbutton));
-			}
-			else if (!toggle)
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
-		}
-        break;
-
+		case GTK_RESPONSE_OK:
 		case GTK_RESPONSE_YES:{
 			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)basedir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_SOURCE_DIR",	gtk_file_chooser_get_filename ((GtkFileChooser*)srcdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_PTF_DIR", 		gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton));
+
+			dir = gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton);
+			phoebe_config_entry_set ("PHOEBE_PTF_DIR", dir);
+			free(PHOEBE_passbands);
+			PHOEBE_passbands = NULL;
+			PHOEBE_passbands_no = 0;
+			phoebe_read_in_passbands(dir);
+			g_free(dir);
 
 			phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
@@ -358,7 +339,7 @@ int gui_show_configuration_dialog()
 				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
 				phoebe_load_ld_tables();
 			}
-			else if (toggle)
+			else if (!toggle)
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);
 
 			phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &toggle);
@@ -366,28 +347,30 @@ int gui_show_configuration_dialog()
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	TRUE);
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)kurucz_filechooserbutton));
 			}
-			else if (toggle)
+			else if (!toggle)
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
 
-			if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
-				char homedir[255], confdir[255];
+			if (result == GTK_RESPONSE_YES) {
+				if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
+					char homedir[255], confdir[255];
 
-				sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
-				sprintf (confdir, "%s/phoebe.config", homedir);
+					sprintf (homedir, "%s/.phoebe-%s", USER_HOME_DIR, PACKAGE_VERSION);
+					sprintf (confdir, "%s/phoebe.config", homedir);
 
-				PHOEBE_HOME_DIR = strdup (homedir);
-				PHOEBE_CONFIG   = strdup (confdir);
+					PHOEBE_HOME_DIR = strdup (homedir);
+					PHOEBE_CONFIG   = strdup (confdir);
 
 #ifdef __MINGW32__
-				mkdir (PHOEBE_HOME_DIR);
+					mkdir (PHOEBE_HOME_DIR);
 #else
-				mkdir (PHOEBE_HOME_DIR, 0755);
+					mkdir (PHOEBE_HOME_DIR, 0755);
 #endif
-			}
+				}
 
-			phoebe_config_save (PHOEBE_CONFIG);
+				phoebe_config_save (PHOEBE_CONFIG);
+			}
 		}
-		break;
+	        break;
 
 		case GTK_RESPONSE_CANCEL:
 		break;
