@@ -69,31 +69,34 @@ int gui_plot_get_offset_zoom_limits (double min, double max, double offset, doub
 
 int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin, double *ymin, double *xmax, double *ymax, gboolean plot_syn, gboolean plot_obs, double x_offset, double y_offset, double zoom)
 {
+	int status;
 	double xmin1, xmax1, ymin1, ymax1;              /* Synthetic data limits    */
 	double xmin2, xmax2, ymin2, ymax2;              /* Experimental data limits */
 
-	if (!syn)
-		return ERROR_CURVE_NOT_INITIALIZED;
-
-	if (plot_syn)	gui_plot_get_curve_limits (syn, &xmin1, &ymin1, &xmax1, &ymax1);
-	if (plot_obs)	gui_plot_get_curve_limits (obs, &xmin2, &ymin2, &xmax2, &ymax2);
+	if (plot_syn) {
+		status = gui_plot_get_curve_limits (syn, &xmin1, &ymin1, &xmax1, &ymax1);
+		if (status != SUCCESS) return status;
+	}
+	if (plot_obs) {
+		status = gui_plot_get_curve_limits (obs, &xmin2, &ymin2, &xmax2, &ymax2);
+		if (status != SUCCESS) return status;
+	}
 
 	if (plot_syn)
 	{
-		gui_plot_get_offset_zoom_limits(xmin1, xmax1, x_offset, zoom, xmin, xmax);
-		gui_plot_get_offset_zoom_limits(ymin1, ymax1, y_offset, zoom, ymin, ymax);
+		gui_plot_get_offset_zoom_limits (xmin1, xmax1, x_offset, zoom, xmin, xmax);
+		gui_plot_get_offset_zoom_limits (ymin1, ymax1, y_offset, zoom, ymin, ymax);
 		xmin1 = *xmin; xmax1 = *xmax; ymin1 = *ymin; ymax1 = *ymax;
 	}
 
 	if (plot_obs)
 	{
-		gui_plot_get_offset_zoom_limits(xmin2, xmax2, x_offset, zoom, xmin, xmax);
-		gui_plot_get_offset_zoom_limits(ymin2, ymax2, y_offset, zoom, ymin, ymax);
+		gui_plot_get_offset_zoom_limits (xmin2, xmax2, x_offset, zoom, xmin, xmax);
+		gui_plot_get_offset_zoom_limits (ymin2, ymax2, y_offset, zoom, ymin, ymax);
 		xmin2 = *xmin; xmax2 = *xmax; ymin2 = *ymin; ymax2 = *ymax;
 	}
 
-	if (plot_syn && plot_obs)
-	{
+	if (plot_syn && plot_obs) {
 		if (xmin1 < xmin2) *xmin = xmin1; else *xmin = xmin2;
 		if (xmax1 > xmax2) *xmax = xmax1; else *xmax = xmax2;
 		if (ymin1 < ymin2) *ymin = ymin1; else *ymin = ymin2;
