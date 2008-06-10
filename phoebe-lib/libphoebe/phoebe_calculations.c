@@ -197,6 +197,20 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	curve->type = PHOEBE_CURVE_LC;
 
 	phoebe_vector_alloc (curve->indep, indep->dim);
@@ -204,11 +218,6 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 		curve->indep->val[i] = indep->val[i];
 
 	phoebe_vector_alloc (curve->dep, indep->dim);
-
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 1;
 	nodes = (integer) indep->dim;
@@ -255,6 +264,19 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	rv1->type  = PHOEBE_CURVE_RV;
 
 	phoebe_vector_alloc (rv1->indep, indep->dim);
@@ -262,10 +284,6 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 		rv1->indep->val[i] = indep->val[i];
 
 	phoebe_vector_alloc (rv1->dep, indep->dim);
-
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 2;
 	nodes = (integer) indep->dim;
@@ -306,6 +324,19 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	if (indep->dim == 0)
 		return ERROR_VECTOR_IS_EMPTY;
 
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	rv2->type  = PHOEBE_CURVE_RV;
 
 	phoebe_vector_alloc (rv2->indep, indep->dim);
@@ -313,10 +344,6 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 		rv2->indep->val[i] = indep->val[i];
 
 	phoebe_vector_alloc (rv2->dep, indep->dim);
-
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 3;
 	nodes = (integer) indep->dim;
@@ -376,6 +403,20 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	if (poscoy->dim != 0 || poscoz->dim != 0)
 		return ERROR_VECTOR_ALREADY_ALLOCATED;
 
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize1"), &n1);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_grid_finesize2"), &n2);
 
@@ -403,11 +444,6 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	phoebe_vector_pad (poscoy, sqrt(-1));
 	phoebe_vector_alloc (poscoz, dim);
 	phoebe_vector_pad (poscoz, sqrt(-1));
-
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	phs = phase;
 	request = 4;
@@ -447,6 +483,20 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 	char *filename;
 	WD_LCI_parameters wd_params;
 
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	status = wd_lci_parameters_get (&wd_params, 2, 0);
 	if (status != SUCCESS) return status;
 
@@ -457,11 +507,6 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 
 	doublereal indep[1], dep[1];
 	indep[0] = 0;
-
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	request = 2;
 	nodes = 1;

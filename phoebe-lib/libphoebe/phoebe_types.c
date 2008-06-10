@@ -2689,18 +2689,22 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:
-			call_wd_to_get_fluxes (curve, nodes);
+			status = call_wd_to_get_fluxes (curve, nodes);
+			if (status != SUCCESS) return status;
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_FLUX:
-			call_wd_to_get_fluxes (curve, nodes);
+			status = call_wd_to_get_fluxes (curve, nodes);
+			if (status != SUCCESS) return status;
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_PRIMARY_RV:
-			call_wd_to_get_rv1 (curve, nodes);
+			status = call_wd_to_get_rv1 (curve, nodes);
+			if (status != SUCCESS) return status;
 		break;
 		case PHOEBE_COLUMN_SECONDARY_RV:
-			call_wd_to_get_rv2 (curve, nodes);
+			status = call_wd_to_get_rv2 (curve, nodes);
+			if (status != SUCCESS) return status;
 		break;
 		default:
 			phoebe_lib_error ("exception handler invoked by dtype switch in phoebe_curve_compute (), please report this!\n");

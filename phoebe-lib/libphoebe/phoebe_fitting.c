@@ -1031,6 +1031,20 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	if (feedback->qualifiers->dim != 0)
 		return ERROR_MINIMIZER_FEEDBACK_ALREADY_ALLOCATED;
 
+	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
+	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
+	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
+
+	if (!phoebe_filename_exists (atmcof)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOF_NOT_FOUND;
+	}
+	if (!phoebe_filename_exists (atmcofplanck)) {
+		free (atmcof); free (atmcofplanck);
+		return ERROR_ATMCOFPLANCK_NOT_FOUND;
+	}
+
 	/* Everything seems to be ok. Fire up the stop watch: */
 	clock_start = clock ();
 
@@ -1065,11 +1079,6 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	status = create_dci_file ("dcin.active", params);
 	if (status != SUCCESS)
 		return status;
-
-	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
-	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
-	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
-	atmcofplanck = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcofplanck.dat", NULL);
 
 	/* Get third light units: */
 	status = phoebe_el3_units_id (&l3units);
