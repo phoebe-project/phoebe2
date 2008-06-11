@@ -1740,9 +1740,12 @@ int phoebe_open_parameter_file (const char *filename)
 		/* call a suitable function for opening legacy keyword files.             */
 
 		char *version_str = strstr (readout_str, "PHOEBE");
-		double version;
+		double version = -1.0;
 
-		if (sscanf (version_str, "PHOEBE %lf", &version) != 1) {
+		if (strstr (version_str, "svn") != 0)
+			version = 9.999;
+
+		if (version < 0 && sscanf (version_str, "PHOEBE %lf", &version) != 1) {
 			/* Just in case, if the header line is invalid.                       */
 			phoebe_lib_error ("Invalid header line in %s, aborting.\n", filename);
 			return ERROR_INVALID_HEADER;
