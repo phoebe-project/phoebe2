@@ -110,6 +110,7 @@ int gui_init_widgets ()
 	/* *************************** Main Window    **************************** */
 
 	gui_widget_add ("phoebe_window",									glade_xml_get_widget (phoebe_window, "phoebe_window"), 													0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_statusbar",									glade_xml_get_widget (phoebe_window, "phoebe_statusbar"), 												0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 
 	/* ************************    GUI Treeviews   ************************* */
 
@@ -608,6 +609,8 @@ int gui_init_widgets ()
 	}
 
 	gui_set_values_to_widgets();
+
+	gui_status("PHOEBE started. All fields initialized to default values.");
 
 	return SUCCESS;
 }
@@ -1149,6 +1152,8 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 int gui_get_values_from_widgets ()
 {
+    gui_status("Reading out parameters...");
+
  	phoebe_debug("\n\n******** Entering gui_get_values_from_widgets!******* \n\n");
 
 	int i, status;
@@ -1164,11 +1169,15 @@ int gui_get_values_from_widgets ()
 		}
 	}
 
+	gui_status("Readout completed.");
+
 	return SUCCESS;
 }
 
 int gui_set_values_to_widgets ()
 {
+    gui_status("Filling in parameter values...");
+
 	phoebe_debug("\n\n ******* Entering gui_set_values_to_widgets!******* \n\n");
 
 	int i, status;
@@ -1187,6 +1196,8 @@ int gui_set_values_to_widgets ()
 	gui_fill_sidesheet_res_treeview();
 	gui_fill_sidesheet_fit_treeview();
 	gui_fill_fitt_mf_treeview();
+
+	gui_status("Parameters updated.");
 
 	return SUCCESS;
 }

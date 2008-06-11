@@ -347,12 +347,16 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 
 	switch (gtk_combo_box_get_active (phoebe_fitt_method_combobox)) {
 		case 0:
+            gui_status("Running DC minimization, please be patient...");
 			status = phoebe_minimize_using_dc(stdout, phoebe_minimizer_feedback);
 			phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
+			gui_status("DC minimization done with %s.", phoebe_error(status));
 		break;
 		case 1:
+            gui_status("Running NMS minimization, please be patient...");
 			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
 			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
+			gui_status("NMS minimization done with %s.", phoebe_error(status));
 		break;
 		default:
 			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
@@ -883,7 +887,8 @@ G_MODULE_EXPORT void on_phoebe_para_spots_remove_button_clicked (GtkButton *butt
 		par = phoebe_parameter_lookup("phoebe_spots_no");
 		phoebe_parameter_get_value(par, &spots_no);
 		phoebe_parameter_set_value(par, spots_no - 1);
-		printf("Number of spots: %d\n", spots_no - 1);
+		phoebe_debug("Number of spots: %d\n", spots_no - 1);
+		gui_status("A spot removed.");
     }
 }
 
@@ -1822,7 +1827,7 @@ int phoebe_gui_lc_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	if(lcno > 0){
 #ifdef __MINGW32__
 			GtkWidget *temp_window;
-			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED) 
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED)
 				temp_window = gui_show_temp_window();
 #endif
 		gui_update_ld_coefficients_when_needed();
@@ -1887,7 +1892,7 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 		if (filename){
 #ifdef __MINGW32__
 			GtkWidget *temp_window;
-			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED) 
+			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED)
 				temp_window = gui_show_temp_window();
 #endif
 			gui_update_ld_coefficients_when_needed();
@@ -2058,7 +2063,7 @@ int phoebe_gui_rv_plot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 	if(rvno > 0){
 #ifdef __MINGW32__
 		GtkWidget *temp_window;
-		if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED) 
+		if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED)
 			temp_window = gui_show_temp_window();
 #endif
 		gui_get_values_from_widgets();
@@ -2122,7 +2127,7 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 		if (filename){
 #ifdef __MINGW32__
 			GtkWidget *temp_window;
-			if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED) 
+			if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED)
 				temp_window = gui_show_temp_window();
 #endif
 			gui_get_values_from_widgets();

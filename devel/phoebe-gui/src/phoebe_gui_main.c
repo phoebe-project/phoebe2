@@ -24,8 +24,8 @@ gchar *PROGRAM_NAME = "";
 GtkWidget *gui_GtkFileChooserButton(GladeXML *xml, GType widget_type, GladeWidgetInfo *info)
 {
 	gint width_chars = 0;
-	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN; 
-	gchar *title = NULL; 
+	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+	gchar *title = NULL;
 	gint i;
 
 	for (i = 0; i < info->n_properties; i++) {
@@ -193,6 +193,7 @@ int main (int argc, char *argv[])
 		configswitch = TRUE;
 
 	phoebe_gui_init ();
+
 	parse_startup_line (argc, argv);
 
 	if (status == ERROR_PHOEBE_CONFIG_NOT_FOUND)
@@ -206,6 +207,7 @@ int main (int argc, char *argv[])
 		gui_show_configuration_dialog();
 
 	gtk_main ();
+
 
 	phoebe_gui_quit ();
 
