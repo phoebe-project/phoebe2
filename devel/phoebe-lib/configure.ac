@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-06-10 #
+#                                            Last revision: 2008-06-11 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -66,6 +66,19 @@
 	PHOEBE_RELEASE_DATE,
 	[["(snapshot)"]],
 	[PHOEBE release date])
+
+# Define the default installation directory:
+  if test "x$prefix" = "xNONE"; then
+    AC_DEFINE_UNQUOTED(
+		PHOEBE_TOP_DIR,
+		["/usr/local"],
+		[Top-level install directory (as set by ./configure)])
+  else
+    AC_DEFINE_UNQUOTED(
+		PHOEBE_TOP_DIR,
+		["$prefix"],
+		[Top-level install directory (as set by ./configure)])
+  fi
 
 # Check for system programs:
 

@@ -160,6 +160,9 @@
 /* System type */
 #undef PHOEBE_SYSTEM_TYPE
 
+/* Top-level install directory (as set by ./configure) */
+#undef PHOEBE_TOP_DIR
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
