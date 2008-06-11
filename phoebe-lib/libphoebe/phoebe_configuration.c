@@ -48,10 +48,11 @@ int phoebe_config_populate ()
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-#ifdef __MINGW32__
-// Use different initial values for Windows
-	char path[255];
 	char buffer[255];
+
+#ifdef __MINGW32__
+	/* Windows: */
+	char path[255];
 	getcwd(path, sizeof(path));
 
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      path);
@@ -72,27 +73,27 @@ int phoebe_config_populate ()
 	sprintf(buffer, "%s\\kurucz", path);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    buffer);
 #else
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      "/usr/local/share/phoebe");
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    "/usr/local/src/phoebe");
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  "/usr/local/share/phoebe/defaults");
+	/* Linux & Mac: */
+	sprintf (buffer, "%s/share/phoebe", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      buffer);
+	sprintf (buffer, "%s/src/phoebe", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    buffer);
+	sprintf (buffer, "%s/share/phoebe/defaults", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  buffer);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_TEMP_DIR",      "/tmp");
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DATA_DIR",      "/usr/local/share/phoebe/data");
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_PTF_DIR",       "/usr/local/share/phoebe/ptf");
+	sprintf (buffer, "%s/share/phoebe/data", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DATA_DIR",      buffer);
+	sprintf (buffer, "%s/share/phoebe/ptf", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_PTF_DIR",       buffer);
 
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_LD_SWITCH",     FALSE);
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_LD_DIR",        "/usr/local/share/phoebe/ld");
+	sprintf (buffer, "%s/share/phoebe/ld", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_LD_DIR",        buffer);
 
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    "/usr/local/share/phoebe/kurucz");
+	sprintf (buffer, "%s/share/phoebe/kurucz", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    buffer);
 #endif
-
-/*
-	PHOEBE_PLOTTING_PACKAGE = strdup ("");
-	PHOEBE_3D_PLOT_CALLBACK_OPTION = 0;
-	PHOEBE_CONFIRM_ON_SAVE = 1;
-	PHOEBE_CONFIRM_ON_QUIT = 1;
-	PHOEBE_WARN_ON_SYNTHETIC_SCATTER = 1;
-*/
 
 	return SUCCESS;
 }
