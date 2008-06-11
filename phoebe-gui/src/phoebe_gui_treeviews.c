@@ -941,6 +941,7 @@ int gui_fill_sidesheet_fit_treeview()
 
 int gui_data_lc_treeview_add()
 {
+    gui_status("Adding a light curve...");
 	int status = 0;
 
 	PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
@@ -1069,10 +1070,13 @@ int gui_data_lc_treeview_add()
 
             /* Select the new row in the list: */
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
+
+			gui_status("A light curve added.");
         }
         break;
 
         case GTK_RESPONSE_CANCEL:
+            gui_status("Adding light curve cancelled.");
         break;
     }
 
@@ -1252,10 +1256,11 @@ int gui_data_lc_treeview_remove()
 
         phoebe_parameter_get_value(par, &lcno);
         phoebe_parameter_set_value(par, lcno - 1);
-	gui_fill_sidesheet_fit_treeview ();
-	gui_fill_fitt_mf_treeview();
+        gui_fill_sidesheet_fit_treeview ();
+        gui_fill_fitt_mf_treeview();
 
-        printf("Number of light curves: %d\n", lcno - 1);
+        phoebe_debug("Number of light curves: %d\n", lcno - 1);
+        gui_status("A light curve removed.");
     }
 
     return status;
@@ -1263,6 +1268,7 @@ int gui_data_lc_treeview_remove()
 
 int gui_data_rv_treeview_add()
 {
+    gui_status("Adding a radial velocity curve...");
 	int status = 0;
 
 	PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_rv_indep");
@@ -1379,10 +1385,12 @@ int gui_data_rv_treeview_add()
             printf("Number of RV curves: %d\n", rvno + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
+			gui_status("A radial velocity curve added.");
         }
         break;
 
         case GTK_RESPONSE_CANCEL:
+            gui_status("Adding radial velocity curve cancelled.");
         break;
     }
     gtk_widget_destroy (phoebe_load_rv_dialog);
@@ -1552,7 +1560,8 @@ int gui_data_rv_treeview_remove()
         phoebe_parameter_get_value(par, &rvno);
         phoebe_parameter_set_value(par, rvno - 1);
 
-        printf("Number of RV curves: %d\n", rvno - 1);
+        phoebe_debug("Number of RV curves: %d\n", rvno - 1);
+        gui_status("A radial velocity curve removed.");
     }
 
     return status;
@@ -2122,6 +2131,7 @@ void gui_spots_dialog_set_spinbutton_adjustments(bool add_spot,
 
 int gui_spots_add()
 {
+    gui_status("Adding a spot...");
 	int status = 0;
 
 	GtkTreeModel *model;
@@ -2208,7 +2218,14 @@ int gui_spots_add()
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_para_spots_treeview), &iter);
 			on_phoebe_para_spots_treeview_cursor_changed ((GtkTreeView *)phoebe_para_spots_treeview, (gpointer)NULL);  // Show the new spot as the current one
+
+			gui_status("A spot added.");
    	    }
+   	    break;
+
+   	    case GTK_RESPONSE_CANCEL:
+            gui_status("Adding spot cancelled.");
+   	    break;
 	}
 	gtk_widget_destroy (phoebe_load_spots_dialog);
 

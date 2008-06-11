@@ -16,6 +16,9 @@ gboolean PHOEBE_FILEFLAG = FALSE;
 gchar   *PHOEBE_DIRNAME = NULL;
 gboolean PHOEBE_DIRFLAG = FALSE;
 
+int      PHOEBE_STATUS_MESSAGES_COUNT = 0;
+int      PHOEBE_STATUS_MESSAGES_MAX_COUNT = 10;
+
 void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 {
 	/*
@@ -96,6 +99,8 @@ GtkWidget *gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboole
 
 		gtk_widget_reparent(box, parent);
 		gtk_widget_destroy(window);
+
+        gui_status("%s reatached.", window_title);
 	}
 	else{
 		window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -110,6 +115,8 @@ GtkWidget *gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboole
 		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 		g_signal_connect (GTK_WIDGET(window), "delete-event", G_CALLBACK (tmp_circumvent_delete_event), NULL);
 		gtk_widget_show_all (window);
+
+		gui_status("%s detached.", window_title);
 	}
 	*flag = !(*flag);
 	return window;
@@ -131,7 +138,8 @@ int gui_open_parameter_file()
 {
 	GtkWidget *dialog;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-	int status = 0;
+	int status = -1;
+	char *filename;
 
 	dialog = gtk_file_chooser_dialog_new ("Open PHOEBE parameter file",
 										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
@@ -151,18 +159,21 @@ int gui_open_parameter_file()
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
-		char *filename;
-
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		status = phoebe_open_parameter_file(filename);
 
 		PHOEBE_FILEFLAG = TRUE;
 		PHOEBE_FILENAME = strdup(filename);
-		g_free (filename);
 
 		PHOEBE_DIRFLAG = TRUE;
 		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
+
+		if(status == SUCCESS)gui_status("%s successfully opened.", filename);
+        else gui_status("Opening %s failed with status %d.", filename, status);
+
+        g_free (filename);
 	}
+	else gui_status("Open PHOEBE parameter file cancelled.");
 
 	gtk_widget_destroy (dialog);
 
@@ -171,7 +182,7 @@ int gui_open_parameter_file()
 
 gchar *gui_get_filename_with_overwrite_confirmation(GtkWidget *dialog, char *gui_confirmation_title)
 {
-	/* Returns a valid filename or NULL if the user canceled 
+	/* Returns a valid filename or NULL if the user canceled
 	   Replaces functionality of gtk_file_chooser_set_do_overwrite_confirmation avaliable in Gtk 2.8 (PHOEBE only requires 2.6)
 	*/
 	gchar *filename;
@@ -189,7 +200,10 @@ gchar *gui_get_filename_with_overwrite_confirmation(GtkWidget *dialog, char *gui
 			/* user doesn't want to overwrite, display the dialog again */
 			g_free (filename);
 		}
-		else return NULL;
+		else{
+		    gui_status("%s cancelled.", gui_confirmation_title);
+		    return NULL;
+		}
 	}
 }
 
@@ -223,10 +237,14 @@ int gui_save_parameter_file()
 
 		PHOEBE_FILEFLAG = TRUE;
 		PHOEBE_FILENAME = strdup(filename);
-		g_free (filename);
 
 		PHOEBE_DIRFLAG = TRUE;
 		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
+
+		if(status == SUCCESS)gui_status("%s successfully saved.", filename);
+        else gui_status("Saving %s failed with status %d.", filename, status);
+
+        g_free (filename);
 	}
 
 	gtk_widget_destroy (dialog);
@@ -368,11 +386,15 @@ int gui_show_configuration_dialog()
 				}
 
 				phoebe_config_save (PHOEBE_CONFIG);
+
+				if(status == SUCCESS)gui_status("Configuration successfully saved.");
+                else gui_status("Configuration failed with status %d.", status);
 			}
 		}
-	        break;
+        break;
 
 		case GTK_RESPONSE_CANCEL:
+            gui_status("Configuration cancelled.");
 		break;
 	}
 
@@ -477,4 +499,27 @@ int gui_error(char* title, char* message)
 	gtk_widget_destroy (dialog);
 
 	return answer;
+}
+
+int gui_status (const char *format, ...)
+{
+    GtkStatusbar *status = GTK_STATUSBAR(gui_widget_lookup("phoebe_statusbar")->gtk);
+    int i;
+    int result = -1;
+    char message[256];
+
+    if(PHOEBE_STATUS_MESSAGES_COUNT >= PHOEBE_STATUS_MESSAGES_MAX_COUNT){
+        for(i=0; i<PHOEBE_STATUS_MESSAGES_MAX_COUNT; i++)gtk_statusbar_pop(status, i);
+        PHOEBE_STATUS_MESSAGES_COUNT = 0;
+    }
+
+    va_list args;
+    va_start (args, format);
+    result = vsprintf (message, format, args);
+    va_end (args);
+
+    gtk_statusbar_push(status, PHOEBE_STATUS_MESSAGES_COUNT, (const gchar*)message);
+    PHOEBE_STATUS_MESSAGES_COUNT += 1;
+
+    return result;
 }
