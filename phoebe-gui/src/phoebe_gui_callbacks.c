@@ -1908,6 +1908,7 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 			status =gui_plot_lc_to_ascii (filename);
 			LOGG_VALUES_NEED_RECALCULATING = FALSE;
 			gui_fill_sidesheet_res_treeview();
+			gui_status ("Saved LC to file %s", filename);
 #ifdef __MINGW32__
 			if(PHOEBE_WINDOW_LC_PLOT_IS_DETACHED)
 				gui_hide_temp_window(temp_window, GUI_DETACHED_LC_PLOT_WINDOW);
@@ -2143,6 +2144,7 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 			status =gui_plot_rv_to_ascii (filename);
 			LOGG_VALUES_NEED_RECALCULATING = FALSE;
 			gui_fill_sidesheet_res_treeview();
+			gui_status ("Saved RV curves to file %s", filename);
 #ifdef __MINGW32__
 			if(PHOEBE_WINDOW_RV_PLOT_IS_DETACHED)
 				gui_hide_temp_window(temp_window, GUI_DETACHED_RV_PLOT_WINDOW);
