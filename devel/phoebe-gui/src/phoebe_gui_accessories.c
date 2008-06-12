@@ -263,7 +263,6 @@ int gui_show_configuration_dialog()
 
 	GtkWidget *phoebe_settings_dialog			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_dialog");
 	GtkWidget *basedir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_basedir_filechooserbutton");
-	GtkWidget *srcdir_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_srcdir_filechooserbutton");
 	GtkWidget *defaultsdir_filechooserbutton	= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_defaultsdir_filechooserbutton");
 	GtkWidget *workingdir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_workingdir_filechooserbutton");
 	GtkWidget *datadir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_datadir_filechooserbutton");
@@ -286,8 +285,6 @@ int gui_show_configuration_dialog()
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &dir);
 	gtk_file_chooser_set_filename((GtkFileChooser*)basedir_filechooserbutton, dir);
-	phoebe_config_entry_get ("PHOEBE_SOURCE_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)srcdir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_DEFAULTS_DIR", &dir);
 	gtk_file_chooser_set_filename((GtkFileChooser*)defaultsdir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &dir);
@@ -338,7 +335,6 @@ int gui_show_configuration_dialog()
 		case GTK_RESPONSE_OK:
 		case GTK_RESPONSE_YES:{
 			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)basedir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_SOURCE_DIR",	gtk_file_chooser_get_filename ((GtkFileChooser*)srcdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
