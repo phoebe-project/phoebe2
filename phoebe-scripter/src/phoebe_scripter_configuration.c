@@ -86,25 +86,6 @@ int scripter_create_config_file ()
 		if (strcmp (basedir, "") == 0) basedir = strdup (pathname);
 		if (basedir[strlen(basedir)-1] == '/') basedir[strlen(basedir)-1] = '\0';
 
-		/************************** SOURCE DIRECTORY ****************************/
-
-		phoebe_config_entry_get ("PHOEBE_SOURCE_DIR", &pathname);
-
-		if (PHOEBE_CONFIG_EXISTS) {
-			sprintf (prompt, "PHOEBE source directory    [%s]: ", pathname);
-			srcdir = readline (prompt);
-			if (strcmp (srcdir, "") == 0) srcdir = strdup (pathname);
-		}
-		else {
-			sprintf (prompt, "PHOEBE source directory    [%s/src]: ", basedir);
-			srcdir = readline (prompt);
-			if (strcmp (srcdir, "") == 0) {
-				sprintf (defaultdir, "%s/src", basedir);
-				srcdir = strdup (defaultdir);
-			}
-		}
-		if (srcdir[strlen(srcdir)-1] == '/') srcdir[strlen(srcdir)-1] = '\0';
-
 		/************************* DEFAULTS DIRECTORY ***************************/
 
 		phoebe_config_entry_get ("PHOEBE_DEFAULTS_DIR", &pathname);
@@ -242,7 +223,6 @@ int scripter_create_config_file ()
 		yn = readline ("\nAre these settings ok [Y/n]? ");
 		if (strcmp (yn, "") == 0 || yn[0] == 'y' || yn[0] == 'Y') {
 			phoebe_config_entry_set ("PHOEBE_BASE_DIR",     basedir);
-			phoebe_config_entry_set ("PHOEBE_SOURCE_DIR",   srcdir);
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", defdir);
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR",     tempdir);
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR",     datadir);
@@ -294,22 +274,6 @@ int scripter_create_config_file ()
 		fgets (basedir, 255, stdin); basedir[strlen(basedir)-1] = '\0';
 		if (strcmp (basedir, "") == 0) sprintf (basedir, "%s", pathname);
 		if (basedir[strlen(basedir)-1] == '/') basedir[strlen(basedir)-1] = '\0';
-		
-		/************************** SOURCE DIRECTORY ****************************/
-		
-		phoebe_config_entry_get ("PHOEBE_SOURCE_DIR", &pathname);
-		
-		if (PHOEBE_CONFIG_EXISTS) {
-			printf ("PHOEBE source directory    [%s]: ", pathname);
-			fgets (srcdir, 255, stdin); srcdir[strlen(srcdir)-1] = '\0';
-			if (strcmp (srcdir, "") == 0) sprintf (srcdir, "%s", pathname);
-		}
-		else {
-			printf ("PHOEBE source directory    [%s/src]: ", basedir);
-			fgets (srcdir, 255, stdin); srcdir[strlen(srcdir)-1] = '\0';
-			if (strcmp (srcdir, "") == 0) sprintf (srcdir, "%s/src", basedir);
-		}
-		if (srcdir[strlen(srcdir)-1] == '/') srcdir[strlen(srcdir)-1] = '\0';
 		
 		/************************* DEFAULTS DIRECTORY ***************************/
 		
@@ -439,7 +403,6 @@ int scripter_create_config_file ()
 		
 		if (strcmp (yn, "") == 0 || yn[0] == 'y' || yn[0] == 'Y') {
 			phoebe_config_entry_set ("PHOEBE_BASE_DIR",     basedir);
-			phoebe_config_entry_set ("PHOEBE_SOURCE_DIR",   srcdir);
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", defdir);
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR",     tempdir);
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR",     datadir);

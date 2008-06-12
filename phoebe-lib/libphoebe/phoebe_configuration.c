@@ -56,7 +56,6 @@ int phoebe_config_populate ()
 	getcwd(path, sizeof(path));
 
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      path);
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    path);
 	sprintf(buffer, "%s\\defaults", path);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  buffer);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_TEMP_DIR",      getenv("TEMP"));
@@ -76,8 +75,6 @@ int phoebe_config_populate ()
 	/* Linux & Mac: */
 	sprintf (buffer, "%s/share/phoebe", PHOEBE_TOP_DIR);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_BASE_DIR",      buffer);
-	sprintf (buffer, "%s/src/phoebe", PHOEBE_TOP_DIR);
-	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_SOURCE_DIR",    buffer);
 	sprintf (buffer, "%s/share/phoebe/defaults", PHOEBE_TOP_DIR);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_DEFAULTS_DIR",  buffer);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_TEMP_DIR",      "/tmp");
@@ -649,10 +646,6 @@ int phoebe_config_import (char *filename)
 		if (strstr (keyword_str, "PHOEBE_BASE_DIR"))
 			if (sscanf (keyword_str, "PHOEBE_BASE_DIR %s", working_str) == 1)
 				phoebe_config_entry_set ("PHOEBE_BASE_DIR", working_str);
-
-		if (strstr (keyword_str, "PHOEBE_SOURCE_DIR"))
-			if (sscanf (keyword_str, "PHOEBE_SOURCE_DIR %s", working_str) == 1)
-				phoebe_config_entry_set ("PHOEBE_SOURCE_DIR", working_str);
 
 		if (strstr (keyword_str, "PHOEBE_DEFAULTS_DIR"))
 			if (sscanf (keyword_str, "PHOEBE_DEFAULTS_DIR %s", working_str) == 1)
