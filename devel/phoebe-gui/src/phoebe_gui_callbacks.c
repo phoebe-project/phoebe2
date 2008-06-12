@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <libgen.h>
 
 #include <phoebe/phoebe.h>
 
@@ -20,6 +21,8 @@ GtkWidget *GUI_DETACHED_LC_PLOT_WINDOW;
 GtkWidget *GUI_DETACHED_RV_PLOT_WINDOW;
 GtkWidget *GUI_DETACHED_FITTING_WINDOW;
 GtkWidget *GUI_DETACHED_SIDESHEET_WINDOW;
+
+gchar *GUI_SAVED_DATA_DIR;
 
 G_MODULE_EXPORT void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
@@ -1886,10 +1889,10 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 
 		/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
 
-		gchar *dir;
-		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+		if (!GUI_SAVED_DATA_DIR)
+			phoebe_config_entry_get("PHOEBE_DATA_DIR", &GUI_SAVED_DATA_DIR);
 
-		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, GUI_SAVED_DATA_DIR);
 
     	gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
@@ -1910,6 +1913,7 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 				gui_hide_temp_window(temp_window, GUI_DETACHED_LC_PLOT_WINDOW);
 #endif
 
+			GUI_SAVED_DATA_DIR = strdup(dirname(filename));
 			g_free (filename);
 		}
 
@@ -2121,10 +2125,10 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 
 		/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
 
-		gchar *dir;
-		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
+		if (!GUI_SAVED_DATA_DIR)
+			phoebe_config_entry_get("PHOEBE_DATA_DIR", &GUI_SAVED_DATA_DIR);
 
-		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, GUI_SAVED_DATA_DIR);
 
     	gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
@@ -2144,6 +2148,7 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 				gui_hide_temp_window(temp_window, GUI_DETACHED_RV_PLOT_WINDOW);
 #endif
 
+			GUI_SAVED_DATA_DIR = strdup(dirname(filename));
 			g_free (filename);
 		}
 
