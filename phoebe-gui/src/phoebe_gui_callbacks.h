@@ -41,6 +41,7 @@ G_MODULE_EXPORT void on_phoebe_para_spots_remove_button_clicked 			(GtkButton *b
 G_MODULE_EXPORT void on_phoebe_para_spots_treeview_row_activated 			(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_lum_levels_treeview_row_activated 		(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_lum_levels_edit_button_clicked 			(GtkButton *button, gpointer user_data);
+G_MODULE_EXPORT void on_phoebe_para_lum_levels_calc_button_clicked 			(GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_lum_el3_treeview_row_activated 			(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_lum_weighting_treeview_row_activated 	(GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_para_lum_weighting_edit_button_clicked 		(GtkButton *button, gpointer user_data);
