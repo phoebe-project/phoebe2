@@ -1606,16 +1606,21 @@ G_MODULE_EXPORT void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutto
  * ******************************************************************** */
 
 
-void
+G_MODULE_EXPORT void
 on_phoebe_para_lum_levels_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 	gui_para_lum_levels_edit();
 }
 
-void
+G_MODULE_EXPORT void
 on_phoebe_para_lum_levels_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
 	gui_para_lum_levels_edit();
+}
+
+G_MODULE_EXPORT void on_phoebe_para_lum_levels_calc_button_clicked (GtkButton *button, gpointer user_data)
+{
+	gui_para_lum_levels_calc();
 }
 
 
