@@ -421,15 +421,19 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 
 int gui_spot_index(int spotsrc, int spotid)
 {
-	/* Returns the index of the spot given by its source (primary/secondary) and its id */
+	/* Returns the index of the active spot given by its source (primary/secondary) and its id */
 	int i, spno, current_spotsrc, current_spotid = 0;
+	bool active;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spno);
 	for (i = 0; i < spno; i++) {
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), i, &current_spotsrc);
 		if (current_spotsrc == spotsrc) {
-			if (spotid == ++current_spotid)
-				return i;
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_active_switch"), i, &active);
+			if (active) {
+				if (spotid == ++current_spotid)
+					return i;
+			}
 		}
 	}
 

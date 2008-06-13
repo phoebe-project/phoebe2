@@ -824,7 +824,7 @@ int gui_fill_treeview_with_spot_parameter(GtkTreeModel *model, bool sidesheet, c
 	char full_qualifier[255];
 	int i, spno;
 	double value, step, min, max;
-	bool tba;
+	bool tba, active;
 	GtkTreeIter iter;
 	int status = 0;
 
@@ -841,6 +841,8 @@ int gui_fill_treeview_with_spot_parameter(GtkTreeModel *model, bool sidesheet, c
 	for (i = 0; i < spno; i++){
 		status = phoebe_parameter_get_value(par_tba, i, &tba);
 		if (!tba) continue;
+		status = phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_active_switch"), i, &active);
+		if (!active) continue;
 		status = phoebe_parameter_get_value(par, i, &value);
 		sprintf(full_qualifier, "%s[%d]", spot_par_name, i+1);
 		gtk_list_store_append((GtkListStore*)model, &iter);

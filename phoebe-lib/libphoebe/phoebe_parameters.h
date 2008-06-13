@@ -132,6 +132,7 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units);
 
 int phoebe_active_lcno_get (int *active_lcno, PHOEBE_array **active_lcindices);
 int phoebe_active_rvno_get (int *active_rvno, PHOEBE_array **active_rvindices);
+int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotindices);
 
 /* ************************************************************************** */
 
