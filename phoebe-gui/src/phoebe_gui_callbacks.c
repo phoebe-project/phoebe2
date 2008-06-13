@@ -915,6 +915,10 @@ G_MODULE_EXPORT void on_phoebe_para_spots_active_checkbutton_toggled (GtkCellRen
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE, FALSE, -1);
         else
             gtk_list_store_set((GtkListStore*)model, &iter, SPOTS_COL_ACTIVE, TRUE, -1);
+	//gui_get_value_from_widget(gui_widget_lookup("phoebe_para_spots_treeview"));
+	phoebe_parameter_set_value(phoebe_parameter_lookup ("phoebe_spots_active_switch"), atoi(gtk_tree_model_get_string_from_iter (model, &iter)), !active);
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_fitt_mf_treeview();
     }
 }
 
