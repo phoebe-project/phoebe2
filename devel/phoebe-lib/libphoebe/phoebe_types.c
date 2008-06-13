@@ -2897,6 +2897,9 @@ int phoebe_curve_set_properties (PHOEBE_curve *curve, PHOEBE_curve_type type, ch
 	if (!curve)
 		return ERROR_CURVE_NOT_INITIALIZED;
 
+	if (!passband)
+		return ERROR_PASSBAND_INVALID;
+
 	curve->type     = type;
 	curve->itype    = itype;
 	curve->dtype    = dtype;
