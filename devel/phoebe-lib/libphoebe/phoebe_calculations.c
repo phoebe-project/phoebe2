@@ -430,7 +430,11 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 		dim2 += 1 + (int) (1.3 * n2 * sin(theta));
 	}
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &nspots);
+	//phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &nspots);
+	PHOEBE_array *active_spotindices;
+	phoebe_active_spots_get (&nspots, &active_spotindices);
+	if (nspots > 0)
+		phoebe_array_free (active_spotindices);
 
 	/*
 	 * Each star is covered by dimN per 1/4-sphere, and each spot adds 4 points

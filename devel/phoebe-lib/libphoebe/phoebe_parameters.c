@@ -1594,6 +1594,56 @@ double phoebe_spots_units_to_wd_conversion_factor ()
 
 }
 
+int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotindices)
+{
+	/**
+	 * phoebe_active_spots_get:
+	 * @active_spots_no: placeholder for the number of active light spots.
+	 * @active_spots: placeholder for the array of active spot indices 
+	 *
+	 * Sweeps through all defined spots and counts the ones that are
+	 * active (i.e. their activity switch is set to 1). Active spot
+	 * indices are stored in the passed array @active_spots. The array
+	 * should not be initialized or allocated by the calling function, but
+	 * it should be freed afrer use.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, spots_no;
+	bool active;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spots_no);
+	if (spots_no == 0) {
+		*active_spots_no = 0;
+		*active_spotindices = NULL;
+		return SUCCESS;
+	}
+
+	*active_spotindices = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (*active_spotindices, spots_no);
+
+	*active_spots_no = 0;
+	for (i = 0; i < spots_no; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_active_switch"), i, &active);
+		if (active) {
+			(*active_spotindices)->val.iarray[*active_spots_no] = i;
+			(*active_spots_no)++;
+		}
+	}
+
+	if (*active_spots_no == 0) {
+		phoebe_array_free (*active_spotindices);
+		*active_spotindices = NULL;
+		return SUCCESS;
+	}
+
+	if (*active_spots_no != spots_no)
+		phoebe_array_realloc (*active_spotindices, *active_spots_no);
+
+	return SUCCESS;
+}
+
 int phoebe_active_lcno_get (int *active_lcno, PHOEBE_array **active_lcindices)
 {
 	/**
