@@ -336,7 +336,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
 	GtkTreeModel 	*model;
 	GtkTreeIter iter;
-	int index, count;
+	int index, count, rvcount;
 	char *id;
 	char status_message[255] = "Minimizer feedback";
 	PHOEBE_curve *curve;
@@ -389,6 +389,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		model = gtk_tree_view_get_model(phoebe_fitt_second_treeview);
 		gtk_list_store_clear(GTK_LIST_STORE(model));
 
+		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rvno"), &rvcount);
 		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lcno"), &count);
 		for(index = 0; index < count; index++){
 			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_LC, index);
@@ -397,11 +398,10 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
 			CURVE_COL_NAME, id,
 			CURVE_COL_NPOINTS, curve->indep->dim,
-			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[index], -1);
+			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[rvcount + index], -1);
 		}
 
-		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rvno"), &count);
-		for(index = 0; index < count; index++){
+		for(index = 0; index < rvcount; index++){
 			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_RV, index);
 			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rv_id"), index, &id);
 			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
