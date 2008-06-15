@@ -684,7 +684,7 @@ scripter_ast_value scripter_column (scripter_ast_list *args)
 		phoebe_scripter_output ("file '%s' cannot be parsed, aborting.\n", vals[0].value.str);
 		out.type = type_void;
 	}
-	if (out.value.array->type == TYPE_INT_ARRAY || out.value.array->type == TYPE_DOUBLE_ARRAY) {
+	else if (out.value.array->type == TYPE_INT_ARRAY || out.value.array->type == TYPE_DOUBLE_ARRAY) {
 		PHOEBE_vector *vec = phoebe_vector_new_from_array (out.value.array);
 		phoebe_array_free (out.value.array);
 		out.type = type_vector;

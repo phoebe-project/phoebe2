@@ -1967,7 +1967,7 @@ PHOEBE_array *phoebe_array_new_from_column (char *filename, int col)
 	char *line = NULL, *delimeter;
 
 	input = fopen (filename, "r");
-	if (input == NULL) return NULL;
+	if (!input) return NULL;
 
 	while (!feof (input)) {
 		line = phoebe_readline (input);
