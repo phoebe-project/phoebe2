@@ -330,10 +330,11 @@ int gui_show_configuration_dialog()
 	else
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 0);
 
-	result = gtk_dialog_run ((GtkDialog*)phoebe_settings_dialog);
-	switch (result){
+	result = gtk_dialog_run (GTK_DIALOG (phoebe_settings_dialog));
+
+	switch (result) {
 		case GTK_RESPONSE_OK:
-		case GTK_RESPONSE_YES:{
+		case GTK_RESPONSE_YES:
 			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)basedir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
@@ -386,9 +387,7 @@ int gui_show_configuration_dialog()
 				if(status == SUCCESS)gui_status("Configuration successfully saved.");
                 else gui_status("Configuration failed with status %d.", status);
 			}
-		}
         break;
-
 		case GTK_RESPONSE_CANCEL:
             gui_status("Configuration cancelled.");
 		break;
