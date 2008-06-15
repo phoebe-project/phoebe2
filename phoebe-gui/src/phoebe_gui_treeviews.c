@@ -753,6 +753,7 @@ int gui_fill_sidesheet_res_treeview()
 	gtk_list_store_append((GtkListStore*)model, &iter);
 	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 
+/*  Luminosities no longer to be displayed.
 	par = phoebe_parameter_lookup("phoebe_plum1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
@@ -762,6 +763,7 @@ int gui_fill_sidesheet_res_treeview()
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
 	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "P. Lum. 2", RS_COL_PARAM_VALUE, value, -1);
+*/
 
 	par = phoebe_parameter_lookup("phoebe_mass1");
 	status = phoebe_parameter_get_value(par, &value);
