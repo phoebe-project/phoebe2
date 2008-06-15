@@ -456,10 +456,18 @@ int intern_config_parse (char *line)
 		break;
 		case TYPE_STRING: {
 			char value[255];
+#ifdef __MINGW32__
+			// Spaces in a directory name must be kept on Windows
+			strcpy(value, delim + 2);
+			while (strchr("\t \r\n", value[strlen(value) - 1]) != NULL)
+				(value[strlen(value) - 1] = '\0');
+#else
 			if (sscanf (delim, "= %s", value) != 1) {
 				free (keyword);
 				return ERROR_PHOEBE_CONFIG_INVALID_LINE;
 			}
+#endif
+			phoebe_debug("keyword = <%s>, value = <%s>\n", keyword, value);
 			phoebe_config_entry_set (keyword, value);
 		}
 		break;
