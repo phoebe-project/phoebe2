@@ -97,7 +97,7 @@
       write(16,*)
   335 continue
 
-      if(dif1.ne.0.d0) write(16,287) abunin,abun(iab)
+      if(dif1.ne.0.d0) write(16,287) abunir,abunin
       IF(mod.eq.1) write(16,49)
 
       if(kfo1.eq.0) goto 380
