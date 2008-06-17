@@ -69,7 +69,7 @@ int scripter_create_config_file ()
 	/* If libreadline is present, use it: */
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 	{
-		char *basedir, *srcdir, *defdir, *tempdir, *datadir, *ptfdir, *lddir, *kuruczdir;
+		char *basedir, *defdir, *tempdir, *datadir, *ptfdir, *lddir, *kuruczdir;
 		char *ldswitch, *kuruczswitch, *yn;
 		char prompt[255], defaultdir[255];
 
@@ -200,7 +200,6 @@ int scripter_create_config_file ()
 
 		printf ("\nConfiguration summary:\n----------------------\n");
 		printf ("PHOEBE base directory:       %s\n", basedir);
-		printf ("PHOEBE source directory:     %s\n", srcdir);
 		printf ("PHOEBE defaults directory:   %s\n", defdir);
 		printf ("PHOEBE temporary directory:  %s\n", tempdir);
 		printf ("PHOEBE data directory:       %s\n", datadir);
@@ -260,7 +259,7 @@ int scripter_create_config_file ()
 
 	/* This part is executed if GNU readline isn't found:                     */
 	{
-		char basedir[255], srcdir[255], defdir[255], tempdir[255], datadir[255], ptfdir[255], lddir[255], kuruczdir[255];
+		char basedir[255], defdir[255], tempdir[255], datadir[255], ptfdir[255], lddir[255], kuruczdir[255];
 		char ldswitch[255], kuruczswitch[255], yn[255];
 		
 		printf ("Please supply names of directories to be used by PHOEBE:\n");
@@ -378,7 +377,6 @@ int scripter_create_config_file ()
 		
 		printf ("\nConfiguration summary:\n----------------------\n");
 		printf ("PHOEBE base directory:       %s\n", basedir);
-		printf ("PHOEBE source directory:     %s\n", srcdir);
 		printf ("PHOEBE defaults directory:   %s\n", defdir);
 		printf ("PHOEBE temporary directory:  %s\n", tempdir);
 		printf ("PHOEBE data directory:       %s\n", datadir);
