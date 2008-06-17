@@ -369,6 +369,9 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	}
 
 	if (status == SUCCESS) {
+		bool active;
+		int active_index;
+
 		sprintf(status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text(phoebe_fitt_feedback_label, status_message);
 
@@ -391,24 +394,33 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 
 		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rvno"), &rvcount);
 		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lcno"), &count);
+
+		active_index = 0;
 		for(index = 0; index < count; index++){
-			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_LC, index);
-			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
-			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			CURVE_COL_NAME, id,
-			CURVE_COL_NPOINTS, curve->indep->dim,
-			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[rvcount + index], -1);
+			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_active"), index, &active);
+			if (active) {
+				curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_LC, index);
+				phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index, &id);
+				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+				gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+						CURVE_COL_NAME, id,
+						CURVE_COL_NPOINTS, curve->indep->dim,
+						CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[rvcount + active_index++], -1);
+			}
 		}
 
+		active_index = 0;
 		for(index = 0; index < rvcount; index++){
-			curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_RV, index);
-			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rv_id"), index, &id);
-			gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-			gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			CURVE_COL_NAME, id,
-			CURVE_COL_NPOINTS, curve->indep->dim,
-			CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[index], -1);
+			phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rv_active"), index, &active);
+			if (active) {
+				curve = phoebe_curve_new_from_pars(PHOEBE_CURVE_RV, index);
+				phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_rv_id"), index, &id);
+				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+				gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+						CURVE_COL_NAME, id,
+						CURVE_COL_NPOINTS, curve->indep->dim,
+						CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[active_index++], -1);
+			}
 		}
 		accept_flag = 1;
 	}
