@@ -19,7 +19,9 @@
 
 double frac (double x)
 {
-/* This function returns the fractional part of a number.                   */
+	/*
+	 * Returns the fractional part of a number.
+	 */
 
 	return fabs (x - (int) x);
 }
@@ -27,7 +29,7 @@ double frac (double x)
 int diff (const void *a, const void *b)
 {
 	/*
-	 * This function is used to compare two doubles.
+	 * Compares two doubles for sorting functions.
 	 */
 
 	const double *da = (const double *) a;
@@ -39,7 +41,7 @@ int diff (const void *a, const void *b)
 int diff_int (const void *a, const void *b)
 {
 	/*
-	 * This function is used to compare two doubles.
+	 * Compares two integers for sorting functions.
 	 */
 
 	const int *da = (const int *) a;
@@ -172,12 +174,11 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 {
 	/**
 	 * call_wd_to_get_fluxes:
-	 * @curve: a pointer to #PHOEBE_curve structure that will hold computed
-	 * fluxes
+	 * @curve: #PHOEBE_curve placeholder for computed fluxes
 	 * @indep: an array of independent variable values (HJDs or phases);
 	 *
 	 * Uses WD's LC code through a FORTRAN wrapper to obtain the fluxes.
-	 * Structure PHOEBE_curve must not be allocated, only initialized.
+	 * #PHOEBE_curve @curve must be initialized.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -250,6 +251,17 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 {
+	/**
+	 * call_wd_to_get_rv1:
+	 * @rv1: #PHOEBE_curve placeholder for computed radial velocities
+	 * @indep: an array of independent variable values (HJDs or phases);
+	 *
+	 * Uses WD's LC code through a FORTRAN wrapper to obtain the primary
+	 * star radial velocities. #PHOEBE_curve @rv1 must be initialized.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
@@ -310,6 +322,17 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 {
+	/**
+	 * call_wd_to_get_rv2:
+	 * @rv2: #PHOEBE_curve placeholder for computed radial velocities
+	 * @indep: an array of independent variable values (HJDs or phases);
+	 *
+	 * Uses WD's LC code through a FORTRAN wrapper to obtain the secondary
+	 * star radial velocities. #PHOEBE_curve @rv2 must be initialized.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	int i;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
@@ -372,16 +395,12 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 {
 	/**
 	 * call_wd_to_get_pos_coordinates:
-	 * @poscoy: #PHOEBE_vector placeholder that will hold y coordinates of
-	 * the plane-of-sky
-	 * @poscoz: #PHOEBE_vector placeholder that will hold z coordinates of
-	 * the plane-of-sky
-	 * @phase: phase node in which the plane-of-sky (pos) coordinates should
-	 * be computed
+	 * @poscoy: #PHOEBE_vector placeholder for the plane-of-sky y coordinates
+	 * @poscoz: #PHOEBE_vector placeholder for the plane-of-sky z coordinates
+	 * @phase: phase at which the plane-of-sky coordinates are computed
 	 *
 	 * Uses WD's LC code through a FORTRAN wrapper to obtain the plane-of-sky
-	 * coordinates. The vectors @poscoy and @poscoz must not be allocated, only
-	 * initialized.
+	 * coordinates. #PHOEBE_vector's @poscoy and @poscoz must be initialized.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -439,11 +458,19 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	/*
 	 * Each star is covered by dimN per 1/4-sphere, and each spot adds 4 points
 	 * around the surface point. That is why the maximum dimension (in absence
-	 * of eclipses and spots covering the whole hemishpere) is:
+	 * of eclipses and with spots covering the whole hemishpere) is:
 	 */
 
-	dim = (4*nspots+1) * (2*dim1 + 2*dim2);
+	/**************************************************************************/
+	/*                                                                        */
+	/*   NOTICE: WE ARE MULTIPLYING dimN WITH 4 INSTEAD OF 2 BECAUSE OF THE   */
+	/*           BUG IN WD THAT SOMETIMES PLOTS POINTS THAT ARE INVISIBLE!    */
+	/*           STAR SHAPE PLOTTING SHOULD REALLY BE DONE IN PHOEBE RATHER   */
+	/*           THAN IN WD.                                                  */
+	/*                                                                        */
+	/**************************************************************************/
 
+	dim = (4*nspots+1) * (4*dim1 + 4*dim2);
 	phoebe_vector_alloc (poscoy, dim);
 	phoebe_vector_pad (poscoy, sqrt(-1));
 	phoebe_vector_alloc (poscoz, dim);

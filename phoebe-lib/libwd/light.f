@@ -43,6 +43,12 @@ c   Version of October 18, 2004
       dtr=pi/180.d0
       kstp=4
       cirf=.002d0
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c     ADDED ON JUN 17, 2008, TO AVOID COMPARISON WITH THE UNINITIALIZED
+c     VALUES IN BBL.F
+      sumhot=0.d0
+      sumkul=0.d0
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(ifphn.eq.1) goto 16
       if(mpage.ne.3) goto 16
       nbins=90000
