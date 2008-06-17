@@ -1824,6 +1824,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 		readout_str[strlen(readout_str)-1] = '\0';
 		if (strchr (readout_str, '#') != 0) (strchr (readout_str, '#'))[0] = '\0';
+		if (strchr (readout_str, 13) != 0) (strchr (readout_str, 13))[0] = '\0';
 		while (readout_str[0] == ' ' || readout_str[0] == '\t') readout_str++;
 		while (readout_str[strlen(readout_str)-1] == ' ' || readout_str[strlen(readout_str)-1] == '\t') readout_str[strlen(readout_str)-1] = '\0';
 		if (strlen (readout_str) == 0) continue;
