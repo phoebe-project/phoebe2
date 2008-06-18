@@ -946,102 +946,6 @@ int phoebe_join_chi2 (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weights
 	return SUCCESS;
 }
 
-double calculate_vga (PHOEBE_vector *rv1, PHOEBE_vector *rv2, double rv1avg, double rv2avg, double origvga)
-{
-	/*
-	 * This function calculates the center-of-mass radial velocity based on the
-	 * comparison of observed and calculated data, making sure that the average
-	 * of both sets are equal. First two passed parameters are observational
-	 * RVs (rv1 and rv2), 3rd and 4th parameters are observational averages,
-	 * which we rather pass than compute here again because of computing time
-	 * efficiency;  finally, 5th argument is the original value of VGA, which
-	 * is about to be changed by this function.
-	 *
-	 * There is a very important caveat here: one would think that to determine
-	 * gamma velocity, one would resort to subtraction, e.g.:                  
-	 *                                                                         
-	 *   v_{i+1} = v_i + observational average - synthetic average             
-	 *                                                                         
-	 * but this is a simple bisection and as such it's extremely slow. Rather, 
-	 * we resort here to multiplication:                                       
-	 *                                                                         
-	 *   v_{i+1} = v_i * observational average / synthetic average             
-	 *                                                                         
-	 * This does pretty much the same thing, but this approach is analogous to 
-	 * the Newton's method and thus converges much more rapidly. The down-size 
-	 * of this approach are values that are very close to 0, because once v_i  
-	 * is 0, it will remain 0 throughout the fit. That's why we displace it    
-	 * here manually by an infinitesimal amount (1/10) to avoid this issue.
-	 */
-
-	int status;
-	double av1 = 0.0;
-	double av2 = 0.0;
-	double av3 = 0.0;
-	double av4 = 0.0;
-	double obs_av, syn_av;
-
-	if (fabs (origvga) < 1e-1) origvga = 1e-1;
-
-	if (rv1) {
-		status = calculate_average (&av1, rv1);
-		av3 = rv1avg;
-	}
-	if (rv2) {
-		status = calculate_average (&av2, rv2);
-		av4 = rv2avg;
-	}
-
-	syn_av = (double) rv1->dim / (rv1->dim + rv2->dim) * av1 +
-	         (double) rv2->dim / (rv1->dim + rv2->dim) * av2;
-	obs_av = (double) rv1->dim / (rv1->dim + rv2->dim) * av3 +
-	         (double) rv2->dim / (rv1->dim + rv2->dim) * av4;
-	if (fabs (syn_av) < 1e-1) syn_av = 1e-1;
-
-	return origvga * obs_av / syn_av;
-}
-
-int calculate_median (double *median, PHOEBE_vector *vec)
-{
-	/*
-	 * This function calculates the median by first sorting the data and then
-	 * taking the value of the mid-index of the array.
-	 */
-
-	/* Since we'll be modifying the array, we must make a copy (really!).     */
-	PHOEBE_vector *copy;
-
-	if (!vec) return ERROR_VECTOR_NOT_INITIALIZED;
-	if (vec->dim < 1) return ERROR_VECTOR_IS_EMPTY;
-
-	copy = phoebe_vector_duplicate (vec);
-	qsort (copy->val, copy->dim, sizeof (*(copy->val)), diff);
-
-	if (copy->dim % 2 == 0) *median = copy->val[copy->dim/2];
-	else *median = 0.5*(copy->val[copy->dim/2]+copy->val[copy->dim/2+1]);
-
-	phoebe_vector_free (copy);
-	return SUCCESS;
-}
-
-int calculate_sum (double *sum, PHOEBE_vector *vec)
-{
-	/*
-	 * This function calculates the sum of all values in the array.
-	 */
-
-	int i;
-
-	if (!vec) return ERROR_VECTOR_NOT_INITIALIZED;
-	if (vec->dim < 1) return ERROR_VECTOR_INVALID_DIMENSION;
-	
-	*sum = 0.0;
-	for (i = 0; i < vec->dim; i++)
-		*sum += vec->val[i];
-
-	return SUCCESS;
-}
-
 int calculate_weighted_sum (double *sum, PHOEBE_vector *dep, PHOEBE_vector *weight)
 {
 	/*
@@ -1060,24 +964,6 @@ int calculate_weighted_sum (double *sum, PHOEBE_vector *dep, PHOEBE_vector *weig
 	for (i = 0; i < dep->dim; i++)
 		*sum += dep->val[i] * weight->val[i];
 	
-	return SUCCESS;
-}
-
-int calculate_average (double *average, PHOEBE_vector *vec)
-{
-	/*
-	 * This function calculates the average of the values in the array.
-	 */
-
-	double sum;
-	int status;
-
-	if (!vec) return ERROR_VECTOR_NOT_INITIALIZED;
-	if (vec->dim < 1) return ERROR_VECTOR_INVALID_DIMENSION;
-
-	status = calculate_sum (&sum, vec);
-
-	*average = sum / vec->dim;
 	return SUCCESS;
 }
 
@@ -1102,32 +988,6 @@ int calculate_weighted_average (double *average, PHOEBE_vector *dep, PHOEBE_vect
 
 	calculate_weighted_sum (&sum, dep, weight);
 	*average = sum / *average;
-
-	return SUCCESS;
-}
-
-int calculate_sigma (double *sigma, PHOEBE_vector *vec)
-{
-	/*
-	 * This function calculates standard deviation of the vector vec:
-	 *
-	 *   sigma^2 = 1/(N-1) \sum_i=1^N (x_i - \bar x)^2
-	 */
-
-	int i;
-	int status;
-	double average;
-
-	if (!vec)         return ERROR_VECTOR_NOT_INITIALIZED;
-	if (vec->dim < 1) return ERROR_VECTOR_INVALID_DIMENSION;
-
-	status = calculate_average (&average, vec);
-	if (status != SUCCESS) return status;
-
-	*sigma = 0.0;
-	for (i = 0; i < vec->dim; i++)
-		*sigma += (vec->val[i] - average) * (vec->val[i] - average);
-	*sigma = sqrt (*sigma / (vec->dim - 1));
 
 	return SUCCESS;
 }

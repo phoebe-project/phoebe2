@@ -75,6 +75,10 @@ int            phoebe_vector_multiply           (PHOEBE_vector *result, PHOEBE_v
 int            phoebe_vector_divide             (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_raise              (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_offset             (PHOEBE_vector *vec, double offset);
+int            phoebe_vector_sum                (PHOEBE_vector *vec, double *sum);
+int            phoebe_vector_mean               (PHOEBE_vector *vec, double *mean);
+int            phoebe_vector_median             (PHOEBE_vector *vec, double *median);
+int            phoebe_vector_standard_deviation (PHOEBE_vector *vec, double *sigma);
 int            phoebe_vector_multiply_by        (PHOEBE_vector *vec, double factor);
 int            phoebe_vector_dot_product        (double *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
 int            phoebe_vector_vec_product        (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector *fac2);
