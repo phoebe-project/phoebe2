@@ -1719,6 +1719,7 @@ int gui_para_lum_levels_edit()
 			GtkWidget *phoebe_levels_passband_label		    = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_passband_label");
     		GtkWidget *phoebe_levels_primary_spinbutton     = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_primary_spinbutton");
     		GtkWidget *phoebe_levels_secondary_spinbutton   = glade_xml_get_widget (phoebe_levels_xml, "phoebe_levels_secondary_spinbutton");
+    		GtkWidget *phoebe_cla_adjust_checkbutton = gui_widget_lookup("phoebe_para_lum_levels_secadjust_checkbutton")->gtk;
 
 			g_object_unref (phoebe_levels_xml);
 
@@ -1728,6 +1729,9 @@ int gui_para_lum_levels_edit()
 			gtk_label_set_text (GTK_LABEL (phoebe_levels_passband_label), passband);
 			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_levels_primary_spinbutton), hla);
 			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_levels_secondary_spinbutton), cla);
+
+			if (!GTK_WIDGET_IS_SENSITIVE(phoebe_cla_adjust_checkbutton))
+				gtk_widget_set_sensitive(phoebe_levels_secondary_spinbutton, FALSE);
 
     		gint result = gtk_dialog_run ((GtkDialog*)phoebe_levels_dialog);
    			switch (result){
@@ -1981,6 +1985,7 @@ int gui_para_lc_coefficents_edit ()
 			GtkWidget *phoebe_lc_coefficents_x2_spinbutton	= glade_xml_get_widget (phoebe_lc_coefficents_xml, "phoebe_lc_coefficents_x2_spinbutton");
 			GtkWidget *phoebe_lc_coefficents_y1_spinbutton	= glade_xml_get_widget (phoebe_lc_coefficents_xml, "phoebe_lc_coefficents_y1_spinbutton");
 			GtkWidget *phoebe_lc_coefficents_y2_spinbutton	= glade_xml_get_widget (phoebe_lc_coefficents_xml, "phoebe_lc_coefficents_y2_spinbutton");
+			GtkWidget *phoebe_ld_secondary_adjust_checkbutton = gui_widget_lookup("phoebe_para_ld_lccoefs_secadjust_checkbutton")->gtk;
 
 			g_object_unref (phoebe_lc_coefficents_xml);
 
@@ -1992,6 +1997,11 @@ int gui_para_lc_coefficents_edit ()
 			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_lc_coefficents_x2_spinbutton), x2);
 			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_lc_coefficents_y1_spinbutton), y1);
 			gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_lc_coefficents_y2_spinbutton), y2);
+
+			if (!GTK_WIDGET_IS_SENSITIVE(phoebe_ld_secondary_adjust_checkbutton)) {
+				gtk_widget_set_sensitive(phoebe_lc_coefficents_x2_spinbutton, FALSE);
+				gtk_widget_set_sensitive(phoebe_lc_coefficents_y2_spinbutton, FALSE);
+			}
 
     		gint result = gtk_dialog_run ((GtkDialog*)phoebe_lc_coefficents_dialog);
    			switch (result){

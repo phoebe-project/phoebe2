@@ -535,6 +535,9 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_coarse"), NULL);
 	gui_widget_add ("phoebe_rv_plot_controls_fine_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_controls_fine_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_fine"), NULL);
 
+	gui_widget_add ("phoebe_para_comp_phsv_calculate_button",           glade_xml_get_widget(phoebe_window, "phoebe_para_comp_phsv_calculate_button"),                          0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_para_comp_pcsv_calculate_button",           glade_xml_get_widget(phoebe_window, "phoebe_para_comp_pcsv_calculate_button"),                          0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+
 	gui_widget_add ("phoebe_sidesheet_detach_button",                   glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_detach_button"),                                  0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_fitt_detach_button",                        glade_xml_get_widget(phoebe_window, "phoebe_fitt_detach_button"),                                       0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_lc_plot_detach_button",                     glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_detach_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);

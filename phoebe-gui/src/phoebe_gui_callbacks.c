@@ -33,6 +33,116 @@ G_MODULE_EXPORT void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *to
 	gui_fill_fitt_mf_treeview();
 }
 
+void phoebe_gui_constrain_cla_adjust ()
+{
+	GtkWidget *cla_adjust_checkbutton = gui_widget_lookup("phoebe_para_lum_levels_secadjust_checkbutton")->gtk;
+	GtkWidget *lum_decouple_checkbutton = gui_widget_lookup("phoebe_para_lum_options_decouple_checkbutton")->gtk;
+	GtkWidget *star_model_combobox = gui_widget_lookup("phoebe_data_star_model_combobox")->gtk;
+
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lum_decouple_checkbutton)) || (gtk_combo_box_get_active(GTK_COMBO_BOX(star_model_combobox)) == 1)) /* Unconstrained binary system */
+		gtk_widget_set_sensitive(cla_adjust_checkbutton, TRUE);
+	else {
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(cla_adjust_checkbutton), FALSE);
+		gtk_widget_set_sensitive(cla_adjust_checkbutton, FALSE);
+	}
+}
+
+void phoebe_gui_constrain_phsv (bool constrain)
+{
+	GtkWidget *phsv_adjust_checkbutton = gui_widget_lookup("phoebe_para_comp_phsvadjust_checkbutton")->gtk;
+	GtkWidget *phsv_spinbutton = gui_widget_lookup("phoebe_para_comp_phsv_spinbutton")->gtk;
+	GtkWidget *phsv_calculate_button = gui_widget_lookup("phoebe_para_comp_phsv_calculate_button")->gtk;
+
+	gtk_widget_set_sensitive(phsv_adjust_checkbutton, !constrain);
+	gtk_widget_set_sensitive(phsv_spinbutton, !constrain);
+	gtk_widget_set_sensitive(phsv_calculate_button, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(phsv_adjust_checkbutton), FALSE);
+}
+
+void phoebe_gui_constrain_pcsv (bool constrain)
+{
+	GtkWidget *pcsv_adjust_checkbutton = gui_widget_lookup("phoebe_para_comp_pcsvadjust_checkbutton")->gtk;
+	GtkWidget *pcsv_spinbutton = gui_widget_lookup("phoebe_para_comp_pcsv_spinbutton")->gtk;
+	GtkWidget *pcsv_calculate_button = gui_widget_lookup("phoebe_para_comp_pcsv_calculate_button")->gtk;
+
+	gtk_widget_set_sensitive(pcsv_adjust_checkbutton, !constrain);
+	gtk_widget_set_sensitive(pcsv_spinbutton, !constrain);
+	gtk_widget_set_sensitive(pcsv_calculate_button, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(pcsv_adjust_checkbutton), FALSE);
+}
+
+void phoebe_gui_constrain_secondary_params (bool constrain)
+{
+	GtkWidget *tavc_spinbutton = gui_widget_lookup("phoebe_para_comp_tavc_spinbutton")->gtk;
+	GtkWidget *tavc_adjust_checkbutton = gui_widget_lookup("phoebe_para_comp_tavcadjust_checkbutton")->gtk;
+	GtkWidget *alb2_spinbutton = gui_widget_lookup("phoebe_para_surf_alb2_spinbutton")->gtk;
+	GtkWidget *alb2_adjust_checkbutton = gui_widget_lookup("phoebe_para_surf_alb2adjust_checkbutton")->gtk;
+	GtkWidget *gr2_spinbutton = gui_widget_lookup("phoebe_para_surf_gr2_spinbutton")->gtk;
+	GtkWidget *gr2_adjust_checkbutton = gui_widget_lookup("phoebe_para_surf_gr2adjust_checkbutton")->gtk;
+	GtkWidget *ld_secondary_adjust_checkbutton = gui_widget_lookup("phoebe_para_ld_lccoefs_secadjust_checkbutton")->gtk;
+
+	gtk_widget_set_sensitive(tavc_spinbutton, !constrain);
+	gtk_widget_set_sensitive(tavc_adjust_checkbutton, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(tavc_adjust_checkbutton), FALSE);
+
+	gtk_widget_set_sensitive(alb2_spinbutton, !constrain);
+	gtk_widget_set_sensitive(alb2_adjust_checkbutton, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(alb2_adjust_checkbutton), FALSE);
+
+	gtk_widget_set_sensitive(gr2_spinbutton, !constrain);
+	gtk_widget_set_sensitive(gr2_adjust_checkbutton, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(gr2_adjust_checkbutton), FALSE);
+
+	gtk_widget_set_sensitive(ld_secondary_adjust_checkbutton, !constrain);
+	if (constrain)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ld_secondary_adjust_checkbutton), FALSE);
+}
+
+G_MODULE_EXPORT void on_phoebe_data_star_model_combobox_changed (GtkComboBox *widget, gpointer user_data)
+{
+	int star_model = gtk_combo_box_get_active(widget);
+	switch (star_model) {
+		case 2: /* W UMa */
+			phoebe_gui_constrain_secondary_params(TRUE);
+			break;
+		default: 
+			phoebe_gui_constrain_secondary_params(FALSE);
+			break;
+	}
+	switch (star_model) {
+		case 0: /* X-ray binary */
+		case 2: /* W UMa */
+		case 4: /* Overcontact, no thermal contact */
+		case 6: /* Semi-detached, secondary fills Roche lobe */
+		case 7: /* Double contact */
+			phoebe_gui_constrain_pcsv(TRUE);
+			break;
+		default: 
+			phoebe_gui_constrain_pcsv(FALSE);
+			break;
+	}
+	switch (star_model) {
+		case 5: /* Semi-detached, primary fills Roche lobe */
+		case 7: /* Double contact */
+			phoebe_gui_constrain_phsv(TRUE);
+			break;
+		default: 
+			phoebe_gui_constrain_phsv(FALSE);
+			break;
+	}
+	phoebe_gui_constrain_cla_adjust();
+}
+
+G_MODULE_EXPORT void on_phoebe_para_lum_options_decouple_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	phoebe_gui_constrain_cla_adjust();
+}
+
 G_MODULE_EXPORT void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer user_data)
 {
 	GtkWidget *phoebe_window = gui_widget_lookup("phoebe_window")->gtk;
