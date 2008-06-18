@@ -491,6 +491,112 @@ int phoebe_vector_offset (PHOEBE_vector *vec, double offset)
 	return SUCCESS;
 }
 
+int phoebe_vector_sum (PHOEBE_vector *vec, double *sum)
+{
+	/**
+	 * phoebe_vector_sum:
+	 * @vec: #PHOEBE_vector for which a sum is computed
+	 * @median: placeholder for the sum value
+	 *
+	 * Computes a sum of all vector elements.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+
+	if (!vec) return ERROR_VECTOR_NOT_INITIALIZED;
+	if (vec->dim < 1) return ERROR_VECTOR_INVALID_DIMENSION;
+	
+	*sum = 0.0;
+	for (i = 0; i < vec->dim; i++)
+		*sum += vec->val[i];
+
+	return SUCCESS;
+}
+
+int phoebe_vector_mean (PHOEBE_vector *vec, double *mean)
+{
+	/**
+	 * phoebe_vector_mean:
+	 * @vec: #PHOEBE_vector for which a mean is computed
+	 * @median: placeholder for the mean value
+	 *
+	 * Computes the mean (arithmetic average) of all vector elements.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int status;
+	double sum;
+
+	/* We'll let phoebe_vector_sum do the error handling for us: */
+	status = phoebe_vector_sum (vec, &sum);
+	if (status != SUCCESS)
+		return status;
+
+	*mean = sum / vec->dim;
+	return SUCCESS;
+}
+
+int phoebe_vector_median (PHOEBE_vector *vec, double *median)
+{
+	/**
+	 * phoebe_vector_median:
+	 * @vec: #PHOEBE_vector for which a median is computed
+	 * @median: placeholder for the median value
+	 *
+	 * Sorts the vector elements and returns a median value. The passed
+	 * vector @vec is not changed.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	PHOEBE_vector *copy;
+
+	if (!vec) return ERROR_VECTOR_NOT_INITIALIZED;
+	if (vec->dim < 1) return ERROR_VECTOR_IS_EMPTY;
+
+	/* We have to sort the array, that is why we need a duplicate: */
+	copy = phoebe_vector_duplicate (vec);
+	qsort (copy->val, copy->dim, sizeof (*(copy->val)), diff);
+
+	if (copy->dim % 2 == 0) *median = copy->val[copy->dim/2];
+	else *median = 0.5*(copy->val[copy->dim/2]+copy->val[copy->dim/2+1]);
+
+	phoebe_vector_free (copy);
+	return SUCCESS;
+}
+
+int phoebe_vector_standard_deviation (PHOEBE_vector *vec, double *sigma)
+{
+	/**
+	 * phoebe_vector_standard_deviation:
+	 * @vec: #PHOEBE_vector for which standard deviation is computed
+	 * @sigma: placeholder for standard deviation value
+	 *
+	 * Computes standard deviation (@sigma) of vector elements.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	int status;
+	double mean;
+
+
+	/* We'll let phoebe_vector_mean do the error handling for us: */
+	status = phoebe_vector_mean (vec, &mean);
+	if (status != SUCCESS) return status;
+
+	*sigma = 0.0;
+	for (i = 0; i < vec->dim; i++)
+		*sigma += (vec->val[i] - mean) * (vec->val[i] - mean);
+	*sigma = sqrt (*sigma / (vec->dim - 1));
+
+	return SUCCESS;
+}
+
 int phoebe_vector_multiply_by (PHOEBE_vector *vec, double factor)
 {
 	/**
@@ -2805,12 +2911,12 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 		if (status != SUCCESS) return status;
 
 		/*
-		 * Next we need to transform the standard deviation of the curve; it
+		 * Next we need to transform standard deviation of the curve; it
 		 * takes fluxes, so it must be called after the magnitudes have been
 		 * transformed to fluxes.
 		 */
 
-		calculate_average (&mean, curve->dep);
+		phoebe_vector_mean (curve->dep, &mean);
 		curve->sigma = 0.5 * mean * (pow (10, 2./5.*curve->sigma) - pow (10, -2./5.*curve->sigma));
 
 		/*
@@ -2848,7 +2954,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 		 * to magnitudes.
 		 */
 
-		calculate_average (&mean, curve->dep);
+		phoebe_vector_mean (curve->dep, &mean);
 		curve->sigma = -5./2. * log10 (1.0 + curve->sigma/mean);
 
 		status = transform_flux_to_magnitude (curve->dep, mnorm);
