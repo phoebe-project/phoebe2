@@ -1277,7 +1277,7 @@ scripter_ast_value scripter_compute_perr0_phase (scripter_ast_list *args)
 		return out;
 	}
 
-	status = calculate_periastron_orbital_phase (&phase, vals[0].value.d, vals[1].value.d);
+	status = phoebe_calculate_periastron_phase (&phase, vals[0].value.d, vals[1].value.d);
 	if (status != SUCCESS) {
 		phoebe_scripter_error (status);
 		scripter_ast_value_array_free (vals, 2);

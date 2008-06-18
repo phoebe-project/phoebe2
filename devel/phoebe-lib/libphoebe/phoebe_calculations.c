@@ -400,7 +400,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	 * @phase: phase at which the plane-of-sky coordinates are computed
 	 *
 	 * Uses WD's LC code through a FORTRAN wrapper to obtain the plane-of-sky
-	 * coordinates. #PHOEBE_vector's @poscoy and @poscoz must be initialized.
+	 * coordinates. #PHOEBE_vector#s @poscoy and @poscoz must be initialized.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -570,11 +570,11 @@ int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_
 {
 	/**
 	 * phoebe_calculate_level_correction:
-	 * @alpha: level correction: L1 -> L1/@alpha, L2 -> L2/@alpha
+	 * @alpha: placeholder for level correction: L1 -> L1/@alpha, L2 -> L2/@alpha
 	 * @syn:   synthetic (model) light curve
 	 * @obs:   observed light curve
 	 *
-	 * Computes the correction @alpha that solves the equation:
+	 * Computes the correction @alpha by solving:
 	 *
 	 *   \sum_i w_i (o_i - @alpha c_i)^2 = min
 	 *
@@ -606,11 +606,12 @@ int phoebe_calculate_gamma_correction (double *gamma, PHOEBE_curve *syn, PHOEBE_
 {
 	/**
 	 * phoebe_calculate_gamma_correction:
-	 * @gamma: gamma (center-of-mass) velocity correction: v -> v + gamma
+	 * @gamma: placeholder for gamma (center-of-mass) velocity correction:
+	 *         v -> v + gamma
 	 * @syn:   synthetic (model) light curve
 	 * @obs:   observed light curve
 	 *
-	 * Computes the correction @gamma that solves the equation:
+	 * Computes the correction @gamma by solving:
 	 *
 	 *   \sum_i w_i (o_i - c_i - @gamma)^2 = min
 	 *
@@ -758,8 +759,31 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	return SUCCESS;
 }
 
-int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc)
+int phoebe_calculate_periastron_phase (double *pp, double perr0, double ecc)
 {
+	/**
+	 * phoebe_calculate_periastron_phase:
+	 * @pp: placeholder for periastron passage phase
+	 * @perr0: argument of periastron, in radians
+	 * @ecc: orbital eccentricity
+	 *
+	 * Computes the periastron passage phase by solving the following equations:
+	 *
+	 * True anomaly:
+	 * upsilon = pi/2 - omega
+	 *
+	 * Eccentric anomaly:
+	 * E = 2 atan ( sqrt ( (1-e)/(1+e) ) tan(upsilon/2) )
+	 *
+	 * Mean anomaly:
+	 * M = E - e sin (E)
+	 *
+	 * Periastron passage:
+	 * @pp = 1 - M/(2 pi)
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	/* True anomaly at perr0: */
 	double ta = M_PI/2.0 - perr0;
 
