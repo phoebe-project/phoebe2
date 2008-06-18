@@ -45,7 +45,7 @@ double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, doubl
 double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);
-int calculate_periastron_orbital_phase (double *pp, double perr0, double ecc);
+int phoebe_calculate_periastron_phase    (double *pp, double perr0, double ecc);
 
 int calculate_median           (double *median,  PHOEBE_vector *vec);
 int calculate_sum              (double *sum,     PHOEBE_vector *vec);
