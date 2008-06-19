@@ -788,22 +788,22 @@ int gui_fill_sidesheet_res_treeview()
 	par = phoebe_parameter_lookup("phoebe_mbol1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol</sub> 2", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol,1</sub>", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_mbol2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol</sub> 1", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "M<sub>bol,2</sub>", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg1");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g) 1", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g<sub>1</sub>)", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_logg2");
 	status = phoebe_parameter_get_value(par, &value);
 	gtk_list_store_append((GtkListStore*)model, &iter);
-	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g) 2", RS_COL_PARAM_VALUE, value, -1);
+	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Log(g<sub>2</sub>)", RS_COL_PARAM_VALUE, value, -1);
 
 	par = phoebe_parameter_lookup("phoebe_sbr1");
 	status = phoebe_parameter_get_value(par, &value);
