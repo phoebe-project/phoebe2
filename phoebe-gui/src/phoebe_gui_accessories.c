@@ -124,14 +124,12 @@ GtkWidget *gui_detach_box_from_parent (GtkWidget *box, GtkWidget *parent, gboole
 
 void gui_beep()
 {
-	int status;
 	bool beep;
 
-	status = gui_get_values_from_widgets ();
-
 	phoebe_config_entry_get ("GUI_BEEP_AFTER_PLOT_AND_FIT", &beep);
-	if (beep)
+	if (beep) {
 		gdk_beep();
+	}
 }
 
 int gui_open_parameter_file()

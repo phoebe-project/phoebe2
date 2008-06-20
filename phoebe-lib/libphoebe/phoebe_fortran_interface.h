@@ -189,4 +189,6 @@ WD_DCI_parameters *wd_dci_parameters_new     ();
 int                read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba);
 int                wd_dci_parameters_free    (WD_DCI_parameters *params);
 
+int phoebe_wd_model (char *phoebe_model);
+
 #endif

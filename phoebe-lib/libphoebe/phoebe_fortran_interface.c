@@ -176,6 +176,27 @@ int intern_get_level_weighting_id (const char *type)
 	return id;
 }
 
+int phoebe_wd_model (char *phoebe_model)
+{
+	/*
+	 * This function translates the Phoebe model string 
+	 * into the WD model number.
+	 * 
+	 * Return values:
+	 * 
+	 *   -1 to 6, 99 for undefined
+	 */
+	if (strcmp (phoebe_model, "X-ray binary"                                         ) == 0) return -1;
+	if (strcmp (phoebe_model, "Unconstrained binary system"                          ) == 0) return  0;
+	if (strcmp (phoebe_model, "Overcontact binary of the W UMa type"                 ) == 0) return  1;
+	if (strcmp (phoebe_model, "Detached binary"                                      ) == 0) return  2;
+	if (strcmp (phoebe_model, "Overcontact binary not in thermal contact"            ) == 0) return  3;
+	if (strcmp (phoebe_model, "Semi-detached binary, primary star fills Roche lobe"  ) == 0) return  4;
+	if (strcmp (phoebe_model, "Semi-detached binary, secondary star fills Roche lobe") == 0) return  5;
+	if (strcmp (phoebe_model, "Double contact binary"                                ) == 0) return  6;
+	return 99;
+}
+
 int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 {
 	/*
@@ -306,14 +327,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	params->PHNORM = 0.25;
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &readout_str);
-	if (strcmp (readout_str, "X-ray binary"                                         ) == 0) params->MODE = -1;
-	if (strcmp (readout_str, "Unconstrained binary system"                          ) == 0) params->MODE =  0;
-	if (strcmp (readout_str, "Overcontact binary of the W UMa type"                 ) == 0) params->MODE =  1;
-	if (strcmp (readout_str, "Detached binary"                                      ) == 0) params->MODE =  2;
-	if (strcmp (readout_str, "Overcontact binary not in thermal contact"            ) == 0) params->MODE =  3;
-	if (strcmp (readout_str, "Semi-detached binary, primary star fills Roche lobe"  ) == 0) params->MODE =  4;
-	if (strcmp (readout_str, "Semi-detached binary, secondary star fills Roche lobe") == 0) params->MODE =  5;
-	if (strcmp (readout_str, "Double contact binary"                                ) == 0) params->MODE =  6;
+	params->MODE = phoebe_wd_model(readout_str);
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &readout_bool);
 	if (readout_bool && lcno > 0) params->CALCHLA = 1; else params->CALCHLA = 0;

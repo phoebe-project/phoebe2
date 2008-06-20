@@ -473,6 +473,8 @@ c
       params(10) = xlg2
       params(11) = sbrh
       params(12) = sbrc
+      params(13) = phsv
+      params(14) = pcsv
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       call wrhead(ibef,nref,mref,ifsmv1,ifsmv2,icor1,icor2,
