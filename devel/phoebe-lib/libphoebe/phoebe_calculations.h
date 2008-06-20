@@ -81,4 +81,8 @@ int apply_third_light_correction (PHOEBE_curve *curve, PHOEBE_el3_units el3units
 int apply_interstellar_extinction_correction (PHOEBE_vector *wavelength, PHOEBE_vector *spectrum, double R, double E);
 int calculate_teff_from_bv_index (int star_type, double bv, double *teff);
 
+int phoebe_wd_model_from_phoebe_model_parameter ();
+bool phoebe_phsv_constrained (int wd_model);
+bool phoebe_pcsv_constrained (int wd_model);
+
 #endif

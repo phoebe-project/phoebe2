@@ -170,6 +170,61 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 	return SUCCESS;
 }
 
+int phoebe_wd_model_from_phoebe_model_parameter ()
+{
+	/**
+	 * phoebe_wd_model_from_phoebe_model_parameter:
+	 *
+	 * Translates the parameter "phoebe_model" into the WD model number (-1 to 6).
+	 *
+	 * Returns: @wd_model.
+	 */
+	char *phoebe_model;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &phoebe_model);
+	return phoebe_wd_model (phoebe_model);
+}
+
+bool phoebe_phsv_constrained (int wd_model)
+{
+	/**
+	 * phoebe_phsv_constrained:
+	 * @wd_model: Model number used by WD (-1 to 6)
+	 *
+	 * Indicates whether the primary potential is constrained by the choice of model.
+	 *
+	 * Returns: TRUE/FALSE.
+	 */
+	switch (wd_model) {
+		case 4: /* Semi-detached, primary fills Roche lobe */
+		case 6: /* Double contact */
+			return TRUE;
+		default: 
+			return FALSE;
+	}
+}
+
+bool phoebe_pcsv_constrained (int wd_model)
+{
+	/**
+	 * phoebe_pcsv_constrained:
+	 * @wd_model: Model number used by WD (-1 to 6)
+	 *
+	 * Indicates whether the secondary potential is constrained by the choice of model.
+	 *
+	 * Returns: TRUE/FALSE.
+	 */
+	switch (wd_model) {
+		case -1: /* X-ray binary */
+		case  1: /* W UMa */
+		case  3: /* Overcontact, no thermal contact */
+		case  5: /* Semi-detached, secondary fills Roche lobe */
+		case  6: /* Double contact */
+			return TRUE;
+		default: 
+			return FALSE;
+	}
+}
+
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 {
 	/**
@@ -186,7 +241,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	int i, status;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
-	double params[12];
+	double params[14];
 
 	PHOEBE_el3_units l3units;
 	integer request, nodes, L3perc;
@@ -245,6 +300,12 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
+	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
+	if (phoebe_phsv_constrained (wd_model))
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot1"), params[12]);
+	if (phoebe_pcsv_constrained (wd_model))
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), params[13]);
 
 	return SUCCESS;
 }

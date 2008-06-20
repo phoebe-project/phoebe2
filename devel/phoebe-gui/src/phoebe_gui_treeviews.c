@@ -815,6 +815,12 @@ int gui_fill_sidesheet_res_treeview()
 	gtk_list_store_append((GtkListStore*)model, &iter);
 	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Surf. Bright. 2", RS_COL_PARAM_VALUE, value, -1);
 
+	/* Also update constrained potentials */
+	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
+	if (phoebe_phsv_constrained (wd_model))
+		gui_set_value_to_widget (gui_widget_lookup("phoebe_para_comp_phsv_spinbutton"));
+	if (phoebe_pcsv_constrained (wd_model))
+		gui_set_value_to_widget (gui_widget_lookup("phoebe_para_comp_pcsv_spinbutton"));
 	return status;
 }
 

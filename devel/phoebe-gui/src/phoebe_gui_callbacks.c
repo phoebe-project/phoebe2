@@ -105,36 +105,10 @@ void phoebe_gui_constrain_secondary_params (bool constrain)
 
 G_MODULE_EXPORT void on_phoebe_data_star_model_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
-	int star_model = gtk_combo_box_get_active(widget);
-	switch (star_model) {
-		case 2: /* W UMa */
-			phoebe_gui_constrain_secondary_params(TRUE);
-			break;
-		default: 
-			phoebe_gui_constrain_secondary_params(FALSE);
-			break;
-	}
-	switch (star_model) {
-		case 0: /* X-ray binary */
-		case 2: /* W UMa */
-		case 4: /* Overcontact, no thermal contact */
-		case 6: /* Semi-detached, secondary fills Roche lobe */
-		case 7: /* Double contact */
-			phoebe_gui_constrain_pcsv(TRUE);
-			break;
-		default: 
-			phoebe_gui_constrain_pcsv(FALSE);
-			break;
-	}
-	switch (star_model) {
-		case 5: /* Semi-detached, primary fills Roche lobe */
-		case 7: /* Double contact */
-			phoebe_gui_constrain_phsv(TRUE);
-			break;
-		default: 
-			phoebe_gui_constrain_phsv(FALSE);
-			break;
-	}
+	int star_model = gtk_combo_box_get_active(widget) - 1;
+	phoebe_gui_constrain_secondary_params( (star_model == 1) ); /* 1: W UMa */
+	phoebe_gui_constrain_pcsv(phoebe_pcsv_constrained(star_model));
+	phoebe_gui_constrain_phsv(phoebe_phsv_constrained(star_model));
 	phoebe_gui_constrain_cla_adjust();
 }
 
