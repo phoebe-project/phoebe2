@@ -148,6 +148,8 @@ c                     params( 9) = logg1  star 1 log gravity
 c                     params(10) = logg2  star 2 log gravity
 c                     params(11) = SBR1   star 1 polar surface brightness
 c                     params(12) = SBR2   star 2 polar surface brightness
+c                     params(13) = phsv   star 1 potential
+c                     params(14) = pcsv   star 2 potential
 c
       integer request,vertno
       double precision indeps(*),deps(*),skycoy(*),skycoz(*),params(*)
