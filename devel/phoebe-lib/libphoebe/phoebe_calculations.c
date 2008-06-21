@@ -225,6 +225,29 @@ bool phoebe_pcsv_constrained (int wd_model)
 	}
 }
 
+void set_parameters_from_wd (double *params)
+{
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+
+	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
+	if (phoebe_phsv_constrained (wd_model))
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot1"), params[12]);
+	if (phoebe_pcsv_constrained (wd_model))
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), params[13]);
+
+}
+
 int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 {
 	/**
@@ -287,25 +310,7 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 		L3perc = 1;
 
 	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, NULL, NULL, params);
-
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
-
-	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
-	if (phoebe_phsv_constrained (wd_model))
-		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot1"), params[12]);
-	if (phoebe_pcsv_constrained (wd_model))
-		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), params[13]);
+	set_parameters_from_wd (params);
 
 	return SUCCESS;
 }
@@ -326,7 +331,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	int i;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
-	double params[12];
+	double params[14];
 
 	integer request, nodes, L3perc;
 
@@ -364,19 +369,7 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 	L3perc = 0;
 
 	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv1->dep->val, NULL, NULL, params);
-
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+	set_parameters_from_wd (params);
 
 	return SUCCESS;
 }
@@ -397,7 +390,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	int i;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
-	double params[12];
+	double params[14];
 
 	integer request, nodes, L3perc;
 
@@ -435,19 +428,7 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 	L3perc = 0;
 
 	wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv2->dep->val, NULL, NULL, params);
-
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+	set_parameters_from_wd (params);
 
 	return SUCCESS;
 }
@@ -470,7 +451,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	int n1, n2, nspots, dim;
 	char *basedir;
 	char *atmcof, *atmcofplanck;
-	double params[12];
+	double params[14];
 
 	double theta;
 	int dim1 = 0, dim2 = 0;
@@ -548,19 +529,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	while (!isnan(poscoy->val[i]) && i < poscoy->dim) i++;
 	phoebe_vector_realloc (poscoy, i-1);
 	phoebe_vector_realloc (poscoz, i-1);
-	
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+	set_parameters_from_wd (params);
 
 	return SUCCESS;
 }
@@ -569,7 +538,7 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 {
 	char *basedir;
 	char *atmcof, *atmcofplanck;
-	double params[12];
+	double params[14];
 	integer request, nodes, L3perc, status;
 
 	char *filename;
@@ -608,18 +577,7 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 
 	*logg1 = params[ 8];
 	*logg2 = params[ 9];
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass2"),   params[ 3]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius1"), params[ 4]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_radius2"), params[ 5]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol1"),   params[ 6]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mbol2"),   params[ 7]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg1"),   params[ 8]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
+	set_parameters_from_wd (params);
 
 	remove (filename);
 	free (filename);
