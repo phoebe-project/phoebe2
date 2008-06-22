@@ -1785,6 +1785,7 @@ int gui_para_lum_levels_calc()
 			gdouble alpha;
 			int index = atoi(gtk_tree_model_get_string_from_iter(model, &iter));
 
+			gui_get_values_from_widgets();
 			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index);
 			if (!obs) {
 				return ERROR_VECTOR_IS_EMPTY;
