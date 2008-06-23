@@ -1781,7 +1781,7 @@ int gui_para_lum_levels_calc()
        		if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
 			PHOEBE_curve *syncurve;
 			PHOEBE_curve *obs;
-			gdouble hla;
+			gdouble hla, cla;
 			gdouble alpha;
 			int index = atoi(gtk_tree_model_get_string_from_iter(model, &iter));
 
@@ -1804,9 +1804,11 @@ int gui_para_lum_levels_calc()
 			}
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index, &hla);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum2"), &cla);
 			hla /= alpha;
+			cla /= alpha;
 
-			gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_HLA, hla, -1);
+			gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_HLA, hla, LC_COL_CLA, cla, -1);
 		}
 	}
 
