@@ -16,7 +16,7 @@
 
 ########################################################################
 #                                                                      #
-#    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -52,7 +52,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-subdir = help
+subdir = docs/reference
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_prog_xsltproc.m4 \
@@ -70,9 +70,9 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(phoebehelpdir)"
-phoebehelpDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(phoebehelp_DATA)
+am__installdirs = "$(DESTDIR)$(scripterdocdir)"
+scripterdocDATA_INSTALL = $(INSTALL_DATA)
+DATA = $(scripterdoc_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -169,18 +169,18 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-phoebehelpdir = $(datadir)/phoebe_scripter/help
-phoebehelp_DATA = apply_doppler_shift.help          \
-                  apply_rotational_broadening.help  \
-                  get_spectrum_from_repository.help \
-                  if.help                           \
-                  info.help                         \
-		  resample_spectrum.help            \
-                  while.help                        \
-                  broaden_spectrum.help
+scripterdocdir = $(datarootdir)/phoebe_scripter/docs/reference
+scripterdoc_DATA = api.xml         \
+                   intro.xml       \
+		   general.xml     \
+		   identifiers.xml \
+                   api.html
 
-EXTRA_DIST = $(phoebehelp_DATA)
-all: all-am
+BUILT_SOURCES = api.html
+CLEANFILES = api.html
+EXTRA_DIST = $(scripterdoc_DATA)
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -192,9 +192,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  help/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  docs/reference/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  help/Makefile
+	  $(AUTOMAKE) --gnu  docs/reference/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -212,22 +212,22 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-install-phoebehelpDATA: $(phoebehelp_DATA)
+install-scripterdocDATA: $(scripterdoc_DATA)
 	@$(NORMAL_INSTALL)
-	test -z "$(phoebehelpdir)" || $(MKDIR_P) "$(DESTDIR)$(phoebehelpdir)"
-	@list='$(phoebehelp_DATA)'; for p in $$list; do \
+	test -z "$(scripterdocdir)" || $(MKDIR_P) "$(DESTDIR)$(scripterdocdir)"
+	@list='$(scripterdoc_DATA)'; for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  f=$(am__strip_dir) \
-	  echo " $(phoebehelpDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(phoebehelpdir)/$$f'"; \
-	  $(phoebehelpDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(phoebehelpdir)/$$f"; \
+	  echo " $(scripterdocDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(scripterdocdir)/$$f'"; \
+	  $(scripterdocDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(scripterdocdir)/$$f"; \
 	done
 
-uninstall-phoebehelpDATA:
+uninstall-scripterdocDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(phoebehelp_DATA)'; for p in $$list; do \
+	@list='$(scripterdoc_DATA)'; for p in $$list; do \
 	  f=$(am__strip_dir) \
-	  echo " rm -f '$(DESTDIR)$(phoebehelpdir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(phoebehelpdir)/$$f"; \
+	  echo " rm -f '$(DESTDIR)$(scripterdocdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(scripterdocdir)/$$f"; \
 	done
 tags: TAGS
 TAGS:
@@ -263,13 +263,15 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: check-am
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(phoebehelpdir)"; do \
+	for dir in "$(DESTDIR)$(scripterdocdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: install-am
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -286,6 +288,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -293,6 +296,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic mostlyclean-am
@@ -311,7 +315,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-phoebehelpDATA
+install-data-am: install-scripterdocDATA
 
 install-dvi: install-dvi-am
 
@@ -345,7 +349,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-phoebehelpDATA
+uninstall-am: uninstall-scripterdocDATA
 
 .MAKE: install-am install-strip
 
@@ -354,12 +358,18 @@ uninstall-am: uninstall-phoebehelpDATA
 	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-phoebehelpDATA install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-generic pdf pdf-am ps ps-am uninstall \
-	uninstall-am uninstall-phoebehelpDATA
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-scripterdocDATA install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
+	pdf-am ps ps-am uninstall uninstall-am \
+	uninstall-scripterdocDATA
 
+
+api.html:
+	if test ! "x@XSLTPROC@" = "x"; then \
+		xsltproc -o api.html /usr/share/xml/docbook/stylesheet/nwalsh/xhtml/docbook.xsl api.xml; \
+	fi
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

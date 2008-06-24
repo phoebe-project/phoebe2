@@ -1,6 +1,6 @@
 ########################################################################
 #                                                                      #
-#                          PHOEBE SVN scripter                         #
+#                  PHOEBE scripter Reference Manual                    #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -25,12 +25,20 @@
 #                                                                      #
 ########################################################################
 
-ACLOCAL_AMFLAGS = -I m4
+scripterdocdir = $(datarootdir)/phoebe_scripter/docs/reference
+scripterdoc_DATA = api.xml         \
+                   intro.xml       \
+		   general.xml     \
+		   identifiers.xml \
+                   api.html
 
-SUBDIRS = help src docs/reference
+BUILT_SOURCES = api.html
+CLEANFILES    = api.html
 
-EXTRA_DIST = autoconfig/compile                      \
-             autoconfig/depcomp                      \
-             autoconfig/install-sh                   \
-             autoconfig/missing
+api.html:
+	if test ! "x@XSLTPROC@" = "x"; then \
+		xsltproc -o api.html /usr/share/xml/docbook/stylesheet/nwalsh/xhtml/docbook.xsl api.xml; \
+	fi
+
+EXTRA_DIST = $(scripterdoc_DATA)
 

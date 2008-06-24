@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-06-10 #
+#                                            Last revision: 2008-06-24 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -52,11 +52,10 @@
 	[["(snapshot)"]],
 	[PHOEBE release date])
 
-# Initialize the location of the sources:
+# Initialize the location of the sources and auto* stuff:
   AC_CONFIG_SRCDIR([src/main.c])
-
-# Initialize the location of the autoconf macros:
   AC_CONFIG_AUX_DIR(autoconfig)
+  AC_CONFIG_MACRO_DIR(autoconfig)
 
 # Initialize configure.ac for automake:
   AM_INIT_AUTOMAKE([-Wall -Werror gnu])
@@ -201,6 +200,13 @@
   debugstate="yes"
   fi
 
+# Optional docbook support:
+  AC_PROG_XSLTPROC
+  docbookstate="no"
+  if test $XSLTPROC; then
+  docbookstate="yes"
+  fi
+
 # Check for C library features:
   AC_CHECK_HEADERS([inttypes.h limits.h stdlib.h string.h unistd.h])
   AC_HEADER_STDBOOL
@@ -219,6 +225,7 @@
 # Finally, write everything to Makefiles:
   AC_CONFIG_FILES([
                   Makefile
+                  docs/reference/Makefile
                   help/Makefile
                   src/Makefile
                   ])
@@ -238,7 +245,8 @@
   echo "Scripter binary goes to:          $prefix/bin"
   echo "Scripter help files go to:        $prefix/share/phoebe_scripter"
   echo "Supported plotting packages:      $plotters"
-  echo "GNU readline library present:     $readlinesupport"
+  echo "GNU readline library support:     $readlinesupport"
+  echo "Build API documentation:          $docbookstate"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 

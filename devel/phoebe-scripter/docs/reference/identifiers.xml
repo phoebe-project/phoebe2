@@ -1,0 +1,6 @@
+<chapter xml:id="identifiers">
+<title> Working with Identifiers </title>
+
+Very often (if not always), working with actual numbers and literals is not enough to get the job done. Typical scripts are not written to be run only once, so their dependence on actual numbers is not desired. Computing 5!, for example, could indeed be done by multiplying 5 * 4 * 3 * 2 * 1, but it would be more practical to create a small script that does the computation for any given value. This is where identifiers come to play. Identifiers are sequences of one or more characters that uniquely identify a parameter or a variable.
+
+</chapter>
