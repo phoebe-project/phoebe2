@@ -22,8 +22,8 @@
 #                                                                      #
 #    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
+#                                            Last revision: 2008-06-24 #
 ########################################################################
-#                                            Last revision: 2008-06-10 #
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
 # it under the terms of the GNU General Public License as published by #
@@ -63,7 +63,8 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	autoconfig/depcomp autoconfig/install-sh autoconfig/missing \
 	autoconfig/ylwrap config.guess config.sub
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/ac_prog_xsltproc.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -144,6 +145,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
+XSLTPROC = @XSLTPROC@
+XSLTPROC_FLAGS = @XSLTPROC_FLAGS@
 YACC = @YACC@
 YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
@@ -189,7 +192,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = help src
+ACLOCAL_AMFLAGS = -I m4
+SUBDIRS = help src docs/reference
 EXTRA_DIST = autoconfig/compile                      \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
