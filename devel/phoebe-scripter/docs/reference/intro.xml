@@ -11,7 +11,7 @@ PHOEBE scripting language is a new programming language developed specifically f
 </para>
 
 <para>
-Along with the description and synopsis, a working example is given for each scripter directive or command. When examples depend on file locations, we shall presume that PHOEBE is run from the the base directory (<computeroutput>phoebe-0.31a/</computeroutput>). If you run PHOEBE from a different directory, simply replace file paths with the ones that correspond to your directory layout.
+Along with the description and synopsis, a working example is given for each scripter directive or command. When examples depend on file locations, we shall presume that PHOEBE is run from the the base directory (<filename>phoebe-0.31a/</filename>). If you run PHOEBE from a different directory, simply replace file paths with the ones that correspond to your directory layout.
 </para>
 
 </sect1>

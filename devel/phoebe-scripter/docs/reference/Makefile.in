@@ -16,8 +16,13 @@
 
 ########################################################################
 #                                                                      #
+#                  PHOEBE scripter Reference Manual                    #
+#                                                                      #
+########################################################################
+#                                                                      #
 #    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
+#                                            Last revision: 2008-06-24 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
