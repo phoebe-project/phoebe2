@@ -886,8 +886,10 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 			 *   cfval = \sum_i (x_calc-x_obs)^2 / \sigma_i^2
 			 */
 
-			for (i = 0; i < syndep->dim; i++)
+			for (i = 0; i < syndep->dim; i++) {
 				c2 += 1./obssig->val[i]/obssig->val[i] * (obsdep->val[i]-syndep->val[i])*(obsdep->val[i]-syndep->val[i]);
+				printf ("obs = %lf, syn = %lf, sig = %lf, c2 = %lf\n", obsdep->val[i], syndep->val[i], obssig->val[i], c2);
+			}
 			*cfval = c2;
 		break;
 		default:
@@ -1155,7 +1157,7 @@ int transform_sigma_to_weight (PHOEBE_vector *vec)
 	/*
 	 * This function transforms standard deviation (sigma) to weights. Since
 	 * the WD input file is restricted to a 4-character space, we rescale
-	 * the values to the [0.01,10.0] interval.
+	 * the values so that the largest weight is 10.0.
 	 *
 	 * Return values:
 	 *
@@ -1165,22 +1167,22 @@ int transform_sigma_to_weight (PHOEBE_vector *vec)
 
 	int i;
 
-	/*
-	 * There were several instances of bug reports where users passed
-	 * some offset columns as standard deviations. Since these offsets
-	 * were also negative, the weights were also negative and that
-	 * confused WD. We now make an explicit check here to avoid negative
-	 * sigmas.
-	 */
+	double valmax = 0.0;
 
-	for (i = 0; i < vec->dim; i++) {
+	/* If any of the elements are smaller than 0, bail out: */
+	for (i = 0; i < vec->dim; i++)
 		if (vec->val[i] < 0)
 			return ERROR_NEGATIVE_STANDARD_DEVIATION;
 
+	/* Transform and keep the largest weight in memory: */
+	for (i = 0; i < vec->dim; i++) {
 		vec->val[i] = 1.0/vec->val[i]/vec->val[i];
+		if (valmax < vec->val[i]) valmax = vec->val[i];
 	}
 
-	phoebe_vector_rescale (vec, 0.01, 10.0);
+	/* Scale all values to the largest weight: */
+	for (i = 0; i < vec->dim; i++)
+		vec->val[i] *= 10.0/valmax;
 
 	return SUCCESS;
 }
@@ -1367,7 +1369,7 @@ int apply_extinction_correction (PHOEBE_curve *curve, double A)
 
 	int i;
 
-	if (A > PHOEBE_NUMERICAL_ACCURACY)
+	if (A != 0.0)
 		for (i = 0; i < curve->dep->dim; i++)
 			curve->dep->val[i] *= pow (10.0, -0.4*A);
 

@@ -845,15 +845,10 @@ int phoebe_vector_rescale (PHOEBE_vector *vec, double ll, double ul)
 	 * @ll:  The lower limit for rescaling.
 	 * @ul:  The upper limit for rescaling.
 	 *
-	 * Rescales the values of elements in the vector vec to the
-	 * [@ll, @ul] interval. Usually this is useful to map the weights to the
-	 * [0.01, 10.0] interval that is suitable for DC.
+	 * Linearly rescales the values of elements in the vector @vec to the
+	 * [@ll, @ul] interval.
 	 *
-	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
-	 * Possible errors:
-	 *   ERROR_VECTOR_NOT_INITIALIZED,
-	 *   ERROR_VECTOR_IS_EMPTY and
-	 *   ERROR_VECTOR_INVALID_LIMITS.
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i, status;
