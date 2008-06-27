@@ -1101,7 +1101,7 @@ scripter_ast_value scripter_minimize_using_nms (scripter_ast_list *args)
 	feedback = phoebe_minimizer_feedback_new ();
 
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_nms_accuracy"), vals[0].value.d);
-	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_nms_iter_max"), vals[1].value.i);
+	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_nms_iters_max"), vals[1].value.i);
 
 	/* Call the downhill simplex minimizer:                                   */
 	status = phoebe_minimize_using_nms (PHOEBE_output, feedback);
