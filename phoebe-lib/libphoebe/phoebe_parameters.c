@@ -22,16 +22,16 @@ PHOEBE_parameter_table      *PHOEBE_pt;
 
 int phoebe_init_parameters ()
 {
-	/*
+	/**
+	 * phoebe_init_parameters:
+	 *
 	 * This (and only this) function declares parameters that are used in
 	 * PHOEBE; there is no GUI connection or any other plug-in connection in
 	 * this function, only native PHOEBE parameters. PHOEBE drivers, such
-	 * as the scripter or the GUI, have to initialize the parameters by
-	 * analogous functions.
+	 * as the scripter or the GUI, should implement their own initialization
+	 * function.
 	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	/* **********************   Model parameters   ************************** */
@@ -241,7 +241,8 @@ int phoebe_free_parameters ()
 	 * phoebe_free_parameters:
 	 *
 	 * Frees all parameters from the currently active parameter table pointed
-	 * to by a global variable @PHOEBE_pt.
+	 * to by a global variable @PHOEBE_pt. This function is called upon exit
+	 * from PHOEBE by phoebe_quit(), it should not be used directly.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
@@ -263,15 +264,15 @@ int phoebe_free_parameters ()
 
 int phoebe_init_parameter_options ()
 {
-	/*
-	 * This function adds options to all KIND_MENU parameters. In principle
-	 * all calls to phoebe_parameter_add_option () function should be checked
+	/**
+	 * phoebe_init_parameter_options:
+	 *
+	 * This function adds options to all #KIND_MENU parameters. In principle
+	 * all calls to phoebe_parameter_add_option() function should be checked
 	 * for return value, but since the function issues a warning in case a
-	 * qualifier does not contain a menu, it is not really necessary.
+	 * qualifier does not contain a menu, it is not strictly necessary.
 	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;
@@ -365,9 +366,13 @@ int phoebe_init_parameter_options ()
 
 PHOEBE_parameter *phoebe_parameter_new ()
 {
-	/*
-	 * This function allocates memory for the new parameter and NULLifies
-	 * all field pointers for subsequent allocation.
+	/**
+	 * phoebe_parameter_new:
+	 *
+	 * Allocates memory for the new parameter and NULLifies all field pointers
+	 * for subsequent allocation.
+	 *
+	 * Returns: pointer to the newly allocated #PHOEBE_parameter.
 	 */
 
 	PHOEBE_parameter *par = phoebe_malloc (sizeof (*par));
@@ -382,6 +387,40 @@ PHOEBE_parameter *phoebe_parameter_new ()
 
 int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...)
 {
+	/**
+	 * phoebe_parameter_add:
+	 * @qualifier: new qualifer to be registered
+	 * @description: parameter description (human-readable)
+	 * @kind: parameter kind
+	 * @dependency: dependency on dimensioning parameters
+	 * @min: minimum allowed value
+	 * @max: maximum allowed value
+	 * @step: adjustment step
+	 * @tba: to-be-adjusted bit
+	 * @...: default value of the suitable type
+	 *
+	 * This function is a wrapper that facilitates the installment of new
+	 * parameters. Each parameter is refered to by its @qualifier; make sure
+	 * you follow the specifications on qualifier naming conventions. The
+	 * @description should be in a human-readable form, concise yet informative.
+	 * Parameter @kind is one of #KIND_PARAMETER, #KIND_MODIFIER,
+	 * #KIND_ADJUSTABLE, #KIND_SWITCH, #KIND_MENU, and #KIND_COMPUTED. Parameter
+	 * @dependency is a pointer to a #KIND_MODIFIER parameter that determines
+	 * the sizing of the array of the newly installed parameter. For example,
+	 * light curve dependent parameters such as passband luminosities depend
+	 * on the number of light curves, so for those parameters the @dependency
+	 * would be a pointer to #phoebe_hla parameter. Values @min, @max and @step
+	 * determine the adjustment properties for #KIND_ADJUSTABLE parameters, and
+	 * are dummy numbers for all other kinds of parameters. The @tba switch can
+	 * be either #TRUE (1) or #FALSE (0); it determines whether the parameter
+	 * is adjustable or not; it does not influence whether the parameter is
+	 * actually marked for adjustment -- only whether it can be marked for
+	 * adjustment. The last argument to the function is the default value; it
+	 * has to be of the appropriate type for the installed parameter.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
 	va_list args;
 	PHOEBE_parameter *par = phoebe_parameter_new ();
 
@@ -544,10 +583,12 @@ bool phoebe_qualifier_is_constrained (char *qualifier)
 {
 	/**
 	 * phoebe_qualifier_is_constrained:
-	 * @qualifier: 
+	 * @qualifier: parameter to be checked for constraints.
 	 *
-	 * This function checks whether a passed qualifier also appears in the
-	 * list of constraints. If so, it returns true; else it returns false.
+	 * Checks whether a passed qualifier also appears in the list of
+	 * constraints.
+	 *
+	 * Returns: #TRUE if @qualifier is constrained; #FALSE otherwise.
 	 */
 
 	PHOEBE_ast_list *constraint = PHOEBE_pt->lists.constraints;
@@ -570,7 +611,7 @@ bool phoebe_is_qualifier (char *qualifier)
 	 *
 	 * Checks whether the passed string @qualifier is a valid qualifier.
 	 *
-	 * Returns: #TRUE if @qualifier is valid, #FALSE otherwise.
+	 * Returns: #TRUE if @qualifier is valid; #FALSE otherwise.
 	 */
 
 	unsigned int hash = phoebe_parameter_hash (qualifier);
