@@ -543,7 +543,8 @@ int phoebe_qualifier_string_parse (char *input, char **qualifier, int *index)
 bool phoebe_qualifier_is_constrained (char *qualifier)
 {
 	/**
-	 * phoebe_qualifier_is_constrained
+	 * phoebe_qualifier_is_constrained:
+	 * @qualifier: 
 	 *
 	 * This function checks whether a passed qualifier also appears in the
 	 * list of constraints. If so, it returns true; else it returns false.
@@ -559,6 +560,31 @@ bool phoebe_qualifier_is_constrained (char *qualifier)
 	}
 
 	return FALSE;
+}
+
+bool phoebe_is_qualifier (char *qualifier)
+{
+	/**
+	 * phoebe_is_qualifier:
+	 * @qualifier: string to be checked if it is a valid qualifier
+	 *
+	 * Checks whether the passed string @qualifier is a valid qualifier.
+	 *
+	 * Returns: #TRUE if @qualifier is valid, #FALSE otherwise.
+	 */
+
+	unsigned int hash = phoebe_parameter_hash (qualifier);
+	PHOEBE_parameter_list *elem = PHOEBE_pt->bucket[hash];
+
+	while (elem) {
+		if (strcmp (elem->par->qualifier, qualifier) == 0) break;
+		elem = elem->next;
+	}
+
+	if (!elem)
+		return FALSE;
+
+	return TRUE;
 }
 
 unsigned int phoebe_parameter_hash (char *qualifier)
