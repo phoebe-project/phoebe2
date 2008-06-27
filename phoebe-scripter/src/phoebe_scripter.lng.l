@@ -199,8 +199,8 @@ testme          return TESTME;
 {WORD}		{
 			int dummy;
 			yylval.str = strdup (yytext);
-			if (phoebe_parameter_lookup (yylval.str)) return QUALIFIER;
 			if (scripter_command_get_index (yylval.str, &dummy) == SUCCESS)  return COMMAND;
+			if (phoebe_parameter_lookup (yylval.str)) return QUALIFIER;
 			return IDENT;
 			}
 {SYSTEMCALL}	{
