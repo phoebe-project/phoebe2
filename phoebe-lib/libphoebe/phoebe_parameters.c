@@ -613,7 +613,10 @@ PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 		elem = elem->next;
 	}
 
-	if (!elem) return NULL;
+	if (!elem) {
+		phoebe_lib_warning ("parameter lookup failed for qualifier %s.\n");
+		return NULL;
+	}
 	return elem->par;
 }
 
