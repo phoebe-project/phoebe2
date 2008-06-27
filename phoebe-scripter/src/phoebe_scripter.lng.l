@@ -200,7 +200,7 @@ testme          return TESTME;
 			int dummy;
 			yylval.str = strdup (yytext);
 			if (scripter_command_get_index (yylval.str, &dummy) == SUCCESS)  return COMMAND;
-			if (phoebe_parameter_lookup (yylval.str)) return QUALIFIER;
+			if (phoebe_is_qualifier (yylval.str)) return QUALIFIER;
 			return IDENT;
 			}
 {SYSTEMCALL}	{
