@@ -886,10 +886,8 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 			 *   cfval = \sum_i (x_calc-x_obs)^2 / \sigma_i^2
 			 */
 
-			for (i = 0; i < syndep->dim; i++) {
+			for (i = 0; i < syndep->dim; i++)
 				c2 += 1./obssig->val[i]/obssig->val[i] * (obsdep->val[i]-syndep->val[i])*(obsdep->val[i]-syndep->val[i]);
-				printf ("obs = %lf, syn = %lf, sig = %lf, c2 = %lf\n", obsdep->val[i], syndep->val[i], obssig->val[i], c2);
-			}
 			*cfval = c2;
 		break;
 		default:
