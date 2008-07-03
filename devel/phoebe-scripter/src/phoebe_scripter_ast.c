@@ -594,7 +594,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 *                statement ->> "output"
 				 *
 				 * The difference between the two redirection operators -> and
-				 * ->> are create and append, respectively.
+				 * ->> are write and append, respectively.
 				 *
 				 * The difference between the direct and the redirected method
 				 * is in the AST argument. If it is NULL, then it is the direct
@@ -602,18 +602,18 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				 * name passed as argument.
 				 */
 
-				/* Check whether the statement node has an argument:          */
+				/* Check whether the statement node has an argument: */
 				if (!in->value.node.args->next) {
-					/* It doesn't. Execute it:                                */
+					/* It doesn't. Execute it: */
 					scripter_ast_evaluate (in->value.node.args->elem);
 				}
 				else {
-					/* It does. Get the filename:                             */
+					/* It does. Get the filename: */
 					scripter_ast_value fname = scripter_ast_evaluate (in->value.node.args->next->elem);
 
-					/* Does the passed argument evaluate to a literal:        */
+					/* Does the passed argument evaluate to a literal: */
 					if (fname.type != type_string) {
-						phoebe_warning ("attempted redirection to non-string identifier, reverting to terminal.\n");
+						phoebe_warning ("attempted redirection to a non-string identifier, reverting to terminal.\n");
 						scripter_ast_value_free (fname);
 						scripter_ast_evaluate (in->value.node.args->elem);
 						out.type = type_void;
@@ -814,7 +814,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				out.type = type_void;
 
-				/* Check whether a value is a numeric type:                   */
+				/* Check whether a value is a numeric type: */
 				value = scripter_ast_evaluate (in->value.node.args->next->elem);
 				if (value.type != type_int && value.type != type_double) {
 					phoebe_scripter_output ("the initial value is not a numeric value, aborting.\n");
