@@ -159,6 +159,7 @@ typedef struct WD_DCI_parameters {
 	double *y2a;
 	double *el3;
 	double *opsf;
+	double *extinction;
 	int    *levweight;
 	int    spot1no;
 	int    spot2no;
