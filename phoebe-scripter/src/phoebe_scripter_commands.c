@@ -1033,10 +1033,24 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 	 */
 
 	PHOEBE_minimizer_feedback *feedback;
+	PHOEBE_parameter *par;
 
 	scripter_ast_value out;
-	int status = scripter_command_args_evaluate (args, NULL, 0, 0);
+	int status, i, index;
+	char *offender, *qualifier;
+	double pmin, pmax;
+
+	status = scripter_command_args_evaluate (args, NULL, 0, 0);
 	if (status != SUCCESS) {
+		out.type = type_void;
+		return out;
+	}
+
+	/* Check if all adjustable parameters are within their allowed bounds: */
+	status = phoebe_parameters_check_bounds (&offender);
+	if (status != SUCCESS) {
+		/* Don't free @offender, it points to the parameter table! */
+		phoebe_scripter_output ("parameter %s is out of bounds; aborting.\n", offender);
 		out.type = type_void;
 		return out;
 	}
@@ -1046,7 +1060,7 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 	feedback = phoebe_minimizer_feedback_new ();
 	status = phoebe_minimize_using_dc (PHOEBE_output, feedback);
 
-	/* Return the minimizer structure value if everything was ok:             */
+	/* Return the minimizer structure value if everything was ok: */
 	if (status == SUCCESS) {
 		out.type = type_minfeedback;
 		out.value.feedback = feedback;
@@ -1056,7 +1070,16 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 		out.type = type_void;
 	}
 
-	/* Say goodbye:                                                           */
+	/* Check if any parameters diverged and report if they did: */
+	for (i = 0; i < feedback->qualifiers->dim; i++) {
+		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
+		par = phoebe_parameter_lookup (qualifier);
+		phoebe_parameter_get_limits (par, &pmin, &pmax);
+		if (feedback->newvals->val[i] < pmin || feedback->newvals->val[i] > pmax)
+			phoebe_scripter_output ("DC: parameter %s diverged out of bounds.\n", par->qualifier);
+	}
+
+	/* Say goodbye: */
 	phoebe_scripter_output ("DC minimization done.\n");
 
 	return out;
