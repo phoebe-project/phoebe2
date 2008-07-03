@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "phoebe_calculations.h"
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_fortran_interface.h"
@@ -614,6 +615,7 @@ WD_DCI_parameters *wd_dci_parameters_new ()
 	pars->y2a        = NULL;
 	pars->el3        = NULL;
 	pars->opsf       = NULL;
+	pars->extinction = NULL;
 	pars->levweight  = NULL;
 	pars->spot1lat   = NULL;
 	pars->spot1long  = NULL;
@@ -1189,6 +1191,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	params->y2a        = phoebe_malloc (active_cno * sizeof (*(params->y2a)));
 	params->el3        = phoebe_malloc (active_cno * sizeof (*(params->el3)));
 	params->opsf       = phoebe_malloc (active_cno * sizeof (*(params->opsf)));
+	params->extinction = phoebe_malloc (active_cno * sizeof (*(params->extinction)));
 	params->levweight  = phoebe_malloc (active_cno * sizeof (*(params->levweight)));
 
 	for (i = 0; i < active_rvno; i++) {
@@ -1198,7 +1201,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			free (params->passband); free (params->wavelength); free (params->sigma);
 			free (params->hla);      free (params->cla);        free (params->x1a);
 			free (params->y1a);      free (params->x2a);        free (params->y2a);
-			free (params->el3);      free (params->opsf);       free (params->levweight);
+			free (params->el3);      free (params->opsf);       free (params->extinction);
+			free (params->levweight);
 			return status;
 		}
 
@@ -1211,7 +1215,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			free (params->passband); free (params->wavelength); free (params->sigma);
 			free (params->hla);      free (params->cla);        free (params->x1a);
 			free (params->y1a);      free (params->x2a);        free (params->y2a);
-			free (params->el3);      free (params->opsf);       free (params->levweight);
+			free (params->el3);      free (params->opsf);       free (params->extinction);
+			free (params->levweight);
 			return ERROR_PASSBAND_INVALID;
 		}
 
@@ -1232,6 +1237,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_rvy2"), active_rvindices->val.iarray[i], &(params->y2a[index]));
 		params->el3[index]        = 0.0;
 		params->opsf[index]       = 0.0;
+		params->extinction[index] = 0.0;
 		params->levweight[index]  = 0;
 	}
 
@@ -1243,7 +1249,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			free (params->passband); free (params->wavelength); free (params->sigma);
 			free (params->hla);      free (params->cla);        free (params->x1a);
 			free (params->y1a);      free (params->x2a);        free (params->y2a);
-			free (params->el3);      free (params->opsf);       free (params->levweight);
+			free (params->el3);      free (params->opsf);       free (params->extinction);
+			free (params->levweight);
 			return ERROR_PASSBAND_INVALID;
 		}
 
@@ -1263,6 +1270,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_lcy2"),      active_lcindices->val.iarray[i-active_rvno], &(params->y2a[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"),          active_lcindices->val.iarray[i-active_rvno], &(params->el3[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_opsf"),         active_lcindices->val.iarray[i-active_rvno], &(params->opsf[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"),   active_lcindices->val.iarray[i-active_rvno], &(params->extinction[i]));
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), active_lcindices->val.iarray[i-active_rvno], &readout_str);
 
 		params->levweight[i]  = intern_get_level_weighting_id (readout_str);
@@ -1434,6 +1442,9 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			if (!params->obs[i]) return ERROR_FILE_NOT_FOUND;
 			phoebe_curve_transform (params->obs[i], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
+			if (params->extinction[i] > 0)
+				apply_extinction_correction (params->obs[i], -params->extinction[i]);
+
 /*************************************************************/
 			phoebe_debug ("LC data:\n");
 			phoebe_debug ("  type:     %d\n", params->obs[i]->type);
@@ -1501,6 +1512,7 @@ int wd_dci_parameters_free (WD_DCI_parameters *params)
 		if (params->y2a)        free (params->y2a);
 		if (params->el3)        free (params->el3);
 		if (params->opsf)       free (params->opsf);
+		if (params->extinction) free (params->extinction);
 		if (params->levweight)  free (params->levweight);
 	}
 

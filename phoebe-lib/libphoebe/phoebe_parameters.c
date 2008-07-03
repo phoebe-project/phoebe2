@@ -364,6 +364,43 @@ int phoebe_init_parameter_options ()
 	return SUCCESS;
 }
 
+int phoebe_parameters_check_bounds (char **offender)
+{
+	/**
+	 * phoebe_parameters_check_bounds:
+	 * @offender: placeholder for the qualifier that is out of bounds
+	 *
+	 * Checks whether all #KIND_ADJUSTABLE parameter values are within their
+	 * respective bounds (limits). If an out-of-bounds situation is
+	 * encountered, @offender is set to point to the qualifier in question
+	 * to facilitate error handling from the calling function. If all
+	 * parameters are within their respective bounds, @offender is set to NULL.
+	 *
+	 * The contents of @offender must not be freed as they point to the
+	 * entry in the parameter table.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i;
+	PHOEBE_parameter_list *elem;
+
+	for (i = 0; i < PHOEBE_PT_HASH_BUCKETS; i++) {
+		elem = PHOEBE_pt->bucket[i];
+		while (elem) {
+			if (elem->par->kind == KIND_ADJUSTABLE)
+				if (!phoebe_parameter_is_within_limits (elem->par)) {
+					*offender = elem->par->qualifier;
+					return ERROR_PARAMETER_OUT_OF_BOUNDS;
+				}
+			elem = elem->next;
+		}
+	}
+
+	*offender = NULL;
+	return SUCCESS;
+}
+
 PHOEBE_parameter *phoebe_parameter_new ()
 {
 	/**
@@ -1380,6 +1417,38 @@ int phoebe_parameter_set_limits (PHOEBE_parameter *par, double valmin, double va
 	par->max = valmax;
 
 	return SUCCESS;
+}
+
+bool phoebe_parameter_is_within_limits (PHOEBE_parameter *par)
+{
+	/**
+	 * phoebe_parameter_is_within_limits:
+	 * @par: parameter the value of which should be checked
+	 *
+	 * Checks if the parameter value is within the defined limits. For
+	 * passband-dependent parameters all components are checked.
+	 *
+	 * Returns: #TRUE if the value is within limits, #FALSE otherwise.
+	 */
+
+	int i;
+	double pval, pmin, pmax;
+
+	phoebe_parameter_get_limits (par, &pmin, &pmax);
+
+	if (par->type == TYPE_DOUBLE) {
+		phoebe_parameter_get_value (par, &pval);
+		if (pval < pmin || pval > pmax)
+			return FALSE;
+	} else /* if (par->type == TYPE_DOUBLE_ARRAY) */ {
+		for (i = 0; i < par->value.vec->dim; i++) {
+			phoebe_parameter_get_value (par, i, &pval);
+			if (pval < pmin || pval > pmax)
+				return FALSE;
+		}
+	}
+
+	return TRUE;
 }
 
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba ()

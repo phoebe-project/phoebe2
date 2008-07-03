@@ -89,6 +89,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "parameter option does not exist, aborting.\n";
 		case ERROR_PARAMETER_TABLE_NOT_INITIALIZED:
 			return "parameter table is not initialized, aborting.\n";
+		case ERROR_PARAMETER_OUT_OF_BOUNDS:
+			return "parameter is out of bounds, aborting.\n";
 		case ERROR_DATA_NOT_INITIALIZED:
 			return "the variable to hold the data is not initialized, aborting.\n";
 		case ERROR_DATA_INVALID_SIZE:
@@ -317,6 +319,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "spectra are not aligned in wavelength, aborting.\n";
 		case ERROR_BROADENING_INADEQUATE_ACCURACY:
 			return "rotational broadening cannot be accurately applied for |vsini| < 5km/s, aborting.\n";
+		case ERROR_WD_LCI_PARAMETERS_NOT_INITIALIZED:
+			return "LCI parameters not initialized, aborting.\n";
 		case ERROR_DC_TOO_MANY_SPOTS_TBA:
 			return "too many spots are marked for adjustment (up to two are allowed), aborting.\n";
 		case ERROR_DC_TOO_MANY_RVS:

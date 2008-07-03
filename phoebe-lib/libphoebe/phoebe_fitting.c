@@ -985,7 +985,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 {
 	/*
-	 * This is WD's built-in DC algorithm and as such it doesn't depend on GSL.
+	 * This is WD's built-in DC algorithm.
 	 * Macro wd_dc () is provided to access the fortran subroutine.
 	 *
 	 * Return values:
@@ -1167,6 +1167,13 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 					feedback->qualifiers->val.strarray[i+j] = phoebe_malloc ((strlen(tba->par->qualifier)+5) * sizeof (char));
 					sprintf (feedback->qualifiers->val.strarray[i+j], "%s[%d]", tba->par->qualifier, active_lcindices->val.iarray[j]+1);
 					phoebe_parameter_get_value (tba->par, active_lcindices->val.iarray[j], &(feedback->initvals->val[i+j]));
+
+					/* Correct for HLA/CLA overshoot in case el3 is in %: */
+					if (strcmp (tba->par->qualifier, "phoebe_hla") == 0 && l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
+						corrections[i+j] *= 1.0 - params->el3[j];
+					if (strcmp (tba->par->qualifier, "phoebe_cla") == 0 && l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
+						corrections[i+j] *= 1.0 - params->el3[j];
+
 					feedback->newvals->val[i+j] = feedback->initvals->val[i+j] + corrections[i+j];
 					feedback->ferrors->val[i+j] = errors[i+j];
 				}

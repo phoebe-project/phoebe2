@@ -89,6 +89,8 @@ int               phoebe_free_parameters        ();
 
 int               phoebe_init_parameter_options ();
 
+int               phoebe_parameters_check_bounds  (char **offender);
+
 bool              phoebe_is_qualifier             (char *qualifier);
 int               phoebe_qualifier_string_parse   (char *input, char **qualifier, int *index);
 bool              phoebe_qualifier_is_constrained (char *qualifier);
@@ -112,6 +114,7 @@ int phoebe_parameter_set_max    (PHOEBE_parameter *par, double  valmax);
 
 int phoebe_parameter_get_limits (PHOEBE_parameter *par, double *valmin, double *valmax);
 int phoebe_parameter_set_limits (PHOEBE_parameter *par, double  valmin, double  valmax);
+bool phoebe_parameter_is_within_limits (PHOEBE_parameter *par);
 
 PHOEBE_parameter_list *phoebe_parameter_list_reverse         (PHOEBE_parameter_list *c, PHOEBE_parameter_list *p);
 PHOEBE_parameter_list *phoebe_parameter_list_get_marked_tba  ();
