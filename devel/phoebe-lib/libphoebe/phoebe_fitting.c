@@ -984,23 +984,18 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 
 int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedback)
 {
-	/*
-	 * This is WD's built-in DC algorithm.
-	 * Macro wd_dc () is provided to access the fortran subroutine.
+	/**
+	 * phoebe_minimize_using_dc:
+	 * @dc_output: output file descriptor (where DC output goes to)
+	 * @feedback: a placeholder for the minimization result
 	 *
-	 * Return values:
+	 * Emloys WD's DC to compute the corrections to parameters marked for
+	 * adjustment. Note that this function does not compute the resulting
+	 * model, it only predicts the corrections to parameter values. DC is
+	 * known to diverge if the starting point in the parameter space is too
+	 * far from observations.
 	 *
-	 *   ERROR_INVALID_INDEP
-	 *   ERROR_INVALID_DEP
-	 *   ERROR_INVALID_WEIGHT
-	 *   ERROR_INVALID_DATA
-	 *   ERROR_INVALID_NORMAL_MAG
-	 *   ERROR_MINIMIZER_NO_CURVES
-	 *   ERROR_MINIMIZER_NO_PARAMS
-	 *   ERROR_MINIMIZER_HLA_REQUEST_NOT_SANE
-	 *   ERROR_MINIMIZER_VGA_REQUEST_NOT_SANE
-	 *   ERROR_MINIMIZER_DPDT_REQUEST_NOT_SANE
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int status, i, j;
@@ -1091,7 +1086,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		L3perc = 1;
 
 	/* Run one DC iteration and store the results in the allocated arrays: */
-	wd_dc (atmcof, atmcofplanck, &L3perc, corrections, errors, chi2s, cormat, &cfval);
+	wd_dc (atmcof, atmcofplanck, &L3perc, params->knobs, params->indeps, params->fluxes, params->weights, corrections, errors, chi2s, cormat, &cfval);
 
 	/*
 	 * Allocate the feedback structure and fill it in. The number of parameter

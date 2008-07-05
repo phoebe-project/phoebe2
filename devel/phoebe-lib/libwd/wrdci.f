@@ -4,7 +4,7 @@
      +N1,N2,N1L,N2L,PERR0,DPERDT,THE,VUNIT,E,A,F1,F2,VGA,XINCL,GR1,GR2,
      +ABUNIN,TAVH,TAVC,ALB1,ALB2,PHSV,PCSV,RM,XBOL1,XBOL2,YBOL1,YBOL2,
      +IBAND,HLA,CLA,X1A,X2A,Y1A,Y2A,EL3,OPSF,NOISE,SIGMA,WLA,NSP1,XLAT1,
-     +XLONG1,RADSP1,TEMSP1,NSP2,XLAT2,XLONG2,RADSP2,TEMSP2,VERTNO,INDEP,
+     +XLONG1,RADSP1,TEMSP1,NSP2,XLAT2,XLONG2,RADSP2,TEMSP2,KNOBS,INDEP,
      +DEP,WEIGHT)
 
       implicit none
@@ -16,13 +16,13 @@
       parameter ( clend=   150.0)
       parameter (dciend=       2)
 
-      integer i
+      integer i,j
 
       character FN*(*)
       integer IFDER,IFM,IFR,KSPA,NSPA,KSPB,NSPB,IFVC1,IFVC2,NLC,K0,
      +        KDISK,ISYM,NPPL,NREF,MREF,IFSMV1,IFSMV2,ICOR1,ICOR2,LD,
-     +        JDPHS,MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,NSP1,NSP2,VERTNO
-      integer KEP(*),IBAND(*),NOISE(*)
+     +        JDPHS,MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,NSP1,NSP2
+      integer KEP(*),IBAND(*),NOISE(*),KNOBS(*)
       double precision XLAMDA,HJD0,PERIOD,DPDT,PSHIFT,PERR0,DPERDT,THE,
      +        VUNIT,E,A,F1,F2,VGA,XINCL,GR1,GR2,ABUNIN,TAVH,TAVC,ALB1,
      +        ALB2,PHSV,PCSV,RM,XBOL1,XBOL2,YBOL1,YBOL2
@@ -88,9 +88,12 @@
 
       write(1,14) clend
 
-      do 94, i=1,vertno
+      do 95, j=1,ifvc1+ifvc2+nlc
+      do 94, i=knobs(j)+1,knobs(j+1)
           write(1,15) INDEP(i),DEP(i),WEIGHT(i)
    94 continue
+      write(1,15) -10001.d0, 0.d0, 0.d0
+   95 continue
 
       write(1,16) dciend
 

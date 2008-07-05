@@ -1,4 +1,5 @@
-      subroutine dc(atmtab,pltab,L3perc,corrs,stdevs,chi2s,cormat,cfval)
+      subroutine dc(atmtab,pltab,L3perc,knobs,indeps,fluxes,weights,
+     $              corrs,stdevs,chi2s,cormat,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -137,12 +138,19 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     PHOEBE extensions:
 c
+c       L3perc   ..   switch whether third light is given in percent
+c        knobs   ..   cummulative number of observations
+c       indeps   ..   array of data HJDs or phases
+c       fluxes   ..   array of data fluxes
+c      weights   ..   array of data weights
 c        corrs   ..   an array of computed corrections
 c       stdevs   ..   standard deviations of fitted parameters
 c        chi2s   ..   chi2 values of individual curves after the fit
 c       cormat   ..   correlation matrix (a wrapped 1D array)
 c        cfval   ..   cost function value (global goodness-of-fit value)
 c
+      integer L3perc,knobs(*)
+      double precision indeps(*),fluxes(*),weights(*)
       double precision corrs(*),stdevs(*),chi2s(*),cormat(*),cfval
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -194,7 +202,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $bl(iptmax),phjd(iptmax),dfdph(iptmax),dfdap(iptmax)
       dimension hla(ncmax),cla(ncmax),x1a(ncmax),x2a(ncmax),y1a(ncmax),
      $y2a(ncmax),el3a(ncmax),wla(ncmax),noise(ncmax),sigma(ncmax),
-     $opsfa(ncmax),knobs(ncmax+2),iband(ncmax)
+     $opsfa(ncmax),iband(ncmax)
+c     Removed: ,knobs(ncmax+2),
       dimension snthh(2*Nmax),csthh(2*Nmax),snthl(2*Nmax),csthl(2*Nmax),
      $snfih(2*igsmax),csfih(2*igsmax),snfil(2*igsmax),csfil(2*igsmax)
       dimension hld(igsmax),tldh(2*igsmax),tldl(2*igsmax)
@@ -888,6 +897,7 @@ c***************************************************************
       last=ifirst+nppl-1
       READ(15,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
       WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
+c     WRITE(16,2) (indeps(in),fluxes(in),weights(in),in=ifirst,last)
       IF(phjd(ifirst).gt.-10000.d0) GOTO 74
       NI=-(phjd(ifirst)+10000.d0)
       NY=NY+NI
@@ -896,11 +906,22 @@ c***************************************************************
    74 CONTINUE
   150 NS=I-1
       LC1=LCV+1
-   75 KNOBS(LC1)=NOBS+KNOBS(LCV)
+c  75 KNOBS(LC1)=NOBS+KNOBS(LCV)
+   75 continue
       do 275 ijp=1,knobs(lc1)
-      phas(ijp)=phjd(ijp)
-      if(jdphs.eq.1) call jdph(phjd(ijp),0.d0,hjd0,period,dpdt,xjddum,
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     phas(ijp)=phjd(ijp)
+c     if(jdphs.eq.1) call jdph(phjd(ijp),0.d0,hjd0,period,dpdt,xjddum,
+c    $phas(ijp))
+c
+      phas(ijp)=indeps(ijp)
+      if(jdphs.eq.1) call jdph(indeps(ijp),0.d0,hjd0,period,dpdt,xjddum,
      $phas(ijp))
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   275 continue
       matrix=31
       do 427 ima=1,30
@@ -936,7 +957,15 @@ c***************************************************************
       ISP=KNOBS(IB1)
       DO 418 IX=IST,ISP
       DO 420 KS=1,KSMAX
-      hjd=phjd(ix)
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     hjd=phjd(ix)
+c
+      hjd=indeps(ix)
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dtime=hjd-hjd0
       IRTE=0
       IRVOL1=0
@@ -1502,7 +1531,15 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       IF(KSR.NE.2) GOTO 711
       BR(IX)=XR
       II=NMAT+IX
-      OBS(II)=FLUX(IX)-XR
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     OBS(II)=FLUX(IX)-XR
+c
+      OBS(II)=fluxes(ix)-XR
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(iss.eq.2) goto 319
       GOTO 420
   711 CONTINUE
@@ -1560,7 +1597,15 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       iww=iw-1
       do 299 jres=jstart,jstop
       iww=iww+1
-  299 resq=resq+wt(iww)*obs(jres)**2
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c 299 resq=resq+wt(iww)*obs(jres)**2
+c
+  299 resq=resq+weights(iww)*obs(jres)**2
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       write(16,119) icv,nbs,resq
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -1666,9 +1711,25 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       NOIS=NOISE(IB)
       DO 97 I=IST,ISP
       IF(IB.GT.NVC) GOTO 444
-      ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB))
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB))
+c
+      ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB))
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GOTO 445
-  444 ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB)*dsqrt(FLUX(I))**NOIS)
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c 444 ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB)*dsqrt(FLUX(I))**NOIS)
+c
+  444 ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB)*dsqrt(fluxes(I))**NOIS)
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   445 CONTINUE
       DO 97 LOB=I,NCOEFF,NOBS
    97 OBS(LOB)=OBS(LOB)*ROOTWT

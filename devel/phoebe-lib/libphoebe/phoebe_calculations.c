@@ -1153,34 +1153,30 @@ int transform_flux_to_magnitude (PHOEBE_vector *vec, double mnorm)
 int transform_sigma_to_weight (PHOEBE_vector *vec)
 {
 	/*
-	 * This function transforms standard deviation (sigma) to weights. Since
-	 * the WD input file is restricted to a 4-character space, we rescale
-	 * the values so that the largest weight is 10.0.
+	 * phoebe_transform_sigma_to_weight:
+	 * @vec: array to be transformed
+	 * 
+	 * Transforms standard deviation (sigma) to weights by the following
+	 * equation:
+	 * 
+	 *   w = 1/sigma^2.
 	 *
-	 * Return values:
-	 *
-	 *   ERROR_NEGATIVE_STANDARD_DEVIATION
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;
 
-	double valmax = 0.0;
-
-	/* If any of the elements are smaller than 0, bail out: */
+	/* People sometimes pass differences instead of sigmas to PHOEBE, which
+	 * doesn't work. We test for any negative values here and bail out if
+	 * found.
+	 */
 	for (i = 0; i < vec->dim; i++)
 		if (vec->val[i] < 0)
 			return ERROR_NEGATIVE_STANDARD_DEVIATION;
 
-	/* Transform and keep the largest weight in memory: */
-	for (i = 0; i < vec->dim; i++) {
-		vec->val[i] = 1.0/vec->val[i]/vec->val[i];
-		if (valmax < vec->val[i]) valmax = vec->val[i];
-	}
-
-	/* Scale all values to the largest weight: */
+	/* Transform: */
 	for (i = 0; i < vec->dim; i++)
-		vec->val[i] *= 10.0/valmax;
+		vec->val[i] = 1.0/vec->val[i]/vec->val[i];
 
 	return SUCCESS;
 }

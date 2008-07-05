@@ -40,10 +40,11 @@ int create_dci_file (char *filename, void *pars)
 {
 	/*
 	 * This function calls the auxiliary fortran subroutine wrdci from the
-	 * WD library to create the DC input file.
+	 * WD library to create the DC input file. Please note that the data
+	 * are passed to WD directly, they are not read out from the DCI file.
 	 */
 
-	int i, j;
+	int i;
 
 	WD_DCI_parameters *params = (WD_DCI_parameters *) pars;
 
@@ -61,57 +62,27 @@ int create_dci_file (char *filename, void *pars)
 	double tavc = params->teff2/10000.0;
 
 	double *step, *wla, *sigma;
-	double *indep, *dep, *weight;
 
 	int  rvno = params->rv1data + params->rv2data;
 	int   cno = rvno + params->nlc;
-	int ptsno = 0;
-	int index = 0;
-
-	for (i = 0; i < cno; i++)
-		ptsno += params->obs[i]->indep->dim + 1;
 
 	if (cno != 0) {
 		wla = phoebe_malloc (cno * sizeof (*wla));
 		sigma = phoebe_malloc (cno * sizeof (*sigma));
-		indep = phoebe_malloc (ptsno * sizeof (*indep));
-		dep = phoebe_malloc (ptsno * sizeof (*dep));
-		weight = phoebe_malloc (ptsno * sizeof (*weight));
 
 		for (i = 0; i < rvno; i++) {
 			wla[i] = params->wavelength[i] / 10000.0;
 			sigma[i] = params->sigma[i] / 100.0;
-			for (j = 0; j < params->obs[i]->indep->dim; j++) {
-				 indep[index] = params->obs[i]->indep->val[j];
-				   dep[index] = params->obs[i]->dep->val[j]/100.0;
-				weight[index] = params->obs[i]->weight->val[j];
-				index++;
-			}
-			indep[index] = -10001.0; dep[index] = 0.0; weight[index] = 0.0;
-			index++;
 		}
 
 		for (i = rvno; i < cno; i++) {
 			wla[i] = params->wavelength[i] / 10000.0;
 			sigma[i] = params->sigma[i];
-			for (j = 0; j < params->obs[i]->indep->dim; j++) {
-				 indep[index] = params->obs[i]->indep->val[j];
-				   dep[index] = params->obs[i]->dep->val[j];
-				 if(dep[index] >= 1000.0)
-					return ERROR_INVALID_NORMAL_MAG;
-				weight[index] = params->obs[i]->weight->val[j];
-				index++;
-			}
-			indep[index] = -10001.0; dep[index] = 0.0; weight[index] = 0.0;
-			index++;
 		}
 	}
 	else {
 		wla = NULL;
 		sigma = NULL;
-		indep = NULL;
-		dep = NULL;
-		weight = NULL;
 	}
 
 	step = phoebe_malloc (35 * sizeof (*step));
@@ -141,13 +112,10 @@ int create_dci_file (char *filename, void *pars)
 			  tavh, tavc, params->alb1, params->alb2, params->pot1, params->pot2, params->rm, params->xbol1, params->xbol2, params->ybol1, params->ybol2,
 			  params->passband, params->hla, params->cla, params->x1a, params->x2a, params->y1a, params->y2a, params->el3, params->opsf, params->levweight, sigma, wla,
 			  params->spot1no, params->spot1lat, params->spot1long, params->spot1rad, params->spot1temp, params->spot2no, params->spot2lat, params->spot2long, params->spot2rad, params->spot2temp,
-			  ptsno, indep, dep, weight);
-			  
+			  params->knobs, params->indeps, params->fluxes, params->weights);
+
 	if (wla) free (wla);
 	if (sigma) free (sigma);
-	if (indep) free (indep);
-	if (dep) free (dep);
-	if (weight) free (weight);
 
 	free (step);
 
@@ -626,8 +594,11 @@ WD_DCI_parameters *wd_dci_parameters_new ()
 	pars->spot2rad   = NULL;
 	pars->spot2temp  = NULL;
 
-	/* Finally, these are arrays of curves. We NULLify them as well:          */
-	pars->obs   = NULL;
+	/* Finally, these are data arrays. We NULLify them as well: */
+	pars->knobs      = NULL;
+	pars->indeps     = NULL;
+	pars->fluxes     = NULL;
+	pars->weights    = NULL;
 
 	return pars;
 }
@@ -958,7 +929,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		"phoebe_el3"
 	};
 
-	int i, status;
+	int i, j, status, idx = 0, bandidx = 0;
 	int lcno, rvno, spotno;
 	int active_lcno, active_rvno, active_cno;
 	PHOEBE_array *active_lcindices, *active_rvindices;
@@ -1198,11 +1169,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), active_rvindices->val.iarray[i], &readout_str);
 		status = phoebe_column_get_type (&dtype, readout_str);
 		if (status != SUCCESS) {
-			free (params->passband); free (params->wavelength); free (params->sigma);
-			free (params->hla);      free (params->cla);        free (params->x1a);
-			free (params->y1a);      free (params->x2a);        free (params->y2a);
-			free (params->el3);      free (params->opsf);       free (params->extinction);
-			free (params->levweight);
+			wd_dci_parameters_free (params);
 			return status;
 		}
 
@@ -1212,17 +1179,13 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 		passband = phoebe_passband_lookup (readout_str);
 
 		if (!passband) {
-			free (params->passband); free (params->wavelength); free (params->sigma);
-			free (params->hla);      free (params->cla);        free (params->x1a);
-			free (params->y1a);      free (params->x2a);        free (params->y2a);
-			free (params->el3);      free (params->opsf);       free (params->extinction);
-			free (params->levweight);
+			wd_dci_parameters_free (params);
 			return ERROR_PASSBAND_INVALID;
 		}
 
 		status = wd_passband_id_lookup (&(params->passband[index]), readout_str);
 		if (status != SUCCESS) {
-#warning FIX_MEMORY_LEAKS
+			wd_dci_parameters_free (params);
 			phoebe_lib_error ("passband %s not supported by WD, aborting.\n", readout_str);
 			return status;
 		}
@@ -1349,136 +1312,83 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_corotate2"), &readout_bool);
 	params->spots2corotate = (!readout_bool);
 
-	/* Observational data: */
+	/* Observed data: */
 	{
-		/* Allocate observational data arrays: */
-		params->obs = phoebe_malloc (active_cno * sizeof (*(params->obs)));
+		params->knobs = phoebe_malloc ( (active_cno+1) * sizeof (*(params->knobs)));
+		params->knobs[0] = 0;
+		bandidx++;
 
 		if (params->rv1data) {
-			params->obs[0] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, rv1index);
-			if (!params->obs[0]) return ERROR_FILE_NOT_FOUND;
-			phoebe_curve_transform (params->obs[0], master_indep, PHOEBE_COLUMN_PRIMARY_RV, PHOEBE_COLUMN_WEIGHT);
-
-/*************************************************************/
-			phoebe_debug ("RV1 data:\n");
-			phoebe_debug ("  type:     %d\n", params->obs[0]->type);
-			phoebe_debug ("  filename: %s\n", params->obs[0]->filename);
-/*************************************************************/
-/*
-			const char *filename;
-			char *passband;
-			PHOEBE_passband *passband_ptr;
-			double sigma;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), rv1index, &filename);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), rv1index, &passband);
-			passband_ptr = phoebe_passband_lookup (passband);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), rv1index, &readout_str);
-			phoebe_column_get_type (&itype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), rv1index, &readout_str);
-			phoebe_column_get_type (&dtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), rv1index, &readout_str);
-			phoebe_column_get_type (&wtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), rv1index, &sigma);
-
-			params->obs[0] = phoebe_curve_new_from_file ((char *) filename);
-			if (!params->obs[0])
+			PHOEBE_curve *rv = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, rv1index);
+			if (!rv) {
+				wd_dci_parameters_free (params);
 				return ERROR_FILE_NOT_FOUND;
+			}
+			phoebe_curve_transform (rv, master_indep, PHOEBE_COLUMN_PRIMARY_RV, PHOEBE_COLUMN_WEIGHT);
 
-			phoebe_curve_set_properties (params->obs[0], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
-			phoebe_curve_transform (params->obs[0], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
-*/
+			params->indeps  = phoebe_realloc (params->indeps,  (idx+rv->indep->dim+1) * sizeof (*(params->indeps)));
+			params->fluxes  = phoebe_realloc (params->fluxes,  (idx+rv->indep->dim+1) * sizeof (*(params->fluxes)));
+			params->weights = phoebe_realloc (params->weights, (idx+rv->indep->dim+1) * sizeof (*(params->weights)));
+
+			for (i = 0; i < rv->indep->dim; i++) {
+				params->indeps[idx+i]  = rv->indep->val[i];
+				params->fluxes[idx+i]  = rv->dep->val[i];
+				params->weights[idx+i] = rv->weight->val[i];
+			}
+
+			params->knobs[bandidx] = (idx += rv->indep->dim);
+			bandidx++;
+
+			phoebe_curve_free (rv);
 		}
 		if (params->rv2data) {
-			int index;
-			if (params->rv1data) index = 1; else index = 0;
-			params->obs[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, rv2index);
-			if (!params->obs[index]) return ERROR_FILE_NOT_FOUND;
-			phoebe_curve_transform (params->obs[index], master_indep, PHOEBE_COLUMN_SECONDARY_RV, PHOEBE_COLUMN_WEIGHT);
-/*************************************************************/
-			phoebe_debug ("RV2 data:\n");
-			phoebe_debug ("  type:     %d\n", params->obs[index]->type);
-			phoebe_debug ("  filename: %s\n", params->obs[index]->filename);
-/*************************************************************/
-/*
-			int index;
-			const char *filename;
-			char *passband;
-			PHOEBE_passband *passband_ptr;
-			double sigma;
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), rv2index, &filename);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filter"), rv2index, &passband);
-			passband_ptr = phoebe_passband_lookup (passband);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indep"), rv2index, &readout_str);
-			phoebe_column_get_type (&itype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), rv2index, &readout_str);
-			phoebe_column_get_type (&dtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_indweight"), rv2index, &readout_str);
-			phoebe_column_get_type (&wtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), rv2index, &sigma);
-
-			if (params->rv1data) index = 1; else index = 0;
-			params->obs[index] = phoebe_curve_new_from_file ((char *) filename);
-			if (!params->obs[index])
+			PHOEBE_curve *rv = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, rv2index);;
+			if (!rv) {
+				wd_dci_parameters_free (params);
 				return ERROR_FILE_NOT_FOUND;
+			}
+			phoebe_curve_transform (rv, master_indep, PHOEBE_COLUMN_SECONDARY_RV, PHOEBE_COLUMN_WEIGHT);
 
-			phoebe_curve_set_properties (params->obs[index], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
-			phoebe_curve_transform (params->obs[index], master_indep, dtype, PHOEBE_COLUMN_WEIGHT);
-*/
+			params->indeps  = phoebe_realloc (params->indeps,  (idx+rv->indep->dim+1) * sizeof (*(params->indeps)));
+			params->fluxes  = phoebe_realloc (params->fluxes,  (idx+rv->indep->dim+1) * sizeof (*(params->fluxes)));
+			params->weights = phoebe_realloc (params->weights, (idx+rv->indep->dim+1) * sizeof (*(params->weights)));
+
+			for (i = 0; i < rv->indep->dim; i++) {
+				params->indeps[idx+i]  = rv->indep->val[i];
+				params->fluxes[idx+i]  = rv->dep->val[i];
+				params->weights[idx+i] = rv->weight->val[i];
+			}
+
+			params->knobs[bandidx] = (idx += rv->indep->dim);
+			bandidx++;
+
+			phoebe_curve_free (rv);
 		}
 		for (i = active_rvno; i < active_cno; i++) {
-			params->obs[i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, active_lcindices->val.iarray[i-active_rvno]);
-			if (!params->obs[i]) return ERROR_FILE_NOT_FOUND;
-			phoebe_curve_transform (params->obs[i], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+			PHOEBE_curve *lc = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, active_lcindices->val.iarray[i-active_rvno]);
+			if (!lc) {
+				wd_dci_parameters_free (params);
+				return ERROR_FILE_NOT_FOUND;
+			}
+			phoebe_curve_transform (lc, master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
 			if (params->extinction[i] > 0)
-				apply_extinction_correction (params->obs[i], -params->extinction[i]);
+				apply_extinction_correction (lc, -params->extinction[i]);
 
-/*************************************************************/
-			phoebe_debug ("LC data:\n");
-			phoebe_debug ("  type:     %d\n", params->obs[i]->type);
-			phoebe_debug ("  filename: %s\n", params->obs[i]->filename);
-/*************************************************************/
-/*
-			const char *filename;
-			char *passband;
-			PHOEBE_passband *passband_ptr;
-			double sigma;
+			params->indeps  = phoebe_realloc (params->indeps,  (idx+lc->indep->dim+1) * sizeof (*(params->indeps)));
+			params->fluxes  = phoebe_realloc (params->fluxes,  (idx+lc->indep->dim+1) * sizeof (*(params->fluxes)));
+			params->weights = phoebe_realloc (params->weights, (idx+lc->indep->dim+1) * sizeof (*(params->weights)));
 
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), i-rvno, &filename);
+			for (j = 0; j < lc->indep->dim; j++) {
+				params->indeps[idx+j]  = lc->indep->val[j];
+				params->fluxes[idx+j]  = lc->dep->val[j];
+				params->weights[idx+j] = lc->weight->val[j];
+			}
 
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filter"), i-rvno, &passband);
-			passband_ptr = phoebe_passband_lookup (passband);
+			params->knobs[bandidx] = (idx += lc->indep->dim);
+			bandidx++;
 
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indep"), i-rvno, &readout_str);
-			phoebe_column_get_type (&itype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_dep"), i-rvno, &readout_str);
-			phoebe_column_get_type (&dtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_indweight"), i-rvno, &readout_str);
-			phoebe_column_get_type (&wtype, readout_str);
-
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i-rvno, &sigma);
-
-			params->obs[i] = phoebe_curve_new_from_file ((char *) filename);
-			if (!params->obs[i])
-				return ERROR_FILE_NOT_FOUND;
-
-			phoebe_curve_set_properties (params->obs[i], PHOEBE_CURVE_RV, (char *) filename, passband_ptr, itype, dtype, wtype, sigma);
-			phoebe_curve_transform (params->obs[i], master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
-*/
+			phoebe_curve_free (lc);
 		}
 	}
 
@@ -1494,7 +1404,6 @@ int wd_dci_parameters_free (WD_DCI_parameters *params)
 	 * This function frees the arrays of the structure and the structure itself.
 	 */
 
-	int i;
 	int curve_no = params->rv1data + params->rv2data + params->nlc;
 
 	if (params->tba)  free (params->tba);
@@ -1531,11 +1440,10 @@ int wd_dci_parameters_free (WD_DCI_parameters *params)
 	}
 
 	if (curve_no != 0) {
-		if (params->obs) {
-			for (i = 0; i < curve_no; i++)
-				phoebe_curve_free (params->obs[i]);
-			free (params->obs);
-		}
+		if (params->knobs)   free (params->knobs);
+		if (params->indeps)  free (params->indeps);
+		if (params->fluxes)  free (params->fluxes);
+		if (params->weights) free (params->weights);
 	}
 
 	free (params);
