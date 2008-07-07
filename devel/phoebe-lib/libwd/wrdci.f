@@ -9,7 +9,7 @@
 
       implicit none
 
-      double precision spend,clend
+      double precision spend,clend,wt
       integer dciend
 
       parameter ( spend=   300.0)
@@ -90,7 +90,9 @@
 
       do 95, j=1,ifvc1+ifvc2+nlc
       do 94, i=knobs(j)+1,knobs(j+1)
-          write(1,15) INDEP(i),DEP(i),WEIGHT(i)
+          wt=weight(i)
+          if(weight(i).gt.99.9) wt=-1.d0
+          write(1,15) INDEP(i),DEP(i),wt
    94 continue
       write(1,15) -10001.d0, 0.d0, 0.d0
    95 continue

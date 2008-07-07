@@ -203,7 +203,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dimension hla(ncmax),cla(ncmax),x1a(ncmax),x2a(ncmax),y1a(ncmax),
      $y2a(ncmax),el3a(ncmax),wla(ncmax),noise(ncmax),sigma(ncmax),
      $opsfa(ncmax),iband(ncmax)
-c     Removed: ,knobs(ncmax+2),
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     Removed: knobs(ncmax+2)
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       dimension snthh(2*Nmax),csthh(2*Nmax),snthl(2*Nmax),csthl(2*Nmax),
      $snfih(2*igsmax),csfih(2*igsmax),snfil(2*igsmax),csfil(2*igsmax)
       dimension hld(igsmax),tldh(2*igsmax),tldl(2*igsmax)
@@ -531,7 +537,13 @@ c
       NS=1
       NI=0
       NY=0
-      KNOBS(1)=0
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE modification:
+c
+c     Commented out: KNOBS(1)=0
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       WRITE(16,405)
       WRITE(16,101)
       WRITE(16,440)
@@ -884,6 +896,22 @@ c***************************************************************
      $xmue(i),encl(i),dens(i)
       write(16,101)
  1067 continue
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE addition:
+c
+      WRITE(16,*) "            *** IMPORTANT NOTICE ***"
+      WRITE(16,*) ""
+      WRITE(16,*) "THE FOLLOWING BLOCK OF OBSERVATIONS WAS *NOT* USED"
+      WRITE(16,*) "IN DC, IT HAS BEEN READ FROM THE DCI FILE AND COPIED"
+      WRITE(16,*) "HERE. PHOEBE PASSES DATA ARRAYS TO DC DIRECTLY, NOT"
+      WRITE(16,*) "THROUGH A DCI FILE. IF YOUR WEIGHTS SHOW -1.0, THAT"
+      WRITE(16,*) "MEANS THAT FORMATTING RESTRICTIONS OF WD WOULD HAVE"
+      WRITE(16,*) "PREVENTED THEIR PROPER OUTPUT. HOWEVER, SINCE THE"
+      WRITE(16,*) "DATA ARE PASSED TO DC DIRECTLY, THESE VALUES DO NOT"
+      WRITE(16,*) "PLAY ANY ROLE."
+      WRITE(16,*) ""
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       WRITE(16,101)
       WRITE(16,9)
       DO 75 LCV=1,NLVC
@@ -1717,6 +1745,7 @@ c     PHOEBE modification:
 c
 c     ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB))
 c
+c     This is level-dependent weighting for RV curves:
       ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB))
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -1727,6 +1756,7 @@ c     PHOEBE modification:
 c
 c 444 ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB)*dsqrt(FLUX(I))**NOIS)
 c
+c     This is level-dependent weighting for light curves:
   444 ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB)*dsqrt(fluxes(I))**NOIS)
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

@@ -2975,7 +2975,7 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	}
 
 	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_WEIGHT) {
-		phoebe_vector_pad (curve->weight, 1.00);
+		phoebe_vector_pad (curve->weight, 1./curve->sigma/curve->sigma);
 		curve->wtype = wtype;
 	}
 
