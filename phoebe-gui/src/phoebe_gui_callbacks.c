@@ -2824,7 +2824,6 @@ G_MODULE_EXPORT void on_phoebe_settings_confirmation_save_checkbutton_toggled (G
 	 * GUI_CONFIRM_ON_OVERWRITE.
 	 */
 
-	printf ("entered.\n");
 	if (togglebutton->active == TRUE)
 		phoebe_config_entry_set ("GUI_CONFIRM_ON_OVERWRITE", TRUE);
 	else
@@ -2839,7 +2838,6 @@ G_MODULE_EXPORT void on_phoebe_beep_after_plot_and_fit_checkbutton_toggled (GtkT
 	 * GUI_BEEP_AFTER_PLOT_AND_FIT.
 	 */
 
-	printf ("entered.\n");
 	if (togglebutton->active == TRUE)
 		phoebe_config_entry_set ("GUI_BEEP_AFTER_PLOT_AND_FIT", TRUE);
 	else
