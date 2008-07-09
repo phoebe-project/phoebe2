@@ -1072,11 +1072,11 @@ int gui_data_lc_treeview_add()
 
             phoebe_parameter_get_value(par, &lcno);
             phoebe_parameter_set_value(par, lcno + 1);
-	    gui_ld_coeffs_need_updating();
-	    gui_fill_sidesheet_fit_treeview ();
-	    gui_fill_fitt_mf_treeview();
+            gui_ld_coeffs_need_updating();
+            gui_fill_sidesheet_fit_treeview ();
+            gui_fill_fitt_mf_treeview();
 
-            printf("Number of light curves: %d\n", lcno + 1);
+            phoebe_debug("Number of light curves: %d\n", lcno + 1);
 
             /* Select the new row in the list: */
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview), &iter);
@@ -1392,7 +1392,7 @@ int gui_data_rv_treeview_add()
             phoebe_parameter_get_value(par, &rvno);
             phoebe_parameter_set_value(par, rvno + 1);
 
-            printf("Number of RV curves: %d\n", rvno + 1);
+            phoebe_debug("Number of RV curves: %d\n", rvno + 1);
 
 			gtk_tree_selection_select_iter (gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_rv_treeview), &iter);
 			gui_status("A radial velocity curve added.");
