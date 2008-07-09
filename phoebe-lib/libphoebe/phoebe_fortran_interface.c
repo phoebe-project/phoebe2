@@ -1332,7 +1332,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 			for (i = 0; i < rv->indep->dim; i++) {
 				params->indeps[idx+i]  = rv->indep->val[i];
-				params->fluxes[idx+i]  = rv->dep->val[i];
+				params->fluxes[idx+i]  = rv->dep->val[i] / 100.0;
 				params->weights[idx+i] = rv->weight->val[i];
 			}
 
@@ -1355,7 +1355,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 
 			for (i = 0; i < rv->indep->dim; i++) {
 				params->indeps[idx+i]  = rv->indep->val[i];
-				params->fluxes[idx+i]  = rv->dep->val[i];
+				params->fluxes[idx+i]  = rv->dep->val[i] / 100.0;
 				params->weights[idx+i] = rv->weight->val[i];
 			}
 
