@@ -63,8 +63,6 @@ int normalize_kms_to_orbit                  (PHOEBE_vector *vec, double sma, dou
 int transform_sigma_to_weight               (PHOEBE_vector *vec);
 int transform_weight_to_sigma               (PHOEBE_vector *vec);
 
-int phoebe_curve_alias                      (PHOEBE_curve *curve, double phmin, double phmax);
-
 int calculate_main_sequence_parameters (double T1, double T2, double P0,
 			  double *L1, double *L2, double *M1, double *M2, double *q, double *a,
 			  double *R1, double *R2, double *Omega1, double *Omega2);
