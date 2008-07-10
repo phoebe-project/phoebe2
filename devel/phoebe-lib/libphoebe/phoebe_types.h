@@ -310,6 +310,7 @@ int           phoebe_curve_alloc          (PHOEBE_curve *curve, int dim);
 int           phoebe_curve_realloc        (PHOEBE_curve *curve, int dim);
 int           phoebe_curve_compute        (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, PHOEBE_column_type itype, PHOEBE_column_type dtype);
 int           phoebe_curve_transform      (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype);
+int           phoebe_curve_alias          (PHOEBE_curve *curve, double phmin, double phmax);
 int           phoebe_curve_set_properties (PHOEBE_curve *curve, PHOEBE_curve_type type, char *filename, PHOEBE_passband *passband, PHOEBE_column_type itype, PHOEBE_column_type dtype, PHOEBE_column_type wtype, double sigma);
 int           phoebe_curve_free           (PHOEBE_curve *curve);
 
