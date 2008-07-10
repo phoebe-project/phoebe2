@@ -224,6 +224,35 @@ PHOEBE_vector *phoebe_vector_new_from_array (PHOEBE_array *array)
 	return vec;
 }
 
+PHOEBE_vector *phoebe_vector_new_from_range (int dim, double start, double end)
+{
+	/**
+	 * phoebe_vector_new_from_range:
+	 * @dim: vector dimension
+	 * @start: first vector element
+	 * @end: last vector element
+	 *
+	 * Creates a vector that starts at @start, ends at @end, and has @dim
+	 * equidistant steps.
+	 */
+
+	PHOEBE_vector *vec;
+	int i;
+
+	if (dim < 1) {
+		phoebe_lib_error ("phoebe_vector_new_from_range () called with dim %d, aborting.\n", dim);
+		return NULL;
+	}
+
+	vec = phoebe_vector_new ();
+	phoebe_vector_alloc (vec, dim);
+
+	for (i = 0; i < vec->dim; i++)
+		vec->val[i] = start + (double) i*(end-start)/(vec->dim-1);
+
+	return vec;
+}
+
 PHOEBE_vector *phoebe_vector_duplicate (PHOEBE_vector *vec)
 {
 	/**
