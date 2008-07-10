@@ -63,6 +63,7 @@ typedef struct PHOEBE_vector {
 PHOEBE_vector *phoebe_vector_new                ();
 PHOEBE_vector *phoebe_vector_new_from_qualifier (char *qualifier);
 PHOEBE_vector *phoebe_vector_new_from_column    (char *filename, int col);
+PHOEBE_vector *phoebe_vector_new_from_range     (int dim, double start, double end);
 PHOEBE_vector *phoebe_vector_duplicate          (PHOEBE_vector *vec);
 int            phoebe_vector_alloc              (PHOEBE_vector *vec, int dimension);
 int            phoebe_vector_realloc            (PHOEBE_vector *vec, int dimension);
