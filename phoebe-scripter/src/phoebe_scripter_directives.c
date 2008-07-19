@@ -289,6 +289,7 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 	 */
 
 	int i, status;
+	char format[255];
 	scripter_ast_value val = scripter_ast_evaluate (ast);
 	char *qualifier = val.value.str;
 
@@ -307,7 +308,8 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 			status = phoebe_parameter_get_value (par, &value);
 			if (status != SUCCESS) return status;
 			fprintf (PHOEBE_output, "  Type:           integer\n");
-			fprintf (PHOEBE_output, "  Value:          %d\n", value);
+			sprintf (format, "  Value:          %s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_BOOL: {
@@ -324,14 +326,16 @@ int intern_info_on_qualifiers (scripter_ast *ast)
 			double value;
 			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "  Type:           real\n");
-			fprintf (PHOEBE_output, "  Value:          %g\n", value);
+			sprintf (format, "  Value:          %s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
 			phoebe_parameter_get_value (par, &value);
 			fprintf (PHOEBE_output, "  Type:           string\n");
-			fprintf (PHOEBE_output, "  Value:          %s\n", value);
+			sprintf (format, "  Value:          %s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_INT_ARRAY: {

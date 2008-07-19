@@ -36,201 +36,201 @@ int phoebe_init_parameters ()
 
 	/* **********************   Model parameters   ************************** */
 
-	phoebe_parameter_add ("phoebe_name",                 "Common name of the binary",                  KIND_PARAMETER,  NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,       "");
-	phoebe_parameter_add ("phoebe_indep",                "Independent modeling variable",              KIND_MENU,       NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,       "Phase");
-	phoebe_parameter_add ("phoebe_model",                "Morphological constraints",                  KIND_MENU,       NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,       "Unconstrained binary system");
+	phoebe_parameter_add ("phoebe_name",                 "Common name of the binary",                  KIND_PARAMETER,  NULL,          "%s",      0.0, 0.0, 0.0, NO, TYPE_STRING,       "");
+	phoebe_parameter_add ("phoebe_indep",                "Independent modeling variable",              KIND_MENU,       NULL,          "%s",      0.0, 0.0, 0.0, NO, TYPE_STRING,       "Phase");
+	phoebe_parameter_add ("phoebe_model",                "Morphological constraints",                  KIND_MENU,       NULL,          "%s",      0.0, 0.0, 0.0, NO, TYPE_STRING,       "Unconstrained binary system");
 
-	phoebe_parameter_add ("phoebe_lcno",                 "Number of observed light curves",            KIND_MODIFIER,   NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,          0);
-	phoebe_parameter_add ("phoebe_rvno",                 "Number of observed RV curves",               KIND_MODIFIER,   NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,          0);
-	phoebe_parameter_add ("phoebe_spno",                 "Number of observed spectra",                 KIND_MODIFIER,   NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,          0);
+	phoebe_parameter_add ("phoebe_lcno",                 "Number of observed light curves",            KIND_MODIFIER,   NULL,          "%d",      0.0, 0.0, 0.0, NO, TYPE_INT,          0);
+	phoebe_parameter_add ("phoebe_rvno",                 "Number of observed RV curves",               KIND_MODIFIER,   NULL,          "%d",      0.0, 0.0, 0.0, NO, TYPE_INT,          0);
+	phoebe_parameter_add ("phoebe_spno",                 "Number of observed spectra",                 KIND_MODIFIER,   NULL,          "%d",      0.0, 0.0, 0.0, NO, TYPE_INT,          0);
 
 	/* ***********************   Data parameters   ************************** */
 
-	phoebe_parameter_add ("phoebe_lc_id",                "Observed LC identification name",            KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_lc_filename",          "Observed LC data filename",                  KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_lc_sigma",             "Observed LC data standard deviation",        KIND_PARAMETER,  "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 0.01);
-	phoebe_parameter_add ("phoebe_lc_filter",            "Observed LC data filter",                    KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
-	phoebe_parameter_add ("phoebe_lc_indep",             "Observed LC data independent variable",      KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
-	phoebe_parameter_add ("phoebe_lc_dep",               "Observed LC data dependent variable",        KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Magnitude");
-	phoebe_parameter_add ("phoebe_lc_indweight",         "Observed LC data individual weighting",      KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
-	phoebe_parameter_add ("phoebe_lc_levweight",         "Observed LC data level weighting",           KIND_MENU,       "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Poissonian scatter");
-	phoebe_parameter_add ("phoebe_lc_active",            "Observed LC data is used",                   KIND_SWITCH,     "phoebe_lcno",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
+	phoebe_parameter_add ("phoebe_lc_id",                "Observed LC identification name",            KIND_PARAMETER,  "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
+	phoebe_parameter_add ("phoebe_lc_filename",          "Observed LC data filename",                  KIND_PARAMETER,  "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
+	phoebe_parameter_add ("phoebe_lc_sigma",             "Observed LC data standard deviation",        KIND_PARAMETER,  "phoebe_lcno", "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 0.01);
+	phoebe_parameter_add ("phoebe_lc_filter",            "Observed LC data filter",                    KIND_MENU,       "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
+	phoebe_parameter_add ("phoebe_lc_indep",             "Observed LC data independent variable",      KIND_MENU,       "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
+	phoebe_parameter_add ("phoebe_lc_dep",               "Observed LC data dependent variable",        KIND_MENU,       "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Magnitude");
+	phoebe_parameter_add ("phoebe_lc_indweight",         "Observed LC data individual weighting",      KIND_MENU,       "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
+	phoebe_parameter_add ("phoebe_lc_levweight",         "Observed LC data level weighting",           KIND_MENU,       "phoebe_lcno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Poissonian scatter");
+	phoebe_parameter_add ("phoebe_lc_active",            "Observed LC data is used",                   KIND_SWITCH,     "phoebe_lcno", "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
-	phoebe_parameter_add ("phoebe_rv_id",                "Observed RV identification name",            KIND_PARAMETER,  "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_rv_filename",          "Observed RV data filename",                  KIND_PARAMETER,  "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_rv_sigma",             "Observed RV data standard deviation",        KIND_PARAMETER,  "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 1.0);
-	phoebe_parameter_add ("phoebe_rv_filter",            "Observed RV data filter",                    KIND_MENU,       "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
-	phoebe_parameter_add ("phoebe_rv_indep",             "Observed RV data independent variable",      KIND_MENU,       "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
-	phoebe_parameter_add ("phoebe_rv_dep",               "Observed RV data dependent variable",        KIND_MENU,       "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Primary RV");
-	phoebe_parameter_add ("phoebe_rv_indweight",         "Observed RV data individual weighting",      KIND_MENU,       "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
-	phoebe_parameter_add ("phoebe_rv_active",            "Observed RV data is used",                   KIND_SWITCH,     "phoebe_rvno",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
+	phoebe_parameter_add ("phoebe_rv_id",                "Observed RV identification name",            KIND_PARAMETER,  "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
+	phoebe_parameter_add ("phoebe_rv_filename",          "Observed RV data filename",                  KIND_PARAMETER,  "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
+	phoebe_parameter_add ("phoebe_rv_sigma",             "Observed RV data standard deviation",        KIND_PARAMETER,  "phoebe_rvno", "%lf",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 1.0);
+	phoebe_parameter_add ("phoebe_rv_filter",            "Observed RV data filter",                    KIND_MENU,       "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
+	phoebe_parameter_add ("phoebe_rv_indep",             "Observed RV data independent variable",      KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
+	phoebe_parameter_add ("phoebe_rv_dep",               "Observed RV data dependent variable",        KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Primary RV");
+	phoebe_parameter_add ("phoebe_rv_indweight",         "Observed RV data individual weighting",      KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
+	phoebe_parameter_add ("phoebe_rv_active",            "Observed RV data is used",                   KIND_SWITCH,     "phoebe_rvno", "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
-	phoebe_parameter_add ("phoebe_mnorm",                "Flux-normalizing magnitude",                 KIND_PARAMETER,  NULL,   0.0,    0.0,    0.0, NO, TYPE_DOUBLE,       10.0);
+	phoebe_parameter_add ("phoebe_mnorm",                "Flux-normalizing magnitude",                 KIND_PARAMETER,  NULL,          "%lf",  0.0,    0.0,    0.0, NO, TYPE_DOUBLE,       10.0);
 
-	phoebe_parameter_add ("phoebe_bins_switch",          "Data binning",                               KIND_SWITCH,     NULL,   0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_bins",                 "Number of bins",                             KIND_PARAMETER,  NULL,   0.0,    0.0,    0.0, NO, TYPE_INT,           100);
+	phoebe_parameter_add ("phoebe_bins_switch",          "Data binning",                               KIND_SWITCH,     NULL,          "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_bins",                 "Number of bins",                             KIND_PARAMETER,  NULL,          "%d",   0.0,    0.0,    0.0, NO, TYPE_INT,           100);
 
-	phoebe_parameter_add ("phoebe_ie_switch",            "Interstellar extinction (reddening)",        KIND_SWITCH,     NULL,   0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_ie_factor",            "Interstellar extinction coefficient",        KIND_PARAMETER,  NULL,   0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        3.1);
-	phoebe_parameter_add ("phoebe_ie_excess",            "Interstellar extinction color excess value", KIND_PARAMETER,  NULL,   0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_ie_switch",            "Interstellar extinction (reddening)",        KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_ie_factor",            "Interstellar extinction coefficient",        KIND_PARAMETER,  NULL,          "%lf",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        3.1);
+	phoebe_parameter_add ("phoebe_ie_excess",            "Interstellar extinction color excess value", KIND_PARAMETER,  NULL,          "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        0.0);
 
-	phoebe_parameter_add ("phoebe_proximity_rv1_switch", "Proximity effects for primary star RV",      KIND_SWITCH,     NULL,   0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_proximity_rv2_switch", "Proximity effects for secondary star RV",    KIND_SWITCH,     NULL,   0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_proximity_rv1_switch", "Proximity effects for primary star RV",      KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_proximity_rv2_switch", "Proximity effects for secondary star RV",    KIND_SWITCH,     NULL,          "%d", 0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
 
 	/* **********************   System parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_hjd0",                 "Origin of HJD time",                         KIND_ADJUSTABLE, NULL, -1E10,   1E10, 0.0001, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_period",               "Orbital period in days",                     KIND_ADJUSTABLE, NULL,   0.0,   1E10, 0.0001, NO, TYPE_DOUBLE,        1.0);
-	phoebe_parameter_add ("phoebe_dpdt",                 "First time derivative of period (days/day)", KIND_ADJUSTABLE, NULL,  -1.0,    1.0,   1E-6, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_pshift",               "Phase shift",                                KIND_ADJUSTABLE, NULL,  -0.5,    0.5,   0.01, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_sma",                  "Semi-major axis in solar radii",             KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
-	phoebe_parameter_add ("phoebe_rm",                   "Mass ratio (secondary over primary)",        KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,        1.0);
-	phoebe_parameter_add ("phoebe_incl",                 "Inclination in degrees",                     KIND_ADJUSTABLE, NULL,   0.0,  180.0,   0.01, NO, TYPE_DOUBLE,       80.0);
-	phoebe_parameter_add ("phoebe_vga",                  "Center-of-mass velocity in km/s",            KIND_ADJUSTABLE, NULL,  -1E3,    1E3,    1.0, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_hjd0",                 "Origin of HJD time",                         KIND_ADJUSTABLE, NULL,          "%12.12lf", -1E10,   1E10, 0.0001, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_period",               "Orbital period in days",                     KIND_ADJUSTABLE, NULL,          "%12.12lf",  0.0,   1E10, 0.0001, NO, TYPE_DOUBLE,        1.0);
+	phoebe_parameter_add ("phoebe_dpdt",                 "First time derivative of period (days/day)", KIND_ADJUSTABLE, NULL,          "%12.12lf", -1.0,    1.0,   1E-6, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_pshift",               "Phase shift",                                KIND_ADJUSTABLE, NULL,          "%lf", -0.5,    0.5,   0.01, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_sma",                  "Semi-major axis in solar radii",             KIND_ADJUSTABLE, NULL,          "%lf", 0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
+	phoebe_parameter_add ("phoebe_rm",                   "Mass ratio (secondary over primary)",        KIND_ADJUSTABLE, NULL,          "%lf", 0.0,   1E10,   0.01, NO, TYPE_DOUBLE,        1.0);
+	phoebe_parameter_add ("phoebe_incl",                 "Inclination in degrees",                     KIND_ADJUSTABLE, NULL,          "%lf",  0.0,  180.0,   0.01, NO, TYPE_DOUBLE,       80.0);
+	phoebe_parameter_add ("phoebe_vga",                  "Center-of-mass velocity in km/s",            KIND_ADJUSTABLE, NULL,          "%lf",  -1E3,    1E3,    1.0, NO, TYPE_DOUBLE,        0.0);
 
 	/* ********************   Component parameters   ************************ */
 
-	phoebe_parameter_add ("phoebe_teff1",                "Primary star effective temperature in K",    KIND_ADJUSTABLE, NULL,  3500,  50000,     10, NO, TYPE_DOUBLE,     6000.0);
-	phoebe_parameter_add ("phoebe_teff2",                "Secondary star effective temperature in K",  KIND_ADJUSTABLE, NULL,  3500,  50000,     10, NO, TYPE_DOUBLE,     6000.0);
-	phoebe_parameter_add ("phoebe_pot1",                 "Primary star surface potential",             KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
-	phoebe_parameter_add ("phoebe_pot2",                 "Secondary star surface potential",           KIND_ADJUSTABLE, NULL,   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
-	phoebe_parameter_add ("phoebe_met1",                 "Primary star metallicity",                   KIND_ADJUSTABLE, NULL, -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_met2",                 "Secondary star metallicity",                 KIND_ADJUSTABLE, NULL, -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_f1",                   "Primary star synchronicity parameter",       KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        1.0);
-	phoebe_parameter_add ("phoebe_f2",                   "Secondary star synchronicity parameter",     KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        1.0);
-	phoebe_parameter_add ("phoebe_alb1",                 "Primary star surface albedo",                KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
-	phoebe_parameter_add ("phoebe_alb2",                 "Secondary star surface albedo",              KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
-	phoebe_parameter_add ("phoebe_grb1",                 "Primary star gravity brightening",           KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
-	phoebe_parameter_add ("phoebe_grb2",                 "Secondary star gravity brightening",         KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
+	phoebe_parameter_add ("phoebe_teff1",                "Primary star effective temperature in K",    KIND_ADJUSTABLE, NULL,          "%lf", 3500,  50000,     10, NO, TYPE_DOUBLE,     6000.0);
+	phoebe_parameter_add ("phoebe_teff2",                "Secondary star effective temperature in K",  KIND_ADJUSTABLE, NULL,          "%lf",  3500,  50000,     10, NO, TYPE_DOUBLE,     6000.0);
+	phoebe_parameter_add ("phoebe_pot1",                 "Primary star surface potential",             KIND_ADJUSTABLE, NULL,          "%lf",   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
+	phoebe_parameter_add ("phoebe_pot2",                 "Secondary star surface potential",           KIND_ADJUSTABLE, NULL,          "%lf",   0.0,   1E10,   0.01, NO, TYPE_DOUBLE,       10.0);
+	phoebe_parameter_add ("phoebe_met1",                 "Primary star metallicity",                   KIND_ADJUSTABLE, NULL,          "%lf", -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_met2",                 "Secondary star metallicity",                 KIND_ADJUSTABLE, NULL,          "%lf", -10.0,   10.0,   0.01, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_f1",                   "Primary star synchronicity parameter",       KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        1.0);
+	phoebe_parameter_add ("phoebe_f2",                   "Secondary star synchronicity parameter",     KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        1.0);
+	phoebe_parameter_add ("phoebe_alb1",                 "Primary star surface albedo",                KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
+	phoebe_parameter_add ("phoebe_alb2",                 "Secondary star surface albedo",              KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.6);
+	phoebe_parameter_add ("phoebe_grb1",                 "Primary star gravity brightening",           KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
+	phoebe_parameter_add ("phoebe_grb2",                 "Secondary star gravity brightening",         KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.32);
 
 	/* **********************   Orbit parameters   ************************** */
 
-	phoebe_parameter_add ("phoebe_ecc",                  "Orbital eccentricity",                       KIND_ADJUSTABLE, NULL,   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_perr0",                "Argument of periastron",                     KIND_ADJUSTABLE, NULL,   0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE,        0.0);
-	phoebe_parameter_add ("phoebe_dperdt",               "First time derivative of periastron",        KIND_ADJUSTABLE, NULL,  -1.0,    1.0,   1E-6, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_ecc",                  "Orbital eccentricity",                       KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_perr0",                "Argument of periastron",                     KIND_ADJUSTABLE, NULL,          "%lf",   0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_dperdt",               "First time derivative of periastron",        KIND_ADJUSTABLE, NULL,          "%12.12lf",  -1.0,    1.0,   1E-6, NO, TYPE_DOUBLE,        0.0);
 
 	/* *********************   Surface parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_hla",                  "LC primary star flux leveler",               KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
-	phoebe_parameter_add ("phoebe_cla",                  "LC secondary star flux leveler",             KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
-	phoebe_parameter_add ("phoebe_opsf",                 "Opacity frequency function",                 KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_hla",                  "LC primary passband luminosity",             KIND_ADJUSTABLE, "phoebe_lcno", "%lf", 0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
+	phoebe_parameter_add ("phoebe_cla",                  "LC secondary passband luminosity",           KIND_ADJUSTABLE, "phoebe_lcno", "%lf",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY, 12.566371);
+	phoebe_parameter_add ("phoebe_opsf",                 "Opacity frequency function",                 KIND_ADJUSTABLE, "phoebe_lcno", "%lf", 0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
 
-	phoebe_parameter_add ("phoebe_passband_mode",        "Passband treatment mode",                    KIND_MENU,       NULL,  0.0,    0.0,    0.0, NO, TYPE_STRING,        "Interpolation");
-	phoebe_parameter_add ("phoebe_atm1_switch",          "Use Kurucz's models for primary star",       KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_atm2_switch",          "Use Kurucz's models for secondary star",     KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_reffect_switch",       "Detailed reflection effect",                 KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_reffect_reflections",  "Number of detailed reflections",             KIND_PARAMETER,  NULL,    2,     10,      1, NO, TYPE_INT,             2);
+	phoebe_parameter_add ("phoebe_passband_mode",        "Passband treatment mode",                    KIND_MENU,       NULL,          "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING,        "Interpolation");
+	phoebe_parameter_add ("phoebe_atm1_switch",          "Use Kurucz's models for primary star",       KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_atm2_switch",          "Use Kurucz's models for secondary star",     KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_reffect_switch",       "Detailed reflection effect",                 KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_reffect_reflections",  "Number of detailed reflections",             KIND_PARAMETER,  NULL,          "%d",    2,     10,      1, NO, TYPE_INT,             2);
 
-	phoebe_parameter_add ("phoebe_usecla_switch",        "Decouple CLAs from temperature",             KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_usecla_switch",        "Decouple CLAs from temperature",             KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
 
 	/* ********************   Extrinsic parameters   ************************ */
 
-	phoebe_parameter_add ("phoebe_el3_units",            "Units of third light",                       KIND_MENU,       NULL,           0.0,    0.0,    0.0, NO, TYPE_STRING,        "Total light");
-	phoebe_parameter_add ("phoebe_el3",                  "Third light contribution",                   KIND_ADJUSTABLE, "phoebe_lcno",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
-	phoebe_parameter_add ("phoebe_extinction",           "Interstellar extinction coefficient",        KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_el3_units",            "Units of third light",                       KIND_MENU,       NULL,          "%s",           0.0,    0.0,    0.0, NO, TYPE_STRING,        "Total light");
+	phoebe_parameter_add ("phoebe_el3",                  "Third light contribution",                   KIND_ADJUSTABLE, "phoebe_lcno", "%lf",  0.0,   1E10,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	phoebe_parameter_add ("phoebe_extinction",           "Interstellar extinction coefficient",        KIND_ADJUSTABLE, "phoebe_lcno", "%lf",  0.0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
 
 	/* *********************   Fitting parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_grid_finesize1",       "Fine grid size on primary star",             KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,            20);
-	phoebe_parameter_add ("phoebe_grid_finesize2",       "Fine grid size on secondary star",           KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,            20);
-	phoebe_parameter_add ("phoebe_grid_coarsesize1",     "Coarse grid size on primary star",           KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,             5);
-	phoebe_parameter_add ("phoebe_grid_coarsesize2",     "Coarse grid size on secondary star",         KIND_PARAMETER,  NULL,    5,     60,      1, NO, TYPE_INT,             5);
+	phoebe_parameter_add ("phoebe_grid_finesize1",       "Fine grid size on primary star",             KIND_PARAMETER,  NULL,          "%d",    5,     60,      1, NO, TYPE_INT,            20);
+	phoebe_parameter_add ("phoebe_grid_finesize2",       "Fine grid size on secondary star",           KIND_PARAMETER,  NULL,          "%d",    5,     60,      1, NO, TYPE_INT,            20);
+	phoebe_parameter_add ("phoebe_grid_coarsesize1",     "Coarse grid size on primary star",           KIND_PARAMETER,  NULL,          "%d",    5,     60,      1, NO, TYPE_INT,             5);
+	phoebe_parameter_add ("phoebe_grid_coarsesize2",     "Coarse grid size on secondary star",         KIND_PARAMETER,  NULL,          "%d",    5,     60,      1, NO, TYPE_INT,             5);
 
-	phoebe_parameter_add ("phoebe_compute_hla_switch",   "Compute passband (HLA) levels",              KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_compute_vga_switch",   "Compute gamma velocity",                     KIND_SWITCH,     NULL,  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_compute_hla_switch",   "Compute passband (HLA) levels",              KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_compute_vga_switch",   "Compute gamma velocity",                     KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
 
 	/* **********************   DC fit parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_dc_symder_switch",     "Should symmetrical DC derivatives be used",  KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_dc_lambda",            "Levenberg-Marquardt multiplier for DC",      KIND_PARAMETER,  NULL,  0.0,    1.0,   1e-3, NO, TYPE_DOUBLE,       1e-3);
+	phoebe_parameter_add ("phoebe_dc_symder_switch",     "Should symmetrical DC derivatives be used",  KIND_SWITCH,     NULL,          "%d",    0,      0,      0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_dc_lambda",            "Levenberg-Marquardt multiplier for DC",      KIND_PARAMETER,  NULL,          "%lf",  0.0,    1.0,   1e-3, NO, TYPE_DOUBLE,       1e-3);
 
-	phoebe_parameter_add ("phoebe_dc_spot1src",          "Adjusted spot 1 source (at which star is the spot)", KIND_PARAMETER, NULL,      1,      2,      1, NO, TYPE_INT, 1);
-	phoebe_parameter_add ("phoebe_dc_spot2src",          "Adjusted spot 2 source (at which star is the spot)", KIND_PARAMETER, NULL,      1,      2,      1, NO, TYPE_INT, 2);
-	phoebe_parameter_add ("phoebe_dc_spot1id",           "Adjusted spot 1 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
-	phoebe_parameter_add ("phoebe_dc_spot2id",           "Adjusted spot 2 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,      1,    100,      1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot1src",          "Adjusted spot 1 source (at which star is the spot)", KIND_PARAMETER, NULL,   "%d",      1,      2,      1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot2src",          "Adjusted spot 2 source (at which star is the spot)", KIND_PARAMETER, NULL,   "%d",      1,      2,      1, NO, TYPE_INT, 2);
+	phoebe_parameter_add ("phoebe_dc_spot1id",           "Adjusted spot 1 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,   "%d",      1,    100,      1, NO, TYPE_INT, 1);
+	phoebe_parameter_add ("phoebe_dc_spot2id",           "Adjusted spot 2 ID (which spot is to be adjusted)",  KIND_PARAMETER, NULL,   "%d",      1,    100,      1, NO, TYPE_INT, 1);
 
 	/* **********************   NMS fit parameters   ************************* */
 
-	phoebe_parameter_add ("phoebe_nms_iters_max",     	"Maximal number of iterations to do",				   KIND_PARAMETER, NULL,      0,1000000,      1, NO, TYPE_INT, 200);
-	phoebe_parameter_add ("phoebe_nms_accuracy",     	"Desired accuracy",				   					   KIND_PARAMETER, NULL,      0,      1,      1, NO, TYPE_DOUBLE, 0.01);
+	phoebe_parameter_add ("phoebe_nms_iters_max",     	"Maximal number of iterations to do",				   KIND_PARAMETER, NULL,   "%d",      0,1000000,      1, NO, TYPE_INT, 200);
+	phoebe_parameter_add ("phoebe_nms_accuracy",     	"Desired accuracy",				   					   KIND_PARAMETER, NULL,   "%lf",     0,      1,      1, NO, TYPE_DOUBLE, 0.01);
 
 	/* *******************   Perturbations parameters   ********************* */
 
-	phoebe_parameter_add ("phoebe_ld_model",             "Limb darkening model",                               KIND_MENU,      NULL,      0,      0,      0, NO, TYPE_STRING, "Logarithmic law");
-	phoebe_parameter_add ("phoebe_ld_xbol1",             "Primary star bolometric LD coefficient x",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_ybol1",             "Primary star bolometric LD coefficient y",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_xbol2",             "Secondary star bolometric LD coefficient x",           KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_ybol2",             "Secondary star bolometric LD coefficient y",         KIND_PARAMETER, NULL,    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
-	phoebe_parameter_add ("phoebe_ld_lcx1",              "Primary star bandpass LD coefficient x",             KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_lcx2",              "Secondary star bandpass LD coefficient x",           KIND_ADJUSTABLE, "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_lcy1",              "Primary star bandpass LD coefficient y",             KIND_PARAMETER,  "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_lcy2",              "Secondary star bandpass LD coefficient y",           KIND_PARAMETER,  "phoebe_lcno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_rvx1",              "Primary RV bandpass LD coefficient x",               KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_rvx2",              "Secondary RV bandpass LD coefficient x",             KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_rvy1",              "Primary RV bandpass LD coefficient y",               KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
-	phoebe_parameter_add ("phoebe_ld_rvy2",              "Secondary RV bandpass LD coefficient y",             KIND_PARAMETER,  "phoebe_rvno",  0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_model",             "Limb darkening model",                               KIND_MENU,        NULL,         "%s",      0,      0,      0, NO, TYPE_STRING, "Logarithmic law");
+	phoebe_parameter_add ("phoebe_ld_xbol1",             "Primary star bolometric LD coefficient x",           KIND_PARAMETER,   NULL,         "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_ybol1",             "Primary star bolometric LD coefficient y",           KIND_PARAMETER,   NULL,         "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_xbol2",             "Secondary star bolometric LD coefficient x",         KIND_PARAMETER,   NULL,         "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_ybol2",             "Secondary star bolometric LD coefficient y",         KIND_PARAMETER,   NULL,         "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE,       0.5);
+	phoebe_parameter_add ("phoebe_ld_lcx1",              "Primary star bandpass LD coefficient x",             KIND_ADJUSTABLE, "phoebe_lcno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_lcx2",              "Secondary star bandpass LD coefficient x",           KIND_ADJUSTABLE, "phoebe_lcno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_lcy1",              "Primary star bandpass LD coefficient y",             KIND_PARAMETER,  "phoebe_lcno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_lcy2",              "Secondary star bandpass LD coefficient y",           KIND_PARAMETER,  "phoebe_lcno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_rvx1",              "Primary RV bandpass LD coefficient x",               KIND_PARAMETER,  "phoebe_rvno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_rvx2",              "Secondary RV bandpass LD coefficient x",             KIND_PARAMETER,  "phoebe_rvno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_rvy1",              "Primary RV bandpass LD coefficient y",               KIND_PARAMETER,  "phoebe_rvno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
+	phoebe_parameter_add ("phoebe_ld_rvy2",              "Secondary RV bandpass LD coefficient y",             KIND_PARAMETER,  "phoebe_rvno", "%lf",    0.0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY, 0.5);
 
-	phoebe_parameter_add ("phoebe_spots_no",             "Number of spots in the model",                       KIND_MODIFIER,   NULL,                  0,      0,      0, NO, TYPE_INT,             0);
-	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
-	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,     "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
+	phoebe_parameter_add ("phoebe_spots_no",             "Number of spots in the model",                       KIND_MODIFIER,    NULL,              "%d",        0,      0,      0, NO, TYPE_INT,             0);
+	phoebe_parameter_add ("phoebe_spots_active_switch",  "Should the spot be included in the model",           KIND_SWITCH,      "phoebe_spots_no", "%d",    0,      0,      0, NO, TYPE_BOOL_ARRAY,   TRUE);
+	phoebe_parameter_add ("phoebe_spots_tba_switch",     "Spot adjustment switch (informational only)",        KIND_SWITCH,      "phoebe_spots_no", "%d",    0,      0,      0, NO, TYPE_BOOL_ARRAY,  FALSE);
 
-	phoebe_parameter_add ("phoebe_spots_source",          "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no",     1,      2,      1, NO, TYPE_INT_ARRAY,         1);
-	phoebe_parameter_add ("phoebe_spots_colatitude",      "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   1.57);
-	phoebe_parameter_add ("phoebe_spots_colatitude_tba",  "Spot co-latitude TBA switch",                        KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
-	phoebe_parameter_add ("phoebe_spots_colatitude_min",  "Spot co-latitude minimum value",                     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
-	phoebe_parameter_add ("phoebe_spots_colatitude_max",  "Spot co-latitude maximum value",                     KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
-	phoebe_parameter_add ("phoebe_spots_colatitude_step", "Spot co-latitude adjustment step",                   KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
-	phoebe_parameter_add ("phoebe_spots_longitude",       "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
-	phoebe_parameter_add ("phoebe_spots_longitude_tba",   "Spot longitude TBA switch",                          KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
-	phoebe_parameter_add ("phoebe_spots_longitude_min",   "Spot longitude minimum value",                       KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
-	phoebe_parameter_add ("phoebe_spots_longitude_max",   "Spot longitude maximum value",                       KIND_PARAMETER,  "phoebe_spots_no",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 2*M_PI);
-	phoebe_parameter_add ("phoebe_spots_longitude_step",  "Spot longitude adjustment step",                     KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
-	phoebe_parameter_add ("phoebe_spots_radius",          "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.20);
-	phoebe_parameter_add ("phoebe_spots_radius_tba",      "Spot angular radius TBA switch",                     KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
-	phoebe_parameter_add ("phoebe_spots_radius_min",      "Spot angular radius minimum value",                  KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
-	phoebe_parameter_add ("phoebe_spots_radius_max",      "Spot angular radius maximum value",                  KIND_PARAMETER,  "phoebe_spots_no",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
-	phoebe_parameter_add ("phoebe_spots_radius_step",     "Spot angular radius adjustment step",                KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
-	phoebe_parameter_add ("phoebe_spots_tempfactor",      "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.90);
-	phoebe_parameter_add ("phoebe_spots_tempfactor_tba",  "Spot temperature factor TBA switch",                 KIND_PARAMETER,  "phoebe_spots_no",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
-	phoebe_parameter_add ("phoebe_spots_tempfactor_min",  "Spot temperature factor minimum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
-	phoebe_parameter_add ("phoebe_spots_tempfactor_max",  "Spot temperature factor maximum value",              KIND_PARAMETER,  "phoebe_spots_no",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,    100);
-	phoebe_parameter_add ("phoebe_spots_tempfactor_step", "Spot temperature factor adjustment step",            KIND_PARAMETER,  "phoebe_spots_no",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_source",          "Star on which the spot is located (1 or 2)",         KIND_PARAMETER,  "phoebe_spots_no", "%d",     1,      2,      1, NO, TYPE_INT_ARRAY,         1);
+	phoebe_parameter_add ("phoebe_spots_colatitude",      "Spot co-latitude (0 at +z pole, pi at -z pole)",     KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   1.57);
+	phoebe_parameter_add ("phoebe_spots_colatitude_tba",  "Spot co-latitude TBA switch",                        KIND_PARAMETER,  "phoebe_spots_no", "%d",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_colatitude_min",  "Spot co-latitude minimum value",                     KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_colatitude_max",  "Spot co-latitude maximum value",                     KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
+	phoebe_parameter_add ("phoebe_spots_colatitude_step", "Spot co-latitude adjustment step",                   KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_longitude",       "Spot longitude (0 at +x, to 2pi in CCW direction)",  KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_longitude_tba",   "Spot longitude TBA switch",                          KIND_PARAMETER,  "phoebe_spots_no", "%d",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_longitude_min",   "Spot longitude minimum value",                       KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_longitude_max",   "Spot longitude maximum value",                       KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0, 2*M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY, 2*M_PI);
+	phoebe_parameter_add ("phoebe_spots_longitude_step",  "Spot longitude adjustment step",                     KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_radius",          "Spot angular radius (in radians)",                   KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.20);
+	phoebe_parameter_add ("phoebe_spots_radius_tba",      "Spot angular radius TBA switch",                     KIND_PARAMETER,  "phoebe_spots_no", "%d",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_radius_min",      "Spot angular radius minimum value",                  KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_radius_max",      "Spot angular radius maximum value",                  KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,   M_PI,   0.01, NO, TYPE_DOUBLE_ARRAY,   M_PI);
+	phoebe_parameter_add ("phoebe_spots_radius_step",     "Spot angular radius adjustment step",                KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
+	phoebe_parameter_add ("phoebe_spots_tempfactor",      "Spot temperature factor (Tspot/Tsurface)",           KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.90);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_tba",  "Spot temperature factor TBA switch",                 KIND_PARAMETER,  "phoebe_spots_no", "%d",     0,      0,      0, NO, TYPE_BOOL_ARRAY,    FALSE);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_min",  "Spot temperature factor minimum value",              KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.00);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_max",  "Spot temperature factor maximum value",              KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    100,   0.01, NO, TYPE_DOUBLE_ARRAY,    100);
+	phoebe_parameter_add ("phoebe_spots_tempfactor_step", "Spot temperature factor adjustment step",            KIND_PARAMETER,  "phoebe_spots_no", "%lf",     0,    1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,   0.01);
 
-	phoebe_parameter_add ("phoebe_spots_units",           "Spot coordinate and radius units",                   KIND_MENU,       NULL,    0,      0,      0, NO, TYPE_STRING,       "Radians");
-	phoebe_parameter_add ("phoebe_spots_corotate1",       "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
-	phoebe_parameter_add ("phoebe_spots_corotate2",       "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,    0,      0,      0, NO, TYPE_BOOL,         YES);
+	phoebe_parameter_add ("phoebe_spots_units",           "Spot coordinate and radius units",                   KIND_MENU,       NULL,              "%s", 0,      0,      0, NO, TYPE_STRING,       "Radians");
+	phoebe_parameter_add ("phoebe_spots_corotate1",       "Spots on star 1 co-rotate with the star",            KIND_SWITCH,     NULL,              "%d", 0,      0,      0, NO, TYPE_BOOL,         YES);
+	phoebe_parameter_add ("phoebe_spots_corotate2",       "Spots on star 2 co-rotate with the star",            KIND_SWITCH,     NULL,              "%d", 0,      0,      0, NO, TYPE_BOOL,         YES);
 
 	/* These pertain to WD's DC that can fit up to two spots simultaneously. */
-	phoebe_parameter_add ("wd_spots_lat1",               "Latitude of the 1st adjusted spot",                  KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
-	phoebe_parameter_add ("wd_spots_long1",              "Longitude of the 1st adjusted spot",                 KIND_ADJUSTABLE, NULL,                0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
-	phoebe_parameter_add ("wd_spots_rad1",               "Radius of the 1st adjusted spot",                    KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
-	phoebe_parameter_add ("wd_spots_temp1",              "Temperature of 1st adjusted spot",                   KIND_ADJUSTABLE, NULL,                0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
-	phoebe_parameter_add ("wd_spots_lat2",               "Latitude of the 2nd adjusted spot",                  KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
-	phoebe_parameter_add ("wd_spots_long2",              "Longitude of the 2nd adjusted spot",                 KIND_ADJUSTABLE, NULL,                0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
-	phoebe_parameter_add ("wd_spots_rad2",               "Radius of the 2nd adjusted spot",                    KIND_ADJUSTABLE, NULL,                0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
-	phoebe_parameter_add ("wd_spots_temp2",              "Temperature of 2nd adjusted spot",                   KIND_ADJUSTABLE, NULL,                0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
+	phoebe_parameter_add ("wd_spots_lat1",               "Latitude of the 1st adjusted spot",                   KIND_ADJUSTABLE, NULL,              "%lf",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_long1",              "Longitude of the 1st adjusted spot",                  KIND_ADJUSTABLE, NULL,              "%lf",  0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_rad1",               "Radius of the 1st adjusted spot",                     KIND_ADJUSTABLE, NULL,              "%lf",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
+	phoebe_parameter_add ("wd_spots_temp1",              "Temperature of 1st adjusted spot",                    KIND_ADJUSTABLE, NULL,              "%lf",  0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
+	phoebe_parameter_add ("wd_spots_lat2",               "Latitude of the 2nd adjusted spot",                   KIND_ADJUSTABLE, NULL,              "%lf",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_long2",              "Longitude of the 2nd adjusted spot",                  KIND_ADJUSTABLE, NULL,              "%lf",  0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE, 0.0);
+	phoebe_parameter_add ("wd_spots_rad2",               "Radius of the 2nd adjusted spot",                     KIND_ADJUSTABLE, NULL,              "%lf",  0.0,   M_PI,   0.01, NO, TYPE_DOUBLE, 0.2);
+	phoebe_parameter_add ("wd_spots_temp2",              "Temperature of 2nd adjusted spot",                    KIND_ADJUSTABLE, NULL,              "%lf",  0.0,    100,   0.01, NO, TYPE_DOUBLE, 0.9);
 
 	/* *********************   Utilities parameters   *********************** */
 
-	phoebe_parameter_add ("phoebe_synscatter_switch",    "Synthetic scatter",                                  KIND_SWITCH,     NULL,                  0,      0,      0, NO, TYPE_BOOL,         NO);
-	phoebe_parameter_add ("phoebe_synscatter_sigma",     "Synthetic scatter standard deviation",               KIND_PARAMETER,  NULL,                0.0,  100.0,   0.01, NO, TYPE_DOUBLE,       0.01);
-	phoebe_parameter_add ("phoebe_synscatter_seed",      "Synthetic scatter seed",                             KIND_PARAMETER,  NULL,                1E8,    1E9,      1, NO, TYPE_DOUBLE,       1.5E8);
-	phoebe_parameter_add ("phoebe_synscatter_levweight", "Synthetic scatter weighting",                        KIND_MENU,       NULL,                  0,      0,      0, NO, TYPE_STRING,       "Poissonian scatter");
+	phoebe_parameter_add ("phoebe_synscatter_switch",    "Synthetic scatter",                                  KIND_SWITCH,     NULL,               "%d",   0,      0,      0, NO, TYPE_BOOL,         NO);
+	phoebe_parameter_add ("phoebe_synscatter_sigma",     "Synthetic scatter standard deviation",               KIND_PARAMETER,  NULL,               "%lf", 0.0,  100.0,   0.01, NO, TYPE_DOUBLE,       0.01);
+	phoebe_parameter_add ("phoebe_synscatter_seed",      "Synthetic scatter seed",                             KIND_PARAMETER,  NULL,               "%lf", 1E8,    1E9,      1, NO, TYPE_DOUBLE,       1.5E8);
+	phoebe_parameter_add ("phoebe_synscatter_levweight", "Synthetic scatter weighting",                        KIND_MENU,       NULL,               "%s",   0,      0,      0, NO, TYPE_STRING,       "Poissonian scatter");
 
 	/* **********************   Computed parameters   *********************** */
 
-	phoebe_parameter_add ("phoebe_plum1",                "Primary star active passband luminosity",            KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_plum2",                "Secondary star active passband luminosity",          KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_mass1",                "Primary star mass",                                  KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_mass2",                "Secondary star mass",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_radius1",              "Primary star radius",                                KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_radius2",              "Secondary star radius",                              KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_mbol1",                "Primary star absolute bolometric magnitude",         KIND_COMPUTED,   NULL,               -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
-	phoebe_parameter_add ("phoebe_mbol2",                "Secondary star absolute bolometric magnitude",       KIND_COMPUTED,   NULL,               -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
-	phoebe_parameter_add ("phoebe_logg1",                "Primary star surface gravity",                       KIND_COMPUTED,   NULL,                0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
-	phoebe_parameter_add ("phoebe_logg2",                "Secondary star surface gravity",                     KIND_COMPUTED,   NULL,                0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
-	phoebe_parameter_add ("phoebe_sbr1",                 "Primary star polar surface brightness",              KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
-	phoebe_parameter_add ("phoebe_sbr2",                 "Secondary star polar surface brightness",            KIND_COMPUTED,   NULL,                0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_plum1",                "Primary star active passband luminosity",            KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_plum2",                "Secondary star active passband luminosity",          KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_mass1",                "Primary star mass",                                  KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_mass2",                "Secondary star mass",                                KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_radius1",              "Primary star radius",                                KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_radius2",              "Secondary star radius",                              KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_mbol1",                "Primary star absolute bolometric magnitude",         KIND_COMPUTED,   NULL,               "%lf", -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
+	phoebe_parameter_add ("phoebe_mbol2",                "Secondary star absolute bolometric magnitude",       KIND_COMPUTED,   NULL,               "%lf", -100,    100,    0.0, NO, TYPE_DOUBLE,       0.0);
+	phoebe_parameter_add ("phoebe_logg1",                "Primary star surface gravity",                       KIND_COMPUTED,   NULL,               "%lf",  0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
+	phoebe_parameter_add ("phoebe_logg2",                "Secondary star surface gravity",                     KIND_COMPUTED,   NULL,               "%lf", 0.0,    100,    0.0, NO, TYPE_DOUBLE,       4.3);
+	phoebe_parameter_add ("phoebe_sbr1",                 "Primary star polar surface brightness",              KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
+	phoebe_parameter_add ("phoebe_sbr2",                 "Secondary star polar surface brightness",            KIND_COMPUTED,   NULL,               "%lf", 0.0,   1E10,    0.0, NO, TYPE_DOUBLE,       1.0);
 
 	return SUCCESS;
 }
@@ -422,7 +422,7 @@ PHOEBE_parameter *phoebe_parameter_new ()
 	return par;
 }
 
-int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...)
+int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, char *format, double min, double max, double step, bool tba, ...)
 {
 	/**
 	 * phoebe_parameter_add:
@@ -430,6 +430,7 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 	 * @description: parameter description (human-readable)
 	 * @kind: parameter kind
 	 * @dependency: dependency on dimensioning parameters
+	 * @format: format string for the value rendering
 	 * @min: minimum allowed value
 	 * @max: maximum allowed value
 	 * @step: adjustment step
@@ -446,7 +447,9 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 	 * the sizing of the array of the newly installed parameter. For example,
 	 * light curve dependent parameters such as passband luminosities depend
 	 * on the number of light curves, so for those parameters the @dependency
-	 * would be a pointer to #phoebe_hla parameter. Values @min, @max and @step
+	 * would be a pointer to #phoebe_hla parameter. Argument @format determines
+	 * the way values are stored (and rendered); it fully conforms to the C
+	 * printf/scanf formatting rules. Values @min, @max and @step
 	 * determine the adjustment properties for #KIND_ADJUSTABLE parameters, and
 	 * are dummy numbers for all other kinds of parameters. The @tba switch can
 	 * be either #TRUE (1) or #FALSE (0); it determines whether the parameter
@@ -464,6 +467,7 @@ int phoebe_parameter_add (char *qualifier, char *description, PHOEBE_parameter_k
 	par->qualifier   = strdup (qualifier);
 	par->description = strdup (description);
 	par->kind        = kind;
+	par->format      = strdup (format);
 	par->min         = min;
 	par->max         = max;
 	par->step        = step;
@@ -2258,62 +2262,75 @@ int intern_save_to_parameter_file (PHOEBE_parameter *par, FILE *file)
 	 */
 
 	int j;
+	char format[255];
 
 	if (par->kind == KIND_ADJUSTABLE) {
 		switch (par->type) {
 			case TYPE_DOUBLE:
-				if (strcmp(par->qualifier, "phoebe_period"))
-					fprintf (file, "%s.VAL  = %lf\n", par->qualifier, par->value.d);
-				else
-					fprintf (file, "%s.VAL  = %.10lf\n", par->qualifier, par->value.d);
-			break;
+				sprintf (format, "%%s.VAL = %s\n", par->format);
+				fprintf (file, format, par->qualifier, par->value.d);
+		break;
 			case TYPE_DOUBLE_ARRAY:
-				if (par->value.vec)
+				if (par->value.vec) {
+					sprintf (format, "%%s[%%d].VAL = %s\n", par->format);
 					for (j = 0; j < par->value.vec->dim; j++)
-						fprintf (file, "%s[%d].VAL  = %lf\n", par->qualifier, j+1, par->value.vec->val[j]);
+						fprintf (file, format, par->qualifier, j+1, par->value.vec->val[j]);
+				}
 			break;
 			default:
 				phoebe_lib_error ("exception handler invoked in intern_save_to_parameter_file (), please report this!\n");
 		}
 
 		fprintf (file, "%s.ADJ  = %d\n",  par->qualifier, par->tba);
-		fprintf (file, "%s.STEP = %lf\n", par->qualifier, par->step);
+		fprintf (file, "%s.STEP = %e\n", par->qualifier, par->step);
 		fprintf (file, "%s.MIN  = %lf\n", par->qualifier, par->min);
 		fprintf (file, "%s.MAX  = %lf\n", par->qualifier, par->max);
 	}
 	else {
 		switch (par->type) {
 			case TYPE_INT:
-				fprintf (file, "%s = %d\n", par->qualifier, par->value.i);
+				sprintf (format, "%%s = %s\n", par->format);
+				fprintf (file, format, par->qualifier, par->value.i);
 			break;
 			case TYPE_BOOL:
-				fprintf (file, "%s = %d\n", par->qualifier, par->value.b);
+				sprintf (format, "%%s = %s\n", par->format);
+				fprintf (file, format, par->qualifier, par->value.b);
 			break;
 			case TYPE_DOUBLE:
-				fprintf (file, "%s = %lf\n", par->qualifier, par->value.d);
+				sprintf (format, "%%s = %s\n", par->format);
+				fprintf (file, format, par->qualifier, par->value.d);
 			break;
 			case TYPE_STRING:
-				fprintf (file, "%s = \"%s\"\n", par->qualifier, par->value.str);
+				sprintf (format, "%%s = \"%s\"\n", par->format);
+				fprintf (file, format, par->qualifier, par->value.str);
 			break;
 			case TYPE_INT_ARRAY:
-				if (par->value.array)
+				if (par->value.array) {
+					sprintf (format, "%%s[%%d] = %s\n", par->format);
 					for (j = 0; j < par->value.array->dim; j++)
-						fprintf (file, "%s[%d] = %d\n", par->qualifier, j+1, par->value.array->val.iarray[j]);
+						fprintf (file, format, par->qualifier, j+1, par->value.array->val.iarray[j]);
+				}
 			break;
 			case TYPE_BOOL_ARRAY:
-				if (par->value.array)
+				if (par->value.array) {
+					sprintf (format, "%%s[%%d] = %s\n", par->format);
 					for (j = 0; j < par->value.array->dim; j++)
-						fprintf (file, "%s[%d] = %d\n", par->qualifier, j+1, par->value.array->val.barray[j]);
+						fprintf (file, format, par->qualifier, j+1, par->value.array->val.barray[j]);
+				}
 			break;
 			case TYPE_DOUBLE_ARRAY:
-				if (par->value.vec)
+				if (par->value.vec) {
+					sprintf (format, "%%s[%%d] = %s\n", par->format);
 					for (j = 0; j < par->value.vec->dim; j++)
-						fprintf (file, "%s[%d] = %lf\n", par->qualifier, j+1, par->value.vec->val[j]);
+						fprintf (file, format, par->qualifier, j+1, par->value.vec->val[j]);
+				}
 			break;
 			case TYPE_STRING_ARRAY:
-				if (par->value.array)
+				if (par->value.array) {
+					sprintf (format, "%%s[%%d] = \"%s\"\n", par->format);
 					for (j = 0; j < par->value.array->dim; j++)
-						fprintf (file, "%s[%d] = \"%s\"\n", par->qualifier, j+1, par->value.array->val.strarray[j]);
+						fprintf (file, format, par->qualifier, j+1, par->value.array->val.strarray[j]);
+				}
 			break;
 			default:
 				phoebe_lib_error ("exception handler invoked in intern_save_to_parameter_file (), please report this!\n");

@@ -70,42 +70,42 @@ int gui_init_widgets ()
 
 	/* *************************** GUI Parameters *************************** */
 
-	phoebe_parameter_add ("gui_ld_model_autoupdate",	"Automatically update LD model",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Differential Corrections");
-	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
-	phoebe_parameter_add ("gui_lc_plot_obsmenu",		"Select observed LC",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
-	phoebe_parameter_add ("gui_lc_plot_aliasing",		"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_lc_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
-	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Total flux");
-	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
-	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
-	phoebe_parameter_add ("gui_lc_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_lc_plot_y_offset",		"Y axis Offset",					KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_lc_plot_zoom",			"Zoom amount",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_lc_plot_zoom_level",		"Zoom level",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		0);
-	phoebe_parameter_add ("gui_lc_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_lc_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_synthetic",		"Plot synthetic RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_observed",		"Plot observed RV curve",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_rv_plot_verticesno",		"Number of vertices for RV curve",	KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
-	phoebe_parameter_add ("gui_rv_plot_obsmenu",		"Select observed RV curve",			KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
-	phoebe_parameter_add ("gui_rv_plot_alias",			"Turn on data aliasing",			KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
-	phoebe_parameter_add ("gui_rv_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_x",				"X-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
-	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Primary RV");
-	phoebe_parameter_add ("gui_rv_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
-	phoebe_parameter_add ("gui_rv_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
-	phoebe_parameter_add ("gui_rv_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_rv_plot_y_offset",		"Y axis Offset",					KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_rv_plot_zoom",			"Zoom amount",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
-	phoebe_parameter_add ("gui_rv_plot_zoom_level",		"Zoom level",						KIND_PARAMETER,	NULL, 0.0, 0.0, 0.0, NO, TYPE_INT,		0);
-	phoebe_parameter_add ("gui_rv_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_rv_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
-	phoebe_parameter_add ("gui_3d_plot_autoupdate",		"Autoupdate plot on phase change",	KIND_SWITCH,	NULL, 0.0, 0.0, 0.0, NO, TYPE_BOOL, 	NO);
-	phoebe_parameter_add ("gui_verbosity_level",		"Level of GUI terminal verbosity", 	KIND_PARAMETER, NULL, 0.0, 0.0, 0.0, NO, TYPE_INT, 		1);
+	phoebe_parameter_add ("gui_ld_model_autoupdate",	"Automatically update LD model",	KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_fitt_method",			"Fitting method",					KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Differential Corrections");
+	phoebe_parameter_add ("gui_lc_plot_synthetic",		"Plot synthetic LC",				KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_lc_plot_observed",		"Plot observed LC",					KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
+	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
+	phoebe_parameter_add ("gui_lc_plot_obsmenu",		"Select observed LC",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
+	phoebe_parameter_add ("gui_lc_plot_aliasing",		"Turn on data aliasing",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
+	phoebe_parameter_add ("gui_lc_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
+	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Total flux");
+	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
+	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
+	phoebe_parameter_add ("gui_lc_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_lc_plot_y_offset",		"Y axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_lc_plot_zoom",			"Zoom amount",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_lc_plot_zoom_level",		"Zoom level",						KIND_PARAMETER,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT,		0);
+	phoebe_parameter_add ("gui_lc_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_lc_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_synthetic",		"Plot synthetic RV curve",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_observed",		"Plot observed RV curve",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
+	phoebe_parameter_add ("gui_rv_plot_verticesno",		"Number of vertices for RV curve",	KIND_PARAMETER,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
+	phoebe_parameter_add ("gui_rv_plot_obsmenu",		"Select observed RV curve",			KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
+	phoebe_parameter_add ("gui_rv_plot_alias",			"Turn on data aliasing",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
+	phoebe_parameter_add ("gui_rv_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_x",				"X-axis of RV plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
+	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Primary RV");
+	phoebe_parameter_add ("gui_rv_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
+	phoebe_parameter_add ("gui_rv_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
+	phoebe_parameter_add ("gui_rv_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_rv_plot_y_offset",		"Y axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_rv_plot_zoom",			"Zoom amount",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
+	phoebe_parameter_add ("gui_rv_plot_zoom_level",		"Zoom level",						KIND_PARAMETER,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT,		0);
+	phoebe_parameter_add ("gui_rv_plot_coarse",			"Coarse grid",						KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_rv_plot_fine",			"Coarse grid",						KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
+	phoebe_parameter_add ("gui_3d_plot_autoupdate",		"Autoupdate plot on phase change",	KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL, 	NO);
+	phoebe_parameter_add ("gui_verbosity_level",		"Level of GUI terminal verbosity", 	KIND_PARAMETER, NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT, 		1);
 
 	/* *************************** Main Window    **************************** */
 
