@@ -14,6 +14,29 @@
 #include "phoebe_scripter_io.h"
 #include "phoebe_scripter_types.h"
 
+int intern_read_in_stream (char *filename, char **buffer)
+{
+	FILE *stream;
+	char line[255];
+
+	stream = fopen (filename, "r");
+	while (!feof (stream)) {
+		fgets (line, 254, stream);
+		if (feof (stream)) break;
+		if (!(*buffer)) {
+			*buffer = phoebe_malloc (strlen (line)+1);
+			strcpy (*buffer, line);
+		}
+		else {
+			*buffer = phoebe_realloc (*buffer, strlen(*buffer) + strlen(line) + 1);
+			strcat (*buffer, line);
+		}
+	}
+	fclose (stream);
+
+	return SUCCESS;
+}
+
 int scripter_directive_calc (scripter_ast_list *args)
 {
 	/*
@@ -568,6 +591,7 @@ int scripter_directive_show (scripter_ast_list *args)
 	 */
 
 	int status;
+	char format[255];
 	scripter_ast_value *vals;
 	PHOEBE_parameter *par;
 
@@ -588,7 +612,8 @@ int scripter_directive_show (scripter_ast_list *args)
 		case TYPE_INT: {
 			int value;
 			phoebe_parameter_get_value (par, &value);
-			fprintf (PHOEBE_output, "\t%d\n", value);
+			sprintf (format, "\t%s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_BOOL: {
@@ -603,13 +628,15 @@ int scripter_directive_show (scripter_ast_list *args)
 		case TYPE_DOUBLE: {
 			double value;
 			phoebe_parameter_get_value (par, &value);
-			fprintf (PHOEBE_output, "\t%g\n", value);
+			sprintf (format, "\t%s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_STRING: {
 			const char *value;
 			phoebe_parameter_get_value (par, &value);
-			fprintf (PHOEBE_output, "\t%s\n", value);
+			sprintf (format, "\t%s\n", par->format);
+			fprintf (PHOEBE_output, format, value);
 		}
 		break;
 		case TYPE_INT_ARRAY: {
@@ -666,29 +693,6 @@ int scripter_directive_show (scripter_ast_list *args)
 	}
 
 	scripter_ast_value_array_free (vals, 1);
-	return SUCCESS;
-}
-
-int intern_read_in_stream (char *filename, char **buffer)
-{
-	FILE *stream;
-	char line[255];
-
-	stream = fopen (filename, "r");
-	while (!feof (stream)) {
-		fgets (line, 254, stream);
-		if (feof (stream)) break;
-		if (!(*buffer)) {
-			*buffer = phoebe_malloc (strlen (line)+1);
-			strcpy (*buffer, line);
-		}
-		else {
-			*buffer = phoebe_realloc (*buffer, strlen(*buffer) + strlen(line) + 1);
-			strcat (*buffer, line);
-		}
-	}
-	fclose (stream);
-
 	return SUCCESS;
 }
 
