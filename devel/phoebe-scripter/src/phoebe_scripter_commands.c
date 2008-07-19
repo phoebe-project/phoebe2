@@ -2259,6 +2259,7 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 	while (index <= lcno + rvno) {
 		if (index <= lcno) {
 			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index-1);
+
 			if (!obs) {
 				out.type = type_void;
 				return out;

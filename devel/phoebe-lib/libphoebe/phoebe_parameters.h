@@ -29,6 +29,7 @@ typedef struct PHOEBE_parameter
 	PHOEBE_parameter_kind        kind;
 	PHOEBE_type                  type;
 	PHOEBE_value                 value;
+	char                        *format;
 	double                       min;
 	double                       max;
 	double                       step;
@@ -73,7 +74,7 @@ int                     phoebe_parameter_table_free      (PHOEBE_parameter_table
 /****************************   PARAMETERS   **********************************/
 
 PHOEBE_parameter *phoebe_parameter_new            ();
-int               phoebe_parameter_add            (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, double min, double max, double step, bool tba, ...);
+int               phoebe_parameter_add            (char *qualifier, char *description, PHOEBE_parameter_kind kind, char *dependency, char *format, double min, double max, double step, bool tba, ...);
 unsigned int      phoebe_parameter_hash           (char *qualifier);
 PHOEBE_parameter *phoebe_parameter_lookup         (char *qualifier);
 int               phoebe_parameter_commit         (PHOEBE_parameter *par);
