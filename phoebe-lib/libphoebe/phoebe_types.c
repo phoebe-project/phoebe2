@@ -2391,14 +2391,21 @@ int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name)
 
 int phoebe_column_get_type (PHOEBE_column_type *type, const char *string)
 {
-	/*
-	 * This function returns the enumerated type of the column from the
-	 * string value found in model parameters.
+	/**
+	 * phoebe_column_get_type:
+	 * @type: placeholder for the enumerated column type
+	 * @string: string representation of the column type
+	 * 
+	 * Parses the passed @string and converts it to the enumerated type of
+	 * the column (#PHOEBE_column_type).
 	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
+
+	if (!string) {
+		*type = PHOEBE_COLUMN_INVALID;
+		return ERROR_COLUMN_INVALID;
+	}
 
 	     if (strcmp (string, "Time (HJD)"        ) == 0) *type = PHOEBE_COLUMN_HJD;
 	else if (strcmp (string, "Phase"             ) == 0) *type = PHOEBE_COLUMN_PHASE;
