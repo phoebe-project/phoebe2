@@ -2777,6 +2777,9 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 		case PHOEBE_COLUMN_PHASE:
 			jdphs = 2;
 		break;
+		case PHOEBE_COLUMN_INVALID:
+			return ERROR_COLUMN_INVALID;
+		break;
 		default:
 			phoebe_lib_error ("exception handler invoked by itype switch in phoebe_curve_compute (), please report this!\n");
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
@@ -2798,6 +2801,9 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 		case PHOEBE_COLUMN_SECONDARY_RV:
 			mpage = 2;
 			curve->type = PHOEBE_CURVE_RV;
+		break;
+		case PHOEBE_COLUMN_INVALID:
+			return ERROR_COLUMN_INVALID;
 		break;
 		default:
 			phoebe_lib_error ("exception handler invoked by dtype switch in phoebe_curve_compute (), please report this!\n");
