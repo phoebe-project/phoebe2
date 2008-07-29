@@ -276,6 +276,13 @@ typedef enum PHOEBE_column_type {
 int phoebe_column_type_get_name (PHOEBE_column_type ctype, char **name);
 int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
 
+typedef enum PHOEBE_data_flag {
+	PHOEBE_DATA_REGULAR,
+	PHOEBE_DATA_ALIASED,
+	PHOEBE_DATA_DELETED,
+	PHOEBE_DATA_OMITTED
+} PHOEBE_data_flag;
+
 /**
  * PHOEBE_curve:
  * @type:     Type of the curve.
@@ -283,6 +290,7 @@ int phoebe_column_get_type (PHOEBE_column_type *type, const char *string);
  * @indep:    Elements of the independant variable vector.
  * @dep:      Elements of the dependant variable vector.
  * @weight:   Elements of the weight vector.
+ * @flag:     data flag of the enumerated #PHOEBE_data_flag type
  * @itype:    Column type of the independant variable.
  * @dtype:    Column type of the dependant variable.
  * @wtype:    Column type of the weights.
@@ -296,6 +304,7 @@ typedef struct PHOEBE_curve {
 	PHOEBE_vector     *indep;
 	PHOEBE_vector     *dep;
 	PHOEBE_vector     *weight;
+	PHOEBE_array      *flag;
 	PHOEBE_column_type itype;
 	PHOEBE_column_type dtype;
 	PHOEBE_column_type wtype;

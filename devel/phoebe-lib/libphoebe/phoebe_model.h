@@ -8,12 +8,27 @@ typedef struct PHOEBE_star_surface {
 	double *theta;
 	double *phi;
 	double *rho;
+	double *cosbeta;
+
 	struct {
 		double x;
 		double y;
 		double z;
 	} *grad;
-	double *cosbeta;
+
+	/* Center-of-star coordinates: */
+	struct {
+		double x;
+		double y;
+		double z;
+	} *cos;
+
+	/* Plane-of-sky coordinates: */
+	struct {
+		double u;
+		double v;
+		double w;
+	} *pos;
 
 	/* These are WD-compatible arrays and may be removed in future: */
 	int    *mmsave;
@@ -23,13 +38,16 @@ typedef struct PHOEBE_star_surface {
 	double *cosphi;
 } PHOEBE_star_surface;
 
-PHOEBE_star_surface *phoebe_star_surface_new               ();
-int                  phoebe_star_surface_alloc             (PHOEBE_star_surface *surface, int lat_raster);
-int                  phoebe_star_surface_rasterize         (PHOEBE_star_surface *surface, int lat_raster);
-int                  phoebe_star_surface_compute_radii     (PHOEBE_star_surface *surface, double Omega, double q, double D, double F);
-int                  phoebe_star_surface_compute_gradients (PHOEBE_star_surface *surface, double q, double D, double F);
-int                  phoebe_star_surface_compute_cosbeta   (PHOEBE_star_surface *surface);
-int                  phoebe_star_surface_free              (PHOEBE_star_surface *surface);
+PHOEBE_star_surface *phoebe_star_surface_new    ();
+
+int phoebe_star_surface_alloc                   (PHOEBE_star_surface *surface, int lat_raster);
+int phoebe_star_surface_rasterize               (PHOEBE_star_surface *surface, int lat_raster);
+int phoebe_star_surface_compute_radii           (PHOEBE_star_surface *surface, double Omega, double q, double D, double F);
+int phoebe_star_surface_compute_gradients       (PHOEBE_star_surface *surface, double q, double D, double F);
+int phoebe_star_surface_compute_cosbeta         (PHOEBE_star_surface *surface);
+int phoebe_star_surface_compute_cos_coordinates (PHOEBE_star_surface *surface);
+int phoebe_star_surface_compute_pos_coordinates (PHOEBE_star_surface *surface, double incl, double phase);
+int phoebe_star_surface_free                    (PHOEBE_star_surface *surface);
 
 typedef struct PHOEBE_star {
 	PHOEBE_star_id       id;

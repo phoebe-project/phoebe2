@@ -2444,6 +2444,7 @@ PHOEBE_curve *phoebe_curve_new ()
 	curve->indep  = phoebe_vector_new ();
 	curve->dep    = phoebe_vector_new ();
 	curve->weight = phoebe_vector_new ();
+	curve->flag   = phoebe_array_new (TYPE_INT_ARRAY);
 
 	curve->passband = NULL;
 	curve->filename = NULL;
@@ -2476,7 +2477,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 	/* Do some error handling here.                                           */
 	if (!phoebe_filename_exists (filename))          return NULL;
 	if (!phoebe_filename_is_regular_file (filename)) return NULL;
-	if (!(file = fopen (filename, "r")))      return NULL;
+	if (!(file = fopen (filename, "r")))             return NULL;
 
 	out = phoebe_curve_new ();
 
@@ -2507,6 +2508,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 				out->weight->val[i] = z;
 			else
 				out->weight->val[i] = 1.0;
+			out->flag->val.iarray[i] = PHOEBE_DATA_REGULAR;
 		}
 
 		free (in);
@@ -2668,8 +2670,9 @@ PHOEBE_curve *phoebe_curve_duplicate (PHOEBE_curve *curve)
 
 	phoebe_curve_alloc (new, curve->indep->dim);
 	for (i = 0; i < curve->indep->dim; i++) {
-		new->indep->val[i]  = curve->indep->val[i];
-		new->dep->val[i]    = curve->dep->val[i];
+		new->indep->val[i]       = curve->indep->val[i];
+		new->dep->val[i]         = curve->dep->val[i];
+		new->flag->val.iarray[i] = curve->flag->val.iarray[i];
 		if (curve->weight->dim != 0)
 			new->weight->val[i] = curve->weight->val[i];
 	}
@@ -2696,6 +2699,7 @@ int phoebe_curve_alloc (PHOEBE_curve *curve, int dim)
 	phoebe_vector_alloc (curve->indep, dim);
 	phoebe_vector_alloc (curve->dep, dim);
 	phoebe_vector_alloc (curve->weight, dim);
+	phoebe_array_alloc  (curve->flag, dim);
 
 	return SUCCESS;
 }
@@ -2727,11 +2731,13 @@ int phoebe_curve_realloc (PHOEBE_curve *curve, int dim)
 	phoebe_vector_realloc (curve->indep,  dim);
 	phoebe_vector_realloc (curve->dep,    dim);
 	phoebe_vector_realloc (curve->weight, dim);
+	phoebe_array_realloc  (curve->flag,   dim);
 
 	if (dim == 0) {
 		curve->indep  = NULL;
 		curve->dep    = NULL;
 		curve->weight = NULL;
+		curve->flag   = NULL;
 	}
 
 	return SUCCESS;
@@ -3067,16 +3073,14 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 				phoebe_vector_append_element (curve->dep,   curve->dep->val[i]);
 				if (curve->weight)
 					phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
+				phoebe_array_realloc (curve->flag, curve->flag->dim+1);
+				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
 			}
 		}
 
-		/* If the original point is outside of the phase interval, remove it: */
-		if (curve->indep->val[i] < phmin || curve->indep->val[i] > phmax) {
-			phoebe_vector_remove_element (curve->indep, i);
-			phoebe_vector_remove_element (curve->dep, i);
-			if (curve->weight) phoebe_vector_remove_element (curve->weight, i);
-			i--;
-		}
+		/* If the original point is outside of the phase interval, tag it: */
+		if (curve->indep->val[i] < phmin || curve->indep->val[i] > phmax)
+			curve->flag->val.iarray[i] = PHOEBE_DATA_OMITTED;
 	}
 
 	return SUCCESS;
@@ -3137,6 +3141,7 @@ int phoebe_curve_free (PHOEBE_curve *curve)
 	phoebe_vector_free (curve->indep);
 	phoebe_vector_free (curve->dep);
 	phoebe_vector_free (curve->weight);
+	phoebe_array_free  (curve->flag);
 
 	if (curve->filename)
 		free (curve->filename);

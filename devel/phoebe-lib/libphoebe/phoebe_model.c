@@ -21,6 +21,8 @@ PHOEBE_star_surface *phoebe_star_surface_new ()
 	surface->phi     = NULL;
 	surface->rho     = NULL;
 	surface->grad    = NULL;
+	surface->cos     = NULL;
+	surface->pos     = NULL;
 	surface->cosbeta = NULL;
 
 	surface->mmsave  = NULL;
@@ -79,6 +81,8 @@ int phoebe_star_surface_alloc (PHOEBE_star_surface *surface, int lat_raster)
 	surface->phi     = phoebe_malloc (surface->elemno * sizeof (*(surface->phi)));
 	surface->rho     = phoebe_malloc (surface->elemno * sizeof (*(surface->rho)));
 	surface->grad    = phoebe_malloc (surface->elemno * sizeof (*(surface->grad)));
+	surface->cos     = phoebe_malloc (surface->elemno * sizeof (*(surface->pos)));
+	surface->pos     = phoebe_malloc (surface->elemno * sizeof (*(surface->pos)));
 	surface->cosbeta = phoebe_malloc (surface->elemno * sizeof (*(surface->cosbeta)));
 
 	/* WD arrays: */
@@ -327,6 +331,8 @@ int phoebe_star_surface_free (PHOEBE_star_surface *surface)
 		free (surface->theta);
 		free (surface->phi);
 		free (surface->rho);
+		free (surface->cos);
+		free (surface->pos);
 		free (surface->grad);
 		free (surface->cosbeta);
 /*
@@ -468,4 +474,46 @@ double phoebe_compute_radius (double rp, double q, double D, double F, double la
 	} while (fabs (r-r0) > 1e-6);
 	
 	return r;
+}
+
+int phoebe_star_surface_compute_cos_coordinates (PHOEBE_star_surface *surface)
+{
+	int i;
+
+	if (!surface)
+		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
+
+	if (!surface->rho || !surface->theta || !surface->phi || surface->elemno == 0)
+		return ERROR_STAR_SURFACE_NOT_ALLOCATED;
+
+	for (i = 0; i < surface->elemno; i++) {
+		surface->cos[i].x = surface->rho[i]*sin(surface->theta[i])*cos(surface->phi[i]);
+		surface->cos[i].y = surface->rho[i]*sin(surface->theta[i])*sin(surface->phi[i]);
+		surface->cos[i].z = surface->rho[i]*cos(surface->theta[i]);
+	}
+
+	return SUCCESS;
+}
+
+int phoebe_star_surface_compute_pos_coordinates (PHOEBE_star_surface *surface, double incl, double phase)
+{
+	int i;
+
+	if (!surface)
+		return ERROR_STAR_SURFACE_NOT_INITIALIZED;
+
+	if (!surface->rho || surface->elemno == 0)
+		return ERROR_STAR_SURFACE_NOT_ALLOCATED;
+
+	/* Transform inclination and phase to radians: */
+	incl  *= M_PI/180.0;
+	phase *= 2*M_PI;
+
+	for (i = 0; i < surface->elemno; i++) {
+		surface->pos[i].u =  sin(incl)*cos(phase)*surface->cos[i].x - sin(incl)*sin(phase)*surface->cos[i].y + cos(incl)*surface->cos[i].z;
+		surface->pos[i].v =            sin(phase)*surface->cos[i].x +           cos(phase)*surface->cos[i].y;
+		surface->pos[i].w = -cos(incl)*cos(phase)*surface->cos[i].x + cos(incl)*sin(phase)*surface->cos[i].y + sin(incl)*surface->cos[i].z;
+	}
+
+	return SUCCESS;
 }
