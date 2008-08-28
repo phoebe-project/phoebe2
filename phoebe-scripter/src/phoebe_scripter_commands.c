@@ -387,7 +387,6 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 
 				scripter_ast_value_free (qualifier);
 				scripter_ast_value_free (val);
-				scripter_ast_value_free (index);
 				return out;
 			}
 
