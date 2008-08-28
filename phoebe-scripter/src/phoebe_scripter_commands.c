@@ -169,7 +169,7 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 	 *   index      ..  array index, in cases when parameter is an array
 	 */
 
-	int status;
+	int i, status;
 
 	scripter_ast_value qualifier, val, index, out;
 	PHOEBE_parameter *par;
@@ -194,12 +194,8 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		return out;
 	}
 
+	/* No error handling necessary -- this assignment will always succeed: */
 	par = phoebe_parameter_lookup (qualifier.value.str);
-	if (!par) {
-		phoebe_scripter_output ("parameter %s is not defined, aborting.\n", qualifier.value.str);
-		scripter_ast_value_free (qualifier);
-		return out;
-	}
 
 	switch (par->type) {
 		case TYPE_INT:
@@ -368,10 +364,33 @@ scripter_ast_value scripter_set_parameter_value (scripter_ast_list *args)
 		break;
 		case TYPE_DOUBLE_ARRAY:
 			if (!args->next->next) {
-				phoebe_scripter_output ("argument number mismatch: 2 passed, 3 expected.\n");
+				/* That means that the value needs to be an array: */
+				val = scripter_ast_evaluate (args->next->elem);
+				if (val.type != type_vector) {
+					phoebe_scripter_output ("argument 2 type mismatch: %s passed, array expected.\n", scripter_ast_value_type_get_name (val.type));
+					scripter_ast_value_free (qualifier);
+					scripter_ast_value_free (val);
+					return out;
+				}
+
+				if (val.value.vec->dim != par->value.vec->dim) {
+					phoebe_scripter_output ("the dimension of the passed array does not match that of the parameter, aborting.\n");
+					scripter_ast_value_free (qualifier);
+					scripter_ast_value_free (val);
+					return out;
+				}
+
+				for (i = 0; i < val.value.vec->dim; i++) {
+					status = phoebe_parameter_set_value (par, i, val.value.vec->val[i]);
+					if (status != SUCCESS) phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+				}
+
 				scripter_ast_value_free (qualifier);
+				scripter_ast_value_free (val);
+				scripter_ast_value_free (index);
 				return out;
 			}
+
 			if (args->next->next->next) {
 				phoebe_scripter_output ("argument number mismatch: more than 3 passed, 3 expected.\n");
 				scripter_ast_value_free (qualifier);
