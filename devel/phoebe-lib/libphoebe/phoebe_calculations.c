@@ -304,14 +304,10 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 
 	curve->type = PHOEBE_CURVE_LC;
 	phoebe_curve_alloc (curve, indep->dim);
-/*
-	phoebe_vector_alloc (curve->indep, indep->dim);
-*/
+
 	for (i = 0; i < indep->dim; i++)
 		curve->indep->val[i] = indep->val[i];
-/*
-	phoebe_vector_alloc (curve->dep, indep->dim);
-*/
+
 	request = 1;
 	nodes = (integer) indep->dim;
 
@@ -358,12 +354,10 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 		return status;
 
 	rv1->type  = PHOEBE_CURVE_RV;
+	phoebe_curve_alloc (rv1, indep->dim);
 
-	phoebe_vector_alloc (rv1->indep, indep->dim);
 	for (i = 0; i < indep->dim; i++)
 		rv1->indep->val[i] = indep->val[i];
-
-	phoebe_vector_alloc (rv1->dep, indep->dim);
 
 	request = 2;
 	nodes = (integer) indep->dim;
@@ -405,12 +399,10 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 		return status;
 
 	rv2->type  = PHOEBE_CURVE_RV;
+	phoebe_curve_alloc (rv2, indep->dim);
 
-	phoebe_vector_alloc (rv2->indep, indep->dim);
 	for (i = 0; i < indep->dim; i++)
 		rv2->indep->val[i] = indep->val[i];
-
-	phoebe_vector_alloc (rv2->dep, indep->dim);
 
 	request = 3;
 	nodes = (integer) indep->dim;
