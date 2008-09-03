@@ -303,13 +303,15 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 		return status;
 
 	curve->type = PHOEBE_CURVE_LC;
-
+	phoebe_curve_alloc (curve, indep->dim);
+/*
 	phoebe_vector_alloc (curve->indep, indep->dim);
+*/
 	for (i = 0; i < indep->dim; i++)
 		curve->indep->val[i] = indep->val[i];
-
+/*
 	phoebe_vector_alloc (curve->dep, indep->dim);
-
+*/
 	request = 1;
 	nodes = (integer) indep->dim;
 
