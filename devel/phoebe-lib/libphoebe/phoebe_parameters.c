@@ -713,6 +713,19 @@ int phoebe_parameter_commit (PHOEBE_parameter *par)
 
 PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 {
+	/**
+	 * phoebe_parameter_lookup:
+	 * @qualifier: parameter qualifier
+	 *
+	 * Looks up @qualifier in the global table of parameters. If the
+	 * @qualifier is not found, a warning is issued and #NULL is returned.
+	 * The function returns a pointer to the global parameter table and
+	 * the calling function should thus never free it.
+	 *
+	 * Returns: a pointer to #PHOEBE_parameter if @qualifier is found,
+	 * #NULL otherwise.
+	 */
+
 	unsigned int hash = phoebe_parameter_hash (qualifier);
 	PHOEBE_parameter_list *elem = PHOEBE_pt->bucket[hash];
 
@@ -722,9 +735,10 @@ PHOEBE_parameter *phoebe_parameter_lookup (char *qualifier)
 	}
 
 	if (!elem) {
-		phoebe_lib_warning ("parameter lookup failed for qualifier %s.\n");
+		phoebe_lib_warning ("parameter lookup failed for qualifier %s.\n", qualifier);
 		return NULL;
 	}
+
 	return elem->par;
 }
 
@@ -1979,8 +1993,8 @@ int phoebe_open_parameter_file (const char *filename)
 		 */
 
 		value_str = strchr (readout_str, '=');
-		if (value_str == NULL) {
-			/* If the keyword doesn't have '=', it will be skipped.                 */
+		if (!value_str) {
+			/* If the keyword doesn't have '=', it will be skipped. */
 			phoebe_lib_error ("qualifier %s initialization (line %d) is invalid.\n", keyword_str, lineno);
 			continue;
 		}
@@ -2025,7 +2039,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
+/*				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);*/
 				free (qualifier);
 				free (field);
 				continue;
@@ -2126,7 +2140,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
+/*				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);*/
 				free (qualifier);
 				continue;
 			}
@@ -2193,7 +2207,7 @@ int phoebe_open_parameter_file (const char *filename)
 
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
+/*				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);*/
 				free (qualifier);
 				free (field);
 				continue;
@@ -2214,9 +2228,11 @@ int phoebe_open_parameter_file (const char *filename)
 			qualifier = phoebe_malloc ((strlen(keyword_str)+1)*sizeof(*qualifier));
 			strcpy (qualifier, keyword_str);
 
+			phoebe_debug ("qualifier: %s\n", qualifier);
+
 			par = phoebe_parameter_lookup (qualifier);
 			if (!par) {
-				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);
+/*				phoebe_lib_warning ("qualifier %s not recognized, ignoring.\n", qualifier);*/
 				free (qualifier);
 				continue;
 			}
