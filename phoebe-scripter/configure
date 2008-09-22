@@ -1765,14 +1765,16 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 # Define the release name, date and type:
+  build_date=`date`
+
 
 cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_SCRIPTER_RELEASE_NAME "PHOEBE scripter svn"
 _ACEOF
 
 
-cat >>confdefs.h <<\_ACEOF
-#define PHOEBE_SCRIPTER_RELEASE_DATE "(snapshot)"
+cat >>confdefs.h <<_ACEOF
+#define PHOEBE_SCRIPTER_RELEASE_DATE "(built on $build_date)"
 _ACEOF
 
 
