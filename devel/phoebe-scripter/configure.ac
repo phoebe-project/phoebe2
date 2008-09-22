@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-06-24 #
+#                                            Last revision: 2008-09-22 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -43,13 +43,15 @@
   AC_CONFIG_HEADERS([src/phoebe_scripter_build_config.h])
 
 # Define the release name, date and type:
+  build_date=`date`
+
   AC_DEFINE(
 	PHOEBE_SCRIPTER_RELEASE_NAME,
 	[["PHOEBE scripter svn"]],
 	[PHOEBE release name])
-  AC_DEFINE(
+  AC_DEFINE_UNQUOTED(
 	PHOEBE_SCRIPTER_RELEASE_DATE,
-	[["(snapshot)"]],
+	[["(built on $build_date)"]],
 	[PHOEBE release date])
 
 # Initialize the location of the sources and auto* stuff:

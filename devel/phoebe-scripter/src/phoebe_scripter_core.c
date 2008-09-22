@@ -48,8 +48,8 @@ int parse_startup_line (int argc, char *argv[])
 
 		if ( (strcmp (argv[i],  "-v"      ) == 0) ||
 			 (strcmp (argv[i], "--version") == 0) ) {
-			printf ("\n%s, %s by Andrej Prsa\n", PHOEBE_VERSION_NUMBER, PHOEBE_VERSION_DATE);
-			printf ("  Send comments and/or requests to andrej.prsa@fmf.uni-lj.si\n\n");
+			printf ("\n%s %s\n", PHOEBE_SCRIPTER_RELEASE_NAME, PHOEBE_SCRIPTER_RELEASE_DATE);
+			printf ("  Send comments and/or requests to phoebe-discuss@lists.sourceforge.net\n\n");
 			phoebe_quit ();
 		}
 
