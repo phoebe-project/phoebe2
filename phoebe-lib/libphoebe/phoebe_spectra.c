@@ -445,6 +445,11 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 	PHOEBE_spectrum *fv[8];
 	PHOEBE_vector *specvals;
 
+	if (PHOEBE_spectra_repository.no == 0) {
+		phoebe_lib_error ("there are no spectra in the repository.\n");
+		return NULL;
+	}
+
 	i = j = k = 0;
 	while (Teff      >= PHOEBE_spectra_repository.Teffnodes->val.iarray[i] && i < PHOEBE_spectra_repository.Teffnodes->dim) i++;
 	while (10.0*logg >= PHOEBE_spectra_repository.loggnodes->val.iarray[j] && j < PHOEBE_spectra_repository.loggnodes->dim) j++;
