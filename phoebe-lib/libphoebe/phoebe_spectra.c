@@ -891,26 +891,13 @@ int phoebe_spectrum_apply_doppler_shift (PHOEBE_spectrum **dest, PHOEBE_spectrum
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
-#warning REVIEW_PHOEBE_SPECTRUM_APPLY_DOPPLER_SHIFT
-	/* 	consider: phoebe_hist_shift (spectrum->data, velocity/299791.0); */
 
 	int i, status;
 
 	*dest = phoebe_spectrum_duplicate (src);
 
-	switch (src->disp) {
-		case PHOEBE_SPECTRUM_DISPERSION_LOG:
-			for (i = 0; i < src->data->bins+1; i++)
-				src->data->range[i] *= 1.0 + velocity / 299791.0;
-		break;
-		case PHOEBE_SPECTRUM_DISPERSION_LINEAR:
-			for (i = 0; i < src->data->bins+1; i++)
-				src->data->range[i] += velocity / 299791.0;
-		break;
-		default:
-			/* fall through for PHOEBE_SPECTRUM_DISPERSION_NONE */
-		break;
-	}
+	for (i = 0; i < src->data->bins+1; i++)
+		src->data->range[i] *= 1.0 + velocity / 299791.0;
 
 	status = phoebe_hist_rebin ((*dest)->data, src->data, PHOEBE_HIST_CONSERVE_VALUES);
 

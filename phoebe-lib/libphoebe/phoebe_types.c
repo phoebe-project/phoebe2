@@ -1825,10 +1825,17 @@ int phoebe_hist_integrate (double *integral, PHOEBE_hist *hist, double ll, doubl
 
 int phoebe_hist_shift (PHOEBE_hist *hist, double shift)
 {
-	/*
-	 * This function shifts the contents of the histogram hist in pixel-space
-	 * by the passed shift. If the shift is positive, the contents are shifted
-	 * to the right; if negative, they are shifted to the left.
+	/**
+	 * phoebe_hist_shift:
+	 * @hist: histogram to be shifted
+	 * @shift: pixel-space shift
+	 *
+	 * Shifts the contents of the histogram @hist in pixel-space by the passed
+	 * @shift. If @shift is positive, the contents are shifted to the right;
+	 * if it is negative, they are shifted to the left. The bin structure is
+	 * retained, the bins outside the shifted range are padded with 0.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	PHOEBE_hist *copy = phoebe_hist_duplicate (hist);
