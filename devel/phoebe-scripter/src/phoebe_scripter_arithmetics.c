@@ -1325,8 +1325,13 @@ int scripter_ast_values_divide (scripter_ast_value *out, scripter_ast_value val1
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
 				break;
 				case type_spectrum:
-					out->type = type_void;
-					phoebe_scripter_output ("not yet implemented, sorry.\n");
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_new ();
+					status = phoebe_spectra_divide (&(out->value.spectrum), val1.value.spectrum, val2.value.spectrum);
+					if (status != SUCCESS) {
+						phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+						return status;
+					}
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;

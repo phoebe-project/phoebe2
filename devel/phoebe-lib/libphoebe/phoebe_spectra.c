@@ -1112,6 +1112,43 @@ int phoebe_spectra_multiply (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOE
 	return SUCCESS;
 }
 
+int phoebe_spectra_divide (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2)
+{
+	/*
+	 * This function divides the flux parts of the two spectra. It is primitive
+	 * in a sense that it allows only spectra with identical wavelength parts
+	 * (and thus equal dimensions) to be added.
+	 */
+
+	int i;
+
+	/* Are the spectra valid? */
+	if (!src1 || !src2)
+		return ERROR_SPECTRUM_NOT_INITIALIZED;
+
+	/* Are the spectra of the same dimension? */
+	if (src1->data->bins != src2->data->bins)
+		return ERROR_SPECTRA_DIMENSION_MISMATCH;
+
+	/* Everything seems to be ok; let's allocate space: */
+	phoebe_spectrum_alloc (*dest, src1->data->bins);
+
+	/* Do the sumation, but only if wavelengths are aligned: */
+	for (i = 0; i < src1->data->bins; i++) {
+		if (fabs (src1->data->range[i]-src2->data->range[i]) < PHOEBE_NUMERICAL_ACCURACY) {
+			(*dest)->data->range[i] = src1->data->range[i];
+			(*dest)->data->val[i] = src1->data->val[i] / src2->data->val[i];
+		} else {
+			phoebe_spectrum_free (*dest);
+			return ERROR_SPECTRA_NOT_ALIGNED;
+		}
+	}
+	/* And, of course, don't forget the last bin: */
+	(*dest)->data->range[i] = src1->data->range[i];
+
+	return SUCCESS;
+}
+
 bool phoebe_spectra_compare (PHOEBE_spectrum *spec1, PHOEBE_spectrum *spec2)
 {
 	/**
