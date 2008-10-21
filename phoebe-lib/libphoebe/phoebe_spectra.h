@@ -55,6 +55,7 @@ int              phoebe_spectra_add                          (PHOEBE_spectrum **
 int              phoebe_spectra_subtract                     (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2);
 int              phoebe_spectra_merge                        (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2, double w1, double w2, double ll, double ul, double Rs);
 int              phoebe_spectra_multiply                     (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2, double ll, double ul, double R);
+int              phoebe_spectra_divide                       (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOEBE_spectrum *src2);
 bool             phoebe_spectra_compare                      (PHOEBE_spectrum *spec1, PHOEBE_spectrum *spec2);
 
 #endif
