@@ -20,27 +20,28 @@
 
 int scripter_register_all_commands ()
 {
-	/* Commands for handling parameter files:                                 */
+	/* Commands for handling parameter files: */
 	scripter_command_register ("open_parameter_file",          scripter_open_parameter_file);
 	scripter_command_register ("save_parameter_file",          scripter_save_parameter_file);
 	scripter_command_register ("create_wd_lci_file",           scripter_create_wd_lci_file);
 
-	/* Commands for initializing variables:                                   */
+	/* Commands for initializing/formatting variables: */
 	scripter_command_register ("array",                        scripter_array);
 	scripter_command_register ("column",                       scripter_column);
 	scripter_command_register ("spectrum",                     scripter_spectrum);
+	scripter_command_register ("format",                       scripter_format);
 
-	/* Commands for handling parameters:                                      */
+	/* Commands for handling parameters: */
 	scripter_command_register ("set_parameter_value",          scripter_set_parameter_value);
 	scripter_command_register ("set_parameter_limits",         scripter_set_parameter_limits);
 	scripter_command_register ("set_parameter_step",           scripter_set_parameter_step);
 	scripter_command_register ("mark_for_adjustment",          scripter_mark_for_adjustment);
 	scripter_command_register ("get_parameter_value",          scripter_get_parameter_value);
 
-	/* Commands for handling constraints:                                     */
+	/* Commands for handling constraints: */
 	scripter_command_register ("add_constraint",               scripter_add_constraint);
 
-	/* Commands for handling data:                                            */
+	/* Commands for handling data: */
 	scripter_command_register ("set_lc_properties",            scripter_set_lc_properties);
 	scripter_command_register ("compute_lc",                   scripter_compute_lc);
 	scripter_command_register ("compute_rv",                   scripter_compute_rv);
@@ -49,13 +50,13 @@ int scripter_register_all_commands ()
 	scripter_command_register ("transform_flux_to_magnitude",  scripter_transform_flux_to_magnitude);
 	scripter_command_register ("compute_critical_potentials",  scripter_compute_critical_potentials);
 
-	/* Commands for minimization methods:                                     */
+	/* Commands for minimization methods: */
 	scripter_command_register ("minimize_using_nms",           scripter_minimize_using_nms);
 	scripter_command_register ("minimize_using_dc",            scripter_minimize_using_dc);
 	scripter_command_register ("adopt_minimizer_results",      scripter_adopt_minimizer_results);
 	scripter_command_register ("compute_light_levels",         scripter_compute_light_levels);
 	
-	/* Commands for handling spectral energy distributions (SED):             */
+	/* Commands for handling spectral energy distributions (SED): */
 	scripter_command_register ("set_spectra_repository",       scripter_set_spectra_repository);
 	scripter_command_register ("set_spectrum_properties",      scripter_set_spectrum_properties);
 	scripter_command_register ("get_spectrum_from_repository", scripter_get_spectrum_from_repository);
@@ -69,17 +70,17 @@ int scripter_register_all_commands ()
 	scripter_command_register ("merge_spectra",                scripter_merge_spectra);
 	scripter_command_register ("multiply_spectra",             scripter_multiply_spectra);
 
-	/* Commands for handling limb darkening coefficients:                     */
+	/* Commands for handling limb darkening coefficients: */
 	scripter_command_register ("get_ld_coefficients",          scripter_get_ld_coefficients);
 
-	/* Plotting commands:                                                     */
+	/* Plotting commands: */
 	scripter_command_register ("plot_lc_using_gnuplot",        scripter_plot_lc_using_gnuplot);
 	scripter_command_register ("plot_rv_using_gnuplot",        scripter_plot_rv_using_gnuplot);
 	scripter_command_register ("plot_spectrum_using_gnuplot",  scripter_plot_spectrum_using_gnuplot);
 	scripter_command_register ("plot_eb_using_gnuplot",        scripter_plot_eb_using_gnuplot);
 	scripter_command_register ("plot_using_gnuplot",           scripter_plot_using_gnuplot);
 
-	/* Other auxiliary commands:                                              */
+	/* Other auxiliary commands: */
 	scripter_command_register ("prompt",                       scripter_prompt);
 
 	return SUCCESS;
@@ -745,6 +746,33 @@ scripter_ast_value scripter_spectrum (scripter_ast_list *args)
 	out.value.spectrum->Rs = vals[2].value.d;
 
 	scripter_ast_value_array_free (vals, 3);
+	return out;
+}
+
+scripter_ast_value scripter_format (scripter_ast_list *args)
+{
+	/*
+	 * This command displays the value in a specified format.
+	 *
+	 * Example:
+	 *
+	 *   print format (2.5456, "->%3lf<-")
+	 */
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+
+	int status = scripter_command_args_evaluate (args, &vals, 1, 2, type_double, type_string);
+	if (status != SUCCESS) {
+		out.type = type_void;
+		return out;
+	}
+
+	out.type = type_string;
+	out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
+	sprintf (out.value.str, vals[1].value.str, vals[0].value.d);
+
+	scripter_ast_value_array_free (vals, 2);
 	return out;
 }
 
