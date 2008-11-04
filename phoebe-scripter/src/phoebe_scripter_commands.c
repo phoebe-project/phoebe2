@@ -2374,7 +2374,7 @@ scripter_ast_value scripter_get_ld_coefficients (scripter_ast_list *args)
 	double x, y;
 
 	const char *ld_str;
-	LDLaw ldlaw;
+	LD_model ldlaw;
 
 	const char *passband_str;
 	PHOEBE_passband *passband;

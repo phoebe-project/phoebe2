@@ -70,14 +70,14 @@ int scripter_create_config_file ()
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 	{
 		char *basedir, *defdir, *tempdir, *datadir, *ptfdir, *lddir, *kuruczdir;
-		char *ldswitch, *kuruczswitch, *yn;
+		char *ldswitch, *ldintern, *kuruczswitch, *yn;
 		char prompt[255], defaultdir[255];
 
 		printf ("Please supply names of directories to be used by PHOEBE:\n");
 		printf ("  note that you may use tab-completion features to access directories;\n");
 		printf ("  if you are happy with defaults enclosed in [...], just press ENTER.\n\n");
 
-		/*************************** BASE DIRECTORY *****************************/
+		/*************************** BASE DIRECTORY ***************************/
 
 		phoebe_config_entry_get ("PHOEBE_BASE_DIR", &pathname);
 
@@ -86,7 +86,7 @@ int scripter_create_config_file ()
 		if (strcmp (basedir, "") == 0) basedir = strdup (pathname);
 		if (basedir[strlen(basedir)-1] == '/') basedir[strlen(basedir)-1] = '\0';
 
-		/************************* DEFAULTS DIRECTORY ***************************/
+		/************************* DEFAULTS DIRECTORY *************************/
 
 		phoebe_config_entry_get ("PHOEBE_DEFAULTS_DIR", &pathname);
 
@@ -105,7 +105,7 @@ int scripter_create_config_file ()
 		}
 		if (defdir[strlen(defdir)-1] == '/') defdir[strlen(defdir)-1] = '\0';
 
-		/*************************** TEMP DIRECTORY *****************************/
+		/*************************** TEMP DIRECTORY ***************************/
 
 		phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &pathname);
 
@@ -114,7 +114,7 @@ int scripter_create_config_file ()
 		if (strcmp (tempdir, "") == 0) tempdir = strdup (pathname);
 		if (tempdir[strlen(tempdir)-1] == '/') tempdir[strlen(tempdir)-1] = '\0';
 
-		/*************************** DATA DIRECTORY *****************************/
+		/*************************** DATA DIRECTORY ***************************/
 
 		phoebe_config_entry_get ("PHOEBE_DATA_DIR", &pathname);
 
@@ -133,7 +133,7 @@ int scripter_create_config_file ()
 		}
 		if (datadir[strlen(datadir)-1] == '/') datadir[strlen(datadir)-1] = '\0';
 
-		/**************************** PTF DIRECTORY *****************************/
+		/**************************** PTF DIRECTORY ***************************/
 
 		phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
 
@@ -152,11 +152,13 @@ int scripter_create_config_file ()
 		}
 		if (ptfdir[strlen(datadir)-1] == '/') ptfdir[strlen(datadir)-1] = '\0';
 
-		/****************************** LD TABLES *******************************/
+		/****************************** LD TABLES *****************************/
 
-		ldswitch = readline ("Are Van Hamme (1993) limb darkening tables present on your system [y/N]? ");
+		ldswitch = readline ("Are limb darkening tables present on your system [y/N]? ");
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N') ;
 		else {
+			ldintern = readline ("Do you want to use internal limb darkening tables [Y/n]? ");
+
 			phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
 			if (PHOEBE_CONFIG_EXISTS) {
 				sprintf (prompt, "PHOEBE LD directory        [%s]: ", pathname);
@@ -174,7 +176,7 @@ int scripter_create_config_file ()
 			if (lddir[strlen(lddir)-1] == '/') lddir[strlen(lddir)-1] = '\0';
 		}
 
-		/****************************** KURUCZ DIR *******************************/
+		/****************************** KURUCZ DIR ****************************/
 
 		kuruczswitch = readline ("Are Kurucz model atmospheres present on your system [y/N]? ");
 		if (strcmp (kuruczswitch, "") == 0 || kuruczswitch[0] == 'n' || kuruczswitch[0] == 'N') ;
@@ -208,7 +210,10 @@ int scripter_create_config_file ()
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N')
 			printf ("Limb darkening tables:       not present\n");
 		else {
-			printf ("Limb darkening tables:       present\n");
+			if (strcmp (ldintern, "") == 0 || ldintern[0] == 'y' || ldintern[0] == 'Y')
+				printf ("Limb darkening tables:       Kurucz NEWODF\n");
+			else
+				printf ("Limb darkening tables:       Van Hamme (1993)\n");
 			printf ("PHOEBE LD directory:         %s\n", lddir);
 		}
 
@@ -232,6 +237,10 @@ int scripter_create_config_file ()
 			}
 			else {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 1);
+				if (strcmp (ldintern, "") == 0 || ldintern[0] == 'y' || ldintern[0] == 'Y')
+					phoebe_config_entry_set ("PHOEBE_LD_INTERN", 1);
+				else
+					phoebe_config_entry_set ("PHOEBE_LD_INTERN", 0);
 				phoebe_config_entry_set ("PHOEBE_LD_DIR", lddir);
 			}
 
@@ -257,15 +266,15 @@ int scripter_create_config_file ()
 	}
 #endif
 
-	/* This part is executed if GNU readline isn't found:                     */
+	/* This part is executed if GNU readline isn't found: */
 	{
 		char basedir[255], defdir[255], tempdir[255], datadir[255], ptfdir[255], lddir[255], kuruczdir[255];
-		char ldswitch[255], kuruczswitch[255], yn[255];
+		char ldswitch[255], ldintern[255], kuruczswitch[255], yn[255];
 		
 		printf ("Please supply names of directories to be used by PHOEBE:\n");
 		printf ("  if you are happy with defaults enclosed in [...], just press ENTER.\n\n");
-		
-		/*************************** BASE DIRECTORY *****************************/
+
+		/*************************** BASE DIRECTORY ***************************/
 		
 		phoebe_config_entry_get ("PHOEBE_BASE_DIR", &pathname);
 		
@@ -274,7 +283,7 @@ int scripter_create_config_file ()
 		if (strcmp (basedir, "") == 0) sprintf (basedir, "%s", pathname);
 		if (basedir[strlen(basedir)-1] == '/') basedir[strlen(basedir)-1] = '\0';
 		
-		/************************* DEFAULTS DIRECTORY ***************************/
+		/************************* DEFAULTS DIRECTORY *************************/
 		
 		phoebe_config_entry_get ("PHOEBE_DEFAULTS_DIR", &pathname);
 		
@@ -290,7 +299,7 @@ int scripter_create_config_file ()
 		}
 		if (defdir[strlen(defdir)-1] == '/') defdir[strlen(defdir)-1] = '\0';
 		
-		/*************************** TEMP DIRECTORY *****************************/
+		/*************************** TEMP DIRECTORY ***************************/
 		
 		phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &pathname);
 		
@@ -299,7 +308,7 @@ int scripter_create_config_file ()
 		if (strcmp (tempdir, "") == 0) sprintf (tempdir, "%s", pathname);
 		if (tempdir[strlen(tempdir)-1] == '/') tempdir[strlen(tempdir)-1] = '\0';
 		
-		/*************************** DATA DIRECTORY *****************************/
+		/*************************** DATA DIRECTORY ***************************/
 		
 		phoebe_config_entry_get ("PHOEBE_DATA_DIR", &pathname);
 		
@@ -315,7 +324,7 @@ int scripter_create_config_file ()
 		}
 		if (datadir[strlen(datadir)-1] == '/') datadir[strlen(datadir)-1] = '\0';
 		
-		/**************************** PTF DIRECTORY *****************************/
+		/**************************** PTF DIRECTORY ***************************/
 		
 		phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
 		
@@ -331,13 +340,16 @@ int scripter_create_config_file ()
 		}
 		if (ptfdir[strlen(datadir)-1] == '/') ptfdir[strlen(datadir)-1] = '\0';
 		
-		/****************************** LD TABLES *******************************/
+		/****************************** LD TABLES *****************************/
 		
-		printf ("Are Van Hamme (1993) limb darkening tables present on your system [y/N]? ");
+		printf ("Are limb darkening tables present on your system [y/N]? ");
 		fgets (ldswitch, 255, stdin); ldswitch[strlen(ldswitch)-1] = '\0';
 		
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N') ;
 		else {
+			printf ("Do you want to use internal limb darkening tables [Y/n]? ");
+			fgets (ldintern, 255, stdin); ldintern[strlen(ldintern)-1] = '\0';
+
 			if (PHOEBE_CONFIG_EXISTS) {
 				phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
 				printf ("PHOEBE LD directory        [%s]: ", pathname);
@@ -352,7 +364,7 @@ int scripter_create_config_file ()
 			if (lddir[strlen(lddir)-1] == '/') lddir[strlen(lddir)-1] = '\0';
 		}
 		
-		/****************************** KURUCZ DIR *******************************/
+		/****************************** KURUCZ DIR ****************************/
 		
 		printf ("Are Kurucz model atmospheres present on your system [y/N]? ");
 		fgets (kuruczswitch, 255, stdin); kuruczswitch[strlen(kuruczswitch)-1] = '\0';
@@ -373,7 +385,7 @@ int scripter_create_config_file ()
 			if (kuruczdir[strlen(kuruczdir)-1] == '/') kuruczdir[strlen(kuruczdir)-1] = '\0';
 		}
 		
-		/************************************************************************/
+		/**********************************************************************/
 		
 		printf ("\nConfiguration summary:\n----------------------\n");
 		printf ("PHOEBE base directory:       %s\n", basedir);
@@ -385,7 +397,10 @@ int scripter_create_config_file ()
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N')
 			printf ("Limb darkening tables:       not present\n");
 		else {
-			printf ("Limb darkening tables:       present\n");
+			if (strcmp (ldintern, "") == 0 || ldintern[0] == 'y' || ldintern[0] == 'Y')
+				printf ("Limb darkening tables:       Kurucz NEWODF\n");
+			else
+				printf ("Limb darkening tables:       Van Hamme (1993)\n");
 			printf ("PHOEBE LD directory:         %s\n", lddir);
 		}
 		
@@ -411,6 +426,10 @@ int scripter_create_config_file ()
 			}
 			else {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 1);
+				if (strcmp (ldintern, "") == 0 || ldintern[0] == 'y' || ldintern[0] == 'Y')
+					phoebe_config_entry_set ("PHOEBE_LD_INTERN", 1);
+				else
+					phoebe_config_entry_set ("PHOEBE_LD_INTERN", 0);
 				phoebe_config_entry_set ("PHOEBE_LD_DIR", lddir);
 			}
 			
