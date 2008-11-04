@@ -411,8 +411,10 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	phoebe_spectrum_dispersion_guess (&(spectrum->disp), spectrum);
 
 	/* Guess a sampling power: */
-	if (spectrum->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR)
+	if (spectrum->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR) {
 		spectrum->Rs = 1.0/(spectrum->data->range[1]-spectrum->data->range[0]);
+		spectrum->R  = (spectrum->data->range[spectrum->data->bins]-spectrum->data->range[0])/2.0/(spectrum->data->range[1]-spectrum->data->range[0]);
+	}
 	else
 		spectrum->Rs = 0.5*(spectrum->data->range[0]+spectrum->data->range[1])/(spectrum->data->range[1]-spectrum->data->range[0]);
 

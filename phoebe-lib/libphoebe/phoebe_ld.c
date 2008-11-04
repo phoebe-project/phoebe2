@@ -6,6 +6,8 @@
 
 #include "phoebe_accessories.h"
 #include "phoebe_calculations.h"
+#include "phoebe_configuration.h"
+#include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
 #include "phoebe_ld.h"
@@ -20,6 +22,455 @@ int intern_compare_ints (const void *a, const void *b)
 	const int *v2 = (const int *) b;
 
 	return *v1  - *v2;
+}
+
+PHOEBE_array *intern_find_unique_elements (int *input, int size)
+{
+	int i, unique = 0, na = -1001;
+	PHOEBE_array *output;
+
+	/* Copy the input: */
+	int *copy = phoebe_malloc (size * sizeof (*copy));
+	for (i = 0; i < size; i++)
+		copy[i] = input[i];
+
+	/* Sort the copied array: */
+	qsort (copy, size, sizeof (*copy), intern_compare_ints);
+
+	/* Count unique values in those arrays: */
+	i = 1;
+	while (1) {
+		while (i < size-1 && copy[i] == copy[i-1]) i++;
+		if (i == size) break;
+		unique++;
+		copy[unique] = copy[i];
+		i++;
+	}
+
+	/* Allocate the output array and copy unique values: */
+	output = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (output, unique+2);
+	for (i = 1; i <= unique; i++)
+		output->val.iarray[i] = copy[i-1];
+	output->val.iarray[0] = output->val.iarray[i] = na;
+
+	free (copy);
+
+	return output;
+}
+
+PHOEBE_ld *phoebe_ld_new ()
+{
+	/**
+	 * phoebe_ld_new:
+	 *
+	 * Initializes a new limb darkening (LD) table.
+	 *
+	 * Returns: a pointer to the new #PHOEBE_ld structure.
+	 */
+
+	PHOEBE_ld *table = phoebe_malloc (sizeof (*table));
+
+	table->lin_x  = NULL;
+	table->log_x  = NULL;
+	table->log_y  = NULL;
+	table->sqrt_x = NULL;
+	table->sqrt_y = NULL;
+
+	return table;
+}
+
+int phoebe_ld_alloc (PHOEBE_ld *table, int dim)
+{
+	/**
+	 * phoebe_ld_alloc:
+	 * @table: initialized limb darkening table
+	 * @dim:   table dimension
+	 *
+	 * Allocates memory for the limb darkening table.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	if (!table)
+		return ERROR_LD_TABLE_NOT_INITIALIZED;
+
+	if (table->lin_x)
+		return ERROR_LD_TABLE_ALREADY_ALLOCATED;
+
+	if (dim <= 0)
+		return ERROR_LD_TABLE_INVALID_DIMENSION;
+
+	table->lin_x  = phoebe_vector_new (); phoebe_vector_alloc (table->lin_x, dim);
+	table->log_x  = phoebe_vector_new (); phoebe_vector_alloc (table->log_x, dim);
+	table->log_y  = phoebe_vector_new (); phoebe_vector_alloc (table->log_y, dim);
+	table->sqrt_x = phoebe_vector_new (); phoebe_vector_alloc (table->sqrt_x, dim);
+	table->sqrt_y = phoebe_vector_new (); phoebe_vector_alloc (table->sqrt_y, dim);
+
+	return SUCCESS;
+}
+
+int phoebe_ld_realloc (PHOEBE_ld *table, int dim)
+{
+	/**
+	 * phoebe_ld_realloc:
+	 * @table: initialized or already allocated limb darkening table
+	 * @dim:   table dimension
+	 *
+	 * Reallocates memory for the limb darkening table.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	if (!table)
+		return ERROR_LD_TABLE_NOT_INITIALIZED;
+
+	if (dim <= 0)
+		return ERROR_LD_TABLE_INVALID_DIMENSION;
+
+	phoebe_vector_realloc (table->lin_x, dim);
+	phoebe_vector_realloc (table->log_x, dim);
+	phoebe_vector_realloc (table->log_y, dim);
+	phoebe_vector_realloc (table->sqrt_x, dim);
+	phoebe_vector_realloc (table->sqrt_y, dim);
+
+	return SUCCESS;
+}
+
+int phoebe_ld_free (PHOEBE_ld *table)
+{
+	/**
+	 * phoebe_ld_free:
+	 * @table: limb darkening table to be freed
+	 *
+	 * Frees memory of the limb darkening @table.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	if (!table)
+		return SUCCESS;
+
+	if (table->lin_x)  phoebe_vector_free (table->lin_x);
+	if (table->log_x)  phoebe_vector_free (table->log_x);
+	if (table->log_y)  phoebe_vector_free (table->log_y);
+	if (table->sqrt_x) phoebe_vector_free (table->sqrt_x);
+	if (table->sqrt_y) phoebe_vector_free (table->sqrt_y);
+
+	free (table);
+
+	return SUCCESS;
+}
+
+PHOEBE_ld *phoebe_ld_new_from_file (const char *filename)
+{
+	/**
+	 * phoebe_ld_new_from_file:
+	 * @filename: input file
+	 *
+	 * Reads in limb darkening coefficients. The table must have 5 columns:
+	 * linear cosine coefficient, log coefficients, and sqrt coefficients.
+	 * The @filename can either be absolute or relative; if relative, its
+	 * location is presumed to be one of the following:
+	 *
+	 * 1) current working directory,
+	 * 2) limb darkening directory (as stored in the global #PHOEBE_LD_DIR
+	 *    variable).
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	PHOEBE_ld *table;
+	FILE *ld_file;
+
+	char *full_filename = NULL;
+
+	char *lddir;
+	char line[255], keyword[255];
+	char *ptr;
+
+	int i = 0;
+
+	/* If the absolute path is given, use it as is or bail out. */
+	if (filename[0] == '/') {
+		if (!(ld_file = fopen (filename, "r")))
+			return NULL;
+	}
+
+	/* If a relative path is given, try the current working directory; if it
+	 * is still not found, try the limb darkening directory. If still it can't
+	 * be found, bail out.
+	 */
+	else {
+		ld_file = fopen (filename, "r");
+
+		if (!ld_file) {
+			phoebe_config_entry_get ("PHOEBE_LD_DIR", &lddir);
+			full_filename = phoebe_concatenate_strings (lddir, "/", filename, NULL);
+			ld_file = fopen (full_filename, "r");
+
+			if (!ld_file) return NULL;
+		}
+	}
+
+	/* By now either the file exists or NULL has been returned. */
+
+	/* Allocate memory for the table; we'll start with 3800 since there are
+	 * typically 3800 records in the table, and increase this if the size
+	 * is exceeded.
+	 */
+
+	table = phoebe_ld_new ();
+	phoebe_ld_alloc (table, 3800);
+
+	/* Parse the header: */
+
+	while (!feof (ld_file)) {
+		fgets (line, 255, ld_file);
+		if (feof (ld_file)) break;
+		line[strlen(line)-1] = '\0';
+		if (strchr (line, '#')) {
+			/* This can be either be a comment or a header entry. */
+			if (sscanf (line, "# %s", &(keyword[0])) != 1) continue;
+			if (strcmp (keyword, "PASS_SET") == 0) {
+				ptr = line + strlen (keyword) + 2;      /* +2 because of "# " */
+				while (*ptr == ' ' || *ptr == '\t') ptr++;
+				phoebe_debug ("PASS_SET encountered: %s\n", ptr);
+				table->set = strdup (ptr);
+				continue;
+			}
+			if (strcmp (keyword, "PASSBAND") == 0) {
+				ptr = line + strlen (keyword) + 2;      /* +2 because of "# " */
+				while (*ptr == ' ' || *ptr == '\t') ptr++;
+				phoebe_debug ("PASSBAND encountered: %s\n", ptr);
+				table->name = strdup (ptr);
+				continue;
+			}
+			if (strcmp (keyword, "REFTABLE") == 0) {
+				ptr = line + strlen (keyword) + 2;      /* +2 because of "# " */
+				while (*ptr == ' ' || *ptr == '\t') ptr++;
+				phoebe_debug ("REFTABLE encountered: %s\n", ptr);
+				table->reftable = strdup (ptr);
+				continue;
+			}
+
+			/* It's just a comment, ignore it. */
+			continue;
+		}
+		else {
+			/* Do we need to increase the table size? */
+			if (i == table->log_x->dim)
+				phoebe_ld_realloc (table, 2*i);
+
+			/* Read out 5-column data only: */
+			if (sscanf (line, "%lf %lf %lf %lf %lf", &table->lin_x->val[i],
+						&table->log_x->val[i], &table->log_y->val[i],
+						&table->sqrt_x->val[i], &table->sqrt_y->val[i]) != 5)
+				continue;
+
+			i++;
+		}
+	}
+
+	fclose (ld_file);
+
+	if (i == 0) {
+		phoebe_ld_free (table);
+		table = NULL;
+	}
+
+	if (full_filename)
+		free (full_filename);
+
+	return table;
+}
+
+int phoebe_ld_attach (PHOEBE_ld *table)
+{
+	/**
+	 * phoebe_ld_attach:
+	 * @table: populated limb darkening table
+	 *
+	 * Attaches the passed limb darkening @table to its respective passband.
+	 * The passband is determined from the limb darkening table keywords
+	 * PASS_SET and PASSBAND -- these have to match passband definitions
+	 * exactly. See #PHOEBE_passband and #PHOEBE_ld structures for more
+	 * information on identifying passbands.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	char *filter;
+	PHOEBE_passband *passband;
+
+	if (!table)
+		return ERROR_LD_TABLE_NOT_INITIALIZED;
+	if (!table->set || !table->name)
+		return ERROR_LD_TABLE_PASSBAND_NOT_SPECIFIED;
+
+	filter = phoebe_concatenate_strings (table->set, ":", table->name, NULL);
+	passband = phoebe_passband_lookup (filter);
+
+	if (!passband) {
+		free (filter);
+		return ERROR_LD_TABLE_PASSBAND_NOT_FOUND;
+	}
+
+	passband->ld = table;
+	free (filter);
+
+	return SUCCESS;
+}
+
+int phoebe_ld_attach_all (char *dir)
+{
+	/**
+	 * phoebe_ld_attach_all:
+	 * @dir: directory where limb darkening coefficients are stored
+	 *
+	 * Opens the directory @dir, scans all files in that directory and
+	 * reads in all found LD tables. It attaches these tables to their
+	 * respective passbands.
+	 *
+	 * This function must be called after phoebe_read_in_passbands(),
+	 * otherwise attaching will fail.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	DIR *ld_dir;
+	struct dirent *ld_file;
+	char filename[255];
+
+	int status;
+
+	PHOEBE_ld *table;
+
+	status = phoebe_open_directory (&ld_dir, dir);
+	if (status != SUCCESS)
+		return status;
+
+	while ( (ld_file = readdir (ld_dir)) ) {
+		sprintf (filename, "%s/%s", dir, ld_file->d_name);
+
+		if (phoebe_filename_is_directory (filename)) continue;
+
+		table = phoebe_ld_new_from_file (filename);
+		if (!table)
+			phoebe_debug ("File %s skipped.\n", filename);
+		else {
+			status = phoebe_ld_attach (table);
+			if (status != SUCCESS)
+				phoebe_lib_warning ("%s", phoebe_error (status));
+		}
+	}
+
+	phoebe_close_directory (&ld_dir);
+
+	return SUCCESS;
+}
+
+LD_table *phoebe_ld_table_intern_load (char *model_list)
+{
+	/**
+	 * phoebe_ld_table_intern_load:
+	 * @model_list: filename of the reference table
+	 *
+	 * Loads the reference table for the internal PHOEBE database of limb
+	 * darkening coefficients. The table must contain 3 columns: temperature,
+	 * gravity and metallicity of the nodes. All values in the table must be
+	 * integers, where gravity and metallicity are multiplied by 10. I.e., the
+	 * entry for log(g)=4.5 is 45, the entry for [M/H]=-0.5 is -05.
+	 *
+	 * The reference table contains three #PHOEBE_array's: Mnodes, Tnodes and
+	 * lgnodes. These arrays contain all nodes, in addition to -1001 for the
+	 * first and last element of the array, which simplifies the bounds check
+	 * of the lookup function phoebe_ld_get_coefficients().
+	 *
+	 * The table itself is a 3D matrix with dimensions of the three
+	 * #PHOEBE_arrays mentioned above. The 'pos' fields are padded with -1
+	 * if the node is not in the database, or the consecutive entry number in
+	 * the reference table if it is. Since the LD tables are read to memory
+	 * (in contrast to Van Hamme LD tables), the 'fn' field is always set to
+	 * #NULL.
+	 *
+	 * Returns: #LD_table.
+	 */
+
+	int i, j, k, v, matched;
+	LD_table *LD;
+	FILE *models = fopen (model_list, "r");
+
+	/* There are 3800 models by default, and we want to avoid unnecessary
+	 * realloc-ing. That is why the arrays will be allocated with recsize
+	 * and reallocated only if recsize is exceeded.
+	 */
+
+	int recsize = 3801, count;
+	int *recT, *reclg, *recM;
+
+	if (!models) {
+		phoebe_lib_error ("failed to open %s for reading.\n", model_list);
+		return NULL;
+	}
+
+	/* Read in the nodes: */
+
+	recT  = phoebe_malloc (recsize * sizeof(*recT));
+	reclg = phoebe_malloc (recsize * sizeof(*reclg));
+	recM  = phoebe_malloc (recsize * sizeof(*recM));
+
+	i = 0;
+	while (1) {
+		if (i == recsize) {
+			phoebe_lib_warning ("reallocating LD arrays -- so that you know.\n");
+			recsize *= 2;
+			recT  = phoebe_realloc (recT, recsize * sizeof(*recT));
+			reclg = phoebe_realloc (recT, recsize * sizeof(*reclg));
+			recM  = phoebe_realloc (recT, recsize * sizeof(*recM));
+		}
+
+		matched = fscanf (models, "%d %d %d\n", &recT[i], &reclg[i], &recM[i]);
+
+		if (feof (models) || matched != 3)
+			break;
+
+		i++;
+	}
+	fclose (models);
+	count = i+1;
+
+	phoebe_debug ("%d models read in.\n", count);
+
+	LD = phoebe_malloc (sizeof (*LD));
+	LD->Tnodes  = intern_find_unique_elements (recT,  count);
+	LD->lgnodes = intern_find_unique_elements (reclg, count);
+	LD->Mnodes  = intern_find_unique_elements (recM,  count);
+
+	phoebe_debug ("There are %d temperature nodes, %d log(g) nodes, and %d metallicity nodes.\n", LD->Tnodes->dim-2, LD->lgnodes->dim-2, LD->Mnodes->dim-2);
+
+	LD->table = phoebe_malloc (LD->Mnodes->dim * sizeof (*(LD->table)));
+	for (i = 0; i < LD->Mnodes->dim; i++) {
+		LD->table[i] = phoebe_malloc (LD->Tnodes->dim * sizeof (**(LD->table)));
+		for (j = 0; j < LD->Tnodes->dim; j++) {
+			LD->table[i][j] = phoebe_malloc (LD->lgnodes->dim * sizeof (***(LD->table)));
+			for (k = 0; k < LD->lgnodes->dim; k++) {
+				LD->table[i][j][k].fn = NULL;
+				LD->table[i][j][k].pos = -1;
+			}
+		}
+	}
+
+	for (v = 0; v < count; v++) {
+		for (i = 1;  recM[v] != LD->Mnodes->val.iarray[i];  i++) ;
+		for (j = 1;  recT[v] != LD->Tnodes->val.iarray[j];  j++) ;
+		for (k = 1; reclg[v] != LD->lgnodes->val.iarray[k]; k++) ;
+		LD->table[i][j][k].pos = v;
+	}
+
+	free (recT); free (reclg); free (recM);
+
+	return LD;
 }
 
 LD_table *phoebe_ld_table_vh1993_load (char *dir)
@@ -251,10 +702,16 @@ int phoebe_ld_table_free (LD_table *LD)
 	return SUCCESS;
 }
 
-LDLaw phoebe_ld_model_type (const char *ldlaw)
+LD_model phoebe_ld_model_type (const char *ldlaw)
 {
-	/*
-	 * This function makes a conversion from LD model string to LD enumerator.
+	/**
+	 * phoebe_ld_model_type:
+	 * @ldlaw: name of the limb darkening model
+	 *
+	 * Converts common name of the limb darkening model to the LD enumerator.
+	 * See #LD_model enumerator for a list of choices.
+	 *
+	 * Returns: enumerated #LD_model value.
 	 */
 
 	if (strcmp (ldlaw, "Linear cosine law") == 0) return LD_LAW_LINEAR;
@@ -262,34 +719,6 @@ LDLaw phoebe_ld_model_type (const char *ldlaw)
 	if (strcmp (ldlaw, "Square root law"  ) == 0) return LD_LAW_SQRT;
 	return LD_LAW_INVALID;
 }
-
-/*
-PHOEBE_passband phoebe_passband_id_from_string (const char *passband)
-{
-	if (strcmp (passband,  "Bolometric") == 0) return BOLOMETRIC;
-	if (strcmp (passband,   "350nm (u)") == 0) return STROEMGREN_U;
-	if (strcmp (passband,   "411nm (v)") == 0) return STROEMGREN_V;
-	if (strcmp (passband,   "467nm (b)") == 0) return STROEMGREN_B;
-	if (strcmp (passband,   "547nm (y)") == 0) return STROEMGREN_Y;
-	if (strcmp (passband,   "360nm (U)") == 0) return JOHNSON_U;
-	if (strcmp (passband,   "440nm (B)") == 0) return JOHNSON_B;
-	if (strcmp (passband,   "550nm (V)") == 0) return JOHNSON_V;
-	if (strcmp (passband,   "700nm (R)") == 0) return JOHNSON_R;
-	if (strcmp (passband,   "900nm (I)") == 0) return JOHNSON_I;
-	if (strcmp (passband,  "1250nm (J)") == 0) return JOHNSON_J;
-	if (strcmp (passband,  "2200nm (K)") == 0) return JOHNSON_K;
-	if (strcmp (passband,  "3400nm (L)") == 0) return JOHNSON_L;
-	if (strcmp (passband,  "5000nm (M)") == 0) return JOHNSON_M;
-	if (strcmp (passband, "10200nm (N)") == 0) return JOHNSON_N;
-	if (strcmp (passband,  "647nm (Rc)") == 0) return COUSINS_R;
-	if (strcmp (passband,  "786nm (Ic)") == 0) return COUSINS_I;
-	if (strcmp (passband,  "505nm (Hp)") == 0) return HIPPARCOS;
-	if (strcmp (passband,  "419nm (Bt)") == 0) return TYCHO_B;
-	if (strcmp (passband,  "523nm (Vt)") == 0) return TYCHO_V;
-	
-	return PASSBAND_INVALID;
-}
-*/
 
 char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband)
 {
@@ -338,7 +767,7 @@ char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband)
 */
 }
 
-int intern_get_ld_node (const char *fn, long int pos, LDLaw ldlaw, PHOEBE_passband *passband, double *x0, double *y0)
+int intern_get_ld_node (const char *fn, long int pos, LD_model ldlaw, PHOEBE_passband *passband, double *x0, double *y0)
 {
 	/*
 	 * This is an internal wrapper to get the LD coefficients from a file.
@@ -348,41 +777,67 @@ int intern_get_ld_node (const char *fn, long int pos, LDLaw ldlaw, PHOEBE_passba
 	char line[255], pass[10];
 	double linx, sqrtx, sqrty, logx, logy;
 
-	/* Read out the values of coefficients: */
-	phoebe_debug ("  opening %s:\n", fn);
-	in = fopen (fn, "r");
-	if (!in) {
-		phoebe_lib_error ("LD table %s not found, aborting.\n", fn);
-		return ERROR_LD_TABLES_MISSING;
-	}
-	fseek (in, pos, SEEK_SET);
-	while (TRUE) {
-		fgets (line, 255, in);
-		if (sscanf (line, " %s %lf (%*f) %lf %lf (%*f) %lf %lf (%*f)", pass, &linx, &logx, &logy, &sqrtx, &sqrty) == 6) {
-			if (strcmp (pass, phoebe_ld_get_vh1993_passband_name (passband)) == 0) break;
+	bool ld_intern;
+
+	phoebe_config_entry_get ("PHOEBE_LD_INTERN", &ld_intern);
+
+	if (ld_intern == 1) {
+		if (!passband->ld)
+			return ERROR_LD_TABLE_PASSBAND_NOT_FOUND;
+
+		switch (ldlaw) {
+			case LD_LAW_LINEAR:
+				*x0 = passband->ld->lin_x->val[pos];
+			break;
+			case LD_LAW_LOG:
+				*x0 = passband->ld->log_x->val[pos];
+				*y0 = passband->ld->log_y->val[pos];
+			break;
+			case LD_LAW_SQRT:
+				*x0 = passband->ld->sqrt_x->val[pos];
+				*y0 = passband->ld->sqrt_y->val[pos];
+			break;
+			default:
+				return ERROR_LD_LAW_INVALID;
 		}
 	}
-	fclose (in);
+	else {
+		/* Read out the values of coefficients: */
+		phoebe_debug ("  opening %s:\n", fn);
+		in = fopen (fn, "r");
+		if (!in) {
+			phoebe_lib_error ("LD table %s not found, aborting.\n", fn);
+			return ERROR_LD_TABLES_MISSING;
+		}
+		fseek (in, pos, SEEK_SET);
+		while (TRUE) {
+			fgets (line, 255, in);
+			if (sscanf (line, " %s %lf (%*f) %lf %lf (%*f) %lf %lf (%*f)", pass, &linx, &logx, &logy, &sqrtx, &sqrty) == 6) {
+				if (strcmp (pass, phoebe_ld_get_vh1993_passband_name (passband)) == 0) break;
+			}
+		}
+		fclose (in);
 
-	switch (ldlaw) {
-		case LD_LAW_LINEAR: *x0 = linx;               break;
-		case LD_LAW_SQRT:   *x0 = sqrtx; *y0 = sqrty; break;
-		case LD_LAW_LOG:    *x0 = logx;  *y0 = logy;  break;
-		default:
-			phoebe_lib_error ("exception handler invoked in intern_get_ld_node (). Please report this!\n");
-			return ERROR_LD_LAW_INVALID;
+		switch (ldlaw) {
+			case LD_LAW_LINEAR: *x0 = linx;               break;
+			case LD_LAW_SQRT:   *x0 = sqrtx; *y0 = sqrty; break;
+			case LD_LAW_LOG:    *x0 = logx;  *y0 = logy;  break;
+			default:
+				phoebe_lib_error ("exception handler invoked in intern_get_ld_node (). Please report this!\n");
+				return ERROR_LD_LAW_INVALID;
+		}
+
+		phoebe_debug ("  %s[%ld]:  %s: %lf, %lf, %lf, %lf, %lf\n", fn, pos, pass, linx, logx, logy, sqrtx, sqrty);
 	}
-
-	phoebe_debug ("  %s[%ld]:  %s: %lf, %lf, %lf, %lf, %lf\n", fn, pos, pass, linx, logx, logy, sqrtx, sqrty);
 
 	return SUCCESS;
 }
 
-int phoebe_ld_get_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M, double T, double lg, double *x, double *y)
+int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, double M, double T, double lg, double *x, double *y)
 {
 	/*
 	 *  This function queries the LD coefficients database using the setup
-	 *  stored in LDTable structure.
+	 *  stored in LD_table structure.
 	 */
 
 	LD_table *LD = PHOEBE_ld_table;
@@ -423,10 +878,10 @@ int phoebe_ld_get_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M
 			break;
 
 	if  (
-		!LD->table[i-1][j-1][k-1].fn || !LD->table[i-1][j-1][k].fn ||
-		!LD->table[i-1][j  ][k-1].fn || !LD->table[i-1][j  ][k].fn ||
-		!LD->table[i  ][j-1][k-1].fn || !LD->table[i  ][j-1][k].fn ||
-		!LD->table[i  ][j  ][k-1].fn || !LD->table[i  ][j  ][k].fn
+		LD->table[i-1][j-1][k-1].pos == -1 || LD->table[i-1][j-1][k].pos == -1 ||
+		LD->table[i-1][j  ][k-1].pos == -1 || LD->table[i-1][j  ][k].pos == -1 ||
+		LD->table[i  ][j-1][k-1].pos == -1 || LD->table[i  ][j-1][k].pos == -1 ||
+		LD->table[i  ][j  ][k-1].pos == -1 || LD->table[i  ][j  ][k].pos == -1
 		)
 		return ERROR_LD_PARAMS_OUT_OF_RANGE;
 
@@ -451,6 +906,7 @@ int phoebe_ld_get_coefficients (LDLaw ldlaw, PHOEBE_passband *passband, double M
 		fv.d = phoebe_malloc (8 * sizeof (*(fv.d)));
 
 		/* Read out the values of coefficients: */
+
 		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &fv.d[0], NULL);
 		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &fv.d[1], NULL);
 		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &fv.d[2], NULL);
