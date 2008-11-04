@@ -11,6 +11,7 @@ typedef struct PHOEBE_passband {
 	char        *name;
 	double       effwl;
 	PHOEBE_hist *tf;
+	PHOEBE_ld   *ld;
 } PHOEBE_passband;
 */
 

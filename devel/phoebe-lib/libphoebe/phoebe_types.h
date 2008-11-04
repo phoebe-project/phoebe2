@@ -223,20 +223,34 @@ int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in, PHO
 
 /* **************************************************************************** */
 
+typedef struct PHOEBE_ld {
+	char *set;
+	char *name;
+	char *reftable;
+	PHOEBE_vector *lin_x;
+	PHOEBE_vector *log_x;
+	PHOEBE_vector *log_y;
+	PHOEBE_vector *sqrt_x;
+	PHOEBE_vector *sqrt_y;
+} PHOEBE_ld;
+
 /**
  * PHOEBE_passband:
- * @id:    The ID number of the passband.
- * @set:
- * @name:  The human-readable name of the passband.
- * @effwl: The effective wavelength of the passband.
- * @tf:
+ * @id:    ID number of the passband
+ * @set:   Filter-set of the passband, i.e. "Cousins"
+ * @name:  Passband identifier, i.e. "Rc"
+ * @effwl: Effective wavelength of the passband.
+ * @tf:    Passband transmission function
+ * @ld:    Limb darkening table (attached optionally)
  */
+
 typedef struct PHOEBE_passband {
 	int          id;
 	char        *set;
 	char        *name;
 	double       effwl;
 	PHOEBE_hist *tf;
+	PHOEBE_ld   *ld;
 } PHOEBE_passband;
 
 /* **************************************************************************** */

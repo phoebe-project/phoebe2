@@ -257,6 +257,16 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "LD coefficient tables cannot be found, aborting.\n";
 		case ERROR_LD_PARAMS_OUT_OF_RANGE:
 			return "parameter values for LD table lookup out of range, aborting.\n";
+		case ERROR_LD_TABLE_NOT_INITIALIZED:
+			return "the passed LD table is not initialized, aborting.\n";
+		case ERROR_LD_TABLE_ALREADY_ALLOCATED:
+			return "the passed LD table is already allocated, aborting.\n";
+		case ERROR_LD_TABLE_INVALID_DIMENSION:
+			return "the requested dimension for the LD table is invalid, aborting.\n";
+		case ERROR_LD_TABLE_PASSBAND_NOT_SPECIFIED:
+			return "the passed LD table does not specify the passband correctly, aborting.\n";
+		case ERROR_LD_TABLE_PASSBAND_NOT_FOUND:
+			return "the passband of the passed LD table is not found. aborting.\n";
 		case ERROR_CINDEX_INVALID_TYPE:
 			return "the type passed to the Teff (B-V) function is invalid, aborting.\n";
 		case ERROR_PARAMETER_INVALID_LIMITS:

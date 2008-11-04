@@ -42,8 +42,13 @@ int intern_compare_passbands_by_set (const void *a, const void *b)
 
 PHOEBE_passband *phoebe_passband_new ()
 {
-	/*
-	 * This function allocates memory for a passband record.
+	/**
+	 * phoebe_passband_new:
+	 *
+	 * Initializes memory for a new #PHOEBE_passband and sets all fields to
+	 * #NULL.
+	 *
+	 * Returns: #PHOEBE_passband.
 	 */
 
 	PHOEBE_passband *passband = phoebe_malloc (sizeof (*passband));
@@ -53,22 +58,30 @@ PHOEBE_passband *phoebe_passband_new ()
 	passband->name  = NULL;
 	passband->effwl = 0.0;
 	passband->tf    = NULL;
+	passband->ld    = NULL;
 
 	return passband;
 }
 
 PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 {
-	/*
+	/**
+	 * phoebe_passband_new_from_file:
+	 * @filename: passband transmission function file
+	 *
+	 * Reads in passband transmission function (PTF) from the passed @filename.
+	 *
 	 * Passband transmission functions are installed in a directory the path
-	 * to which is stored in a PHOEBE_PTF_DIR variable. In order to be able
-	 * to pass a relative filename to phoebe_hist_new_from_file (), this
+	 * to which is stored in a #PHOEBE_PTF_DIR variable. In order to be able
+	 * to pass a relative filename to phoebe_hist_new_from_file(), this
 	 * wrapper does the following, sequentially:
 	 *
-	 * 1) if an absolute path is passed, use it; otherwise return NULL;
+	 * 1) if an absolute path is passed, use it;
 	 * 2) if there is a file with that name in the current directory, use it;
 	 * 3) if there is a file with that name in PHOEBE_PTF_DIR, use it;
 	 * 4) admit defeat and return NULL.
+	 *
+	 * Returns: #PHOEBE_passband on success, #NULL on failure.
 	 */
 
 	FILE *ptf_file;
@@ -184,10 +197,16 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 
 int phoebe_read_in_passbands (char *dir_name)
 {
-	/*
-	 * This function opens the 'dir_name' directory, scans all files in that
-	 * directory and reads in all found passbands. Finally, it sorts them first
-	 * by effective wavelength and then by set name.
+	/**
+	 * phoebe_read_in_passbands:
+	 * @dir_name: directory where passband transmission functions (PTFs) are
+	 * stored
+	 *
+	 * Opens the @dir_name directory, scans all files in that directory and
+	 * reads in all found passbands. Finally, it sorts them first by effective
+	 * wavelength and then by set name.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	DIR *ptf_dir;
@@ -227,10 +246,15 @@ int phoebe_read_in_passbands (char *dir_name)
 
 PHOEBE_passband *phoebe_passband_lookup (const char *name)
 {
-	/*
-	 * This function traverses the global passband table PHOEBE_passbands
-	 * and returns a pointer to the passband that matches the passed name.
-	 * If it is not found, NULL is returned.
+	/**
+	 * phoebe_passband_lookup:
+	 * @name: passband name, of the form PASS_SET:PASSBAND
+	 *
+	 * Traverses the global passband table PHOEBE_passbands and returns a
+	 * pointer to the passband that matches the passed name. The name is
+	 * constructed by PASS_SET:PASSBAND, i.e. "Johnson:V".
+	 *
+	 * Returns: #PHOEBE_passband on success, or #NULL if @name is not matched.
 	 */
 
 	int i;
@@ -260,10 +284,9 @@ PHOEBE_passband *phoebe_passband_lookup_by_id (const char *id)
 	 * phoebe_passband_lookup_by_id:
 	 * @id: curve ID (light or RV curve)
 	 *
-	 * Looks up the passband that corresponds to the curve ID. If the lookup
-	 * fails, #NULL is returned.
-	 * 
-	 * Returns: pointer to #PHOEBE_passband.
+	 * Looks up the passband that corresponds to the curve @id.
+	 *
+	 * Returns: #PHOEBE_passband on success, or #NULL if @id is not matched.
 	 */
 
 	int i;
@@ -296,8 +319,11 @@ PHOEBE_passband *phoebe_passband_lookup_by_id (const char *id)
 
 int phoebe_passband_free (PHOEBE_passband *passband)
 {
-	/*
-	 * This function frees memory occupied by the passband record.
+	/**
+	 * phoebe_passband_free:
+	 * @passband: #PHOEBE_passband to be freed
+	 * 
+	 * Frees @passband memory.
 	 */
 
 	if (!passband)
@@ -313,9 +339,12 @@ int phoebe_passband_free (PHOEBE_passband *passband)
 
 int phoebe_free_passbands ()
 {
-	/*
-	 * This function sweeps through the whole passband array and frees all
-	 * passbands.
+	/**
+	 * phoebe_free_passbands:
+	 *
+	 * Traverses all defined passbands and frees them.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int i;

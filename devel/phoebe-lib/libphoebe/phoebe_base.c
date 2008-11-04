@@ -130,25 +130,40 @@ int phoebe_init ()
 	return SUCCESS;
 }
 
-void phoebe_load_ld_tables()
+int phoebe_load_ld_tables ()
 {
 	/**
 	 * phoebe_load_ld_tables:
 	 *
-	 * Frees the existing ld table and loads it from the current PHOEBE_LD_DIR directory.
+	 * Frees the existing ld table and loads it from the current #PHOEBE_LD_DIR
+	 * directory.
 	 *
 	 * Returns: 
 	 */
 
+	bool intern;
 	char *pathname;
+	char *model_list;
 
+	phoebe_config_entry_get ("PHOEBE_LD_INTERN", &intern);
 	phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
+
 	phoebe_ld_table_free (PHOEBE_ld_table);
-	PHOEBE_ld_table = phoebe_ld_table_vh1993_load (pathname);
+
+	if (intern == 1) {
+		model_list = phoebe_concatenate_strings (pathname, "/models.list", NULL);
+		PHOEBE_ld_table = phoebe_ld_table_intern_load (model_list);
+		free (model_list);
+	}
+	else
+		PHOEBE_ld_table = phoebe_ld_table_vh1993_load (pathname);
+
 	if (!PHOEBE_ld_table) {
 		phoebe_lib_error ("reading LD table coefficients failed, disabling readouts.\n");
 		phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
 	}
+
+	return SUCCESS;
 }
 
 int phoebe_configure ()
@@ -300,7 +315,16 @@ int phoebe_configure ()
 	phoebe_debug ("* %d passbands read in.\n", PHOEBE_passbands_no);
 
 	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &switch_state);
-	phoebe_load_ld_tables();
+	if (switch_state == 1) {
+		phoebe_config_entry_get ("PHOEBE_LD_INTERN", &switch_state);
+		if (switch_state == 1) {
+			phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
+			phoebe_ld_attach_all (pathname);
+			phoebe_debug ("* LD tables attached.\n");
+		}
+
+		phoebe_load_ld_tables ();
+	}
 
 	phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &switch_state);
 	if (switch_state == 1) {
