@@ -27,6 +27,7 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  bessell_1988_lprime.txt     \
                  bessell_1988_l.txt          \
                  bessell_1988_m.txt          \
+                 bolometric.ptf              \
                  cousins.R                   \
                  cousins.I                   \
                  geneva_1962_b1.txt          \

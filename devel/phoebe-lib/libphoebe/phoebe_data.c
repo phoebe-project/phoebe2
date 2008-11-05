@@ -395,8 +395,16 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband, "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
 	if (strcmp (passband, "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
-	if (strcmp (passband, "CoRoT:exo")    == 0) { *id = 26; return SUCCESS; }
-	if (strcmp (passband, "CoRoT:sismo")  == 0) { *id = 27; return SUCCESS; }
+	if (strcmp (passband,    "CoRoT:exo") == 0) { *id = 26; return SUCCESS; }
+	if (strcmp (passband,  "CoRoT:sismo") == 0) { *id = 27; return SUCCESS; }
+	if (strcmp (passband,    "Johnson:H") == 0) { *id = 28; return SUCCESS; }
+	if (strcmp (passband,     "Geneva:U") == 0) { *id = 29; return SUCCESS; }
+	if (strcmp (passband,     "Geneva:B") == 0) { *id = 30; return SUCCESS; }
+	if (strcmp (passband,    "Geneva:B1") == 0) { *id = 31; return SUCCESS; }
+	if (strcmp (passband,    "Geneva:B2") == 0) { *id = 32; return SUCCESS; }
+	if (strcmp (passband,     "Geneva:V") == 0) { *id = 33; return SUCCESS; }
+	if (strcmp (passband,    "Geneva:V1") == 0) { *id = 34; return SUCCESS; }
+	if (strcmp (passband,     "Geneva:G") == 0) { *id = 35; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;

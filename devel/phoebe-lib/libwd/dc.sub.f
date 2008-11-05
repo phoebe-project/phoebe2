@@ -62,7 +62,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
-      parameter (iplmax=    28)
+      parameter (iplmax=    35)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -289,6 +289,13 @@ c
 c      26   CoRoT-exo  Carla Maceroni, private communication
 c      27   CoRoT-sis  Carla Maceroni, private communication
 c      28       H      Johnson, H.L. 1965, ApJ, 141, 923
+c      29   Geneva U   Golay, M. 1962, Pub. Obs. Geneve No. 15 (serie A), 29
+c      30   Geneva B       "             "             "           "
+c      31   Geneva B1      "             "             "           "
+c      32   Geneva B2      "             "             "           "
+c      33   Geneva V       "             "             "           "
+c      34   Geneva V1      "             "             "           "
+c      35   Geneva G       "             "             "           "
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))
