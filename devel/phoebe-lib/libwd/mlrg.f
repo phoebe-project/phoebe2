@@ -18,16 +18,28 @@ c  xlg1, xlg2= log (base 10) of mean surface acceleration (effective gra
 c  for stars 1 and 2.
 c
       implicit real*8 (a-h,o-z)
-      G=6.668d-8
-      tsun=5800.d0
-      rsunau=214.8d0
-      sunmas=1.991d33
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE substitution:
+c
+c     G=6.668d-8
+c     tsun=5800.d0
+c     rsunau=214.8d0
+c     sunmas=1.991d33
+c     sunrad=6.960d10
+c     sunmb=4.77d0
+c     yrsid=365.2564d0
+      G=6.673d-8
+      tsun=5780.d0
+      rsunau=214.93947d0
+      sunmas=1.9884d33
       sunrad=6.960d10
+      sunmb=4.74d0
+      yrsid=365.25636d0
       gmr=G*sunmas/sunrad**2
-      sunmb=4.77d0
       sr1=r1*a
       sr2=r2*a
-      yrsid=365.2564d0
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       tmass=(a/rsunau)**3/(p/yrsid)**2
       sm1=tmass/(1.d0+q)
       sm2=tmass*q/(1.d0+q)
