@@ -763,15 +763,38 @@ scripter_ast_value scripter_format (scripter_ast_list *args)
 	scripter_ast_value out;
 	scripter_ast_value *vals;
 
-	int status = scripter_command_args_evaluate (args, &vals, 1, 2, type_double, type_string);
+	int status = scripter_command_args_evaluate (args, &vals, 1, 2, type_any, type_string);
 	if (status != SUCCESS) {
 		out.type = type_void;
 		return out;
 	}
 
-	out.type = type_string;
-	out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
-	sprintf (out.value.str, vals[1].value.str, vals[0].value.d);
+	switch (vals[0].type) {
+		case type_int:
+			out.type = type_string;
+			out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
+			sprintf (out.value.str, vals[1].value.str, vals[0].value.i);
+		break;
+		case type_bool:
+			out.type = type_string;
+			out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
+			sprintf (out.value.str, vals[1].value.str, vals[0].value.b);
+		break;
+		case type_double:
+			out.type = type_string;
+			out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
+			sprintf (out.value.str, vals[1].value.str, vals[0].value.d);
+		break;
+		case type_string:
+			out.type = type_string;
+			out.value.str = phoebe_malloc (255 * sizeof (*(out.value.str)));
+			sprintf (out.value.str, vals[1].value.str, vals[0].value.str);
+		break;
+		default:
+			phoebe_scripter_output ("not yet implemented -- please request this to be done!\n");
+			out.type = type_void;
+		break;
+	}
 
 	scripter_ast_value_array_free (vals, 2);
 	return out;
