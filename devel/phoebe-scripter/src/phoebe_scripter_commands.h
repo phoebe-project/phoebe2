@@ -23,6 +23,7 @@ scripter_ast_value scripter_array                         (scripter_ast_list *ar
 scripter_ast_value scripter_column                        (scripter_ast_list *args);
 scripter_ast_value scripter_spectrum                      (scripter_ast_list *args);
 scripter_ast_value scripter_format                        (scripter_ast_list *args);
+scripter_ast_value scripter_defined                       (scripter_ast_list *args);
 scripter_ast_value scripter_get_parameter_value           (scripter_ast_list *args);
 scripter_ast_value scripter_minimize_using_nms            (scripter_ast_list *args);
 scripter_ast_value scripter_minimize_using_dc             (scripter_ast_list *args);

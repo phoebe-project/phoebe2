@@ -30,6 +30,7 @@ int scripter_register_all_commands ()
 	scripter_command_register ("column",                       scripter_column);
 	scripter_command_register ("spectrum",                     scripter_spectrum);
 	scripter_command_register ("format",                       scripter_format);
+	scripter_command_register ("defined",                      scripter_defined);
 
 	/* Commands for handling parameters: */
 	scripter_command_register ("set_parameter_value",          scripter_set_parameter_value);
@@ -776,6 +777,36 @@ scripter_ast_value scripter_format (scripter_ast_list *args)
 	return out;
 }
 
+scripter_ast_value scripter_defined (scripter_ast_list *args)
+{
+	/*
+	 * Returns true if the passed variable is defined; false otherwise.
+	 *
+	 * Example:
+	 *
+	 *   print defined (var)
+	 */
+
+	int argno;
+	scripter_ast_value out;
+
+	if ((argno = scripter_ast_list_length (args)) != 1) {
+		phoebe_scripter_output ("argument number mismatch: %d passed, 1 expected.\n", argno);
+		out.type = type_void;
+		return out;
+	}
+
+	out.type = type_bool;
+	out.value.b = FALSE;
+
+	if (args->elem->type == ast_variable) {
+		scripter_symbol *s = scripter_symbol_lookup (symbol_table, args->elem->value.variable);
+		if (s) out.value.b = TRUE;
+	}
+
+	return out;
+}
+
 scripter_ast_value scripter_prompt (scripter_ast_list *args)
 {
 	/*
@@ -1501,7 +1532,7 @@ scripter_ast_value scripter_compute_critical_potentials (scripter_ast_list *args
 	 *
 	 * Synopsis:
 	 *
-	 *   set new = compute_crit_pot (double q, double F, double e)
+	 *   set new = compute_critical_potentials (double q, double F, double e)
 	 *
 	 * Where:
 	 *
