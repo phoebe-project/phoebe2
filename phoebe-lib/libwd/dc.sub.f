@@ -56,8 +56,8 @@ c            adjusted, with band-independent parameters counted once each and
 c            band-dependent parameters counted N_band times each.
 c                        default: ipmax= 50
 c
-      parameter (Nmax=     100)
-      parameter (igsmax=  8331)
+      parameter (Nmax=     200)
+      parameter (igsmax= 33202)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
@@ -883,8 +883,24 @@ c***************************************************************
       WRITE(16,101)
       WRITE(16,11)
       DO 92 I=NVCP,NLVC
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+c     The following block supports third light to be printed from the
+c     passed percentage of third luminosity.
+c
+      if (L3perc.eq.1) then
+        el3=(hla(i)+cla(i))*el3a(i)/(4.d0*3.141593d0*
+     $      (1.d0-el3a(i)))
+      else
+        el3=el3a(i)
+      end if
    92 write(16,85)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
-     $el3a(i),opsfa(i),noise(i),sigma(i),wla(i)
+     $el3,opsfa(i),noise(i),sigma(i),wla(i)
+c  92 write(16,85)iband(i),hla(i),cla(i),x1a(i),x2a(i),y1a(i),y2a(i),
+c    $el3a(i),opsfa(i),noise(i),sigma(i),wla(i)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   197 CONTINUE
       WRITE(16,101)
       IF(NSTOT.GT.0) WRITE(16,983)
