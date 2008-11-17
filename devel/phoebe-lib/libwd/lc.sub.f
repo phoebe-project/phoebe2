@@ -43,8 +43,8 @@ c                        default: iclmax =    100
 c      iplmax    ..    maximum number of passbands
 c                        default: iplmax =     25
 c
-      parameter (Nmax=     100)
-      parameter (igsmax=  8331)
+      parameter (Nmax=     200)
+      parameter (igsmax= 33202)
       parameter (lpimax=   100)
       parameter (lpomax=100000)
       parameter (ispmax=   100)

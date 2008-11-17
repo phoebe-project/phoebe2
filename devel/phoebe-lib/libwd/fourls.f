@@ -9,7 +9,7 @@ c    This subroutine can handle nth only up to 6. Additional
 c      programming is needed for larger values.
 c
       parameter (maxdim=14)
-      parameter (maxobs=600)
+      parameter (maxobs=1200)
       dimension aa(*),bb(*),th(*),ro(*)
       dimension obs(maxdim*maxobs),cn(maxdim*maxdim),ll(maxdim),
      $mm(maxdim),cl(maxdim),out(maxdim)
