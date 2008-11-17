@@ -19,6 +19,8 @@ PHOEBE_star_surface *phoebe_star_surface_new ()
 	surface->elemno  = 0;
 	surface->theta   = NULL;
 	surface->phi     = NULL;
+	surface->dtheta  = NULL;
+	surface->dphi    = NULL;
 	surface->rho     = NULL;
 	surface->grad    = NULL;
 	surface->cos     = NULL;
@@ -79,6 +81,8 @@ int phoebe_star_surface_alloc (PHOEBE_star_surface *surface, int lat_raster)
 	surface->elemno  = 4*gridsize;
 	surface->theta   = phoebe_malloc (surface->elemno * sizeof (*(surface->theta)));
 	surface->phi     = phoebe_malloc (surface->elemno * sizeof (*(surface->phi)));
+	surface->dtheta  = phoebe_malloc (surface->elemno * sizeof (*(surface->dtheta)));
+	surface->dphi    = phoebe_malloc (surface->elemno * sizeof (*(surface->dphi)));
 	surface->rho     = phoebe_malloc (surface->elemno * sizeof (*(surface->rho)));
 	surface->grad    = phoebe_malloc (surface->elemno * sizeof (*(surface->grad)));
 	surface->cos     = phoebe_malloc (surface->elemno * sizeof (*(surface->pos)));
@@ -114,7 +118,7 @@ int phoebe_star_surface_rasterize (PHOEBE_star_surface *surface, int lat_raster)
 
 	int i, j, status;
 
-	double theta, phi;
+	double theta, phi, dtheta, dphi;
 	int mm;
 
 	int index = 0;
@@ -130,17 +134,32 @@ int phoebe_star_surface_rasterize (PHOEBE_star_surface *surface, int lat_raster)
 	for (i = 1; i <= lat_raster; i++) {
 		theta = M_PI/2.0 * ((double) i - 0.5) / ((double) lat_raster);
 		mm = 1 + (int) (1.3 * lat_raster * sin(theta));
-		for (j = 0; j < mm; j++) {
-			surface->theta[index] = theta;
-			surface->theta[surface->elemno/2-index-1] = M_PI - theta;
-			surface->theta[surface->elemno/2+index]   = theta;
-			surface->theta[surface->elemno-index-1]   = M_PI - theta;
 
+		dtheta = M_PI/2.0/lat_raster;
+		dphi = M_PI/mm;
+
+		for (j = 0; j < mm; j++) {
 			phi = M_PI*((double)j+0.5)/mm;
-			surface->phi[index] = phi;
-			surface->phi[surface->elemno/2-index-1] = phi;
-			surface->phi[surface->elemno/2+index] = 2*M_PI - phi;
-			surface->phi[surface->elemno-index-1] = 2*M_PI - phi;
+
+			surface->theta[index]                      = theta;
+			surface->theta[surface->elemno/2-index-1]  = M_PI - theta;
+			surface->theta[surface->elemno/2+index]    = theta;
+			surface->theta[surface->elemno-index-1]    = M_PI - theta;
+
+			surface->phi[index]                        = phi;
+			surface->phi[surface->elemno/2-index-1]    = phi;
+			surface->phi[surface->elemno/2+index]      = 2*M_PI - phi;
+			surface->phi[surface->elemno-index-1]      = 2*M_PI - phi;
+
+			surface->dtheta[index]                     = dtheta;
+			surface->dtheta[surface->elemno/2-index-1] = dtheta;
+			surface->dtheta[surface->elemno/2+index]   = dtheta;
+			surface->dtheta[surface->elemno-index-1]   = dtheta;
+
+			surface->dphi[index]                       = dphi;
+			surface->dphi[surface->elemno/2-index-1]   = dphi;
+			surface->dphi[surface->elemno/2+index]     = dphi;
+			surface->dphi[surface->elemno-index-1]     = dphi;
 
 			index++;
 		}
@@ -330,6 +349,8 @@ int phoebe_star_surface_free (PHOEBE_star_surface *surface)
 	if (surface->elemno != 0) {
 		free (surface->theta);
 		free (surface->phi);
+		free (surface->dtheta);
+		free (surface->dphi);
 		free (surface->rho);
 		free (surface->cos);
 		free (surface->pos);
@@ -514,6 +535,39 @@ int phoebe_star_surface_compute_pos_coordinates (PHOEBE_star_surface *surface, d
 		surface->pos[i].v =            sin(phase)*surface->cos[i].x +           cos(phase)*surface->cos[i].y;
 		surface->pos[i].w = -cos(incl)*cos(phase)*surface->cos[i].x + cos(incl)*sin(phase)*surface->cos[i].y + sin(incl)*surface->cos[i].z;
 	}
+
+	return SUCCESS;
+}
+
+int phoebe_star_area (PHOEBE_star *star, double *area)
+{
+	int i;
+
+	*area = 0;
+	for (i = 0; i < star->surface->elemno; i++)
+		*area += pow (star->surface->rho[i], 2) * sin (star->surface->theta[i]) / star->surface->cosbeta[i] * star->surface->dtheta[i] * star->surface->dphi[i];
+
+	return SUCCESS;
+}
+
+int phoebe_star_volume (PHOEBE_star *star, double *volume)
+{
+	int i;
+
+	*volume = 0;
+	for (i = 0; i < star->surface->elemno; i++)
+		*volume += pow (star->surface->rho[i], 3) * sin (star->surface->theta[i]) * star->surface->dtheta[i] * star->surface->dphi[i];
+	*volume /= 3.;
+
+	return SUCCESS;
+}
+
+int phoebe_star_effective_radius (PHOEBE_star *star, double *radius)
+{
+	double volume;
+
+	phoebe_star_volume (star, &volume);
+	*radius = pow (3.0*volume/4.0/M_PI, 1./3.);
 
 	return SUCCESS;
 }
