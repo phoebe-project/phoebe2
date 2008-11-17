@@ -7,6 +7,8 @@ typedef struct PHOEBE_star_surface {
 	int     elemno;
 	double *theta;
 	double *phi;
+	double *dtheta;
+	double *dphi;
 	double *rho;
 	double *cosbeta;
 
@@ -53,6 +55,14 @@ typedef struct PHOEBE_star {
 	PHOEBE_star_id       id;
 	PHOEBE_star_surface *surface;
 } PHOEBE_star;
+/*
+PHOEBE_star *phoebe_star_new     ();
+int          phoebe_star_set_id  (PHOEBE_star *star, int id);
+int          phoebe_star_free    (PHOEBE_star *star);
+*/
+int phoebe_star_effective_radius (PHOEBE_star *star, double *radius);
+int phoebe_star_area             (PHOEBE_star *star, double *area);
+int phoebe_star_volume           (PHOEBE_star *star, double *volume);
 
 /* Roche model computation: */
 
