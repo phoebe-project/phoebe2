@@ -1382,25 +1382,26 @@ scripter_ast_value scripter_compute_perr0_phase (scripter_ast_list *args)
 	 *
 	 * Synopsis:
 	 *
-	 *   compute_perr0_phase (omega, e)
+	 *   compute_perr0_phase (omega, e, pshift)
 	 *
 	 * Where:
 	 *
-	 *   omega  ..  argument of periastron
-	 *   e      ..  orbital eccentricity
+	 *   omega   ..  argument of periastron
+	 *   e       ..  orbital eccentricity
+	 *   pshift  ..  phase shift
 	 */
 
 	scripter_ast_value out;
-	double phase;
+	double phase, dummy;
 
 	scripter_ast_value *vals;
-	int status = scripter_command_args_evaluate (args, &vals, 2, 2, type_double, type_double);
+	int status = scripter_command_args_evaluate (args, &vals, 3, 3, type_double, type_double);
 	if (status != SUCCESS) {
 		out.type = type_void;
 		return out;
 	}
 
-	status = phoebe_calculate_periastron_phase (&phase, vals[0].value.d, vals[1].value.d);
+	status = phoebe_compute_critical_phases (&phase, &dummy, &dummy, &dummy, &dummy, vals[0].value.d, vals[1].value.d, vals[2].value.d);
 	if (status != SUCCESS) {
 		phoebe_scripter_error (status);
 		scripter_ast_value_array_free (vals, 2);
