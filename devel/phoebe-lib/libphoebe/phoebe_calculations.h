@@ -45,7 +45,7 @@ double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, doubl
 double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
 
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);
-int phoebe_calculate_periastron_phase    (double *pp, double perr0, double ecc);
+int phoebe_compute_critical_phases       (double *pp, double *scp, double *icp, double *anp, double *dnp, double perr0, double ecc, double pshift);
 
 int calculate_weighted_sum     (double *sum,     PHOEBE_vector *dep, PHOEBE_vector *weight);
 int calculate_weighted_average (double *average, PHOEBE_vector *dep, PHOEBE_vector *weight);
