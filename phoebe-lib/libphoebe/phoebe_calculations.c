@@ -733,44 +733,83 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	return SUCCESS;
 }
 
-int phoebe_calculate_periastron_phase (double *pp, double perr0, double ecc)
+double phoebe_compute_phase_from_true_anomaly (double T, double e, double omega, double pshift)
+{
+	/*
+	 * phoebe_compute_phase_from_true_anomaly:
+	 * @T: true anomaly
+	 * @e: eccentricity
+	 * @omega: argument of periastron
+	 * @pshift: phase shift
+	 *
+	 * Computes the phase of the passed true anomaly by solving the following
+	 * equations:
+	 *
+	 * Eccentric anomaly:
+	 * E = 2 atan ( sqrt ( (1-@e)/(1+@e) ) tan(@T/2) )
+	 *
+	 * Mean anomaly:
+	 * M = E - @e sin (E)
+	 * 
+	 * Phase:
+	 * P = (M + @omega)/(2*pi) - 0.25 + @pshift
+	 */
+
+	double E = 2*atan(sqrt((1-e)/(1+e)) * tan(T/2));
+	double M = E - e*sin(E);
+	return (M+omega)/(2.0*M_PI) - 0.25 + pshift;
+}
+
+int phoebe_compute_critical_phases (double *pp, double *scp, double *icp, double *anp, double *dnp, double perr0, double ecc, double pshift)
 {
 	/**
-	 * phoebe_calculate_periastron_phase:
-	 * @pp: placeholder for periastron passage phase
+	 * phoebe_compute_critical_phases:
+	 * @pp:  placeholder for periastron passage phase
+	 * @scp: placeholder for superior conjunction phase
+	 * @icp: placeholder for inferior conjunction phase
+	 * @anp: placeholder for ascending node phase
+	 * @dnp: placeholder for descending node phase
 	 * @perr0: argument of periastron, in radians
 	 * @ecc: orbital eccentricity
 	 *
-	 * Computes the periastron passage phase by solving the following equations:
-	 *
-	 * True anomaly:
-	 * upsilon = pi/2 - omega
-	 *
-	 * Eccentric anomaly:
-	 * E = 2 atan ( sqrt ( (1-e)/(1+e) ) tan(upsilon/2) )
-	 *
-	 * Mean anomaly:
-	 * M = E - e sin (E)
-	 *
-	 * Periastron passage:
-	 * @pp = 1 - M/(2 pi)
+	 * Computes critical phases by solving the Kepler problem for critical
+	 * true anomalies:
+	 * 
+	 * Periastron passage: @pp = @perr0/(2pi) - 0.25 + @pshift
+	 * Superior conjunction: T = pi/2-@perr0
+	 * Inferior conjunction: T = 3pi/2-@perr0
+	 * Ascending node:       T = -@perr0
+	 * Descending node:      T = pi-@perr0
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	/* True anomaly at perr0: */
-	double ta = M_PI/2.0 - perr0;
-
-	/* Eccentric anomaly at perr0: */
-	double E  = 2.0 * atan ( sqrt ((1-ecc)/(1+ecc)) * tan(ta/2.0) );
-
-	/* Mean anomaly at perr0: */
-	double M = E - ecc * sin (E);
-
+	double T;
+	
 	/* Periastron orbital phase: */
-	*pp = 1.0 - M/2.0/M_PI;
+	*pp  = perr0/(2.0*M_PI) - 0.25 + pshift;
 	if (*pp <= -0.5) *pp += 1.0;
 	if (*pp >   0.5) *pp -= 1.0;
+
+	/* Superior conjunction phase: */
+	*scp = phoebe_compute_phase_from_true_anomaly (M_PI/2.0-perr0, ecc, perr0, pshift);
+	if (*scp <= -0.5) *scp += 1.0;
+	if (*scp >   0.5) *scp -= 1.0;
+
+	/* Inferior conjunction phase: */
+	*icp = phoebe_compute_phase_from_true_anomaly (3*M_PI/2.0-perr0, ecc, perr0, pshift);
+	if (*icp <= -0.5) *icp += 1.0;
+	if (*icp >   0.5) *icp -= 1.0;
+
+	/* Ascending node phase: */
+	*anp = phoebe_compute_phase_from_true_anomaly (-perr0, ecc, perr0, pshift);
+	if (*anp <= -0.5) *anp += 1.0;
+	if (*anp >   0.5) *anp -= 1.0;
+
+	/* Descending node phase: */
+	*dnp = phoebe_compute_phase_from_true_anomaly (M_PI-perr0, ecc, perr0, pshift);
+	if (*dnp <= -0.5) *dnp += 1.0;
+	if (*dnp >   0.5) *dnp -= 1.0;
 
 	return SUCCESS;
 }
