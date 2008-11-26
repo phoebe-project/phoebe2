@@ -29,8 +29,11 @@ scripterdocdir = $(datarootdir)/phoebe_scripter/docs/reference
 scripterdoc_DATA = api.xml         \
                    intro.xml       \
 		   general.xml     \
-		   identifiers.xml \
-                   api.html
+		   identifiers.xml
+
+if XSLTPROC_FOUND
+scripterdoc_DATA += api.html
+endif
 
 BUILT_SOURCES = api.html
 CLEANFILES    = api.html

@@ -703,6 +703,8 @@ bison_built_sources
 GNUPLOT
 XSLTPROC_FLAGS
 XSLTPROC
+XSLTPROC_FOUND_TRUE
+XSLTPROC_FOUND_FALSE
 CPP
 GREP
 EGREP
@@ -4227,6 +4229,14 @@ fi
   if test $XSLTPROC; then
   docbookstate="yes"
   fi
+   if test "x$docbookstate" = "xyes"; then
+  XSLTPROC_FOUND_TRUE=
+  XSLTPROC_FOUND_FALSE='#'
+else
+  XSLTPROC_FOUND_TRUE='#'
+  XSLTPROC_FOUND_FALSE=
+fi
+
 
 # Check for C library features:
   ac_ext=c
@@ -6513,6 +6523,13 @@ echo "$as_me: error: conditional \"am__fastdepCC\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi
+if test -z "${XSLTPROC_FOUND_TRUE}" && test -z "${XSLTPROC_FOUND_FALSE}"; then
+  { { echo "$as_me:$LINENO: error: conditional \"XSLTPROC_FOUND\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+echo "$as_me: error: conditional \"XSLTPROC_FOUND\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
 
 : ${CONFIG_STATUS=./config.status}
 ac_clean_files_save=$ac_clean_files
@@ -7136,6 +7153,8 @@ bison_built_sources!$bison_built_sources$ac_delim
 GNUPLOT!$GNUPLOT$ac_delim
 XSLTPROC_FLAGS!$XSLTPROC_FLAGS$ac_delim
 XSLTPROC!$XSLTPROC$ac_delim
+XSLTPROC_FOUND_TRUE!$XSLTPROC_FOUND_TRUE$ac_delim
+XSLTPROC_FOUND_FALSE!$XSLTPROC_FOUND_FALSE$ac_delim
 CPP!$CPP$ac_delim
 GREP!$GREP$ac_delim
 EGREP!$EGREP$ac_delim
@@ -7143,7 +7162,7 @@ LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 93; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 95; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

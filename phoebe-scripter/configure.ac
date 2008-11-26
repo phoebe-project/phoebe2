@@ -208,6 +208,7 @@
   if test $XSLTPROC; then
   docbookstate="yes"
   fi
+  AM_CONDITIONAL([XSLTPROC_FOUND], [test "x$docbookstate" = "xyes"])
 
 # Check for C library features:
   AC_CHECK_HEADERS([inttypes.h limits.h stdlib.h string.h unistd.h])
