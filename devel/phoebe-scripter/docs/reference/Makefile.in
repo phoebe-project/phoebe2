@@ -57,6 +57,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+@XSLTPROC_FOUND_TRUE@am__append_1 = api.html
 subdir = docs/reference
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -175,12 +176,8 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 scripterdocdir = $(datarootdir)/phoebe_scripter/docs/reference
-scripterdoc_DATA = api.xml         \
-                   intro.xml       \
-		   general.xml     \
-		   identifiers.xml \
-                   api.html
-
+scripterdoc_DATA = api.xml intro.xml general.xml identifiers.xml \
+	$(am__append_1)
 BUILT_SOURCES = api.html
 CLEANFILES = api.html
 EXTRA_DIST = $(scripterdoc_DATA)
