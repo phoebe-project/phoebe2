@@ -27,6 +27,7 @@ int scripter_register_all_commands ()
 
 	/* Commands for initializing/formatting variables: */
 	scripter_command_register ("array",                        scripter_array);
+	scripter_command_register ("curve",                        scripter_curve);
 	scripter_command_register ("column",                       scripter_column);
 	scripter_command_register ("spectrum",                     scripter_spectrum);
 	scripter_command_register ("format",                       scripter_format);
@@ -669,6 +670,37 @@ scripter_ast_value scripter_array (scripter_ast_list *args)
 	}
 
 	phoebe_vector_pad (out.value.vec, 0.0);
+
+	scripter_ast_value_array_free (vals, 1);
+	return out;
+}
+
+scripter_ast_value scripter_curve (scripter_ast_list *args)
+{
+	/*
+	 * This command reads in an observed curve.
+	 *
+	 * Synopsis:
+	 *
+	 *   set vec = curve ("/path/to/observed/curve")
+	 */
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+
+	int status = scripter_command_args_evaluate (args, &vals, 1, 1, type_string);
+	if (status != SUCCESS) {
+		out.type = type_void;
+		return out;
+	}
+
+	out.type = type_curve;
+	out.value.curve = phoebe_curve_new_from_file (vals[0].value.str);
+
+	if (!out.value.curve) {
+		phoebe_scripter_output ("file %s cannot be opened, aborting.", vals[0].value.str);
+		out.type = type_void;
+	}
 
 	scripter_ast_value_array_free (vals, 1);
 	return out;
@@ -1402,6 +1434,7 @@ scripter_ast_value scripter_compute_perr0_phase (scripter_ast_list *args)
 	}
 
 	status = phoebe_compute_critical_phases (&phase, &dummy, &dummy, &dummy, &dummy, vals[0].value.d, vals[1].value.d, vals[2].value.d);
+
 	if (status != SUCCESS) {
 		phoebe_scripter_error (status);
 		scripter_ast_value_array_free (vals, 2);
