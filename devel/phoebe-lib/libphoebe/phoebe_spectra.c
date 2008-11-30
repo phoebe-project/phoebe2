@@ -382,8 +382,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	bin_centers = phoebe_vector_new ();
 
 	while (!feof (input)) {
-		fgets (line, 254, input);
-		if (feof (input)) break;
+		if (!fgets (line, 254, input)) break;
 
 		/* Remove empty lines:                                                */
 		if ( (strptr = strchr (line, '\n')) ) *strptr = '\0';
@@ -1201,28 +1200,24 @@ int phoebe_spectrum_multiply_by (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, d
 
 int phoebe_spectrum_integrate (PHOEBE_spectrum *spectrum, double ll, double ul, double *result)
 {
-	/*
-	 * This function integrates the spectrum on the wavelength interval
-	 * [ll, ul]. The values ll and ul are optional; if they are absent,
-	 * default values (the whole spectrum range) will be used.
-	 *
-	 * The function evaluates the following expression:
+	/**
+	 * phoebe_spectrum_integrate:
+	 * @spectrum: input spectrum
+	 * @ll: lower wavelength interval limit
+	 * @ul: upper wavelength interval limit
+	 * @result: placeholder for the integral value
+	 * 
+	 * Integrates the @spectrum on the wavelength interval [@ll, @ul] using a
+	 * simple rectangular rule:
 	 *
 	 *   I = \int_ll^ul s (\lambda) d\lambda = \sum s (\lambda) \Delta \lambda
+	 * 
+	 * The units of @ll and @ul must match the units of the passed @spectrum.
 	 *
 	 * The sum goes over all covered \Delta \lambda's, taking into account
 	 * the partial coverage at interval borders.
 	 *
-	 * Input parameters:
-	 *
-	 *   spectrum  ..  input spectrum
-	 *   ll        ..  lower wavelength interval limit
-	 *   ul        ..  upper wavelength interval limit
-	 *   result    ..  the value of the integral I
-	 *
-	 * Output values:
-	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	int l = 1;
@@ -1237,9 +1232,9 @@ int phoebe_spectrum_integrate (PHOEBE_spectrum *spectrum, double ll, double ul, 
 		}
 	}
 
-	while (ul > spectrum->data->range[l]) {
+	while (ul > spectrum->data->range[l-1]) {
 		sum += (min (spectrum->data->range[l], ul) - max (ll, spectrum->data->range[l-1])) * spectrum->data->val[l-1];
-		l++; if (l == spectrum->data->bins) break;
+		if (l == spectrum->data->bins) break; l++;
 	}
 
 	*result = sum;
