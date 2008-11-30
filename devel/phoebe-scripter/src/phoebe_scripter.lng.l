@@ -25,7 +25,6 @@ LETTER     [a-zA-Z]
 DIGIT      [0-9]
 UNDERSCORE "\_"
 WSPACE     [ \t\n]
-FUNC       sin|cos|tan|asin|acos|atan|exp|ln|log|sqrt|norm|rand|trunc|round|int|frac|abs|dim|strlen|isnan
 INT	       {DIGIT}+
 BOOL	   TRUE|FALSE|YES|NO
 REAL       {DIGIT}+"."{DIGIT}*
@@ -179,10 +178,6 @@ testme          return TESTME;
             /* Drop comments */
 			}
 
-{FUNC}		{
-			yylval.str = strdup (yytext);
-			return FUNCTION;
-			}
 {INT}		{
 			yylval.idx = atoi (yytext);
 			return INTEGER;
@@ -199,7 +194,8 @@ testme          return TESTME;
 {WORD}		{
 			int dummy;
 			yylval.str = strdup (yytext);
-			if (scripter_command_get_index (yylval.str, &dummy) == SUCCESS)  return COMMAND;
+			if (scripter_function_defined (yylval.str)) return FUNCTION;
+			if (scripter_command_get_index (yylval.str, &dummy) == SUCCESS) return COMMAND;
 			if (phoebe_is_qualifier (yylval.str)) return QUALIFIER;
 			return IDENT;
 			}

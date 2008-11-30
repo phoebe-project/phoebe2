@@ -460,3 +460,64 @@ int scripter_commands_free_all (PHOEBE_scripter_command_table *table)
 
 	return SUCCESS;
 }
+
+/******************************************************************************/
+
+int scripter_function_register (char *func)
+{
+	scripter_functions->no++;
+	scripter_functions->func = phoebe_realloc (scripter_functions->func, scripter_functions->no * sizeof (*(scripter_functions->func)));
+
+	scripter_functions->func[scripter_functions->no-1] = strdup (func);
+
+	return SUCCESS;
+}
+
+int scripter_function_register_all ()
+{
+	scripter_function_register ("sin");
+	scripter_function_register ("cos");
+	scripter_function_register ("tan");
+	scripter_function_register ("asin");
+	scripter_function_register ("acos");
+	scripter_function_register ("atan");
+	scripter_function_register ("exp");
+	scripter_function_register ("ln");
+	scripter_function_register ("log");
+	scripter_function_register ("sqrt");
+	scripter_function_register ("norm");
+	scripter_function_register ("rand");
+	scripter_function_register ("trunc");
+	scripter_function_register ("round");
+	scripter_function_register ("int");
+	scripter_function_register ("frac");
+	scripter_function_register ("abs");
+	scripter_function_register ("dim");
+	scripter_function_register ("strlen");
+	scripter_function_register ("isnan");
+
+	return SUCCESS;
+}
+
+int scripter_function_free_all (PHOEBE_scripter_function_table *table)
+{
+	int i;
+
+	for (i = 0; i < table->no; i++)
+		free (table->func[i]);
+	free (table->func);
+	free (table);
+
+	return SUCCESS;
+}
+
+bool scripter_function_defined (char *func)
+{
+	int i;
+
+	for (i = 0; i < scripter_functions->no; i++)
+		if (strcmp (func, scripter_functions->func[i]) == 0)
+			return TRUE;
+
+	return FALSE;
+}

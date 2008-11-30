@@ -142,11 +142,17 @@ int scripter_init ()
 	/* Initialize all scripter-related parameters: */
 	scripter_parameters_init ();
 
-	/* Initialize the table of scripter commands:                             */
+	/* Initialize the table of scripter commands: */
 	scripter_commands = phoebe_malloc (sizeof (*scripter_commands));
 	scripter_commands->no = 0;
 	scripter_commands->command = NULL;
 	scripter_register_all_commands ();
+
+	/* Initialize the table of builtin functions: */
+	scripter_functions = phoebe_malloc (sizeof (*scripter_functions));
+	scripter_functions->no = 0;
+	scripter_functions->func = NULL;
+	scripter_function_register_all ();
 
 	fprintf (PHOEBE_output, "\nThis is %s scripter.\n\n", PHOEBE_VERSION_NUMBER);
 
@@ -303,17 +309,20 @@ int scripter_execute_script_from_buffer (char *buffer)
 
 int scripter_quit ()
 {
-	/* This function cleans up the memory after all scripter elements.        */
+	/* This function cleans up the memory after all scripter elements. */
 
-	/* Program arguments:                                                     */
+	/* Program arguments: */
 	if (PHOEBE_args.SCRIPT_SWITCH) free (PHOEBE_args.SCRIPT_NAME);
 	if (PHOEBE_args.PARAMETER_SWITCH) free (PHOEBE_args.PARAMETER_FILE);
 
-	/* Symbol table:                                                          */
+	/* Symbol table: */
 	symbol_table_free_all (symbol_table);
 
-	/* Scripter commands:                                                     */
+	/* Scripter commands: */
 	scripter_commands_free_all (scripter_commands);
+
+	/* Scripter builtin functions: */
+	scripter_function_free_all (scripter_functions);
 
 	return SUCCESS;	
 }
