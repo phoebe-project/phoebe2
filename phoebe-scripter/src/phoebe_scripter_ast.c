@@ -1837,7 +1837,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				body   = id->link->value.node.args->next->elem;
 				params = id->link->value.node.args->next->next;
 
-				/* Now we have to evaluate the function arguments:            */
+				/* Now we have to evaluate the function arguments: */
 				for (list = in->value.node.args->next; list; list = list->next) {
 					scripter_ast_value val = scripter_ast_evaluate (list->elem);
 					if (val.type == type_void) {
@@ -1885,7 +1885,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 					out.type = type_void; return out;
 				}
 
-				/* Start a new environment where the function will be evaluated:      */
+				/* Start a new environment where the function will be evaluated: */
 				symbol_table = symbol_table_add (symbol_table, in->value.node.args->elem->value.variable);
 
 				for (list = params, arglist = arguments; list; list = list->next, arglist = arglist->next)
@@ -1915,7 +1915,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 					s = s->next;
 				}
 
-				/* The function was executed, free the symbol table:          */
+				/* The function was executed, free the symbol table: */
 				symbol_table = symbol_table_remove (symbol_table, in->value.node.args->elem->value.variable);
 
 				return out;

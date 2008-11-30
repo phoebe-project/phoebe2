@@ -78,4 +78,18 @@ int                      scripter_command_get_index (char *name, int *index);
 
 int scripter_commands_free_all (PHOEBE_scripter_command_table *table);
 
+/******************************************************************************/
+
+typedef struct PHOEBE_scripter_function_table {
+	int no;
+	char **func;
+} PHOEBE_scripter_function_table;
+
+PHOEBE_scripter_function_table *scripter_functions;
+
+int   scripter_function_register     (char *func);
+int   scripter_function_register_all ();
+bool  scripter_function_defined      (char *func);
+int   scripter_function_free_all     (PHOEBE_scripter_function_table *table);
+
 #endif
