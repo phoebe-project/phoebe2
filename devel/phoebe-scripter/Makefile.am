@@ -25,7 +25,7 @@
 #                                                                      #
 ########################################################################
 
-ACLOCAL_AMFLAGS = -I m4
+ACLOCAL_AMFLAGS = -I autoconfig
 
 SUBDIRS = help src docs/reference
 
@@ -33,4 +33,3 @@ EXTRA_DIST = autoconfig/compile                      \
              autoconfig/depcomp                      \
              autoconfig/install-sh                   \
              autoconfig/missing
-

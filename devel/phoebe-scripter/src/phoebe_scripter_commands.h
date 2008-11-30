@@ -20,6 +20,7 @@ scripter_ast_value scripter_plot_eb_using_gnuplot         (scripter_ast_list *ar
 scripter_ast_value scripter_plot_using_gnuplot            (scripter_ast_list *args);
 scripter_ast_value scripter_set_spectra_repository        (scripter_ast_list *args);
 scripter_ast_value scripter_array                         (scripter_ast_list *args);
+scripter_ast_value scripter_curve                         (scripter_ast_list *args);
 scripter_ast_value scripter_column                        (scripter_ast_list *args);
 scripter_ast_value scripter_spectrum                      (scripter_ast_list *args);
 scripter_ast_value scripter_format                        (scripter_ast_list *args);

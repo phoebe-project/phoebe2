@@ -210,6 +210,10 @@
   fi
   AM_CONDITIONAL([XSLTPROC_FOUND], [test "x$docbookstate" = "xyes"])
 
+# Optional plugin support:
+  AC_LIBTOOL_DLOPEN
+  AC_PROG_LIBTOOL
+
 # Check for C library features:
   AC_CHECK_HEADERS([inttypes.h limits.h stdlib.h string.h unistd.h])
   AC_HEADER_STDBOOL
@@ -247,6 +251,7 @@
   echo "Top-level install directory:      $prefix"
   echo "Scripter binary goes to:          $prefix/bin"
   echo "Scripter help files go to:        $prefix/share/phoebe_scripter"
+  echo "Plugins go to:                    $prefix/lib"
   echo "Supported plotting packages:      $plotters"
   echo "GNU readline library support:     $readlinesupport"
   echo "Build API documentation:          $docbookstate"

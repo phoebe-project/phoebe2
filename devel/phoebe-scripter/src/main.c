@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ltdl.h>
+
 #include <phoebe/phoebe.h>
 
 #include "phoebe_scripter_ast.h"
@@ -82,6 +84,23 @@ int main (int argc, char *argv[])
 	status = scripter_init ();
 	if (status != SUCCESS)
 		phoebe_fatal (phoebe_scripter_error (status));
+
+	{
+		int (*initfunc) ();
+		lt_dlhandle handle;
+		lt_dlinit ();
+		status = lt_dladdsearchdir ("/usr/local/lib/phoebe-plugins");
+		if (status != SUCCESS)
+			printf ("addsearchdir failed.\n");
+		handle = lt_dlopen ("phoebe_polyfit.la");
+		if (!handle) {
+			phoebe_scripter_output ("to test plugins, you need to be in the src/ directory.\n");
+		}
+		else {
+			initfunc = lt_dlsym (handle, "phoebe_plugin_start");
+			initfunc ();
+		}
+	}
 
 	phoebe_debug ("  entering the main scripter loop.\n");
 	phoebe_debug ("PHOEBE start-up successful.\n");
