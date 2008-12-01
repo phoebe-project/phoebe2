@@ -10,6 +10,17 @@
 
 scripter_ast_value scripter_polyfit (scripter_ast_list *args)
 {
+	/*
+	 * Synopsis:
+	 *
+	 *   polyfit (curve [, indeps])
+	 *
+	 * @curve:  input data to be polyfit,
+	 * @indeps: optional array of independent data.
+	 *
+	 * If @indeps is missing, it is taken from @curve.
+	 */
+
 	scripter_ast_value out;
 	scripter_ast_value *vals;
 	int status, i, nobs, iter;
@@ -25,7 +36,7 @@ scripter_ast_value scripter_polyfit (scripter_ast_list *args)
 
 	out.type = type_void;
 
-	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_curve);
+	status = scripter_command_args_evaluate (args, &vals, 1, 2, type_curve, type_vector);
 	if (status != SUCCESS) return out;
 
 	options = polyfit_options_default ();
@@ -59,6 +70,7 @@ scripter_ast_value scripter_polyfit (scripter_ast_list *args)
 	/* The initial phase intervals for knots: */
 	if (!knots) {
 		knots = malloc (options->knots * sizeof (*knots));
+#warning FIX_ME_THIS_WILL_FAIL_FOR_ANY_ORDER_THAT_IS_NOT_4
 		knots[0] = -0.4; knots[1] = -0.1; knots[2] = 0.1; knots[3] = 0.4;
 	}
 
@@ -124,7 +136,27 @@ scripter_ast_value scripter_polyfit (scripter_ast_list *args)
 
 	/* Final run: */
 	polyfit (result, data, nobs, knots, 0, options);
-	polyfit_print (result, options, 1);
+	polyfit_print (result, options, 1, 0);
+
+	/* Compute the return value: */
+	if (vals[1].type == type_void) {
+		out.type = type_curve;
+		out.value.curve = phoebe_curve_new ();
+		phoebe_curve_alloc (out.value.curve, nobs);
+		for (i = 0; i < nobs; i++) {
+			out.value.curve->indep->val[i] = vals[0].value.curve->indep->val[i];
+			out.value.curve->dep->val[i]   = polyfit_compute (result, options, out.value.curve->indep->val[i]);
+		}
+	}
+	else {
+		out.type = type_curve;
+		out.value.curve = phoebe_curve_new ();
+		phoebe_curve_alloc (out.value.curve, vals[1].value.vec->dim);
+		for (i = 0; i < vals[1].value.vec->dim; i++) {
+			out.value.curve->indep->val[i] = vals[1].value.vec->val[i];
+			out.value.curve->dep->val[i]   = polyfit_compute (result, options, out.value.curve->indep->val[i]);
+		}
+	}
 
 	gsl_rng_free (r);
 	free (test);
@@ -134,7 +166,7 @@ scripter_ast_value scripter_polyfit (scripter_ast_list *args)
 	polyfit_solution_free (result, options);
 	polyfit_options_free (options);
 
-	scripter_ast_value_array_free (vals, 1);
+	scripter_ast_value_array_free (vals, 2);
 	return out;
 }
 
