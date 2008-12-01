@@ -32,5 +32,5 @@ int               polyfit_sort_by_phase   (const void *a, const void *b);
 int               polyfit_sort_by_value   (const void *a, const void *b);
 int               polyfit_find_knots      (polyfit_triplet *data, int nobs, double **knots, polyfit_options *options);
 double            polyfit_compute         (polyfit_solution *result, polyfit_options *options, double phase);
-int               polyfit_print           (polyfit_solution *result, polyfit_options *options, int VERBOSE);
+int               polyfit_print           (polyfit_solution *result, polyfit_options *options, int VERBOSE, int PRINT_SOLUTION);
 int               polyfit                 (polyfit_solution *result, polyfit_triplet *data, int nobs, double *knots, int PRINT, polyfit_options *options);

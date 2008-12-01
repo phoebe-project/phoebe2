@@ -414,7 +414,7 @@ int polyfit (polyfit_solution *result, polyfit_triplet *data, int nobs, double *
 	return SUCCESS;
 }
 
-int polyfit_print (polyfit_solution *result, polyfit_options *options, int VERBOSE)
+int polyfit_print (polyfit_solution *result, polyfit_options *options, int VERBOSE, int PRINT_SOLUTION)
 {
 	int i, j, k;
 	double knot, dknot;
@@ -482,35 +482,12 @@ int polyfit_print (polyfit_solution *result, polyfit_options *options, int VERBO
 			printf ("\n");
 	}
 
-	if (!options->ann_compat) {
+	if (!options->ann_compat && PRINT_SOLUTION) {
 		double phase, flux;
 		printf ("# \n# Theoretical light curve:\n# \n#   Phase:\t   Flux:\n");
 		for (i = 0; i <= 200; i++) {
 			phase = -0.5 + (double) i / 200.0;
-			if (phase < result->knots[0]) {
-				j = options->knots-1;
-				knot = result->knots[j]-1.0;
-				dknot = result->knots[0]-result->knots[options->knots-1]+1.0;
-			}
-			else if (phase > result->knots[options->knots-1]) {
-				j = options->knots-1;
-				knot = result->knots[j];
-				dknot = result->knots[0]-result->knots[options->knots-1]+1.0;
-			}
-			else {
-				j = 0;
-				while (result->knots[j+1] < phase && j < options->knots-1) j++;
-				knot = result->knots[j];
-				dknot = result->knots[j+1]-result->knots[j];
-			}
-
-			flux = result->ck[j][options->polyorder];
-			for (k = 0; k < options->polyorder; k++) {
-				flux += result->ck[j][k] * pow (phase-knot, options->polyorder-k);
-				if (j == options->knots-1 && k < options->polyorder-1)
-					flux -= result->ck[j][k] * (phase-knot) * pow (dknot, options->polyorder-k-1);
-			}
-
+			flux = polyfit_compute (result, options, phase);
 			printf ("  % lf\t% lf\n", phase, flux);
 		}
 	}
