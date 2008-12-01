@@ -795,7 +795,7 @@ scripter_ast_value scripter_format (scripter_ast_list *args)
 	scripter_ast_value out;
 	scripter_ast_value *vals;
 
-	int status = scripter_command_args_evaluate (args, &vals, 1, 2, type_any, type_string);
+	int status = scripter_command_args_evaluate (args, &vals, 2, 2, type_any, type_string);
 	if (status != SUCCESS) {
 		out.type = type_void;
 		return out;
