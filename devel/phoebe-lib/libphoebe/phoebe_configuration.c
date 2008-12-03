@@ -91,6 +91,9 @@ int phoebe_config_populate ()
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
 	sprintf (buffer, "%s/share/phoebe/kurucz", PHOEBE_TOP_DIR);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    buffer);
+
+	sprintf (buffer, "%s/lib/phoebe/plugins", PHOEBE_TOP_DIR);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_PLUGINS_DIR",   buffer);
 #endif
 
 	return SUCCESS;
@@ -507,7 +510,9 @@ int phoebe_config_peek (char *filename)
 	if (!config)
 		return ERROR_PHOEBE_CONFIG_OPEN_FAILED;
 
-	fgets (entry, 255, config);
+	if (!fgets (entry, 255, config))
+		return ERROR_PHOEBE_CONFIG_OPEN_FAILED;
+
 	if (!strchr (entry, '='))
 		return ERROR_PHOEBE_CONFIG_LEGACY_FILE;
 
