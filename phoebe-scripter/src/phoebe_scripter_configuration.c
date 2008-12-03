@@ -70,7 +70,7 @@ int scripter_create_config_file ()
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 	{
 		char *basedir, *defdir, *tempdir, *datadir, *ptfdir, *lddir, *kuruczdir;
-		char *ldswitch, *ldintern, *kuruczswitch, *yn;
+		char *plugindir, *ldswitch, *ldintern, *kuruczswitch, *yn;
 		char prompt[255], defaultdir[255];
 
 		printf ("Please supply names of directories to be used by PHOEBE:\n");
@@ -152,6 +152,15 @@ int scripter_create_config_file ()
 		}
 		if (ptfdir[strlen(datadir)-1] == '/') ptfdir[strlen(datadir)-1] = '\0';
 
+		/************************* PLUGINS DIRECTORY **************************/
+
+		phoebe_config_entry_get ("PHOEBE_PLUGINS_DIR", &pathname);
+
+		sprintf (prompt, "PHOEBE plugins directory   [%s]: ", pathname);
+		plugindir = readline (prompt);
+		if (strcmp (plugindir, "") == 0) plugindir = strdup (pathname);
+		if (plugindir[strlen(plugindir)-1] == '/') plugindir[strlen(plugindir)-1] = '\0';
+
 		/****************************** LD TABLES *****************************/
 
 		ldswitch = readline ("Are limb darkening tables present on your system [y/N]? ");
@@ -206,6 +215,7 @@ int scripter_create_config_file ()
 		printf ("PHOEBE temporary directory:  %s\n", tempdir);
 		printf ("PHOEBE data directory:       %s\n", datadir);
 		printf ("PHOEBE passbands directory:  %s\n", ptfdir);
+		printf ("PHOEBE plugins directory:    %s\n", plugindir);
 
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N')
 			printf ("Limb darkening tables:       not present\n");
@@ -231,6 +241,7 @@ int scripter_create_config_file ()
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR",     tempdir);
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR",     datadir);
 			phoebe_config_entry_set ("PHOEBE_PTF_DIR",      ptfdir);
+			phoebe_config_entry_set ("PHOEBE_PLUGINS_DIR",  plugindir);
 
 			if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N') {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
@@ -269,7 +280,7 @@ int scripter_create_config_file ()
 	/* This part is executed if GNU readline isn't found: */
 	{
 		char basedir[255], defdir[255], tempdir[255], datadir[255], ptfdir[255], lddir[255], kuruczdir[255];
-		char ldswitch[255], ldintern[255], kuruczswitch[255], yn[255];
+		char plugindir[255], ldswitch[255], ldintern[255], kuruczswitch[255], yn[255];
 		
 		printf ("Please supply names of directories to be used by PHOEBE:\n");
 		printf ("  if you are happy with defaults enclosed in [...], just press ENTER.\n\n");
@@ -340,6 +351,15 @@ int scripter_create_config_file ()
 		}
 		if (ptfdir[strlen(datadir)-1] == '/') ptfdir[strlen(datadir)-1] = '\0';
 		
+		/************************* PLUGINS DIRECTORY **************************/
+		
+		phoebe_config_entry_get ("PHOEBE_PLUGINS_DIR", &pathname);
+		
+		printf ("PHOEBE plugins directory   [%s]: ", pathname);
+		fgets (plugindir, 255, stdin); plugindir[strlen(plugindir)-1] = '\0';
+		if (strcmp (plugindir, "") == 0) sprintf (plugindir, "%s", pathname);
+		if (plugindir[strlen(plugindir)-1] == '/') plugindir[strlen(plugindir)-1] = '\0';
+
 		/****************************** LD TABLES *****************************/
 		
 		printf ("Are limb darkening tables present on your system [y/N]? ");
@@ -393,6 +413,7 @@ int scripter_create_config_file ()
 		printf ("PHOEBE temporary directory:  %s\n", tempdir);
 		printf ("PHOEBE data directory:       %s\n", datadir);
 		printf ("PHOEBE passbands directory:  %s\n", ptfdir);
+		printf ("PHOEBE plugins directory:    %s\n", plugindir);
 		
 		if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N')
 			printf ("Limb darkening tables:       not present\n");
@@ -420,6 +441,7 @@ int scripter_create_config_file ()
 			phoebe_config_entry_set ("PHOEBE_TEMP_DIR",     tempdir);
 			phoebe_config_entry_set ("PHOEBE_DATA_DIR",     datadir);
 			phoebe_config_entry_set ("PHOEBE_PTF_DIR",      ptfdir);
+			phoebe_config_entry_set ("PHOEBE_PLUGINS_DIR",  plugindir);
 			
 			if (strcmp (ldswitch, "") == 0 || ldswitch[0] == 'n' || ldswitch[0] == 'N') {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", 0);
