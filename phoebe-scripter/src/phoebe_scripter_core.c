@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ltdl.h>
 
 #include <phoebe/phoebe.h>
 
@@ -112,6 +113,38 @@ int scripter_parameters_init ()
 
 	phoebe_parameter_add ("scripter_verbosity_level",          "The level of scripter verbosity",                   KIND_PARAMETER,  NULL, "%d",  0.0,    0.0,    0.0,  NO, TYPE_INT,          1);
 	phoebe_parameter_add ("scripter_ordinate_reversed_switch", "Reverse the direction of the ordinate on LC plots", KIND_SWITCH,     NULL, "%d",  0.0,    0.0,    0.0,  NO, TYPE_BOOL,         NO);
+
+	return SUCCESS;
+}
+
+int scripter_plugins_init ()
+{
+	int (*initfunc) ();
+	int status;
+	lt_dlhandle handle;
+	char *path;
+
+	status = phoebe_config_entry_get ("PHOEBE_PLUGINS_DIR", &path);
+	if (status != SUCCESS)
+		return status;
+
+	lt_dlinit ();
+
+	status = lt_dladdsearchdir (path);
+	if (status != SUCCESS)
+		return ERROR_PLUGINS_DIR_LOAD_FAILED;
+
+	fprintf (PHOEBE_output, "Loading scripter plugins:\n");
+
+	handle = lt_dlopen ("phoebe_polyfit.la");
+	if (!handle)
+		phoebe_scripter_output ("* polyfit plugin not found in %s.\n", path);
+	else {
+		initfunc = lt_dlsym (handle, "phoebe_plugin_start");
+		initfunc ();
+	}
+
+	fprintf (PHOEBE_output, "\n");
 
 	return SUCCESS;
 }

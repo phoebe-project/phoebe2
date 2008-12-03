@@ -20,6 +20,7 @@ int parse_startup_line (int argc, char *argv[]);
 int scripter_init ();
 int scripter_config_populate ();
 int scripter_parameters_init ();
+int scripter_plugins_init ();
 int scripter_main_loop ();
 int scripter_execute_script_from_stream (FILE *stream);
 int scripter_execute_script_from_buffer (char *buffer);
