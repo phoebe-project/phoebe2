@@ -312,6 +312,7 @@ int phoebe_ld_attach (PHOEBE_ld *table)
 	passband = phoebe_passband_lookup (filter);
 
 	if (!passband) {
+		phoebe_lib_warning ("loading LD tables for passband %s failed.\n", filter);
 		free (filter);
 		return ERROR_LD_TABLE_PASSBAND_NOT_FOUND;
 	}
@@ -358,11 +359,8 @@ int phoebe_ld_attach_all (char *dir)
 		table = phoebe_ld_new_from_file (filename);
 		if (!table)
 			phoebe_debug ("File %s skipped.\n", filename);
-		else {
-			status = phoebe_ld_attach (table);
-			if (status != SUCCESS)
-				phoebe_lib_warning ("%s", phoebe_error (status));
-		}
+		else
+			phoebe_ld_attach (table);
 	}
 
 	phoebe_close_directory (&ld_dir);
