@@ -167,8 +167,8 @@ int scripter_config_populate ()
 	 * automatically.
 	 */
 
-	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_BASE_DIR", "/usr/local/share/phoebe_scripter");
-	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_HELP_DIR", "/usr/local/share/phoebe_scripter/help");
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_BASE_DIR",    "/usr/local/share/phoebe_scripter");
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_HELP_DIR",    "/usr/local/share/phoebe_scripter/help");
 
 	return SUCCESS;
 }

@@ -10,6 +10,7 @@
 #include "phoebe_scripter_configuration.h"
 #include "phoebe_scripter_core.h"
 #include "phoebe_scripter_error_handling.h"
+#include "phoebe_scripter_io.h"
 #include "phoebe_scripter.lng.h"
 #include "phoebe_scripter.grm.h"
 
@@ -39,6 +40,32 @@ int main (int argc, char *argv[])
 
 	phoebe_debug ("  configuring PHOEBE...\n");
 	phoebe_configure ();
+
+	phoebe_debug ("  initializing the scripter.\n");
+
+	status = scripter_init ();
+	if (status != SUCCESS)
+		phoebe_fatal (phoebe_scripter_error (status));
+
+	fprintf (PHOEBE_output, "Loading scripter plugins:\n");
+	{
+		int (*initfunc) ();
+		lt_dlhandle handle;
+
+		lt_dlinit ();
+		status = lt_dladdsearchdir ("/usr/local/lib/phoebe-plugins");
+		if (status != SUCCESS)
+			phoebe_scripter_output ("dynamic loader's addsearchdir failed.\n");
+		handle = lt_dlopen ("phoebe_polyfit.la");
+		if (!handle) {
+			phoebe_scripter_output ("to use plugins, you need to install them in /usr/local/lib/phoebe-plugins.\n");
+		}
+		else {
+			initfunc = lt_dlsym (handle, "phoebe_plugin_start");
+			initfunc ();
+		}
+	}
+	fprintf (PHOEBE_output, "\n");
 
 	if (PHOEBE_args.CONFIGURE_SWITCH == 1) {
 		phoebe_debug ("  found a '-c' switch, proceeding to configuration mode.\n");
@@ -78,30 +105,7 @@ int main (int argc, char *argv[])
 		scripter_quit ();
 		phoebe_quit ();
 	}
-
-	phoebe_debug ("  initializing the scripter.\n");
-
-	status = scripter_init ();
-	if (status != SUCCESS)
-		phoebe_fatal (phoebe_scripter_error (status));
-
-	{
-		int (*initfunc) ();
-		lt_dlhandle handle;
-		lt_dlinit ();
-		status = lt_dladdsearchdir ("/usr/local/lib/phoebe-plugins");
-		if (status != SUCCESS)
-			printf ("addsearchdir failed.\n");
-		handle = lt_dlopen ("phoebe_polyfit.la");
-		if (!handle) {
-			phoebe_scripter_output ("to test plugins, you need to be in the src/ directory.\n");
-		}
-		else {
-			initfunc = lt_dlsym (handle, "phoebe_plugin_start");
-			initfunc ();
-		}
-	}
-
+	
 	phoebe_debug ("  entering the main scripter loop.\n");
 	phoebe_debug ("PHOEBE start-up successful.\n");
 	scripter_main_loop ();
