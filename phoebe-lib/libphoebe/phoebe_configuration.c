@@ -71,6 +71,8 @@ int phoebe_config_populate ()
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
 	sprintf(buffer, "%s\\kurucz", path);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_KURUCZ_DIR",    buffer);
+	sprintf(buffer, "%s\\plugins", path);
+	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_PLUGINS_DIR",    buffer);
 #else
 	/* Linux & Mac: */
 	sprintf (buffer, "%s/share/phoebe", PHOEBE_TOP_DIR);
