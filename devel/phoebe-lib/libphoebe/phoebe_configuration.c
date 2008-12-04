@@ -66,6 +66,7 @@ int phoebe_config_populate ()
 
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_LD_SWITCH",     TRUE);
 	sprintf(buffer, "%s\\ld", path);
+	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_LD_INTERN",     TRUE);
 	phoebe_config_entry_add (TYPE_STRING, "PHOEBE_LD_DIR",        buffer);
 
 	phoebe_config_entry_add (TYPE_BOOL,   "PHOEBE_KURUCZ_SWITCH", FALSE);
