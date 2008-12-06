@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "phoebe_scripter_ast.h"
 
-FILE *PHOEBE_output;
+extern FILE *PHOEBE_output;
 
 int phoebe_vector_print             (PHOEBE_vector *vec);
 int phoebe_array_print              (PHOEBE_array *array);
