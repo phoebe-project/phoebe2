@@ -1,5 +1,5 @@
 #ifndef PHOEBE_SCRIPTER_ARITHMETICS_H
-	#define PHOEBE_SCRIPTER_ARITHMETICS_H
+	#define PHOEBE_SCRIPTER_ARITHMETICS_H 1
 
 #include "phoebe_scripter_ast.h"
 
