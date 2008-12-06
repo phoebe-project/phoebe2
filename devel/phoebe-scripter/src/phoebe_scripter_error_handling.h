@@ -1,5 +1,5 @@
 #ifndef PHOEBE_SCRIPTER_ERROR_HANDLING_H
-	#define PHOEBE_SCRIPTER_ERROR_HANDLING_H
+	#define PHOEBE_SCRIPTER_ERROR_HANDLING_H 1
 
 #include <unistd.h>
 #include <phoebe/phoebe.h>
