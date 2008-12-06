@@ -412,7 +412,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	/* Guess a sampling power: */
 	if (spectrum->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR) {
 		spectrum->Rs = 1.0/(spectrum->data->range[1]-spectrum->data->range[0]);
-		spectrum->R  = (spectrum->data->range[spectrum->data->bins]-spectrum->data->range[0])/2.0/(spectrum->data->range[1]-spectrum->data->range[0]);
+		spectrum->R  = (spectrum->data->range[spectrum->data->bins]+spectrum->data->range[0])/2.0/(spectrum->data->range[1]-spectrum->data->range[0]);
 	}
 	else
 		spectrum->Rs = 0.5*(spectrum->data->range[0]+spectrum->data->range[1])/(spectrum->data->range[1]-spectrum->data->range[0]);
@@ -603,7 +603,7 @@ PHOEBE_spectrum *phoebe_spectrum_create (double ll, double ul, double R, PHOEBE_
 			N = (int) ((ul-ll)/q+1e-6);
 		break;
 		case PHOEBE_SPECTRUM_DISPERSION_LOG:
-			q = (1+1./2./R)/(1-1./2./R);
+			q = (2.*R+1)/(2.*R-1);
 			N = 1 + (int) (log (ul/ll) / log (q));
 		break;
 		default:
