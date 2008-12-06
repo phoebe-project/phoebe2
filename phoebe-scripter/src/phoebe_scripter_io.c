@@ -8,6 +8,8 @@
 #include "phoebe_scripter_error_handling.h"
 #include "phoebe_scripter_io.h"
 
+FILE *PHOEBE_output;
+
 int phoebe_vector_print (PHOEBE_vector *vec)
 {
 	/*
