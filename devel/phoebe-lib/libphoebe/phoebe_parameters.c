@@ -65,6 +65,7 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_rv_indweight",         "Observed RV data individual weighting",      KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
 	phoebe_parameter_add ("phoebe_rv_active",            "Observed RV data is used",                   KIND_SWITCH,     "phoebe_rvno", "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
+	phoebe_parameter_add ("phoebe_spectra_disptype",     "Dispersion type of theoretical spectra",     KIND_MENU,       NULL,          "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING,       "Linear");
 	phoebe_parameter_add ("phoebe_mnorm",                "Flux-normalizing magnitude",                 KIND_PARAMETER,  NULL,          "%lf",  0.0,    0.0,    0.0, NO, TYPE_DOUBLE,       10.0);
 
 	phoebe_parameter_add ("phoebe_bins_switch",          "Data binning",                               KIND_SWITCH,     NULL,          "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
@@ -337,6 +338,11 @@ int phoebe_init_parameter_options ()
 	phoebe_parameter_add_option (par, "Standard weight");
 	phoebe_parameter_add_option (par, "Standard deviation");
 	phoebe_parameter_add_option (par, "Unavailable");
+
+	par = phoebe_parameter_lookup ("phoebe_spectra_disptype");
+	phoebe_parameter_add_option (par, "Linear");
+	phoebe_parameter_add_option (par, "Logarithmic");
+	phoebe_parameter_add_option (par, "Range-defined");
 
 	par = phoebe_parameter_lookup ("phoebe_ld_model");
 	phoebe_parameter_add_option (par, "Linear cosine law");

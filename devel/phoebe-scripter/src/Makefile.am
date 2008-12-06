@@ -46,7 +46,7 @@ phoebe_scripter.lng.h:
 	$(LEX) phoebe_scripter.lng.l
 
 AM_YFLAGS = -d
-AM_CFLAGS = -Wall
+AM_CFLAGS = -Wall -Wextra
 
 phoebe_scripter_LDADD = -lphoebe -lscripter -lltdl
 
