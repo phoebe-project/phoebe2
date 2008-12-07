@@ -36,7 +36,7 @@ typedef struct PHOEBE_scripter_command_table {
 	PHOEBE_scripter_command **command;
 } PHOEBE_scripter_command_table;
 
-PHOEBE_scripter_command_table *scripter_commands;
+extern PHOEBE_scripter_command_table *scripter_commands;
 
 /******************************************************************************/
 

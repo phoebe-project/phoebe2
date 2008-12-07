@@ -10,6 +10,7 @@
 #include "phoebe_scripter_types.h"
 
 scripter_symbol_table          *symbol_table;
+PHOEBE_scripter_command_table  *scripter_commands;
 PHOEBE_scripter_function_table *scripter_functions;
 
 scripter_symbol_table *symbol_table_add (scripter_symbol_table *parent, char *name)
