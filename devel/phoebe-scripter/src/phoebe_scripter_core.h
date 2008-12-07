@@ -13,7 +13,7 @@ typedef struct PHOEBE_COMMAND_LINE_ARGS {
 	char *CONFIG_DIR;
 } PHOEBE_COMMAND_LINE_ARGS;
 
-PHOEBE_COMMAND_LINE_ARGS PHOEBE_args;
+extern PHOEBE_COMMAND_LINE_ARGS PHOEBE_args;
 
 int parse_startup_line (int argc, char *argv[]);
 
