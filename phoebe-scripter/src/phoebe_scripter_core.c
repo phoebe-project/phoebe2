@@ -20,6 +20,7 @@
 	#include <readline/history.h>
 #endif
 
+PHOEBE_COMMAND_LINE_ARGS PHOEBE_args;
 bool PHOEBE_INTERRUPT;
 
 int parse_startup_line (int argc, char *argv[])

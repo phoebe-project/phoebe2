@@ -40,7 +40,7 @@ PHOEBE_scripter_command_table *scripter_commands;
 
 /******************************************************************************/
 
-scripter_symbol_table *symbol_table;
+extern scripter_symbol_table *symbol_table;
 
 /******************************************************************************/
 
@@ -85,7 +85,7 @@ typedef struct PHOEBE_scripter_function_table {
 	char **func;
 } PHOEBE_scripter_function_table;
 
-PHOEBE_scripter_function_table *scripter_functions;
+extern PHOEBE_scripter_function_table *scripter_functions;
 
 int   scripter_function_register     (char *func);
 int   scripter_function_register_all ();
