@@ -18,6 +18,9 @@
 	#include <readline/readline.h>
 #endif
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#define max(a,b) ((a) > (b) ? (a) : (b))
+
 int scripter_register_all_commands ()
 {
 	/* Commands for handling parameter files: */
@@ -31,6 +34,7 @@ int scripter_register_all_commands ()
 	scripter_command_register ("column",                       scripter_column);
 	scripter_command_register ("spectrum",                     scripter_spectrum);
 	scripter_command_register ("format",                       scripter_format);
+	scripter_command_register ("substr",                       scripter_substr);
 	scripter_command_register ("defined",                      scripter_defined);
 
 	/* Commands for handling parameters: */
@@ -2924,5 +2928,42 @@ scripter_ast_value scripter_integrate_spectrum (scripter_ast_list *args)
 
 	out.type = type_double;
 	out.value.d = result;
+	return out;
+}
+
+scripter_ast_value scripter_substr (scripter_ast_list *args)
+{
+	/*
+	 * 
+	 *
+	 * Synopsis:
+	 *
+	 * 
+	 */
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+
+	char *newstr;
+	int strbeg, strend;
+
+	int status = scripter_command_args_evaluate (args, &vals, 3, 3, type_string, type_int, type_int);
+	if (status != SUCCESS) {
+		out.type = type_void;
+		return out;
+	}
+
+	strbeg = max (0, vals[1].value.i-1);
+	strend = min (vals[2].value.i, strlen(vals[0].value.str));
+
+	newstr = strdup (vals[0].value.str);
+	strncpy (newstr, vals[0].value.str+strbeg, strend);
+	newstr[strend] = '\0';
+
+	out.type = type_string;
+	out.value.str = strdup (newstr);
+	free (newstr);
+
+	scripter_ast_value_array_free (vals, 3);
 	return out;
 }
