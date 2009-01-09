@@ -40,7 +40,7 @@ c      ispmax    ..    maximum number of spots
 c                        default: ispmax =    100
 c      iclmax    ..    maximum number of clouds
 c                        default: iclmax =    100
-c      iplmax    ..    maximum number of passbands
+c      iplmax    ..    number of defined passbands
 c                        default: iplmax =     25
 c
       parameter (Nmax=     200)
