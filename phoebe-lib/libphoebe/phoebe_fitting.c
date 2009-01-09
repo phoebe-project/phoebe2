@@ -426,8 +426,10 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_nms_iters_max"), &iter_max);
 
 	/* Get the number of active LC and RV curves: */
-	phoebe_active_lcno_get (&lcno, &active_lcindices);
-	phoebe_active_rvno_get (&rvno, &active_rvindices);
+	active_lcindices = phoebe_active_curves_get (PHOEBE_CURVE_LC);
+	active_rvindices = phoebe_active_curves_get (PHOEBE_CURVE_RV);
+	if (active_lcindices) lcno = active_lcindices->dim; else lcno = 0;
+	if (active_rvindices) rvno = active_rvindices->dim; else rvno = 0;
 
 	if (lcno + rvno == 0) return ERROR_MINIMIZER_NO_CURVES;
 
@@ -1053,8 +1055,10 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		return ERROR_MINIMIZER_NO_PARAMS;
 
 	/* Get a list of active light and RV curves: */
-	phoebe_active_lcno_get (&lcno, &active_lcindices);
-	phoebe_active_lcno_get (&rvno, &active_rvindices);
+	active_lcindices = phoebe_active_curves_get (PHOEBE_CURVE_LC);
+	active_rvindices = phoebe_active_curves_get (PHOEBE_CURVE_RV);
+	if (active_lcindices) lcno = active_lcindices->dim; else lcno = 0;
+	if (active_rvindices) rvno = active_rvindices->dim; else rvno = 0;
 
 	/* Read in WD DCI parameters: */
 	params = wd_dci_parameters_new ();
