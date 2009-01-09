@@ -51,6 +51,7 @@ int scripter_register_all_commands ()
 	scripter_command_register ("set_lc_properties",            scripter_set_lc_properties);
 	scripter_command_register ("compute_lc",                   scripter_compute_lc);
 	scripter_command_register ("compute_rv",                   scripter_compute_rv);
+	scripter_command_register ("compute_mesh",                 scripter_compute_mesh);
 	scripter_command_register ("compute_chi2",                 scripter_compute_chi2);
 	scripter_command_register ("transform_hjd_to_phase",       scripter_transform_hjd_to_phase);
 	scripter_command_register ("transform_flux_to_magnitude",  scripter_transform_flux_to_magnitude);
@@ -2318,7 +2319,7 @@ scripter_ast_value scripter_compute_rv (scripter_ast_list *args)
 		return out;
 	}
 
-	/* Do we plot a primary or a secondary RV curve: */
+	/* Do we compute a primary or a secondary RV curve: */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), vals[1].value.i-1, &readout_str);
 	status = phoebe_column_get_type (&dtype, readout_str);
 	if (status != SUCCESS) {
@@ -2343,6 +2344,70 @@ scripter_ast_value scripter_compute_rv (scripter_ast_list *args)
 	out.value.curve = curve;
 
 	scripter_ast_value_array_free (vals, 2);
+	return out;
+}
+
+scripter_ast_value scripter_compute_mesh (scripter_ast_list *args)
+{
+	/*
+	 * This function computes the plane-of-sky mesh vertices of the binary.
+	 * It returns a curve, with v-coordinate stored in the indep field and
+	 * w-coordinate stored in the dep field.
+	 *
+	 * Synopsis:
+	 *
+	 *   set mesh = compute_mesh (phase)
+	 */
+
+	int status;
+
+	int i;
+
+	PHOEBE_vector *poscoy, *poscoz;
+
+	WD_LCI_parameters *params;
+
+	char *filename;
+
+	scripter_ast_value out;
+	scripter_ast_value *vals;
+
+	out.type = type_void;
+
+	status = scripter_command_args_evaluate (args, &vals, 1, 1, type_double);
+	if (status != SUCCESS) return out;
+
+	params = phoebe_malloc (sizeof (*params));
+	status = wd_lci_parameters_get (params, 5, 0);
+	if (status != SUCCESS) {
+		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
+		return out;
+	}
+
+	filename = phoebe_resolve_relative_filename ("lcin.active");
+	create_lci_file (filename, params);
+
+	poscoy = phoebe_vector_new ();
+	poscoz = phoebe_vector_new ();
+	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, vals[0].value.d);
+
+	out.type = type_curve;
+	out.value.curve = phoebe_curve_new ();
+	phoebe_curve_alloc (out.value.curve, poscoy->dim);
+
+	for (i = 0; i < poscoy->dim; i++) {
+		out.value.curve->indep->val[i]  = poscoy->val[i];
+		out.value.curve->dep->val[i]    = poscoz->val[i];
+		out.value.curve->weight->val[i] = 1.0;
+	}
+
+	/* Let's clean everything up:                                             */
+	phoebe_vector_free (poscoy);
+	phoebe_vector_free (poscoz);
+	free (params);
+
+	scripter_ast_value_array_free (vals, 1);
+
 	return out;
 }
 
