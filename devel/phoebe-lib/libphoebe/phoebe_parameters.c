@@ -1807,104 +1807,62 @@ int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotind
 	return SUCCESS;
 }
 
-int phoebe_active_lcno_get (int *active_lcno, PHOEBE_array **active_lcindices)
+PHOEBE_array *phoebe_active_curves_get (PHOEBE_curve_type type)
 {
 	/**
-	 * phoebe_active_lcno_get:
-	 * @active_lcno: placeholder for the number of active light curves.
-	 * @active_lcindices: placeholder for the array of active light curve indices 
+	 * phoebe_active_curves_get:
+	 * @type: curve type (LC or RV)
 	 *
-	 * Sweeps through all defined light curves and counts the ones that are
-	 * active (i.e. their activity switch is set to 1). Active light curve
-	 * indices are stored in the passed array @active_lcindices. The array
-	 * should not be initialized or allocated by the calling function, but
-	 * it should be freed afrer use.
+	 * Sweeps through all defined light or RV curves (depending on @type) and
+	 * counts the ones that are active (i.e. their #phoebe_*_active parameter
+	 * is set to 1).
 	 *
-	 * Returns: #PHOEBE_error_code.
+	 * Returns: an array of active curve indices, or #NULL in case of failure.
 	 */
 
-	int i, lcno;
+	PHOEBE_array *curves;
+
+	int i, j, cno;
 	bool active;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
-	if (lcno == 0) {
-		*active_lcno = 0;
-		*active_lcindices = NULL;
-		return SUCCESS;
+	switch (type) {
+		case PHOEBE_CURVE_LC:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &cno);
+		break;
+		case PHOEBE_CURVE_RV:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &cno);
+		break;
+		default:
+			phoebe_lib_error ("invalid curve type requested in phoebe_active_curves_get(), aborting.\n");
+			return NULL;
 	}
 
-	*active_lcindices = phoebe_array_new (TYPE_INT_ARRAY);
-	phoebe_array_alloc (*active_lcindices, lcno);
+	if (cno == 0)
+		return NULL;
 
-	*active_lcno = 0;
-	for (i = 0; i < lcno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_active"), i, &active);
-		if (active) {
-			(*active_lcindices)->val.iarray[*active_lcno] = i;
-			(*active_lcno)++;
-		}
+	curves = phoebe_array_new (TYPE_INT_ARRAY);
+	phoebe_array_alloc (curves, cno);
+
+	j = 0;
+	for (i = 0; i < cno; i++) {
+		if (type == PHOEBE_CURVE_LC)
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_active"), i, &active);
+		else
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_active"), i, &active);
+
+		if (active)
+			curves->val.iarray[j++] = i;
 	}
 
-	if (*active_lcno == 0) {
-		phoebe_array_free (*active_lcindices);
-		*active_lcindices = NULL;
-		return SUCCESS;
+	if (j == 0) {
+		phoebe_array_free (curves);
+		return NULL;
 	}
 
-	if (*active_lcno != lcno)
-		phoebe_array_realloc (*active_lcindices, *active_lcno);
+	if (j != cno)
+		phoebe_array_realloc (curves, j);
 
-	return SUCCESS;
-}
-
-int phoebe_active_rvno_get (int *active_rvno, PHOEBE_array **active_rvindices)
-{
-	/**
-	 * phoebe_active_rvno_get:
-	 * @active_rvno: placeholder for the number of active RV curves.
-	 * @active_rvindices: placeholder for the array of active RV curve indices 
-	 *
-	 * Sweeps through all defined RV curves and counts the ones that are
-	 * active (i.e. their activity switch is set to 1). Active RV curve
-	 * indices are stored in the passed array @active_rvindices. The array
-	 * should not be initialized or allocated by the calling function, but
-	 * it should be freed afrer use.
-	 *
-	 * Returns: #PHOEBE_error_code.
-	 */
-
-	int i, rvno;
-	bool active;
-
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
-	if (rvno == 0) {
-		*active_rvno = 0;
-		*active_rvindices = NULL;
-		return SUCCESS;
-	}
-
-	*active_rvindices = phoebe_array_new (TYPE_INT_ARRAY);
-	phoebe_array_alloc (*active_rvindices, rvno);
-
-	*active_rvno = 0;
-	for (i = 0; i < rvno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_active"), i, &active);
-		if (active) {
-			(*active_rvindices)->val.iarray[*active_rvno] = i;
-			(*active_rvno)++;
-		}
-	}
-
-	if (*active_rvno == 0) {
-		phoebe_array_free (*active_rvindices);
-		*active_rvindices = NULL;
-		return SUCCESS;
-	}
-
-	if (*active_rvno != rvno)
-		phoebe_array_realloc (*active_rvindices, *active_rvno);
-
-	return SUCCESS;
+	return curves;
 }
 
 int phoebe_open_parameter_file (const char *filename)
@@ -1944,9 +1902,11 @@ int phoebe_open_parameter_file (const char *filename)
 
 	/* Parameter files start with a commented header line; see if it's there: */
 
-	fgets (readout_str, 255, keyword_file); lineno++;
-	if (feof (keyword_file)) return ERROR_FILE_IS_EMPTY;
+	if (!fgets (readout_str, 255, keyword_file))
+		return ERROR_FILE_IS_EMPTY;
 	readout_str[strlen(readout_str)-1] = '\0';
+
+	lineno++;
 
 	if (strstr (readout_str, "PHOEBE") != 0) {
 		/* Yep, it's there! Read out version number and if it's a legacy file,    */
@@ -1977,8 +1937,10 @@ int phoebe_open_parameter_file (const char *filename)
 	}
 
 	while (!feof (keyword_file)) {
-		fgets (readout_str, 255, keyword_file); lineno++;
-		if (feof (keyword_file)) break;
+		if (!fgets (readout_str, 255, keyword_file))
+			break;
+
+		lineno++;
 
 		/*
 		 * Clear the read string of leading and trailing spaces, tabs, newlines,
@@ -2520,8 +2482,9 @@ int phoebe_parameter_file_import_bm3 (const char *bm3file, const char *datafile)
 		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_lc_filename"), 0, datafile);
 
 	do {
-		fgets (line, 255, bm3input);
-		if (feof (bm3input)) break;
+		if (!fgets (line, 255, bm3input))
+			break;
+
 		if (strstr (line, "GEOMETRY")) {
 			phoebe_debug ("parameter GEOMETRY has no PHOEBE counterpart, skipping.\n");
 			continue;

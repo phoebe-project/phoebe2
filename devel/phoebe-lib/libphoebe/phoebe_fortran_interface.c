@@ -217,7 +217,7 @@ int wd_lci_parameters_get (WD_LCI_parameters *params, int MPAGE, int curve)
 	if (MPAGE == 2)
 		if (curve < 0 || curve > rvno-1)
 			return ERROR_UNINITIALIZED_CURVE;
-	if (MPAGE == 5) /* plane-of-sky coordinates are not curve-dependent */;
+	if (MPAGE == 5) {}/* plane-of-sky coordinates are not curve-dependent */;
 	if (MPAGE != 1 && MPAGE != 2 && MPAGE != 5)
 		return ERROR_UNSUPPORTED_MPAGE;
 
@@ -951,8 +951,10 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 
-	phoebe_active_lcno_get (&active_lcno, &active_lcindices);
-	phoebe_active_rvno_get (&active_rvno, &active_rvindices);
+	active_lcindices = phoebe_active_curves_get (PHOEBE_CURVE_LC);
+	active_rvindices = phoebe_active_curves_get (PHOEBE_CURVE_RV);
+	if (active_lcindices) active_lcno = active_lcindices->dim; else active_lcno = 0;
+	if (active_rvindices) active_rvno = active_rvindices->dim; else active_rvno = 0;
 
 	if (active_rvno > 2) {
 		phoebe_lib_warning ("More than 2 RV curves are currently not supported.\n");
