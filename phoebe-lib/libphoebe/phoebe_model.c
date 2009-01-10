@@ -440,7 +440,6 @@ double intern_radius_implicit (double rp, double r, double q, double D, double l
 		-0.5*F*F*(1.0+q)*r*r*(1-n*n));
 }
 
-
 double phoebe_compute_polar_radius (double Omega, double D, double q)
 {
 	/**
