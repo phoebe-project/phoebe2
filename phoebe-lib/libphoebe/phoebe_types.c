@@ -142,8 +142,7 @@ PHOEBE_vector *phoebe_vector_new_from_column (char *filename, int col)
 		char line[255];
 		char *delimeter = line;
 
-		fgets (line, 254, input);
-		if (feof (input)) break;
+		if (!fgets (line, 254, input)) break;
 
 		/* Remove the trailing newline (unix or dos):                         */
 		line[strlen(line)-1] = '\0';
@@ -1215,8 +1214,8 @@ int phoebe_matrix_get_row (PHOEBE_vector *vec, PHOEBE_matrix *matrix, int row)
 
 	int i;
 
-	if (!matrix) ;
-	if (row < 0 || row >= matrix->rows) ;
+	if (!matrix) {};
+	if (row < 0 || row >= matrix->rows) {};
 
 	for (i = 0; i < matrix->cols; i++)
 		vec->val[i] = matrix->val[row][i];
@@ -1310,8 +1309,7 @@ PHOEBE_hist *phoebe_hist_new_from_file (char *filename)
 	if (!input) return NULL;
 
 	while (!feof (input)) {
-		fgets (line, 254, input);
-		if (feof (input)) break;
+		if (!fgets (line, 254, input)) break;
 		lineptr = line;
 
 		/* Remove the trailing newline (unix or dos):                         */
@@ -2492,9 +2490,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 
 	/* Do the readout:                                                        */
 	while (!feof (file)) {
-		fgets (line, 255, file);
-		if (feof (file)) break;
-
+		if (!fgets (line, 255, file)) break;
 		line_number++;
 
 		/* If the line is commented or empty, skip it:                        */
@@ -3025,12 +3021,12 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	}
 
 	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_SIGMA) {
-		phoebe_vector_pad (curve->weight, curve->sigma);
+		phoebe_vector_pad (curve->weight, 1.0);
 		curve->wtype = wtype;
 	}
 
 	if (curve->wtype == PHOEBE_COLUMN_UNDEFINED && wtype == PHOEBE_COLUMN_WEIGHT) {
-		phoebe_vector_pad (curve->weight, 1./curve->sigma/curve->sigma);
+		phoebe_vector_pad (curve->weight, 1.0);
 		curve->wtype = wtype;
 	}
 
