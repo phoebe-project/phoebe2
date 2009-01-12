@@ -733,6 +733,35 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	return SUCCESS;
 }
 
+int phoebe_calculate_masses (double sma, double P, double q, double *M1, double *M2)
+{
+	/**
+	 * phoebe_calculate_masses:
+	 * @sma: semi-major axis in solar radii
+	 * @P:   orbital period in days
+	 * @q:   mass ratio, M2/M1
+	 * @M1:  placeholder for the primary star mass
+	 * @M2:  placeholder for the secondary star mass
+	 *
+	 * Computes the mass of the primary and the secondary star, in units of
+	 * solar mass.
+	 *
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	double G    = 6.673e-11;
+	double RSun = 696000000.0;
+	double MSun = 1.989e30;
+	double day  = 86400.0;
+
+	double Mtot = 4.0*M_PI*M_PI*sma*sma*sma*RSun*RSun*RSun/G/P/P/day/day;
+
+	*M1 = q*Mtot/(1.0+q)/MSun;
+	*M2 =   Mtot/(1.0+q)/MSun;
+
+	return SUCCESS;
+}
+
 double phoebe_compute_phase_from_true_anomaly (double T, double e, double omega, double pshift)
 {
 	/*
