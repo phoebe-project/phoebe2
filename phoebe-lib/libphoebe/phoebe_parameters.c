@@ -633,12 +633,29 @@ bool phoebe_qualifier_is_constrained (char *qualifier)
 	 * @qualifier: parameter to be checked for constraints.
 	 *
 	 * Checks whether a passed qualifier also appears in the list of
-	 * constraints.
+	 * constraints. For passband luminosities and gamma velocity, this
+	 * function checks for embedded constraints, i.e. whether automatic
+	 * computation switch is on.
 	 *
 	 * Returns: #TRUE if @qualifier is constrained; #FALSE otherwise.
 	 */
 
 	PHOEBE_ast_list *constraint = PHOEBE_pt->lists.constraints;
+
+	/* Embedded constraints: */
+	if (strcmp (qualifier, "phoebe_hla") == 0) {
+		bool autolevels;
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &autolevels);
+		if (autolevels)
+			return TRUE;
+	}
+
+	if (strcmp (qualifier, "phoebe_vga") == 0) {
+		bool autogamma;
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &autogamma);
+		if (autogamma)
+			return TRUE;
+	}
 
 	while (constraint) {
 		phoebe_debug ("comparing %s and %s\n", phoebe_constraint_get_qualifier (constraint->elem), qualifier);
