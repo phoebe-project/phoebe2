@@ -1225,8 +1225,7 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 scripter_ast_value scripter_minimize_using_nms (scripter_ast_list *args)
 {
 	/*
-	 * This function calls the Nelder & Mead simplex minimizer. It only works
-	 * if GSL is present.
+	 * This function calls the Nelder & Mead simplex minimizer.
 	 *
 	 * Synopsis:
 	 *
@@ -1244,12 +1243,6 @@ scripter_ast_value scripter_minimize_using_nms (scripter_ast_list *args)
 		return out;
 	}
 
-	if (vals[1].value.i < 0) {
-		phoebe_scripter_output ("attempt to set negative number of iterations, aborting.\n");
-		scripter_ast_value_array_free (vals, 2);
-		out.type = type_void;
-		return out;
-	}
 	if (vals[1].value.i == 0) {
 		phoebe_scripter_output ("NMS: tol = %2.2e, unlimited iterations:\n", vals[0].value.d);
 		vals[1].value.i = 1e8;
