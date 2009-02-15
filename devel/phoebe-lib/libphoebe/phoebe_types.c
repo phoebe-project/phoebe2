@@ -372,8 +372,7 @@ int phoebe_vector_add (PHOEBE_vector *result, PHOEBE_vector *fac1, PHOEBE_vector
 	 *
 	 * Adds #PHOEBE_vector @fac1 to @fac2 and returns the sum #PHOEBE_vector @result.
 	 *
-	 * Returns: A #PHOEBE_error_code indicating the success of the operation.
-	 * Possible errors: ERROR_VECTOR_DIMENSIONS_MISMATCH.
+	 * Returns: #PHOEBE_error_code
 	 */
 
 	int i;
