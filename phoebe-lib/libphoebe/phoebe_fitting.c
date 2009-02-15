@@ -48,6 +48,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_curve         **obs        = params->obs;
 	PHOEBE_vector         *chi2s      = params->chi2s;
 	PHOEBE_vector         *weights    = params->weights;
+	PHOEBE_vector         *levels     = params->levels;
 
 	WD_LCI_parameters    **lcipars;
 
@@ -100,6 +101,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 			double alpha;
 			phoebe_calculate_level_correction (&alpha, curve, obs[i]);
 			phoebe_vector_multiply_by (curve->dep, 1./alpha);
+			levels->val[i] = alpha;
 			printf ("    alpha[%d] = %lf\n", i, alpha);
 		}
 		if (params->autogamma && i >= lcno) {
@@ -113,7 +115,6 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		}
 
 		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_CHI2, curve->dep, obs[i]->dep, obs[i]->weight, 1.0);
-
 		phoebe_curve_free (curve);
 	}
 
@@ -394,7 +395,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	double accuracy;
 	int iter_max;
 
-	int lcno, rvno;
+	int lcno, rvno, rvdep;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 	char *qualifier;
 	int dim_tba;
@@ -402,6 +403,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
 	PHOEBE_vector *weights;
+	PHOEBE_vector *levels;
 
 	/* NMS infrastructure: */
 	int iter = 0;
@@ -466,9 +468,9 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 				qualifiers->val.strarray[dim_tba-1] = qualifier;
 			}
 		}
-		else /* if (tba->par->type == TYPE_DOUBLE_ARRAY) */ {
+		else /* tba->par->type == TYPE_DOUBLE_ARRAY */ {
 			for (i = 0; i < lcno; i++) {
-				qualifier = phoebe_malloc ((strlen(tba->par->qualifier)+5)*sizeof(*qualifier));
+				qualifier = phoebe_malloc ((strlen(tba->par->qualifier)+3+(int)log(10*lcno))*sizeof(*qualifier));
 				sprintf (qualifier, "%s[%d]", tba->par->qualifier, active_lcindices->val.iarray[i]+1);
 				if (phoebe_qualifier_is_constrained (qualifier)) {
 					printf ("parameter %s is constrained, skipping.\n", qualifier);
@@ -499,9 +501,6 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	for (i = 0; i < dim_tba; i++)
 		phoebe_debug ("  %d: %s\n", i+1, qualifiers->val.strarray[i]);
 
-	/* Allocate the memory for the feedback structure: */
-	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
-
 	/* Will the computation be done in HJD- or in phase-space? */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_indep"), &readout_str);
 	phoebe_column_get_type (&indep, readout_str);
@@ -516,7 +515,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 			free (obs);
 			return ERROR_FILE_NOT_FOUND;
 		}
-		phoebe_curve_transform (obs[i], indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+		phoebe_curve_transform (obs[i], indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
 	}
 	for (i = 0; i < rvno; i++) {
 		obs[lcno+i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, active_rvindices->val.iarray[i]);
@@ -526,7 +525,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 			free (obs);
 			return ERROR_FILE_NOT_FOUND;
 		}
-		phoebe_curve_transform (obs[lcno+i], indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &rvdep);
+		phoebe_curve_transform (obs[lcno+i], indep, rvdep, PHOEBE_COLUMN_SIGMA);
 	}
 
 	/* Read in the vector of passband weights: */
@@ -554,12 +554,19 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &(passed->autolevels));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &(passed->autogamma));
 
-	/* Read out initial values and step sizes: */
+	/* If levels are to be computed, allocate the suitable vector: */
+	if (passed->autolevels) {
+		levels = phoebe_vector_new ();
+		phoebe_vector_alloc (levels, lcno);
+	}
+	else levels = NULL;
+	passed->levels = levels;
 
-	adjpars = phoebe_vector_new ();
-	phoebe_vector_alloc (adjpars, dim_tba);
-	steps   = phoebe_vector_new ();
-	phoebe_vector_alloc (steps, dim_tba);
+	adjpars = phoebe_vector_new (); phoebe_vector_alloc (adjpars, dim_tba);
+	steps   = phoebe_vector_new (); phoebe_vector_alloc (steps, dim_tba);
+
+	/* Allocate memory for the feedback structure: */
+	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
 
 	/* Read out initial values and step sizes: */
 	for (i = 0; i < dim_tba; i++) {
@@ -580,11 +587,11 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	simplex = phoebe_nms_simplex_new ();
 	phoebe_nms_simplex_alloc (simplex, dim_tba);
 
-	phoebe_nms_set (simplex, phoebe_chi2_cost_function, adjpars, passed, &step, steps);
+	phoebe_nms_simplex_set (simplex, phoebe_chi2_cost_function, passed, adjpars, &step, steps);
 
 	do {
 		iter++;
-		status = phoebe_nms_iterate (simplex, phoebe_chi2_cost_function, adjpars, passed, &step, &cfval);
+		status = phoebe_nms_simplex_iterate (simplex, phoebe_chi2_cost_function, passed, adjpars, &step, &cfval);
 		if (status != SUCCESS) {
 			printf ("no success, breaking!\n");
 			break;
@@ -624,6 +631,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	free (obs);
 
 	/* Free the placeholder memory: */
+	phoebe_vector_free (levels);
 	phoebe_vector_free (chi2s);
 	phoebe_vector_free (weights);
 	phoebe_array_free (qualifiers);

@@ -643,7 +643,7 @@ bool phoebe_qualifier_is_constrained (char *qualifier)
 	PHOEBE_ast_list *constraint = PHOEBE_pt->lists.constraints;
 
 	/* Embedded constraints: */
-	if (strcmp (qualifier, "phoebe_hla") == 0) {
+	if (strncmp (qualifier, "phoebe_hla", 10) == 0) {
 		bool autolevels;
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &autolevels);
 		if (autolevels)
