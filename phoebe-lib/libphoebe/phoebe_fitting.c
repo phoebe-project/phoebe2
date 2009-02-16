@@ -42,9 +42,11 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_parameter *par;
 	int index;
 
-	PHOEBE_array          *qualifiers = params->qualifiers;
 	int                    lcno       = params->lcno;
 	int                    rvno       = params->rvno;
+	PHOEBE_array          *qualifiers = params->qualifiers;
+	PHOEBE_vector         *l_bounds   = params->l_bounds;
+	PHOEBE_vector         *u_bounds   = params->u_bounds;
 	PHOEBE_curve         **obs        = params->obs;
 	PHOEBE_vector         *chi2s      = params->chi2s;
 	PHOEBE_vector         *weights    = params->weights;
@@ -74,6 +76,11 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 			phoebe_parameter_set_value (par, index-1, adjpars->val[i]);
 		}
 		free (qualifier);
+
+		if (adjpars->val[i] < l_bounds->val[i] || adjpars->val[i] > u_bounds->val[i]) {
+			printf ("    %s out of bounds (%lf, %lf)\n", par->qualifier, l_bounds->val[i], u_bounds->val[i]);
+			return 1e10;
+		}
 	}
 
 	/* Satisfy all the constraints: */
@@ -400,6 +407,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	char *qualifier;
 	int dim_tba;
 	PHOEBE_array *qualifiers;
+	PHOEBE_vector *l_bounds, *u_bounds;
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
 	PHOEBE_vector *weights;
@@ -452,6 +460,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	 */
 
 	qualifiers = phoebe_array_new (TYPE_STRING_ARRAY);
+	l_bounds   = phoebe_vector_new ();
+	u_bounds   = phoebe_vector_new ();
 	dim_tba = 0;
 
 	while (tba) {
@@ -463,9 +473,14 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 			}
 			else {
 				/* Add the qualifier to the list of qualifiers: */
+				double lb, ub;
 				dim_tba++;
 				phoebe_array_realloc (qualifiers, dim_tba);
+				phoebe_vector_realloc (l_bounds, dim_tba);
+				phoebe_vector_realloc (u_bounds, dim_tba);
 				qualifiers->val.strarray[dim_tba-1] = qualifier;
+				phoebe_parameter_get_limits (tba->par, &lb, &ub);
+				l_bounds->val[dim_tba-1] = lb; u_bounds->val[dim_tba-1] = ub;
 			}
 		}
 		else /* tba->par->type == TYPE_DOUBLE_ARRAY */ {
@@ -478,9 +493,14 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 				}
 				else {
 					/* Add the qualifier to the list of qualifiers: */
+					double lb, ub;
 					dim_tba++;
 					phoebe_array_realloc (qualifiers, dim_tba);
+					phoebe_vector_realloc (l_bounds, dim_tba);
+					phoebe_vector_realloc (u_bounds, dim_tba);
 					qualifiers->val.strarray[dim_tba-1] = qualifier;
+					phoebe_parameter_get_limits (tba->par, &lb, &ub);
+					l_bounds->val[dim_tba-1] = lb; u_bounds->val[dim_tba-1] = ub;
 				}
 			}
 		}
@@ -490,6 +510,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 
 	if (dim_tba == 0) {
 		phoebe_array_free (qualifiers);
+		phoebe_vector_free (l_bounds);
+		phoebe_vector_free (u_bounds);
 		return ERROR_MINIMIZER_NO_PARAMS;
 	}
 
@@ -545,6 +567,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	passed = phoebe_malloc (sizeof (*passed));
 
 	passed->qualifiers = qualifiers;
+	passed->l_bounds   = l_bounds;
+	passed->u_bounds   = u_bounds;
 	passed->lcno       = lcno;
 	passed->rvno       = rvno;
 	passed->obs        = obs;
@@ -634,6 +658,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_vector_free (levels);
 	phoebe_vector_free (chi2s);
 	phoebe_vector_free (weights);
+	phoebe_vector_free (l_bounds);
+	phoebe_vector_free (u_bounds);
 	phoebe_array_free (qualifiers);
 	phoebe_array_free (active_lcindices);
 	phoebe_array_free (active_rvindices);
