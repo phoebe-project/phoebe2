@@ -19,6 +19,8 @@ typedef struct PHOEBE_nms_simplex {
 
 typedef struct PHOEBE_nms_parameters {
 	PHOEBE_array *qualifiers;           /* A list of unconstrained qualifiers */
+	PHOEBE_vector *l_bounds;              /* Lower parameter value boundaries */
+	PHOEBE_vector *u_bounds;              /* Upper parameter value boundaries */
 	int lcno;                          /* The number of observed light curves */
 	int rvno;                             /* The number of observed RV curves */
 	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
