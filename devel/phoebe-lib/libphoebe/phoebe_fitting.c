@@ -77,9 +77,13 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		}
 		free (qualifier);
 
-		if (adjpars->val[i] < l_bounds->val[i] || adjpars->val[i] > u_bounds->val[i]) {
+		if (adjpars->val[i] < l_bounds->val[i]) {
 			printf ("    %s out of bounds (%lf, %lf)\n", par->qualifier, l_bounds->val[i], u_bounds->val[i]);
-			return 1e10;
+			return 1e10*(1.0+l_bounds->val[i]-adjpars->val[i]);
+		}
+		if (adjpars->val[i] > u_bounds->val[i]) {
+			printf ("    %s out of bounds (%lf, %lf)\n", par->qualifier, l_bounds->val[i], u_bounds->val[i]);
+			return 1e10*(1.0+adjpars->val[i]-u_bounds->val[i]);
 		}
 	}
 
