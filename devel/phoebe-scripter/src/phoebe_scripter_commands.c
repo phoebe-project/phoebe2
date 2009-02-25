@@ -1214,6 +1214,7 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 		phoebe_parameter_get_limits (par, &pmin, &pmax);
 		if (feedback->newvals->val[i] < pmin || feedback->newvals->val[i] > pmax)
 			phoebe_scripter_output ("DC: parameter %s diverged out of bounds.\n", par->qualifier);
+			feedback->converged = FALSE;
 	}
 
 	/* Say goodbye: */
@@ -1301,12 +1302,7 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 1);
-	out.type = type_bool;
-	if (status == SUCCESS)
-		out.value.b = TRUE;
-	else
-		out.value.b = FALSE;
-
+	out.type = type_void;
 	return out;
 }
 
