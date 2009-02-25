@@ -1301,7 +1301,12 @@ scripter_ast_value scripter_adopt_minimizer_results (scripter_ast_list *args)
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 
 	scripter_ast_value_array_free (vals, 1);
-	out.type = type_void;
+	out.type = type_bool;
+	if (status == SUCCESS)
+		out.value.b = TRUE;
+	else
+		out.value.b = FALSE;
+
 	return out;
 }
 
