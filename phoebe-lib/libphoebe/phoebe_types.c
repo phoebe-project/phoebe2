@@ -3199,6 +3199,8 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	feedback->wchi2s     = phoebe_vector_new ();
 	feedback->cormat     = phoebe_matrix_new ();
 
+	feedback->converged  = TRUE;
+
 	return feedback;
 }
 

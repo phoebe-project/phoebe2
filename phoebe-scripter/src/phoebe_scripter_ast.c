@@ -1166,6 +1166,11 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 								out.value.str = algname;
 								return out;
 							}
+							if (strcmp (field, "converged") == 0) {
+								out.type = type_bool;
+								out.value.i = feedback->converged;
+								return out;
+							}
 							if (strcmp (field, "iters") == 0) {
 								out.type = type_int;
 								out.value.i = feedback->iters;

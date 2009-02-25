@@ -401,6 +401,7 @@ int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name
  */
 typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_minimizer_type algorithm;
+	bool             converged;
 	double           cputime;
 	int              iters;
 	double           cfval;
