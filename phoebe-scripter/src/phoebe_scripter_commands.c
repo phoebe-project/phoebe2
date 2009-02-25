@@ -1212,9 +1212,10 @@ scripter_ast_value scripter_minimize_using_dc (scripter_ast_list *args)
 		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
 		par = phoebe_parameter_lookup (qualifier);
 		phoebe_parameter_get_limits (par, &pmin, &pmax);
-		if (feedback->newvals->val[i] < pmin || feedback->newvals->val[i] > pmax)
+		if (feedback->newvals->val[i] < pmin || feedback->newvals->val[i] > pmax) {
 			phoebe_scripter_output ("DC: parameter %s diverged out of bounds.\n", par->qualifier);
 			feedback->converged = FALSE;
+		}
 	}
 
 	/* Say goodbye: */

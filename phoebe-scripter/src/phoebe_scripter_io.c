@@ -142,6 +142,10 @@ int phoebe_minimizer_feedback_print (PHOEBE_minimizer_feedback *feedback)
 	fprintf (PHOEBE_output, "\n");
 	phoebe_minimizer_type_get_name (feedback->algorithm, &algname);
 	fprintf (PHOEBE_output, "  algorithm:            %s\n", algname);
+	if (feedback->converged)
+		fprintf (PHOEBE_output, "  converged:            yes\n");
+	else
+		fprintf (PHOEBE_output, "  converged:            no\n");
 	fprintf (PHOEBE_output, "  no. of iterations:    %d\n", feedback->iters);
 	fprintf (PHOEBE_output, "  CPU time:             %2.2lf seconds\n", feedback->cputime);
 

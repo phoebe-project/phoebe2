@@ -3251,6 +3251,7 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup = phoebe_minimizer_feedback_new ();
 
 	dup->algorithm = feedback->algorithm;
+	dup->converged = feedback->converged;
 	dup->cputime   = feedback->cputime;
 	dup->iters     = feedback->iters;
 	dup->cfval     = feedback->cfval;
