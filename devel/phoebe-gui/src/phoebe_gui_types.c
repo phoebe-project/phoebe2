@@ -55,7 +55,7 @@ int gui_init_widgets ()
 		      *phoebe_para_lc_ld_treeview,    		*phoebe_data_rv_treeview,
 		      *phoebe_para_rv_ld_treeview,    		*phoebe_para_spots_treeview,
 		      *phoebe_sidesheet_res_treeview, 		*phoebe_sidesheet_fit_treeview,
-              *phoebe_lc_plot_treeview;
+              *phoebe_lc_plot_treeview,             *phoebe_rv_plot_treeview;
 
 	glade_xml_file    	= g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe_cairo.glade", NULL);
 	glade_pixmap_file 	= g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
@@ -82,13 +82,17 @@ int gui_init_widgets ()
 	phoebe_parameter_add ("gui_lcplot_synthetic",       "List of synthetic data switches",  KIND_SWITCH,    "phoebe_lcno", "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL_ARRAY, NO);
 	phoebe_parameter_add ("gui_lcplot_obscolor",        "List of observed data colors",     KIND_PARAMETER, "phoebe_lcno", "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING_ARRAY, "#0000FF");
 	phoebe_parameter_add ("gui_lcplot_syncolor",        "List of synthetic data colors",    KIND_PARAMETER, "phoebe_lcno", "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING_ARRAY, "#FF0000");
+	phoebe_parameter_add ("gui_rvplot_observed",        "List of observed data switches",   KIND_SWITCH,    "phoebe_rvno", "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL_ARRAY, NO);
+	phoebe_parameter_add ("gui_rvplot_synthetic",       "List of synthetic data switches",  KIND_SWITCH,    "phoebe_rvno", "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL_ARRAY, NO);
+	phoebe_parameter_add ("gui_rvplot_obscolor",        "List of observed data colors",     KIND_PARAMETER, "phoebe_rvno", "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING_ARRAY, "#0000FF");
+	phoebe_parameter_add ("gui_rvplot_syncolor",        "List of synthetic data colors",    KIND_PARAMETER, "phoebe_rvno", "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING_ARRAY, "#FF0000");
 
 	phoebe_parameter_add ("gui_lc_plot_verticesno",		"Number of vertices for LC",		KIND_PARAMETER,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_INT,		100);
 	phoebe_parameter_add ("gui_lc_plot_obsmenu",		"Select observed LC",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"");
 	phoebe_parameter_add ("gui_lc_plot_aliasing",		"Turn on data aliasing",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_lc_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_lc_plot_x",				"X-axis of LC plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
-	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Total flux");
+	phoebe_parameter_add ("gui_lc_plot_y",				"Y-axis of LC plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Flux");
 	phoebe_parameter_add ("gui_lc_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_lc_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
 	phoebe_parameter_add ("gui_lc_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
@@ -104,7 +108,7 @@ int gui_init_widgets ()
 	phoebe_parameter_add ("gui_rv_plot_alias",			"Turn on data aliasing",			KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		YES);
 	phoebe_parameter_add ("gui_rv_plot_residuals",		"Plot residuals",					KIND_SWITCH,	NULL, "%d", 0.0, 0.0, 0.0, NO, TYPE_BOOL,		NO);
 	phoebe_parameter_add ("gui_rv_plot_x",				"X-axis of RV plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Phase");
-	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"Primary RV");
+	phoebe_parameter_add ("gui_rv_plot_y",				"Y-axis of RV plot",				KIND_MENU,		NULL, "%s", 0.0, 0.0, 0.0, NO, TYPE_STRING,	"RV in km/s");
 	phoebe_parameter_add ("gui_rv_plot_phstart",		"Phase start",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	-0.6);
 	phoebe_parameter_add ("gui_rv_plot_phend",			"Phase end",						KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	 0.6);
 	phoebe_parameter_add ("gui_rv_plot_x_offset",		"X axis Offset",					KIND_PARAMETER,	NULL, "%lf", 0.0, 0.0, 0.0, NO, TYPE_DOUBLE,	0.0);
@@ -134,6 +138,7 @@ int gui_init_widgets ()
 	phoebe_sidesheet_res_treeview     = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_res_treeview");
 	phoebe_sidesheet_fit_treeview     = glade_xml_get_widget (phoebe_window, "phoebe_sidesheet_fit_treeview");
 	phoebe_lc_plot_treeview           = glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_treeview");
+	phoebe_rv_plot_treeview           = glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_treeview");
 
 	gui_widget_add ("phoebe_data_lc_treeview",							phoebe_data_lc_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
@@ -151,6 +156,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_fitt_third_treeview",                       glade_xml_get_widget(phoebe_window, "phoebe_fitt_third_treeview"),                                      0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 
 	gui_widget_add ("phoebe_lc_plot_treeview",					        phoebe_lc_plot_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_treeview",					        phoebe_rv_plot_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 
 	gui_init_treeviews ();
 
@@ -159,7 +165,7 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_obscolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_OBS_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_obscolor"), NULL);
 	gui_widget_add ("phoebe_lc_plot_syncolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_SYN_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_syncolor"), NULL);
 
-	/* Plotting canvas: */
+	/* LC plotting canvas: */
 {
 	GtkWidget *plot_area, *plot_button;
 	PHOEBE_curve_type ctype = PHOEBE_CURVE_LC;
@@ -194,6 +200,50 @@ int gui_init_widgets ()
 	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_clear_button"));
 
 	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_lc_plot_passband_info")->gtk);
+
+	/* Initialize the plot area with these widgets and their associations: */
+	gui_plot_area_init (plot_area, plot_button);
+}
+
+	/* RV plotting canvas: */
+{
+	GtkWidget *plot_area, *plot_button;
+	PHOEBE_curve_type ctype = PHOEBE_CURVE_RV;
+
+	gui_widget_add ("phoebe_rv_plot_passband_info",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_observed"), NULL);
+	gui_widget_add ("phoebe_rv_plot_obscolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_obscolor"), NULL);
+	gui_widget_add ("phoebe_rv_plot_syncolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_SYN_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_syncolor"), NULL);
+
+	plot_area   = glade_xml_get_widget (phoebe_window, "phoebe_plot_rv_graph_area");
+	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_plot_button");
+
+	/* To this plot button we will attach all property widgets: */
+	g_object_set_data (G_OBJECT (plot_button), "curve_type",         &ctype);
+	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_alias_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_resid_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_x_request",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_x_combobox"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_y_request",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_y_combobox"));
+	g_object_set_data (G_OBJECT (plot_button), "phase_start",        glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_phstart_spinbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "phase_end",          glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_phend_spinbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "coarse_grid_switch", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_coarse_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "fine_grid_switch",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_fine_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_x_coordinate",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_x_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_y_coordinate",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_y_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cp_index",      glade_xml_get_widget (phoebe_window, "plot_rv_plot_coordinates_closest_passband"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cx_coordinate", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_cx_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cy_coordinate", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_cy_value"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_left",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_left_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_down",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_down_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_right",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_right_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_up",        glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_up_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_reset",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_reset_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomin",    glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomin_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomout_button"));
+	g_object_set_data (G_OBJECT (plot_button), "save_plot",          glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_save_button"));
+	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_clear_button"));
+
+	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_rv_plot_passband_info")->gtk);
 
 	/* Initialize the plot area with these widgets and their associations: */
 	gui_plot_area_init (plot_area, plot_button);
@@ -661,10 +711,6 @@ int gui_init_widgets ()
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_rv_plot_image")->gtk), NULL);
 	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_eb_plot_image")->gtk), NULL);
 */
-/*  Got rid of this:
-	gui_init_lc_obs_combobox();
-*/
-	gui_init_rv_obs_combobox();
 
 	gui_init_parameter_options ();
 	gui_init_combo_boxes();
@@ -701,11 +747,11 @@ int gui_init_combo_boxes()
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
 		bucket = GUI_wt->bucket[i];
 		while (bucket) {
-			if(bucket->widget->par){
-				if(bucket->widget->par->kind == KIND_MENU && bucket->widget->par->type == TYPE_STRING){
+			if (bucket->widget->par) {
+				if (bucket->widget->par->kind == KIND_MENU && bucket->widget->par->type == TYPE_STRING) {
 					optcount = bucket->widget->par->menu->optno;
-					for(optindex = 0; optindex < optcount; optindex++)
-						gtk_combo_box_append_text(GTK_COMBO_BOX(bucket->widget->gtk), strdup(bucket->widget->par->menu->option[optindex]));
+					for (optindex = 0; optindex < optcount; optindex++)
+						gtk_combo_box_append_text (GTK_COMBO_BOX (bucket->widget->gtk), strdup(bucket->widget->par->menu->option[optindex]));
 				}
 			}
 			bucket = bucket->next;
@@ -736,9 +782,12 @@ int gui_init_parameter_options()
 	phoebe_parameter_add_option (par, "Time (HJD)");
 
 	par = phoebe_parameter_lookup("gui_rv_plot_y");
+	phoebe_parameter_add_option (par, "RV in km/s");
+/*
 	phoebe_parameter_add_option (par, "Primary RV");
 	phoebe_parameter_add_option (par, "Secondary RV");
 	phoebe_parameter_add_option (par, "Primary+Secondary RV");
+*/
 	return status;
 }
 

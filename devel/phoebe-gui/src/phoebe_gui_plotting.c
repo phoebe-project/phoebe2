@@ -280,7 +280,16 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 	if (p == data->cno)
 		return FALSE;
 
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), cp, &cp_ptr);
+#warning CURVE_RECOGNITION_FAILS_FOR_RV_CURVES
+	if (data->ctype == PHOEBE_CURVE_LC)
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), cp, &cp_ptr);
+	else if (data->ctype == PHOEBE_CURVE_RV)
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), cp, &cp_ptr);
+	else {
+		printf ("*** UNHANDLED EXCEPTION ENCOUNTERED IN on_plot_area_motion()!\n");
+		return FALSE;
+	}
+
 	sprintf (cp_str, "in %s:", cp_ptr);
 
 	sprintf (cx_str, "%lf", data->request[cp].query->indep->val[ci]);
@@ -346,7 +355,14 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			/* Transform the data to requested types: */
 			if (plot_obs) {
 				data->request[i].query = phoebe_curve_duplicate (data->request[i].raw);
-				status = phoebe_curve_transform (data->request[i].query, itype, dtype, PHOEBE_COLUMN_UNDEFINED);
+				if (data->ctype == PHOEBE_CURVE_LC)
+					status = phoebe_curve_transform (data->request[i].query, itype, dtype, PHOEBE_COLUMN_UNDEFINED);
+				else if (data->ctype == PHOEBE_CURVE_RV)
+					status = phoebe_curve_transform (data->request[i].query, itype, data->request[i].raw->dtype, PHOEBE_COLUMN_UNDEFINED);
+				else {
+					printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
+					return;
+				}
 				if (status != SUCCESS) {
 					char notice[255];
 					plot_obs = NO;
@@ -373,7 +389,19 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 				data->request[i].model->type = data->ctype;
 				data->request[i].model->itype = itype;
 
-				status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+				if (data->ctype == PHOEBE_CURVE_LC)
+					status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+				else if (data->ctype == PHOEBE_CURVE_RV) {
+					char *param; PHOEBE_column_type rvtype;
+					phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
+					phoebe_column_get_type (&rvtype, param);
+					status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
+				}
+				else {
+					printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
+					return;
+				}
+
 				if (status != SUCCESS) {
 					char notice[255];
 					plot_obs = NO;
@@ -419,7 +447,18 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			data->request[i].model = phoebe_curve_new ();
 			data->request[i].model->type = data->ctype;
 
-			status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+			if (data->ctype == PHOEBE_CURVE_LC)
+				status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+			else if (data->ctype == PHOEBE_CURVE_RV) {
+				char *param; PHOEBE_column_type rvtype;
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
+				phoebe_column_get_type (&rvtype, param);
+				status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
+			}
+			else {
+				printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
+				return;
+			}
 			if (status != SUCCESS) {
 				char notice[255];
 				plot_syn = NO;
@@ -820,6 +859,41 @@ printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs
 
 void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
 {
+	GUI_plot_data *data = (GUI_plot_data *) user_data;
+	int i, rows;
+	GtkTreeIter traverser;
+
+	bool obs, syn;
+	char *obscolor, *syncolor;
+	double offset;
+
+	printf ("* entered on_rv_plot_treeview_row_changed() function.\n");
+
+	/* Count rows in the model: */
+	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
+	printf ("no. of rows: %d\n", rows);
+
+	/* Reallocate memory for the plot properties: */
+	data->request = phoebe_realloc (data->request, rows * sizeof (*(data->request)));
+	if (rows == 0) data->request = NULL;
+
+	/* Traverse all rows and update the values in the plot structure: */
+	for (i = 0; i < rows; i++) {
+		gtk_tree_model_iter_nth_child (tree_model, &traverser, NULL, i);
+		gtk_tree_model_get (tree_model, &traverser, RV_COL_PLOT_OBS, &obs, RV_COL_PLOT_SYN, &syn, RV_COL_PLOT_OBS_COLOR, &obscolor, RV_COL_PLOT_SYN_COLOR, &syncolor, RV_COL_PLOT_OFFSET, &offset, -1);
+		data->request[i].plot_obs = obs;
+		data->request[i].plot_syn = syn;
+		data->request[i].obscolor = obscolor;
+		data->request[i].syncolor = syncolor;
+		data->request[i].offset   = offset;
+		data->request[i].raw      = NULL;
+		data->request[i].query    = NULL;
+		data->request[i].model    = NULL;
+printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs, data->request[i].plot_syn, data->request[i].obscolor, data->request[i].syncolor, data->request[i].offset);
+	}
+	data->cno = rows;
+
+	return;
 }
 
 void on_plot_treeview_row_deleted (GtkTreeModel *model, GtkTreePath *path, gpointer user_data)
@@ -954,8 +1028,9 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_passband_info");
 	if (data->ctype == PHOEBE_CURVE_LC)
 		g_signal_connect (widget, "row-changed", G_CALLBACK (on_lc_plot_treeview_row_changed), data);
-	else
+	else if (data->ctype == PHOEBE_CURVE_RV)
 		g_signal_connect (widget, "row-changed", G_CALLBACK (on_rv_plot_treeview_row_changed), data);
+
 	g_signal_connect (widget, "row-deleted", G_CALLBACK (on_plot_treeview_row_deleted), data);
 
 	/* Assign the widgets (must be GtkLabels) that will keep track of mouse
