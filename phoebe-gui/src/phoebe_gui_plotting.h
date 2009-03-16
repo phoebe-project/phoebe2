@@ -1,0 +1,95 @@
+#include <stdio.h>
+
+#include <gtk/gtk.h>
+#include <glade/glade.h>
+
+#include <phoebe/phoebe.h>
+
+typedef struct GUI_plot_layout {
+	int lmargin;           /* left plot margin in pixels                      */
+	int rmargin;           /* right plot margin in pixels                     */
+	int tmargin;           /* top plot margin in pixels                       */
+	int bmargin;           /* bottom plot margin in pixels                    */
+	int xmargin;           /* x-spacing between the plot border and the graph */
+	int ymargin;           /* y-spacing between the plot border and the graph */
+	int label_lmargin;     /* spacing between the frame and the y-axis label  */
+	int label_rmargin;     /* spacing between the y-axis label and the graph  */
+	int x_tick_length;     /* major x-tick length in pixels                   */
+	int y_tick_length;     /* major y-tick length in pixels                   */
+} GUI_plot_layout;
+
+GUI_plot_layout *gui_plot_layout_new  ();
+int              gui_plot_layout_free (GUI_plot_layout *layout);
+
+typedef struct GUI_plot_request {
+	bool          plot_obs;
+	bool          plot_syn;
+	char         *obscolor;      /* Hexadecimal color code (with a leading #) */
+	char         *syncolor;      /* Hexadecimal color code (with a leading #) */
+	double        offset;
+	PHOEBE_curve *raw;
+	PHOEBE_curve *query;
+	PHOEBE_curve *model;
+} GUI_plot_request;
+
+typedef struct GUI_plot_data {
+	GUI_plot_layout   *layout;      /* Plot layout (margins, ticks, ...)      */
+	GUI_plot_request  *request;     /* Structure with all data and properties */
+	GtkWidget         *container;   /* Widget container                       */
+	cairo_t           *canvas;      /* Cairo canvas                           */
+	double             width;       /* Graph width in pixels                  */
+	double             height;      /* Graph height in pixels                 */
+	PHOEBE_curve_type  ctype;       /* Curve type (LC or RV)                  */
+	bool               alias;       /* Should the data be aliased?            */
+	bool               residuals;   /* Should the residuals be plotted?       */
+	const char        *x_request;   /* Requested x-coordinate                 */
+	const char        *y_request;   /* Requested y-coordinate                 */
+	double             x_ll;        /* Lower plotting limit for the x-axis    */
+	double             x_ul;        /* Upper plotting limit for the x-axis    */
+	double             x_min;       /* Minimum x value in the query dataset   */
+	double             x_max;       /* Maximum x value in the query dataset   */
+	double             y_min;       /* Minimum y value in the query dataset   */
+	double             y_max;       /* Maximum y value in the query dataset   */
+	int                vertices;    /* Number of vertices for synthetic plots */
+	bool               coarse_grid; /* Should a coarse grid be plotted?       */
+	bool               fine_grid;   /* Should a fine grid be plotted?         */
+	int                cno;         /* Number of curves for plotting          */
+	GtkWidget         *x_widget;    /* Widget to be connected to x-coordinate */
+	GtkWidget         *y_widget;    /* Widget to be connected to y-coordinate */
+	GtkWidget         *cp_widget;   /* Widget to be connected to closest psb. */
+	GtkWidget         *cx_widget;   /* Widget to be connected to closest x pt */
+	GtkWidget         *cy_widget;   /* Widget to be connected to closest y pt */
+	double             x_offset;
+	double             y_offset;
+	double             zoom;
+	int                zoom_level;
+	double             leftmargin;
+} GUI_plot_data;
+
+/* Signal callbacks pertinent to plotting: */
+
+gboolean on_plot_area_expose_event       (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
+void     on_plot_button_clicked          (GtkButton *button, gpointer user_data);
+void     on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void     on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void     on_plot_treeview_row_deleted    (GtkTreeModel *model, GtkTreePath *path, gpointer user_data);
+
+/* Plot functions */
+
+int  gui_plot_area_init    (GtkWidget *area, GtkWidget *button);
+int  gui_plot_area_draw    (GUI_plot_data *data, FILE *redirect);
+int  gui_plot_area_refresh (GUI_plot_data *data);
+void gui_plot_xticks       (GUI_plot_data *data);
+void gui_plot_yticks       (GUI_plot_data *data);
+void gui_plot_clear_canvas (GUI_plot_data *data);
+
+
+/* Obsolete constructs that would need to be updated to the new multi-passband
+ * back-end.
+ */
+
+int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom);
+int gui_plot_rv_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom);
+int gui_plot_eb_using_gnuplot ();
+int gui_plot_lc_to_ascii 	  (gchar *filename);
+int gui_plot_rv_to_ascii 	  (gchar *filename);
