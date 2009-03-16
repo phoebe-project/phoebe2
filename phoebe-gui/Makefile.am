@@ -7,7 +7,7 @@
 #    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
-#                                            Last revision: 2008-06-10 #
+#                                            Last revision: 2009-03-15 #
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
 # it under the terms of the GNU General Public License as published by #

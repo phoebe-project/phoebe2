@@ -3,9 +3,9 @@ AM_CPPFLAGS = \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"
 
-bin_PROGRAMS = phoebe-gui-cairo
+bin_PROGRAMS = phoebe-gui
 
-phoebe_gui_cairo_SOURCES =                                              \
+phoebe_gui_SOURCES =                                                    \
 	phoebe_gui_main.h               phoebe_gui_main.c               \
 	phoebe_gui_callbacks.h          phoebe_gui_callbacks.c          \
 	phoebe_gui_types.h              phoebe_gui_types.c              \
@@ -20,5 +20,5 @@ AM_CFLAGS = -Wall -g \
 	-DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\" \
 	-DGLADE_PIXMAP_DIR=\"$(prefix)/share/phoebe/gui/pixmaps\"
 
-phoebe_gui_cairo_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
-phoebe_gui_cairo_LDFLAGS = -export-dynamic
+phoebe_gui_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
+phoebe_gui_LDFLAGS = -export-dynamic

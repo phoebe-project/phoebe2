@@ -30,7 +30,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = phoebe-gui-cairo$(EXEEXT)
+bin_PROGRAMS = phoebe-gui$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/phoebe_gui_build_config.h.in
@@ -44,15 +44,15 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_phoebe_gui_cairo_OBJECTS = phoebe_gui_main.$(OBJEXT) \
+am_phoebe_gui_OBJECTS = phoebe_gui_main.$(OBJEXT) \
 	phoebe_gui_callbacks.$(OBJEXT) phoebe_gui_types.$(OBJEXT) \
 	phoebe_gui_base.$(OBJEXT) phoebe_gui_treeviews.$(OBJEXT) \
 	phoebe_gui_accessories.$(OBJEXT) phoebe_gui_plotting.$(OBJEXT) \
 	phoebe_gui_error_handling.$(OBJEXT)
-phoebe_gui_cairo_OBJECTS = $(am_phoebe_gui_cairo_OBJECTS)
-phoebe_gui_cairo_DEPENDENCIES =
-phoebe_gui_cairo_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(phoebe_gui_cairo_LDFLAGS) $(LDFLAGS) -o $@
+phoebe_gui_OBJECTS = $(am_phoebe_gui_OBJECTS)
+phoebe_gui_DEPENDENCIES =
+phoebe_gui_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(phoebe_gui_LDFLAGS) \
+	$(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/autoconfig/depcomp
 am__depfiles_maybe = depfiles
@@ -60,8 +60,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(phoebe_gui_cairo_SOURCES)
-DIST_SOURCES = $(phoebe_gui_cairo_SOURCES)
+SOURCES = $(phoebe_gui_SOURCES)
+DIST_SOURCES = $(phoebe_gui_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -169,7 +169,7 @@ AM_CPPFLAGS = \
 	-DPACKAGE_DATA_DIR=\""$(datadir)"\" \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"
 
-phoebe_gui_cairo_SOURCES = \
+phoebe_gui_SOURCES = \
 	phoebe_gui_main.h               phoebe_gui_main.c               \
 	phoebe_gui_callbacks.h          phoebe_gui_callbacks.c          \
 	phoebe_gui_types.h              phoebe_gui_types.c              \
@@ -184,8 +184,8 @@ AM_CFLAGS = -Wall -g \
 	-DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\" \
 	-DGLADE_PIXMAP_DIR=\"$(prefix)/share/phoebe/gui/pixmaps\"
 
-phoebe_gui_cairo_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
-phoebe_gui_cairo_LDFLAGS = -export-dynamic
+phoebe_gui_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
+phoebe_gui_LDFLAGS = -export-dynamic
 all: phoebe_gui_build_config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -260,9 +260,9 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
-phoebe-gui-cairo$(EXEEXT): $(phoebe_gui_cairo_OBJECTS) $(phoebe_gui_cairo_DEPENDENCIES) 
-	@rm -f phoebe-gui-cairo$(EXEEXT)
-	$(phoebe_gui_cairo_LINK) $(phoebe_gui_cairo_OBJECTS) $(phoebe_gui_cairo_LDADD) $(LIBS)
+phoebe-gui$(EXEEXT): $(phoebe_gui_OBJECTS) $(phoebe_gui_DEPENDENCIES) 
+	@rm -f phoebe-gui$(EXEEXT)
+	$(phoebe_gui_LINK) $(phoebe_gui_OBJECTS) $(phoebe_gui_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
