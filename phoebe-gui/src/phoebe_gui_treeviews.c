@@ -396,46 +396,35 @@ int gui_reinit_lc_treeviews ()
 	return status;
 }
 
-int gui_init_lc_obs_combobox()
-{
-/*
-	GtkWidget 		*phoebe_plot_lc_observed_combobox 	= gui_widget_lookup ("phoebe_lc_plot_options_obs_combobox")->gtk;
-	GtkTreeModel 	*lc_model			 				= GTK_TREE_MODEL(gui_widget_lookup ("phoebe_data_lc_filter")->gtk);
-
-	GtkCellRenderer *renderer;
-
-	renderer = gtk_cell_renderer_text_new ();
-	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox));
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox), renderer, TRUE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (phoebe_plot_lc_observed_combobox), renderer, "text", LC_COL_ID);
-
-	gtk_combo_box_set_model ((GtkComboBox *) phoebe_plot_lc_observed_combobox,   lc_model);
-*/
-    return SUCCESS;
-}
-
 int gui_init_rv_treeviews ()
 {
 	GtkWidget *phoebe_data_rv_treeview 			= gui_widget_lookup ("phoebe_data_rv_treeview")->gtk;
 	GtkWidget *phoebe_para_rv_ld_treeview 		= gui_widget_lookup ("phoebe_para_rv_ld_treeview")->gtk;
+	GtkWidget *phoebe_rv_plot_treeview          = gui_widget_lookup ("phoebe_rv_plot_treeview")->gtk;
 
-    GtkTreeModel *rv_model = (GtkTreeModel*)gtk_list_store_new(
-		RV_COL_COUNT,          /* number of columns    */
-		G_TYPE_BOOLEAN,        /* active               */
-		G_TYPE_STRING,         /* filename             */
-		G_TYPE_STRING,		   /* ID				   */
-		G_TYPE_STRING,         /* passband             */
-		G_TYPE_INT,            /* itype                */
-		G_TYPE_STRING,         /* itype as string      */
-		G_TYPE_INT,            /* dtype                */
-		G_TYPE_STRING,         /* dtype as string      */
-		G_TYPE_INT,            /* wtype                */
-		G_TYPE_STRING,         /* wtype as string      */
-		G_TYPE_DOUBLE,         /* sigma                */
-		G_TYPE_DOUBLE,         /* rvx1                 */
-		G_TYPE_DOUBLE,         /* rvx2                 */
-		G_TYPE_DOUBLE,         /* rvy1                 */
-		G_TYPE_DOUBLE);        /* rvy2                 */
+    GtkTreeModel *rv_model = (GtkTreeModel*) gtk_list_store_new (
+		RV_COL_COUNT,          /* number of columns     */
+		G_TYPE_BOOLEAN,        /* active                */
+		G_TYPE_STRING,         /* filename              */
+		G_TYPE_STRING,		   /* ID				    */
+		G_TYPE_STRING,         /* passband              */
+		G_TYPE_INT,            /* itype                 */
+		G_TYPE_STRING,         /* itype as string       */
+		G_TYPE_INT,            /* dtype                 */
+		G_TYPE_STRING,         /* dtype as string       */
+		G_TYPE_INT,            /* wtype                 */
+		G_TYPE_STRING,         /* wtype as string       */
+		G_TYPE_DOUBLE,         /* sigma                 */
+		G_TYPE_DOUBLE,         /* rvx1                  */
+		G_TYPE_DOUBLE,         /* rvx2                  */
+		G_TYPE_DOUBLE,         /* rvy1                  */
+		G_TYPE_DOUBLE,         /* rvy2                  */
+		G_TYPE_BOOLEAN,        /* plot observed switch  */
+		G_TYPE_BOOLEAN,        /* plot synthetic switch */
+		G_TYPE_STRING,         /* observed data color   */
+		G_TYPE_STRING,         /* synthetic data color  */
+		G_TYPE_DOUBLE          /* plot offset           */
+	);
 
     GtkCellRenderer     *renderer;
     GtkTreeViewColumn   *column;
@@ -493,10 +482,62 @@ int gui_init_rv_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes("Y2", renderer, "text", RV_COL_Y2, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
 
+	/**************************************************************************/
+	/*                                                                        */
+	/*                         RV PLOTTING TREEVIEW                           */
+	/*                                                                        */
+	/**************************************************************************/
+
+    renderer    = gtk_cell_renderer_text_new ();
+	column      = gtk_tree_view_column_new_with_attributes ("Passband ID:", renderer, "text", RV_COL_ID, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+	renderer    = gtk_cell_renderer_toggle_new ();
+	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OBS));
+    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Observed:", renderer, "active", RV_COL_PLOT_OBS, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+	renderer    = gtk_cell_renderer_toggle_new ();
+	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_SYN));
+    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Synthetic:", renderer, "active", RV_COL_PLOT_SYN, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OBS_COLOR));
+	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Obs color:", renderer, "text", RV_COL_PLOT_OBS_COLOR, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_SYN_COLOR));
+	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Syn color:", renderer, "text", RV_COL_PLOT_SYN_COLOR, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OFFSET));
+	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_numeric_cell_edited), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Y Offset:", renderer, "text", RV_COL_PLOT_OFFSET, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+	/**************************************************************************/
+
     g_signal_connect (rv_model, "row_changed", GTK_SIGNAL_FUNC (on_phoebe_data_rv_model_row_changed), NULL);
 
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_data_rv_treeview,            rv_model);
-    gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_rv_ld_treeview,         rv_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_data_rv_treeview,            rv_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_rv_ld_treeview,         rv_model);
+    gtk_tree_view_set_model ((GtkTreeView *) phoebe_rv_plot_treeview,            rv_model);
 
     return SUCCESS;
 }
@@ -519,23 +560,6 @@ int gui_reinit_rv_treeviews ()
 	}
 
 	return status;
-}
-
-int gui_init_rv_obs_combobox()
-{
-	GtkWidget 		*phoebe_plot_rv_observed_combobox 	= gui_widget_lookup ("phoebe_rv_plot_options_obs_combobox")->gtk;
-	GtkTreeModel 	*rv_model							= GTK_TREE_MODEL(gui_widget_lookup ("phoebe_data_rv_filter")->gtk);
-
-	GtkCellRenderer *renderer;
-
-	renderer = gtk_cell_renderer_text_new ();
-	gtk_cell_layout_clear (GTK_CELL_LAYOUT (phoebe_plot_rv_observed_combobox));
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (phoebe_plot_rv_observed_combobox), renderer, TRUE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (phoebe_plot_rv_observed_combobox), renderer, "text", RV_COL_ID);
-
-	gtk_combo_box_set_model ((GtkComboBox *) phoebe_plot_rv_observed_combobox,   rv_model);
-
-    return SUCCESS;
 }
 
 static void gui_spots_cell_data_function (GtkCellLayout *cell_layout, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
@@ -1625,21 +1649,28 @@ int gui_data_rv_treeview_add()
 			if(strlen(id) < 1)id = filter_selected;
 
             gtk_list_store_append((GtkListStore*)model, &iter);
-            gtk_list_store_set((GtkListStore*)model, &iter, RV_COL_ACTIVE,      TRUE,
-                                                            RV_COL_FILENAME,    filename,
-                                                            RV_COL_ID,			id,
-                                                            RV_COL_FILTER,      filter_selected,
-                                                            RV_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox),
-                                                            RV_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]),
-                                                            RV_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox),
-                                                            RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
-                                                            RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
-                                                            RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
-                                                            RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
-                                                            RV_COL_X1,          0.5,
-                                                            RV_COL_X2,          0.5,
-                                                            RV_COL_Y1,          0.5,
-                                                            RV_COL_Y2,          0.5, -1);
+            gtk_list_store_set((GtkListStore*)model, &iter,
+				RV_COL_ACTIVE,      TRUE,
+                RV_COL_FILENAME,    filename,
+                RV_COL_ID,			id,
+                RV_COL_FILTER,      filter_selected,
+                RV_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox),
+                RV_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column1_combobox)]),
+                RV_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox),
+                RV_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column2_combobox)]),
+                RV_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox),
+                RV_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_rv_column3_combobox)]),
+                RV_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_rv_sigma_spinbutton),
+                RV_COL_X1,          0.5,
+                RV_COL_X2,          0.5,
+                RV_COL_Y1,          0.5,
+                RV_COL_Y2,          0.5,
+				RV_COL_PLOT_OBS,    FALSE,
+				RV_COL_PLOT_SYN,    FALSE,
+				RV_COL_PLOT_OBS_COLOR, "#0000FF",
+				RV_COL_PLOT_SYN_COLOR, "#FF0000",
+				RV_COL_PLOT_OFFSET, 0.0,
+				-1);
 
             PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_rvno");
             int rvno;

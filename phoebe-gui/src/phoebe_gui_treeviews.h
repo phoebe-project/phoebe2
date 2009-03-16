@@ -48,6 +48,11 @@ typedef enum GUI_rv_model_columns {
     RV_COL_X2,
     RV_COL_Y1,
     RV_COL_Y2,
+	RV_COL_PLOT_OBS,
+	RV_COL_PLOT_SYN,
+	RV_COL_PLOT_OBS_COLOR,
+	RV_COL_PLOT_SYN_COLOR,
+	RV_COL_PLOT_OFFSET,
     RV_COL_COUNT
 } GUI_rv_model_columns;
 
@@ -155,8 +160,6 @@ int gui_fill_fitt_curve_treeview		();
 int gui_init_lc_plot_treeview           ();
 
 int gui_init_filter_combobox 			(GtkWidget *combo_box);
-int gui_init_lc_obs_combobox			();
-int gui_init_rv_obs_combobox			();
 
 int gui_data_lc_treeview_add 			();
 int gui_data_rv_treeview_add 			();
