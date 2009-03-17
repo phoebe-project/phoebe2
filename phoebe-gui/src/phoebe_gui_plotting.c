@@ -217,7 +217,7 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 	 */
 
 	int i, p;
-	double cx, cy, cf, cf0;
+	double cx, cy, dx, dy, cf, cf0;
 
 	*cp = 0;
 	*ci = 0;
@@ -233,7 +233,9 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 	/* Starting with the first data point in the first passband: */
 	cx = data->request[p].query->indep->val[0];
 	cy = data->request[p].query->dep->val[0] + data->request[p].offset;
-	cf0 = (x-cx)*(x-cx)+(y-cy)*(y-cy);
+	dx = data->x_max-data->x_min;
+	dy = data->y_max-data->y_min;
+	cf0 = (x-cx)*(x-cx)/dx/dx+(y-cy)*(y-cy)/dy/dy;
 
 	for ( ; p < data->cno; p++) {
 		if (!data->request[p].query) continue;
@@ -241,7 +243,7 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 			cx = data->request[p].query->indep->val[i];
 			cy = data->request[p].query->dep->val[i] + data->request[p].offset;
 
-			cf = (x-cx)*(x-cx)+(y-cy)*(y-cy);
+			cf = (x-cx)*(x-cx)/dx/dx+(y-cy)*(y-cy)/dy/dy;
 			if (cf < cf0) {
 				*cp = p;
 				*ci = i;
@@ -264,14 +266,15 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 	int cp, ci, p;
 
 	gui_plot_coordinates_from_pixels (data, event->x, event->y, &x, &y);
-	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS)
-		return FALSE;
 
 	sprintf (x_str, "%lf", x);
 	sprintf (y_str, "%lf", y);
 
 	gtk_label_set_text (GTK_LABEL (data->x_widget), x_str);
 	gtk_label_set_text (GTK_LABEL (data->y_widget), y_str);
+
+	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS)
+		return FALSE;
 
 	for (p = 0; p < data->cno; p++)
 		if (data->request[p].query)
