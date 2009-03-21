@@ -369,42 +369,43 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	if (strcmp (passband,  "Stromgren:u") == 0) { *id =  1; return SUCCESS; }
-	if (strcmp (passband,  "Stromgren:v") == 0) { *id =  2; return SUCCESS; }
-	if (strcmp (passband,  "Stromgren:b") == 0) { *id =  3; return SUCCESS; }
-	if (strcmp (passband,  "Stromgren:y") == 0) { *id =  4; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:U") == 0) { *id =  5; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:B") == 0) { *id =  6; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:V") == 0) { *id =  7; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:R") == 0) { *id =  8; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:I") == 0) { *id =  9; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:J") == 0) { *id = 10; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:H") == 0) { *id = 28; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:K") == 0) { *id = 11; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:L") == 0) { *id = 12; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:M") == 0) { *id = 13; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:N") == 0) { *id = 14; return SUCCESS; }
-	if (strcmp (passband,    "Cousins:R") == 0) { *id = 15; return SUCCESS; }
-	if (strcmp (passband,    "Cousins:I") == 0) { *id = 16; return SUCCESS; }
-	/*                              230           *id = 17;                 */
-	/*                              250           *id = 18;                 */
-	/*                              270           *id = 19;                 */
-	/*                              290           *id = 20;                 */
-	/*                              310           *id = 21;                 */
-	/*                              330           *id = 22;                 */
-	if (strcmp (passband, "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
-	if (strcmp (passband, "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
-	if (strcmp (passband, "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
-	if (strcmp (passband,    "CoRoT:exo") == 0) { *id = 26; return SUCCESS; }
-	if (strcmp (passband,  "CoRoT:sismo") == 0) { *id = 27; return SUCCESS; }
-	if (strcmp (passband,    "Johnson:H") == 0) { *id = 28; return SUCCESS; }
-	if (strcmp (passband,     "Geneva:U") == 0) { *id = 29; return SUCCESS; }
-	if (strcmp (passband,     "Geneva:B") == 0) { *id = 30; return SUCCESS; }
-	if (strcmp (passband,    "Geneva:B1") == 0) { *id = 31; return SUCCESS; }
-	if (strcmp (passband,    "Geneva:B2") == 0) { *id = 32; return SUCCESS; }
-	if (strcmp (passband,     "Geneva:V") == 0) { *id = 33; return SUCCESS; }
-	if (strcmp (passband,    "Geneva:V1") == 0) { *id = 34; return SUCCESS; }
-	if (strcmp (passband,     "Geneva:G") == 0) { *id = 35; return SUCCESS; }
+	if (strcmp (passband,    "Stromgren:u") == 0) { *id =  1; return SUCCESS; }
+	if (strcmp (passband,    "Stromgren:v") == 0) { *id =  2; return SUCCESS; }
+	if (strcmp (passband,    "Stromgren:b") == 0) { *id =  3; return SUCCESS; }
+	if (strcmp (passband,    "Stromgren:y") == 0) { *id =  4; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:U") == 0) { *id =  5; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:B") == 0) { *id =  6; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:V") == 0) { *id =  7; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:R") == 0) { *id =  8; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:I") == 0) { *id =  9; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:J") == 0) { *id = 10; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:H") == 0) { *id = 28; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:K") == 0) { *id = 11; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:L") == 0) { *id = 12; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:M") == 0) { *id = 13; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:N") == 0) { *id = 14; return SUCCESS; }
+	if (strcmp (passband,      "Cousins:R") == 0) { *id = 15; return SUCCESS; }
+	if (strcmp (passband,      "Cousins:I") == 0) { *id = 16; return SUCCESS; }
+	/*                                230           *id = 17;                 */
+	/*                                250           *id = 18;                 */
+	/*                                270           *id = 19;                 */
+	/*                                290           *id = 20;                 */
+	/*                                310           *id = 21;                 */
+	/*                                330           *id = 22;                 */
+	if (strcmp (passband,   "Hipparcos:BT") == 0) { *id = 23; return SUCCESS; }
+	if (strcmp (passband,   "Hipparcos:VT") == 0) { *id = 24; return SUCCESS; }
+	if (strcmp (passband,   "Hipparcos:Hp") == 0) { *id = 25; return SUCCESS; }
+	if (strcmp (passband,      "CoRoT:exo") == 0) { *id = 26; return SUCCESS; }
+	if (strcmp (passband,    "CoRoT:sismo") == 0) { *id = 27; return SUCCESS; }
+	if (strcmp (passband,      "Johnson:H") == 0) { *id = 28; return SUCCESS; }
+	if (strcmp (passband,       "Geneva:U") == 0) { *id = 29; return SUCCESS; }
+	if (strcmp (passband,       "Geneva:B") == 0) { *id = 30; return SUCCESS; }
+	if (strcmp (passband,      "Geneva:B1") == 0) { *id = 31; return SUCCESS; }
+	if (strcmp (passband,      "Geneva:B2") == 0) { *id = 32; return SUCCESS; }
+	if (strcmp (passband,       "Geneva:V") == 0) { *id = 33; return SUCCESS; }
+	if (strcmp (passband,      "Geneva:V1") == 0) { *id = 34; return SUCCESS; }
+	if (strcmp (passband,       "Geneva:G") == 0) { *id = 35; return SUCCESS; }
+	if (strcmp (passband, "Kepler:default") == 0) { *id = 36; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;

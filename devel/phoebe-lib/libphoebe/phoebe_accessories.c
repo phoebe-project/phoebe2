@@ -11,6 +11,7 @@
 #include "phoebe_accessories.h"
 #include "phoebe_build_config.h"
 #include "phoebe_calculations.h"
+#include "phoebe_configuration.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_types.h"
 
@@ -555,4 +556,31 @@ char *phoebe_readline (FILE *stream)
 	}
 
 	return line;
+}
+
+char *phoebe_create_temp_filename (char *templ)
+{
+	/**
+	 * phoebe_create_temp_filename:
+	 * @templ: filename template; it must end with XXXXXX
+	 *
+	 * Creates a unique temporary filename in the directory #PHOEBE_TEMP_DIR.
+	 * If a unique filename cannot be found, or if @templ is invalid, #NULL
+	 * is returned. The calling function should free the returned string.
+	 *
+	 * Returns: string with a unique filename.
+	 */
+
+	char *tmpdir, *tmpfname, *check;
+
+	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
+	tmpfname = phoebe_concatenate_strings (tmpdir, "/", templ, NULL);
+
+	check = mktemp (tmpfname);
+	if (!check || strlen (check) == 0) {
+		free (tmpfname);
+		return NULL;
+	};
+
+	return tmpfname;
 }

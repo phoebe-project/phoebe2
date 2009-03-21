@@ -30,12 +30,13 @@ int phoebe_join_chi2  (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weight
  * below should then correspond to that prototype.
  */
 
-#define wd_lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params) lc_(atmtab,pltab,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params,strlen(atmtab),strlen(pltab))
+#define wd_lc(atmtab,pltab,lcin,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params) lc_(atmtab,pltab,lcin,request,vertno,L3perc,indeps,deps,poscoy,poscoz,params,strlen(atmtab),strlen(pltab),strlen(lcin))
 
-int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep);
-int call_wd_to_get_rv1    (PHOEBE_curve *rv1,   PHOEBE_vector *indep);
-int call_wd_to_get_rv2    (PHOEBE_curve *rv2,   PHOEBE_vector *indep);
-int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, double phase);
+int phoebe_compute_lc_using_wd  (PHOEBE_curve *curve, PHOEBE_vector *indep, char *lcin);
+int phoebe_compute_rv1_using_wd (PHOEBE_curve *rv1,   PHOEBE_vector *indep, char *lcin);
+int phoebe_compute_rv2_using_wd (PHOEBE_curve *rv2,   PHOEBE_vector *indep, char *lcin);
+int phoebe_compute_pos_using_wd (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, char *lcin, double phase);
+
 int call_wd_to_get_logg_values (double *logg1, double *logg2);
 
 int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs);

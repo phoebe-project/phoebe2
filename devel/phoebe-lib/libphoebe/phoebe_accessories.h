@@ -26,5 +26,6 @@ char *phoebe_clean_data_line                  (char *line);
 bool  atob                                    (char *str);
 char *phoebe_strdup                           (const char *s);
 char *phoebe_readline                         (FILE *stream);
+char *phoebe_create_temp_filename             (char *templ);
 
 #endif

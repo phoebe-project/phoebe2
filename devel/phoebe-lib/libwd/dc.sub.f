@@ -62,7 +62,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
-      parameter (iplmax=    35)
+      parameter (iplmax=    36)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -296,6 +296,7 @@ c      32   Geneva B2      "             "             "           "
 c      33   Geneva V       "             "             "           "
 c      34   Geneva V1      "             "             "           "
 c      35   Geneva G       "             "             "           "
+c      36   Kepler     Kepler Science Book
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))

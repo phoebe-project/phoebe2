@@ -2002,16 +2002,12 @@ int gui_plot_eb_using_gnuplot ()
 {
 	gint status, i;
 
-	gchar *filename;
+	gchar *lcin, *ebname, *cname, *pname;
 
 	PHOEBE_vector *poscoy, *poscoz;
 
 	WD_LCI_parameters *params;
 
-	gchar *tmpdir;
-	gchar ebname[255];
-	gchar cname[255];
-	gchar pname[255];
 	gchar  line[255];
 
 	gint ebfd, cfd, pfd;
@@ -2021,8 +2017,6 @@ int gui_plot_eb_using_gnuplot ()
 	GError *err = NULL;
 
 	double phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON (phase_spinbutton));
-
-	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 
 	params = phoebe_malloc (sizeof (*params));
 	status = wd_lci_parameters_get (params, 5, 0);
@@ -2034,19 +2028,19 @@ int gui_plot_eb_using_gnuplot ()
 	/* 3D plotting is always done in phase space, regardless of the settings: */
 	params->JDPHS = 2;
 
-	filename = phoebe_resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, params);
+	lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+	create_lci_file (lcin, params);
 	free (params);
 
 	poscoy = phoebe_vector_new ();
 	poscoz = phoebe_vector_new ();
-	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, phase);
+	status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, phase);
 	if (status != SUCCESS) {
 		gui_notice ("Star shape plot", phoebe_error (status));
 		return status;
 	}
 
-	sprintf(ebname, "%s/phoebe-eb-XXXXXX", tmpdir);
+	ebname = phoebe_create_temp_filename ("phoebe-eb-XXXXXX");
 	ebfd = gui_tempfile (ebname);
 	for (i=0;i<poscoy->dim;i++) {
 		sprintf(line, "%lf\t%lf\n", poscoy->val[i], poscoz->val[i]) ;
@@ -2058,7 +2052,7 @@ int gui_plot_eb_using_gnuplot ()
 
 	close(ebfd);
 
-	sprintf(cname, "%s/phoebe-eb-XXXXXX", tmpdir);
+	cname = phoebe_create_temp_filename ("phoebe-eb-XXXXXX");
 	cfd = gui_tempfile (cname);
 
 #ifdef PHOEBE_GUI_GNUPLOT_LIBGD
@@ -2076,7 +2070,7 @@ int gui_plot_eb_using_gnuplot ()
 	sprintf(line, "set yrange [-0.8:0.8]\n"); 							write(cfd, line, strlen(line));
 	sprintf(line, "set xrange [-1.3:1.3]\n"); 							write(cfd, line, strlen(line));
 
-	sprintf(pname, "%s/phoebe-eb-plot-XXXXXX", tmpdir);
+	pname = phoebe_create_temp_filename ("phoebe-eb-plot-XXXXXX");
 	pfd = gui_tempfile (pname);
 	close(pfd);
 

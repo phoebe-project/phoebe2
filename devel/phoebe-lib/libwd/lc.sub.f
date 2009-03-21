@@ -1,4 +1,4 @@
-      subroutine lc(atmtab,pltab,request,vertno,L3perc,indeps,deps,
+      subroutine lc(atmtab,pltab,lcin,request,vertno,L3perc,indeps,deps,
      +              skycoy,skycoz,params)
 c
 c  Main program for computing light and radial velocity curves,
@@ -49,7 +49,7 @@ c
       parameter (lpomax=100000)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
-      parameter (iplmax=    35)
+      parameter (iplmax=    36)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -135,6 +135,7 @@ c         deps   ..   an array of computed values (fluxes or RVs)
 c       skycoy   ..   an array of y-coordinates of the plane of sky
 c       skycoz   ..   an array of z-coordinates of the plane of sky
 c       params   ..   an array of computed parameters:
+c         lcin   ..   input lci filename
 c
 c                     params( 1) = L1     star 1 passband luminosity
 c                     params( 2) = L2     star 2 passband luminosity
@@ -153,6 +154,7 @@ c                     params(14) = pcsv   star 2 potential
 c
       integer request,vertno
       double precision indeps(*),deps(*),skycoy(*),skycoz(*),params(*)
+      character lcin*(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -249,6 +251,7 @@ c      32   Geneva B2      "             "             "           "
 c      33   Geneva V       "             "             "           "
 c      34   Geneva V1      "             "             "           "
 c      35   Geneva G       "             "             "           "
+c      36   Kepler     Kepler Science Book
 
       ot=1.d0/3.d0
       pi=dacos(-1.d0)
@@ -301,7 +304,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       read(23,*) plcof
       close(22)
       close(23)
-      open(unit=15,file='lcin.active',status='old')
+      open(unit=15,file=lcin,status='old')
       open(unit=16,file='lcout.active')
       ibef=0
       nf1=1
