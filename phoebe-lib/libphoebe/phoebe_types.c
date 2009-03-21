@@ -2768,7 +2768,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	int status;
 
 	char *filter;
-	char *filename;
+	char *lcin;
 	WD_LCI_parameters params;
 
 	double A;
@@ -2827,34 +2827,37 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			break;
 	}
 
+	/* Generate a unique LCI filename: */
+	lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+	if (!lcin) return ERROR_FILE_OPEN_FAILED;
+
 	curve->passband = phoebe_passband_lookup (filter);
 
+	/* Read in all parameters and create the LCI file: */
 	status = wd_lci_parameters_get (&params, mpage, index);
 	if (status != SUCCESS) return status;
-
 	params.JDPHS = jdphs;
+	create_lci_file (lcin, &params);
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
-	filename = phoebe_resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, &params);
 
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:
-			status = call_wd_to_get_fluxes (curve, nodes);
+			status = phoebe_compute_lc_using_wd (curve, nodes, lcin);
 			if (status != SUCCESS) return status;
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_FLUX:
-			status = call_wd_to_get_fluxes (curve, nodes);
+			status = phoebe_compute_lc_using_wd (curve, nodes, lcin);
 			if (status != SUCCESS) return status;
 			apply_extinction_correction (curve, A);
 		break;
 		case PHOEBE_COLUMN_PRIMARY_RV:
-			status = call_wd_to_get_rv1 (curve, nodes);
+			status = phoebe_compute_rv1_using_wd (curve, nodes, lcin);
 			if (status != SUCCESS) return status;
 		break;
 		case PHOEBE_COLUMN_SECONDARY_RV:
-			status = call_wd_to_get_rv2 (curve, nodes);
+			status = phoebe_compute_rv2_using_wd (curve, nodes, lcin);
 			if (status != SUCCESS) return status;
 		break;
 		default:
@@ -2862,8 +2865,8 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
-	remove (filename);
-	free (filename);
+	remove (lcin);
+	free (lcin);
 
 	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
 		double mnorm;

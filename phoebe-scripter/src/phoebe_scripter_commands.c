@@ -1998,7 +1998,7 @@ scripter_ast_value scripter_plot_eb_using_gnuplot (scripter_ast_list *args)
 	scripter_plot_properties *props = NULL;
 	WD_LCI_parameters *params;
 
-	char *filename;
+	char *lcin;
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
@@ -2015,12 +2015,12 @@ scripter_ast_value scripter_plot_eb_using_gnuplot (scripter_ast_list *args)
 		return out;
 	}
 
-	filename = phoebe_resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, params);
+	lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+	create_lci_file (lcin, params);
 
 	poscoy = phoebe_vector_new ();
 	poscoz = phoebe_vector_new ();
-	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, vals[0].value.d);
+	status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, vals[0].value.d);
 
 	props = phoebe_malloc (sizeof (*props));
 	props[index].lines = FALSE;
@@ -2038,6 +2038,8 @@ scripter_ast_value scripter_plot_eb_using_gnuplot (scripter_ast_list *args)
 	phoebe_vector_free (poscoz);
 	free (params);
 	free (props);
+	remove (lcin);
+	free (lcin);
 
 	scripter_ast_value_array_free (vals, 1);
 
@@ -2362,7 +2364,7 @@ scripter_ast_value scripter_compute_mesh (scripter_ast_list *args)
 
 	WD_LCI_parameters *params;
 
-	char *filename;
+	char *lcin;
 
 	scripter_ast_value out;
 	scripter_ast_value *vals;
@@ -2379,12 +2381,12 @@ scripter_ast_value scripter_compute_mesh (scripter_ast_list *args)
 		return out;
 	}
 
-	filename = phoebe_resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, params);
+	lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+	create_lci_file (lcin, params);
 
 	poscoy = phoebe_vector_new ();
 	poscoz = phoebe_vector_new ();
-	status = call_wd_to_get_pos_coordinates (poscoy, poscoz, vals[0].value.d);
+	status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, vals[0].value.d);
 
 	out.type = type_curve;
 	out.value.curve = phoebe_curve_new ();
@@ -2400,6 +2402,8 @@ scripter_ast_value scripter_compute_mesh (scripter_ast_list *args)
 	phoebe_vector_free (poscoy);
 	phoebe_vector_free (poscoz);
 	free (params);
+	remove (lcin);
+	free (lcin);
 
 	scripter_ast_value_array_free (vals, 1);
 

@@ -225,11 +225,11 @@ bool phoebe_pcsv_constrained (int wd_model)
 	}
 }
 
-void call_wd_lc (char *atmcof, char *atmcofplanck, integer *request, integer *nodes, integer *L3perc, double *indep, double *dep, double *ypos, double *zpos)
+void intern_call_wd_lc (char *atmcof, char *atmcofplanck, char *lcin, integer *request, integer *nodes, integer *L3perc, double *indep, double *dep, double *ypos, double *zpos)
 {
 	double params[14];
 
-	wd_lc (atmcof, atmcofplanck, request, nodes, L3perc, indep, dep, ypos, zpos, params);
+	wd_lc (atmcof, atmcofplanck, lcin, request, nodes, L3perc, indep, dep, ypos, zpos, params);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
@@ -249,6 +249,7 @@ void call_wd_lc (char *atmcof, char *atmcofplanck, integer *request, integer *no
 	if (phoebe_pcsv_constrained (wd_model))
 		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), params[13]);
 
+	return;
 }
 
 int get_atmcof_filenames (char **atmcof, char **atmcofplanck)
@@ -272,12 +273,13 @@ int get_atmcof_filenames (char **atmcof, char **atmcofplanck)
 	return SUCCESS;
 }
 
-int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
+int phoebe_compute_lc_using_wd (PHOEBE_curve *curve, PHOEBE_vector *indep, char *lcin)
 {
 	/**
-	 * call_wd_to_get_fluxes:
+	 * phoebe_compute_lc_using_wd:
 	 * @curve: #PHOEBE_curve placeholder for computed fluxes
-	 * @indep: an array of independent variable values (HJDs or phases);
+	 * @indep: an array of independent variable values (HJDs or phases)
+	 * @lcin:  WD's lci filename
 	 *
 	 * Uses WD's LC code through a FORTRAN wrapper to obtain the fluxes.
 	 * #PHOEBE_curve @curve must be initialized.
@@ -319,15 +321,15 @@ int call_wd_to_get_fluxes (PHOEBE_curve *curve, PHOEBE_vector *indep)
 	if (l3units == PHOEBE_EL3_UNITS_TOTAL_LIGHT)
 		L3perc = 1;
 
-	call_wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, NULL, NULL);
+	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, NULL, NULL);
 
 	return SUCCESS;
 }
 
-int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
+int phoebe_compute_rv1_using_wd (PHOEBE_curve *rv1, PHOEBE_vector *indep, char *lcin)
 {
 	/**
-	 * call_wd_to_get_rv1:
+	 * phoebe_compute_rv1_using_wd:
 	 * @rv1: #PHOEBE_curve placeholder for computed radial velocities
 	 * @indep: an array of independent variable values (HJDs or phases);
 	 *
@@ -364,15 +366,15 @@ int call_wd_to_get_rv1 (PHOEBE_curve *rv1, PHOEBE_vector *indep)
 
 	L3perc = 0;
 
-	call_wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv1->dep->val, NULL, NULL);
+	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, indep->val, rv1->dep->val, NULL, NULL);
 
 	return SUCCESS;
 }
 
-int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
+int phoebe_compute_rv2_using_wd (PHOEBE_curve *rv2, PHOEBE_vector *indep, char *lcin)
 {
 	/**
-	 * call_wd_to_get_rv2:
+	 * phoebe_computer_rv2_using_wd:
 	 * @rv2: #PHOEBE_curve placeholder for computed radial velocities
 	 * @indep: an array of independent variable values (HJDs or phases);
 	 *
@@ -409,15 +411,15 @@ int call_wd_to_get_rv2 (PHOEBE_curve *rv2, PHOEBE_vector *indep)
 
 	L3perc = 0;
 
-	call_wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep->val, rv2->dep->val, NULL, NULL);
+	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, indep->val, rv2->dep->val, NULL, NULL);
 
 	return SUCCESS;
 }
 
-int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, double phase)
+int phoebe_compute_pos_using_wd (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, char *lcin, double phase)
 {
 	/**
-	 * call_wd_to_get_pos_coordinates:
+	 * phoebe_compute_pos_using_wd:
 	 * @poscoy: #PHOEBE_vector placeholder for the plane-of-sky y coordinates
 	 * @poscoz: #PHOEBE_vector placeholder for the plane-of-sky z coordinates
 	 * @phase: phase at which the plane-of-sky coordinates are computed
@@ -492,7 +494,7 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 	nodes   = 1;
 	L3perc  = 0;
 
-	call_wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, &phs, &dummy, poscoy->val, poscoz->val);
+	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, &phs, &dummy, poscoy->val, poscoz->val);
 
 	i = 0;
 	while (!isnan(poscoy->val[i]) && i < poscoy->dim) i++;
@@ -504,10 +506,9 @@ int call_wd_to_get_pos_coordinates (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz
 
 int call_wd_to_get_logg_values (double *logg1, double *logg2)
 {
-	char *atmcof, *atmcofplanck;
-	integer request, nodes, L3perc, status;
+	char *atmcof, *atmcofplanck, *lcin;
+	int request, nodes, L3perc, status;
 
-	char *filename;
 	WD_LCI_parameters wd_params;
 
 	status = get_atmcof_filenames (&atmcof, &atmcofplanck);
@@ -519,23 +520,25 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 
 	wd_params.JDPHS = 2;
 
-	filename = phoebe_resolve_relative_filename ("lcin.active");
-	create_lci_file (filename, &wd_params);
+	/* Generate a unique LCI filename: */
+	lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+	if (!lcin) return ERROR_FILE_OPEN_FAILED;
+	create_lci_file (lcin, &wd_params);
 
-	doublereal indep[1], dep[1];
+	double indep[1], dep[1];
 	indep[0] = 0;
 
 	request = 2;
 	nodes = 1;
 	L3perc = 0;
 
-	call_wd_lc (atmcof, atmcofplanck, &request, &nodes, &L3perc, indep, dep, NULL, NULL);
+	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, indep, dep, NULL, NULL);
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg1"),   logg1);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg2"),   logg2);
 
-	remove (filename);
-	free (filename);
+	remove (lcin);
+	free (lcin);
 
 	return SUCCESS;
 }
@@ -813,8 +816,6 @@ int phoebe_compute_critical_phases (double *pp, double *scp, double *icp, double
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	double T;
-	
 	/* Periastron orbital phase: */
 	*pp  = perr0/(2.0*M_PI) - 0.25 + pshift;
 	if (*pp <= -0.5) *pp += 1.0;
