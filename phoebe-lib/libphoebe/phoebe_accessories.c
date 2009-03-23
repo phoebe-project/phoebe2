@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "phoebe_accessories.h"
@@ -543,7 +544,7 @@ char *phoebe_readline (FILE *stream)
 	char *line, *cont;
 
 	line = phoebe_malloc (len * sizeof (*line));
-	fgets (line, len, stream);
+	if (!fgets (line, len, stream)) return NULL;
 	cont = &(line[0]);
 
 	/* The following part takes care of lines longer than 256 characters: */
@@ -551,7 +552,7 @@ char *phoebe_readline (FILE *stream)
 		len *= 2;
 		line = phoebe_realloc (line, len * sizeof (*line));
 		cont = &(line[len/2-1]);
-		fgets (cont, len/2+1, stream);
+		if (!fgets (cont, len/2+1, stream)) break;
 		if (feof (stream)) break;
 	}
 
@@ -583,4 +584,37 @@ char *phoebe_create_temp_filename (char *templ)
 	};
 
 	return tmpfname;
+}
+
+long int phoebe_seed ()
+{
+	/**
+	 * phoebe_seed:
+	 *
+	 * Computes a random seed for the RNG that will be different for every
+	 * phoebe invocation. This way running phoebe many times a second (i.e.
+	 * for cluster operations) won't result in the same seed. This seeding
+	 * snippet takes the clock state, time state and process ID, shuffles
+	 * them and returns a pseudorandom seed.
+	 *
+	 * Returns: random seed.
+	 */
+
+	long int a, b, c;
+
+	a = clock ();
+	b = time (0);
+	c = getpid ();
+
+    a=a-b;  a=a-c;  a=a^(c >> 13);
+    b=b-c;  b=b-a;  b=b^(a << 8);
+    c=c-a;  c=c-b;  c=c^(b >> 13);
+    a=a-b;  a=a-c;  a=a^(c >> 12);
+    b=b-c;  b=b-a;  b=b^(a << 16);
+    c=c-a;  c=c-b;  c=c^(b >> 5);
+    a=a-b;  a=a-c;  a=a^(c >> 3);
+    b=b-c;  b=b-a;  b=b^(a << 10);
+    c=c-a;  c=c-b;  c=c^(b >> 15);
+
+	return c;
 }
