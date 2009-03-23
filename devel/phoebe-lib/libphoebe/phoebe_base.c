@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "phoebe_build_config.h"
 #include "phoebe_global.h"
@@ -117,7 +116,7 @@ int phoebe_init ()
 #endif
 
 	/* Choose a randomizer seed: */
-	srand (time (0));
+	srand (phoebe_seed ());
 
 	/*
 	 * Catch the interrupt (CTRL+C) signal and use an alternative handler

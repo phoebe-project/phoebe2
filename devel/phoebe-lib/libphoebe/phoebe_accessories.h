@@ -28,4 +28,6 @@ char *phoebe_strdup                           (const char *s);
 char *phoebe_readline                         (FILE *stream);
 char *phoebe_create_temp_filename             (char *templ);
 
+long int phoebe_seed ();
+
 #endif
