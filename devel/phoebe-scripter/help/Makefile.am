@@ -23,6 +23,7 @@
 phoebehelpdir = $(datadir)/phoebe_scripter/help
 phoebehelp_DATA = apply_doppler_shift.help          \
                   apply_rotational_broadening.help  \
+                  compute_critical_potentials.help  \
                   get_spectrum_from_repository.help \
                   if.help                           \
                   info.help                         \
