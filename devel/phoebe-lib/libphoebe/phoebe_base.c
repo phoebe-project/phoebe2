@@ -24,6 +24,15 @@
 	#endif
 #endif
 
+/**
+ * SECTION:phoebe_base
+ * @title: PHOEBE base
+ * @short_description: initialization functions
+ *
+ * These are the functions that initialize PHOEBE and its components.
+ */
+
+
 bool PHOEBE_INTERRUPT;
 
 int intern_phoebe_variables_init ()
@@ -78,7 +87,7 @@ void intern_phoebe_sigint_handler (int signum)
 	 * the process it executes, we need to catch the signal here and block it.
 	 */
 
-	phoebe_debug ("sigint blocked!\n");
+	phoebe_debug ("sigint %d blocked!\n", signum);
 	PHOEBE_INTERRUPT = TRUE;
 	phoebe_lib_error ("break called; exitting PHOEBE.\n\n");
 	exit (0);
@@ -88,7 +97,16 @@ void intern_phoebe_sigint_handler (int signum)
 
 int phoebe_init ()
 {
-	/* This function initializes all core parameters.                         */
+	/**
+	 * phoebe_init:
+	 *
+	 * Initializes PHOEBE. The function initializes all PHOEBE variables,
+	 * sets the "C" locale, sets environment variables, randomizes the seed
+	 * and sets up the break event handler.
+	 *
+	 * This function must be called before any of PHOEBE's functions that rely
+	 * on parameters or variables is used.
+	 */
 
 	phoebe_debug ("Welcome to PHOEBE-lib debugger! :)");
 
@@ -202,6 +220,14 @@ int phoebe_configure ()
 	char *pathname;
 	bool switch_state, return_flag = SUCCESS;
 
+	/* Current working directory: */
+	if (!getcwd (homedir, 255)) {
+		phoebe_lib_warning ("current working directory cannot be accessed, aborting.\n");
+		PHOEBE_STARTUP_DIR = strdup ("");
+	}
+	else
+		PHOEBE_STARTUP_DIR = strdup (homedir);
+
 	phoebe_debug ("* adding configuration entries...\n");
 	phoebe_config_populate ();
 
@@ -306,9 +332,6 @@ int phoebe_configure ()
 
 	/* It is time now to configure all PHOEBE features. */
 
-	getcwd (homedir, 255);
-	PHOEBE_STARTUP_DIR = strdup (homedir);
-
 	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &pathname);
 	phoebe_read_in_passbands (pathname);
 	phoebe_debug ("* %d passbands read in.\n", PHOEBE_passbands_no);
@@ -349,8 +372,8 @@ int phoebe_quit ()
 	/**
 	 * phoebe_quit:
 	 *
-	 * Restores the state of the machine to pre-PHOEBE circumstances and
-	 * frees all memory for an elegant exit.
+	 * Frees all PHOEBE-related memory, restores the default locale and exits
+	 * PHOEBE cleanly.
 	 */
 
 	/* Restore the original locale of the system: */
