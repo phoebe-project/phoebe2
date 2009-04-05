@@ -673,6 +673,16 @@ double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, doubl
 	return phsv/q + 0.5 * (q-1)/q;
 }
 
+double intern_dOmega_dx_cartesian (double x, double y, double z, double D, double q, double F)
+{
+	return -x*pow(x*x+y*y+z*z,-1.5) -q*(x-D)*pow((x-D)*(x-D)+y*y+z*z,-1.5) -q/D/D + F*F*(1+q)*x;
+}
+
+double intern_d2Omega_dx2_cartesian (double x, double y, double z, double D, double q, double F)
+{
+	return (2.*x*x-y*y-z*z)/pow(x*x+y*y+z*z,2.5) + q*(2.*(x-D)*(x-D)-y*y-z*z)/pow((x-D)*(x-D)+y*y+z*z,2.5) + F*F*(1+q);
+}
+
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit)
 {
 	/**
@@ -690,7 +700,7 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	 */
 
 	double D = 1.0 - e;
-	double  xL = 0.5;                             /* Initial x coordinate value */
+	double  xL = D/2.0;                           /* Initial x coordinate value */
 	double dxL = 1.1e-6;                          /* Initial x coordinate step  */
 	double Force;                                 /* Gravitational force        */
 	double dxLdF;                                 /* Spatial derivative         */
@@ -701,15 +711,13 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	double q2;
 	double factor;
 
-	/* First L1: we iterate to the point of accuracy better than 1e-6:          */
+	/* First L1: we iterate to accuracy better than 1e-6: */
 
-	while (fabs(dxL) > 1e-6)
-		{
+	while (fabs(dxL) > 1e-6) {
+		dxL = - intern_dOmega_dx_cartesian (xL, 0.0, 0.0, D, q, F)/intern_d2Omega_dx2_cartesian (xL, 0, 0, D, q, F);
 		xL = xL + dxL;
-		Force = F*F*(q+1)*xL - 1.0/xL/xL - q*(xL-D)/fabs(pow(D-xL,3)) - q/D/D;
-		dxLdF  = 1.0/(F*F*(q+1) + 2.0/xL/xL/xL + 2*q/fabs(pow(D-xL,3)));
-		dxL = -Force * dxLdF;
-		}
+	}
+
 	xL1 = xL;
 	*L1crit = phoebe_calculate_pot1 (1, D, q, xL1, F, 1.0, 0.0);
 

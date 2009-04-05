@@ -486,11 +486,15 @@ double phoebe_compute_radius (double rp, double q, double D, double F, double la
 
 	double r = rp;
 	double r0;
+	int iters = 0;
 
 	do {
 		r0 = r;
 		r = intern_radius_implicit (rp, r, q, D, lambda, nu, F);
-		if (r > 1) return -1;      /* This means that the star is overcontact */
+		printf ("r = %lf\n", r);
+		/* This means that the star is overcontact or computation diverged: */
+		if (r > 1 || iters > 100) return -1;
+		iters++;
 	} while (fabs (r-r0) > 1e-6);
 	
 	return r;
