@@ -132,46 +132,51 @@ void gui_beep()
 	}
 }
 
-int gui_open_parameter_file()
+int gui_open_parameter_file ()
 {
 	GtkWidget *dialog;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 	int status = -1;
 	char *filename;
 
-	dialog = gtk_file_chooser_dialog_new ("Open PHOEBE parameter file",
-										  GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
-										  GTK_FILE_CHOOSER_ACTION_OPEN,
-										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-										  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-										  NULL);
+	dialog = gtk_file_chooser_dialog_new (
+		"Open PHOEBE parameter file",
+		GTK_WINDOW (gui_widget_lookup ("phoebe_window")->gtk),
+		GTK_FILE_CHOOSER_ACTION_OPEN,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+		NULL);
 
-	if(PHOEBE_DIRFLAG)
-		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, PHOEBE_DIRNAME);
-	else{
+	if (PHOEBE_DIRFLAG)
+		gtk_file_chooser_set_current_folder ((GtkFileChooser*) dialog, PHOEBE_DIRNAME);
+	else {
 		gchar *dir;
-		phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
-		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, dir);
+		phoebe_config_entry_get ("PHOEBE_DATA_DIR", &dir);
+		gtk_file_chooser_set_current_folder ((GtkFileChooser*) dialog, dir);
 	}
 
-    gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
+	gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 450);
+    gtk_window_set_icon (GTK_WINDOW (dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT){
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-		status = phoebe_open_parameter_file(filename);
+		status = phoebe_open_parameter_file (filename);
 
 		PHOEBE_FILEFLAG = TRUE;
-		PHOEBE_FILENAME = strdup(filename);
+		PHOEBE_FILENAME = strdup (filename);
 
 		PHOEBE_DIRFLAG = TRUE;
 		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 
-		if(status == SUCCESS)gui_status("%s successfully opened.", filename);
-        else gui_status("Opening %s failed with status %d.", filename, status);
+		if (status == SUCCESS)
+			gui_status("%s successfully opened.", filename);
+        else
+			gui_status("Opening %s failed with status %d.", filename, status);
 
         g_free (filename);
 	}
-	else gui_status("Open PHOEBE parameter file cancelled.");
+	else
+		gui_status ("Open PHOEBE parameter file canceled.");
 
 	gtk_widget_destroy (dialog);
 
@@ -181,7 +186,8 @@ int gui_open_parameter_file()
 gchar *gui_get_filename_with_overwrite_confirmation(GtkWidget *dialog, char *gui_confirmation_title)
 {
 	/* Returns a valid filename or NULL if the user canceled
-	   Replaces functionality of gtk_file_chooser_set_do_overwrite_confirmation avaliable in Gtk 2.8 (PHOEBE only requires 2.6)
+	   Replaces functionality of gtk_file_chooser_set_do_overwrite_confirmation
+	   avaliable in Gtk 2.8 (PHOEBE only requires 2.6)
 	*/
 	gchar *filename;
 
@@ -217,6 +223,8 @@ int gui_save_parameter_file()
 										  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 										  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  NULL);
+
+	gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 450);
 
 	if(PHOEBE_DIRFLAG)
 		gtk_file_chooser_set_current_folder((GtkFileChooser*)dialog, PHOEBE_DIRNAME);
