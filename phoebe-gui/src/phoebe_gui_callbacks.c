@@ -142,6 +142,8 @@ void on_plot_save_button_clicked (GtkButton *button, gpointer user_data)
 		  	GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 		  	NULL);
 
+	gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 450);
+
 	if (!GUI_SAVED_DATA_DIR)
 		phoebe_config_entry_get ("PHOEBE_DATA_DIR", &GUI_SAVED_DATA_DIR);
 
@@ -1655,7 +1657,8 @@ G_MODULE_EXPORT void on_phoebe_file_new_menuitem_activate (GtkMenuItem *menuitem
 
 }
 
-G_MODULE_EXPORT void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	int status = gui_open_parameter_file ();
 
@@ -2133,6 +2136,8 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_save_button_clicked (GtkButton *button, g
 										  	GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  	NULL);
 
+		gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 450);
+
 		/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
 
 		if (!GUI_SAVED_DATA_DIR)
@@ -2246,6 +2251,8 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_save_button_clicked (GtkButton *button, g
 										 	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 										  	GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 										  	NULL);
+
+		gtk_window_set_default_size (GTK_WINDOW (dialog), 600, 450);
 
 		/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
 
