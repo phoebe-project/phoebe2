@@ -767,8 +767,8 @@ int phoebe_calculate_masses (double sma, double P, double q, double *M1, double 
 
 	double Mtot = 4.0*M_PI*M_PI*sma*sma*sma*RSun*RSun*RSun/G/P/P/day/day;
 
-	*M1 = q*Mtot/(1.0+q)/MSun;
-	*M2 =   Mtot/(1.0+q)/MSun;
+	*M1 =   Mtot/(1.0+q)/MSun;
+	*M2 = q*Mtot/(1.0+q)/MSun;
 
 	return SUCCESS;
 }
