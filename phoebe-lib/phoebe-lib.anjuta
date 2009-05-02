@@ -14,8 +14,8 @@
             url="http://anjuta.org/plugins/"
             mandatory="yes">
 		<require group="Anjuta Plugin"
-                 attribute="Location"
-                 value="anjuta-symbol-browser:SymbolBrowserPlugin"/>
+                 attribute="Interfaces"
+                 value="IAnjutaSymbolManager"/>
 	</plugin>
 	<plugin name="Make Build System"
             url="http://anjuta.org/plugins/"
@@ -26,16 +26,6 @@
 		<require group="Build"
                  attribute="Supported-Build-Types"
                  value="make"/>
-	</plugin>
-	<plugin name="CVS Version Control System"
-            url="http://anjuta.org/plugins/"
-            mandatory="no">
-		<require group="Anjuta Plugin"
-                  attribute="Interfaces"
-                  value="IAnjutaVcs"/>
-		<require group="Version Control"
-                 attribute="Supported-Vcs-Types"
-                 value="cvs"/>
 	</plugin>
 	<plugin name="Task Manager"
             url="http://anjuta.org/plugins/"
@@ -49,6 +39,6 @@
             mandatory="no">
 		<require group="Anjuta Plugin"
                  attribute="Interfaces"
-                 value="IAnjutaDebuggerManager"/>
+                 value="IAnjutaDebugManager"/>
 	</plugin>
 </anjuta>

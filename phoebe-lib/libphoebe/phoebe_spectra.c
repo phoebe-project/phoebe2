@@ -931,7 +931,7 @@ int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion dis
 	dest = phoebe_spectrum_create (ll, ul, R, disp);
 
 	/* Resample the histogram in the spectrum: */
-	status = phoebe_hist_rebin (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_DENSITY);
+	status = phoebe_hist_resample (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_DENSITY);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (dest);
 		return status;
