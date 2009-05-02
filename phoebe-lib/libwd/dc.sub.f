@@ -310,7 +310,8 @@ c
   101 FORMAT(' ')
     1 FORMAT(I3,I6,I6,I7,I7,I5,I5,I5,f15.6,d13.5,f10.5,f16.3,f14.4)
   701 FORMAT(4I2,4I4,f13.6,d12.5,F8.5,F9.3)
-    2 FORMAT(5(F14.5,F8.4,F6.2))
+c   2 FORMAT(5(F14.5,F8.4,F6.2))
+    2 FORMAT(5(F14.5,F8.4,F12.2))
    85 FORMAT(i3,2F10.5,4(1X,F6.3),f8.4,d10.3,i6,d14.5,f10.6)
    18 format(i3,2f10.5,4f7.3,f8.4,d10.3,i2,d12.5,f10.6)
   218 FORMAT(i3,2F10.5,4F7.3,d10.3,d12.5,f10.6)
@@ -948,8 +949,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       ifirst=nppl*(i-1)+NY+1
       last=ifirst+nppl-1
       READ(15,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
-      WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
-c     WRITE(16,2) (indeps(in),fluxes(in),weights(in),in=ifirst,last)
+c      WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
+      WRITE(16,2) (indeps(in),fluxes(in),weights(in),in=ifirst,last)
       IF(phjd(ifirst).gt.-10000.d0) GOTO 74
       NI=-(phjd(ifirst)+10000.d0)
       NY=NY+NI
