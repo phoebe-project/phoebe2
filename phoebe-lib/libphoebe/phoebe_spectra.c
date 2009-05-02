@@ -917,7 +917,7 @@ int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion dis
 	 *   SUCCESS
 	 */
 
-	int status;
+	int status, i;
 	PHOEBE_spectrum *dest;
 
 	if (!*src)
@@ -936,6 +936,14 @@ int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion dis
 		phoebe_spectrum_free (dest);
 		return status;
 	}
+
+	/* If the spectrum dispersion is changed from logarithmic to linear,
+	 * the continuum needs to be renormalized:
+	 */
+
+	if ((*src)->disp == PHOEBE_SPECTRUM_DISPERSION_LOG && disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR)
+		for (i = 0; i < dest->data->bins; i++)
+			dest->data->val[i] /= (*src)->R/dest->R/0.5/(dest->data->range[i]+dest->data->range[i+1]);
 
 	phoebe_spectrum_free (*src);
 	*src = dest;
