@@ -901,7 +901,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 	scripter_ast_value *vals;
 	YY_BUFFER_STATE yybuf;
 
-	PHOEBE_type expected_type = -1;
+	PHOEBE_type expected_type = TYPE_ANY;
 	int type;
 
 	int status = scripter_command_args_evaluate (args, &vals, 1, 2, type_string, type_string);
@@ -911,13 +911,12 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 	}
 
 	if (vals[1].type != type_void) {
-		/* This means that we know which type to expect:                      */
-		expected_type = -1;
-		if (strcmp (vals[1].value.str, "integer") == 0) expected_type = TYPE_INT;
-		if (strcmp (vals[1].value.str, "boolean") == 0) expected_type = TYPE_BOOL;
-		if (strcmp (vals[1].value.str, "double")  == 0) expected_type = TYPE_DOUBLE;
-		if (strcmp (vals[1].value.str, "string")  == 0) expected_type = TYPE_STRING;
-		if (expected_type == -1) {
+		/* This means that we know which type to expect: */
+		if      (strcmp (vals[1].value.str, "integer") == 0) expected_type = TYPE_INT;
+		else if (strcmp (vals[1].value.str, "boolean") == 0) expected_type = TYPE_BOOL;
+		else if (strcmp (vals[1].value.str, "double")  == 0) expected_type = TYPE_DOUBLE;
+		else if (strcmp (vals[1].value.str, "string")  == 0) expected_type = TYPE_STRING;
+		else {
 			phoebe_scripter_output ("type '%s' not recognized, aborting.\n", vals[1].value.str);
 			scripter_ast_value_array_free (vals, 2);
 			out.type = type_void;
@@ -956,7 +955,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 
 		switch (type) {
 			case INTEGER:
-				if (expected_type != -1 && expected_type != TYPE_INT) {
+				if (expected_type != TYPE_ANY && expected_type != TYPE_INT) {
 					phoebe_scripter_output ("please provide %s-type input.\n", phoebe_type_get_name (expected_type));
 					all_is_ok = FALSE;
 					continue;
@@ -965,7 +964,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 				out.value.i = atoi (readout);
 			break;
 			case BOOLEAN:
-				if (expected_type != -1 && expected_type != TYPE_BOOL) {
+				if (expected_type != TYPE_ANY && expected_type != TYPE_BOOL) {
 					phoebe_scripter_output ("please provide %s-type input.\n", phoebe_type_get_name (expected_type));
 					all_is_ok = FALSE;
 					continue;
@@ -974,7 +973,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 				out.value.b = atob (readout);
 			break;
 			case VALUE:
-				if (expected_type != -1 && expected_type != TYPE_DOUBLE) {
+				if (expected_type != TYPE_ANY && expected_type != TYPE_DOUBLE) {
 					phoebe_scripter_output ("please provide %s-type input.\n", phoebe_type_get_name (expected_type));
 					all_is_ok = FALSE;
 					continue;
@@ -983,7 +982,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 				out.value.d = atof (readout);
 			break;
 			case LITERAL:
-				if (expected_type != -1 && expected_type != TYPE_STRING) {
+				if (expected_type != TYPE_ANY && expected_type != TYPE_STRING) {
 					phoebe_scripter_output ("please provide %s-type input.\n", phoebe_type_get_name (expected_type));
 					all_is_ok = FALSE;
 					continue;
@@ -994,7 +993,7 @@ scripter_ast_value scripter_prompt (scripter_ast_list *args)
 				out.value.str = strdup (readout+1);
 			break;
 			case IDENT:
-				if (expected_type != -1 && expected_type != TYPE_STRING) {
+				if (expected_type != TYPE_ANY && expected_type != TYPE_STRING) {
 					phoebe_scripter_output ("please provide %s-type input.\n", phoebe_type_get_name (expected_type));
 					all_is_ok = FALSE;
 					continue;
@@ -1648,7 +1647,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 	 *   plot_lc_using_gnuplot (curve, obsdata_switch, syndata_switch)
 	 */
 
-	int i;
+	int i, j, k;
 	int status;
 	int lcno, curve;
 
@@ -1667,7 +1666,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 3, 3, type_int, type_bool, type_bool);
 	if (status != SUCCESS) return out;
 
-	/* Is the curve initialized?                                              */
+	/* Is the curve initialized? */
 	curve = vals[0].value.i;
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 	if (curve <= 0 || curve > lcno) {
@@ -1676,7 +1675,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		return out;
 	}
 
-	/* Is observational data to be plotted?                                   */
+	/* Should observed data be plotted? */
 	if (vals[1].value.b) {
 		lc = phoebe_malloc (sizeof (*lc));
 		lc[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, curve-1);
@@ -1695,7 +1694,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		props[index].ltype = 3;
 	}
 
-	/* Is synthetic data to be plotted?                                       */
+	/* Should synthetic data be plotted? */
 	if (vals[2].value.b) {
 		PHOEBE_vector *indep;
 
@@ -1725,7 +1724,7 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 
 		phoebe_vector_free (indep);
 
-		/* Let's set synthetic curve properties: we want red lines:               */
+		/* Let's set synthetic curve properties: we want red lines: */
 		props = phoebe_realloc (props, (index+1) * sizeof (*props));
 		props[index].lines = TRUE;
 		props[index].ctype = 1;
@@ -1733,33 +1732,53 @@ scripter_ast_value scripter_plot_lc_using_gnuplot (scripter_ast_list *args)
 		props[index].ltype = 1;
 	}
 
-	/* Function plot_using_gnuplot () takes arrays of vectors, and we have    */
-	/* arrays of curves. We need to construct the former from the latter:     */
+	/* Function plot_using_gnuplot () takes arrays of vectors, and we have
+	 * arrays of curves. We need to construct the former from the latter:
+	 */
 
 	indeps = phoebe_malloc ((index+1) * sizeof (*indeps));
 	  deps = phoebe_malloc ((index+1) * sizeof (  *deps));
 
 	for (i = 0; i <= index; i++) {
-		indeps[i] = lc[i]->indep;
-		  deps[i] = lc[i]->dep;
+		indeps[i] = phoebe_vector_new ();
+		phoebe_vector_alloc (indeps[i], lc[i]->indep->dim);
+		
+		deps[i] = phoebe_vector_new ();
+		phoebe_vector_alloc (deps[i], lc[i]->dep->dim);
+
+		k = 0;
+		for (j = 0; j < lc[i]->dep->dim; j++) {
+			if (lc[i]->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
+			indeps[i]->val[k] = lc[i]->indep->val[j];
+			  deps[i]->val[k] = lc[i]->dep->val[j];
+			k++;
+		}
+
+		if (j != k) {
+			phoebe_vector_realloc (indeps[i], k);
+			phoebe_vector_realloc (deps[i], k);
+		}
 	}
 
-	/* Everything is set now, let's plot the figure using gnuplot:            */
+	/* Everything is set now, let's plot the figure using gnuplot: */
 	status = plot_using_gnuplot (index+1, NO, indeps, deps, props);
 	if (status != SUCCESS)
 		phoebe_scripter_output (phoebe_scripter_error (status));
 
-	/* Let's clean everything up:                                             */
+	/* Let's clean everything up: */
+	for (i = 0; i <= index; i++) {
+		phoebe_vector_free (indeps[i]);
+		phoebe_vector_free (deps[i]);
+		phoebe_curve_free (lc[i]);
+	}
 	free (indeps);
 	free (deps);
 	free (props);
-
-	for (i = 0; i <= index; i++) phoebe_curve_free (lc[i]);
 	free (lc);
 
 	scripter_ast_value_array_free (vals, 3);
 
-	/* That's all! Have a nice plot! ;)                                         */
+	/* That's all! Have a nice plot! ;) */
 	return out;
 }
 
@@ -1776,7 +1795,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	 *   plot_rv_using_gnuplot (curve, obsdata_switch, syndata_switch)
 	 */
 
-	int i;
+	int i, j, k;
 	int status;
 	int index = 0;
 	int curve, rvno;
@@ -1796,7 +1815,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 	status = scripter_command_args_evaluate (args, &vals, 3, 3, type_int, type_bool, type_bool);
 	if (status != SUCCESS) return out;
 
-	/* Is the curve initialized?                                              */
+	/* Is the curve initialized? */
 	curve = vals[0].value.i;
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 	if (curve <= 0 || curve > rvno) {
@@ -1805,7 +1824,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		return out;
 	}
 
-	/* Is observational data to be plotted?                                   */
+	/* Should observed data be plotted? */
 	if (vals[1].value.b) {
 		rv = phoebe_malloc (sizeof (*rv));
 		rv[index] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, curve-1);
@@ -1824,7 +1843,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		props[index].ltype = 3;
 	}
 
-	/* Is synthetic data to be plotted?                                         */
+	/* Should synthetic data be plotted? */
 	if (vals[2].value.b) {
 		PHOEBE_vector *indep;
 		PHOEBE_column_type dtype;
@@ -1848,7 +1867,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		phoebe_vector_alloc (indep, 300);
 		for (i = 0; i < 300; i++) indep->val[i] = -0.6 + 1.2 * (double) i/299;
 
-		/* Read in synthetic data:                                            */
+		/* Read in synthetic data: */
 		if (dtype == PHOEBE_COLUMN_PRIMARY_RV)
 			status = phoebe_curve_compute (rv[index], indep, vals[0].value.i-1, PHOEBE_COLUMN_PHASE, PHOEBE_COLUMN_PRIMARY_RV);
 		else
@@ -1862,7 +1881,7 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 
 		phoebe_vector_free (indep);
 
-		/* Let's set synthetic curve properties: we want red lines:           */
+		/* Let's set synthetic curve properties: we want red lines: */
 		props = phoebe_realloc (props, (index+1) * sizeof (*props));
 		props[index].lines = TRUE;
 		props[index].ctype = 1;
@@ -1870,33 +1889,53 @@ scripter_ast_value scripter_plot_rv_using_gnuplot (scripter_ast_list *args)
 		props[index].ltype = 1;
 		}
 
-	/* Function plot_using_gnuplot () takes arrays of vectors, and we have    */
-	/* arrays of curves. We need to construct the former from the latter:     */
+	/* Function plot_using_gnuplot () takes arrays of vectors, and we have
+	 * arrays of curves. We need to construct the former from the latter:
+	 */
 
 	indeps = phoebe_malloc ((index+1) * sizeof (*indeps));
 	  deps = phoebe_malloc ((index+1) * sizeof (  *deps));
 
 	for (i = 0; i <= index; i++) {
-		indeps[i] = rv[i]->indep;
-		  deps[i] = rv[i]->dep;
+		indeps[i] = phoebe_vector_new ();
+		phoebe_vector_alloc (indeps[i], rv[i]->indep->dim);
+		
+		deps[i] = phoebe_vector_new ();
+		phoebe_vector_alloc (deps[i], rv[i]->dep->dim);
+
+		k = 0;
+		for (j = 0; j < rv[i]->dep->dim; j++) {
+			if (rv[i]->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
+			indeps[i]->val[k] = rv[i]->indep->val[j];
+			  deps[i]->val[k] = rv[i]->dep->val[j];
+			k++;
+		}
+
+		if (j != k) {
+			phoebe_vector_realloc (indeps[i], k);
+			phoebe_vector_realloc (deps[i], k);
+		}
 	}
 
-	/* Everything is set now, let's plot the figure using gnuplot:            */
+	/* Everything is set now, let's plot the figure using gnuplot: */
 	status = plot_using_gnuplot (index+1, NO, indeps, deps, props);
 	if (status != SUCCESS)
 		phoebe_scripter_output (phoebe_scripter_error (status));
 
-	/* Let's clean everything up:                                               */
+	/* Let's clean everything up: */
+	for (i = 0; i <= index; i++) {
+		phoebe_vector_free (indeps[i]);
+		phoebe_vector_free (deps[i]);
+		phoebe_curve_free (rv[i]);
+	}
 	free (indeps);
 	free (deps);
 	free (props);
-
-	for (i = 0; i <= index; i++) phoebe_curve_free (rv[i]);
 	free (rv);
 
 	scripter_ast_value_array_free (vals, 3);
 
-	/* That's all! Have a nice plot! ;)                                         */
+	/* That's all! Have a nice plot! ;) */
 	return out;
 }
 
@@ -3017,8 +3056,15 @@ scripter_ast_value scripter_substr (scripter_ast_list *args)
 		return out;
 	}
 
+	if (vals[1].value.i < 1 || vals[2].value.i < 1) {
+		phoebe_scripter_output ("invalid indices passed to substr().");
+		scripter_ast_value_array_free (vals, 3);
+		out.type = type_void;
+		return out;
+	}
+
 	strbeg = max (0, vals[1].value.i-1);
-	strend = min (vals[2].value.i, strlen(vals[0].value.str));
+	strend = min ((unsigned int) vals[2].value.i, strlen(vals[0].value.str));
 
 	newstr = strdup (vals[0].value.str);
 	strncpy (newstr, vals[0].value.str+strbeg, strend);
