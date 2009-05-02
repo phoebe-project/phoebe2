@@ -219,6 +219,7 @@ int          phoebe_hist_correlate       (double *cfval, PHOEBE_hist *h1, PHOEBE
 int          phoebe_hist_pad             (PHOEBE_hist *hist, double val);
 int          phoebe_hist_crop            (PHOEBE_hist *hist, double ll, double ul);
 bool         phoebe_hist_compare         (PHOEBE_hist *hist1, PHOEBE_hist *hist2);
+int          phoebe_hist_resample        (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type);
 int          phoebe_hist_rebin           (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type);
 
 /* **************************************************************************** */

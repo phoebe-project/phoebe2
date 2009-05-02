@@ -1664,6 +1664,19 @@ int phoebe_hist_pad (PHOEBE_hist *hist, double val)
 	return SUCCESS;
 }
 
+int phoebe_hist_resample (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type)
+{
+	int i = 0, j = 0;
+	phoebe_hist_pad (out, 0.0);
+
+	while (i != in->bins && j != out->bins) {
+		out->val[j] += (min(in->range[i+1], out->range[j+1])-max(in->range[i], out->range[j]))/(in->range[i+1]-in->range[i])*in->val[i];
+		if (out->range[j+1] > in->range[i+1]) i++; else j++;
+	}
+
+	return SUCCESS;
+}
+
 int phoebe_hist_rebin (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type)
 {
 	/*
@@ -3041,7 +3054,7 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 {
 	/**
 	 * phoebe_curve_alias:
-	 * @curve: the curve to be aliased
+	 * @curve: curve to be aliased
 	 * @phmin: start phase
 	 * @phmax: end phase
 	 *
