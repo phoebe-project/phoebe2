@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2009-03-15 #
+#                                            Last revision: 2009-05-02 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -127,19 +127,17 @@
 
 # Check if PHOEBE library is installed:
 
-  AC_CHECK_LIB(phoebe, phoebe_init, phoebe_check=1, phoebe_check=0)
+  AC_CHECK_LIB(phoebe, phoebe_init, , phoebe_missing=1)
 
-  if test $phoebe_check -eq 0; then
+  if test $phoebe_missing -eq 1; then
     echo ""
     echo "       *** PHOEBE configuration failure ***"
     echo ""
     echo "PHOEBE GUI needs PHOEBE library installed to be built."
-    echo "Remember, the GUI is only a driver for the library!"
+    echo "Please install it and rerun ./configure."
     echo ""
     exit
   fi
-  PHOEBE_LIBS=-lphoebe
-  AC_SUBST(PHOEBE_LIBS)
 
 # GNUPlot support:
   AC_ARG_ENABLE(gnuplot,
