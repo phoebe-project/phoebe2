@@ -12,7 +12,7 @@
 #                     changes to take effect!                          #
 #                                                                      #
 #                               * * *                                  #
-#                                            Last revision: 2008-09-22 #
+#                                            Last revision: 2009-05-02 #
 ########################################################################
 #                                                                      #
 # This program is free software; you can redistribute it and/or modify #
@@ -136,16 +136,31 @@
 
     test -z "$bison_missing" && AC_MSG_RESULT([yes])
 
+# Check if math library is installed:
+  AC_CHECK_LIB(m, sin)
+
+# Check if ltdl is installed:
+  AC_CHECK_LIB(ltdl, lt_dlinit, , ltdl_missing=1)
+    if test $ltdl_missing -eq 1; then
+      echo ""
+      echo "       *** PHOEBE configuration failure ***"
+      echo ""
+      echo "PHOEBE scripter needs libtool's ltdl to be installed."
+      echo "Please install it and rerun ./configure."
+      echo ""
+     exit
+    fi
+
 # Check if PHOEBE library is installed:
 
-  AC_CHECK_LIB(phoebe, phoebe_init, phoebe_check=1, phoebe_check=0)
+  AC_CHECK_LIB(phoebe, phoebe_init,, phoebe_missing=1)
 
-    if test $phoebe_check -eq 0; then
+    if test $phoebe_missing -eq 1; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
       echo "PHOEBE scripter needs PHOEBE library installed to be built."
-      echo "Remember, the scripter is only a driver for the library!"
+      echo "Please install it and rerun ./configure."
       echo ""
      exit
     fi
