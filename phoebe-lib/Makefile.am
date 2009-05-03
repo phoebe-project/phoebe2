@@ -1,10 +1,10 @@
 ########################################################################
 #                                                                      #
-#                          PHOEBE 0.30 library                         #
+#                          PHOEBE 0.31 library                         #
 #                                                                      #
 ########################################################################
 #                                                                      #
-#    Author of Makefile.am: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>    #
+#    Author of Makefile.am: Andrej Prsa <andrej.prsa@villanova.edu>    #
 #                                                                      #
 ########################################################################
 #                                                                      #
@@ -28,6 +28,8 @@ SUBDIRS = libwd libphoebe ptf wd docs/reference
 
 # Enable gtk-doc during make distcheck:
 DISTCHECK_CONFIGURE_FLAGS=--enable-gtk-doc
+
+ACLOCAL_AMFLAGS=-I autoconfig
 
 EXTRA_DIST = autoconfig/compile                      \
              autoconfig/config.guess                 \
