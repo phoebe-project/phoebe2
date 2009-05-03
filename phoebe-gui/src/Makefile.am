@@ -20,5 +20,5 @@ AM_CFLAGS = -Wall -g \
 	-DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\" \
 	-DGLADE_PIXMAP_DIR=\"$(prefix)/share/phoebe/gui/pixmaps\"
 
-phoebe_gui_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@ @PHOEBE_LIBS@
+phoebe_gui_LDADD = @GTK_LIBS@ @LIBGLADE_LIBS@
 phoebe_gui_LDFLAGS = -export-dynamic
