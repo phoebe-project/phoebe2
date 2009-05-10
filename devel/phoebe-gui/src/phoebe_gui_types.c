@@ -1098,10 +1098,10 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 	if (widget->dep){
 		status = gui_set_value_to_widget(widget->dep);
-		phoebe_debug("\t *** going to process the dependancy on %s first! ***\n", widget->dep->name);
+		phoebe_debug("\t *** going to process the dependency on %s first! ***\n", widget->dep->name);
 	}
 
-	if (!widget->par){
+	if (!widget->par) {
 		phoebe_debug ("\tparameter type: n/a\n");
 		return status;
 	}
@@ -1191,23 +1191,23 @@ int gui_set_value_to_widget (GUI_widget *widget)
 				break;
 				case GUI_WIDGET_VALUE_MIN: {
 					double value;
-					status = phoebe_parameter_get_min(widget->par, &value);
+					status = phoebe_parameter_get_min (widget->par, &value);
 					phoebe_debug("\tsetting min to %lf\n", value);
-					gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+					gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 				}
 				break;
 				case GUI_WIDGET_VALUE_MAX: {
 					double value;
-					status = phoebe_parameter_get_max(widget->par, &value);
-					phoebe_debug("\tsetting max to %lf\n", value);
-					gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+					status = phoebe_parameter_get_max (widget->par, &value);
+					phoebe_debug ("\tsetting max to %lf\n", value);
+					gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 				}
 				break;
 				case GUI_WIDGET_VALUE_STEP: {
 					double value;
-					status = phoebe_parameter_get_step(widget->par, &value);
-					phoebe_debug("\tsetting step to %lf\n", value);
-					gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget->gtk), value);
+					status = phoebe_parameter_get_step (widget->par, &value);
+					phoebe_debug ("\tsetting step to %lf\n", value);
+					gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget->gtk), value);
 				}
 				break;
 				default:
