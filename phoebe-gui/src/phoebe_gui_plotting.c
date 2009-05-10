@@ -99,13 +99,11 @@ bool gui_plot_tick_values (double low_value, double high_value, double *first_ti
 {
 	int logspacing, factor;
 	double spacing;
-	
-	if (low_value >= high_value)
-		return FALSE;
 
-	logspacing = floor(log10(high_value - low_value)) - 1;
-	factor = ceil((high_value - low_value)/pow(10, logspacing + 1));
-	//printf ("low = %lf, hi = %lf, factor = %d, logspacing = %d\n", low_value, high_value, factor, logspacing);
+	logspacing = floor(log10(high_value-low_value)) - 1;
+	factor = ceil((high_value-low_value)/pow(10, logspacing + 1));
+//	printf ("low = %lf, hi = %lf, factor = %d, logspacing = %d\n", low_value, high_value, factor, logspacing);
+
 	if (factor > 5) {
 		logspacing++;
 		factor = 1;
@@ -121,16 +119,22 @@ bool gui_plot_tick_values (double low_value, double high_value, double *first_ti
 
 	*tick_spacing = spacing;
 	*first_tick = floor(low_value/spacing) * spacing;
-	*ticks = ceil((high_value - low_value)/spacing) + 2;
+	*ticks = ceil((high_value-low_value)/spacing) + 2;
 	sprintf(format, "%%.%df", (logspacing > 0) ? 0 : -logspacing);
-	//printf("ticks = %d, format = %s, first_tick = %lf, spacing = %lf, factor = %d, logspacing = %d\n", *ticks, format, *first_tick, spacing, factor, logspacing);
-
+//	printf("ticks = %d, format = %s, first_tick = %lf, spacing = %lf, factor = %d, logspacing = %d\n", *ticks, format, *first_tick, spacing, factor, logspacing);
 	return TRUE;
 }
 
 void gui_plot_clear_canvas (GUI_plot_data *data)
 {
 	GtkWidget *widget = data->container;
+
+	PHOEBE_column_type dtype;
+	int ticks, minorticks;
+	double first_tick, tick_spacing;
+	double x, ymin, ymax;
+	char format[20], label[20];
+	cairo_text_extents_t te;
 
 	if (data->canvas)
 		cairo_destroy (data->canvas);
@@ -142,25 +146,17 @@ void gui_plot_clear_canvas (GUI_plot_data *data)
 	cairo_set_source_rgb (data->canvas, 0, 0, 0);
 	cairo_set_line_width (data->canvas, 1);
 
-	// Calculate left margin
-	PHOEBE_column_type dtype;
-	int ticks, minorticks;
-	double first_tick, tick_spacing;
-	double x, ymin, ymax;
-	char format[20], label[20];
-	cairo_text_extents_t te;
-	
-	// Determine the lowest and highest y value that will be plotted
+	/* Determine the lowest and highest y value that will be plotted: */
 	data->leftmargin = data->layout->lmargin;
+	phoebe_column_get_type (&dtype, data->y_request);
 	gui_plot_coordinates_from_pixels (data, 0, data->layout->tmargin, &x, &ymax);
 	gui_plot_coordinates_from_pixels (data, 0, data->height - data->layout->bmargin, &x, &ymin);
-
-	phoebe_column_get_type (&dtype, data->y_request);
 	gui_plot_tick_values ( ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymax : ymin), ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymin : ymax), &first_tick, &tick_spacing, &ticks, &minorticks, format);
 
 	// Calculate how large the y labels will be
 	cairo_select_font_face (data->canvas, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size (data->canvas, 12);
+
 	sprintf(label, format, ymin);
 	cairo_text_extents (data->canvas, label, &te);
 	if (te.width + te.x_bearing + data->layout->label_lmargin + data->layout->label_rmargin > data->leftmargin) data->leftmargin = te.width + te.x_bearing + data->layout->label_lmargin + data->layout->label_rmargin;
@@ -170,6 +166,8 @@ void gui_plot_clear_canvas (GUI_plot_data *data)
 
 	cairo_rectangle (data->canvas, data->leftmargin, data->layout->tmargin, data->width - data->leftmargin - data->layout->rmargin, data->height - data->layout->tmargin - data->layout->bmargin);
 	cairo_stroke (data->canvas);
+
+	return;
 }
 
 gboolean on_plot_area_expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
@@ -731,10 +729,6 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 
 	printf ("* entering gui_plot_area_draw ()\n");
 
-	/* Is there anything to be done? */
-	if (data->cno == 0)
-		return SUCCESS;
-
 	for (i = 0; i < data->cno; i++) {
 		if (data->request[i].query) {
 			if (!redirect)
@@ -926,9 +920,11 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	GtkWidget *widget;
 	GUI_plot_data *data;
 
+	/* We initialize the container internally; it's our fault if it fails: */
 	if (!area) {
-		printf ("  *** NULL pointer passed to the function.\n");
-		return -1 /*** FIX THIS ***/;
+		printf ("*** Please report this crash; include a backtrace and this line:\n");
+		printf ("*** NULL pointer passed to the gui_plot_area_init() function.\n");
+		exit(0);
 	}
 
 	/* Move this to the alloc function: */
@@ -942,6 +938,8 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	data->zoom_level = 0.0;
 	data->zoom       = 0;
 	data->leftmargin = data->layout->lmargin;
+	data->y_min      = 0.0;
+	data->y_max      = 1.0;
 	/***********************************/
 
 	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
@@ -955,7 +953,6 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 
 	/* Get associations from the button and attach change-sensitive callbacks: */
 	data->ctype = *((PHOEBE_curve_type *) (g_object_get_data (G_OBJECT (button), "curve_type")));
-
 	data->container = area;
 
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_request");
