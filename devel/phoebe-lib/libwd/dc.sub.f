@@ -1782,7 +1782,7 @@ c
 c 444 ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB)*dsqrt(FLUX(I))**NOIS)
 c
 c     This is level-dependent weighting for light curves:
-  444 ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB)*dsqrt(fluxes(I))**NOIS)
+  444 ROOTWT=dsqrt(weights(I))/(SIGMA(IB)*dsqrt(fluxes(I))**NOIS)
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   445 CONTINUE
