@@ -933,6 +933,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 	int lcno, rvno, spotno;
 	int active_lcno, active_rvno, active_cno;
 	PHOEBE_array *active_lcindices, *active_rvindices;
+	double rvfactor;
 
 	int readout_int;
 	bool readout_bool;
@@ -1326,6 +1327,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 				wd_dci_parameters_free (params);
 				return ERROR_FILE_NOT_FOUND;
 			}
+
+			if (rv->wtype == PHOEBE_COLUMN_SIGMA) rvfactor = 100.0; else rvfactor = 1.0;
 			phoebe_curve_transform (rv, master_indep, PHOEBE_COLUMN_PRIMARY_RV, PHOEBE_COLUMN_WEIGHT);
 
 			params->indeps  = phoebe_realloc (params->indeps,  (idx+rv->indep->dim+1) * sizeof (*(params->indeps)));
@@ -1335,7 +1338,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			for (i = 0; i < rv->indep->dim; i++) {
 				params->indeps[idx+i]  = rv->indep->val[i];
 				params->fluxes[idx+i]  = rv->dep->val[i] / 100.0;
-				params->weights[idx+i] = rv->weight->val[i];
+				params->weights[idx+i] = rvfactor*rvfactor*rv->weight->val[i];
 			}
 
 			params->knobs[bandidx] = (idx += rv->indep->dim);
@@ -1349,6 +1352,8 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 				wd_dci_parameters_free (params);
 				return ERROR_FILE_NOT_FOUND;
 			}
+
+			if (rv->wtype == PHOEBE_COLUMN_SIGMA) rvfactor = 100.0; else rvfactor = 1.0;
 			phoebe_curve_transform (rv, master_indep, PHOEBE_COLUMN_SECONDARY_RV, PHOEBE_COLUMN_WEIGHT);
 
 			params->indeps  = phoebe_realloc (params->indeps,  (idx+rv->indep->dim+1) * sizeof (*(params->indeps)));
@@ -1358,7 +1363,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 			for (i = 0; i < rv->indep->dim; i++) {
 				params->indeps[idx+i]  = rv->indep->val[i];
 				params->fluxes[idx+i]  = rv->dep->val[i] / 100.0;
-				params->weights[idx+i] = rv->weight->val[i];
+				params->weights[idx+i] = rvfactor*rvfactor*rv->weight->val[i];
 			}
 
 			params->knobs[bandidx] = (idx += rv->indep->dim);
@@ -1372,6 +1377,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 				wd_dci_parameters_free (params);
 				return ERROR_FILE_NOT_FOUND;
 			}
+
 			phoebe_curve_transform (lc, master_indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_WEIGHT);
 
 			if (params->extinction[i] > 0)
