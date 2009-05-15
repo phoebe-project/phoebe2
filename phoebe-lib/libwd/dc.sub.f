@@ -949,9 +949,13 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       ifirst=nppl*(i-1)+NY+1
       last=ifirst+nppl-1
       READ(15,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
-c      WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
-      WRITE(16,2) (indeps(in),fluxes(in),weights(in),in=ifirst,last)
-      IF(phjd(ifirst).gt.-10000.d0) GOTO 74
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c     WRITE(16,2) (phjd(in),flux(in),wt(in),in=ifirst,last)
+      IF(phjd(ifirst).gt.-10000.d0) then
+        WRITE(16,2) (indeps(in),fluxes(in),weights(in),in=ifirst,last)
+        GOTO 74
+      endif
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       NI=-(phjd(ifirst)+10000.d0)
       NY=NY+NI
       NOBS=nppl*(I-NS-1)+NI
