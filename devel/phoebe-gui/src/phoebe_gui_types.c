@@ -168,13 +168,13 @@ int gui_init_widgets ()
 	/* LC plotting canvas: */
 {
 	GtkWidget *plot_area, *plot_button;
-	PHOEBE_curve_type ctype = PHOEBE_CURVE_LC;
+	GUI_plot_type ptype = GUI_PLOT_LC;
 
 	plot_area   = glade_xml_get_widget (phoebe_window, "phoebe_plot_lc_graph_area");
 	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_plot_button");
 
 	/* To this plot button we will attach all property widgets: */
-	g_object_set_data (G_OBJECT (plot_button), "curve_type",         &ctype);
+	g_object_set_data (G_OBJECT (plot_button), "plot_type",          &ptype);
 	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_vertices_no_spinbutton"));
 	g_object_set_data (G_OBJECT (plot_button), "plot_alias_switch",  glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_alias_checkbutton"));
 	g_object_set_data (G_OBJECT (plot_button), "plot_resid_switch",  glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_residuals_checkbutton"));
@@ -208,7 +208,7 @@ int gui_init_widgets ()
 	/* RV plotting canvas: */
 {
 	GtkWidget *plot_area, *plot_button;
-	PHOEBE_curve_type ctype = PHOEBE_CURVE_RV;
+	GUI_plot_type ptype = GUI_PLOT_RV;
 
 	gui_widget_add ("phoebe_rv_plot_passband_info",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_observed"), NULL);
 	gui_widget_add ("phoebe_rv_plot_obscolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_obscolor"), NULL);
@@ -218,7 +218,7 @@ int gui_init_widgets ()
 	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_plot_button");
 
 	/* To this plot button we will attach all property widgets: */
-	g_object_set_data (G_OBJECT (plot_button), "curve_type",         &ctype);
+	g_object_set_data (G_OBJECT (plot_button), "plot_type",          &ptype);
 	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"));
 	g_object_set_data (G_OBJECT (plot_button), "plot_alias_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"));
 	g_object_set_data (G_OBJECT (plot_button), "plot_resid_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"));
@@ -244,6 +244,49 @@ int gui_init_widgets ()
 	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_clear_button"));
 
 	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_rv_plot_passband_info")->gtk);
+
+	/* Initialize the plot area with these widgets and their associations: */
+	gui_plot_area_init (plot_area, plot_button);
+}
+
+	/* Mesh plotting canvas: */
+{
+	GtkWidget *plot_area, *plot_button;
+	GUI_plot_type ptype = GUI_PLOT_MESH;
+
+	plot_area   = glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_graph_area");
+	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_plot_button");
+
+	/* To this plot button we will attach all property widgets: */
+	g_object_set_data (G_OBJECT (plot_button), "plot_type",         &ptype);
+/*
+	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      NULL);
+	g_object_set_data (G_OBJECT (plot_button), "plot_alias_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_resid_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_x_request",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_x_combobox"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_y_request",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_y_combobox"));
+	g_object_set_data (G_OBJECT (plot_button), "phase_start",        glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_phstart_spinbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "phase_end",          glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_phend_spinbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "coarse_grid_switch", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_coarse_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "fine_grid_switch",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_fine_checkbutton"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_x_coordinate",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_x_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_y_coordinate",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_y_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cp_index",      glade_xml_get_widget (phoebe_window, "plot_rv_plot_coordinates_closest_passband"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cx_coordinate", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_cx_value"));
+	g_object_set_data (G_OBJECT (plot_button), "plot_cy_coordinate", glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_coordinates_cy_value"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_left",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_left_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_down",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_down_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_right",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_right_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_up",        glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_up_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_reset",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_reset_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomin",    glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomin_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomout_button"));
+*/
+	g_object_set_data (G_OBJECT (plot_button), "save_plot",          glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_save_button"));
+	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_clear_button"));
+/*
+	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_rv_plot_passband_info")->gtk);
+*/
 
 	/* Initialize the plot area with these widgets and their associations: */
 	gui_plot_area_init (plot_area, plot_button);
@@ -672,14 +715,14 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_label"),								0,					GUI_WIDGET_VALUE,		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_options_phstart_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phstart_label"),							0,					GUI_WIDGET_VALUE,		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_label"),								0,					GUI_WIDGET_VALUE,		NULL, NULL);
-	gui_widget_add ("phoebe_star_shape_autoupdate_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_star_shape_autoupdate_checkbutton"),						0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup("gui_3d_plot_autoupdate"), NULL);
+	gui_widget_add ("phoebe_plot_mesh_autoupdate_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_plot_mesh_autoupdate_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("gui_3d_plot_autoupdate"), NULL);
 
 	/* ************************    GUI Containers   ************************* */
 
 	gui_widget_add ("phoebe_lc_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_eb_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_eb_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
-	gui_widget_add ("phoebe_star_shape_phase_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_star_shape_phase_spinbutton"),							    0,					GUI_WIDGET_VALUE, 		NULL, NULL);
+	gui_widget_add ("phoebe_plot_mesh_phase",							glade_xml_get_widget(phoebe_window, "phoebe_plot_mesh_phase"),										    0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 
 	gui_widget_add ("phoebe_sidesheet_parent_table",					glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_parent_table"),									0,					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_sidesheet_vbox",							glade_xml_get_widget(phoebe_window, "phoebe_sidesheet_vbox"),											0,					GUI_WIDGET_VALUE, 		NULL, NULL);
@@ -695,22 +738,10 @@ int gui_init_widgets ()
 
 	g_object_unref (phoebe_window);
 
-/*  Replaced: does not work on cygwin
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_sidesheet_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_fitt_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_lc_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-	gtk_button_set_image(GTK_BUTTON(gui_widget_lookup("phoebe_rv_plot_detach_button")->gtk), gtk_image_new_from_file(detach_pixmap_file));
-*/
-	gui_set_button_image("phoebe_sidesheet_detach_button", detach_pixmap_file);
-	gui_set_button_image("phoebe_fitt_detach_button", detach_pixmap_file);
-	gui_set_button_image("phoebe_lc_plot_detach_button", detach_pixmap_file);
-	gui_set_button_image("phoebe_rv_plot_detach_button", detach_pixmap_file);
-
-/*  Cairo implementation does not need these:
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_lc_plot_image")->gtk), NULL);
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_rv_plot_image")->gtk), NULL);
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup("phoebe_eb_plot_image")->gtk), NULL);
-*/
+	gui_set_button_image ("phoebe_sidesheet_detach_button", detach_pixmap_file);
+	gui_set_button_image ("phoebe_fitt_detach_button",      detach_pixmap_file);
+	gui_set_button_image ("phoebe_lc_plot_detach_button",   detach_pixmap_file);
+	gui_set_button_image ("phoebe_rv_plot_detach_button",   detach_pixmap_file);
 
 	gui_init_parameter_options ();
 	gui_init_combo_boxes();

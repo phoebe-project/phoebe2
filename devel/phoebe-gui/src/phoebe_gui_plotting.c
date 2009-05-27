@@ -57,6 +57,34 @@ int gui_plot_layout_free (GUI_plot_layout *layout)
 	return SUCCESS;
 }
 
+GUI_plot_data *gui_plot_data_new ()
+{
+	/*
+	 * Allocates memory for the plot data structure and initializes its fields.
+	 */
+
+	GUI_plot_data *data = phoebe_malloc (sizeof (*data));
+
+	data->layout     = gui_plot_layout_new ();
+	data->canvas     = NULL;
+	data->request    = NULL;
+	data->objno      = 0;
+	data->x_offset   = 0.0;
+	data->y_offset   = 0.0;
+	data->zoom_level = 0.0;
+	data->zoom       = 0;
+	data->leftmargin = data->layout->lmargin;
+	data->y_min      = 0.0;
+	data->y_max      = 1.0;
+
+	return data;
+}
+
+int gui_plot_data_free (GUI_plot_data *data)
+{
+#warning IMPLEMENT gui_plot_data_free FUNCTION
+}
+
 void gui_plot_offset_zoom_limits (double min_value, double max_value, double offset, double zoom, double *newmin, double *newmax)
 {
 	*newmin = min_value + offset * (max_value - min_value) - zoom * (max_value - min_value);
@@ -220,10 +248,10 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 	*cp = 0;
 	*ci = 0;
 
-	for (p = 0; p < data->cno; p++)
+	for (p = 0; p < data->objno; p++)
 		if (data->request[p].query)
 			break;
-	if (p == data->cno)
+	if (p == data->objno)
 		return GUI_ERROR_NO_CURVE_MARKED_FOR_PLOTTING;
 
 	*cp = p;
@@ -235,7 +263,7 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 	dy = data->y_max-data->y_min;
 	cf0 = (x-cx)*(x-cx)/dx/dx+(y-cy)*(y-cy)/dy/dy;
 
-	for ( ; p < data->cno; p++) {
+	for ( ; p < data->objno; p++) {
 		if (!data->request[p].query) continue;
 		for (i = 0; i < data->request[p].query->indep->dim; i++) {
 			cx = data->request[p].query->indep->val[i];
@@ -274,21 +302,27 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS)
 		return FALSE;
 
-	for (p = 0; p < data->cno; p++)
+	for (p = 0; p < data->objno; p++)
 		if (data->request[p].query)
 			break;
 
-	if (p == data->cno)
+	if (p == data->objno)
 		return FALSE;
 
-#warning CURVE_RECOGNITION_FAILS_FOR_RV_CURVES
-	if (data->ctype == PHOEBE_CURVE_LC)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), cp, &cp_ptr);
-	else if (data->ctype == PHOEBE_CURVE_RV)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), cp, &cp_ptr);
-	else {
-		printf ("*** UNHANDLED EXCEPTION ENCOUNTERED IN on_plot_area_motion()!\n");
-		return FALSE;
+	switch (data->ptype) {
+		case GUI_PLOT_LC:
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), cp, &cp_ptr);
+		break;
+		case GUI_PLOT_RV:
+#warning CURVE_ID_RECOGNITION_FAILS_FOR_RV_CURVES
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), cp, &cp_ptr);
+		break;
+		case GUI_PLOT_MESH:
+			/* Fall through */
+		break;
+		default:
+			gui_error ("Exception handler invoked", "PHOEBE ran into an unhandled condition in on_plot_area_motion(), please report this!");
+			return FALSE;
 	}
 
 	sprintf (cp_str, "in %s:", cp_ptr);
@@ -330,183 +364,201 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 	/* Read in parameter values from their respective widgets: */
 	gui_get_values_from_widgets ();
 
-	/* See what is requested: */
-	phoebe_column_get_type (&itype, data->x_request);
-	phoebe_column_get_type (&dtype, data->y_request);
+	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
+		/* See what is requested: */
+		phoebe_column_get_type (&itype, data->x_request);
+		phoebe_column_get_type (&dtype, data->y_request);
 
-	for (i = 0; i < data->cno; i++) {
-		plot_obs = data->request[i].plot_obs;
-		plot_syn = data->request[i].plot_syn;
+		for (i = 0; i < data->objno; i++) {
+			plot_obs = data->request[i].plot_obs;
+			plot_syn = data->request[i].plot_syn;
 
-		/* Free any pre-existing data: */
-		if (data->request[i].raw)   phoebe_curve_free (data->request[i].raw);   data->request[i].raw   = NULL;
-		if (data->request[i].query) phoebe_curve_free (data->request[i].query); data->request[i].query = NULL;
-		if (data->request[i].model) phoebe_curve_free (data->request[i].model); data->request[i].model = NULL;
+			/* Free any pre-existing data: */
+			if (data->request[i].raw)   phoebe_curve_free (data->request[i].raw);   data->request[i].raw   = NULL;
+			if (data->request[i].query) phoebe_curve_free (data->request[i].query); data->request[i].query = NULL;
+			if (data->request[i].model) phoebe_curve_free (data->request[i].model); data->request[i].model = NULL;
 
-		/* Prepare observed data (if toggled): */
-		if (plot_obs) {
-			data->request[i].raw = phoebe_curve_new_from_pars (data->ctype, i);
-			if (!data->request[i].raw) {
-				char notice[255];
-				plot_obs = NO;
-				sprintf (notice, "Observations for curve %d failed to open and cannot be plotted. Please review the information given in the Data tab.", i+1);
-				gui_notice ("Observed data not found", notice);
-			}
-
-			/* Transform the data to requested types: */
+			/* Prepare observed data (if toggled): */
 			if (plot_obs) {
-				data->request[i].query = phoebe_curve_duplicate (data->request[i].raw);
-				if (data->ctype == PHOEBE_CURVE_LC)
-					status = phoebe_curve_transform (data->request[i].query, itype, dtype, PHOEBE_COLUMN_UNDEFINED);
-				else if (data->ctype == PHOEBE_CURVE_RV)
-					status = phoebe_curve_transform (data->request[i].query, itype, data->request[i].raw->dtype, PHOEBE_COLUMN_UNDEFINED);
-				else {
-					printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
-					return;
-				}
-				if (status != SUCCESS) {
+				if (data->ptype == GUI_PLOT_LC)
+					data->request[i].raw = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, i);
+				else
+					data->request[i].raw = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, i);
+				
+				if (!data->request[i].raw) {
 					char notice[255];
 					plot_obs = NO;
-					sprintf (notice, "Observations for curve %d cannot be transformed to the requested plotting axes. Plotting will be suppressed.", i+1);
-					gui_notice ("Observed data transformation failure", notice);
+					sprintf (notice, "Observations for curve %d failed to open and cannot be plotted. Please review the information given in the Data tab.", i+1);
+					gui_notice ("Observed data not found", notice);
+				}
+
+				/* Transform the data to requested types: */
+				if (plot_obs) {
+					data->request[i].query = phoebe_curve_duplicate (data->request[i].raw);
+					switch (data->ptype) {
+						case GUI_PLOT_LC:
+							status = phoebe_curve_transform (data->request[i].query, itype, dtype, PHOEBE_COLUMN_UNDEFINED);
+						break;
+						case GUI_PLOT_RV:
+							status = phoebe_curve_transform (data->request[i].query, itype, data->request[i].raw->dtype, PHOEBE_COLUMN_UNDEFINED);
+						break;
+						default:
+							gui_error ("Exception handler invoked", "PHOEBE ran into an unhandled condition in on_plot_button_clicked(), please report this!");
+							return;
+					}
+					if (status != SUCCESS) {
+						char notice[255];
+						plot_obs = NO;
+						sprintf (notice, "Observations for curve %d cannot be transformed to the requested plotting axes. Plotting will be suppressed.", i+1);
+						gui_notice ("Observed data transformation failure", notice);
+					}
+				}
+
+				/* Alias data if requested: */
+				if (data->alias && plot_obs) {
+					status = phoebe_curve_alias (data->request[i].query, data->x_ll, data->x_ul);
+					if (status != SUCCESS) {
+						char notice[255];
+						plot_obs = NO;
+						sprintf (notice, "Observations for curve %d cannot be aliased. Plotting will be suppressed.", i+1);
+						gui_notice ("Observed data aliasing failure", notice);
+					}
+				}
+
+				/* Calculate residuals when requested */
+				if (data->residuals && plot_obs) {
+					PHOEBE_vector *indep = phoebe_vector_duplicate (data->request[i].query->indep);
+					data->request[i].model = phoebe_curve_new ();
+
+					data->request[i].model->itype = itype;
+					switch (data->ptype) {
+						case GUI_PLOT_LC:
+							data->request[i].model->type = PHOEBE_CURVE_LC;
+							status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+						break;
+						case GUI_PLOT_RV:
+						{
+							char *param; PHOEBE_column_type rvtype;
+							data->request[i].model->type = PHOEBE_CURVE_RV;
+							phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
+							phoebe_column_get_type (&rvtype, param);
+							status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
+						}
+						break;
+					}
+
+					if (status != SUCCESS) {
+						char notice[255];
+						plot_obs = NO;
+						sprintf (notice, "Model computation for curve %d failed with the following message: %s", i+1, phoebe_gui_error (status));
+						gui_notice ("Model curve computation failed", notice);
+					}
+
+					for (j = 0; j < data->request[i].model->indep->dim; j++) {
+						data->request[i].query->dep->val[j] -= data->request[i].model->dep->val[j];
+						data->request[i].model->dep->val[j] = 0.0;
+					}
+
+					if (!plot_syn) {
+						phoebe_curve_free (data->request[i].model); 
+						data->request[i].model = NULL;
+					}
+				}
+
+				/* Determine plot limits: */
+				if (plot_obs) {
+					phoebe_vector_min_max (data->request[i].query->indep, &x_min, &x_max);
+					phoebe_vector_min_max (data->request[i].query->dep,   &y_min, &y_max);
+
+					if (first_time) {
+						data->x_min = x_min;
+						data->x_max = x_max;
+						data->y_min = y_min + data->request[i].offset;
+						data->y_max = y_max + data->request[i].offset;
+						first_time = NO;
+					}
+					else {
+						data->x_min = min (data->x_min, x_min);
+						data->x_max = max (data->x_max, x_max);
+						data->y_min = min (data->y_min, y_min + data->request[i].offset);
+						data->y_max = max (data->y_max, y_max + data->request[i].offset);
+					}
 				}
 			}
 
-			/* Alias data if requested: */
-			if (data->alias && plot_obs) {
-				status = phoebe_curve_alias (data->request[i].query, data->x_ll, data->x_ul);
-				if (status != SUCCESS) {
-					char notice[255];
-					plot_obs = NO;
-					sprintf (notice, "Observations for curve %d cannot be aliased. Plotting will be suppressed.", i+1);
-					gui_notice ("Observed data aliasing failure", notice);
-				}
-			}
+			/* Prepare synthetic (model) data (if toggled): */
+			if (plot_syn && !(data->residuals)) {
+				PHOEBE_vector *indep = phoebe_vector_new_from_range (data->vertices, data->x_ll, data->x_ul);
 
-			/* Calculate residuals when requested */
-			if (data->residuals && plot_obs) {
-				PHOEBE_vector *indep = phoebe_vector_duplicate (data->request[i].query->indep);
 				data->request[i].model = phoebe_curve_new ();
-				data->request[i].model->type = data->ctype;
-				data->request[i].model->itype = itype;
 
-				if (data->ctype == PHOEBE_CURVE_LC)
-					status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
-				else if (data->ctype == PHOEBE_CURVE_RV) {
-					char *param; PHOEBE_column_type rvtype;
-					phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
-					phoebe_column_get_type (&rvtype, param);
-					status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
+				switch (data->ptype) {
+					case GUI_PLOT_LC:
+						data->request[i].model->type = PHOEBE_CURVE_LC;
+						status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+					break;
+					case GUI_PLOT_RV:
+					{
+						char *param; PHOEBE_column_type rvtype;
+						data->request[i].model->type = PHOEBE_CURVE_RV;
+						phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
+						phoebe_column_get_type (&rvtype, param);
+						status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
+					}
+					break;
 				}
-				else {
-					printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
-					return;
-				}
-
+				
 				if (status != SUCCESS) {
 					char notice[255];
-					plot_obs = NO;
+					plot_syn = NO;
+					phoebe_curve_free (data->request[i].model);
+					data->request[i].model = NULL;
 					sprintf (notice, "Model computation for curve %d failed with the following message: %s", i+1, phoebe_gui_error (status));
 					gui_notice ("Model curve computation failed", notice);
 				}
 
-				for (j = 0; j < data->request[i].model->indep->dim; j++) {
-					data->request[i].query->dep->val[j] -= data->request[i].model->dep->val[j];
-					data->request[i].model->dep->val[j] = 0.0;
-				}
-				if (!plot_syn) {
-					phoebe_curve_free (data->request[i].model); 
-					data->request[i].model = NULL;
-				}
-			}
+				gui_fill_sidesheet_res_treeview ();
 
-			/* Determine plot limits: */
-			if (plot_obs) {
-				phoebe_vector_min_max (data->request[i].query->indep, &x_min, &x_max);
-				phoebe_vector_min_max (data->request[i].query->dep,   &y_min, &y_max);
+				/* Plot aliasing for synthetic curves is not implemented by the
+				 * library -- phoebe_curve_compute () computes the curve on the
+				 * passed range. Perhaps it would be better to have that function
+				 * compute *up to* 1.0 in phase and alias the rest. But this is
+				 * not so urgent.
+				 */
 
-				if (first_time) {
-					data->x_min = x_min;
-					data->x_max = x_max;
-					data->y_min = y_min + data->request[i].offset;
-					data->y_max = y_max + data->request[i].offset;
-					first_time = NO;
+				/* Determine plot limits */
+				if (plot_syn) {
+					phoebe_vector_min_max (data->request[i].model->indep, &x_min, &x_max);
+					phoebe_vector_min_max (data->request[i].model->dep,   &y_min, &y_max);
+
+					if (first_time) {
+						data->x_min = x_min;
+						data->x_max = x_max;
+						data->y_min = y_min + data->request[i].offset;
+						data->y_max = y_max + data->request[i].offset;
+						first_time = NO;
+					}
+					else {
+						data->x_min = min (data->x_min, x_min);
+						data->x_max = max (data->x_max, x_max);
+						data->y_min = min (data->y_min, y_min + data->request[i].offset);
+						data->y_max = max (data->y_max, y_max + data->request[i].offset);
+					}
 				}
-				else {
-					data->x_min = min (data->x_min, x_min);
-					data->x_max = max (data->x_max, x_max);
-					data->y_min = min (data->y_min, y_min + data->request[i].offset);
-					data->y_max = max (data->y_max, y_max + data->request[i].offset);
-				}
+
+				phoebe_vector_free (indep);
 			}
 		}
 
-		/* Prepare synthetic (model) data (if toggled): */
-		if (plot_syn && !(data->residuals)) {
-			PHOEBE_vector *indep = phoebe_vector_new_from_range (data->vertices, data->x_ll, data->x_ul);
-
-			data->request[i].model = phoebe_curve_new ();
-			data->request[i].model->type = data->ctype;
-
-			if (data->ctype == PHOEBE_CURVE_LC)
-				status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
-			else if (data->ctype == PHOEBE_CURVE_RV) {
-				char *param; PHOEBE_column_type rvtype;
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &param);
-				phoebe_column_get_type (&rvtype, param);
-				status = phoebe_curve_compute (data->request[i].model, indep, i, itype, rvtype);
-			}
-			else {
-				printf ("*** EXCEPTION ENCOUNTERED IN ON_PLOT_BUTTON_CLICKED\n");
-				return;
-			}
-			if (status != SUCCESS) {
-				char notice[255];
-				plot_syn = NO;
-				phoebe_curve_free (data->request[i].model);
-				data->request[i].model = NULL;
-				sprintf (notice, "Model computation for curve %d failed with the following message: %s", i+1, phoebe_gui_error (status));
-				gui_notice ("Model curve computation failed", notice);
-			}
-
-			gui_fill_sidesheet_res_treeview ();
-
-			/* Plot aliasing for synthetic curves is not implemented by the
-			 * library -- phoebe_curve_compute () computes the curve on the
-			 * passed range. Perhaps it would be better to have that function
-			 * compute *up to* 1.0 in phase and alias the rest. But this is
-			 * not so urgent.
-			 */
-
-			/* Determine plot limits */
-			if (plot_syn) {
-				phoebe_vector_min_max (data->request[i].model->indep, &x_min, &x_max);
-				phoebe_vector_min_max (data->request[i].model->dep,   &y_min, &y_max);
-
-				if (first_time) {
-					data->x_min = x_min;
-					data->x_max = x_max;
-					data->y_min = y_min + data->request[i].offset;
-					data->y_max = y_max + data->request[i].offset;
-					first_time = NO;
-				}
-				else {
-					data->x_min = min (data->x_min, x_min);
-					data->x_max = max (data->x_max, x_max);
-					data->y_min = min (data->y_min, y_min + data->request[i].offset);
-					data->y_max = max (data->y_max, y_max + data->request[i].offset);
-				}
-			}
-
-			phoebe_vector_free (indep);
+		/* If we are plotting magnitudes, reverse the y-axis: */
+		if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
+			double store = data->y_min;
+			data->y_min = data->y_max;
+			data->y_max = store;
 		}
 	}
-
-	/* If we are plotting magnitudes, reverse the y-axis: */
-	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
-		double store = data->y_min;
-		data->y_min = data->y_max;
-		data->y_max = store;
+	else {
+		printf ("  mesh plotting requested.\n");
 	}
 
 	gui_plot_area_refresh (data);
@@ -729,87 +781,93 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 
 	printf ("* entering gui_plot_area_draw ()\n");
 
-	for (i = 0; i < data->cno; i++) {
-		if (data->request[i].query) {
-			if (!redirect)
-				cairo_set_source_rgb (data->canvas, 0, 0, 1);
-			else
-				fprintf (redirect, "# Observed data-set %d:\n", i);
-
-			for (j = 0; j < data->request[i].query->indep->dim; j++) {
-				if (!gui_plot_xvalue (data, data->request[i].query->indep->val[j], &x)) continue;
-				if (!gui_plot_yvalue (data, data->request[i].query->dep->val[j] + data->request[i].offset, &y)) continue;
-				if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
-
-				if (!redirect) {
-					cairo_arc (data->canvas, x, y, 2.0, 0, 2 * M_PI);
-					cairo_stroke (data->canvas);
-				}
-				else
-					fprintf (redirect, "%lf\t%lf\n", data->request[i].query->indep->val[j], data->request[i].query->dep->val[j] + data->request[i].offset);
-			}
-			needs_ticks = TRUE;
-		}
-
-		if (data->request[i].model) {
-			bool last_point_plotted = FALSE;
-			bool x_in_plot, y_in_plot;
-			double lastx, lasty;
-
-			if (redirect)
-				fprintf (redirect, "# Synthetic data set %d:\n", i);
-			else
-				cairo_set_source_rgb (data->canvas, 1, 0, 0);
-
-			for (j = 0; j < data->request[i].model->indep->dim; j++) {
-				x_in_plot = gui_plot_xvalue (data, data->request[i].model->indep->val[j], &x);
-				y_in_plot = gui_plot_yvalue (data, data->request[i].model->dep->val[j] + data->request[i].offset, &y);
-				if (!x_in_plot || !y_in_plot) {
-					if (last_point_plotted) {
-						double xborder, yborder;
-						gui_plot_interpolate_to_border (data, lastx, lasty, x, y, &xborder, &yborder);
-						if (!redirect)
-							cairo_line_to (data->canvas, xborder, yborder);
-						else
-							fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
-
-						last_point_plotted = FALSE;
-					}
-				}
-				else {
-					if (!last_point_plotted && (j > 0)) {
-						double xborder, yborder;
-						gui_plot_interpolate_to_border (data, x, y, lastx, lasty, &xborder, &yborder);
-						if (!redirect)
-							cairo_move_to (data->canvas, xborder, yborder);
-						last_point_plotted = TRUE;
-					}
-					if (last_point_plotted) {
-						if (!redirect)
-							cairo_line_to (data->canvas, x, y);
-						else
-							fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
-					}
-					else {
-						if (!redirect)
-							cairo_move_to (data->canvas, x, y);
-						last_point_plotted = TRUE;
-					}
-				}
-				lastx = x;
-				lasty = y;
-			}
-
-			if (!redirect)
-				cairo_stroke (data->canvas);
-
-			needs_ticks = TRUE;
-		}
+	if (data->ptype == GUI_PLOT_MESH) {
+		printf ("  mesh plotting initialized.\n");
 	}
 
-	if (needs_ticks && !redirect) {
-		gui_plot_xticks (data);
-		gui_plot_yticks (data);
+	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
+		for (i = 0; i < data->objno; i++) {
+			if (data->request[i].query) {
+				if (!redirect)
+					cairo_set_source_rgb (data->canvas, 0, 0, 1);
+				else
+					fprintf (redirect, "# Observed data-set %d:\n", i);
+
+				for (j = 0; j < data->request[i].query->indep->dim; j++) {
+					if (!gui_plot_xvalue (data, data->request[i].query->indep->val[j], &x)) continue;
+					if (!gui_plot_yvalue (data, data->request[i].query->dep->val[j] + data->request[i].offset, &y)) continue;
+					if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
+
+					if (!redirect) {
+						cairo_arc (data->canvas, x, y, 2.0, 0, 2 * M_PI);
+						cairo_stroke (data->canvas);
+					}
+					else
+						fprintf (redirect, "%lf\t%lf\n", data->request[i].query->indep->val[j], data->request[i].query->dep->val[j] + data->request[i].offset);
+				}
+				needs_ticks = TRUE;
+			}
+
+			if (data->request[i].model) {
+				bool last_point_plotted = FALSE;
+				bool x_in_plot, y_in_plot;
+				double lastx, lasty;
+
+				if (redirect)
+					fprintf (redirect, "# Synthetic data set %d:\n", i);
+				else
+					cairo_set_source_rgb (data->canvas, 1, 0, 0);
+
+				for (j = 0; j < data->request[i].model->indep->dim; j++) {
+					x_in_plot = gui_plot_xvalue (data, data->request[i].model->indep->val[j], &x);
+					y_in_plot = gui_plot_yvalue (data, data->request[i].model->dep->val[j] + data->request[i].offset, &y);
+					if (!x_in_plot || !y_in_plot) {
+						if (last_point_plotted) {
+							double xborder, yborder;
+							gui_plot_interpolate_to_border (data, lastx, lasty, x, y, &xborder, &yborder);
+							if (!redirect)
+								cairo_line_to (data->canvas, xborder, yborder);
+							else
+								fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
+
+							last_point_plotted = FALSE;
+						}
+					}
+					else {
+						if (!last_point_plotted && (j > 0)) {
+							double xborder, yborder;
+							gui_plot_interpolate_to_border (data, x, y, lastx, lasty, &xborder, &yborder);
+							if (!redirect)
+								cairo_move_to (data->canvas, xborder, yborder);
+							last_point_plotted = TRUE;
+						}
+						if (last_point_plotted) {
+							if (!redirect)
+								cairo_line_to (data->canvas, x, y);
+							else
+								fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
+						}
+						else {
+							if (!redirect)
+								cairo_move_to (data->canvas, x, y);
+							last_point_plotted = TRUE;
+						}
+					}
+					lastx = x;
+					lasty = y;
+				}
+
+				if (!redirect)
+					cairo_stroke (data->canvas);
+
+				needs_ticks = TRUE;
+			}
+		}
+
+		if (needs_ticks && !redirect) {
+			gui_plot_xticks (data);
+			gui_plot_yticks (data);
+		}
 	}
 
 	printf ("* leaving gui_plot_area_draw ()\n");
@@ -849,7 +907,7 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		data->request[i].model    = NULL;
 printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs, data->request[i].plot_syn, data->request[i].obscolor, data->request[i].syncolor, data->request[i].offset);
 	}
-	data->cno = rows;
+	data->objno = rows;
 
 	return;
 }
@@ -888,7 +946,7 @@ void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		data->request[i].model    = NULL;
 printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs, data->request[i].plot_syn, data->request[i].obscolor, data->request[i].syncolor, data->request[i].offset);
 	}
-	data->cno = rows;
+	data->objno = rows;
 
 	return;
 }
@@ -927,130 +985,121 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		exit(0);
 	}
 
-	/* Move this to the alloc function: */
-	data = phoebe_malloc (sizeof (*data));
-	data->layout     = gui_plot_layout_new ();
-	data->canvas     = NULL;
-	data->request    = NULL;
-	data->cno        = 0;
-	data->x_offset   = 0.0;
-	data->y_offset   = 0.0;
-	data->zoom_level = 0.0;
-	data->zoom       = 0;
-	data->leftmargin = data->layout->lmargin;
-	data->y_min      = 0.0;
-	data->y_max      = 1.0;
-	/***********************************/
-
-	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
-
-	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
-	g_signal_connect (area, "motion-notify-event", G_CALLBACK (on_plot_area_motion), data);
-	g_signal_connect (area, "enter-notify-event", G_CALLBACK (on_plot_area_enter), NULL);
-/*
-	g_signal_connect (area, "key-press-event", G_CALLBACK (on_key_press_event), data);
-*/
+	/* Initialize the data structure: */
+	data = gui_plot_data_new ();
 
 	/* Get associations from the button and attach change-sensitive callbacks: */
-	data->ctype = *((PHOEBE_curve_type *) (g_object_get_data (G_OBJECT (button), "curve_type")));
+	data->ptype = *((GUI_plot_type *) (g_object_get_data (G_OBJECT (button), "plot_type")));
 	data->container = area;
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_request");
-	data->x_request = gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
-	g_signal_connect (widget, "changed", G_CALLBACK (on_combo_box_selection_changed_get_string), &(data->x_request));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_y_request");
-	data->y_request = gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
-	g_signal_connect (widget, "changed", G_CALLBACK (on_combo_box_selection_changed_get_string), &(data->y_request));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_start");
-	data->x_ll = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
-	g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ll));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_end");
-	data->x_ul = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
-	g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ul));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_alias_switch");
-	data->alias = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-	g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->alias));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_resid_switch");
-	data->residuals = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-	g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->residuals));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_vertices");
-	data->vertices = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
-	g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_intvalue_changed), &(data->vertices));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "coarse_grid_switch");
-	data->coarse_grid = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-	g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->coarse_grid));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "fine_grid_switch");
-	data->fine_grid = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-	g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->fine_grid));
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_left");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_left_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_down");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_down_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_right");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_right_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_up");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_up_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_reset");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_reset_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomin");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomin_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomout");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomout_button_clicked), data);
-
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_plot");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_button_clicked), data);
 
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "clear_plot");
 	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_clear_button_clicked), data);
 
-	/* Sadly, columns don't have any "changed" signal, so we need to use the
-	 * model. That implies different actions for LCs and RVs, so the
-	 * implementation is not as elegant as for the rest. Furthermore, removing
-	 * rows does not emit the "row-changed" signal, so we have to catch the
-	 * "row-deleted" signal as well and re-route it to "row-changed".
-	 */
+	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_plot");
+	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_button_clicked), data);
 
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_passband_info");
-	if (data->ctype == PHOEBE_CURVE_LC)
-		g_signal_connect (widget, "row-changed", G_CALLBACK (on_lc_plot_treeview_row_changed), data);
-	else if (data->ctype == PHOEBE_CURVE_RV)
-		g_signal_connect (widget, "row-changed", G_CALLBACK (on_rv_plot_treeview_row_changed), data);
+	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
+	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
 
-	g_signal_connect (widget, "row-deleted", G_CALLBACK (on_plot_treeview_row_deleted), data);
+	/* While mesh plotting is still rudimental, LC and RV plots are involved: */
+	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
+		g_signal_connect (area, "motion-notify-event", G_CALLBACK (on_plot_area_motion), data);
+		g_signal_connect (area, "enter-notify-event", G_CALLBACK (on_plot_area_enter), NULL);
+	/*
+		g_signal_connect (area, "key-press-event", G_CALLBACK (on_key_press_event), data);
+	*/
 
-	/* Assign the widgets (must be GtkLabels) that will keep track of mouse
-	 * coordinates:
-	 */
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_request");
+		data->x_request = gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
+		g_signal_connect (widget, "changed", G_CALLBACK (on_combo_box_selection_changed_get_string), &(data->x_request));
 
-	data->x_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_coordinate");
-	data->y_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_y_coordinate");
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_y_request");
+		data->y_request = gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
+		g_signal_connect (widget, "changed", G_CALLBACK (on_combo_box_selection_changed_get_string), &(data->y_request));
 
-	data->cp_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cp_index");
-	data->cx_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cx_coordinate");
-	data->cy_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cy_coordinate");
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_start");
+		data->x_ll = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ll));
 
-	/* Finally, attach a callback that will plot the data: */
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_end");
+		data->x_ul = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ul));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_alias_switch");
+		data->alias = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+		g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->alias));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_resid_switch");
+		data->residuals = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+		g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->residuals));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_vertices");
+		data->vertices = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_intvalue_changed), &(data->vertices));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "coarse_grid_switch");
+		data->coarse_grid = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+		g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->coarse_grid));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "fine_grid_switch");
+		data->fine_grid = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+		g_signal_connect (widget, "toggled", G_CALLBACK (on_toggle_button_value_toggled), &(data->fine_grid));
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_left");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_left_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_down");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_down_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_right");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_right_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_up");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_up_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_reset");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_reset_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomin");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomin_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomout");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomout_button_clicked), data);
+
+		/* Sadly, columns don't have any "changed" signal, so we need to use the
+		 * model. That implies different actions for LCs and RVs, so the
+		 * implementation is not as elegant as for the rest. Furthermore, removing
+		 * rows does not emit the "row-changed" signal, so we have to catch the
+		 * "row-deleted" signal as well and re-route it to "row-changed".
+		 */
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_passband_info");
+		if (data->ptype == GUI_PLOT_LC)
+			g_signal_connect (widget, "row-changed", G_CALLBACK (on_lc_plot_treeview_row_changed), data);
+		else if (data->ptype == GUI_PLOT_RV)
+			g_signal_connect (widget, "row-changed", G_CALLBACK (on_rv_plot_treeview_row_changed), data);
+
+		g_signal_connect (widget, "row-deleted", G_CALLBACK (on_plot_treeview_row_deleted), data);
+
+		/* Assign the widgets (must be GtkLabels) that will keep track of mouse
+		 * coordinates:
+		 */
+
+		data->x_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_coordinate");
+		data->y_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_y_coordinate");
+
+		data->cp_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cp_index");
+		data->cx_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cx_coordinate");
+		data->cy_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cy_coordinate");
+	}
+
+	/* Attach a callback that will plot the data: */
 	g_signal_connect (button, "clicked", G_CALLBACK (on_plot_button_clicked), data);
 
 	return SUCCESS;
 }
 
-int gui_tempfile(char *filename) 
+int gui_tempfile (char *filename) 
 {
 #ifdef __MINGW32__
 	return g_mkstemp(filename);
@@ -1059,7 +1108,7 @@ int gui_tempfile(char *filename)
 #endif
 }
 
-void gui_plot(char *filename) 
+void gui_plot (char *filename) 
 {
 	char command[255];
 
@@ -2010,7 +2059,7 @@ int gui_plot_eb_using_gnuplot ()
 	gint ebfd, cfd, pfd;
 
 	GtkWidget *plot_image 		= gui_widget_lookup ("phoebe_eb_plot_image")->gtk;
-	GtkWidget *phase_spinbutton = gui_widget_lookup ("phoebe_star_shape_phase_spinbutton")->gtk;
+	GtkWidget *phase_spinbutton = gui_widget_lookup ("phoebe_plot_mesh_phase")->gtk;
 	GError *err = NULL;
 
 	double phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON (phase_spinbutton));
