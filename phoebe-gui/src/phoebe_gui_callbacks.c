@@ -2419,31 +2419,6 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_controls_zoomout_button_clicked (GtkButto
 	}
 }
 
-G_MODULE_EXPORT void on_phoebe_star_shape_plot_button_clicked (GtkButton *button, gpointer user_data)
-{
-		gui_update_ld_coefficients_when_needed();
-		gui_get_values_from_widgets();
-		gui_plot_eb_using_gnuplot();
-}
-
-G_MODULE_EXPORT void on_phoebe_star_shape_clear_button_clicked (GtkButton *button, gpointer user_data)
-{
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_eb_plot_image")->gtk), NULL);
-}
-
-G_MODULE_EXPORT void on_phoebe_star_shape_phase_spinbutton_value_changed (GtkSpinButton *spinbutton, gpointer user_data)
-{
-	GtkWidget *phoebe_star_shape_autoupdate_checkbutton = gui_widget_lookup("phoebe_star_shape_autoupdate_checkbutton")->gtk;
-
-	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(phoebe_star_shape_autoupdate_checkbutton))){
-		gui_update_ld_coefficients_when_needed();
-		gui_get_values_from_widgets();
-		gui_plot_eb_using_gnuplot();
-	}
-}
-
-
-
 /* ******************************************************************** *
  *
  *                    potential calculator dialog

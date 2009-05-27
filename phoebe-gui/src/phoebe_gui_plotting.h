@@ -21,6 +21,13 @@ typedef struct GUI_plot_layout {
 GUI_plot_layout *gui_plot_layout_new  ();
 int              gui_plot_layout_free (GUI_plot_layout *layout);
 
+typedef enum GUI_plot_type {
+	GUI_PLOT_LC,
+	GUI_PLOT_RV,
+	GUI_PLOT_MESH,
+	GUI_PLOT_UNDEFINED
+} GUI_plot_type;
+
 typedef struct GUI_plot_request {
 	bool          plot_obs;
 	bool          plot_syn;
@@ -29,19 +36,21 @@ typedef struct GUI_plot_request {
 	double        offset;
 	PHOEBE_curve *raw;
 	PHOEBE_curve *query;
-	PHOEBE_curve *model;
+	PHOEBE_curve *model;         /* For LC and RV plots                       */
+	PHOEBE_star_surface *mesh;   /* For mesh (plane-of-sky projection) plots  */
 } GUI_plot_request;
 
 typedef struct GUI_plot_data {
 	GUI_plot_layout   *layout;      /* Plot layout (margins, ticks, ...)      */
 	GUI_plot_request  *request;     /* Structure with all data and properties */
+	GUI_plot_type      ptype;       /* Plot type (LC, RV or mesh)             */
 	GtkWidget         *container;   /* Widget container                       */
 	cairo_t           *canvas;      /* Cairo canvas                           */
 	double             width;       /* Graph width in pixels                  */
 	double             height;      /* Graph height in pixels                 */
-	PHOEBE_curve_type  ctype;       /* Curve type (LC or RV)                  */
-	bool               alias;       /* Should the data be aliased?            */
-	bool               residuals;   /* Should the residuals be plotted?       */
+	int                objno;       /* Number of objects for plotting         */
+	bool               alias;       /* Should data be aliased?                */
+	bool               residuals;   /* Should residuals be plotted?           */
 	const char        *x_request;   /* Requested x-coordinate                 */
 	const char        *y_request;   /* Requested y-coordinate                 */
 	double             x_ll;        /* Lower plotting limit for the x-axis    */
@@ -53,7 +62,6 @@ typedef struct GUI_plot_data {
 	int                vertices;    /* Number of vertices for synthetic plots */
 	bool               coarse_grid; /* Should a coarse grid be plotted?       */
 	bool               fine_grid;   /* Should a fine grid be plotted?         */
-	int                cno;         /* Number of curves for plotting          */
 	GtkWidget         *x_widget;    /* Widget to be connected to x-coordinate */
 	GtkWidget         *y_widget;    /* Widget to be connected to y-coordinate */
 	GtkWidget         *cp_widget;   /* Widget to be connected to closest psb. */
@@ -65,6 +73,9 @@ typedef struct GUI_plot_data {
 	int                zoom_level;
 	double             leftmargin;
 } GUI_plot_data;
+
+GUI_plot_data *gui_plot_data_new ();
+int            gui_plot_data_free ();
 
 /* Signal callbacks pertinent to plotting: */
 

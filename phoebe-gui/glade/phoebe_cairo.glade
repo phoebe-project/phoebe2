@@ -10375,23 +10375,22 @@ from temperatures</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkFrame" id="frame7">
+                      <widget class="GtkFrame" id="phoebe_plot_mesh_frame">
                         <property name="visible">True</property>
                         <property name="border_width">1</property>
                         <property name="label_xalign">0</property>
                         <child>
-                          <widget class="GtkVBox" id="vbox37">
+                          <widget class="GtkVBox" id="phoebe_plot_mesh_vbox">
                             <property name="visible">True</property>
                             <child>
-                              <widget class="GtkFrame" id="frame8">
+                              <widget class="GtkFrame" id="phoebe_plot_mesh_graph_frame">
                                 <property name="visible">True</property>
                                 <property name="border_width">4</property>
                                 <property name="label_xalign">0</property>
                                 <property name="label_yalign">1</property>
                                 <child>
-                                  <widget class="GtkImage" id="phoebe_eb_plot_image">
+                                  <widget class="GtkDrawingArea" id="phoebe_plot_mesh_graph_area">
                                     <property name="visible">True</property>
-                                    <property name="stock">gtk-missing-image</property>
                                   </widget>
                                 </child>
                                 <child>
@@ -10406,19 +10405,18 @@ from temperatures</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkHBox" id="hbox34">
+                              <widget class="GtkHBox" id="phoebe_plot_mesh_button_hbox">
                                 <property name="visible">True</property>
                                 <child>
-                                  <widget class="GtkHButtonBox" id="hbuttonbox5">
+                                  <widget class="GtkHButtonBox" id="phoebe_plot_mesh_button_box">
                                     <property name="visible">True</property>
                                     <property name="layout_style">end</property>
                                     <child>
-                                      <widget class="GtkButton" id="phoebe_star_shape_plot_button">
+                                      <widget class="GtkButton" id="phoebe_plot_mesh_plot_button">
                                         <property name="label" translatable="yes">Plot</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="receives_default">False</property>
-                                        <signal name="clicked" handler="on_phoebe_star_shape_plot_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -10427,18 +10425,31 @@ from temperatures</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkButton" id="phoebe_star_shape_clear_button">
+                                      <widget class="GtkButton" id="phoebe_plot_mesh_clear_button">
                                         <property name="label" translatable="yes">gtk-clear</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_stock">True</property>
-                                        <signal name="clicked" handler="on_phoebe_star_shape_clear_button_clicked"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
                                         <property name="fill">False</property>
                                         <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkButton" id="phoebe_plot_mesh_save_button">
+                                        <property name="label" translatable="yes">gtk-save</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">True</property>
+                                        <property name="use_stock">True</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">2</property>
                                       </packing>
                                     </child>
                                   </widget>
@@ -10448,10 +10459,10 @@ from temperatures</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkHBox" id="hbox33">
+                                  <widget class="GtkHBox" id="phoebe_plot_mesh_phase_hbox">
                                     <property name="visible">True</property>
                                     <child>
-                                      <widget class="GtkLabel" id="label19">
+                                      <widget class="GtkLabel" id="phoebe_plot_mesh_phase_label">
                                         <property name="visible">True</property>
                                         <property name="xpad">10</property>
                                         <property name="label" translatable="yes">Phase:</property>
@@ -10462,14 +10473,13 @@ from temperatures</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <widget class="GtkSpinButton" id="phoebe_star_shape_phase_spinbutton">
+                                      <widget class="GtkSpinButton" id="phoebe_plot_mesh_phase">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="adjustment">0 -0.5 0.5 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
-                                        <signal name="value_changed" handler="on_phoebe_star_shape_phase_spinbutton_value_changed"/>
                                       </widget>
                                       <packing>
                                         <property name="padding">1</property>
@@ -10484,7 +10494,7 @@ from temperatures</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <widget class="GtkCheckButton" id="phoebe_star_shape_autoupdate_checkbutton">
+                                  <widget class="GtkCheckButton" id="phoebe_plot_mesh_autoupdate_checkbutton">
                                     <property name="label" translatable="yes">Auto-update plot on phase change</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
@@ -10505,10 +10515,10 @@ from temperatures</property>
                           </widget>
                         </child>
                         <child>
-                          <widget class="GtkLabel" id="label23">
+                          <widget class="GtkLabel" id="phoebe_plot_mesh_frame_label">
                             <property name="visible">True</property>
                             <property name="xpad">4</property>
-                            <property name="label" translatable="yes">&lt;b&gt;Star Shape&lt;/b&gt;</property>
+                            <property name="label" translatable="yes">&lt;b&gt;Plane-of-sky view&lt;/b&gt;</property>
                             <property name="use_markup">True</property>
                           </widget>
                           <packing>
@@ -10521,9 +10531,9 @@ from temperatures</property>
                       </packing>
                     </child>
                     <child>
-                      <widget class="GtkLabel" id="label24">
+                      <widget class="GtkLabel" id="phoebe_plot_mesh_tab_label">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Star Shape</property>
+                        <property name="label" translatable="yes">Mesh Plot</property>
                       </widget>
                       <packing>
                         <property name="position">2</property>

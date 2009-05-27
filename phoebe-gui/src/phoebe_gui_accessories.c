@@ -404,7 +404,7 @@ int gui_show_configuration_dialog()
 	return status;
 }
 
-int gui_warning(char* title, char* message)
+int gui_warning (char* title, char* message)
 {
 	GtkWidget *dialog;
 	int answer = 0;
