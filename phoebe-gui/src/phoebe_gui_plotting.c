@@ -558,7 +558,27 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 		}
 	}
 	else {
-		printf ("  mesh plotting requested.\n");
+		PHOEBE_vector *poscoy, *poscoz;
+		char *lcin;
+		WD_LCI_parameters *params = phoebe_malloc (sizeof (*params));
+		
+		status = wd_lci_parameters_get (params, 5, 0);
+		if (status != SUCCESS) {
+			gui_notice ("Mesh computation failed", "For some mysterious reason (such as a bug in the program) parameter readout failed. Please report this.");
+			return;
+		}
+		
+		lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
+		create_lci_file (lcin, params);
+		
+		poscoy = phoebe_vector_new ();
+		poscoz = phoebe_vector_new ();
+		status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, 0.25);
+		
+		data->request[0].model = phoebe_curve_new ();
+		data->request[0].model->indep = poscoy;
+		data->request[0].model->dep   = poscoz;
+		printf ("survived the Plot button click.\n");
 	}
 
 	gui_plot_area_refresh (data);
@@ -781,8 +801,14 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 
 	printf ("* entering gui_plot_area_draw ()\n");
 
-	if (data->ptype == GUI_PLOT_MESH) {
-		printf ("  mesh plotting initialized.\n");
+	if (data->ptype == GUI_PLOT_MESH && data->request[0].model) {
+		cairo_set_source_rgb (data->canvas, 0, 0, 1);
+		for (j = 0; j < data->request[0].model->indep->dim; j++) {
+			x = data->width/2 + data->width/2*data->request[0].model->indep->val[j];
+			y = data->height/2 + data->width/2*data->request[0].model->dep->val[j];
+			cairo_arc (data->canvas, x, y, 2.0, 0, 2 * M_PI);
+			cairo_stroke (data->canvas);
+		}
 	}
 
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
@@ -1091,6 +1117,19 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		data->cp_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cp_index");
 		data->cx_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cx_coordinate");
 		data->cy_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cy_coordinate");
+	}
+	else /* if (data->ptype == GUI_PL0T_MESH) */ {
+		/* Since there is always a single object, we create the request here.  */
+		data->objno   = 1;
+		data->request = phoebe_malloc (sizeof(*(data->request)));
+		data->request[0].plot_obs = FALSE;
+		data->request[0].plot_syn = TRUE;
+		data->request[0].obscolor = "#000000";
+		data->request[0].syncolor = "#000000";
+		data->request[0].offset   = 0.0;
+		data->request[0].raw      = NULL;
+		data->request[0].query    = NULL;
+		data->request[0].model    = NULL;
 	}
 
 	/* Attach a callback that will plot the data: */
