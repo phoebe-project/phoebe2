@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*         Author of PHOEBE: Andrej Prsa <andrej.prsa@fmf.uni-lj.si>          */
+/*         Author of PHOEBE: Andrej Prsa <andrej.prsa@villanova.edu>          */
 /*                                                                            */
 /******************************************************************************/
 /*                                                                            */
@@ -41,6 +41,7 @@
 #include <phoebe/phoebe_model.h>
 #include <phoebe/phoebe_nms.h>
 #include <phoebe/phoebe_parameters.h>
+#include <phoebe/phoebe_radiation.h>
 #include <phoebe/phoebe_spectra.h>
 #include <phoebe/phoebe_types.h>
 

@@ -8,27 +8,21 @@
 #include <gsl/gsl_spline.h>
 #endif
 
-int compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist *PTF)
+int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOEBE_hist *PTF)
 {
-	/*
-	 * This function computes the passband intensity of the passed spectral
+	/**
+	 * phoebe_compute_passband_intensity:
+	 * @intensity: placeholder for the computed value
+	 * @SED: spectral energy distribution to be integrated
+	 * @PTF: passband transmission function to be integrated
+	 *
+	 * This function computes passband intensity of the passed spectral
 	 * energy distribution function and the passed passband transmission
 	 * function. Passband intensity is defined as:
 	 *
 	 * I = \pi \int SED (lambda) PTF (lambda) dlambda / \int PTF (lambda) dlambda
 	 *
-	 * Input arguments:
-	 *
-	 *   SED  ..  Spectral Energy Distribution Function, S (lambda; T,logg,...)
-	 *   PTF  ..  Passband Transmission Function,        T (lambda)
-	 *
-	 * Output arguments:
-	 *
-	 *   intensity  ..  computed passband intensity
-	 *
-	 * Return values:
-	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code
 	 */
 
 #if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
