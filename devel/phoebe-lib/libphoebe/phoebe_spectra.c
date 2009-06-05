@@ -384,10 +384,10 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	while (!feof (input)) {
 		if (!fgets (line, 254, input)) break;
 
-		/* Remove empty lines:                                                */
+		/* Remove empty lines: */
 		if ( (strptr = strchr (line, '\n')) ) *strptr = '\0';
 
-		/* Remove comments (if any):                                          */
+		/* Remove comments (if any): */
 		if ( (strptr = strchr (line, '#')) ) *strptr = '\0';
 
 		if (sscanf (line, "%lf %lf", &wl, &flux) == 2) {
@@ -401,6 +401,12 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	}
 
 	fclose (input);
+
+	if (spectrum->data->bins == 0) {
+		phoebe_spectrum_free (spectrum);
+		phoebe_vector_free (bin_centers);
+		return NULL;
+	}
 
 	phoebe_hist_set_ranges (spectrum->data, bin_centers);
 
@@ -444,7 +450,6 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 	double x[3], lo[3], hi[3];
 	PHOEBE_spectrum *result;
 	PHOEBE_spectrum *fv[8];
-	PHOEBE_vector *specvals;
 
 	if (PHOEBE_spectra_repository.no == 0) {
 		phoebe_lib_error ("there are no spectra in the repository.\n");
@@ -536,24 +541,33 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 
 	/* Read in the node spectra; if the readout fails, free memory and abort. */
 	for (l = 0; l < 8; l++) {
-		fv[l] = phoebe_spectrum_create (2500, 10500, 1, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
-		phoebe_debug ("created spectrum %d with dim %d: ", l, fv[l]->data->bins);
-		if (!PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)])
-			return NULL;
+		fv[l] = phoebe_spectrum_new_from_file (PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
 
-		phoebe_debug ("%s\n", PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
-		specvals = phoebe_vector_new_from_column (PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename, 1);
-		if (!specvals) {
-			phoebe_lib_error ("spectrum %s not found, aborting.\n", PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
-			for (m = 0; m < l-1; m++)
-				phoebe_spectrum_free (fv[m]);
-			return NULL;
+		if (!fv[l]) {
+			PHOEBE_vector *fluxes = phoebe_vector_new_from_column (PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename, 1);
+			
+			if (!fluxes) {
+				/* We're in trouble: even column 1 could not be read. Bail out. */
+				phoebe_lib_error ("spectrum %s not found, aborting.\n", PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]->filename);
+				for (m = 0; m < l-1; m++)
+					phoebe_spectrum_free (fv[m]);
+				return NULL;
+			}
+			
+			fv[l] = phoebe_spectrum_create (2500, 10500, 1, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
+			phoebe_debug ("created spectrum %d with dim %d: ", l, fv[l]->data->bins);
+			
+			if (!PHOEBE_spectra_repository.table[imin+(l%2)*(imax-imin)][jmin+((l/2)%2)*(jmax-jmin)][kmin+((l/4)%2)*(kmax-kmin)]) {
+				for (m = 0; m < l-1; m++)
+					phoebe_spectrum_free (fv[m]);
+				return NULL;
+			}
+			
+			status = phoebe_hist_set_values (fv[l]->data, fluxes);
+			if (status != SUCCESS)
+				phoebe_lib_error ("%s", phoebe_error (status));
+			phoebe_vector_free (fluxes);
 		}
-
-		status = phoebe_hist_set_values (fv[l]->data, specvals);
-		if (status != SUCCESS)
-			phoebe_lib_error ("%s", phoebe_error (status));
-		phoebe_vector_free (specvals);
 	}
 
 	/* Everything seems to be ok; proceed to the interpolation.               */
