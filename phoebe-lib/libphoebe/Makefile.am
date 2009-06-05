@@ -80,5 +80,6 @@ library_include_HEADERS = phoebe.h                   \
                           phoebe_model.h             \
                           phoebe_nms.h               \
                           phoebe_parameters.h        \
+                          phoebe_radiation.h         \
                           phoebe_spectra.h           \
                           phoebe_types.h
