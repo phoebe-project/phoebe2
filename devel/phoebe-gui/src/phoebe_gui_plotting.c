@@ -573,7 +573,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 		
 		poscoy = phoebe_vector_new ();
 		poscoz = phoebe_vector_new ();
-		status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, 0.25);
+		status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, data->request->phase);
 		
 		data->request[0].model = phoebe_curve_new ();
 		data->request[0].model->indep = poscoy;
@@ -1003,6 +1003,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 
 	GtkWidget *widget;
 	GUI_plot_data *data;
+	bool state;
 
 	/* We initialize the container internally; it's our fault if it fails: */
 	if (!area) {
@@ -1027,7 +1028,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
 	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
 
-	/* While mesh plotting is still rudimental, LC and RV plots are involved: */
+	/* LC/RV parameters: */
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
 		g_signal_connect (area, "motion-notify-event", G_CALLBACK (on_plot_area_motion), data);
 		g_signal_connect (area, "enter-notify-event", G_CALLBACK (on_plot_area_enter), NULL);
@@ -1119,7 +1120,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		data->cy_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cy_coordinate");
 	}
 	else /* if (data->ptype == GUI_PL0T_MESH) */ {
-		/* Since there is always a single object, we create the request here.  */
+		/* Since there is always a single object, we create the request here. */
 		data->objno   = 1;
 		data->request = phoebe_malloc (sizeof(*(data->request)));
 		data->request[0].plot_obs = FALSE;
@@ -1130,6 +1131,10 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		data->request[0].raw      = NULL;
 		data->request[0].query    = NULL;
 		data->request[0].model    = NULL;
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "mesh_phase");
+		data->request->phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->request->phase));
 	}
 
 	/* Attach a callback that will plot the data: */

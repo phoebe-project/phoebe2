@@ -259,6 +259,8 @@ int gui_init_widgets ()
 
 	/* To this plot button we will attach all property widgets: */
 	g_object_set_data (G_OBJECT (plot_button), "plot_type",         &ptype);
+	g_object_set_data (G_OBJECT (plot_button), "mesh_phase",        glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_phase"));
+	g_object_set_data (G_OBJECT (plot_button), "mesh_autoupdate",   glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_autoupdate_meshbutton"));
 /*
 	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      NULL);
 	g_object_set_data (G_OBJECT (plot_button), "plot_alias_switch",  glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"));

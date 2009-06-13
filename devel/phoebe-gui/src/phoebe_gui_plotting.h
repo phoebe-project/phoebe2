@@ -34,6 +34,7 @@ typedef struct GUI_plot_request {
 	char         *obscolor;      /* Hexadecimal color code (with a leading #) */
 	char         *syncolor;      /* Hexadecimal color code (with a leading #) */
 	double        offset;
+	double        phase;         /* For mesh plots */
 	PHOEBE_curve *raw;
 	PHOEBE_curve *query;
 	PHOEBE_curve *model;         /* For LC and RV plots                       */
