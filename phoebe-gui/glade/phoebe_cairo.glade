@@ -6509,7 +6509,7 @@ from temperatures</property>
                                   <widget class="GtkLabel" id="phoebe_para_ld_bolcoefs_frame_label">
                                     <property name="visible">True</property>
                                     <property name="xpad">4</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Bolometric coefficents&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Bolometric coefficients&lt;/b&gt;</property>
                                     <property name="use_markup">True</property>
                                   </widget>
                                   <packing>
@@ -6923,7 +6923,7 @@ from temperatures</property>
                               <widget class="GtkLabel" id="phoebe_para_ld_lccoefs_frame_label">
                                 <property name="visible">True</property>
                                 <property name="xpad">4</property>
-                                <property name="label" translatable="yes">&lt;b&gt;LC coefficents&lt;/b&gt;</property>
+                                <property name="label" translatable="yes">&lt;b&gt;LC coefficients&lt;/b&gt;</property>
                                 <property name="use_markup">True</property>
                               </widget>
                               <packing>
@@ -6994,7 +6994,7 @@ from temperatures</property>
                               <widget class="GtkLabel" id="phoebe_para_ld_rvcoefs_frame_label">
                                 <property name="visible">True</property>
                                 <property name="xpad">4</property>
-                                <property name="label" translatable="yes">&lt;b&gt;RV coefficents&lt;/b&gt;</property>
+                                <property name="label" translatable="yes">&lt;b&gt;RV coefficients&lt;/b&gt;</property>
                                 <property name="use_markup">True</property>
                               </widget>
                               <packing>
