@@ -465,6 +465,12 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_repository (double Teff, double logg, 
 	if (i < 0 || j < 0 || k < 0)
 		return NULL;
 
+	/* A possible shortcut: is the queried spectrum a node? */
+	if (Teff == PHOEBE_spectra_repository.Teffnodes->val.iarray[i] &&
+	    10.0*logg-PHOEBE_spectra_repository.loggnodes->val.iarray[j] < 1e-3 &&
+	    10.0* met-PHOEBE_spectra_repository.metnodes-> val.iarray[k] < 1e-3)
+			return phoebe_spectrum_new_from_file (PHOEBE_spectra_repository.table[i][j][k]->filename);
+
 	/*
 	 * Because of the gaps in parameter values we need to allow adjacent
 	 * cells to be used as nodes. If these are also not available, bail out.
