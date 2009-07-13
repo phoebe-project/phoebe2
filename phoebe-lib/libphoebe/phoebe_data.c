@@ -406,6 +406,11 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband,      "Geneva:V1") == 0) { *id = 34; return SUCCESS; }
 	if (strcmp (passband,       "Geneva:G") == 0) { *id = 35; return SUCCESS; }
 	if (strcmp (passband, "Kepler:default") == 0) { *id = 36; return SUCCESS; }
+	if (strcmp (passband,        "SDSS:u'") == 0) { *id = 37; return SUCCESS; }
+	if (strcmp (passband,        "SDSS:g'") == 0) { *id = 38; return SUCCESS; }
+	if (strcmp (passband,        "SDSS:r'") == 0) { *id = 39; return SUCCESS; }
+	if (strcmp (passband,        "SDSS:i'") == 0) { *id = 40; return SUCCESS; }
+	if (strcmp (passband,        "SDSS:z'") == 0) { *id = 41; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;
