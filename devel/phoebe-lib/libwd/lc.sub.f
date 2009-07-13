@@ -49,7 +49,7 @@ c
       parameter (lpomax=100000)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
-      parameter (iplmax=    36)
+      parameter (iplmax=    41)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -252,6 +252,11 @@ c      33   Geneva V       "             "             "           "
 c      34   Geneva V1      "             "             "           "
 c      35   Geneva G       "             "             "           "
 c      36   Kepler     Kepler Science Book
+c      37   SDSS u     Sloan DSS instrument book, Fukugita et al. (1996)
+c      38   SDSS g     Sloan DSS instrument book, Fukugita et al. (1996)
+c      39   SDSS r     Sloan DSS instrument book, Fukugita et al. (1996)
+c      40   SDSS i     Sloan DSS instrument book, Fukugita et al. (1996)
+c      41   SDSS z     Sloan DSS instrument book, Fukugita et al. (1996)
 
       ot=1.d0/3.d0
       pi=dacos(-1.d0)

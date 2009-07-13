@@ -62,7 +62,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
-      parameter (iplmax=    36)
+      parameter (iplmax=    41)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -297,6 +297,11 @@ c      33   Geneva V       "             "             "           "
 c      34   Geneva V1      "             "             "           "
 c      35   Geneva G       "             "             "           "
 c      36   Kepler     Kepler Science Book
+c      37   SDSS u     Sloan DSS instrument book, Fukugita et al. (1996)
+c      38   SDSS g     Sloan DSS instrument book, Fukugita et al. (1996)
+c      39   SDSS r     Sloan DSS instrument book, Fukugita et al. (1996)
+c      40   SDSS i     Sloan DSS instrument book, Fukugita et al. (1996)
+c      41   SDSS z     Sloan DSS instrument book, Fukugita et al. (1996)
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))
