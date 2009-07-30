@@ -606,6 +606,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		sprintf (status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox) ? "Nelder-Mead Simplex" : "Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
 		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 
+		/* Results treeview: */
 		model = gtk_tree_view_get_model (phoebe_fitt_mf_treeview);
 		gtk_list_store_clear (GTK_LIST_STORE (model));
 
@@ -621,6 +622,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 				-1);
 		}
 
+		/* Statistics treeview: */
 		model = gtk_tree_view_get_model (phoebe_fitt_second_treeview);
 		gtk_list_store_clear (GTK_LIST_STORE (model));
 
@@ -733,12 +735,13 @@ void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointe
 
 	if (accept_flag) {
 		status = phoebe_minimizer_feedback_accept (phoebe_minimizer_feedback);
+		gui_update_el3_lum_value ();
 		gui_set_spot_parameters();
-		status = gui_set_values_to_widgets();
-		on_phoebe_para_spots_treeview_cursor_changed((GtkTreeView *)NULL, (gpointer)NULL);  // Change the values of the current spot
-		gui_update_ld_coefficients_on_autoupdate();
+		status = gui_set_values_to_widgets ();
+		on_phoebe_para_spots_treeview_cursor_changed ((GtkTreeView *) NULL, (gpointer) NULL);  // Change the values of the current spot
+		gui_update_ld_coefficients_on_autoupdate ();
 		gui_fill_sidesheet_fit_treeview ();
-		gui_fill_fitt_mf_treeview();
+		gui_fill_fitt_mf_treeview ();
 		accept_flag = 0;
 	}
 }
@@ -861,31 +864,32 @@ G_MODULE_EXPORT void on_phoebe_fitt_nms_iters_spinbutton_value_changed (GtkSpinB
  * ******************************************************************** */
 
 
-void
-on_phoebe_data_lc_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_lc_treeview_row_activated (GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
-	gui_data_lc_treeview_edit();
+	gui_data_lc_treeview_edit ();
 }
 
-void
-on_phoebe_data_lc_add_button_clicked (GtkButton *button, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_lc_add_button_clicked (GtkButton *button, gpointer user_data)
 {
-    gui_data_lc_treeview_add();
+    gui_data_lc_treeview_add ();
 }
 
-void
-on_phoebe_data_lc_edit_button_clicked (GtkButton *button, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_lc_edit_button_clicked (GtkButton *button, gpointer user_data)
 {
-    gui_data_lc_treeview_edit();
+    gui_data_lc_treeview_edit ();
 }
 
-void
-on_phoebe_data_lc_remove_button_clicked (GtkButton *button, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_lc_remove_button_clicked (GtkButton *button, gpointer user_data)
 {
-    gui_data_lc_treeview_remove();
+    gui_data_lc_treeview_remove ();
 }
 
-G_MODULE_EXPORT void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRendererToggle *renderer, gchar *path, gpointer user_data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -904,30 +908,33 @@ G_MODULE_EXPORT void on_phoebe_data_lc_active_checkbutton_toggled (GtkCellRender
     }
 }
 
-G_MODULE_EXPORT void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_load_lc_filechooserbutton_selection_changed (GtkFileChooserButton *filechooserbutton, gpointer user_data)
 {
 	gui_set_text_view_from_file ((GtkWidget *) user_data, gtk_file_chooser_get_filename ((GtkFileChooser*)filechooserbutton));
 }
 
-G_MODULE_EXPORT void on_phoebe_data_lc_model_row_changed (GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data)
+/*
+G_MODULE_EXPORT
+void on_phoebe_data_lc_model_row_changed (GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data)
 {
-	PHOEBE_parameter *par = phoebe_parameter_lookup("gui_lc_plot_obsmenu");
+	PHOEBE_parameter *par = phoebe_parameter_lookup ("gui_lc_plot_obsmenu");
 	GtkTreeIter lc_iter;
 	char *option;
-
-	int state = gtk_tree_model_get_iter_first(tree_model, &lc_iter);
-
+	
+	int state = gtk_tree_model_get_iter_first (tree_model, &lc_iter);
+	
 	par->menu->option = NULL;
 	par->menu->optno = 0;
-
-	while (state){
-		gtk_tree_model_get(tree_model, &lc_iter, LC_COL_FILTER, &option, -1);
-		if (option) phoebe_parameter_add_option(par, option);
+	
+	while (state) {
+		gtk_tree_model_get (tree_model, &lc_iter, LC_COL_FILTER, &option, -1);
+		if (option) phoebe_parameter_add_option (par, option);
 		else break;
-		state = gtk_tree_model_iter_next(tree_model, &lc_iter);
+		state = gtk_tree_model_iter_next (tree_model, &lc_iter);
 	}
 }
-
+*/
 
 /* ******************************************************************** *
  *

@@ -21,3 +21,5 @@ int gui_error		(char* title, char* message);
 int gui_status      (const char *format, ...);
 
 void gui_beep();
+
+int gui_update_el3_lum_value ();
