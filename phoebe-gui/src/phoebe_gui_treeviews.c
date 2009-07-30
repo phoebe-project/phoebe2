@@ -165,13 +165,13 @@ void gui_toggle_cell_edited (GtkCellRendererToggle *renderer, gchar *path, gpoin
 
 int gui_init_lc_treeviews ()
 {
-	GtkWidget *phoebe_data_lc_treeview 				= gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
-	GtkWidget *phoebe_para_lc_levels_treeview 		= gui_widget_lookup ("phoebe_para_lc_levels_treeview")->gtk;
-	GtkWidget *phoebe_para_lc_el3_treeview 			= gui_widget_lookup ("phoebe_para_lc_el3_treeview")->gtk;
-	GtkWidget *phoebe_para_lc_levweight_treeview 	= gui_widget_lookup ("phoebe_para_lc_levweight_treeview")->gtk;
-	GtkWidget *phoebe_para_lc_ld_treeview 			= gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
-	GtkWidget *phoebe_fitt_third_treeview           = gui_widget_lookup ("phoebe_fitt_third_treeview")->gtk;
-	GtkWidget *phoebe_lc_plot_treeview              = gui_widget_lookup ("phoebe_lc_plot_treeview")->gtk;
+	GtkWidget *phoebe_data_lc_treeview           = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_levels_treeview    = gui_widget_lookup ("phoebe_para_lc_levels_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_el3_treeview       = gui_widget_lookup ("phoebe_para_lc_el3_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_levweight_treeview = gui_widget_lookup ("phoebe_para_lc_levweight_treeview")->gtk;
+	GtkWidget *phoebe_para_lc_ld_treeview        = gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
+	GtkWidget *phoebe_fitt_third_treeview        = gui_widget_lookup ("phoebe_fitt_third_treeview")->gtk;
+	GtkWidget *phoebe_lc_plot_treeview           = gui_widget_lookup ("phoebe_lc_plot_treeview")->gtk;
 
 	GtkTreeModel *lc_model = (GtkTreeModel *) gtk_list_store_new (
 		LC_COL_COUNT,          /* number of columns     */
@@ -192,6 +192,7 @@ int gui_init_lc_treeviews ()
 		G_TYPE_DOUBLE,         /* cla                   */
 		G_TYPE_DOUBLE,         /* opsf                  */
 		G_TYPE_DOUBLE,         /* el3                   */
+		G_TYPE_DOUBLE,         /* el3 in lum units      */
 		G_TYPE_DOUBLE,         /* extinction            */
 		G_TYPE_DOUBLE,         /* lcx1                  */
 		G_TYPE_DOUBLE,         /* lcx2                  */
@@ -199,8 +200,8 @@ int gui_init_lc_treeviews ()
 		G_TYPE_DOUBLE,         /* lcy2                  */
 		G_TYPE_BOOLEAN,        /* plot observed switch  */
 		G_TYPE_BOOLEAN,        /* plot synthetic switch */
-		G_TYPE_STRING,         /* observed data color */
-		G_TYPE_STRING,         /* synthetic data color */
+		G_TYPE_STRING,         /* observed data color   */
+		G_TYPE_STRING,         /* synthetic data color  */
 		G_TYPE_DOUBLE          /* plot offset           */
 	);
 
@@ -252,71 +253,71 @@ int gui_init_lc_treeviews ()
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Col. 1", renderer, "text", LC_COL_ITYPE_STR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Col. 2", renderer, "text", LC_COL_DTYPE_STR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*) phoebe_data_lc_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", LC_COL_WTYPE_STR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Col. 3", renderer, "text", LC_COL_WTYPE_STR, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", LC_COL_SIGMA, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_lc_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Sigma", renderer, "text", LC_COL_SIGMA, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Level weighting", renderer, "text", LC_COL_LEVWEIGHT, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levweight_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Level weighting", renderer, "text", LC_COL_LEVWEIGHT, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Primary levels", renderer, "text", LC_COL_HLA, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Primary levels", renderer, "text", LC_COL_HLA, NULL);
+    gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Primary levels", renderer, "text", LC_COL_HLA, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
-
-    renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_levels_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Primary levels", renderer, "text", LC_COL_HLA, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Opacity function", renderer, "text", LC_COL_OPSF, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Third light", renderer, "text", LC_COL_EL3, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Opacity function", renderer, "text", LC_COL_OPSF, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Third light", renderer, "text", LC_COL_EL3, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_fitt_third_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Third light", renderer, "text", LC_COL_EL3, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Extinction", renderer, "text", LC_COL_EXTINCTION, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_el3_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Third light", renderer, "text", LC_COL_EL3_LUM, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("X1", renderer, "text", LC_COL_X1, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Extinction", renderer, "text", LC_COL_EXTINCTION, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("X2", renderer, "text", LC_COL_X2, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("X1", renderer, "text", LC_COL_X1, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Y1", renderer, "text", LC_COL_Y1, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("X2", renderer, "text", LC_COL_X2, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Y2", renderer, "text", LC_COL_Y2, NULL);
-    gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_lc_ld_treeview, column, -1);
+    column      = gtk_tree_view_column_new_with_attributes ("Y1", renderer, "text", LC_COL_Y1, NULL);
+    gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Y2", renderer, "text", LC_COL_Y2, NULL);
+    gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
 
 	/**************************************************************************/
 	/*                                                                        */
@@ -364,7 +365,9 @@ int gui_init_lc_treeviews ()
 
 	/**************************************************************************/
 
+/* OBSOLETE:
 	g_signal_connect (lc_model, "row_changed", GTK_SIGNAL_FUNC (on_phoebe_data_lc_model_row_changed), NULL);
+*/
 
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_data_lc_treeview,            lc_model);
     gtk_tree_view_set_model ((GtkTreeView *) phoebe_para_lc_el3_treeview,        lc_model);
@@ -1223,15 +1226,14 @@ int gui_fill_sidesheet_fit_treeview()
 	return status;
 }
 
-int gui_data_lc_treeview_add()
+int gui_data_lc_treeview_add ()
 {
-    gui_status("Adding a light curve...");
 	int status = 0;
+	int optindex, optcount;
 
 	PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
 	PHOEBE_parameter *dep       = phoebe_parameter_lookup ("phoebe_lc_dep");
 	PHOEBE_parameter *indweight = phoebe_parameter_lookup ("phoebe_lc_indweight");
-	int optindex, optcount;
 
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
@@ -1248,6 +1250,7 @@ int gui_data_lc_treeview_add()
     GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
     GtkWidget *phoebe_load_lc_id_entry				= glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_id_entry");
 
+	gui_status ("Adding a light curve...");
 	g_object_unref (phoebe_load_lc_xml);
 
 	gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
@@ -1333,6 +1336,7 @@ int gui_data_lc_treeview_add()
                                 LC_COL_CLA,         12.566371,
                                 LC_COL_OPSF,        0.0,
                                 LC_COL_EL3,         0.0,
+                                LC_COL_EL3_LUM,     0.0,
                                 LC_COL_EXTINCTION,  0.0,
                                 LC_COL_X1,          0.5,
                                 LC_COL_X2,          0.5,

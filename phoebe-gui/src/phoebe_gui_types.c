@@ -55,7 +55,8 @@ int gui_init_widgets ()
 		      *phoebe_para_lc_ld_treeview,    		*phoebe_data_rv_treeview,
 		      *phoebe_para_rv_ld_treeview,    		*phoebe_para_spots_treeview,
 		      *phoebe_sidesheet_res_treeview, 		*phoebe_sidesheet_fit_treeview,
-              *phoebe_lc_plot_treeview,             *phoebe_rv_plot_treeview;
+              *phoebe_lc_plot_treeview,             *phoebe_rv_plot_treeview,
+	          *gui_fit_lum_treeview;
 
 	glade_xml_file    	= g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe_cairo.glade", NULL);
 	glade_pixmap_file 	= g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
@@ -140,6 +141,8 @@ int gui_init_widgets ()
 	phoebe_lc_plot_treeview           = glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_treeview");
 	phoebe_rv_plot_treeview           = glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_treeview");
 
+	gui_fit_lum_treeview              = glade_xml_get_widget (phoebe_window, "phoebe_fitt_third_treeview");
+
 	gui_widget_add ("phoebe_data_lc_treeview",							phoebe_data_lc_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_para_lc_el3_treeview",						phoebe_para_lc_el3_treeview, 																			0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_para_lc_levels_treeview",					phoebe_para_lc_levels_treeview,																			0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
@@ -153,7 +156,7 @@ int gui_init_widgets ()
 
 	gui_widget_add ("phoebe_fitt_first_treeview",                       glade_xml_get_widget(phoebe_window, "phoebe_fitt_first_treeview"),                                      0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 	gui_widget_add ("phoebe_fitt_second_treeview",                      glade_xml_get_widget(phoebe_window, "phoebe_fitt_second_treeview"),                                     0,                  GUI_WIDGET_VALUE,       NULL, NULL);
-	gui_widget_add ("phoebe_fitt_third_treeview",                       glade_xml_get_widget(phoebe_window, "phoebe_fitt_third_treeview"),                                      0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_fitt_third_treeview",                       gui_fit_lum_treeview,                                                                                   0,                  GUI_WIDGET_VALUE,       NULL, NULL);
 
 	gui_widget_add ("phoebe_lc_plot_treeview",					        phoebe_lc_plot_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
 	gui_widget_add ("phoebe_rv_plot_treeview",					        phoebe_rv_plot_treeview,																				0, 					GUI_WIDGET_VALUE, 		NULL, NULL);
@@ -535,6 +538,10 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_lum_el3min_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3min_spinbutton"),								0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3max_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3max_spinbutton"),								0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 	gui_widget_add ("phoebe_para_lum_el3units_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_para_lum_el3units_combobox"),								0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup("phoebe_el3_units"), NULL);
+
+	phoebe_parameter_add ("gui_el3_lum_units",                          "Third light contribution in total light units",  KIND_COMPUTED, "phoebe_lcno", "%lf",  0.0,   1.0,   0.01, NO, TYPE_DOUBLE_ARRAY,  0.0);
+	par = phoebe_parameter_lookup ("gui_el3_lum_units");
+	gui_widget_add ("phoebe_para_lum_el3_lum_units",					(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) gui_fit_lum_treeview), LC_COL_EL3_LUM, GUI_WIDGET_VALUE, par, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_opsf");
 	gui_widget_add ("phoebe_para_lum_el3_opacity",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_para_lc_el3_treeview),					LC_COL_OPSF,		GUI_WIDGET_VALUE,		par, NULL);
@@ -1336,13 +1343,13 @@ int gui_get_values_from_widgets ()
 
 int gui_set_values_to_widgets ()
 {
-    gui_status("Filling in parameter values...");
-
-	phoebe_debug("\n\n ******* Entering gui_set_values_to_widgets!******* \n\n");
-
+    gui_status ("Adopting new parameter values...");
+	
+	phoebe_debug ("\n\n ******* Entering gui_set_values_to_widgets!******* \n\n");
+	
 	int i, status;
 	GUI_wt_bucket *bucket;
-
+	
 	for (i = 0; i < GUI_WT_HASH_BUCKETS; i++) {
 		bucket = GUI_wt->bucket[i];
 		while (bucket) {
@@ -1352,11 +1359,11 @@ int gui_set_values_to_widgets ()
 			bucket = bucket->next;
 		}
 	}
-
-	gui_fill_sidesheet_fit_treeview();
-	gui_fill_fitt_mf_treeview();
-
-	gui_status("Parameters updated.");
-
+	
+	gui_fill_sidesheet_fit_treeview ();
+	gui_fill_fitt_mf_treeview ();
+	
+	gui_status ("Parameters updated.");
+	
 	return SUCCESS;
 }

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <math.h>
 
 #include <phoebe/phoebe.h>
 
@@ -523,4 +524,36 @@ int gui_status (const char *format, ...)
     PHOEBE_STATUS_MESSAGES_COUNT += 1;
 
     return result;
+}
+
+int gui_update_el3_lum_value ()
+{
+	int i, lcno, status;
+	double L1, L2, l3;
+	PHOEBE_el3_units l3units;
+
+	status = phoebe_el3_units_id (&l3units);
+	if (status != SUCCESS) {
+		gui_warning ("Third light computation issue", "Third light units are not set or are invalid. Please review the settings in the Luminosities tab.");
+		return SUCCESS;
+	}
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+
+	for (i = 0; i < lcno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), i, &l3);
+
+		/* If third light units are flux, then simply update the value and exit: */
+		if (l3units == PHOEBE_EL3_UNITS_FLUX)
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("gui_el3_lum_units"), i, 4*M_PI*l3);
+		else {
+			/* Otherwise we need to convert. */
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), i, &L1);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cla"), i, &L2);
+			
+			phoebe_parameter_set_value (phoebe_parameter_lookup ("gui_el3_lum_units"), i, (L1+L2)*l3/(1.-l3));
+		}
+	}
+
+	return SUCCESS;
 }
