@@ -480,6 +480,7 @@ c     PHOEBE extension:
 c
       params( 1) = hlum
       params( 2) = clum
+      write(6,*) 'clum =', clum
       params( 3) = sms1
       params( 4) = sms2
       params( 5) = sr1

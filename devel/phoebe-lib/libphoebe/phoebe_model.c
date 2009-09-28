@@ -451,13 +451,14 @@ double phoebe_compute_polar_radius (double Omega, double D, double q)
 	 * Given the value of surface potential @Omega, instantaneous separation @D,
 	 * and mass ratio @q, this function computes the value of polar radius in
 	 * units of semi-major axis. The computation is done iteratively, using the
-	 * Newton-Raphson scheme.
+	 * Newton-Raphson scheme. As the initial guess for the radius an average
+	 * Roche radius is used.
 	 *
-	 * Returns: polar radius.
+	 * Returns: the polar radius.
 	 */
 
 	double r0;
-	double r = 0.5;
+	double r = 0.49*D/(0.6+pow(q,2./3.)*log(1.+pow(q,-1./3.)));
 
 	do {
 		r0 = r;

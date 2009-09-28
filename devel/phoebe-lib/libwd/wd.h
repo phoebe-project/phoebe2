@@ -10,7 +10,7 @@ extern int bbl_(doublereal *rv, doublereal *grx, doublereal *gry, doublereal *gr
 extern int binnum_(doublereal *x, integer *n, doublereal *y, integer *j);
 extern int cloud_(doublereal *cosa, doublereal *cosb, doublereal *cosg, doublereal *x1, doublereal *y1, doublereal *z1, doublereal *xc, doublereal *yc, doublereal *zc, doublereal *rr, doublereal *wl, doublereal *op1, doublereal *opsf, doublereal *edens, doublereal *acm, doublereal *en, doublereal *cmpd, doublereal *ri, doublereal *dx, doublereal *dens, doublereal *tau);
 extern int conjph_(doublereal *ecc, doublereal *argper, doublereal *phzero, doublereal *trsc, doublereal *tric, doublereal *econsc, doublereal *econic, doublereal *xmsc, doublereal *xmic, doublereal *pconsc, doublereal *pconic);
-extern int dc_(char *atmtab, char *pltab, integer *l3perc, integer *knobs, doublereal *indeps, doublereal *fluxes, doublereal *weights, doublereal *corrs, doublereal *stdevs, doublereal *chi2s, doublereal *cormat, doublereal *cfval, ftnlen atmtab_len, ftnlen pltab_len);
+extern int dc_(char *atmtab, char *pltab, integer *l3perc, integer *knobs, doublereal *indeps, doublereal *fluxes, doublereal *weights, doublereal *corrs, doublereal *stdevs, doublereal *chi2s, doublereal *cormat, doublereal *ccla, doublereal *cfval, ftnlen atmtab_len, ftnlen pltab_len);
 extern int dgmprd_(doublereal *a, doublereal *b, doublereal *r__, integer *n, integer *m, integer *l);
 extern int dminv_(doublereal *a, integer *n, doublereal *d__, integer *l, integer *m);
 extern int dura_(doublereal *f, doublereal *xincl, doublereal *rm, doublereal *d__, doublereal *the, doublereal *omeg, doublereal *r__);

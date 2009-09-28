@@ -357,7 +357,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	steps   = phoebe_vector_new (); phoebe_vector_alloc (steps, dim_tba);
 
 	/* Allocate memory for the feedback structure: */
-	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno);
+	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno, lcno);
 
 	/* Read out initial values and step sizes: */
 	for (i = 0; i < dim_tba; i++) {
@@ -816,6 +816,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	double *errors;
 	double *chi2s;
 	double *cormat;
+	double *__cla;
 	double  cfval;
 
 	PHOEBE_el3_units l3units;
@@ -874,6 +875,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	errors      = phoebe_malloc (no_tba * sizeof (*errors));
 	chi2s       = phoebe_malloc ((lcno + rvno) * sizeof (*chi2s));
 	cormat      = phoebe_malloc (no_tba * no_tba * sizeof (*cormat));
+	__cla       = phoebe_malloc (lcno * sizeof (*__cla));
 
 	/* Create the DCI file from the params variable: */
 	status = create_dci_file ("dcin.active", params);
@@ -891,8 +893,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		L3perc = 1;
 
 	/* Run one DC iteration and store the results in the allocated arrays: */
-	wd_dc (atmcof, atmcofplanck, &L3perc, params->knobs, params->indeps, params->fluxes, params->weights, corrections, errors, chi2s, cormat, &cfval);
-
+	wd_dc (atmcof, atmcofplanck, &L3perc, params->knobs, params->indeps, params->fluxes, params->weights, corrections, errors, chi2s, cormat, __cla, &cfval);
+	
 	/*
 	 * Allocate the feedback structure and fill it in. The number of parameter
 	 * fields equals the number of parameters marked for adjustment plus the
@@ -900,7 +902,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	 * VGA is marked for computation.
 	 */
 
-	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*lcno)+calcvga, lcno+rvno);
+	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*lcno)+calcvga, lcno+rvno, lcno);
 
 	feedback->algorithm = PHOEBE_MINIMIZER_DC;
 	feedback->iters = 1;
@@ -991,6 +993,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 		for (j = 0; j < no_tba; j++)
 			feedback->cormat->val[i][j] = cormat[i*no_tba+j];
 
+	for (i = 0; i < lcno; i++)
+		feedback->__cla->val[i] = __cla[i];
+	
 	/* Free all the allocated structures: */
 	phoebe_array_free (active_lcindices);
 	phoebe_array_free (active_rvindices);
@@ -999,6 +1004,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	free (errors);
 	free (chi2s);
 	free (cormat);
+	free (__cla);
 
 	/* Stop the clock watch and compute the total CPU time on the process: */
 	clock_stop = clock ();
