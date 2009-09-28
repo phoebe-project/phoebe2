@@ -170,20 +170,6 @@ int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type ty
 	return SUCCESS;
 }
 
-int phoebe_wd_model_from_phoebe_model_parameter ()
-{
-	/**
-	 * phoebe_wd_model_from_phoebe_model_parameter:
-	 *
-	 * Translates the parameter "phoebe_model" into the WD model number (-1 to 6).
-	 *
-	 * Returns: @wd_model.
-	 */
-	char *phoebe_model;
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &phoebe_model);
-	return phoebe_wd_model (phoebe_model);
-}
-
 bool phoebe_phsv_constrained (int wd_model)
 {
 	/**
@@ -227,9 +213,12 @@ bool phoebe_pcsv_constrained (int wd_model)
 
 void intern_call_wd_lc (char *atmcof, char *atmcofplanck, char *lcin, integer *request, integer *nodes, integer *L3perc, double *indep, double *dep, double *ypos, double *zpos)
 {
+	int wd_model;
 	double params[14];
-
+	char *phoebe_model;
+	
 	wd_lc (atmcof, atmcofplanck, lcin, request, nodes, L3perc, indep, dep, ypos, zpos, params);
+	
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum1"),   params[ 0]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_plum2"),   params[ 1]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_mass1"),   params[ 2]);
@@ -243,12 +232,17 @@ void intern_call_wd_lc (char *atmcof, char *atmcofplanck, char *lcin, integer *r
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
 
-	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
+	printf ("cla in phoebe = %lf\n", params[1]);
+	
+	/* If morphology is constrained, update parameter values: */
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &phoebe_model);
+	wd_model = phoebe_wd_model (phoebe_model);
+	
 	if (phoebe_phsv_constrained (wd_model))
 		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot1"), params[12]);
 	if (phoebe_pcsv_constrained (wd_model))
 		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_pot2"), params[13]);
-
+	
 	return;
 }
 

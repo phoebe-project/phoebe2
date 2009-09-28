@@ -1,5 +1,5 @@
       subroutine dc(atmtab,pltab,L3perc,knobs,indeps,fluxes,weights,
-     $              corrs,stdevs,chi2s,cormat,cfval)
+     $              corrs,stdevs,chi2s,cormat,ccla,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -147,11 +147,12 @@ c        corrs   ..   an array of computed corrections
 c       stdevs   ..   standard deviations of fitted parameters
 c        chi2s   ..   chi2 values of individual curves after the fit
 c       cormat   ..   correlation matrix (a wrapped 1D array)
+c         ccla   ..   computed CLA values
 c        cfval   ..   cost function value (global goodness-of-fit value)
 c
       integer L3perc,knobs(*)
-      double precision indeps(*),fluxes(*),weights(*)
-      double precision corrs(*),stdevs(*),chi2s(*),cormat(*),cfval
+      double precision indeps(*),fluxes(*),weights(*),cfval
+      double precision corrs(*),stdevs(*),chi2s(*),cormat(*),ccla(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       dimension rv(igsmax),grx(igsmax),gry(igsmax),grz(igsmax),
@@ -1940,6 +1941,15 @@ c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    52 continue
    53 continue
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c     PHOEBE extension:
+c
+      do 99999 icla=1,nlc
+        ccla(icla)=cla(nvc+icla)
+99999 continue
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       WRITE(16,101)
       RESSQ=0.d0
       JST=MAT*NOBS+1

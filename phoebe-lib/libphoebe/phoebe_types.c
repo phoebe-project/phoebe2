@@ -3198,15 +3198,18 @@ int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 {
-	/*
-	 * This function initializes a PHOEBE_minimizer_feedback structure for
-	 * input. It returns a pointer to this newly initialized structure.
+	/**
+	 * phoebe_minimizer_feedback_new:
+	 *
+	 * Initializes a PHOEBE_minimizer_feedback structure.
+	 *
+	 * Returns: newly initialized #PHOEBE_minimizer_feedback.
 	 */
-
-	/* Allocate memory for the structure itself:                              */
+	
+	/* Allocate memory for the structure itself: */
 	PHOEBE_minimizer_feedback *feedback = phoebe_malloc (sizeof (*feedback));
-
-	/* NULLify all structure pointers so that subsequent allocation is clean: */
+	
+	/* Initialize structure elements: */
 	feedback->qualifiers = phoebe_array_new (TYPE_STRING_ARRAY);
 	feedback->initvals   = phoebe_vector_new ();
 	feedback->newvals    = phoebe_vector_new ();
@@ -3215,12 +3218,15 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	feedback->wchi2s     = phoebe_vector_new ();
 	feedback->cormat     = phoebe_matrix_new ();
 
+	/* This is a workaround element to get computed CLA values from WD: */
+	feedback->__cla      = phoebe_vector_new ();
+	
 	feedback->converged  = TRUE;
-
+	
 	return feedback;
 }
 
-int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tba, int cno)
+int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tba, int cno, int __lcno)
 {
 	/*
 	 * This function allocates the arrays of the PHOEBE_minimizer_feedback
@@ -3246,6 +3252,7 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tb
 	phoebe_vector_alloc (feedback->chi2s,      cno);
 	phoebe_vector_alloc (feedback->wchi2s,     cno);
 	phoebe_matrix_alloc (feedback->cormat,     tba, tba);
+	phoebe_vector_alloc (feedback->__cla,      __lcno);
 
 	return SUCCESS;
 }
@@ -3282,6 +3289,7 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup->chi2s      = phoebe_vector_duplicate (feedback->chi2s);
 	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
 	dup->cormat     = phoebe_matrix_duplicate (feedback->cormat);
+	dup->__cla      = phoebe_vector_duplicate (feedback->__cla);
 
 	return dup;
 }
@@ -3299,23 +3307,26 @@ int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */
-
+	
 	int i, index;
 	char *qualifier;
-
+	
 	for (i = 0; i < feedback->qualifiers->dim; i++) {
 		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
 		if (index == 0)
 			phoebe_parameter_set_value (phoebe_parameter_lookup (qualifier), feedback->newvals->val[i]);
 		else
 			phoebe_parameter_set_value (phoebe_parameter_lookup (qualifier), index-1, feedback->newvals->val[i]);
-
+		
 		free (qualifier);
 	}
-
+	
+	for (i = 0; i < feedback->__cla->dim; i++)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_cla"), i, feedback->__cla->val[i]);
+	
 	/* Satisfy all the constraints: */
 	phoebe_constraint_satisfy_all ();
-
+	
 	return SUCCESS;
 }
 
@@ -3335,13 +3346,14 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 	phoebe_vector_free (feedback->chi2s);
 	phoebe_vector_free (feedback->wchi2s);
 	phoebe_matrix_free (feedback->cormat);
+	phoebe_vector_free (feedback->__cla);
 
 	free (feedback);
 
 	return SUCCESS;
 }
 
-/* **************************************************************************** */
+/* ************************************************************************** */
 
 char *phoebe_type_get_name (PHOEBE_type type)
 {

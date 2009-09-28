@@ -1091,7 +1091,11 @@ int gui_init_sidesheet_res_treeview ()
 
 	/* Also update constrained potentials */
 	{
-	int wd_model = phoebe_wd_model_from_phoebe_model_parameter();
+	char *phoebe_model;
+	int wd_model;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &phoebe_model);
+	wd_model = phoebe_wd_model (phoebe_model);
+
 	if (phoebe_phsv_constrained (wd_model))
 		gui_set_value_to_widget (gui_widget_lookup("phoebe_para_comp_phsv_spinbutton"));
 	if (phoebe_pcsv_constrained (wd_model))
