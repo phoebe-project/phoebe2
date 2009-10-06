@@ -1,2 +1,2 @@
-#define SVN_DATE $Date$
-#define SVN_REV $Rev$
+#define SVN_DATE "$Date$"
+#define SVN_REV "$Rev$"
