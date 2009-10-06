@@ -286,7 +286,8 @@ G_MODULE_EXPORT void on_phoebe_para_lum_options_decouple_checkbutton_toggled (Gt
 	phoebe_gui_constrain_cla_adjust();
 }
 
-G_MODULE_EXPORT void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_data_star_name_entry_changed (GtkEditable *editable, gpointer user_data)
 {
 	GtkWidget *phoebe_window = gui_widget_lookup("phoebe_window")->gtk;
 	GtkWidget *star_name_entry = gui_widget_lookup("phoebe_data_star_name_entry")->gtk;
@@ -1774,7 +1775,8 @@ G_MODULE_EXPORT void on_phoebe_settings_configuration_menuitem_activate (GtkMenu
 	gui_show_configuration_dialog();
 }
 
-G_MODULE_EXPORT void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_help_about_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
 	gchar     *glade_xml_file                       = g_build_filename     (PHOEBE_GLADE_XML_DIR, "phoebe_about.glade", NULL);
 	gchar     *glade_pixmap_file                    = g_build_filename     (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
