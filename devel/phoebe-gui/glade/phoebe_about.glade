@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.5 on Fri Jun  6 12:28:06 2008 -->
+<?xml version="1.0"?>
 <glade-interface>
+  <!-- interface-requires gtk+ 2.16 -->
+  <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkAboutDialog" id="phoebe_about_dialog">
     <property name="border_width">5</property>
-    <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
+    <property name="type_hint">normal</property>
     <property name="has_separator">False</property>
     <property name="program_name">PHOEBE</property>
     <property name="version">0.31</property>
@@ -26,9 +26,9 @@ along with Gcalctool; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 </property>
-    <property name="authors">Andrej Prša &lt;andrej.prsa@villanova.edu&gt;
-Gal Matijevič &lt;gal.matijevic@fmf.uni-lj.si&gt;
-Olivera Latković &lt;olatkovic@aob.bg.ac.yu&gt;
+    <property name="authors">Andrej Pr&#x161;a &lt;andrej.prsa@villanova.edu&gt;
+Gal Matijevi&#x10D; &lt;gal.matijevic@fmf.uni-lj.si&gt;
+Olivera Latkovi&#x107; &lt;olatkovic@aob.bg.ac.yu&gt;
 Francesc Vilardell &lt;francesc.vilardell@am.ub.es&gt;
 Patrick Wils &lt;patrickwils@yahoo.com&gt;</property>
     <property name="documenters"></property>
@@ -38,17 +38,27 @@ Patrick Wils &lt;patrickwils@yahoo.com&gt;</property>
         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
         <property name="spacing">2</property>
         <child>
+          <widget class="GtkLabel" id="phoebe_about_date">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Revision date</property>
+          </widget>
+          <packing>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
           <placeholder/>
         </child>
         <child internal-child="action_area">
           <widget class="GtkHButtonBox" id="dialog-action_area1">
             <property name="visible">True</property>
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
-            <property name="layout_style">GTK_BUTTONBOX_END</property>
+            <property name="layout_style">end</property>
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="pack_type">GTK_PACK_END</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
           </packing>
         </child>
       </widget>
