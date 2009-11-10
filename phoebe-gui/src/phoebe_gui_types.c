@@ -1331,7 +1331,7 @@ int gui_get_values_from_widgets ()
 		while (bucket) {
 			phoebe_debug ("processing widget %s:\n", bucket->widget->name);
 			status = gui_get_value_from_widget (bucket->widget);
-			phoebe_debug ("\tstatus: %s", phoebe_error (status));
+			phoebe_debug ("\tstatus: %s", phoebe_gui_error (status));
 			bucket = bucket->next;
 		}
 	}
@@ -1355,7 +1355,7 @@ int gui_set_values_to_widgets ()
 		while (bucket) {
 			phoebe_debug ("processing widget %s: \n", bucket->widget->name);
 			status = gui_set_value_to_widget (bucket->widget);
-			phoebe_debug ("%s", phoebe_error (status));
+			phoebe_debug ("%s", phoebe_gui_error (status));
 			bucket = bucket->next;
 		}
 	}
