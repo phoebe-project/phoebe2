@@ -1339,7 +1339,7 @@ int gui_plot_lc_using_gnuplot (gdouble x_offset, gdouble y_offset, gdouble zoom)
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		if (status != SUCCESS) {
-			char *message = phoebe_concatenate_strings ("Configuration problem: ", phoebe_error (status), NULL);
+			char *message = phoebe_concatenate_strings ("Configuration problem: ", phoebe_gui_error (status), NULL);
 			gui_notice ("LC plot", message);
 			free (message);
 			return status;
@@ -1543,7 +1543,7 @@ int gui_plot_lc_to_ascii (gchar *filename)
 		}
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		if (status != SUCCESS) {
-			gui_notice("LC plot", phoebe_error(status));
+			gui_notice("LC plot", phoebe_gui_error (status));
 			return status;
 		}
 
@@ -1710,7 +1710,7 @@ int gui_plot_rv_using_gnuplot_setup (gint INDEX, gint DEP, gint INDEP, gboolean 
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		if (status != SUCCESS) {
-			gui_notice("RV plot", phoebe_error(status));
+			gui_notice("RV plot", phoebe_gui_error (status));
 			return status;
 		}
 
@@ -2012,7 +2012,7 @@ int gui_plot_rv_to_ascii_one_component (FILE *file, gint INDEX, gint INDEP, gint
 
 		status = phoebe_curve_compute (syn, indep, INDEX, INDEP, DEP);
 		if (status != SUCCESS) {
-			gui_notice("RV plot", phoebe_error(status));
+			gui_notice("RV plot", phoebe_gui_error (status));
 			return status;
 		}
 
@@ -2111,7 +2111,7 @@ int gui_plot_eb_using_gnuplot ()
 	params = phoebe_malloc (sizeof (*params));
 	status = wd_lci_parameters_get (params, 5, 0);
 	if (status != SUCCESS) {
-		gui_notice ("Star shape plot", phoebe_error(status));
+		gui_notice ("Star shape plot", phoebe_gui_error (status));
 		return status;
 	}
 
@@ -2126,7 +2126,7 @@ int gui_plot_eb_using_gnuplot ()
 	poscoz = phoebe_vector_new ();
 	status = phoebe_compute_pos_using_wd (poscoy, poscoz, lcin, phase);
 	if (status != SUCCESS) {
-		gui_notice ("Star shape plot", phoebe_error (status));
+		gui_notice ("Star shape plot", phoebe_gui_error (status));
 		return status;
 	}
 

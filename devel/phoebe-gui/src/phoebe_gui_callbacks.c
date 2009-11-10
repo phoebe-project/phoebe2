@@ -584,14 +584,14 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		case 0:
             gui_status("Running DC minimization, please be patient...");
 			status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
-			phoebe_gui_debug("DC minimizer says: %s", phoebe_error(status));
-			gui_status("DC minimization: %s", phoebe_error(status));
+			phoebe_gui_debug("DC minimizer says: %s", phoebe_gui_error (status));
+			gui_status("DC minimization: %s", phoebe_gui_error (status));
 		break;
 		case 1:
             gui_status("Running NMS minimization, please be patient...");
 			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
-			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_error(status));
-			gui_status("NMS minimization: %s", phoebe_error(status));
+			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_gui_error (status));
+			gui_status("NMS minimization: %s", phoebe_gui_error (status));
 		break;
 		default:
 			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
@@ -664,7 +664,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		accept_flag = 1;
 	}
 	else {
-		sprintf (status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_error(status));
+		sprintf (status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_gui_error (status));
 		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 	}
 
@@ -1675,7 +1675,7 @@ void on_phoebe_file_open_menuitem_activate (GtkMenuItem *menuitem, gpointer user
 		gui_set_values_to_widgets();
 	}
 	else
-		printf ("%s", phoebe_error (status));
+		printf ("%s", phoebe_gui_error (status));
 }
 
 void gui_save_parameter_file_with_confirmation ()
@@ -1707,7 +1707,7 @@ void gui_save_parameter_file_with_confirmation ()
 	phoebe_gui_debug ("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
 
 	if( status != SUCCESS )
-		gui_error ("Error on Save", phoebe_error (status));
+		gui_error ("Error on Save", phoebe_gui_error (status));
 }
 
 G_MODULE_EXPORT void on_phoebe_file_save_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
@@ -1723,7 +1723,7 @@ G_MODULE_EXPORT void on_phoebe_file_saveas_menuitem_activate (GtkMenuItem *menui
 	status = gui_save_parameter_file ();
 
 	if( status != SUCCESS )
-		printf ("%s", phoebe_error (status));
+		printf ("%s", phoebe_gui_error (status));
 }
 
 G_MODULE_EXPORT void on_phoebe_file_import_bm3_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
@@ -1859,7 +1859,7 @@ G_MODULE_EXPORT void on_phoebe_open_toolbutton_clicked (GtkToolButton *toolbutto
 		gui_set_values_to_widgets();
 	}
 	else
-		printf ("%s", phoebe_error (status));
+		printf ("%s", phoebe_gui_error (status));
 }
 
 G_MODULE_EXPORT void on_phoebe_save_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
