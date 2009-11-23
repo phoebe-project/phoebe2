@@ -11,6 +11,11 @@ G_MODULE_EXPORT void on_combo_box_selection_changed_get_string (GtkComboBox     
 G_MODULE_EXPORT void on_spin_button_value_changed              (GtkSpinButton   *spinbutton,   gpointer user_data);
 G_MODULE_EXPORT void on_spin_button_intvalue_changed           (GtkSpinButton   *spinbutton,   gpointer user_data);
 G_MODULE_EXPORT void on_toggle_button_value_toggled            (GtkToggleButton *togglebutton, gpointer user_data);
+G_MODULE_EXPORT void on_toggle_make_sensitive                  (GtkToggleButton *togglebutton, gpointer user_data);
+G_MODULE_EXPORT void on_toggle_make_unsensitive                (GtkToggleButton *togglebutton, gpointer user_data);
+
+/* Plotting callbacks: */
+
 G_MODULE_EXPORT void on_plot_controls_reset_button_clicked     (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_plot_controls_right_button_clicked     (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_plot_controls_up_button_clicked        (GtkButton *button, gpointer user_data);
@@ -73,7 +78,6 @@ G_MODULE_EXPORT void on_phoebe_lc_plot_options_x_combobox_changed 			(GtkComboBo
 G_MODULE_EXPORT void on_phoebe_rv_plot_detach_button_clicked 				(GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_rv_plot_options_x_combobox_changed 			(GtkComboBox *widget, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_settings_toolbutton_clicked 					(GtkToolButton *toolbutton, gpointer user_data);
-G_MODULE_EXPORT void on_phoebe_settings_checkbutton_toggled 				(GtkToggleButton *togglebutton, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_fitt_updateall_button_clicked 				(GtkToolButton   *toolbutton, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_fitt_method_combobox_changed 				(GtkComboBox *widget, gpointer user_data);
 G_MODULE_EXPORT void on_phoebe_settings_confirmation_save_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data);

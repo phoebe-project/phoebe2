@@ -55,7 +55,41 @@ void on_spin_button_intvalue_changed (GtkSpinButton *spinbutton, gpointer user_d
 G_MODULE_EXPORT
 void on_toggle_button_value_toggled (GtkToggleButton *togglebutton, gpointer user_data)
 {
+	/* This is a generic callback that stores a state of the toggle button
+	 * that emitted the signal to the boolean pointed by user_data.
+	 */
+	
 	*((bool *) user_data) = gtk_toggle_button_get_active (togglebutton);
+	return;
+}
+
+G_MODULE_EXPORT
+void on_toggle_make_sensitive (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	/* Glade has the definitions of togglebutton and user_data swapped; that
+	 * is why the code below is actually right although it looks wrong!
+	 */
+	
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (user_data)))
+		gtk_widget_set_sensitive (GTK_WIDGET (togglebutton), TRUE);
+	else
+		gtk_widget_set_sensitive (GTK_WIDGET (togglebutton), FALSE);
+
+	return;
+}
+
+G_MODULE_EXPORT
+void on_toggle_make_unsensitive (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	/* Glade has the definitions of togglebutton and user_data swapped; that
+	 * is why the code below is actually right although it looks wrong!
+	 */
+	
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (user_data)))
+		gtk_widget_set_sensitive (GTK_WIDGET (togglebutton), FALSE);
+	else
+		gtk_widget_set_sensitive (GTK_WIDGET (togglebutton), TRUE);
+
 	return;
 }
 
@@ -1770,9 +1804,10 @@ G_MODULE_EXPORT void on_phoebe_file_quit_menuitem_activate (GtkMenuItem *menuite
     	gtk_main_quit();
 }
 
-G_MODULE_EXPORT void on_phoebe_settings_configuration_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_settings_configuration_menuitem_activate (GtkMenuItem *menuitem, gpointer user_data)
 {
-	gui_show_configuration_dialog();
+	gui_show_configuration_dialog ();
 }
 
 G_MODULE_EXPORT
@@ -1836,12 +1871,6 @@ G_MODULE_EXPORT void on_phoebe_scripter_toolbutton_clicked (GtkToolButton *toolb
 G_MODULE_EXPORT void on_phoebe_settings_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
 	gui_show_configuration_dialog();
-}
-
-G_MODULE_EXPORT void on_phoebe_settings_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
-{
-	GtkWidget *filechooserbutton = GTK_WIDGET(user_data);
-	gtk_widget_set_sensitive (filechooserbutton, gtk_toggle_button_get_active(togglebutton));
 }
 
 G_MODULE_EXPORT void on_phoebe_quit_toolbutton_clicked (GtkToolButton *toolbutton, gpointer user_data)
