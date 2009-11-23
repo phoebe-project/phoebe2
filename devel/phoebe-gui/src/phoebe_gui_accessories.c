@@ -8,6 +8,7 @@
 
 #include "phoebe_gui_accessories.h"
 #include "phoebe_gui_callbacks.h"
+#include "phoebe_gui_error_handling.h"
 #include "phoebe_gui_types.h"
 #include "phoebe_gui_global.h"
 
@@ -32,23 +33,27 @@ void gui_set_text_view_from_file (GtkWidget *text_view, gchar *filename)
 
 	FILE *file = fopen(filename, "r");
 
-	if(file){
+	if (file) {
 		char line[255];
 		int i=1;
 		int maxlines=50;
 
-		fgets (line, 255, file);
+		if (!fgets (line, 255, file)) {
+			fclose (file);
+			return;
+		}
+		
 		gtk_text_buffer_set_text (text_buffer, line, -1);
-
+		
 		gtk_text_buffer_get_iter_at_line (text_buffer, &iter, i);
-			while(!feof (file) && i<maxlines){
-				fgets (line, 255, file);
-				gtk_text_buffer_insert (text_buffer, &iter, line, -1);
-				i++;
-			}
-
-		if(!feof (file))gtk_text_buffer_insert (text_buffer, &iter, "...", -1);
-
+		while (fgets (line, 255, file) && i < maxlines) {
+			gtk_text_buffer_insert (text_buffer, &iter, line, -1);
+			i++;
+		}
+		
+		if (!feof (file))
+			gtk_text_buffer_insert (text_buffer, &iter, ". . . . . . .", -1);
+		
 		fclose(file);
 	}
 }
@@ -259,15 +264,15 @@ int gui_save_parameter_file()
 	return status;
 }
 
-int gui_show_configuration_dialog()
+int gui_show_configuration_dialog ()
 {
 	int status = 0;
-
+	
 	gchar     *glade_xml_file					= g_build_filename     	(PHOEBE_GLADE_XML_DIR, "phoebe_settings.glade", NULL);
 	gchar     *glade_pixmap_file				= g_build_filename     	(PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
-
+	
 	GladeXML  *phoebe_settings_xml				= glade_xml_new			(glade_xml_file, NULL, NULL);
-
+	
 	GtkWidget *phoebe_settings_dialog			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_dialog");
 	GtkWidget *basedir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_basedir_filechooserbutton");
 	GtkWidget *defaultsdir_filechooserbutton	= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_defaultsdir_filechooserbutton");
@@ -275,103 +280,121 @@ int gui_show_configuration_dialog()
 	GtkWidget *datadir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_datadir_filechooserbutton");
 	GtkWidget *ptfdir_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_configuration_ptfdir_filechooserbutton");
 
-	GtkWidget *vh_checkbutton					= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_vh_checkbutton");
-	GtkWidget *vh_lddir_filechooserbutton		= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_vh_lddir_filechooserbutton");
-
+	GtkWidget *ld_none                          = glade_xml_get_widget  (phoebe_settings_xml, "phoebe_settings_ld_none");
+	GtkWidget *ld_internal                      = glade_xml_get_widget  (phoebe_settings_xml, "phoebe_settings_ld_internal_tables");
+	GtkWidget *ld_internal_dir		            = glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_ld_internal_dir");
+	GtkWidget *ld_vanhamme						= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_ld_vanhamme_tables");
+	GtkWidget *ld_vanhamme_dir					= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_ld_vanhamme_dir");
+	
 	GtkWidget *kurucz_checkbutton				= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_kurucz_checkbutton");
 	GtkWidget *kurucz_filechooserbutton			= glade_xml_get_widget	(phoebe_settings_xml, "phoebe_settings_kurucz_filechooserbutton");
-
+	
 	GtkWidget *confirm_on_overwrite_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_confirmation_save_checkbutton");
 	GtkWidget *beep_after_plot_and_fit_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_beep_after_plot_and_fit_checkbutton");
-
-	gchar 		*dir;
-	gboolean	toggle;
-	gint 		result;
-
+	
+	gchar     *dir;
+	gboolean   toggle;
+	gint 	   result;
+	
+	/* Connect all signals defined in the Glade file: */
+	glade_xml_signal_autoconnect (phoebe_settings_xml);
+	
 	g_object_unref (phoebe_settings_xml);
-
+	
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)basedir_filechooserbutton, dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) basedir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_DEFAULTS_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)defaultsdir_filechooserbutton, dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) defaultsdir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)workingdir_filechooserbutton, dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) workingdir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_DATA_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)datadir_filechooserbutton, dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) datadir_filechooserbutton, dir);
 	phoebe_config_entry_get ("PHOEBE_PTF_DIR", &dir);
-	gtk_file_chooser_set_filename((GtkFileChooser*)ptfdir_filechooserbutton, dir);
-
-	g_signal_connect(G_OBJECT(vh_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)vh_lddir_filechooserbutton);
-	g_signal_connect(G_OBJECT(kurucz_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_checkbutton_toggled), (gpointer)kurucz_filechooserbutton);
-	g_signal_connect(G_OBJECT(confirm_on_overwrite_checkbutton), "toggled", G_CALLBACK(on_phoebe_settings_confirmation_save_checkbutton_toggled), NULL);
-	g_signal_connect(G_OBJECT(beep_after_plot_and_fit_checkbutton), "toggled", G_CALLBACK(on_phoebe_beep_after_plot_and_fit_checkbutton_toggled), NULL);
-
-	gtk_window_set_icon (GTK_WINDOW (phoebe_settings_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
-	gtk_window_set_title (GTK_WINDOW(phoebe_settings_dialog), "PHOEBE - Settings");
-
+	gtk_file_chooser_set_filename ((GtkFileChooser *) ptfdir_filechooserbutton, dir);
+	
+	g_signal_connect (G_OBJECT (confirm_on_overwrite_checkbutton),    "toggled", G_CALLBACK (on_phoebe_settings_confirmation_save_checkbutton_toggled), NULL);
+	g_signal_connect (G_OBJECT (beep_after_plot_and_fit_checkbutton), "toggled", G_CALLBACK (on_phoebe_beep_after_plot_and_fit_checkbutton_toggled),    NULL);
+	
+	gtk_window_set_icon  (GTK_WINDOW (phoebe_settings_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+	gtk_window_set_title (GTK_WINDOW (phoebe_settings_dialog), "PHOEBE -- Settings");
+	
 	phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
-	if (toggle){
-			phoebe_config_entry_get ("PHOEBE_LD_DIR", &dir);
-			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(vh_checkbutton), TRUE);
-			gtk_widget_set_sensitive (vh_lddir_filechooserbutton, TRUE);
-			gtk_file_chooser_set_filename((GtkFileChooser*)vh_lddir_filechooserbutton, dir);
+	
+	if (!toggle)
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ld_none), TRUE);
+	else {
+		phoebe_config_entry_get ("PHOEBE_LD_INTERN", &toggle);
+		if (toggle)
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ld_internal), TRUE);
+		else
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (ld_vanhamme), TRUE);
 	}
-
+	
+	phoebe_config_entry_get ("PHOEBE_LD_DIR", &dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) ld_internal_dir, dir);
+	
+	phoebe_config_entry_get ("PHOEBE_LD_VH_DIR", &dir);
+	gtk_file_chooser_set_filename ((GtkFileChooser *) ld_vanhamme_dir, dir);
+	
 	phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &toggle);
-	if (toggle){
-			phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &dir);
-			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(kurucz_checkbutton), TRUE);
-			gtk_widget_set_sensitive (kurucz_filechooserbutton, TRUE);
-			gtk_file_chooser_set_filename((GtkFileChooser*)kurucz_filechooserbutton, dir);
+	if (toggle) {
+		phoebe_config_entry_get ("PHOEBE_KURUCZ_DIR", &dir);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(kurucz_checkbutton), TRUE);
+		gtk_file_chooser_set_filename((GtkFileChooser*)kurucz_filechooserbutton, dir);
 	}
-
+	
 	phoebe_config_entry_get ("GUI_CONFIRM_ON_OVERWRITE", &toggle);
 	if (toggle)
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 1);
 	else
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (confirm_on_overwrite_checkbutton), 0);
-
+	
 	phoebe_config_entry_get ("GUI_BEEP_AFTER_PLOT_AND_FIT", &toggle);
 	if (toggle)
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 1);
 	else
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 0);
-
+	
 	result = gtk_dialog_run (GTK_DIALOG (phoebe_settings_dialog));
-
+	
 	switch (result) {
-		case GTK_RESPONSE_OK:
-		case GTK_RESPONSE_YES:
-			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)basedir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*)defaultsdir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)workingdir_filechooserbutton));
-			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser*)datadir_filechooserbutton));
+		case GTK_RESPONSE_OK:  /* =  OK button  */
+		case GTK_RESPONSE_YES: /* = Save button */
+			phoebe_config_entry_set ("PHOEBE_BASE_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser *) basedir_filechooserbutton));
+			phoebe_config_entry_set ("PHOEBE_DEFAULTS_DIR", gtk_file_chooser_get_filename ((GtkFileChooser *) defaultsdir_filechooserbutton));
+			phoebe_config_entry_set ("PHOEBE_TEMP_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser *) workingdir_filechooserbutton));
+			phoebe_config_entry_set ("PHOEBE_DATA_DIR", 	gtk_file_chooser_get_filename ((GtkFileChooser *) datadir_filechooserbutton));
 
-			dir = gtk_file_chooser_get_filename ((GtkFileChooser*)ptfdir_filechooserbutton);
+			dir = gtk_file_chooser_get_filename ((GtkFileChooser *) ptfdir_filechooserbutton);
 			phoebe_config_entry_set ("PHOEBE_PTF_DIR", dir);
 			free(PHOEBE_passbands);
 			PHOEBE_passbands = NULL;
 			PHOEBE_passbands_no = 0;
-			phoebe_read_in_passbands(dir);
-			g_free(dir);
-
-			phoebe_config_entry_get ("PHOEBE_LD_SWITCH", &toggle);
-			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(vh_checkbutton))){
-				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	TRUE);
-				phoebe_config_entry_set ("PHOEBE_LD_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)vh_lddir_filechooserbutton));
-				phoebe_load_ld_tables();
+			phoebe_read_in_passbands (dir);
+			g_free (dir);
+						
+			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (ld_none))) {
+				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", FALSE);
 			}
-			else if (!toggle)
-				phoebe_config_entry_set ("PHOEBE_LD_SWITCH",	FALSE);
-
-			phoebe_config_entry_get ("PHOEBE_KURUCZ_SWITCH", &toggle);
-			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(kurucz_checkbutton))){
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	TRUE);
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",		gtk_file_chooser_get_filename ((GtkFileChooser*)kurucz_filechooserbutton));
+			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (ld_internal))) {
+				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", TRUE);
+				phoebe_config_entry_set ("PHOEBE_LD_INTERN", TRUE);
 			}
-			else if (!toggle)
-				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH",	FALSE);
-
+			else {
+				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", TRUE);
+				phoebe_config_entry_set ("PHOEBE_LD_INTERN", FALSE);
+			}
+			
+			phoebe_config_entry_set ("PHOEBE_LD_DIR",    gtk_file_chooser_get_filename ((GtkFileChooser*) ld_internal_dir));
+			phoebe_config_entry_set ("PHOEBE_LD_VH_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*) ld_vanhamme_dir));
+			
+			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (kurucz_checkbutton))) {
+				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", TRUE);
+				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",    gtk_file_chooser_get_filename ((GtkFileChooser *) kurucz_filechooserbutton));
+			}
+			else
+				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", FALSE);
+			
 			if (result == GTK_RESPONSE_YES) {
 				if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
 					char homedir[255], confdir[255];
@@ -391,67 +414,69 @@ int gui_show_configuration_dialog()
 
 				phoebe_config_save (PHOEBE_CONFIG);
 
-				if(status == SUCCESS)gui_status("Configuration successfully saved.");
-                else gui_status("Configuration failed with status %d.", status);
+				if (status == SUCCESS)
+					gui_status ("Configuration successfully saved.");
+                else
+					gui_status("Configuration failed: %s", phoebe_gui_error (status));
 			}
         break;
 		case GTK_RESPONSE_CANCEL:
-            gui_status("Configuration cancelled.");
+            gui_status ("Configuration cancelled.");
 		break;
 	}
-
+	
 	gtk_widget_destroy (phoebe_settings_dialog);
-
+	
 	return status;
 }
 
-int gui_warning (char* title, char* message)
+int gui_warning (char *title, char *message)
 {
 	GtkWidget *dialog;
 	int answer = 0;
-
+	
 	dialog = gtk_message_dialog_new ( GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
 									  GTK_DIALOG_DESTROY_WITH_PARENT,
 									  GTK_MESSAGE_WARNING,
 									  GTK_BUTTONS_NONE,
 									  message);
-
+	
 	gtk_dialog_add_buttons(GTK_DIALOG (dialog), GTK_STOCK_NO, GTK_RESPONSE_REJECT,
 										  		GTK_STOCK_YES, GTK_RESPONSE_ACCEPT,
 										  		NULL);
-
+	
 	gtk_window_set_title(GTK_WINDOW (dialog), title);
-
+	
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
 		answer = 1;
-
+	
 	gtk_widget_destroy (dialog);
-
+	
 	return answer;
 }
 
-int gui_question(char* title, char* message)
+int gui_question (char *title, char *message)
 {
 	GtkWidget *dialog;
 	int answer = 0;
-
+	
 	dialog = gtk_message_dialog_new ( GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
 									  GTK_DIALOG_DESTROY_WITH_PARENT,
 									  GTK_MESSAGE_QUESTION,
 									  GTK_BUTTONS_NONE,
 									  message);
-
+	
 	gtk_dialog_add_buttons(GTK_DIALOG (dialog), GTK_STOCK_NO, GTK_RESPONSE_REJECT,
 										  		GTK_STOCK_YES, GTK_RESPONSE_ACCEPT,
 										  		NULL);
-
+	
 	gtk_window_set_title(GTK_WINDOW (dialog), title);
-
+	
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
 		answer = 1;
-
+	
 	gtk_widget_destroy (dialog);
-
+	
 	return answer;
 }
 
