@@ -23,6 +23,7 @@ int create_lci_file (char *filename, WD_LCI_parameters *param)
 	double  tavc = param->TAVC/10000.0;
 	double   vga = param->VGA/100.0;
 	double   wla = param->WLA/10000.0;
+	double   cla = param->CLA > 1e-6 ? param->CLA : 10.0;
 
 	wd_wrlci (filename, param->MPAGE, param->NREF, param->MREF, param->IFSMV1, param->IFSMV2, param->ICOR1, param->ICOR2, param->LD,
 			  param->JDPHS, param->HJD0, param->PERIOD, param->DPDT, param->PSHIFT, param->SIGMA, param->WEIGHTING, param->SEED,
@@ -30,7 +31,7 @@ int create_lci_file (char *filename, WD_LCI_parameters *param)
 			  param->MODE, param->IPB, param->IFAT1, param->IFAT2, param->N1, param->N2, param->PERR0, param->DPERDT, param->THE, vunit,
 			  param->E, param->SMA, param->F1, param->F2, vga, param->INCL, param->GR1, param->GR2, param->MET1,
 			  tavh, tavc, param->ALB1, param->ALB2, param->PHSV, param->PCSV, param->RM, param->XBOL1, param->XBOL2, param->YBOL1, param->YBOL2,
-			  param->IBAND, param->HLA, param->CLA, param->X1A, param->X2A, param->Y1A, param->Y2A, param->EL3, param->OPSF, mzero, param->FACTOR, wla,
+			  param->IBAND, param->HLA, cla, param->X1A, param->X2A, param->Y1A, param->Y2A, param->EL3, param->OPSF, mzero, param->FACTOR, wla,
 			  param->SPRIM, param->XLAT1, param->XLONG1, param->RADSP1, param->TEMSP1, param->SSEC, param->XLAT2, param->XLONG2, param->RADSP2, param->TEMSP2);
 
 	return SUCCESS;
@@ -61,7 +62,7 @@ int create_dci_file (char *filename, void *pars)
 	double tavh = params->teff1/10000.0;
 	double tavc = params->teff2/10000.0;
 
-	double *step, *wla, *sigma;
+	double *step, *wla, *sigma, *cla;
 
 	int  rvno = params->rv1data + params->rv2data;
 	int   cno = rvno + params->nlc;
@@ -69,20 +70,24 @@ int create_dci_file (char *filename, void *pars)
 	if (cno != 0) {
 		wla = phoebe_malloc (cno * sizeof (*wla));
 		sigma = phoebe_malloc (cno * sizeof (*sigma));
+		cla = phoebe_malloc (cno * sizeof (*cla));
 
 		for (i = 0; i < rvno; i++) {
 			wla[i] = params->wavelength[i] / 10000.0;
 			sigma[i] = params->sigma[i] / 100.0;
+			cla[i] = params->cla[i] > 1e-6 ? params->cla[i] : 10.0;
 		}
 
 		for (i = rvno; i < cno; i++) {
 			wla[i] = params->wavelength[i] / 10000.0;
 			sigma[i] = params->sigma[i];
+			cla[i] = params->cla[i] > 1e-6 ? params->cla[i] : 10.0;
 		}
 	}
 	else {
 		wla = NULL;
 		sigma = NULL;
+		cla = NULL;
 	}
 
 	step = phoebe_malloc (35 * sizeof (*step));
@@ -110,12 +115,13 @@ int create_dci_file (char *filename, void *pars)
 			  params->morph, params->cladec, params->ifat1, params->ifat2, params->n1f, params->n2f, params->n1c, params->n2c, params->perr0, params->dperdt, the, vunit,
 			  params->ecc, params->sma, params->f1, params->f2, vga, params->incl, params->grb1, params->grb2, params->met1,
 			  tavh, tavc, params->alb1, params->alb2, params->pot1, params->pot2, params->rm, params->xbol1, params->xbol2, params->ybol1, params->ybol2,
-			  params->passband, params->hla, params->cla, params->x1a, params->x2a, params->y1a, params->y2a, params->el3, params->opsf, params->levweight, sigma, wla,
+			  params->passband, params->hla, cla, params->x1a, params->x2a, params->y1a, params->y2a, params->el3, params->opsf, params->levweight, sigma, wla,
 			  params->spot1no, params->spot1lat, params->spot1long, params->spot1rad, params->spot1temp, params->spot2no, params->spot2lat, params->spot2long, params->spot2rad, params->spot2temp,
 			  params->knobs, params->indeps, params->fluxes, params->weights);
 
 	if (wla) free (wla);
 	if (sigma) free (sigma);
+	if (cla) free (cla);
 
 	free (step);
 
@@ -874,21 +880,18 @@ int wd_spots_parameters_get ()
 	return SUCCESS;
 }
 
-int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
+int wd_dci_parameters_get (WD_DCI_parameters *params, int *marked_tba)
 {
-	/*
-	 * This function reads in DCI parameters. Be sure to allocate (and free)
-	 * the passed WD_DCI_parameters structure (and its substructures).
-	 *
-	 * Supported error states:
-	 *
-	 *  ERROR_INVALID_INDEP
-	 *  ERROR_INVALID_DEP
-	 *  ERROR_INVALID_WEIGHT
-	 *  ERROR_MINIMIZER_NO_CURVES
-	 *  ERROR_MINIMIZER_NO_PARAMS
-	 *  ERROR_INVALID_DATA
-	 *  SUCCESS
+	/**
+	 * wd_dci_parameters_get:
+	 * @params: pointer to the #WD_DCI_parameters placeholder
+	 * @marked_tba: placeholder for the number of parameters marked for adjustment
+	 * 
+	 * Reads in DCI parameters. Be sure to allocate (and free)
+	 * the passed WD_DCI_parameters structure (and its substructures) before
+	 * (and after) you call this function.
+	 * 
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	char *pars[] = {
@@ -1031,7 +1034,7 @@ int read_in_wd_dci_parameters (WD_DCI_parameters *params, int *marked_tba)
 				rv2index = active_rvindices->val.iarray[i];
 			break;
 			default:
-				phoebe_lib_error ("exception handler invoked in read_in_wd_dci_parameters (), please report this!\n");
+				phoebe_lib_error ("exception handler invoked in wd_dci_parameters_get(), please report this!\n");
 				return ERROR_EXCEPTION_HANDLER_INVOKED;
 		}
 	}

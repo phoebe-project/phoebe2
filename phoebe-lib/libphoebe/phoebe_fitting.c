@@ -864,7 +864,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	/* Read in WD DCI parameters: */
 	params = wd_dci_parameters_new ();
-	status = read_in_wd_dci_parameters (params, &no_tba);
+	status = wd_dci_parameters_get (params, &no_tba);
 	if (status != SUCCESS) return status;
 
 	/* Count the true number of RV curves: */
