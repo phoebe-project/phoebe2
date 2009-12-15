@@ -417,7 +417,7 @@ int gui_show_configuration_dialog ()
 				if (status == SUCCESS)
 					gui_status ("Configuration successfully saved.");
                 else
-					gui_status("Configuration failed: %s", phoebe_gui_error (status));
+					gui_status ("Configuration failed: %s", phoebe_gui_error (status));
 			}
         break;
 		case GTK_RESPONSE_CANCEL:

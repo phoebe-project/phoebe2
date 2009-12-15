@@ -2491,7 +2491,7 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 
 	double x, y, z;
 
-	/* Do some error handling here.                                           */
+	/* Do some error handling here. */
 	if (!phoebe_filename_exists (filename))          return NULL;
 	if (!phoebe_filename_is_regular_file (filename)) return NULL;
 	if (!(file = fopen (filename, "r")))             return NULL;
@@ -2500,15 +2500,15 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 
 	out->filename = strdup (filename);
 
-	/* Do the readout:                                                        */
+	/* Do the readout: */
 	while (!feof (file)) {
 		if (!fgets (line, 255, file)) break;
 		line_number++;
 
-		/* If the line is commented or empty, skip it:                        */
+		/* If the line is commented or empty, skip it: */
 		if ( !(in = phoebe_clean_data_line (line)) ) continue;
 
-		/* Read out the values from the parsed string:                        */
+		/* Read out the values from the parsed string: */
 		no_of_columns = sscanf (in, "%lf %lf %lf", &x, &y, &z);
 		if (no_of_columns < 2) {
 			phoebe_lib_error ("phoebe_curve_new_from_file (): line %d discarded\n in file \"%s\".\n", line_number, filename);
