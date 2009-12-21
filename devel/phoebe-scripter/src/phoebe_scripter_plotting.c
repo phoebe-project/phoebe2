@@ -77,9 +77,9 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	for (i = 0; i < dim; i++) {
 		if (props[i].lines)
 #ifdef __MINGW32__
-			sprintf (command_line, "\"%s\" with lines lt %d", "-", props[i].ltype);
+			sprintf (command_line, "\"%s\" with steps lt %d", "-", props[i].ltype);
 #else
-			sprintf (command_line, "\"%s\" with lines lt %d", temp_files[i], props[i].ltype);
+			sprintf (command_line, "\"%s\" with steps lt %d", temp_files[i], props[i].ltype);
 #endif
 		else
 #ifdef __MINGW32__
