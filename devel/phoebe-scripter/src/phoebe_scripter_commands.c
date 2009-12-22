@@ -2831,9 +2831,9 @@ scripter_ast_value scripter_multiply_spectra (scripter_ast_list *args)
 		return out;
 	}
 
-	if (vals[2].type != type_void) ll = vals[2].value.d; else ll = 2500;
-	if (vals[3].type != type_void) ul = vals[3].value.d; else ul = 10500;
-	if (vals[4].type != type_void)  R = vals[4].value.d; else  R = 50000;
+	if (vals[2].type != type_void) ll = vals[2].value.d; else ll = 2499.95; /* vals[0].value.spectrum->data->range[0]; */
+	if (vals[3].type != type_void) ul = vals[3].value.d; else ul = 10500.05; /* vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins-1]; */
+	if (vals[4].type != type_void)  R = vals[4].value.d; else  R = 10.0;
 
 	status = phoebe_spectra_multiply (&spectrum, vals[0].value.spectrum, vals[1].value.spectrum, ll, ul, R);
 
