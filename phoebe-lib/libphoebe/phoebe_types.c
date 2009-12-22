@@ -1667,13 +1667,39 @@ int phoebe_hist_pad (PHOEBE_hist *hist, double val)
 int phoebe_hist_resample (PHOEBE_hist *out, PHOEBE_hist *in, PHOEBE_hist_rebin_type type)
 {
 	int i = 0, j = 0;
+	PHOEBE_vector *c_in, *c_out;
+
 	phoebe_hist_pad (out, 0.0);
+	
+	switch (type) {
+		case PHOEBE_HIST_CONSERVE_DENSITY:
+			while (i != in->bins && j != out->bins) {
+				out->val[j] += (min(in->range[i+1], out->range[j+1])-max(in->range[i], out->range[j]))/(in->range[i+1]-in->range[i])*in->val[i];
+				if (out->range[j+1] > in->range[i+1]) i++; else j++;
+			}
+		break;
+		case PHOEBE_HIST_CONSERVE_VALUES:
+			c_in = phoebe_vector_new ();
+			phoebe_vector_alloc (c_in, in->bins);
+			phoebe_hist_get_bin_centers (in, c_in);
+			
+			c_out = phoebe_vector_new ();
+			phoebe_vector_alloc (c_out, out->bins);
+			phoebe_hist_get_bin_centers (out, c_out);
 
-	while (i != in->bins && j != out->bins) {
-		out->val[j] += (min(in->range[i+1], out->range[j+1])-max(in->range[i], out->range[j]))/(in->range[i+1]-in->range[i])*in->val[i];
-		if (out->range[j+1] > in->range[i+1]) i++; else j++;
+			while (j < c_out->dim && c_out->val[j] < c_in->val[0]) j++;
+			
+			for ( ; j < c_out->dim; j++) {
+				while (i < c_in->dim && c_out->val[j] > c_in->val[i]) i++; i--;
+				if (i == c_in->dim-1) break;
+				out->val[j] = in->val[i] + (c_out->val[j]-c_in->val[i])/(c_in->val[i+1]-c_in->val[i])*(in->val[i+1]-in->val[i]);
+			}
+
+			phoebe_vector_free (c_in);
+			phoebe_vector_free (c_out);
+		break;
 	}
-
+	
 	return SUCCESS;
 }
 
