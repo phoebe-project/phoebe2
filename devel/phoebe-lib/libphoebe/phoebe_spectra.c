@@ -946,17 +946,17 @@ int phoebe_spectrum_rebin (PHOEBE_spectrum **src, PHOEBE_spectrum_dispersion dis
 		return ERROR_SPECTRUM_NOT_ALLOCATED;
 
 	if (disp == PHOEBE_SPECTRUM_DISPERSION_NONE) disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
-
+	
 	/* Create a new spectrum with a given dispersion type and sampling power: */
 	dest = phoebe_spectrum_create (ll, ul, R, disp);
-
+	
 	/* Resample the histogram in the spectrum: */
-	status = phoebe_hist_resample (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_DENSITY);
+	status = phoebe_hist_resample (dest->data, (*src)->data, PHOEBE_HIST_CONSERVE_VALUES);
 	if (status != SUCCESS) {
 		phoebe_spectrum_free (dest);
 		return status;
 	}
-
+	
 	/* If the spectrum dispersion is changed from logarithmic to linear,
 	 * the continuum needs to be renormalized:
 	 */
@@ -1122,22 +1122,21 @@ int phoebe_spectra_multiply (PHOEBE_spectrum **dest, PHOEBE_spectrum *src1, PHOE
 
 	int i;
 	PHOEBE_spectrum *s1, *s2;
-
+	
 	s1 = phoebe_spectrum_duplicate (src1);
 	s2 = phoebe_spectrum_duplicate (src2);
+	
+	phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LINEAR, ll, ul, R);
+	phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LINEAR, ll, ul, R);
 
-	phoebe_spectrum_rebin (&s1, PHOEBE_SPECTRUM_DISPERSION_LOG, ll, ul, R);
-	phoebe_spectrum_rebin (&s2, PHOEBE_SPECTRUM_DISPERSION_LOG, ll, ul, R);
+	*dest = phoebe_spectrum_create (ll, ul, R, PHOEBE_SPECTRUM_DISPERSION_LINEAR);
 
-	*dest = phoebe_spectrum_create (ll, ul, R, PHOEBE_SPECTRUM_DISPERSION_LOG);
-
-	for (i = 0; i < (*dest)->data->bins; i++) {
+	for (i = 0; i < (*dest)->data->bins; i++)
 		(*dest)->data->val[i] = s1->data->val[i] * s2->data->val[i];
-	}
-
+	
 	phoebe_spectrum_free (s1);
 	phoebe_spectrum_free (s2);
-
+	
 	return SUCCESS;
 }
 
