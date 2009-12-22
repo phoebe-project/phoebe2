@@ -94,7 +94,7 @@ int phoebe_spectrum_print (PHOEBE_spectrum *spectrum)
 			fprintf (PHOEBE_output, "%14.4f\t%14.4f\n", 0.5*(spectrum->data->range[i]+spectrum->data->range[i+1]), spectrum->data->val[i]);
 	else
 		for (i = 0; i < spectrum->data->bins; i++)
-			fprintf (PHOEBE_output, "%18.8f\t%18.8f\n", 0.5*(spectrum->data->range[i]+spectrum->data->range[i+1]), spectrum->data->val[i]);
+			fprintf (PHOEBE_output, "%18.8f\t%18.8e\n", 0.5*(spectrum->data->range[i]+spectrum->data->range[i+1]), spectrum->data->val[i]);
 
 	return SUCCESS;
 }

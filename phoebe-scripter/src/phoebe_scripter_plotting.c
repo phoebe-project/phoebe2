@@ -106,13 +106,13 @@ int plot_using_gnuplot (int dim, bool reverse_y, PHOEBE_vector **indep, PHOEBE_v
 	for (i = 0; i < dim; i++) {
 #ifdef __MINGW32__
 		for (j = 0; j < indep[i]->dim; j++) {
-			fprintf (command, "%lf\t%lf\n", indep[i]->val[j], dep[i]->val[j]);
+			fprintf (command, "%12.12lf\t%12.12lf\n", indep[i]->val[j], dep[i]->val[j]);
 		}
 		fprintf(command, "e\n");
 #else
 		data_files[i] = fopen (temp_files[i], "w");
 		for (j = 0; j < indep[i]->dim; j++)
-			fprintf (data_files[i], "%lf\t%lf\n", indep[i]->val[j], dep[i]->val[j]);
+			fprintf (data_files[i], "%12.12lf\t%12.12lf\n", indep[i]->val[j], dep[i]->val[j]);
 		fclose (data_files[i]);
 #endif
 	}
