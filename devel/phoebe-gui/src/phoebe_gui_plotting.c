@@ -65,17 +65,18 @@ GUI_plot_data *gui_plot_data_new ()
 
 	GUI_plot_data *data = phoebe_malloc (sizeof (*data));
 
-	data->layout     = gui_plot_layout_new ();
-	data->canvas     = NULL;
-	data->request    = NULL;
-	data->objno      = 0;
-	data->x_offset   = 0.0;
-	data->y_offset   = 0.0;
-	data->zoom_level = 0.0;
-	data->zoom       = 0;
-	data->leftmargin = data->layout->lmargin;
-	data->y_min      = 0.0;
-	data->y_max      = 1.0;
+	data->layout      = gui_plot_layout_new ();
+	data->canvas      = NULL;
+	data->request     = NULL;
+	data->objno       = 0;
+	data->x_offset    = 0.0;
+	data->y_offset    = 0.0;
+	data->zoom_level  = 0;
+	data->zoom        = 0.0;
+	data->leftmargin  = data->layout->lmargin;
+	data->y_min       = 0.0;
+	data->y_max       = 1.0;
+	data->y_autoscale = TRUE;
 
 	return data;
 }
@@ -105,7 +106,12 @@ bool gui_plot_xvalue (GUI_plot_data *data, double value, double *x)
 bool gui_plot_yvalue (GUI_plot_data *data, double value, double *y)
 {
 	double ymin, ymax;
-	gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
+
+	if (data->y_autoscale)
+		gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
+	else
+		gui_plot_offset_zoom_limits (data->y_ll, data->y_ul, data->y_offset, data->zoom, &ymin, &ymax);
+	
 	*y = data->height - (data->layout->bmargin + data->layout->ymargin) - (value - ymin) * gui_plot_height(data)/(ymax - ymin);
 	if (*y < data->layout->tmargin) return FALSE;
 	if (*y > data->height - data->layout->bmargin) return FALSE;
@@ -117,8 +123,12 @@ void gui_plot_coordinates_from_pixels (GUI_plot_data *data, double xpix, double 
 	double xmin, xmax, ymin, ymax;
 
 	gui_plot_offset_zoom_limits (data->x_ll, data->x_ul, data->x_offset, data->zoom, &xmin, &xmax);
-	gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
 
+	if (data->y_autoscale)
+		gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
+	else
+		gui_plot_offset_zoom_limits (data->y_ll, data->y_ul, data->y_offset, data->zoom, &ymin, &ymax);
+	
 	*xval = xmin + (xmax - xmin) * (xpix - (data->leftmargin + data->layout->xmargin))/gui_plot_width(data);
 	*yval = ymax - (ymax - ymin) * (ypix - (data->layout->tmargin+data->layout->ymargin))/gui_plot_height(data);
 }
@@ -557,7 +567,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			data->y_max = store;
 		}
 	}
-	else {
+	else /* if (data->ptype == GUI_PLOT_MESH) */ {
 		PHOEBE_vector *poscoy, *poscoz;
 		char *lcin;
 		WD_LCI_parameters *params = phoebe_malloc (sizeof (*params));
@@ -578,7 +588,21 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 		data->request[0].model = phoebe_curve_new ();
 		data->request[0].model->indep = poscoy;
 		data->request[0].model->dep   = poscoz;
-		printf ("survived the Plot button click.\n");
+
+		data->x_ll = -1.1;
+		data->x_ul =  1.1;
+
+		data->y_autoscale = FALSE;
+		data->y_ll = -1.0; /* Dummies, because the values are later computed  */
+		data->y_ul =  1.0; /* so that the aspect=1 in gui_plot_area_draw().   */
+		
+		phoebe_vector_min_max (poscoy, &x_min, &x_max);
+		phoebe_vector_min_max (poscoz, &y_min, &y_max);
+
+		data->x_min = x_min;
+		data->x_max = x_max;
+		data->y_min = y_min;
+		data->y_max = y_max;
 	}
 
 	gui_plot_area_refresh (data);
@@ -796,19 +820,32 @@ void gui_plot_interpolate_to_border (GUI_plot_data *data, double xin, double yin
 int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 {
 	int i, j;
-	double x, y;
+	double x, y, aspect;
 	bool needs_ticks = FALSE;
 
-	printf ("* entering gui_plot_area_draw ()\n");
-
 	if (data->ptype == GUI_PLOT_MESH && data->request[0].model) {
-		cairo_set_source_rgb (data->canvas, 0, 0, 1);
+		if (!redirect)
+			cairo_set_source_rgb (data->canvas, 0, 0, 1);
+		else
+			fprintf (redirect, "# Mesh plot -- plane of sky (v, w) coordinates at phase %lf:\n", data->request[0].phase);
+		
+		aspect = gui_plot_height (data)/gui_plot_width (data);
+		data->y_ll = aspect*data->x_ll;
+		data->y_ul = aspect*data->x_ul;
+		
 		for (j = 0; j < data->request[0].model->indep->dim; j++) {
-			x = data->width/2 + data->width/2*data->request[0].model->indep->val[j];
-			y = data->height/2 + data->width/2*data->request[0].model->dep->val[j];
-			cairo_arc (data->canvas, x, y, 2.0, 0, 2 * M_PI);
-			cairo_stroke (data->canvas);
+			if (!gui_plot_xvalue (data, data->request[0].model->indep->val[j], &x)) continue;
+			if (!gui_plot_yvalue (data, data->request[0].model->dep->val[j], &y)) continue;
+			
+			if (!redirect) {
+				cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+				cairo_stroke (data->canvas);
+			}
+			else
+				fprintf (redirect, "% lf\t% lf\n", data->request[0].model->indep->val[j], data->request[0].model->dep->val[j]);
 		}
+
+		needs_ticks = TRUE;
 	}
 
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
@@ -825,7 +862,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
 
 					if (!redirect) {
-						cairo_arc (data->canvas, x, y, 2.0, 0, 2 * M_PI);
+						cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
 						cairo_stroke (data->canvas);
 					}
 					else
@@ -889,14 +926,12 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 				needs_ticks = TRUE;
 			}
 		}
-
-		if (needs_ticks && !redirect) {
-			gui_plot_xticks (data);
-			gui_plot_yticks (data);
-		}
 	}
 
-	printf ("* leaving gui_plot_area_draw ()\n");
+	if (needs_ticks && !redirect) {
+		gui_plot_xticks (data);
+		gui_plot_yticks (data);
+	}
 
 	return SUCCESS;
 }
@@ -1131,6 +1166,12 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		data->request[0].raw      = NULL;
 		data->request[0].query    = NULL;
 		data->request[0].model    = NULL;
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomin");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomin_button_clicked), data);
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "controls_zoomout");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_controls_zoomout_button_clicked), data);
 
 		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "mesh_phase");
 		data->request->phase = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));

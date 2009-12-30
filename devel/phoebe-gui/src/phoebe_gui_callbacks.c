@@ -169,7 +169,7 @@ void on_plot_save_button_clicked (GtkButton *button, gpointer user_data)
 	gchar *filename;
 	gchar *glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
-	dialog = gtk_file_chooser_dialog_new ("Save LC Curves to ASCII File",
+	dialog = gtk_file_chooser_dialog_new ("Export figure to a text file",
 		  	GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
 		 	GTK_FILE_CHOOSER_ACTION_SAVE,
 		 	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,

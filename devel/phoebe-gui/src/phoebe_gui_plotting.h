@@ -56,6 +56,9 @@ typedef struct GUI_plot_data {
 	const char        *y_request;   /* Requested y-coordinate                 */
 	double             x_ll;        /* Lower plotting limit for the x-axis    */
 	double             x_ul;        /* Upper plotting limit for the x-axis    */
+	bool               y_autoscale; /* Should y-axis be autoscaled?           */
+	double             y_ll;        /* Lower plotting limit for the y-axis    */
+	double             y_ul;        /* Upper plotting limit for the y-axis    */
 	double             x_min;       /* Minimum x value in the query dataset   */
 	double             x_max;       /* Maximum x value in the query dataset   */
 	double             y_min;       /* Minimum y value in the query dataset   */
@@ -73,6 +76,7 @@ typedef struct GUI_plot_data {
 	double             zoom;
 	int                zoom_level;
 	double             leftmargin;
+
 } GUI_plot_data;
 
 GUI_plot_data *gui_plot_data_new ();
