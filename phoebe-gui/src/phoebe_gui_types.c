@@ -284,9 +284,9 @@ int gui_init_widgets ()
 	g_object_set_data (G_OBJECT (plot_button), "controls_right",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_right_button"));
 	g_object_set_data (G_OBJECT (plot_button), "controls_up",        glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_up_button"));
 	g_object_set_data (G_OBJECT (plot_button), "controls_reset",     glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_reset_button"));
-	g_object_set_data (G_OBJECT (plot_button), "controls_zoomin",    glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomin_button"));
-	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomout_button"));
 */
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomin",    glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_zoom_in_button"));
+	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_zoom_out_button"));
 	g_object_set_data (G_OBJECT (plot_button), "save_plot",          glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_save_button"));
 	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_plot_mesh_clear_button"));
 /*
