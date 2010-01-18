@@ -124,9 +124,7 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 
 	passband = phoebe_passband_new ();
 
-	while (!feof (ptf_file)) {
-		fgets (line, 255, ptf_file);
-		if (feof (ptf_file)) break;
+	while (fgets (line, 255, ptf_file)) {
 		line[strlen(line)-1] = '\0';
 		if (strchr (line, '#')) {
 			/* This can be either be a comment or a header entry. */
@@ -182,7 +180,7 @@ PHOEBE_passband *phoebe_passband_new_from_file (char *filename)
 		passband->tf = phoebe_hist_new_from_arrays (bins, wla, tfa);
 		free (wla); free (tfa);
 
-		/* Finally, issue warnings for missing header information:            */
+		/* Finally, issue warnings for missing header information: */
 		if (!passband->set)
 			phoebe_lib_warning ("passband set not found for passband %s.\n", passband->name);
 		if (!passband->effwl)

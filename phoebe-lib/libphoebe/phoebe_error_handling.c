@@ -387,22 +387,26 @@ int phoebe_debug (const char *fmt, ...)
 {
 	/**
 	 * phoebe_debug:
+	 * @fmt: printf-compatible format
+	 * @...: arguments to @fmt
 	 *
 	 * Writes the message to stdout in case PHOEBE was compiled
 	 * with --enable-debug switch, otherwise it just returns control to the
 	 * main program.
+	 *
+	 * Returns: number of characters output, or -1 on failure.
 	 */
-
+	
 	int r = -1;
-
-	#ifdef PHOEBE_DEBUG_SUPPORT
+	
+#ifdef PHOEBE_DEBUG_SUPPORT
 	va_list ap;
 		printf ("PHOEBE debug: ");
 		va_start (ap, fmt);
 		r = vprintf (fmt, ap);
 		va_end (ap);
-	#endif
-
+#endif
+	
 	return r;
 }
 
