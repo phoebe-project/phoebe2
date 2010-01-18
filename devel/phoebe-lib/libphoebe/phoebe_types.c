@@ -20,55 +20,6 @@
 	#define max(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-PHOEBE_value phoebe_value_duplicate (PHOEBE_type type, PHOEBE_value val)
-{
-	PHOEBE_value copy;
-
-	switch (type) {
-		case TYPE_INT:
-			copy.i = val.i;
-		break;
-		case TYPE_BOOL:
-			copy.b = val.b;
-		break;
-		case TYPE_DOUBLE:
-			copy.d = val.d;
-		break;
-		case TYPE_STRING:
-			copy.str = strdup (val.str);
-		break;
-		case TYPE_INT_ARRAY:
-			copy.array = phoebe_array_duplicate (val.array);
-		break;
-		case TYPE_BOOL_ARRAY:
-			copy.array = phoebe_array_duplicate (val.array);
-		break;
-		case TYPE_DOUBLE_ARRAY:
-			copy.vec = phoebe_vector_duplicate (val.vec);
-		break;
-		case TYPE_STRING_ARRAY:
-			copy.array = phoebe_array_duplicate (val.array);
-		break;
-		case TYPE_CURVE:
-			copy.curve = phoebe_curve_duplicate (val.curve);
-		break;
-		case TYPE_SPECTRUM:
-			copy.spectrum = phoebe_spectrum_duplicate (val.spectrum);
-		break;
-		case TYPE_MINIMIZER_FEEDBACK:
-			copy.feedback = phoebe_minimizer_feedback_duplicate (val.feedback);
-		break;
-		case TYPE_ANY:
-			phoebe_lib_error ("invalid type (TYPE_ANY) passed to phoebe_value_duplicate (), aborting.\n");
-		break;
-		default:
-			phoebe_lib_error ("exception handler invoked in phoebe_value_duplicate (), please report this!\n");
-			return copy;
-	}
-
-	return copy;
-}
-
 PHOEBE_vector *phoebe_vector_new ()
 {
     /**
@@ -3400,4 +3351,66 @@ char *phoebe_type_get_name (PHOEBE_type type)
 			phoebe_lib_error ("exception handler invoked in phoebe_type_get_name (), please report this!\n");
 			return NULL;
 	}
+}
+
+PHOEBE_value phoebe_value_duplicate (PHOEBE_type type, PHOEBE_value val)
+{
+	/**
+	 * phoebe_value_duplicate:
+	 * @type: input value type
+	 * @val:  input value
+	 *
+	 * Copies the value and its type to the new instance.
+	 * 
+	 * Returns: copy of @val.
+	 */
+	
+	PHOEBE_value copy;
+
+	switch (type) {
+		case TYPE_INT:
+			copy.i = val.i;
+		break;
+		case TYPE_BOOL:
+			copy.b = val.b;
+		break;
+		case TYPE_DOUBLE:
+			copy.d = val.d;
+		break;
+		case TYPE_STRING:
+			copy.str = strdup (val.str);
+		break;
+		case TYPE_INT_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_BOOL_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_DOUBLE_ARRAY:
+			copy.vec = phoebe_vector_duplicate (val.vec);
+		break;
+		case TYPE_STRING_ARRAY:
+			copy.array = phoebe_array_duplicate (val.array);
+		break;
+		case TYPE_CURVE:
+			copy.curve = phoebe_curve_duplicate (val.curve);
+		break;
+		case TYPE_SPECTRUM:
+			copy.spectrum = phoebe_spectrum_duplicate (val.spectrum);
+		break;
+		case TYPE_MINIMIZER_FEEDBACK:
+			copy.feedback = phoebe_minimizer_feedback_duplicate (val.feedback);
+		break;
+		case TYPE_ANY:
+			phoebe_lib_error ("invalid type (TYPE_ANY) passed to phoebe_value_duplicate (), please report this!\n");
+			copy.i = -1;
+			return copy;
+		break;
+		default:
+			phoebe_lib_error ("exception handler invoked in phoebe_value_duplicate (), please report this!\n");
+			copy.i = -1;
+			return copy;
+	}
+
+	return copy;
 }

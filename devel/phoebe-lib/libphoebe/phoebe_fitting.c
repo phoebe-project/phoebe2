@@ -398,11 +398,11 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 			break;
 		}
 
-		printf ("%5d ", iter);
+		fprintf (nms_output, "%5d ", iter);
 		for (i = 0; i < dim_tba; i++) {
-			printf ("%10.3e ", adjpars->val[i]);
+			fprintf (nms_output, "%10.3e ", adjpars->val[i]);
 		}
-		printf ("f() = %7.3f step = %.3f\n", cfval, step);
+		fprintf (nms_output, "f() = %7.3f step = %.3f\n", cfval, step);
 	} while (step > accuracy && iter < iter_max);
 
 	/* Stop the clock watch: */
@@ -819,7 +819,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	WD_DCI_parameters *params;
 	PHOEBE_parameter_list *marked_tba, *tba;
 	int lcno, rvno, no_tba;
-	bool calchla = FALSE, calcvga = FALSE;
+	bool calchla = FALSE, calcvga = FALSE, spots_conversion_factor;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 
 	/* Minimizer results: */
@@ -928,11 +928,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	feedback->wchi2s = NULL;
 
 	feedback->cfval = cfval;
-/*
-	fprintf (dc_output, "%-18s %-12s %-12s %-12s %-12s\n", "Qualifier:", "Original:", "Correction:", "   New:", "  Error:");
-	fprintf (dc_output, "--------------------------------------------------------------------\n");
-*/
-	bool spots_conversion_factor = 1/phoebe_spots_units_to_wd_conversion_factor ();
+
+	spots_conversion_factor = 1/phoebe_spots_units_to_wd_conversion_factor ();
 
 	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
 	while (tba) {

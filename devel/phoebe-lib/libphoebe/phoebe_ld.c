@@ -225,9 +225,7 @@ PHOEBE_ld *phoebe_ld_new_from_file (const char *filename)
 
 	/* Parse the header: */
 
-	while (!feof (ld_file)) {
-		fgets (line, 255, ld_file);
-		if (feof (ld_file)) break;
+	while (fgets (line, 255, ld_file)) {
 		line[strlen(line)-1] = '\0';
 		if (strchr (line, '#')) {
 			/* This can be either be a comment or a header entry. */
@@ -539,8 +537,7 @@ LD_table *phoebe_ld_table_vh1993_load (char *dir)
 			continue;
 		}
 
-		while (!feof (in)) {
-			fgets (line, 255, in);
+		while (fgets (line, 255, in)) {
 			if (sscanf (line, " Teff = %d K, log g = %lf, [M/H] = %lf", &T, &lg, &M) == 3) {
 				rec[counter].filename = strdup (LDfile);
 				rec[counter].pos      = ftell (in);
@@ -808,12 +805,9 @@ int intern_get_ld_node (const char *fn, long int pos, LD_model ldlaw, PHOEBE_pas
 			return ERROR_LD_TABLES_MISSING;
 		}
 		fseek (in, pos, SEEK_SET);
-		while (TRUE) {
-			fgets (line, 255, in);
-			if (sscanf (line, " %s %lf (%*f) %lf %lf (%*f) %lf %lf (%*f)", pass, &linx, &logx, &logy, &sqrtx, &sqrty) == 6) {
+		while (fgets (line, 255, in))
+			if (sscanf (line, " %s %lf (%*f) %lf %lf (%*f) %lf %lf (%*f)", pass, &linx, &logx, &logy, &sqrtx, &sqrty) == 6)
 				if (strcmp (pass, phoebe_ld_get_vh1993_passband_name (passband)) == 0) break;
-			}
-		}
 		fclose (in);
 
 		switch (ldlaw) {
