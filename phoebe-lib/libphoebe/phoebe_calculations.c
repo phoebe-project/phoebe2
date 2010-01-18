@@ -231,8 +231,6 @@ void intern_call_wd_lc (char *atmcof, char *atmcofplanck, char *lcin, integer *r
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_logg2"),   params[ 9]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr1"),    params[10]);
 	phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_sbr2"),    params[11]);
-
-	printf ("cla in phoebe = %lf\n", params[1]);
 	
 	/* If morphology is constrained, update parameter values: */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_model"), &phoebe_model);
@@ -537,13 +535,16 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 	return SUCCESS;
 }
 
-int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs)
+int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs, double l3, PHOEBE_el3_units l3units)
 {
 	/**
-	 * phoebe_calculate_level_correction:
-	 * @alpha: placeholder for level correction: L1 -> L1/@alpha, L2 -> L2/@alpha
-	 * @syn:   synthetic (model) light curve
-	 * @obs:   observed light curve
+	 * phoebe_calculate_plum_correction:
+	 * @alpha:   placeholder for passband luminosity correction:
+	 *           L1 -> L1/@alpha, L2 -> L2/@alpha
+	 * @syn:     synthetic (model) light curve
+	 * @obs:     observed light curve
+	 * @l3:      value of third light
+	 * @l3units: units of third light
 	 *
 	 * Computes the correction @alpha by solving:
 	 *
@@ -555,6 +556,12 @@ int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_
 	 *
 	 *   @alpha = (A W A^T)^{-1} A W b = \sum_i w_i o_i c_i / \sum_i w_i o_i^2
 	 *
+	 * If there is third light in the system, the computation is slightly
+	 * modified. In case of third light in flux units, l3 is subtracted from
+	 * both o_i and c_i prior to the computation of @alpha. In case of third
+	 * light given in percent of total light, the computation is done as before
+	 * since the total flux is scaled with (divided by) (1-l3).
+	 * 
 	 * Returns: #PHOEBE_error_code.
 	 */
 
@@ -563,11 +570,20 @@ int phoebe_calculate_level_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_
 
 	if (!obs || !syn)
 		return ERROR_CURVE_NOT_INITIALIZED;
-
-	for (i = 0; i < obs->dep->dim; i++) {
-		wsum_xy += obs->weight->val[i] * obs->dep->val[i] * syn->dep->val[i];
-		wsum_xx += obs->weight->val[i] * obs->dep->val[i] * obs->dep->val[i];
+	
+	if (l3 > 1e-5 && l3units == PHOEBE_EL3_UNITS_FLUX) {
+		for (i = 0; i < obs->dep->dim; i++) {
+			wsum_xy += obs->weight->val[i] * (obs->dep->val[i]-l3) * (syn->dep->val[i]-l3);
+			wsum_xx += obs->weight->val[i] * (obs->dep->val[i]-l3) * (obs->dep->val[i]-l3);
+		}
 	}
+	else {
+		for (i = 0; i < obs->dep->dim; i++) {
+			wsum_xy += obs->weight->val[i] * obs->dep->val[i] * syn->dep->val[i];
+			wsum_xx += obs->weight->val[i] * obs->dep->val[i] * obs->dep->val[i];
+		}
+	}
+	
 	*alpha = wsum_xy/wsum_xx;
 
 	return SUCCESS;

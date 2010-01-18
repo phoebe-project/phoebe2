@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.0.3 on Wed Sep  5 09:34:57 2007 by gal@brjav-->
+<?xml version="1.0"?>
 <glade-interface>
+  <!-- interface-requires gtk+ 2.6 -->
+  <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkDialog" id="phoebe_third_light_dialog">
     <property name="width_request">340</property>
     <property name="height_request">220</property>
     <property name="border_width">5</property>
+    <property name="type_hint">normal</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
@@ -28,6 +29,9 @@
                         <property name="visible">True</property>
                         <property name="label" translatable="yes">Selected passband:</property>
                       </widget>
+                      <packing>
+                        <property name="position">0</property>
+                      </packing>
                     </child>
                     <child>
                       <widget class="GtkLabel" id="phoebe_third_light_passband_label">
@@ -39,6 +43,9 @@
                       </packing>
                     </child>
                   </widget>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
                 </child>
                 <child>
                   <widget class="GtkHSeparator" id="hseparator1">
@@ -60,8 +67,10 @@
                       <widget class="GtkSpinButton" id="phoebe_third_light_extinction_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="adjustment">0 0 100 0.10000000000000001 1 1</property>
+                        <property name="adjustment">0 0 100 0.10000000000000001 0 0</property>
                         <property name="digits">5</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
                       </widget>
                       <packing>
                         <property name="left_attach">1</property>
@@ -74,8 +83,10 @@
                       <widget class="GtkSpinButton" id="phoebe_third_light_el3_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="adjustment">0 0 100 0.10000000000000001 1 1</property>
+                        <property name="adjustment">0 0 100 0.10000000000000001 0 0</property>
                         <property name="digits">5</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
                       </widget>
                       <packing>
                         <property name="left_attach">1</property>
@@ -88,8 +99,10 @@
                       <widget class="GtkSpinButton" id="phoebe_third_light_opacity_spinbutton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="adjustment">0 0 100 0.10000000000000001 1 1</property>
+                        <property name="adjustment">0 0 100 0.10000000000000001 0 0</property>
                         <property name="digits">5</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
                       </widget>
                       <packing>
                         <property name="left_attach">1</property>
@@ -150,30 +163,42 @@
           <widget class="GtkHButtonBox" id="dialog-action_area1">
             <property name="visible">True</property>
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK</property>
-            <property name="layout_style">GTK_BUTTONBOX_END</property>
+            <property name="layout_style">end</property>
             <child>
               <widget class="GtkButton" id="phoebe_third_light_ok_button">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">gtk-ok</property>
-                <property name="use_stock">True</property>
+                <property name="label">gtk-ok</property>
                 <property name="response_id">-5</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_stock">True</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkButton" id="phoebe_third_light_cancel_button">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">gtk-cancel</property>
-                <property name="use_stock">True</property>
+                <property name="label">gtk-cancel</property>
                 <property name="response_id">-6</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_stock">True</property>
               </widget>
               <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="position">1</property>
               </packing>
             </child>
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="pack_type">GTK_PACK_END</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
           </packing>
         </child>
       </widget>

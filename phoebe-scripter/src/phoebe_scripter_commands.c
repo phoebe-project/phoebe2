@@ -1323,23 +1323,24 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 
 	scripter_ast_value *vals;
 	scripter_ast_value out;
-
+	
 	PHOEBE_vector *levels = NULL;
-
-	double level, alpha;
+	
+	double level, alpha, l3;
 	int index, lcno;
-
+	PHOEBE_el3_units l3units;
+	
 	PHOEBE_curve *syncurve;
 	PHOEBE_curve *obs;
-
+	
 	int status = scripter_command_args_evaluate (args, &vals, 0, 1, type_int);
 	if (status != SUCCESS) {
 		out.type = type_void;
 		return out;
 	}
-
+	
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
-
+	
 	if (vals[0].type != type_void) {
 		index = vals[0].value.i;
 	}
@@ -1370,8 +1371,11 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 		/* Synthesize a theoretical curve: */
 		syncurve = phoebe_curve_new ();
 		phoebe_curve_compute (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
-
-		status = phoebe_calculate_level_correction (&alpha, syncurve, obs);
+		
+		phoebe_el3_units_id (&l3units);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index-1, &l3);
+		
+		status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, l3, l3units);
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_array_free (vals, 1);
@@ -1381,13 +1385,13 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 			out.type = type_void;
 			return out;
 		}
-
+		
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index-1, &level);
 		level /= alpha;
-
+		
 		phoebe_curve_free (obs);
 		phoebe_curve_free (syncurve);
-
+		
 		if (vals[0].type != type_void) {
 			scripter_ast_value_array_free (vals, 1);
 			out.type = type_double;

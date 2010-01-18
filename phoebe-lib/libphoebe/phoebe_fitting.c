@@ -44,6 +44,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 
 	int                    lcno       = params->lcno;
 	int                    rvno       = params->rvno;
+	PHOEBE_el3_units       l3units    = params->l3units;
 	PHOEBE_array          *qualifiers = params->qualifiers;
 	PHOEBE_vector         *l_bounds   = params->l_bounds;
 	PHOEBE_vector         *u_bounds   = params->u_bounds;
@@ -51,6 +52,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_vector         *chi2s      = params->chi2s;
 	PHOEBE_vector         *weights    = params->weights;
 	PHOEBE_vector         *levels     = params->levels;
+	PHOEBE_vector         *l3         = params->l3;
 
 	WD_LCI_parameters    **lcipars;
 
@@ -111,7 +113,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 
 		if (params->autolevels && i < lcno) {
 			double alpha;
-			phoebe_calculate_level_correction (&alpha, curve, obs[i]);
+			phoebe_calculate_plum_correction (&alpha, curve, obs[i], l3->val[i], l3units);
 			phoebe_vector_multiply_by (curve->dep, 1./alpha);
 			levels->val[i] = alpha;
 			printf ("    alpha[%d] = %lf\n", i, alpha);
@@ -170,6 +172,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	int iter_max;
 
 	int lcno, rvno, rvdep;
+	PHOEBE_el3_units l3units;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 	char *qualifier;
 	int dim_tba;
@@ -179,6 +182,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	PHOEBE_vector *chi2s;
 	PHOEBE_vector *weights;
 	PHOEBE_vector *levels;
+	PHOEBE_vector *l3;
 
 	/* NMS infrastructure: */
 	int iter = 0;
@@ -318,18 +322,22 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		phoebe_curve_transform (obs[lcno+i], indep, rvdep, PHOEBE_COLUMN_SIGMA);
 	}
 
-	/* Read in the vector of passband weights: */
-	weights = phoebe_vector_new ();
-	phoebe_vector_alloc (weights, lcno+rvno);
-	for (i = 0; i < lcno; i++)
+	/* Read in the vector of passband weights and third light: */
+	weights = phoebe_vector_new (); phoebe_vector_alloc (weights, lcno+rvno);
+	l3      = phoebe_vector_new (); phoebe_vector_alloc (l3, lcno);
+	phoebe_el3_units_id (&l3units);
+	
+	for (i = 0; i < lcno; i++) {
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), active_lcindices->val.iarray[i], &(weights->val[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"),      active_lcindices->val.iarray[i], &(l3->val[i]));
+	}
 	for (i = 0; i < rvno; i++)
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), active_rvindices->val.iarray[i], &(weights->val[lcno+i]));
-
+	
 	/* Initialize and allocate the vector of passband chi2 values: */
 	chi2s = phoebe_vector_new ();
 	phoebe_vector_alloc (chi2s, lcno+rvno);
-
+	
 	/* Populate the structure that will be passed to the cost function: */
 	passed = phoebe_malloc (sizeof (*passed));
 
@@ -341,10 +349,12 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	passed->obs        = obs;
 	passed->chi2s      = chi2s;
 	passed->weights    = weights;
-
+	passed->l3         = l3;
+	passed->l3units    = l3units;
+	
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_hla_switch"), &(passed->autolevels));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_compute_vga_switch"), &(passed->autogamma));
-
+	
 	/* If levels are to be computed, allocate the suitable vector: */
 	if (passed->autolevels) {
 		levels = phoebe_vector_new ();
@@ -352,24 +362,24 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	}
 	else levels = NULL;
 	passed->levels = levels;
-
+	
 	adjpars = phoebe_vector_new (); phoebe_vector_alloc (adjpars, dim_tba);
 	steps   = phoebe_vector_new (); phoebe_vector_alloc (steps, dim_tba);
-
+	
 	/* Allocate memory for the feedback structure: */
 	phoebe_minimizer_feedback_alloc (feedback, dim_tba, lcno+rvno, lcno);
-
+	
 	/* Read out initial values and step sizes: */
 	for (i = 0; i < dim_tba; i++) {
 		feedback->qualifiers->val.strarray[i] = strdup (qualifiers->val.strarray[i]);
-
+		
 		status = phoebe_qualifier_string_parse (qualifiers->val.strarray[i], &qualifier, &index);
 		par = phoebe_parameter_lookup (qualifier);
 		if (index == 0)
 			phoebe_parameter_get_value (par, &(adjpars->val[i]));
 		else
 			phoebe_parameter_get_value (par, index-1, &(adjpars->val[i]));
-
+		
 		phoebe_parameter_get_step (par, &(steps->val[i]));
 		feedback->initvals->val[i] = adjpars->val[i];
 	}
@@ -425,6 +435,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	phoebe_vector_free (levels);
 	phoebe_vector_free (chi2s);
 	phoebe_vector_free (weights);
+	phoebe_vector_free (l3);
 	phoebe_vector_free (l_bounds);
 	phoebe_vector_free (u_bounds);
 	phoebe_array_free (qualifiers);

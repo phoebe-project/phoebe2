@@ -28,6 +28,8 @@ typedef struct PHOEBE_nms_parameters {
 	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 	bool autolevels;              /* Should levels be computed automatically? */
 	bool autogamma;       /* Should gamma velocity be computed automatically? */
+	PHOEBE_vector *l3;                 /* Values of third light, per passband */
+	PHOEBE_el3_units l3units;                         /* Units of third light */
 	PHOEBE_vector *levels;
 	                  /* If levels are computed, their values are stored here */
 	bool rv1;
