@@ -421,6 +421,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		feedback->chi2s->val[i] = chi2s->val[i];
 		feedback->wchi2s->val[i] = weights->val[i] * chi2s->val[i];
 	}
+	for (i = 0; i < lcno; i++)
+		feedback->__cla->val[i] = 10.0;
 
 	/* There is no correlation matrix: */
 	phoebe_matrix_free (feedback->cormat);
