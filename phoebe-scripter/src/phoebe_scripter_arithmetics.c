@@ -1017,8 +1017,16 @@ int scripter_ast_values_multiply (scripter_ast_value *out, scripter_ast_value va
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
 				break;
 				case type_spectrum:
-					phoebe_scripter_output ("operator '*' cannot act between arrays and spectra, aborting.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					if (val1.value.vec->dim != val2.value.spectrum->data->bins) {
+						phoebe_scripter_output ("operand dimensions mismatch, aborting.\n");
+						out->type = type_void;
+						return SUCCESS;
+					}
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_duplicate (val2.value.spectrum);
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] *= val1.value.vec->val[i];
+					return SUCCESS;
 				break;
 				case type_void:
 					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
@@ -1072,8 +1080,16 @@ int scripter_ast_values_multiply (scripter_ast_value *out, scripter_ast_value va
 					phoebe_spectrum_multiply_by (&out->value.spectrum, val1.value.spectrum, val2.value.d);
 				break;
 				case type_vector:
-					phoebe_scripter_output ("operator '*' cannot act between arrays and spectra, aborting.\n");
-					return ERROR_SCRIPTER_INCOMPATIBLE_OPERANDS;
+					if (val2.value.vec->dim != val1.value.spectrum->data->bins) {
+						phoebe_scripter_output ("operand dimensions mismatch, aborting.\n");
+						out->type = type_void;
+						return SUCCESS;
+					}
+					out->type = type_spectrum;
+					out->value.spectrum = phoebe_spectrum_duplicate (val1.value.spectrum);
+					for (i = 0; i < out->value.spectrum->data->bins; i++)
+						out->value.spectrum->data->val[i] *= val2.value.vec->val[i];
+					return SUCCESS;
 				break;
 				case type_array:
 					phoebe_scripter_output ("operator '*' cannot act between arrays and spectra, aborting.\n");
