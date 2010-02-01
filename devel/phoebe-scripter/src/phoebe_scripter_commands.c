@@ -2824,10 +2824,10 @@ scripter_ast_value scripter_multiply_spectra (scripter_ast_list *args)
 {
 	scripter_ast_value out;
 	scripter_ast_value *vals;
-	PHOEBE_spectrum *spectrum;
-
-	double ll, ul, R;
-
+	PHOEBE_spectrum *spectrum, *s1, *s2;
+	
+	double ll, ul, Rdx;
+	
 	int status = scripter_command_args_evaluate (args, &vals, 2, 5, type_spectrum, type_spectrum, type_double, type_double, type_double);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -2835,21 +2835,34 @@ scripter_ast_value scripter_multiply_spectra (scripter_ast_list *args)
 		return out;
 	}
 
-	if (vals[2].type != type_void) ll = vals[2].value.d; else ll = 2499.95; /* vals[0].value.spectrum->data->range[0]; */
-	if (vals[3].type != type_void) ul = vals[3].value.d; else ul = 10500.05; /* vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins-1]; */
-	if (vals[4].type != type_void)  R = vals[4].value.d; else  R = 10.0;
+	s1 = vals[0].value.spectrum; s2 = vals[1].value.spectrum;
 
-	status = phoebe_spectra_multiply (&spectrum, vals[0].value.spectrum, vals[1].value.spectrum, ll, ul, R);
-
+	/* Set dispersion or resolving power of the resultant spectrum: */
+	if (s1->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR && s2->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR)
+		Rdx = min (s1->dx, s2->dx);
+	else if (s1->disp == PHOEBE_SPECTRUM_DISPERSION_LOG && s2->disp == PHOEBE_SPECTRUM_DISPERSION_LOG)
+		Rdx = max (s1->R, s2->R);
+	else {
+		phoebe_scripter_output ("spectra have different dispersion types; please resample them first.\n");
+		out.type = type_void;
+		return out;
+	}
+	
+	if (vals[2].type != type_void)  ll = vals[2].value.d; else  ll = max (vals[0].value.spectrum->data->range[0], vals[1].value.spectrum->data->range[0]);
+	if (vals[3].type != type_void)  ul = vals[3].value.d; else  ul = min (vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins], vals[1].value.spectrum->data->range[vals[1].value.spectrum->data->bins]);
+	if (vals[4].type != type_void) Rdx = vals[4].value.d;
+	
+	status = phoebe_spectra_multiply (&spectrum, vals[0].value.spectrum, vals[1].value.spectrum, ll, ul, Rdx);
+	
 	if (status != SUCCESS) {
 		scripter_ast_value_array_free (vals, 5);
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 		out.type = type_void;
 		return out;
 	}
-
+	
 	scripter_ast_value_array_free (vals, 5);
-
+	
 	out.type = type_spectrum;
 	out.value.spectrum = spectrum;
 	return out;
