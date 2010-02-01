@@ -279,8 +279,12 @@ int intern_info_on_variables (scripter_ast *ast)
 			fprintf (PHOEBE_output, "  Variable type:       spectrum\n");
 			fprintf (PHOEBE_output, "  Dimension:           %d\n", val.value.spectrum->data->bins);
 			fprintf (PHOEBE_output, "  Dispersion type:     %s\n", phoebe_spectrum_dispersion_type_get_name (val.value.spectrum->disp));
-			fprintf (PHOEBE_output, "  Resolving power:     %0.0lf\n", val.value.spectrum->R);
-			fprintf (PHOEBE_output, "  Sampling power:      %0.0lf\n", val.value.spectrum->Rs);
+			if (val.value.spectrum->disp == PHOEBE_SPECTRUM_DISPERSION_LINEAR)
+				fprintf (PHOEBE_output, "  Dispersion:          %2.2lf\n", val.value.spectrum->dx);
+			else {
+				fprintf (PHOEBE_output, "  Resolving power:     %0.0lf\n", val.value.spectrum->R);
+				fprintf (PHOEBE_output, "  Sampling power:      %0.0lf\n", val.value.spectrum->Rs);
+			}
 			fprintf (PHOEBE_output, "  Wavelength interval: [%0.0lf, %0.0lf]\n", val.value.spectrum->data->range[0], val.value.spectrum->data->range[val.value.spectrum->data->bins]);
 		break;
 		case type_minfeedback:

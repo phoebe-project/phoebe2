@@ -47,6 +47,7 @@ int              phoebe_spectrum_apply_doppler_shift         (PHOEBE_spectrum **
 int              phoebe_spectrum_apply_rotational_broadening (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double vsini, double ldx);
 int              phoebe_spectrum_set_sampling                (PHOEBE_spectrum *spectrum, double Rs);
 int              phoebe_spectrum_set_resolution              (PHOEBE_spectrum *spectrum, double R);
+int              phoebe_spectrum_set_dispersion              (PHOEBE_spectrum *spectrum, double dx);
 int              phoebe_spectrum_multiply_by                 (PHOEBE_spectrum **dest, PHOEBE_spectrum *src, double factor);
 int              phoebe_spectrum_dispersion_guess            (PHOEBE_spectrum_dispersion *disp, PHOEBE_spectrum *spectrum);
 char            *phoebe_spectrum_dispersion_type_get_name    (PHOEBE_spectrum_dispersion disp);

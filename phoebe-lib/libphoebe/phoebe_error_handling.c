@@ -163,6 +163,8 @@ char *phoebe_error (PHOEBE_error_code code)
 			return "spectrum resolution is invalid, aborting.\n";
 		case ERROR_SPECTRUM_INVALID_RANGE:
 			return "spectrum range is invalid, aborting.\n";
+		case ERROR_SPECTRUM_UNKNOWN_DISPERSION:
+			return "cannot operate on a spectrum of unknown dispersion, aborting.\n";
 		case ERROR_INDEX_OUT_OF_RANGE:
 			return "array index out of range, aborting.\n";
 		case ERROR_INVALID_TYPE:

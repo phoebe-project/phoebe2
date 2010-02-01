@@ -364,8 +364,9 @@ typedef enum PHOEBE_spectrum_dispersion {
  * reside in phoebe_spectra files.
  */
 typedef struct PHOEBE_spectrum {
-	double  R;
-	double  Rs;
+	double R;
+	double Rs;
+	double dx;
 	PHOEBE_spectrum_dispersion disp;
 	PHOEBE_hist *data;
 } PHOEBE_spectrum;
