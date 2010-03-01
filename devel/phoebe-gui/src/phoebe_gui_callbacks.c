@@ -671,7 +671,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_F_RES, feedback->chi2s->val[rvno+index],
+				(feedback->algorithm == PHOEBE_MINIMIZER_DC ? CURVE_COL_I_RES : CURVE_COL_F_RES), feedback->chi2s->val[rvno+index],
 				-1);
 			phoebe_curve_free (curve);
 		}
@@ -683,7 +683,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_F_RES, feedback->chi2s->val[index],
+				(feedback->algorithm == PHOEBE_MINIMIZER_DC ? CURVE_COL_I_RES : CURVE_COL_F_RES), feedback->chi2s->val[index],
 				-1);
 			phoebe_curve_free (curve);
 		}
