@@ -397,6 +397,10 @@ int phoebe_minimizer_type_get_name (PHOEBE_minimizer_type minimizer, char **name
  * @initvals:   A list of initial parameter values
  * @newvals:    A list of new parameter values
  * @ferrors:    A list of formal error estimates
+ * @u_res:      Unweighted residuals
+ * @i_res:      Residuals weighted with intrinsic weights
+ * @p_res:      Residuals weighted with intrinsic and passband weights
+ * @f_res:      Fully weighted residuals (intrinsic + passband + level)
  * @chi2s:      A list of passband chi2 values
  * @wchi2s:     A list of weighted passband chi2 values
  * @cormat:     Correlation matrix
@@ -411,6 +415,10 @@ typedef struct PHOEBE_minimizer_feedback {
 	PHOEBE_vector   *initvals;
 	PHOEBE_vector   *newvals;
 	PHOEBE_vector   *ferrors;
+	PHOEBE_vector   *u_res;
+	PHOEBE_vector   *i_res;
+	PHOEBE_vector   *p_res;
+	PHOEBE_vector   *f_res;
 	PHOEBE_vector   *chi2s;
 	PHOEBE_vector   *wchi2s;
 	PHOEBE_matrix   *cormat;

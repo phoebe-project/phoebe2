@@ -605,10 +605,12 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	char *id;
 	char status_message[255] = "Minimizer feedback";
 	PHOEBE_curve *curve;
+	PHOEBE_minimizer_feedback *feedback;
 
 	int status = 0;
 
-	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback_new ();
+	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
+	feedback = phoebe_minimizer_feedback;
 
 	gui_update_ld_coefficients_when_needed ();
 	status = gui_get_values_from_widgets ();
@@ -669,7 +671,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_RESIDUALS, feedback->chi2s->val[rvno+index],
+				CURVE_COL_F_RES, feedback->chi2s->val[rvno+index],
 				-1);
 			phoebe_curve_free (curve);
 		}
@@ -681,7 +683,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_RESIDUALS, feedback->chi2s->val[index],
+				CURVE_COL_F_RES, feedback->chi2s->val[index],
 				-1);
 			phoebe_curve_free (curve);
 		}
@@ -763,6 +765,10 @@ void on_phoebe_fitt_updateall_button_clicked (GtkToolButton *toolbutton, gpointe
 
 	if (accept_flag) {
 		status = phoebe_minimizer_feedback_accept (phoebe_minimizer_feedback);
+		if (status != SUCCESS) {
+			gui_error ("Invalid results returned by the minimizer", "The result by the minimizer cannot be read; please report this to the developers!");
+			return;
+		}
 		gui_update_el3_lum_value ();
 		gui_set_spot_parameters();
 		status = gui_set_values_to_widgets ();
@@ -2616,6 +2622,7 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 
 void on_phoebe_fitt_cfval_compute_button_clicked (GtkButton *button, gpointer user_data)
 {
+/*
 #warning WILL_FAIL_ON_NO_DATA_AND_GIVE_WRONG_RESULT_FOR_INACTIVE_DATA
 	int lcno, rvno, index, status;
 	double chi2;
@@ -2642,8 +2649,9 @@ void on_phoebe_fitt_cfval_compute_button_clicked (GtkButton *button, gpointer us
 			}
 
 			phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
-
+*/
 			/* Synthesize a theoretical curve: */
+/*
 			syncurve = phoebe_curve_new ();
 			phoebe_curve_compute (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
 		}
@@ -2673,6 +2681,7 @@ void on_phoebe_fitt_cfval_compute_button_clicked (GtkButton *button, gpointer us
 
 	sprintf (cfval, "%lf", chi2s->val[0]);
 	gtk_label_set_text (GTK_LABEL (label), cfval);
+*/
 }
 
 G_MODULE_EXPORT

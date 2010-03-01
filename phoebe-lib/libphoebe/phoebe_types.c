@@ -3191,6 +3191,10 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 	feedback->initvals   = phoebe_vector_new ();
 	feedback->newvals    = phoebe_vector_new ();
 	feedback->ferrors    = phoebe_vector_new ();
+	feedback->u_res      = phoebe_vector_new ();
+	feedback->i_res      = phoebe_vector_new ();
+	feedback->p_res      = phoebe_vector_new ();
+	feedback->f_res      = phoebe_vector_new ();
 	feedback->chi2s      = phoebe_vector_new ();
 	feedback->wchi2s     = phoebe_vector_new ();
 	feedback->cormat     = phoebe_matrix_new ();
@@ -3205,18 +3209,22 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_new ()
 
 int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tba, int cno, int __lcno)
 {
-	/*
-	 * This function allocates the arrays of the PHOEBE_minimizer_feedback
-	 * structure. There are two independent array dimensions: one is determined
-	 * by the number of parameters set for adjustment (tba) and the other is
-	 * determined by the number of data curves (cno). The 'tba' number takes
-	 * into account passband-dependent parameters as well, i.e. if a passband-
-	 * dependent parameter is set for adjustment, the 'tba' number increases
-	 * by the number of passbands, not just by 1.
+	/**
+	 * phoebe_minimizer_feedback_alloc:
+	 * @feedback: #PHOEBE_minimizer_feedback structure to be allocated
+	 * @tba: number of parameters to be adjusted
+	 * @cno: number of input curves
+	 * @__lcno: number of light curves for a temporary workaround
 	 *
-	 * Return values:
+	 * Allocates the arrays of the #PHOEBE_minimizer_feedback structure. There
+	 * are two independent array dimensions: one is determined by the number of
+	 * parameters set for adjustment (@tba) and the other is determined by the
+	 * number of data curves (@cno). The @tba number takes into account
+	 * passband-dependent parameters as well, i.e. if a passband-dependent
+	 * parameter is set for adjustment, @tba increases by the number of
+	 * passbands, not just by 1.
 	 *
-	 *   SUCCESS
+	 * Returns: #PHOEBE_error_code
 	 */
 
 	if (!feedback)
@@ -3226,6 +3234,10 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tb
 	phoebe_vector_alloc (feedback->initvals,   tba);
 	phoebe_vector_alloc (feedback->newvals,    tba);
 	phoebe_vector_alloc (feedback->ferrors,    tba);
+	phoebe_vector_alloc (feedback->u_res,      cno);
+	phoebe_vector_alloc (feedback->i_res,      cno);
+	phoebe_vector_alloc (feedback->p_res,      cno);
+	phoebe_vector_alloc (feedback->f_res,      cno);
 	phoebe_vector_alloc (feedback->chi2s,      cno);
 	phoebe_vector_alloc (feedback->wchi2s,     cno);
 	phoebe_matrix_alloc (feedback->cormat,     tba, tba);
@@ -3236,9 +3248,13 @@ int phoebe_minimizer_feedback_alloc (PHOEBE_minimizer_feedback *feedback, int tb
 
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer_feedback *feedback)
 {
-	/*
-	 * This function copies the contents of the feedback structure 'feedback'
-	 * to the newly allocated feedback structure 'new', which is returned.
+	/**
+	 * phoebe_minimizer_feedback_duplicate:
+	 * @feedback: #PHOEBE_minimizer_feedback to be duplicated
+	 * 
+	 * Duplicates the contents of the #PHOEBE_minimizer_feedback structure @feedback.
+	 * 
+	 * Returns: a pointer to the duplicated #PHOEBE_minimizer_feedback.
 	 */
 
 	PHOEBE_minimizer_feedback *dup;
@@ -3263,6 +3279,10 @@ PHOEBE_minimizer_feedback *phoebe_minimizer_feedback_duplicate (PHOEBE_minimizer
 	dup->initvals   = phoebe_vector_duplicate (feedback->initvals);
 	dup->newvals    = phoebe_vector_duplicate (feedback->newvals);
 	dup->ferrors    = phoebe_vector_duplicate (feedback->ferrors);
+	dup->u_res      = phoebe_vector_duplicate (feedback->u_res);
+	dup->i_res      = phoebe_vector_duplicate (feedback->i_res);
+	dup->p_res      = phoebe_vector_duplicate (feedback->p_res);
+	dup->f_res      = phoebe_vector_duplicate (feedback->f_res);
 	dup->chi2s      = phoebe_vector_duplicate (feedback->chi2s);
 	dup->wchi2s     = phoebe_vector_duplicate (feedback->wchi2s);
 	dup->cormat     = phoebe_matrix_duplicate (feedback->cormat);
@@ -3287,6 +3307,9 @@ int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
 	
 	int i, index;
 	char *qualifier;
+
+	if (!feedback)
+		return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
 	
 	for (i = 0; i < feedback->qualifiers->dim; i++) {
 		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
@@ -3309,9 +3332,14 @@ int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
 
 int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 {
-	/*
-	 * This function traverses through the PHOEBE_minimizer_feedback structure,
-	 * frees its contents if they were allocated and frees the structure itself.
+	/**
+	 * phoebe_minimizer_feedback_free:
+	 * @feedback: #PHOEBE_minimizer_feedback pointer to be freed
+	 * 
+	 * Traverses through the #PHOEBE_minimizer_feedback structure,
+	 * frees its contents if they were allocated, and frees the structure itself.
+	 *
+	 * Returns: #PHOEBE_error_code.
 	 */
 
 	if (!feedback) return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
@@ -3320,6 +3348,10 @@ int phoebe_minimizer_feedback_free (PHOEBE_minimizer_feedback *feedback)
 	phoebe_vector_free (feedback->initvals);
 	phoebe_vector_free (feedback->newvals);
 	phoebe_vector_free (feedback->ferrors);
+	phoebe_vector_free (feedback->u_res);
+	phoebe_vector_free (feedback->i_res);
+	phoebe_vector_free (feedback->p_res);
+	phoebe_vector_free (feedback->f_res);
 	phoebe_vector_free (feedback->chi2s);
 	phoebe_vector_free (feedback->wchi2s);
 	phoebe_matrix_free (feedback->cormat);
