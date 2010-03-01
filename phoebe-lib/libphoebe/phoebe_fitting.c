@@ -181,7 +181,6 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	PHOEBE_array  *lexp;
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
-	PHOEBE_vector *weights;
 	PHOEBE_vector *levels;
 	PHOEBE_vector *l3;
 
@@ -328,26 +327,20 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	lexp = phoebe_array_new (TYPE_INT_ARRAY); phoebe_array_alloc (lexp, lcno+rvno);
 	
 	for (i = 0; i < lcno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i, &(psigma->val[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), i, &readout_str);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), active_lcindices->val.iarray[i], &(psigma->val[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), active_lcindices->val.iarray[i], &readout_str);
 		lexp->val.iarray[i] = intern_get_level_weighting_id (readout_str);
 	}
 	for (i = 0; i < rvno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), i, &(psigma->val[lcno+i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), active_rvindices->val.iarray[i], &(psigma->val[lcno+i]));
 		lexp->val.iarray[lcno+i] = 0;
 	}
 	
-	/* Read in the vector of passband weights and third light: */
-	weights = phoebe_vector_new (); phoebe_vector_alloc (weights, lcno+rvno);
-	l3      = phoebe_vector_new (); phoebe_vector_alloc (l3, lcno);
+	/* Read in the vector of third light: */
+	l3 = phoebe_vector_new (); phoebe_vector_alloc (l3, lcno);
 	phoebe_el3_units_id (&l3units);
-	
-	for (i = 0; i < lcno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), active_lcindices->val.iarray[i], &(weights->val[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"),      active_lcindices->val.iarray[i], &(l3->val[i]));
-	}
-	for (i = 0; i < rvno; i++)
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), active_rvindices->val.iarray[i], &(weights->val[lcno+i]));
+	for (i = 0; i < lcno; i++)
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), active_lcindices->val.iarray[i], &(l3->val[i]));
 	
 	/* Initialize and allocate the vector of passband chi2 values: */
 	chi2s = phoebe_vector_new ();
@@ -365,7 +358,6 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	passed->rvno       = rvno;
 	passed->obs        = obs;
 	passed->chi2s      = chi2s;
-	passed->weights    = weights;
 	passed->l3         = l3;
 	passed->l3units    = l3units;
 	
@@ -436,7 +428,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	}
 	for (i = 0; i < lcno+rvno; i++) {
 		feedback->chi2s->val[i] = chi2s->val[i];
-		feedback->wchi2s->val[i] = weights->val[i] * chi2s->val[i];
+		feedback->wchi2s->val[i] = chi2s->val[i];
 	}
 	for (i = 0; i < lcno; i++)
 		feedback->__cla->val[i] = 10.0;
@@ -453,11 +445,12 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	/* Free the placeholder memory: */
 	phoebe_vector_free (levels);
 	phoebe_vector_free (chi2s);
-	phoebe_vector_free (weights);
 	phoebe_vector_free (l3);
 	phoebe_vector_free (l_bounds);
 	phoebe_vector_free (u_bounds);
 	phoebe_array_free (qualifiers);
+	phoebe_vector_free (psigma);
+	phoebe_array_free (lexp);
 	phoebe_array_free (active_lcindices);
 	phoebe_array_free (active_rvindices);
 

@@ -27,7 +27,6 @@ typedef struct PHOEBE_nms_parameters {
 	PHOEBE_vector *psigma;        /* A vector of passband standard deviations */
 	PHOEBE_array *lexp;       /* An array of level-dependent weight exponents */
 	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
-	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 	bool autolevels;              /* Should levels be computed automatically? */
 	bool autogamma;       /* Should gamma velocity be computed automatically? */
 	PHOEBE_vector *l3;                 /* Values of third light, per passband */

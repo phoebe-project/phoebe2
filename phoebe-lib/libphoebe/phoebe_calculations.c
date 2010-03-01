@@ -914,7 +914,7 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 
 	if ( (cf == PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION || cf == PHOEBE_CF_CHI2) && (syndep->dim != obsdep->dim || obsdep->dim != obssig->dim) )
 		return ERROR_CHI2_DIFFERENT_SIZES;
-
+	
 	switch (cf) {
 		case PHOEBE_CF_STANDARD_DEVIATION:
 			/*
@@ -991,7 +991,7 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 			 * regime, and R = 2 for low light level regime.
 			 */
 			for (i = 0; i < syndep->dim; i++)
-				c2 += 1./obssig->val[i]/obssig->val[i]*(syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i])/pow(syndep->val[i],lexp);
+				c2 += 1./obssig->val[i]/obssig->val[i]*(syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i])/pow(obsdep->val[i],lexp);
 			*cfval = scale*scale/psigma/psigma * c2;
 		break;
 		case PHOEBE_CF_EXPECTATION_CHI2:
