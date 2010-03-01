@@ -602,33 +602,33 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
 	GtkTreeModel 	*model;
 	GtkTreeIter iter;
-	int index, count, rvcount;
+	int index;
 	char *id;
 	char status_message[255] = "Minimizer feedback";
 	PHOEBE_curve *curve;
 
 	int status = 0;
 
-	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
+	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback_new ();
 
 	gui_update_ld_coefficients_when_needed ();
 	status = gui_get_values_from_widgets ();
 
 	switch (gtk_combo_box_get_active (phoebe_fitt_method_combobox)) {
 		case 0:
-            gui_status("Running DC minimization, please be patient...");
-			status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
-			phoebe_gui_debug("DC minimizer says: %s", phoebe_gui_error (status));
-			gui_status("DC minimization: %s", phoebe_gui_error (status));
+            gui_status ("Running DC minimization, please be patient...");
+			status = phoebe_minimize_using_dc (stdout, feedback);
+			phoebe_gui_debug ("DC minimizer: %s", phoebe_gui_error (status));
+			gui_status ("DC minimization: %s", phoebe_gui_error (status));
 		break;
 		case 1:
-            gui_status("Running NMS minimization, please be patient...");
-			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
-			phoebe_gui_debug ("NMS minimizer says: %s", phoebe_gui_error (status));
-			gui_status("NMS minimization: %s", phoebe_gui_error (status));
+            gui_status ("Running NMS minimization, please be patient...");
+			status = phoebe_minimize_using_nms (stdout, feedback);
+			phoebe_gui_debug ("NMS minimizer: %s", phoebe_gui_error (status));
+			gui_status ("NMS minimization: %s", phoebe_gui_error (status));
 		break;
 		default:
-			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
+			phoebe_minimizer_feedback_free (feedback);
 			gui_error ("Invalid minimization algorithm", "The minimization algorithm is not selected or is invalid. Please select a valid entry in the fitting tab and try again.");
 			return;
 		break;
@@ -638,22 +638,21 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		PHOEBE_array *lc, *rv;
 		int lcno, rvno;
 
-		sprintf (status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox) ? "Nelder-Mead Simplex" : "Differential corrections"), phoebe_minimizer_feedback->iters, phoebe_minimizer_feedback->cputime, phoebe_minimizer_feedback->cfval);
+		sprintf (status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox) ? "Nelder-Mead Simplex" : "Differential corrections"), feedback->iters, feedback->cputime, feedback->cfval);
 		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 
 		/* Results treeview: */
 		model = gtk_tree_view_get_model (phoebe_fitt_mf_treeview);
 		gtk_list_store_clear (GTK_LIST_STORE (model));
 
-		count = phoebe_minimizer_feedback->qualifiers->dim;
-		for(index = 0; index < count; index++){
+		for (index = 0; index < feedback->qualifiers->dim; index++) {
 			gtk_list_store_append (GTK_LIST_STORE (model), &iter);
 
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-				MF_COL_QUALIFIER, phoebe_minimizer_feedback->qualifiers->val.strarray[index],
-				MF_COL_INITVAL,   phoebe_minimizer_feedback->initvals->val[index],
-				MF_COL_NEWVAL,    phoebe_minimizer_feedback->newvals->val[index],
-				MF_COL_ERROR,     phoebe_minimizer_feedback->ferrors->val[index],
+				MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
+				MF_COL_INITVAL,   feedback->initvals->val[index],
+				MF_COL_NEWVAL,    feedback->newvals->val[index],
+				MF_COL_ERROR,     feedback->ferrors->val[index],
 				-1);
 		}
 
@@ -661,14 +660,9 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		model = gtk_tree_view_get_model (phoebe_fitt_second_treeview);
 		gtk_list_store_clear (GTK_LIST_STORE (model));
 
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvcount);
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &count);
-	
-		lc = phoebe_active_curves_get (PHOEBE_CURVE_LC);
-		rv = phoebe_active_curves_get (PHOEBE_CURVE_RV);
-		if (lc) lcno = lc->dim; else lcno = 0;
-		if (rv) rvno = rv->dim; else rvno = 0;
-
+		lc = phoebe_active_curves_get (PHOEBE_CURVE_LC); if (lc) lcno = lc->dim; else lcno = 0;
+		rv = phoebe_active_curves_get (PHOEBE_CURVE_RV); if (rv) rvno = rv->dim; else rvno = 0;
+		
 		for (index = 0; index < lcno; index++) {
 			curve = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, lc->val.iarray[index]);
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), lc->val.iarray[index], &id);
@@ -676,7 +670,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[rvno+index],
+				CURVE_COL_RESIDUALS, feedback->chi2s->val[rvno+index],
 				-1);
 			phoebe_curve_free (curve);
 		}
@@ -688,7 +682,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
 				CURVE_COL_NAME, id,
 				CURVE_COL_NPOINTS, curve->indep->dim,
-				CURVE_COL_NEWCHI2, phoebe_minimizer_feedback->chi2s->val[index],
+				CURVE_COL_RESIDUALS, feedback->chi2s->val[index],
 				-1);
 			phoebe_curve_free (curve);
 		}

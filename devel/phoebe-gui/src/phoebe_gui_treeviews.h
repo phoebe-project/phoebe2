@@ -125,13 +125,12 @@ typedef enum GUI_minimizer_feedback_model_columns {
 	MF_COL_COUNT
 } GUI_minimizer_feedback_model_columns;
 
-typedef enum GUI_curve_model_columns {
+typedef enum GUI_residuals_treeview_columns {
 	CURVE_COL_NAME,
 	CURVE_COL_NPOINTS,
-	CURVE_COL_INITCHI2,
-	CURVE_COL_NEWCHI2,
+	CURVE_COL_RESIDUALS,
 	CURVE_COL_COUNT
-} GUI_curve_model_columns;
+} GUI_residuals_treeview_columns;
 
 int gui_init_treeviews					();
 int gui_reinit_treeviews				();

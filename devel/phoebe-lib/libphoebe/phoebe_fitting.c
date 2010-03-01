@@ -921,9 +921,9 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	feedback->iters = 1;
 
 	for (i = 0; i < rvno; i++)
-		feedback->chi2s->val[i] = 100.0*chi2s[i]/params->sigma[active_rvindices->val.iarray[i]]/params->sigma[active_rvindices->val.iarray[i]];
+		feedback->chi2s->val[i] = 10000.0*chi2s[i]/params->sigma[i]/params->sigma[i];
 	for (i = rvno; i < lcno + rvno; i++)
-		feedback->chi2s->val[i] = chi2s[i]/params->sigma[active_lcindices->val.iarray[i-rvno]]/params->sigma[active_lcindices->val.iarray[i-rvno]];
+		feedback->chi2s->val[i] = chi2s[i]/params->sigma[i]/params->sigma[i];
 
 	/* Weighted chi2s are not handled yet, let's free the memory: */
 	phoebe_vector_free (feedback->wchi2s);
