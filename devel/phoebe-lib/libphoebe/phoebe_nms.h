@@ -24,6 +24,8 @@ typedef struct PHOEBE_nms_parameters {
 	int lcno;                          /* The number of observed light curves */
 	int rvno;                             /* The number of observed RV curves */
 	PHOEBE_curve **obs;             /* An array of all transformed LC/RV data */
+	PHOEBE_vector *psigma;        /* A vector of passband standard deviations */
+	PHOEBE_array *lexp;       /* An array of level-dependent weight exponents */
 	PHOEBE_vector *chi2s;      /* A vector of individual passband chi2 values */
 	PHOEBE_vector *weights;        /* A vector of individual passband weights */
 	bool autolevels;              /* Should levels be computed automatically? */

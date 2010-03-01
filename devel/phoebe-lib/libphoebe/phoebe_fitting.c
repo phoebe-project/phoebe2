@@ -49,6 +49,8 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_vector         *l_bounds   = params->l_bounds;
 	PHOEBE_vector         *u_bounds   = params->u_bounds;
 	PHOEBE_curve         **obs        = params->obs;
+	PHOEBE_vector         *psigma     = params->psigma;
+	PHOEBE_array          *lexp       = params->lexp;
 	PHOEBE_vector         *chi2s      = params->chi2s;
 	PHOEBE_vector         *levels     = params->levels;
 	PHOEBE_vector         *l3         = params->l3;
@@ -127,7 +129,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 			*/
 		}
 
-		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_WITH_ALL_WEIGHTS, curve->dep, obs[i]->dep, obs[i]->weight, lcipars[i]->SIGMA, lcipars[i]->WEIGHTING, 1.0);
+		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_WITH_ALL_WEIGHTS, curve->dep, obs[i]->dep, obs[i]->weight, psigma->val[i], lexp->val.iarray[i], 1.0);
 		cfval += chi2s->val[i];
 		phoebe_curve_free (curve);
 	}
@@ -175,6 +177,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	int dim_tba;
 	PHOEBE_array *qualifiers;
 	PHOEBE_vector *l_bounds, *u_bounds;
+	PHOEBE_vector *psigma;
+	PHOEBE_array  *lexp;
 	PHOEBE_curve **obs;
 	PHOEBE_vector *chi2s;
 	PHOEBE_vector *weights;
@@ -319,6 +323,20 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		phoebe_curve_transform (obs[lcno+i], indep, rvdep, PHOEBE_COLUMN_SIGMA);
 	}
 
+	/* Read in passband sigma and level weights: */
+	psigma = phoebe_vector_new ();            phoebe_vector_alloc (psigma, lcno+rvno);
+	lexp = phoebe_array_new (TYPE_INT_ARRAY); phoebe_array_alloc (lexp, lcno+rvno);
+	
+	for (i = 0; i < lcno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), i, &(psigma->val[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), i, &readout_str);
+		lexp->val.iarray[i] = intern_get_level_weighting_id (readout_str);
+	}
+	for (i = 0; i < rvno; i++) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), i, &(psigma->val[lcno+i]));
+		lexp->val.iarray[lcno+i] = 0;
+	}
+	
 	/* Read in the vector of passband weights and third light: */
 	weights = phoebe_vector_new (); phoebe_vector_alloc (weights, lcno+rvno);
 	l3      = phoebe_vector_new (); phoebe_vector_alloc (l3, lcno);
@@ -341,6 +359,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	passed->qualifiers = qualifiers;
 	passed->l_bounds   = l_bounds;
 	passed->u_bounds   = u_bounds;
+	passed->psigma     = psigma;
+	passed->lexp       = lexp;
 	passed->lcno       = lcno;
 	passed->rvno       = rvno;
 	passed->obs        = obs;
