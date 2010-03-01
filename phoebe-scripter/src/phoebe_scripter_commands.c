@@ -2469,8 +2469,9 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 
 	PHOEBE_vector *chi2s = NULL;
 
-	double chi2;
-	int index, lcno, rvno;
+	double chi2, psigma;
+	int index, lcno, rvno, lexp;
+	char *readout_str;
 
 	PHOEBE_curve *syncurve;
 	PHOEBE_curve *obs;
@@ -2511,6 +2512,10 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			}
 			phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
 
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_sigma"), index-1, &psigma);
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), index-1, &readout_str);
+			lexp = intern_get_level_weighting_id (readout_str);
+
 			/* Synthesize a theoretical curve: */
 			syncurve = phoebe_curve_new ();
 			phoebe_curve_compute (syncurve, obs->indep, index-1, obs->itype, PHOEBE_COLUMN_FLUX);
@@ -2523,11 +2528,14 @@ scripter_ast_value scripter_compute_chi2 (scripter_ast_list *args)
 			}
 			phoebe_curve_transform (obs, obs->itype, obs->dtype, PHOEBE_COLUMN_SIGMA);
 
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_sigma"), index-lcno-1, &psigma);
+			lexp = 0;
+
 			syncurve = phoebe_curve_new ();
 			phoebe_curve_compute (syncurve, obs->indep, index-lcno-1, obs->itype, obs->dtype);
 		}
 
-		status = phoebe_cf_compute (&chi2, PHOEBE_CF_CHI2, syncurve->dep, obs->dep, obs->weight, 1.0);
+		status = phoebe_cf_compute (&chi2, PHOEBE_CF_CHI2, syncurve->dep, obs->dep, obs->weight, psigma, lexp, 1.0);
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_array_free (vals, 1);
@@ -2966,6 +2974,11 @@ scripter_ast_value scripter_resample_spectrum (scripter_ast_list *args)
 	}
 
 	spectrum = phoebe_spectrum_duplicate (vals[0].value.spectrum);
+	
+	/* If no dispersion is given, default to linear dispersion: */
+	if (spectrum->disp == PHOEBE_SPECTRUM_DISPERSION_NONE)
+		spectrum->disp = PHOEBE_SPECTRUM_DISPERSION_LINEAR;
+	
 	status = phoebe_spectrum_rebin (&spectrum, spectrum->disp, vals[0].value.spectrum->data->range[0], vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins], vals[1].value.d);
 
 	scripter_ast_value_array_free (vals, 2);
