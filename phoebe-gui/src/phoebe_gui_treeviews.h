@@ -154,8 +154,7 @@ int gui_fill_sidesheet_fit_treeview 	();
 int gui_init_fitt_mf_treeview			();
 int gui_fill_fitt_mf_treeview			();
 
-int gui_init_fitt_curve_treeview		();
-int gui_fill_fitt_curve_treeview		();
+int gui_fit_statistics_treeview_init    ();
 
 int gui_init_lc_plot_treeview           ();
 

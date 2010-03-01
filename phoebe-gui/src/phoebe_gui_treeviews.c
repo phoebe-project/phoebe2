@@ -21,7 +21,7 @@ int gui_init_treeviews ()
     gui_init_sidesheet_fit_treeview ();
     gui_fill_sidesheet_fit_treeview ();
     gui_init_fitt_mf_treeview		();
-    gui_fit_residuals_treeview_init ();
+    gui_fit_statistics_treeview_init ();
 
     return SUCCESS;
 }
@@ -217,34 +217,42 @@ int gui_init_lc_treeviews ()
     column      = gtk_tree_view_column_new_with_attributes ("Filename", renderer, "text", LC_COL_FILENAME, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
 	gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
-
+	gtk_tree_view_column_set_resizable (column, TRUE);
+	
 	renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Filter", renderer, "text", LC_COL_FILTER, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("ID", renderer, "text", LC_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
 	column      = gtk_tree_view_column_new_with_attributes ("Passband ID:", renderer, "text", LC_COL_ID, NULL);
@@ -252,72 +260,89 @@ int gui_init_lc_treeviews ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("Col. 1", renderer, "text", LC_COL_ITYPE_STR, NULL);
+    column      = gtk_tree_view_column_new_with_attributes ("Indep", renderer, "text", LC_COL_ITYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("Col. 2", renderer, "text", LC_COL_DTYPE_STR, NULL);
+    column      = gtk_tree_view_column_new_with_attributes ("Dep", renderer, "text", LC_COL_DTYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("Col. 3", renderer, "text", LC_COL_WTYPE_STR, NULL);
+    column      = gtk_tree_view_column_new_with_attributes ("Weighting", renderer, "text", LC_COL_WTYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Sigma", renderer, "text", LC_COL_SIGMA, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_data_lc_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Level weighting", renderer, "text", LC_COL_LEVWEIGHT, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levweight_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Primary levels", renderer, "text", LC_COL_HLA, NULL);
     gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Primary levels", renderer, "text", LC_COL_HLA, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_levels_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Secondary levels", renderer, "text", LC_COL_CLA, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Opacity function", renderer, "text", LC_COL_OPSF, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Third light", renderer, "text", LC_COL_EL3, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Third light", renderer, "text", LC_COL_EL3_LUM, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_fitt_third_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Extinction", renderer, "text", LC_COL_EXTINCTION, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_el3_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("X1", renderer, "text", LC_COL_X1, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("X2", renderer, "text", LC_COL_X2, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Y1", renderer, "text", LC_COL_Y1, NULL);
     gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Y2", renderer, "text", LC_COL_Y2, NULL);
     gtk_tree_view_insert_column((GtkTreeView *) phoebe_para_lc_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	/**************************************************************************/
 	/*                                                                        */
@@ -440,50 +465,62 @@ int gui_init_rv_treeviews ()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filename", renderer, "text", RV_COL_FILENAME, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("ID", renderer, "text", RV_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Filter", renderer, "text", RV_COL_FILTER, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("ID", renderer, "text", RV_COL_ID, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 1", renderer, "text", RV_COL_ITYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 2", renderer, "text", RV_COL_DTYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Col. 3", renderer, "text", RV_COL_WTYPE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Sigma", renderer, "text", RV_COL_SIGMA, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_data_rv_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X1", renderer, "text", RV_COL_X1, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("X2", renderer, "text", RV_COL_X2, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y1", renderer, "text", RV_COL_Y1, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Y2", renderer, "text", RV_COL_Y2, NULL);
     gtk_tree_view_insert_column((GtkTreeView*)phoebe_para_rv_ld_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	/**************************************************************************/
 	/*                                                                        */
@@ -614,112 +651,135 @@ int gui_init_spots_treeview  ()
     column      = gtk_tree_view_column_new_with_attributes("Active", renderer, "active", SPOTS_COL_ACTIVE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_active_checkbutton_toggled), NULL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Source", renderer, "text", SPOTS_COL_SOURCE_STR, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_cell_data_func(column, renderer, (GtkTreeCellDataFunc)gui_spots_cell_data_function, NULL, FALSE);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Colatitude", renderer, "text", SPOTS_COL_LAT, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. adjust", renderer, "active", SPOTS_COL_LATADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. Step", renderer, "text", SPOTS_COL_LATADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. Min", renderer, "text", SPOTS_COL_LATMIN, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lat. Max", renderer, "text", SPOTS_COL_LATMAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Longitude", renderer, "text", SPOTS_COL_LON, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. adjust", renderer, "active", SPOTS_COL_LONADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. Step", renderer, "text", SPOTS_COL_LONSTEP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. Min", renderer, "text", SPOTS_COL_LONMIN, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Lon. Max", renderer, "text", SPOTS_COL_LONMAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Radius", renderer, "text", SPOTS_COL_RAD, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. adjust", renderer, "active", SPOTS_COL_RADADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. Step", renderer, "text", SPOTS_COL_RADSTEP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. Min", renderer, "text", SPOTS_COL_RADMIN, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Rad. Max", renderer, "text", SPOTS_COL_RADMAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temperature", renderer, "text", SPOTS_COL_TEMP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. adjust", renderer, "active", SPOTS_COL_TEMPADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. Step", renderer, "text", SPOTS_COL_TEMPSTEP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. Min", renderer, "text", SPOTS_COL_TEMPMIN, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Temp. Max", renderer, "text", SPOTS_COL_TEMPMAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     gtk_tree_view_column_set_visible(column, PHOEBE_SPOTS_SHOW_ALL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_toggle_new ();
     column      = gtk_tree_view_column_new_with_attributes("Adjust", renderer, "active", SPOTS_COL_ADJUST, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_para_spots_treeview, column, -1);
     g_signal_connect(renderer, "toggled", GTK_SIGNAL_FUNC(on_phoebe_para_spots_adjust_checkbutton_toggled), NULL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     gtk_tree_view_set_model ((GtkTreeView*)phoebe_para_spots_treeview, spots_model);
 
@@ -753,7 +813,6 @@ static void gui_crit_cell_data_function (GtkCellLayout *cell_layout, GtkCellRend
 	gchar	   	buf[20];
 	gchar	   *name;
 
-	PHOEBE_parameter *par;
 	gdouble pot1, pot2;
 
 	pot1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_comp_phsv_spinbutton")->gtk));
@@ -799,11 +858,13 @@ int gui_init_sidesheet_res_treeview_old ()
 	renderer    = gtk_cell_renderer_text_new ();
 	column      = gtk_tree_view_column_new_with_attributes ("Parameter", renderer, "markup", RS_COL_PARAM_NAME, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_sidesheet_res_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_text_new ();
 	column      = gtk_tree_view_column_new_with_attributes ("Value", renderer, "markup", RS_COL_PARAM_VALUE, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_sidesheet_res_treeview, column, -1);
 	gtk_tree_view_column_set_cell_data_func (column, renderer, (GtkTreeCellDataFunc) gui_crit_cell_data_function, NULL, NULL);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	gtk_tree_view_set_model ((GtkTreeView *) phoebe_sidesheet_res_treeview, model);
 
@@ -828,29 +889,34 @@ int gui_init_sidesheet_fit_treeview()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Parameter", renderer, "text", FS_COL_PARAM_NAME, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Value", renderer, "text", FS_COL_PARAM_VALUE, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Step", renderer, "text", FS_COL_PARAM_STEP, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Min", renderer, "text", FS_COL_PARAM_MIN, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes("Max", renderer, "text", FS_COL_PARAM_MAX, NULL);
     gtk_tree_view_insert_column ((GtkTreeView*)phoebe_sidesheet_fit_treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 
     gtk_tree_view_set_model((GtkTreeView*)phoebe_sidesheet_fit_treeview, model);
 
     return SUCCESS;
 }
 
-int gui_fit_residuals_treeview_init ()
+int gui_fit_statistics_treeview_init ()
 {
 	int status = 0;
 	
@@ -869,14 +935,17 @@ int gui_fit_residuals_treeview_init ()
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Curve", renderer, "text", CURVE_COL_NAME, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 	
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Number of points", renderer, "text", CURVE_COL_NPOINTS, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 	
     renderer    = gtk_cell_renderer_text_new ();
     column      = gtk_tree_view_column_new_with_attributes ("Weighted sum of residuals", renderer, "text", CURVE_COL_RESIDUALS, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
 	
     gtk_tree_view_set_model ((GtkTreeView *) treeview, model);
 	

@@ -5,6 +5,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
+#include "phoebe_gui_error_handling.h"
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_types.h"
