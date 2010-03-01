@@ -862,7 +862,7 @@ int phoebe_compute_critical_phases (double *pp, double *scp, double *icp, double
 	return SUCCESS;
 }
 
-int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obssig, double scale)
+int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obssig, double psigma, int lexp, double scale)
 {
 	/**
 	 * phoebe_cf_compute:
@@ -871,6 +871,8 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 	 * @syndep: a #PHOEBE_vector of the model data.
 	 * @obsdep: a #PHOEBE_vector of the observed data.
 	 * @obssig: a #PHOEBE_vector of standard deviations.
+	 * @psigma: passband standard deviation
+	 * @lexp:   light level weighting exponent (0, 1 or 2)
 	 * @scale: a scaling constant for computing the residuals.
 	 *
 	 * Computes the cost function value @cfval of the passed cost function
@@ -900,7 +902,7 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 	double c2 = 0.0;
 	double  w = 0.0;
 
-	/* First let's do some error checking:                                    */
+	/* First let's do some error checking: */
 	if (!syndep || !obsdep || syndep->dim <= 1 || obsdep->dim <= 1)
 		return ERROR_CHI2_INVALID_DATA;
 
@@ -948,6 +950,49 @@ int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *sy
 			for (i = 0; i < syndep->dim; i++)
 				c2 += (syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
 			*cfval = scale*scale * c2;
+		break;
+		case PHOEBE_CF_UNWEIGHTED:
+			/*
+			 * Unweighted:
+			 *
+			 * cfval = \sum_i (x_calc - x_obs)^2
+			 */
+			for (i = 0; i < syndep->dim; i++)
+				c2 += (syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
+			*cfval = scale*scale * c2;
+		break;
+		case PHOEBE_CF_WITH_INTRINSIC_WEIGHTS:
+			/*
+			 * Weighted with intrinsic weights:
+			 *
+			 * cfval = \sum_i (x_calc - x_obs)^2/sigma_i^2
+			 */
+			for (i = 0; i < syndep->dim; i++)
+				c2 += 1./obssig->val[i]/obssig->val[i]*(syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
+			*cfval = scale*scale * c2;
+		break;
+		case PHOEBE_CF_WITH_PASSBAND_WEIGHTS:
+			/*
+			 * Weighted with intrinsic and passband weights:
+			 *
+			 * cfval = 1/sigma_p^2 \sum_i (x_calc - x_obs)^2/sigma_i^2
+			 */
+			for (i = 0; i < syndep->dim; i++)
+				c2 += 1./obssig->val[i]/obssig->val[i]*(syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i]);
+			*cfval = scale*scale/psigma/psigma * c2;
+		break;
+		case PHOEBE_CF_WITH_ALL_WEIGHTS:
+			/*
+			 * Weighted with all weights:
+			 *
+			 * cfval = 1/sigma_p^2 \sum_i (x_calc - x_obs)^2/sigma_i^2/x_obs^R,
+			 *
+			 * where R = 0 for no level-dependent weighting, R = 1 for Poisson
+			 * regime, and R = 2 for low light level regime.
+			 */
+			for (i = 0; i < syndep->dim; i++)
+				c2 += 1./obssig->val[i]/obssig->val[i]*(syndep->val[i]-obsdep->val[i])*(syndep->val[i]-obsdep->val[i])/pow(syndep->val[i],lexp);
+			*cfval = scale*scale/psigma/psigma * c2;
 		break;
 		case PHOEBE_CF_EXPECTATION_CHI2:
 			/*

@@ -37,7 +37,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	 */
 
 	int status, i;
-	double cfval;
+	double cfval = 0.0;
 	char *qualifier, *lcin;
 	PHOEBE_parameter *par;
 	int index;
@@ -50,7 +50,6 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 	PHOEBE_vector         *u_bounds   = params->u_bounds;
 	PHOEBE_curve         **obs        = params->obs;
 	PHOEBE_vector         *chi2s      = params->chi2s;
-	PHOEBE_vector         *weights    = params->weights;
 	PHOEBE_vector         *levels     = params->levels;
 	PHOEBE_vector         *l3         = params->l3;
 
@@ -128,12 +127,10 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 			*/
 		}
 
-		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_CHI2, curve->dep, obs[i]->dep, obs[i]->weight, 1.0);
+		phoebe_cf_compute (&(chi2s->val[i]), PHOEBE_CF_WITH_ALL_WEIGHTS, curve->dep, obs[i]->dep, obs[i]->weight, lcipars[i]->SIGMA, lcipars[i]->WEIGHTING, 1.0);
+		cfval += chi2s->val[i];
 		phoebe_curve_free (curve);
 	}
-
-	/* Compute the cost function and return it to the main NMS function. */
-	phoebe_join_chi2 (&cfval, chi2s, weights);
 
 	return cfval;
 }

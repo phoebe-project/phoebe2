@@ -8,11 +8,15 @@ typedef enum PHOEBE_cost_function {
 	PHOEBE_CF_STANDARD_DEVIATION,
 	PHOEBE_CF_WEIGHTED_STANDARD_DEVIATION,
 	PHOEBE_CF_SUM_OF_SQUARES,
+	PHOEBE_CF_UNWEIGHTED,
+	PHOEBE_CF_WITH_INTRINSIC_WEIGHTS,
+	PHOEBE_CF_WITH_PASSBAND_WEIGHTS,
+	PHOEBE_CF_WITH_ALL_WEIGHTS,
 	PHOEBE_CF_EXPECTATION_CHI2,
 	PHOEBE_CF_CHI2
 } PHOEBE_cost_function;
 
-/* Missing mathematical functions:                                            */
+/* Missing mathematical functions: */
 
 double frac (double x);
 int    diff (const void *a, const void *b);
@@ -20,7 +24,7 @@ int    diff_int (const void *a, const void *b);
 
 int phoebe_interpolate (int N, double *x, double *lo, double *hi, PHOEBE_type type, ...);
 
-int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obsweight, double scale);
+int phoebe_cf_compute (double *cfval, PHOEBE_cost_function cf, PHOEBE_vector *syndep, PHOEBE_vector *obsdep, PHOEBE_vector *obssig, double psigma, int lexp, double scale);
 int phoebe_join_chi2  (double *chi2, PHOEBE_vector *chi2s, PHOEBE_vector *weights);
 
 /*

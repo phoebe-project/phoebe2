@@ -923,10 +923,13 @@ int gui_fit_statistics_treeview_init ()
 	GtkWidget *treeview = gui_widget_lookup ("phoebe_fitt_second_treeview")->gtk;
 	
 	GtkTreeModel *model = (GtkTreeModel *) gtk_list_store_new (
-		CURVE_COL_COUNT,	/* Number of columns  */
-		G_TYPE_STRING,		/* Curve name         */
-		G_TYPE_INT,			/* Number of points   */
-		G_TYPE_DOUBLE		/* Weighted residuals */
+		CURVE_COL_COUNT,	/* Number of columns                */
+		G_TYPE_STRING,		/* Curve name                       */
+		G_TYPE_INT,			/* Number of points                 */
+		G_TYPE_DOUBLE,      /* Unweighted residuals             */
+		G_TYPE_DOUBLE,      /* Residuals with intrinsic weights */
+		G_TYPE_DOUBLE,      /* Residuals with passband weights  */
+		G_TYPE_DOUBLE		/* Residuals with all weights       */
 	);
 	
 	GtkCellRenderer     *renderer;
@@ -943,10 +946,25 @@ int gui_fit_statistics_treeview_init ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 	
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes ("Weighted sum of residuals", renderer, "text", CURVE_COL_RESIDUALS, NULL);
+    column      = gtk_tree_view_column_new_with_attributes ("Unweighted", renderer, "text", CURVE_COL_U_RES, NULL);
     gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
-	
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Intrinsic weights", renderer, "text", CURVE_COL_I_RES, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Intrinsic + passband weights", renderer, "text", CURVE_COL_P_RES, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
+    renderer    = gtk_cell_renderer_text_new ();
+    column      = gtk_tree_view_column_new_with_attributes ("Fully weighted", renderer, "text", CURVE_COL_F_RES, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+
     gtk_tree_view_set_model ((GtkTreeView *) treeview, model);
 	
 	return status;
