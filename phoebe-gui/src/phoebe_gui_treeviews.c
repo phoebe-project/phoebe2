@@ -21,7 +21,7 @@ int gui_init_treeviews ()
     gui_init_sidesheet_fit_treeview ();
     gui_fill_sidesheet_fit_treeview ();
     gui_init_fitt_mf_treeview		();
-    gui_init_fitt_curve_treeview	();
+    gui_fit_residuals_treeview_init ();
 
     return SUCCESS;
 }
@@ -850,40 +850,36 @@ int gui_init_sidesheet_fit_treeview()
     return SUCCESS;
 }
 
-int gui_init_fitt_curve_treeview()
+int gui_fit_residuals_treeview_init ()
 {
 	int status = 0;
-
-	GtkWidget *phoebe_fitt_curve_treeview = gui_widget_lookup("phoebe_fitt_second_treeview")->gtk;
-
-	GtkTreeModel *model = (GtkTreeModel*)gtk_list_store_new(
-		CURVE_COL_COUNT,	/* Number of columns	*/
-		G_TYPE_STRING,		/* Curve name			*/
-		G_TYPE_INT,			/* Number of points		*/
-		G_TYPE_DOUBLE,		/* Old chi2				*/
-		G_TYPE_DOUBLE);		/* New chi2				*/
-
+	
+	GtkWidget *treeview = gui_widget_lookup ("phoebe_fitt_second_treeview")->gtk;
+	
+	GtkTreeModel *model = (GtkTreeModel *) gtk_list_store_new (
+		CURVE_COL_COUNT,	/* Number of columns  */
+		G_TYPE_STRING,		/* Curve name         */
+		G_TYPE_INT,			/* Number of points   */
+		G_TYPE_DOUBLE		/* Weighted residuals */
+	);
+	
 	GtkCellRenderer     *renderer;
     GtkTreeViewColumn   *column;
-
+	
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Curve", renderer, "text", CURVE_COL_NAME, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
-
+    column      = gtk_tree_view_column_new_with_attributes ("Curve", renderer, "text", CURVE_COL_NAME, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Number of points", renderer, "text", CURVE_COL_NPOINTS, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
-
-//    renderer    = gtk_cell_renderer_text_new ();
-//    column      = gtk_tree_view_column_new_with_attributes("Original Chi2", renderer, "text", CURVE_COL_INITCHI2, NULL);
-//    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
-
+    column      = gtk_tree_view_column_new_with_attributes ("Number of points", renderer, "text", CURVE_COL_NPOINTS, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	
     renderer    = gtk_cell_renderer_text_new ();
-    column      = gtk_tree_view_column_new_with_attributes("Weighted sum of residuals", renderer, "text", CURVE_COL_NEWCHI2, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView*)phoebe_fitt_curve_treeview, column, -1);
-
-    gtk_tree_view_set_model((GtkTreeView*)phoebe_fitt_curve_treeview, model);
-
+    column      = gtk_tree_view_column_new_with_attributes ("Weighted sum of residuals", renderer, "text", CURVE_COL_RESIDUALS, NULL);
+    gtk_tree_view_insert_column ((GtkTreeView *) treeview, column, -1);
+	
+    gtk_tree_view_set_model ((GtkTreeView *) treeview, model);
+	
 	return status;
 }
 

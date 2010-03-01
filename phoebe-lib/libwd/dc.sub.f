@@ -1781,7 +1781,7 @@ c
 c     ROOTWT=dsqrt(WT(I))/(100.d0*SIGMA(IB))
 c
 c     This is level-dependent weighting for RV curves:
-      ROOTWT=dsqrt(weights(I))/(100.d0*SIGMA(IB))
+      ROOTWT=dsqrt(weights(I))/(SIGMA(IB))
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GOTO 445
