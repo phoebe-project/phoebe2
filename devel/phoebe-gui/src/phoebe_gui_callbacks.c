@@ -2110,16 +2110,6 @@ G_MODULE_EXPORT void on_phoebe_rv_plot_options_obs_checkbutton_toggled (GtkToggl
 	if(gtk_combo_box_get_active(GTK_COMBO_BOX(combobox->gtk))==-1) gtk_combo_box_set_active(GTK_COMBO_BOX(combobox->gtk),0);
 }
 
-G_MODULE_EXPORT void on_phoebe_lc_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
-{
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_lc_plot_image")->gtk), NULL);
-}
-
-G_MODULE_EXPORT void on_phoebe_rv_plot_clear_button_clicked (GtkButton *button, gpointer user_data)
-{
-	gtk_image_set_from_pixbuf(GTK_IMAGE(gui_widget_lookup ("phoebe_rv_plot_image")->gtk), NULL);
-}
-
 /* ******************************************************************** *
  *
  *                    potential calculator dialog
