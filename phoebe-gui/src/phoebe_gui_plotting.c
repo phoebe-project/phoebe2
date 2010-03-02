@@ -2,6 +2,7 @@
 
 #include <phoebe/phoebe.h>
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
 #include <cairo.h>
 #include <math.h>
 
@@ -225,7 +226,10 @@ gboolean on_plot_area_expose_event (GtkWidget *widget, GdkEventExpose *event, gp
 	 */
 
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-
+	GdkCursor *cursor = gdk_cursor_new (GDK_CROSS);
+	gdk_window_set_cursor (GDK_WINDOW (widget->window), cursor);
+	gdk_cursor_destroy (cursor);
+	
 	gui_plot_clear_canvas (data);
 	gui_plot_area_draw (data, NULL);
 
@@ -291,6 +295,34 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 	return SUCCESS;
 }
 
+gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+{
+	/* http://library.gnome.org/devel/gdk/stable/gdk-Event-Structures.html#GdkEventButton */
+	/* Ignore everything but the left-click for now: */
+
+	GUI_plot_data *data = (GUI_plot_data *) user_data;
+	GtkWidget *menu, *title;
+	char point[255];
+	
+	if (event->type != GDK_BUTTON_PRESS) return FALSE;
+	if (event->button != 3) return FALSE;
+
+	gtk_label_get_text (GTK_LABEL (data->cp_widget));
+	
+	menu = gtk_menu_new ();
+	sprintf (point, "Point (%s, %s):", gtk_label_get_text (GTK_LABEL (data->cx_widget)), gtk_label_get_text (GTK_LABEL (data->cy_widget)));
+	title = gtk_menu_item_new_with_label (point);
+	gtk_widget_set_sensitive (title, FALSE);
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), title);
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_separator_menu_item_new ());
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_menu_item_new_with_label ("Delete (not yet functional)"));
+	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
+	gtk_widget_show_all (menu);
+	
+	printf ("Button clicked!\n");
+	return FALSE;
+}
+
 gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
@@ -349,7 +381,7 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 
 void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
-	/*
+	/**
 	 * on_plot_button_clicked:
 	 * @button: Plot button widget 
 	 * @user_data: #GUI_plot_data structure
@@ -1030,7 +1062,7 @@ void on_plot_treeview_row_deleted (GtkTreeModel *model, GtkTreePath *path, gpoin
 
 int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 {
-	/*
+	/**
 	 * gui_plot_area_init:
 	 * @area: plot container widget
 	 * @button: "Plot" button
@@ -1065,13 +1097,14 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_plot");
 	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_button_clicked), data);
 
-	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
+	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
 	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
 
 	/* LC/RV parameters: */
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
 		g_signal_connect (area, "motion-notify-event", G_CALLBACK (on_plot_area_motion), data);
 		g_signal_connect (area, "enter-notify-event", G_CALLBACK (on_plot_area_enter), NULL);
+		g_signal_connect (area, "button-press-event", G_CALLBACK (on_plot_area_clicked), data);
 	/*
 		g_signal_connect (area, "key-press-event", G_CALLBACK (on_key_press_event), data);
 	*/

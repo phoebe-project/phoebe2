@@ -177,6 +177,8 @@ int gui_init_widgets ()
 	plot_area   = glade_xml_get_widget (phoebe_window, "phoebe_plot_lc_graph_area");
 	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_plot_button");
 
+	gui_widget_add ("phoebe_lc_plot_area",	plot_area, 0, GUI_WIDGET_VALUE, NULL, NULL);
+
 	/* To this plot button we will attach all property widgets: */
 	g_object_set_data (G_OBJECT (plot_button), "plot_type",          &ptype);
 	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_options_vertices_no_spinbutton"));
@@ -221,6 +223,8 @@ int gui_init_widgets ()
 	plot_area   = glade_xml_get_widget (phoebe_window, "phoebe_plot_rv_graph_area");
 	plot_button = glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_plot_button");
 
+	gui_widget_add ("phoebe_rv_plot_area",	plot_area, 0, GUI_WIDGET_VALUE, NULL, NULL);
+	
 	/* To this plot button we will attach all property widgets: */
 	g_object_set_data (G_OBJECT (plot_button), "plot_type",          &ptype);
 	g_object_set_data (G_OBJECT (plot_button), "plot_vertices",      glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"));
