@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include <phoebe/phoebe.h>
+#include <errno.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <cairo.h>
@@ -85,6 +86,7 @@ GUI_plot_data *gui_plot_data_new ()
 int gui_plot_data_free (GUI_plot_data *data)
 {
 #warning IMPLEMENT gui_plot_data_free FUNCTION
+	return SUCCESS;
 }
 
 void gui_plot_offset_zoom_limits (double min_value, double max_value, double offset, double zoom, double *newmin, double *newmax)
@@ -246,8 +248,8 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 {
 	/*
 	 * gui_plot_get_closest:
-	 * @x:  pointer x coordinate
-	 * @y:  pointer y coordinate
+	 * @x:  pointer x screen coordinate
+	 * @y:  pointer y screen coordinate
 	 * @cp: closest passband index placeholder
 	 * @ci: closest data index placeholder
 	 *
@@ -298,28 +300,118 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
 {
 	/* http://library.gnome.org/devel/gdk/stable/gdk-Event-Structures.html#GdkEventButton */
-	/* Ignore everything but the left-click for now: */
+	/* Ignore everything but the right-click for now: */
 
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	GtkWidget *menu, *title;
+	GtkWidget *menu, *title, *delete;
 	char point[255];
-	
+	double x, y;
+	int cp, ci;
+
+	struct passed {
+		int cp;
+		int ci;
+		GUI_plot_data *data;
+	} *closest = phoebe_malloc (sizeof (struct passed));
+
 	if (event->type != GDK_BUTTON_PRESS) return FALSE;
 	if (event->button != 3) return FALSE;
-
-	gtk_label_get_text (GTK_LABEL (data->cp_widget));
 	
+	gui_plot_coordinates_from_pixels (data, event->x, event->y, &x, &y);
+	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS)
+	 	sprintf (point, "No point selected");
+	else {
+		sprintf (point, "Point (%s, %s):", gtk_label_get_text (GTK_LABEL (data->cx_widget)), gtk_label_get_text (GTK_LABEL (data->cy_widget)));
+		closest->cp   = cp;
+		closest->ci   = ci;
+		closest->data = data;
+	}
+
 	menu = gtk_menu_new ();
-	sprintf (point, "Point (%s, %s):", gtk_label_get_text (GTK_LABEL (data->cx_widget)), gtk_label_get_text (GTK_LABEL (data->cy_widget)));
 	title = gtk_menu_item_new_with_label (point);
 	gtk_widget_set_sensitive (title, FALSE);
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), title);
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_separator_menu_item_new ());
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_menu_item_new_with_label ("Delete (not yet functional)"));
+
+	delete = gtk_menu_item_new_with_label ("Delete data point");
+	g_signal_connect (delete, "activate", G_CALLBACK (on_plot_area_delete_button_clicked), closest);
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), delete);
 	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
 	gtk_widget_show_all (menu);
 	
-	printf ("Button clicked!\n");
+	return FALSE;
+}
+
+gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_data)
+{
+	FILE *fin, *fout;
+	int lines = 0, cols;
+	double dummy;
+	char line[255];
+	char *temp, ch;
+	
+	struct passed {
+		int cp;
+		int ci;
+		GUI_plot_data *data;
+	} *closest = (struct passed *) user_data;
+
+	/* If the point is already deleted, nothing to be done: */
+	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_DELETED)
+		return FALSE;
+
+	/* If the point is aliased: */
+	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_ALIASED) {
+		gui_error ("Cannot delete data point", "The selected data point is aliased; please remove the non-aliased point.");
+		return FALSE;
+	}
+
+	fin = fopen (closest->data->request[closest->cp].filename, "r");
+	temp = phoebe_create_temp_filename ("phoebe_data_XXXXXX");
+	fout = fopen (temp, "w");
+
+	while (fgets (line, 255, fin)) {
+		if (!phoebe_clean_data_line (line)) {
+			/* Non-data line */
+			fputs (line, fout);
+			continue;
+		}
+		if ( sscanf (line,  "%lf %lf %lf", &dummy, &dummy, &dummy) < 2 &&
+		     sscanf (line, "!%lf %lf %lf", &dummy, &dummy, &dummy) < 2) {
+			/* Invalid data line */
+			fputs (line, fout);
+			continue;
+		}
+		fputs (line, fout);
+		lines += 1;
+		if (lines == closest->ci) fputc ('!', fout);
+	}
+	fclose (fin);
+	fclose (fout);
+
+	fin = fopen (temp, "r");
+	fout = fopen (closest->data->request[closest->cp].filename, "w");
+	while ((ch = fgetc (fin)) != EOF) fputc (ch, fout);
+
+	fclose (fout);
+	fclose (fin);
+	
+	free (temp);
+	
+	closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] = PHOEBE_DATA_DELETED;
+	gui_plot_area_refresh (closest->data);
+
+	{
+		int i, reg = 0, del = 0, omi = 0, ali = 0;
+		for (i = 0; i < closest->data->request[closest->cp].query->flag->dim; i++)
+			if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_REGULAR) reg++;
+			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_DELETED) del++;
+			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_OMITTED) omi++;
+			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_ALIASED) ali++;
+			else printf ("what??\n");
+		printf ("reg = %d, del = %d, omi = %d, ali = %d\n", reg, del, omi, ali);
+	}
+	
 	return FALSE;
 }
 
@@ -381,7 +473,7 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 
 void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 {
-	/**
+	/*
 	 * on_plot_button_clicked:
 	 * @button: Plot button widget 
 	 * @user_data: #GUI_plot_data structure
@@ -416,16 +508,20 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			plot_syn = data->request[i].plot_syn;
 
 			/* Free any pre-existing data: */
-			if (data->request[i].raw)   phoebe_curve_free (data->request[i].raw);   data->request[i].raw   = NULL;
-			if (data->request[i].query) phoebe_curve_free (data->request[i].query); data->request[i].query = NULL;
-			if (data->request[i].model) phoebe_curve_free (data->request[i].model); data->request[i].model = NULL;
+			if (data->request[i].raw)      phoebe_curve_free (data->request[i].raw);      data->request[i].raw      = NULL;
+			if (data->request[i].query)    phoebe_curve_free (data->request[i].query);    data->request[i].query    = NULL;
+			if (data->request[i].model)    phoebe_curve_free (data->request[i].model);    data->request[i].model    = NULL;
 
 			/* Prepare observed data (if toggled): */
 			if (plot_obs) {
-				if (data->ptype == GUI_PLOT_LC)
+				if (data->ptype == GUI_PLOT_LC) {
+					phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_filename"), i, &(data->request[i].filename));
 					data->request[i].raw = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, i);
-				else
+				}
+				else {
+					phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_filename"), i, &(data->request[i].filename));
 					data->request[i].raw = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, i);
+				}
 				
 				if (!data->request[i].raw) {
 					char notice[255];
@@ -900,7 +996,17 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
 
 					if (!redirect) {
-						cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+						if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_REGULAR ||
+						    data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_ALIASED)
+							cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+						else if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED ||
+						         data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED_ALIASED) {
+							cairo_move_to (data->canvas, x-2, y-2);
+							cairo_line_to (data->canvas, x+2, y+2);
+							cairo_move_to (data->canvas, x+2, y-2);
+							cairo_line_to (data->canvas, x-2, y+2);
+						}
+					
 						cairo_stroke (data->canvas);
 					}
 					else
@@ -986,7 +1092,6 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 
 	/* Count rows in the model: */
 	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
-	printf ("no. of rows: %d\n", rows);
 
 	/* Reallocate memory for the plot properties: */
 	data->request = phoebe_realloc (data->request, rows * sizeof (*(data->request)));
@@ -1001,10 +1106,10 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		data->request[i].obscolor = obscolor;
 		data->request[i].syncolor = syncolor;
 		data->request[i].offset   = offset;
+		data->request[i].filename = NULL;
 		data->request[i].raw      = NULL;
 		data->request[i].query    = NULL;
 		data->request[i].model    = NULL;
-printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs, data->request[i].plot_syn, data->request[i].obscolor, data->request[i].syncolor, data->request[i].offset);
 	}
 	data->objno = rows;
 
@@ -1025,7 +1130,6 @@ void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 
 	/* Count rows in the model: */
 	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
-	printf ("no. of rows: %d\n", rows);
 
 	/* Reallocate memory for the plot properties: */
 	data->request = phoebe_realloc (data->request, rows * sizeof (*(data->request)));
@@ -1040,10 +1144,10 @@ void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		data->request[i].obscolor = obscolor;
 		data->request[i].syncolor = syncolor;
 		data->request[i].offset   = offset;
+		data->request[i].filename = NULL;
 		data->request[i].raw      = NULL;
 		data->request[i].query    = NULL;
 		data->request[i].model    = NULL;
-printf ("row %d/%d: (%d, %d, %s, %s, %lf)\n", i, rows, data->request[i].plot_obs, data->request[i].plot_syn, data->request[i].obscolor, data->request[i].syncolor, data->request[i].offset);
 	}
 	data->objno = rows;
 

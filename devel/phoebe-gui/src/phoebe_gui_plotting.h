@@ -35,6 +35,7 @@ typedef struct GUI_plot_request {
 	char         *syncolor;      /* Hexadecimal color code (with a leading #) */
 	double        offset;
 	double        phase;         /* For mesh plots */
+	char         *filename;
 	PHOEBE_curve *raw;
 	PHOEBE_curve *query;
 	PHOEBE_curve *model;         /* For LC and RV plots                       */
@@ -84,11 +85,12 @@ int            gui_plot_data_free ();
 
 /* Signal callbacks pertinent to plotting: */
 
-gboolean on_plot_area_expose_event       (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
-void     on_plot_button_clicked          (GtkButton *button, gpointer user_data);
-void     on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
-void     on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
-void     on_plot_treeview_row_deleted    (GtkTreeModel *model, GtkTreePath *path, gpointer user_data);
+gboolean on_plot_area_expose_event          (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
+gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_data);
+void     on_plot_button_clicked             (GtkButton *button, gpointer user_data);
+void     on_lc_plot_treeview_row_changed    (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void     on_rv_plot_treeview_row_changed    (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
+void     on_plot_treeview_row_deleted       (GtkTreeModel *model, GtkTreePath *path, gpointer user_data);
 
 /* Plot functions */
 
