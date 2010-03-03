@@ -3076,7 +3076,13 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 			if (curve->weight)
 				phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
 			phoebe_array_realloc (curve->flag, curve->flag->dim+1);
-			curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			if (curve->flag->val.iarray[i] == PHOEBE_DATA_REGULAR)
+				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			else if (curve->flag->val.iarray[i] == PHOEBE_DATA_DELETED)
+				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_DELETED_ALIASED;
+			else
+				phoebe_lib_error ("Exception handler invoked in phoebe_curve_alias, please report this!\n");
+			
 			j++;
 		}
 		j = 1;
@@ -3086,7 +3092,13 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 			if (curve->weight)
 				phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
 			phoebe_array_realloc (curve->flag, curve->flag->dim+1);
-			curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			if (curve->flag->val.iarray[i] == PHOEBE_DATA_REGULAR)
+				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			else if (curve->flag->val.iarray[i] == PHOEBE_DATA_DELETED)
+				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_DELETED_ALIASED;
+			else
+				phoebe_lib_error ("Exception handler invoked in phoebe_curve_alias, please report this!\n");
+
 			j++;
 		}
 
