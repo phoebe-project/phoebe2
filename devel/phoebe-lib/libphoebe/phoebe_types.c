@@ -2484,25 +2484,32 @@ PHOEBE_curve *phoebe_curve_new_from_file (char *filename)
 
 		/* If the line is commented or empty, skip it: */
 		if ( !(in = phoebe_clean_data_line (line)) ) continue;
-
+		
 		/* Read out the values from the parsed string: */
 		no_of_columns = sscanf (in, "%lf %lf %lf", &x, &y, &z);
 		if (no_of_columns < 2) {
-			phoebe_lib_error ("phoebe_curve_new_from_file (): line %d discarded\n in file \"%s\".\n", line_number, filename);
-			free (in);
-			continue;
-		} else {
-			phoebe_curve_realloc (out, i+1);
-
-			out->indep->val[i] = x;
-			out->dep->val[i] = y;
-			if (no_of_columns == 3)
-				out->weight->val[i] = z;
-			else
-				out->weight->val[i] = 1.0;
-			out->flag->val.iarray[i] = PHOEBE_DATA_REGULAR;
+			/* Check if the data point is deleted (if it starts with '!'): */
+			no_of_columns = sscanf (in, "!%lf %lf %lf", &x, &y, &z);
+			if (no_of_columns < 2) {
+				phoebe_lib_error ("phoebe_curve_new_from_file (): line %d discarded\n in file \"%s\".\n", line_number, filename);
+				free (in);
+				continue;
+			}
 		}
+		
+		phoebe_curve_realloc (out, i+1);
 
+		out->indep->val[i] = x;
+		out->dep->val[i] = y;
+		if (no_of_columns == 3)
+			out->weight->val[i] = z;
+		else
+			out->weight->val[i] = 1.0;
+		if (*in == '!')
+			out->flag->val.iarray[i] = PHOEBE_DATA_DELETED;
+		else
+			out->flag->val.iarray[i] = PHOEBE_DATA_REGULAR;
+		
 		free (in);
 		i++;
 	}
@@ -3062,15 +3069,25 @@ int phoebe_curve_alias (PHOEBE_curve *curve, double phmin, double phmax)
 		 * interval may not be overlapping with the original interval and all
 		 * original points would then be removed.
 		 */
-		for (j = (int) (phmin - 1); j <= (int) (phmax + 1); j++) {
-			if ( (curve->indep->val[i] + j > phmin) && (curve->indep->val[i] + j < phmax) ) {
-				phoebe_vector_append_element (curve->indep, curve->indep->val[i] + j);
-				phoebe_vector_append_element (curve->dep,   curve->dep->val[i]);
-				if (curve->weight)
-					phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
-				phoebe_array_realloc (curve->flag, curve->flag->dim+1);
-				curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
-			}
+		j = 1;
+		while (curve->indep->val[i]-j > phmin) {
+			phoebe_vector_append_element (curve->indep, curve->indep->val[i]-j);
+			phoebe_vector_append_element (curve->dep,   curve->dep->val[i]);
+			if (curve->weight)
+				phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
+			phoebe_array_realloc (curve->flag, curve->flag->dim+1);
+			curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			j++;
+		}
+		j = 1;
+		while (curve->indep->val[i]+j < phmax) {
+			phoebe_vector_append_element (curve->indep, curve->indep->val[i]+j);
+			phoebe_vector_append_element (curve->dep,   curve->dep->val[i]);
+			if (curve->weight)
+				phoebe_vector_append_element (curve->weight, curve->weight->val[i]);
+			phoebe_array_realloc (curve->flag, curve->flag->dim+1);
+			curve->flag->val.iarray[curve->flag->dim-1] = PHOEBE_DATA_ALIASED;
+			j++;
 		}
 
 		/* If the original point is outside of the phase interval, tag it: */
