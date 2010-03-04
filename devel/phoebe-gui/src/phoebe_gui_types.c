@@ -204,6 +204,7 @@ int gui_init_widgets ()
 	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_controls_zoomout_button"));
 	g_object_set_data (G_OBJECT (plot_button), "save_plot",          glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_save_button"));
 	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_clear_button"));
+	g_object_set_data (G_OBJECT (plot_button), "save_data",          glade_xml_get_widget (phoebe_window, "phoebe_lc_plot_save_data_button"));
 
 	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_lc_plot_passband_info")->gtk);
 
@@ -250,6 +251,7 @@ int gui_init_widgets ()
 	g_object_set_data (G_OBJECT (plot_button), "controls_zoomout",   glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_controls_zoomout_button"));
 	g_object_set_data (G_OBJECT (plot_button), "save_plot",          glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_save_button"));
 	g_object_set_data (G_OBJECT (plot_button), "clear_plot",         glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_clear_button"));
+	g_object_set_data (G_OBJECT (plot_button), "save_data",         glade_xml_get_widget (phoebe_window, "phoebe_rv_plot_save_data_button"));
 
 	g_object_set_data (G_OBJECT (plot_button), "plot_passband_info", gui_widget_lookup ("phoebe_rv_plot_passband_info")->gtk);
 

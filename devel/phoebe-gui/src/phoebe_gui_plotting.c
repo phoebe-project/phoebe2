@@ -303,7 +303,7 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	/* Ignore everything but the right-click for now: */
 
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	GtkWidget *menu, *title, *delete;
+	GtkWidget *menu, *title, *toggle_delete;
 	char point[255];
 	double x, y;
 	int cp, ci;
@@ -331,21 +331,30 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	title = gtk_menu_item_new_with_label (point);
 	gtk_widget_set_sensitive (title, FALSE);
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), title);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_separator_menu_item_new ());
 
-	delete = gtk_menu_item_new_with_label ("Delete data point");
-	g_signal_connect (delete, "activate", G_CALLBACK (on_plot_area_delete_button_clicked), closest);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), delete);
+	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_DELETED) {
+		toggle_delete = gtk_menu_item_new_with_label ("Undelete data point");
+	}
+	else if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_REGULAR) {
+		toggle_delete = gtk_menu_item_new_with_label ("Delete data point");
+	}
+
+	if (toggle_delete) {
+		gtk_menu_shell_append (GTK_MENU_SHELL (menu), gtk_separator_menu_item_new ());
+		g_signal_connect (toggle_delete, "activate", G_CALLBACK (on_plot_area_toggle_delete_button_clicked), closest);
+		gtk_menu_shell_append (GTK_MENU_SHELL (menu), toggle_delete);
+	}
 	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
 	gtk_widget_show_all (menu);
-	
+
 	return FALSE;
 }
 
 gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_data)
 {
+/* OBSOLETE FUNCTION */
 	FILE *fin, *fout;
-	int lines = 0, cols;
+	int lines = 0;
 	double dummy;
 	char line[255];
 	char *temp, ch;
@@ -412,6 +421,27 @@ gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_da
 		printf ("reg = %d, del = %d, omi = %d, ali = %d\n", reg, del, omi, ali);
 	}
 	
+	return FALSE;
+}
+
+gboolean on_plot_area_toggle_delete_button_clicked (GtkMenuItem *item, gpointer user_data)
+{
+	struct passed {
+		int cp;
+		int ci;
+		GUI_plot_data *data;
+	} *closest = (struct passed *) user_data;
+
+	/* If the point is aliased: */
+	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_ALIASED) {
+		gui_error ("Cannot delete or undelete data point", "The selected data point is aliased; please select the non-aliased point.");
+		return FALSE;
+	}
+
+	closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] = (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_REGULAR) ? PHOEBE_DATA_DELETED : PHOEBE_DATA_REGULAR;
+	closest->data->request[closest->cp].data_changed = TRUE;
+	gui_plot_area_refresh (closest->data);
+
 	return FALSE;
 }
 
@@ -1090,6 +1120,14 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 	char *obscolor, *syncolor;
 	double offset;
 
+	/* Check whether to save changed data */
+	if (data->request != NULL) {
+		for (i = 0; i < data->objno; i++) {
+			if (data->request[i].data_changed)
+				gui_error("NOT IMPLEMENTED!", "Data has been changed and not saved");
+		}
+	}
+
 	/* Count rows in the model: */
 	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
 
@@ -1103,6 +1141,7 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		gtk_tree_model_get (tree_model, &traverser, LC_COL_PLOT_OBS, &obs, LC_COL_PLOT_SYN, &syn, LC_COL_PLOT_OBS_COLOR, &obscolor, LC_COL_PLOT_SYN_COLOR, &syncolor, LC_COL_PLOT_OFFSET, &offset, -1);
 		data->request[i].plot_obs = obs;
 		data->request[i].plot_syn = syn;
+		data->request[i].data_changed = FALSE;
 		data->request[i].obscolor = obscolor;
 		data->request[i].syncolor = syncolor;
 		data->request[i].offset   = offset;
@@ -1128,6 +1167,14 @@ void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 
 	printf ("* entered on_rv_plot_treeview_row_changed() function.\n");
 
+	/* Check whether to save changed data */
+	if (data->request != NULL) {
+		for (i = 0; i < data->objno; i++) {
+			if (data->request[i].data_changed)
+				gui_error("NOT IMPLEMENTED!", "Data has been changed and not saved");
+		}
+	}
+
 	/* Count rows in the model: */
 	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
 
@@ -1141,6 +1188,7 @@ void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 		gtk_tree_model_get (tree_model, &traverser, RV_COL_PLOT_OBS, &obs, RV_COL_PLOT_SYN, &syn, RV_COL_PLOT_OBS_COLOR, &obscolor, RV_COL_PLOT_SYN_COLOR, &syncolor, RV_COL_PLOT_OFFSET, &offset, -1);
 		data->request[i].plot_obs = obs;
 		data->request[i].plot_syn = syn;
+		data->request[i].data_changed = FALSE;
 		data->request[i].obscolor = obscolor;
 		data->request[i].syncolor = syncolor;
 		data->request[i].offset   = offset;
@@ -1200,6 +1248,9 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_plot");
 	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_button_clicked), data);
+
+	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_data");
+	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_data_button_clicked), data);
 
 	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
 	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);

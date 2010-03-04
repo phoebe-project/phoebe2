@@ -224,6 +224,58 @@ G_MODULE_EXPORT void on_plot_clear_button_clicked (GtkButton *button, gpointer u
 	return;
 }
 
+G_MODULE_EXPORT void on_plot_save_data_button_clicked (GtkButton *button, gpointer user_data)
+{
+	GUI_plot_data *data = (GUI_plot_data *) user_data;
+	int i;
+	FILE *fin, *fout;
+	int lines = 0;
+	double dummy;
+	char line[255];
+	char *temp, ch;
+	
+
+	for (i = 0; i < data->objno; i++) {
+		if (data->request[i].data_changed) {
+			fin = fopen (data->request[i].filename, "r");
+			temp = phoebe_create_temp_filename ("phoebe_data_XXXXXX");
+			fout = fopen (temp, "w");
+
+			while (fgets (line, 255, fin)) {
+				if (!phoebe_clean_data_line (line)) {
+					/* Non-data line */
+					fputs (line, fout);
+					continue;
+				}
+				if ( sscanf (line,  "%lf %lf %lf", &dummy, &dummy, &dummy) < 2 &&
+				     sscanf (line, "!%lf %lf %lf", &dummy, &dummy, &dummy) < 2) {
+					/* Invalid data line */
+					fputs (line, fout);
+					continue;
+				}
+				fputs (line, fout);
+				lines += 1;
+				if (data->request[i].query->flag->val.iarray[lines] == PHOEBE_DATA_DELETED) fputc ('!', fout);
+			}
+			fclose (fin);
+			fclose (fout);
+
+			fin = fopen (temp, "r");
+			fout = fopen (data->request[i].filename, "w");
+			while ((ch = fgetc (fin)) != EOF) fputc (ch, fout);
+
+			fclose (fout);
+			fclose (fin);
+	
+			free (temp);
+
+			data->request[i].data_changed = FALSE;
+		}
+	}
+	
+}
+
+
 /******************************************************************************/
 
 G_MODULE_EXPORT void on_phoebe_para_tba_checkbutton_toggled (GtkToggleButton *togglebutton, gpointer user_data)
