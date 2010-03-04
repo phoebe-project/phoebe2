@@ -25,6 +25,7 @@ G_MODULE_EXPORT void on_plot_controls_zoomin_button_clicked    (GtkButton *butto
 G_MODULE_EXPORT void on_plot_controls_zoomout_button_clicked   (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_plot_save_button_clicked               (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_plot_clear_button_clicked              (GtkButton *button, gpointer user_data);
+G_MODULE_EXPORT void on_plot_save_data_button_clicked          (GtkButton *button, gpointer user_data);
 
 /* Specific callbacks that pertain to the particular action: */
 

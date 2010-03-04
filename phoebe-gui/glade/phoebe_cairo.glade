@@ -9429,6 +9429,19 @@
                                             <property name="position">2</property>
                                           </packing>
                                         </child>
+                                        <child>
+                                          <widget class="GtkButton" id="phoebe_lc_plot_save_data_button">
+                                            <property name="label" translatable="yes">Save Data Files</property>
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">False</property>
+                                            <property name="receives_default">False</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -9973,6 +9986,19 @@
                                             <property name="expand">False</property>
                                             <property name="fill">False</property>
                                             <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkButton" id="phoebe_rv_plot_save_data_button">
+                                            <property name="label" translatable="yes">Save Data Files</property>
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">False</property>
+                                            <property name="receives_default">False</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">3</property>
                                           </packing>
                                         </child>
                                       </widget>

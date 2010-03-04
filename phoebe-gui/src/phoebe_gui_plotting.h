@@ -31,6 +31,7 @@ typedef enum GUI_plot_type {
 typedef struct GUI_plot_request {
 	bool          plot_obs;
 	bool          plot_syn;
+	bool          data_changed;  /* Indicates whether data points have been deleted or undeleted */
 	char         *obscolor;      /* Hexadecimal color code (with a leading #) */
 	char         *syncolor;      /* Hexadecimal color code (with a leading #) */
 	double        offset;
@@ -86,7 +87,7 @@ int            gui_plot_data_free ();
 /* Signal callbacks pertinent to plotting: */
 
 gboolean on_plot_area_expose_event          (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
-gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_data);
+gboolean on_plot_area_toggle_delete_button_clicked (GtkMenuItem *item, gpointer user_data);
 void     on_plot_button_clicked             (GtkButton *button, gpointer user_data);
 void     on_lc_plot_treeview_row_changed    (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
 void     on_rv_plot_treeview_row_changed    (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data);
