@@ -318,8 +318,10 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	if (event->button != 3) return FALSE;
 	
 	gui_plot_coordinates_from_pixels (data, event->x, event->y, &x, &y);
-	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS)
+	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS) {
 	 	sprintf (point, "No point selected");
+		return FALSE;
+	}
 	else {
 		sprintf (point, "Point (%s, %s):", gtk_label_get_text (GTK_LABEL (data->cx_widget)), gtk_label_get_text (GTK_LABEL (data->cy_widget)));
 		closest->cp   = cp;
@@ -347,80 +349,6 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
 	gtk_widget_show_all (menu);
 
-	return FALSE;
-}
-
-gboolean on_plot_area_delete_button_clicked (GtkMenuItem *item, gpointer user_data)
-{
-/* OBSOLETE FUNCTION */
-	FILE *fin, *fout;
-	int lines = 0;
-	double dummy;
-	char line[255];
-	char *temp, ch;
-	
-	struct passed {
-		int cp;
-		int ci;
-		GUI_plot_data *data;
-	} *closest = (struct passed *) user_data;
-
-	/* If the point is already deleted, nothing to be done: */
-	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_DELETED)
-		return FALSE;
-
-	/* If the point is aliased: */
-	if (closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] == PHOEBE_DATA_ALIASED) {
-		gui_error ("Cannot delete data point", "The selected data point is aliased; please remove the non-aliased point.");
-		return FALSE;
-	}
-
-	fin = fopen (closest->data->request[closest->cp].filename, "r");
-	temp = phoebe_create_temp_filename ("phoebe_data_XXXXXX");
-	fout = fopen (temp, "w");
-
-	while (fgets (line, 255, fin)) {
-		if (!phoebe_clean_data_line (line)) {
-			/* Non-data line */
-			fputs (line, fout);
-			continue;
-		}
-		if ( sscanf (line,  "%lf %lf %lf", &dummy, &dummy, &dummy) < 2 &&
-		     sscanf (line, "!%lf %lf %lf", &dummy, &dummy, &dummy) < 2) {
-			/* Invalid data line */
-			fputs (line, fout);
-			continue;
-		}
-		fputs (line, fout);
-		lines += 1;
-		if (lines == closest->ci) fputc ('!', fout);
-	}
-	fclose (fin);
-	fclose (fout);
-
-	fin = fopen (temp, "r");
-	fout = fopen (closest->data->request[closest->cp].filename, "w");
-	while ((ch = fgetc (fin)) != EOF) fputc (ch, fout);
-
-	fclose (fout);
-	fclose (fin);
-	
-	free (temp);
-	
-	closest->data->request[closest->cp].query->flag->val.iarray[closest->ci] = PHOEBE_DATA_DELETED;
-	gui_plot_area_refresh (closest->data);
-
-	{
-		int i, reg = 0, del = 0, omi = 0, ali = 0;
-		for (i = 0; i < closest->data->request[closest->cp].query->flag->dim; i++)
-			if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_REGULAR) reg++;
-			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_DELETED) del++;
-			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_OMITTED) omi++;
-			else if (closest->data->request[closest->cp].query->flag->val.iarray[i] == PHOEBE_DATA_ALIASED) ali++;
-			else printf ("what??\n");
-		printf ("reg = %d, del = %d, omi = %d, ali = %d\n", reg, del, omi, ali);
-	}
-	
 	return FALSE;
 }
 
@@ -1110,9 +1038,8 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 	return SUCCESS;
 }
 
-void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
+void on_plot_treeview_row_changed (GtkTreeModel *tree_model, GUI_plot_data *data, int col_plot_obs, int col_plot_syn, int col_plot_obs_color, int col_plot_syn_color, int col_plot_offset)
 {
-	GUI_plot_data *data = (GUI_plot_data *) user_data;
 	int i, rows;
 	GtkTreeIter traverser;
 
@@ -1123,8 +1050,11 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 	/* Check whether to save changed data */
 	if (data->request != NULL) {
 		for (i = 0; i < data->objno; i++) {
-			if (data->request[i].data_changed)
-				gui_error("NOT IMPLEMENTED!", "Data has been changed and not saved");
+			if (data->request[i].data_changed) {
+				if(gui_warning("Data has been changed", "Do you want to save the data files?") == 1)
+					on_plot_save_data_button_clicked((GtkButton *)NULL, data);
+				break;
+			}
 		}
 	}
 
@@ -1138,7 +1068,7 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 	/* Traverse all rows and update the values in the plot structure: */
 	for (i = 0; i < rows; i++) {
 		gtk_tree_model_iter_nth_child (tree_model, &traverser, NULL, i);
-		gtk_tree_model_get (tree_model, &traverser, LC_COL_PLOT_OBS, &obs, LC_COL_PLOT_SYN, &syn, LC_COL_PLOT_OBS_COLOR, &obscolor, LC_COL_PLOT_SYN_COLOR, &syncolor, LC_COL_PLOT_OFFSET, &offset, -1);
+		gtk_tree_model_get (tree_model, &traverser, col_plot_obs, &obs, col_plot_syn, &syn, col_plot_obs_color, &obscolor, col_plot_syn_color, &syncolor, col_plot_offset, &offset, -1);
 		data->request[i].plot_obs = obs;
 		data->request[i].plot_syn = syn;
 		data->request[i].data_changed = FALSE;
@@ -1155,50 +1085,19 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 	return;
 }
 
+void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
+{
+	GUI_plot_data *data = (GUI_plot_data *) user_data;
+	on_plot_treeview_row_changed(tree_model, data, LC_COL_PLOT_OBS, LC_COL_PLOT_SYN, LC_COL_PLOT_OBS_COLOR, LC_COL_PLOT_SYN_COLOR, LC_COL_PLOT_OFFSET);
+	return;
+}
+
 void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	int i, rows;
-	GtkTreeIter traverser;
-
-	bool obs, syn;
-	char *obscolor, *syncolor;
-	double offset;
-
 	printf ("* entered on_rv_plot_treeview_row_changed() function.\n");
 
-	/* Check whether to save changed data */
-	if (data->request != NULL) {
-		for (i = 0; i < data->objno; i++) {
-			if (data->request[i].data_changed)
-				gui_error("NOT IMPLEMENTED!", "Data has been changed and not saved");
-		}
-	}
-
-	/* Count rows in the model: */
-	rows = gtk_tree_model_iter_n_children (tree_model, NULL);
-
-	/* Reallocate memory for the plot properties: */
-	data->request = phoebe_realloc (data->request, rows * sizeof (*(data->request)));
-	if (rows == 0) data->request = NULL;
-
-	/* Traverse all rows and update the values in the plot structure: */
-	for (i = 0; i < rows; i++) {
-		gtk_tree_model_iter_nth_child (tree_model, &traverser, NULL, i);
-		gtk_tree_model_get (tree_model, &traverser, RV_COL_PLOT_OBS, &obs, RV_COL_PLOT_SYN, &syn, RV_COL_PLOT_OBS_COLOR, &obscolor, RV_COL_PLOT_SYN_COLOR, &syncolor, RV_COL_PLOT_OFFSET, &offset, -1);
-		data->request[i].plot_obs = obs;
-		data->request[i].plot_syn = syn;
-		data->request[i].data_changed = FALSE;
-		data->request[i].obscolor = obscolor;
-		data->request[i].syncolor = syncolor;
-		data->request[i].offset   = offset;
-		data->request[i].filename = NULL;
-		data->request[i].raw      = NULL;
-		data->request[i].query    = NULL;
-		data->request[i].model    = NULL;
-	}
-	data->objno = rows;
-
+	on_plot_treeview_row_changed(tree_model, data, RV_COL_PLOT_OBS, RV_COL_PLOT_SYN, RV_COL_PLOT_OBS_COLOR, RV_COL_PLOT_SYN_COLOR, RV_COL_PLOT_OFFSET);
 	return;
 }
 
