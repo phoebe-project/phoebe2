@@ -58,7 +58,6 @@ typedef struct GUI_plot_data {
 	const char        *y_request;   /* Requested y-coordinate                 */
 	double             x_ll;        /* Lower plotting limit for the x-axis    */
 	double             x_ul;        /* Upper plotting limit for the x-axis    */
-	bool               y_autoscale; /* Should y-axis be autoscaled?           */
 	double             y_ll;        /* Lower plotting limit for the y-axis    */
 	double             y_ul;        /* Upper plotting limit for the y-axis    */
 	double             x_min;       /* Minimum x value in the query dataset   */
@@ -73,12 +72,14 @@ typedef struct GUI_plot_data {
 	GtkWidget         *cp_widget;   /* Widget to be connected to closest psb. */
 	GtkWidget         *cx_widget;   /* Widget to be connected to closest x pt */
 	GtkWidget         *cy_widget;   /* Widget to be connected to closest y pt */
-	double             x_offset;
-	double             y_offset;
-	double             zoom;
-	int                zoom_level;
 	double             leftmargin;
-
+	bool               select_zoom; /* Indicates whether a rectangle to zoom in is being drawn */
+	double             select_x;    /* Window x value at which zoom started   */
+	double             select_y;    /* Window y value at which zoom started   */
+	double             x_left;      /* Current left x value                   */
+	double             x_right;     /* Current right x value                  */
+	double             y_top;       /* Current top y value                    */
+	double             y_bottom;    /* Current bottom y value                 */
 } GUI_plot_data;
 
 GUI_plot_data *gui_plot_data_new ();
