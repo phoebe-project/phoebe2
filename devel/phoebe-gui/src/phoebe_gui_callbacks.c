@@ -96,10 +96,10 @@ void on_toggle_make_unsensitive (GtkToggleButton *togglebutton, gpointer user_da
 G_MODULE_EXPORT void on_plot_controls_reset_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	data->x_offset = 0.0;
-	data->y_offset = 0.0;
-	data->zoom = 0.0;
-	data->zoom_level = 0;
+	data->x_left = data->x_ll;
+	data->x_right = data->x_ul;
+	data->y_top = data->y_max;
+	data->y_bottom = data->y_min;
 	gui_plot_area_refresh (data);
 	return;
 }
@@ -107,7 +107,9 @@ G_MODULE_EXPORT void on_plot_controls_reset_button_clicked (GtkButton *button, g
 G_MODULE_EXPORT void on_plot_controls_right_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	data->x_offset += 0.1;
+	double x_shift = 0.1 * (data->x_right - data->x_left);
+	data->x_left += x_shift;
+	data->x_right += x_shift;
 	gui_plot_area_refresh (data);
 	return;
 }
@@ -115,7 +117,9 @@ G_MODULE_EXPORT void on_plot_controls_right_button_clicked (GtkButton *button, g
 G_MODULE_EXPORT void on_plot_controls_up_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	data->y_offset += 0.1;
+	double y_shift = 0.1 * (data->y_top - data->y_bottom);
+	data->y_top += y_shift;
+	data->y_bottom += y_shift;
 	gui_plot_area_refresh (data);
 	return;
 }
@@ -123,7 +127,9 @@ G_MODULE_EXPORT void on_plot_controls_up_button_clicked (GtkButton *button, gpoi
 G_MODULE_EXPORT void on_plot_controls_left_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	data->x_offset -= 0.1;
+	double x_shift = -0.1 * (data->x_right - data->x_left);
+	data->x_left += x_shift;
+	data->x_right += x_shift;
 	gui_plot_area_refresh (data);
 	return;
 }
@@ -131,7 +137,9 @@ G_MODULE_EXPORT void on_plot_controls_left_button_clicked (GtkButton *button, gp
 G_MODULE_EXPORT void on_plot_controls_down_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	data->y_offset -= 0.1;
+	double y_shift = -0.1 * (data->y_top - data->y_bottom);
+	data->y_top += y_shift;
+	data->y_bottom += y_shift;
 	gui_plot_area_refresh (data);
 	return;
 }
@@ -139,22 +147,28 @@ G_MODULE_EXPORT void on_plot_controls_down_button_clicked (GtkButton *button, gp
 G_MODULE_EXPORT void on_plot_controls_zoomin_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	if (data->zoom_level < 5){
-		data->zoom -= 0.1;
-		data->zoom_level += 1;
-		gui_plot_area_refresh (data);
-	}
+	double x_offset = (data->x_right - data->x_left)/4;
+	double y_offset = (data->y_top - data->y_bottom)/4;
+
+	data->x_left += x_offset;
+	data->x_right -= x_offset;
+	data->y_bottom += y_offset;
+	data->y_top -= y_offset;
+	gui_plot_area_refresh (data);
 	return;
 }
 
 G_MODULE_EXPORT void on_plot_controls_zoomout_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	if (data->zoom_level > -5){
-		data->zoom += 0.1;
-		data->zoom_level -= 1;
-		gui_plot_area_refresh (data);
-	}
+	double x_offset = (data->x_right - data->x_left)/2;
+	double y_offset = (data->y_top - data->y_bottom)/2;
+
+	data->x_left -= x_offset;
+	data->x_right += x_offset;
+	data->y_bottom -= y_offset;
+	data->y_top += y_offset;
+	gui_plot_area_refresh (data);
 	return;
 }
 

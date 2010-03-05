@@ -71,14 +71,10 @@ GUI_plot_data *gui_plot_data_new ()
 	data->canvas      = NULL;
 	data->request     = NULL;
 	data->objno       = 0;
-	data->x_offset    = 0.0;
-	data->y_offset    = 0.0;
-	data->zoom_level  = 0;
-	data->zoom        = 0.0;
 	data->leftmargin  = data->layout->lmargin;
 	data->y_min       = 0.0;
 	data->y_max       = 1.0;
-	data->y_autoscale = TRUE;
+	data->select_zoom = FALSE;
 
 	return data;
 }
@@ -89,61 +85,51 @@ int gui_plot_data_free (GUI_plot_data *data)
 	return SUCCESS;
 }
 
-void gui_plot_offset_zoom_limits (double min_value, double max_value, double offset, double zoom, double *newmin, double *newmax)
-{
-	*newmin = min_value + offset * (max_value - min_value) - zoom * (max_value - min_value);
-	*newmax = max_value + offset * (max_value - min_value) + zoom * (max_value - min_value);
-	//printf ("min = %lf, max = %lf, offset = %lf, zoom = %lf, newmin = %lf, newmax = %lf\n", min_value, max_value, offset, zoom, *newmin, *newmax);
-}
-
 bool gui_plot_xvalue (GUI_plot_data *data, double value, double *x)
 {
-	double xmin, xmax;
-	gui_plot_offset_zoom_limits (data->x_ll, data->x_ul, data->x_offset, data->zoom, &xmin, &xmax);
+	double xmin = data->x_left;
+	if (value < xmin) return FALSE;
+	double xmax = data->x_right;
+	if (value > xmax) return FALSE;
 	*x = data->leftmargin + data->layout->xmargin + (value - xmin) * gui_plot_width(data)/(xmax - xmin);
-	if (*x < data->leftmargin) return FALSE;
-	if (*x > data->width - data->layout->rmargin) return FALSE;
+	//if (*x < data->leftmargin) return FALSE;
+	//if (*x > data->width - data->layout->rmargin) return FALSE;
 	return TRUE;
 }
 
 bool gui_plot_yvalue (GUI_plot_data *data, double value, double *y)
 {
-	double ymin, ymax;
-
-	if (data->y_autoscale)
-		gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
-	else
-		gui_plot_offset_zoom_limits (data->y_ll, data->y_ul, data->y_offset, data->zoom, &ymin, &ymax);
-	
+	double ymin = data->y_bottom, ymax = data->y_top;
+	if (value < ((ymin < ymax) ? ymin : ymax)) return FALSE; 
+	if (value > ((ymin > ymax) ? ymin : ymax)) return FALSE; 
 	*y = data->height - (data->layout->bmargin + data->layout->ymargin) - (value - ymin) * gui_plot_height(data)/(ymax - ymin);
-	if (*y < data->layout->tmargin) return FALSE;
-	if (*y > data->height - data->layout->bmargin) return FALSE;
+	//if (*y < data->layout->tmargin) return FALSE;
+	//if (*y > data->height - data->layout->bmargin) return FALSE;
 	return TRUE;
 }
 
 void gui_plot_coordinates_from_pixels (GUI_plot_data *data, double xpix, double ypix, double *xval, double *yval)
 {
-	double xmin, xmax, ymin, ymax;
-
-	gui_plot_offset_zoom_limits (data->x_ll, data->x_ul, data->x_offset, data->zoom, &xmin, &xmax);
-
-	if (data->y_autoscale)
-		gui_plot_offset_zoom_limits (data->y_min, data->y_max, data->y_offset, data->zoom, &ymin, &ymax);
-	else
-		gui_plot_offset_zoom_limits (data->y_ll, data->y_ul, data->y_offset, data->zoom, &ymin, &ymax);
-	
-	*xval = xmin + (xmax - xmin) * (xpix - (data->leftmargin + data->layout->xmargin))/gui_plot_width(data);
-	*yval = ymax - (ymax - ymin) * (ypix - (data->layout->tmargin+data->layout->ymargin))/gui_plot_height(data);
+	*xval = data->x_left + (data->x_right - data->x_left) * (xpix - (data->leftmargin + data->layout->xmargin))/gui_plot_width(data);
+	*yval = data->y_top - (data->y_top - data->y_bottom) * (ypix - (data->layout->tmargin+data->layout->ymargin))/gui_plot_height(data);
 }
 
 bool gui_plot_tick_values (double low_value, double high_value, double *first_tick, double *tick_spacing, int *ticks, int *minorticks, char format[])
 {
 	int logspacing, factor;
 	double spacing;
+	if (low_value > high_value) {
+		/* Swap values */
+		double temp = high_value;
+		high_value = low_value;
+		low_value = temp;
+	}
 
 	logspacing = floor(log10(high_value-low_value)) - 1;
+	if (logspacing < -9) logspacing = -9;
+
 	factor = ceil((high_value-low_value)/pow(10, logspacing + 1));
-//	printf ("low = %lf, hi = %lf, factor = %d, logspacing = %d\n", low_value, high_value, factor, logspacing);
+	//printf ("low = %lf, hi = %lf, factor = %d, logspacing = %d\n", low_value, high_value, factor, logspacing);
 
 	if (factor > 5) {
 		logspacing++;
@@ -162,7 +148,7 @@ bool gui_plot_tick_values (double low_value, double high_value, double *first_ti
 	*first_tick = floor(low_value/spacing) * spacing;
 	*ticks = ceil((high_value-low_value)/spacing) + 2;
 	sprintf(format, "%%.%df", (logspacing > 0) ? 0 : -logspacing);
-//	printf("ticks = %d, format = %s, first_tick = %lf, spacing = %lf, factor = %d, logspacing = %d\n", *ticks, format, *first_tick, spacing, factor, logspacing);
+	//printf("ticks = %d, format = %s, first_tick = %lf, spacing = %lf, factor = %d, logspacing = %d\n", *ticks, format, *first_tick, spacing, factor, logspacing);
 	return TRUE;
 }
 
@@ -170,7 +156,7 @@ void gui_plot_clear_canvas (GUI_plot_data *data)
 {
 	GtkWidget *widget = data->container;
 
-	PHOEBE_column_type dtype;
+	//PHOEBE_column_type dtype;
 	int ticks, minorticks;
 	double first_tick, tick_spacing;
 	double x, ymin, ymax;
@@ -189,10 +175,11 @@ void gui_plot_clear_canvas (GUI_plot_data *data)
 
 	/* Determine the lowest and highest y value that will be plotted: */
 	data->leftmargin = data->layout->lmargin;
-	phoebe_column_get_type (&dtype, data->y_request);
+	//phoebe_column_get_type (&dtype, data->y_request);
 	gui_plot_coordinates_from_pixels (data, 0, data->layout->tmargin, &x, &ymax);
 	gui_plot_coordinates_from_pixels (data, 0, data->height - data->layout->bmargin, &x, &ymin);
-	gui_plot_tick_values ( ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymax : ymin), ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymin : ymax), &first_tick, &tick_spacing, &ticks, &minorticks, format);
+	//gui_plot_tick_values ( ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymax : ymin), ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymin : ymax), &first_tick, &tick_spacing, &ticks, &minorticks, format);
+	gui_plot_tick_values ( ymin, ymax, &first_tick, &tick_spacing, &ticks, &minorticks, format);
 
 	// Calculate how large the y labels will be
 	cairo_select_font_face (data->canvas, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
@@ -300,7 +287,7 @@ int gui_plot_get_closest (GUI_plot_data *data, double x, double y, int *cp, int 
 gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
 {
 	/* http://library.gnome.org/devel/gdk/stable/gdk-Event-Structures.html#GdkEventButton */
-	/* Ignore everything but the right-click for now: */
+	/* Right-click: popup-menu, left-click: start drawing a rectangle to zoom in */
 
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
 	GtkWidget *menu, *title, *toggle_delete;
@@ -315,8 +302,17 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	} *closest = phoebe_malloc (sizeof (struct passed));
 
 	if (event->type != GDK_BUTTON_PRESS) return FALSE;
+	if (event->button == 1) {
+		/* Start drawing a rectangle to zoom */
+		//printf("start zoom: x = %.0f, y = %.0f\n", event->x, event->y);
+		data->select_zoom = TRUE;
+		data->select_x = event->x;
+		data->select_y = event->y;
+		return FALSE;
+	}
 	if (event->button != 3) return FALSE;
 	
+	/* Display popup-menu */
 	gui_plot_coordinates_from_pixels (data, event->x, event->y, &x, &y);
 	if (gui_plot_get_closest (data, x, y, &cp, &ci) != SUCCESS) {
 	 	sprintf (point, "No point selected");
@@ -348,6 +344,41 @@ gboolean on_plot_area_clicked (GtkWidget *widget, GdkEventButton *event, gpointe
 	}
 	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, event->button, event->time);
 	gtk_widget_show_all (menu);
+
+	return FALSE;
+}
+
+gboolean on_plot_area_release_mouse (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+{
+	GUI_plot_data *data = (GUI_plot_data *) user_data;
+	double xl, xh, yl, yh;	// Pixel values
+	double xvl, xvh, yvl, yvh; // Coordinate values
+
+	/* End of drawing a rectangle to zoom */
+	if (event->type != GDK_BUTTON_RELEASE) return FALSE;	// Only release-events
+	if (!data->select_zoom) return FALSE;	// Only when drawing the rectangle has been initiated
+	data->select_zoom = FALSE;	
+	if (event->button != 1) return FALSE;	// Only left mouse button
+	if ((event->x == data->select_x) && (event->x == data->select_x)) return FALSE;	// Only when the mouse has moved
+	xl = (event->x < data->select_x) ? event->x : data->select_x;
+	xh = (event->x > data->select_x) ? event->x : data->select_x;
+	if (xh < xl + 10) xh = xl + 10;	// Set a minimum width for the new graph
+	yl = (event->y < data->select_y) ? event->y : data->select_y;
+	yh = (event->y > data->select_y) ? event->y : data->select_y;
+	if (yh < yl + 10) yh = yl + 10;
+
+	//printf("End zoom: pixels: x = %.0f -> %.0f, y = %.0f -> %.0f\n", xl, xh, yl, yh);
+	//printf("Old x values: min = %f, max = %f, left = %f, right = %f\n", data->x_min, data->x_max, data->x_ll, data->x_ul);
+
+	gui_plot_coordinates_from_pixels (data, xl, yl, &xvl, &yvl);
+	gui_plot_coordinates_from_pixels (data, xh, yh, &xvh, &yvh);
+	//printf("End zoom: coords: x = %f -> %f, y = %f -> %f\n", xvl, xvh, yvl, yvh);
+	data->x_left = xvl;
+	data->x_right = xvh;
+	data->y_top = yvl;
+	data->y_bottom = yvh;
+
+	gui_plot_area_refresh (data);
 
 	return FALSE;
 }
@@ -652,12 +683,16 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			}
 		}
 
+		data->y_ll = data->y_min;
+		data->y_ul = data->y_max;
 		/* If we are plotting magnitudes, reverse the y-axis: */
 		if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
 			double store = data->y_min;
 			data->y_min = data->y_max;
 			data->y_max = store;
 		}
+		data->y_bottom = data->y_min;
+		data->y_top = data->y_max;
 	}
 	else /* if (data->ptype == GUI_PLOT_MESH) */ {
 		PHOEBE_vector *poscoy, *poscoz;
@@ -683,11 +718,13 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 
 		data->x_ll = -1.1;
 		data->x_ul =  1.1;
+		data->x_left = data->x_ll;
+		data->x_right = data->x_ul;
 
-		data->y_autoscale = FALSE;
+		//data->y_autoscale = FALSE;
 		data->y_ll = -1.0; /* Dummies, because the values are later computed  */
 		data->y_ul =  1.0; /* so that the aspect=1 in gui_plot_area_draw().   */
-		
+
 		phoebe_vector_min_max (poscoy, &x_min, &x_max);
 		phoebe_vector_min_max (poscoz, &y_min, &y_max);
 
@@ -727,16 +764,16 @@ void gui_plot_xticks (GUI_plot_data *data)
 {
 	int i, j, ticks, minorticks;
 	double x, first_tick, tick_spacing, value;
-	double xmin, xmax, y;
+	//double xmin, xmax, y;
 	char format[20];
 	char label[20];
 	cairo_text_extents_t te;
 	
 	// Determine the lowest and highest x value that will be plotted
-	gui_plot_coordinates_from_pixels (data, data->leftmargin, 0, &xmin, &y);
-	gui_plot_coordinates_from_pixels (data, data->width - data->layout->rmargin, 0, &xmax, &y);
+	//gui_plot_coordinates_from_pixels (data, data->leftmargin, 0, &xmin, &y);
+	//gui_plot_coordinates_from_pixels (data, data->width - data->layout->rmargin, 0, &xmax, &y);
 
-	if (!gui_plot_tick_values (xmin, xmax, &first_tick, &tick_spacing, &ticks, &minorticks, format))
+	if (!gui_plot_tick_values (data->x_left, data->x_right, &first_tick, &tick_spacing, &ticks, &minorticks, format))
 		return;
 
 	cairo_set_source_rgb (data->canvas, 0.0, 0.0, 0.0);
@@ -797,18 +834,19 @@ void gui_plot_yticks (GUI_plot_data *data)
 {
 	int i, j, ticks, minorticks;
 	double y, first_tick, tick_spacing, value;
-	double ymin, ymax, x;
+	//double ymin, ymax, x;
 	char format[20];
 	char label[20];
 	cairo_text_extents_t te;
 	PHOEBE_column_type dtype;
 	
 	// Determine the lowest and highest y value that will be plotted
-	gui_plot_coordinates_from_pixels (data, 0, data->layout->tmargin, &x, &ymax);
-	gui_plot_coordinates_from_pixels (data, 0, data->height - data->layout->bmargin, &x, &ymin);
+	//gui_plot_coordinates_from_pixels (data, 0, data->layout->tmargin, &x, &ymax);
+	//gui_plot_coordinates_from_pixels (data, 0, data->height - data->layout->bmargin, &x, &ymin);
 
 	phoebe_column_get_type (&dtype, data->y_request);
-	if (!gui_plot_tick_values ( ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymax : ymin), ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymin : ymax), &first_tick, &tick_spacing, &ticks, &minorticks, format))
+	//if (!gui_plot_tick_values ( ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymax : ymin), ((dtype == PHOEBE_COLUMN_MAGNITUDE) ? ymin : ymax), &first_tick, &tick_spacing, &ticks, &minorticks, format))
+	if (!gui_plot_tick_values ( data->y_bottom, data->y_top, &first_tick, &tick_spacing, &ticks, &minorticks, format))
 		return;
 
 	cairo_set_source_rgb (data->canvas, 0.0, 0.0, 0.0);
@@ -924,7 +962,9 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 		aspect = gui_plot_height (data)/gui_plot_width (data);
 		data->y_ll = aspect*data->x_ll;
 		data->y_ul = aspect*data->x_ul;
-		
+		data->y_bottom = aspect*data->x_left;
+		data->y_top = aspect*data->x_right;
+
 		for (j = 0; j < data->request[0].model->indep->dim; j++) {
 			if (!gui_plot_xvalue (data, data->request[0].model->indep->val[j], &x)) continue;
 			if (!gui_plot_yvalue (data, data->request[0].model->dep->val[j], &y)) continue;
@@ -1151,7 +1191,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_data");
 	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_data_button_clicked), data);
 
-	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK);
+	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_RELEASE_MASK);
 	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
 
 	/* LC/RV parameters: */
@@ -1159,6 +1199,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		g_signal_connect (area, "motion-notify-event", G_CALLBACK (on_plot_area_motion), data);
 		g_signal_connect (area, "enter-notify-event", G_CALLBACK (on_plot_area_enter), NULL);
 		g_signal_connect (area, "button-press-event", G_CALLBACK (on_plot_area_clicked), data);
+		g_signal_connect (area, "button-release-event", G_CALLBACK (on_plot_area_release_mouse), data);
 	/*
 		g_signal_connect (area, "key-press-event", G_CALLBACK (on_key_press_event), data);
 	*/
@@ -1173,10 +1214,12 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 
 		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_start");
 		data->x_ll = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		data->x_left = data->x_ll;
 		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ll));
 
 		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "phase_end");
 		data->x_ul = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+		data->x_right = data->x_ul;
 		g_signal_connect (widget, "value-changed", G_CALLBACK (on_spin_button_value_changed), &(data->x_ul));
 
 		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_alias_switch");
@@ -1304,53 +1347,6 @@ int gui_plot_get_curve_limits (PHOEBE_curve *curve, double *xmin, double *ymin, 
 		if (*xmax < curve->indep->val[i]) *xmax = curve->indep->val[i];
 		if (*ymin > curve->dep->val[i]  ) *ymin = curve->dep->val[i];
 		if (*ymax < curve->dep->val[i]  ) *ymax = curve->dep->val[i];
-	}
-
-	return SUCCESS;
-}
-
-int gui_plot_get_offset_zoom_limits (double min, double max, double offset, double zoom, double *newmin, double *newmax)
-{
-	*newmin = min + offset * (max - min) - (0.1 + zoom) * (max - min);
-	*newmax = max + offset * (max - min) + (0.1 + zoom) * (max - min);
-
-	return SUCCESS;
-}
-
-int gui_plot_get_plot_limits (PHOEBE_curve *syn, PHOEBE_curve *obs, double *xmin, double *ymin, double *xmax, double *ymax, gboolean plot_syn, gboolean plot_obs, double x_offset, double y_offset, double zoom)
-{
-	int status;
-	double xmin1, xmax1, ymin1, ymax1;              /* Synthetic data limits    */
-	double xmin2, xmax2, ymin2, ymax2;              /* Experimental data limits */
-
-	if (plot_syn) {
-		status = gui_plot_get_curve_limits (syn, &xmin1, &ymin1, &xmax1, &ymax1);
-		if (status != SUCCESS) return status;
-	}
-	if (plot_obs) {
-		status = gui_plot_get_curve_limits (obs, &xmin2, &ymin2, &xmax2, &ymax2);
-		if (status != SUCCESS) return status;
-	}
-
-	if (plot_syn)
-	{
-		gui_plot_get_offset_zoom_limits (xmin1, xmax1, x_offset, zoom, xmin, xmax);
-		gui_plot_get_offset_zoom_limits (ymin1, ymax1, y_offset, zoom, ymin, ymax);
-		xmin1 = *xmin; xmax1 = *xmax; ymin1 = *ymin; ymax1 = *ymax;
-	}
-
-	if (plot_obs)
-	{
-		gui_plot_get_offset_zoom_limits (xmin2, xmax2, x_offset, zoom, xmin, xmax);
-		gui_plot_get_offset_zoom_limits (ymin2, ymax2, y_offset, zoom, ymin, ymax);
-		xmin2 = *xmin; xmax2 = *xmax; ymin2 = *ymin; ymax2 = *ymax;
-	}
-
-	if (plot_syn && plot_obs) {
-		if (xmin1 < xmin2) *xmin = xmin1; else *xmin = xmin2;
-		if (xmax1 > xmax2) *xmax = xmax1; else *xmax = xmax2;
-		if (ymin1 < ymin2) *ymin = ymin1; else *ymin = ymin2;
-		if (ymax1 > ymax2) *ymax = ymax1; else *ymax = ymax2;
 	}
 
 	return SUCCESS;
