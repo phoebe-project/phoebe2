@@ -218,7 +218,7 @@ gboolean on_plot_area_expose_event (GtkWidget *widget, GdkEventExpose *event, gp
 	GdkCursor *cursor = gdk_cursor_new (GDK_CROSS);
 	gdk_window_set_cursor (GDK_WINDOW (widget->window), cursor);
 	gdk_cursor_destroy (cursor);
-	
+
 	gui_plot_clear_canvas (data);
 	gui_plot_area_draw (data, NULL);
 
@@ -501,6 +501,14 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			if (data->request[i].query)    phoebe_curve_free (data->request[i].query);    data->request[i].query    = NULL;
 			if (data->request[i].model)    phoebe_curve_free (data->request[i].model);    data->request[i].model    = NULL;
 
+			if (plot_syn && !plot_obs && data->residuals) {
+				/* This won't work, inform the user and drop the curve. */
+				char notice[255];
+				sprintf (notice, "Residuals cannot be plotted without selecting observed data. Please check the observations box next to the corresponding curve in the list below.");
+				gui_notice ("PHOEBE plotting issue", notice);
+				continue;
+			}
+			
 			/* Prepare observed data (if toggled): */
 			if (plot_obs) {
 				if (data->ptype == GUI_PLOT_LC) {
@@ -952,12 +960,33 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 	int i, j;
 	double x, y, aspect;
 	bool needs_ticks = FALSE;
+	cairo_pattern_t *circle, *cross;
 
+	if (!redirect) {
+		/* Get the symbols ready: */
+		cairo_push_group (data->canvas);
+		cairo_set_source_rgb (data->canvas, 0, 0, 1);
+		cairo_arc (data->canvas, 0, 0, 2.0, 0, 2*M_PI);
+		cairo_stroke_preserve (data->canvas);
+//		cairo_set_source_rgb (data->canvas, 0.7, 0.7, 0.7);
+//		cairo_fill (data->canvas);
+		circle = cairo_pop_group (data->canvas);
+
+		cairo_push_group (data->canvas);
+		cairo_set_source_rgb (data->canvas, 1, 0, 0);
+		cairo_move_to (data->canvas, -2, -2);
+		cairo_line_to (data->canvas, +2, +2);
+		cairo_move_to (data->canvas, +2, -2);
+		cairo_line_to (data->canvas, -2, +2);
+		cairo_stroke_preserve (data->canvas);
+		cross = cairo_pop_group (data->canvas);
+	}
+	
 	if (data->ptype == GUI_PLOT_MESH && data->request[0].model) {
-		if (!redirect)
-			cairo_set_source_rgb (data->canvas, 0, 0, 1);
-		else
+		if (redirect)
 			fprintf (redirect, "# Mesh plot -- plane of sky (v, w) coordinates at phase %lf:\n", data->request[0].phase);
+		else
+			cairo_set_source (data->canvas, circle);
 		
 		aspect = gui_plot_height (data)/gui_plot_width (data);
 		data->y_ll = aspect*data->x_ll;
@@ -970,8 +999,10 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 			if (!gui_plot_yvalue (data, data->request[0].model->dep->val[j], &y)) continue;
 			
 			if (!redirect) {
-				cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
-				cairo_stroke (data->canvas);
+				cairo_save (data->canvas);
+				cairo_translate (data->canvas, x, y);
+				cairo_paint (data->canvas);
+				cairo_restore (data->canvas);
 			}
 			else
 				fprintf (redirect, "% lf\t% lf\n", data->request[0].model->indep->val[j], data->request[0].model->dep->val[j]);
@@ -994,18 +1025,22 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
 
 					if (!redirect) {
-						if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_REGULAR ||
-						    data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_ALIASED)
-							cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+						if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_REGULAR
+						||  data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_ALIASED) {
+							cairo_save (data->canvas);
+							cairo_translate (data->canvas, x, y);
+							cairo_set_source (data->canvas, circle);
+							cairo_paint (data->canvas);
+							cairo_restore (data->canvas);
+						}
 						else if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED ||
 						         data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED_ALIASED) {
-							cairo_move_to (data->canvas, x-2, y-2);
-							cairo_line_to (data->canvas, x+2, y+2);
-							cairo_move_to (data->canvas, x+2, y-2);
-							cairo_line_to (data->canvas, x-2, y+2);
+							cairo_save (data->canvas);
+							cairo_translate (data->canvas, x, y);
+							cairo_set_source (data->canvas, cross);
+							cairo_paint (data->canvas);
+							cairo_restore (data->canvas);
 						}
-					
-						cairo_stroke (data->canvas);
 					}
 					else
 						fprintf (redirect, "%lf\t%lf\n", data->request[i].query->indep->val[j], data->request[i].query->dep->val[j] + data->request[i].offset);
@@ -1188,9 +1223,6 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_plot");
 	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_button_clicked), data);
 
-	widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_data");
-	g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_data_button_clicked), data);
-
 	gtk_widget_add_events (area, GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_BUTTON_RELEASE_MASK);
 	g_signal_connect (area, "expose-event", G_CALLBACK (on_plot_area_expose_event), data);
 
@@ -1203,6 +1235,9 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 	/*
 		g_signal_connect (area, "key-press-event", G_CALLBACK (on_key_press_event), data);
 	*/
+
+		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "save_data");
+		g_signal_connect (widget, "clicked", G_CALLBACK (on_plot_save_data_button_clicked), data);
 
 		widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_x_request");
 		data->x_request = gtk_combo_box_get_active_text (GTK_COMBO_BOX (widget));
