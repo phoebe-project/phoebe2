@@ -163,6 +163,13 @@ void gui_toggle_cell_edited (GtkCellRendererToggle *renderer, gchar *path, gpoin
 	return;
 }
 
+int gui_ld_treeview_update ()
+{
+#warning FINISH_LD_UPDATE_FUNCTION
+	GtkWidget *treeview = gui_widget_lookup ("phoebe_para_lc_ld_treeview")->gtk;
+	GtkTreeModel *model = gtk_tree_view_get_model (GTK_TREE_VIEW (treeview));
+}
+
 int gui_init_lc_treeviews ()
 {
 	GtkWidget *phoebe_data_lc_treeview           = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
@@ -1249,25 +1256,25 @@ int gui_fill_treeview_with_spot_parameters(GtkTreeModel *model, bool sidesheet)
 	return status;
 }
 
-int gui_fill_sidesheet_fit_treeview()
+int gui_fill_sidesheet_fit_treeview ()
 {
 	int status = 0;
 
-	GtkTreeView *phoebe_sidesheet_fit_treeview = (GtkTreeView*)gui_widget_lookup("phoebe_sidesheet_fit_treeview")->gtk;
-	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_sidesheet_fit_treeview);
+	GtkTreeView *phoebe_sidesheet_fit_treeview = (GtkTreeView *) gui_widget_lookup ("phoebe_sidesheet_fit_treeview")->gtk;
+	GtkTreeModel *model = gtk_tree_view_get_model (phoebe_sidesheet_fit_treeview);
 	GtkTreeIter iter;
 
-	PHOEBE_parameter_list *pars_tba = phoebe_parameter_list_get_marked_tba();
+	PHOEBE_parameter_list *pars_tba = phoebe_parameter_list_get_marked_tba ();
 	PHOEBE_parameter *par;
 	double value, step, min, max;
 
-	gtk_list_store_clear((GtkListStore*)model);
+	gtk_list_store_clear ((GtkListStore *) model);
 
-	while(pars_tba){
+	while (pars_tba) {
 		par = pars_tba->par;
 
-		switch (par->type){
-			case TYPE_DOUBLE: {
+		switch (par->type) {
+			case TYPE_DOUBLE:
 				status = phoebe_parameter_get_value(par, &value);
 				status = phoebe_parameter_get_step(par, &step);
 				status = phoebe_parameter_get_min(par, &min);
@@ -1280,7 +1287,6 @@ int gui_fill_sidesheet_fit_treeview()
 														FS_COL_PARAM_STEP, step,
 														FS_COL_PARAM_MIN, min,
 														FS_COL_PARAM_MAX, max, -1);
-			}
 			break;
 			case TYPE_DOUBLE_ARRAY: {
 				int i, n = par->value.vec->dim;
@@ -1465,37 +1471,37 @@ int gui_data_lc_treeview_add ()
     return status;
 }
 
-int gui_data_lc_treeview_edit()
+int gui_data_lc_treeview_edit ()
 {
 	int status = 0;
 
-	PHOEBE_parameter *indep     = phoebe_parameter_lookup("phoebe_lc_indep");
-	PHOEBE_parameter *dep       = phoebe_parameter_lookup("phoebe_lc_dep");
-	PHOEBE_parameter *indweight = phoebe_parameter_lookup("phoebe_lc_indweight");
-	PHOEBE_parameter *lcfilter	= phoebe_parameter_lookup("phoebe_lc_filter");
+	PHOEBE_parameter *indep     = phoebe_parameter_lookup ("phoebe_lc_indep");
+	PHOEBE_parameter *dep       = phoebe_parameter_lookup ("phoebe_lc_dep");
+	PHOEBE_parameter *indweight = phoebe_parameter_lookup ("phoebe_lc_indweight");
+	PHOEBE_parameter *lcfilter	= phoebe_parameter_lookup ("phoebe_lc_filter");
 	int optindex, optcount;
 
 	GtkTreeModel     *model;
     GtkTreeIter       iter;
 
-	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
-    model = gtk_tree_view_get_model((GtkTreeView*)phoebe_data_lc_treeview);
+	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
+    model = gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview);
 
-    if(gtk_tree_model_get_iter_first(model, &iter)){
+    if (gtk_tree_model_get_iter_first (model, &iter)) {
         gchar     *glade_xml_file                       = g_build_filename    (PHOEBE_GLADE_XML_DIR, "phoebe_load_lc.glade", NULL);
 		gchar     *glade_pixmap_file                    = g_build_filename    (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 
         GladeXML  *phoebe_load_lc_xml                   = glade_xml_new       (glade_xml_file, NULL, NULL);
 
-        GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_dialog");
-        GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
-        GtkWidget *phoebe_load_lc_column1_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column1_combobox");
-        GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
-        GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
-        GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
-        GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
-        GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
-        GtkWidget *phoebe_load_lc_id_entry				= glade_xml_get_widget(phoebe_load_lc_xml, "phoebe_load_lc_id_entry");
+        GtkWidget *phoebe_load_lc_dialog                = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_dialog");
+        GtkWidget *phoebe_load_lc_filechooserbutton     = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filechooserbutton");
+        GtkWidget *phoebe_load_lc_column1_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column1_combobox");
+        GtkWidget *phoebe_load_lc_column2_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column2_combobox");
+        GtkWidget *phoebe_load_lc_column3_combobox      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_column3_combobox");
+        GtkWidget *phoebe_load_lc_sigma_spinbutton      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_sigma_spinbutton");
+        GtkWidget *phoebe_load_lc_preview_textview      = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_preview_textview");
+        GtkWidget *phoebe_load_lc_filter_combobox       = glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_filter_combobox");
+        GtkWidget *phoebe_load_lc_id_entry				= glade_xml_get_widget (phoebe_load_lc_xml, "phoebe_load_lc_id_entry");
 
         gchar *id;
         gint itype, dtype, wtype;
@@ -1509,12 +1515,12 @@ int gui_data_lc_treeview_edit()
 		gint filter_number;
 		GtkTreeIter filter_iter;
 
-        g_object_unref(phoebe_load_lc_xml);
+        g_object_unref (phoebe_load_lc_xml);
 
-		gtk_window_set_icon (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
-		gtk_window_set_title (GTK_WINDOW(phoebe_load_lc_dialog), "PHOEBE - Edit LC Data");
+		gtk_window_set_icon  (GTK_WINDOW (phoebe_load_lc_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
+		gtk_window_set_title (GTK_WINDOW (phoebe_load_lc_dialog), "PHOEBE - Edit LC Data");
 
-        gui_init_filter_combobox(phoebe_load_lc_filter_combobox);
+        gui_init_filter_combobox (phoebe_load_lc_filter_combobox);
 
 		g_signal_connect (G_OBJECT (phoebe_load_lc_filechooserbutton),
 						  "selection_changed",
@@ -1522,8 +1528,8 @@ int gui_data_lc_treeview_edit()
 						  (gpointer) phoebe_load_lc_preview_textview);
 
         GtkTreeSelection *selection;
-        selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
-        if (gtk_tree_selection_get_selected(selection, &model, &iter)){
+        selection = gtk_tree_view_get_selection ((GtkTreeView *) phoebe_data_lc_treeview);
+        if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
             gtk_tree_model_get(model, &iter,    LC_COL_FILENAME, 	&filename,
 												LC_COL_ID,			&id,
                                                 LC_COL_FILTER,   	&filter,
@@ -1532,10 +1538,10 @@ int gui_data_lc_treeview_edit()
                                                 LC_COL_WTYPE_STR, 	&wtype_str,
                                                 LC_COL_SIGMA,    	&sigma, -1);
 
-			phoebe_parameter_option_get_index(indep, itype_str, &itype);
-			phoebe_parameter_option_get_index(dep, dtype_str, &dtype);
-			phoebe_parameter_option_get_index(indweight, wtype_str, &wtype);
-			phoebe_parameter_option_get_index(lcfilter, filter, &filter_number);
+			phoebe_parameter_option_get_index (indep, itype_str, &itype);
+			phoebe_parameter_option_get_index (dep, dtype_str, &dtype);
+			phoebe_parameter_option_get_index (indweight, wtype_str, &wtype);
+			phoebe_parameter_option_get_index (lcfilter, filter, &filter_number);
 
 			/* Populate the combo boxes: */
 			optcount = indep->menu->optno;
@@ -1550,66 +1556,65 @@ int gui_data_lc_treeview_edit()
 			for(optindex = 0; optindex < optcount; optindex++)
 				gtk_combo_box_append_text(GTK_COMBO_BOX(phoebe_load_lc_column3_combobox), strdup(indweight->menu->option[optindex]));
 
-			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
-			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
-			gtk_combo_box_set_active     ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
+			gtk_combo_box_set_active ((GtkComboBox*)   phoebe_load_lc_column1_combobox,  itype);
+			gtk_combo_box_set_active ((GtkComboBox*)   phoebe_load_lc_column2_combobox,  dtype);
+			gtk_combo_box_set_active ((GtkComboBox*)   phoebe_load_lc_column3_combobox,  wtype);
 
-			gtk_spin_button_set_value    ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton,  sigma);
-
-			gtk_entry_set_text			 ((GtkEntry*)	   phoebe_load_lc_id_entry,			 id);
+			gtk_spin_button_set_value ((GtkSpinButton*) phoebe_load_lc_sigma_spinbutton, sigma);
+			gtk_entry_set_text ((GtkEntry*)	phoebe_load_lc_id_entry, id);
 
 			sprintf(filter_selected, "%s", filter);
 
-			if(filename)
-				gtk_file_chooser_set_filename((GtkFileChooser*)phoebe_load_lc_filechooserbutton, filename);
-			else{
+			if (filename)
+				gtk_file_chooser_set_filename ((GtkFileChooser *) phoebe_load_lc_filechooserbutton, filename);
+			else {
 				gchar *dir;
 				phoebe_config_entry_get("PHOEBE_DATA_DIR", &dir);
 
-				gtk_file_chooser_set_current_folder((GtkFileChooser*)phoebe_load_lc_filechooserbutton, dir);
+				gtk_file_chooser_set_current_folder ((GtkFileChooser *) phoebe_load_lc_filechooserbutton, dir);
 			}
         }
 
-        gint result = gtk_dialog_run ((GtkDialog*)phoebe_load_lc_dialog);
-        switch (result){
-            case GTK_RESPONSE_OK:{
+        gint result = gtk_dialog_run ((GtkDialog *) phoebe_load_lc_dialog);
+        switch (result) {
+            case GTK_RESPONSE_OK: {
+				gchar *new_id;
 
-            	filename = gtk_file_chooser_get_filename ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
-				if(!phoebe_filename_exists(filename))gui_notice("Invalid filename", "You haven't supplied a filename for your data.");
-
-				else{
-					if(!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
+            	filename = gtk_file_chooser_get_filename ((GtkFileChooser *) phoebe_load_lc_filechooserbutton);
+				if (!phoebe_filename_exists (filename))
+					gui_notice ("Invalid filename", "You haven't supplied a filename for your data.");
+				else {
+					if (!PHOEBE_DIRFLAG) PHOEBE_DIRFLAG = TRUE;
 					PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder ((GtkFileChooser*)phoebe_load_lc_filechooserbutton);
 				}
 
 				if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox), &filter_iter)) {
 					gint new_filter_number;
-					gtk_tree_model_get (gtk_combo_box_get_model(GTK_COMBO_BOX(phoebe_load_lc_filter_combobox)), &filter_iter, 1, &new_filter_number, -1);
+					gtk_tree_model_get (gtk_combo_box_get_model (GTK_COMBO_BOX (phoebe_load_lc_filter_combobox)), &filter_iter, 1, &new_filter_number, -1);
 					sprintf (filter_selected, "%s:%s", PHOEBE_passbands[new_filter_number]->set, PHOEBE_passbands[new_filter_number]->name);
 					if (new_filter_number != filter_number)
-						gui_ld_coeffs_need_updating();
+						gui_ld_coeffs_need_updating ();
 				}
 
-				gchar *new_id;
-				new_id = (gchar *)strdup(gtk_entry_get_text((GtkEntry*)phoebe_load_lc_id_entry));
-				if(strlen(new_id) < 1)new_id = id;
+				new_id = (gchar *) strdup (gtk_entry_get_text ((GtkEntry *) phoebe_load_lc_id_entry));
+				if(strlen (new_id) < 1) new_id = id;
 
-                gtk_list_store_set((GtkListStore*)model, &iter, LC_COL_ACTIVE,      TRUE,
-                                                                LC_COL_FILENAME,    filename,
-                                                                LC_COL_ID,			new_id,
-                                                                LC_COL_FILTER,      filter_selected,
-																LC_COL_FILTERNO,	filter_number,
-                                                                LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
-                                                                LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
-                                                                LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
-                                                                LC_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox)]),
-                                                                LC_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox),
-                                                                LC_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox)]),
-                                                                LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton), -1);
+                gtk_list_store_set ((GtkListStore *) model, &iter, LC_COL_ACTIVE,      TRUE,
+                                                                   LC_COL_FILENAME,    filename,
+                                                                   LC_COL_ID,          new_id,
+                                                                   LC_COL_FILTER,      filter_selected,
+																   LC_COL_FILTERNO,    filter_number,
+                                                                   LC_COL_ITYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox),
+                                                                   LC_COL_ITYPE_STR,   strdup(indep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column1_combobox)]),
+                                                                   LC_COL_DTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox),
+                                                                   LC_COL_DTYPE_STR,   strdup(dep->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column2_combobox)]),
+                                                                   LC_COL_WTYPE,       gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox),
+                                                                   LC_COL_WTYPE_STR,   strdup(indweight->menu->option[gtk_combo_box_get_active((GtkComboBox*)phoebe_load_lc_column3_combobox)]),
+                                                                   LC_COL_SIGMA,       gtk_spin_button_get_value((GtkSpinButton*)phoebe_load_lc_sigma_spinbutton), -1);
             }
             break;
-
             case GTK_RESPONSE_CANCEL:
+				/* Fall through. */
             break;
         }
         gtk_widget_destroy (phoebe_load_lc_dialog);
@@ -1618,26 +1623,25 @@ int gui_data_lc_treeview_edit()
     return status;
 }
 
-int gui_data_lc_treeview_remove()
+int gui_data_lc_treeview_remove ()
 {
-	int status = 0;
+	int lcno, status = 0;
+	PHOEBE_parameter *par;
 
 	GtkTreeSelection *selection;
     GtkTreeModel     *model;
     GtkTreeIter       iter;
 
-	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup("phoebe_data_lc_treeview")->gtk;
-    selection = gtk_tree_view_get_selection((GtkTreeView*)phoebe_data_lc_treeview);
-    if (gtk_tree_selection_get_selected(selection, &model, &iter)){
-        gtk_list_store_remove((GtkListStore*)model, &iter);
+	GtkWidget *phoebe_data_lc_treeview = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
+    selection = gtk_tree_view_get_selection ((GtkTreeView *) phoebe_data_lc_treeview);
+    if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
+        gtk_list_store_remove ((GtkListStore*) model, &iter);
 
-        PHOEBE_parameter *par = phoebe_parameter_lookup("phoebe_lcno");
-        int lcno;
-
-        phoebe_parameter_get_value(par, &lcno);
-        phoebe_parameter_set_value(par, lcno - 1);
+        par = phoebe_parameter_lookup ("phoebe_lcno");
+        phoebe_parameter_get_value (par, &lcno);
+        phoebe_parameter_set_value (par, lcno-1);
         gui_fill_sidesheet_fit_treeview ();
-        gui_fill_fitt_mf_treeview();
+        gui_fill_fitt_mf_treeview ();
 
         phoebe_debug("Number of light curves: %d\n", lcno - 1);
         gui_status("A light curve removed.");
@@ -1992,9 +1996,9 @@ int gui_init_fitt_mf_treeview()
 }
 
 
-int gui_fill_fitt_mf_treeview()
+int gui_fill_fitt_mf_treeview ()
 {
-	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
+	GtkTreeView *phoebe_fitt_mf_treeview = GTK_TREE_VIEW (gui_widget_lookup ("phoebe_fitt_first_treeview")->gtk);
 	GtkTreeModel *model = gtk_tree_view_get_model(phoebe_fitt_mf_treeview);
 	GtkTreeIter iter;
 	double value;
