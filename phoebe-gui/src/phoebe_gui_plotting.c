@@ -912,47 +912,49 @@ void gui_plot_yticks (GUI_plot_data *data)
 void gui_plot_interpolate_to_border (GUI_plot_data *data, double xin, double yin, double xout, double yout, double *xborder, double *yborder)
 {
 	bool x_outside_border = FALSE, y_outside_border = FALSE;
-	double xmargin ,ymargin;
+	double xmargin ,ymargin, xb, yb;
 
-	if (xout < data->leftmargin) {
-		xmargin = data->leftmargin;
+	if (xout < data->x_left) {
+		xmargin = data->x_left;
 		x_outside_border = TRUE;
 	}
-	else if (xout > data->width - data->layout->rmargin) {
-		xmargin = data->width - data->layout->rmargin;
+	else if (xout > data->x_right) {
+		xmargin = data->x_right;
 		x_outside_border = TRUE;
 	}
 
-	if (yout < data->layout->tmargin) {
-		ymargin = data->layout->tmargin;
+	if (yout < data->y_top) {
+		ymargin = data->y_top;
 		y_outside_border = TRUE;
 	}
-	else if (yout > data->height - data->layout->bmargin) {
-		ymargin = data->height - data->layout->bmargin;
+	else if (yout > data->y_bottom) {
+		ymargin = data->y_bottom;
 		y_outside_border = TRUE;
 	}
 
 	if (x_outside_border && y_outside_border) {
 		/* Both xout and yout lie outside the border */
-		*yborder = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
-		if ((*yborder < data->layout->tmargin) && (*yborder > data->height - data->layout->bmargin)) {
-			*yborder = ymargin;
-			*xborder = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
+		yb = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
+		if ((yb < data->y_top) && (*yborder > data->y_bottom)) {
+			yb = ymargin;
+			xb = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
 		}
 		else {
-			*xborder = xmargin;
+			xb = xmargin;
 		}
 	}
 	else if (x_outside_border) {
 		/* Only xout lies outside the border */
-		*xborder = xmargin;
-		*yborder = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
+		xb = xmargin;
+		yb = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
 	}
 	else {
 		/* Only yout lies outside the border */
-		*yborder = ymargin;
-		*xborder = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
+		yb = ymargin;
+		xb = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
 	}
+	gui_plot_xvalue (data, xb, xborder);
+	gui_plot_yvalue (data, yb, yborder);
 }
 
 int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
@@ -1069,7 +1071,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 			if (data->request[i].model) {
 				bool last_point_plotted = FALSE;
 				bool x_in_plot, y_in_plot;
-				double lastx, lasty;
+				//double lastx, lasty;
 
 				if (redirect)
 					fprintf (redirect, "# Synthetic data set %d:\n", i);
@@ -1082,7 +1084,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					if (!x_in_plot || !y_in_plot) {
 						if (last_point_plotted) {
 							double xborder, yborder;
-							gui_plot_interpolate_to_border (data, lastx, lasty, x, y, &xborder, &yborder);
+							gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, &xborder, &yborder);
 							if (!redirect)
 								cairo_line_to (data->canvas, xborder, yborder);
 							else
@@ -1094,7 +1096,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					else {
 						if (!last_point_plotted && (j > 0)) {
 							double xborder, yborder;
-							gui_plot_interpolate_to_border (data, x, y, lastx, lasty, &xborder, &yborder);
+							gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, &xborder, &yborder);
 							if (!redirect)
 								cairo_move_to (data->canvas, xborder, yborder);
 							last_point_plotted = TRUE;
@@ -1111,8 +1113,8 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 							last_point_plotted = TRUE;
 						}
 					}
-					lastx = x;
-					lasty = y;
+					//lastx = x;
+					//lasty = y;
 				}
 
 				if (!redirect)
