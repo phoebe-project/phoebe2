@@ -166,6 +166,7 @@ int gui_init_widgets ()
 
 #warning RENAME_THIS_ONE_AS_WELL
 	gui_widget_add ("phoebe_lc_plot_passband_info",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_OBS,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_observed"), NULL);
+	gui_widget_add ("phoebe_lc_plot_passband_syn",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_SYN,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_synthetic"), NULL);
 	gui_widget_add ("phoebe_lc_plot_obscolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_OBS_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_obscolor"), NULL);
 	gui_widget_add ("phoebe_lc_plot_syncolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_lc_plot_treeview), LC_COL_PLOT_SYN_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_lcplot_syncolor"), NULL);
 
