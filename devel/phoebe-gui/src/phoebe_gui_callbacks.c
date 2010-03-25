@@ -2676,8 +2676,10 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	return;
 }
 
+G_MODULE_EXPORT
 void on_phoebe_fitt_cfval_compute_button_clicked (GtkButton *button, gpointer user_data)
 {
+	gui_notice("Not implemented", "The calculation of the cost function value has not been implemented yet!");
 /*
 #warning WILL_FAIL_ON_NO_DATA_AND_GIVE_WRONG_RESULT_FOR_INACTIVE_DATA
 	int lcno, rvno, index, status;
