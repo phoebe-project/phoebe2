@@ -170,6 +170,38 @@ int gui_ld_treeview_update ()
 	GtkTreeModel *model = gtk_tree_view_get_model (GTK_TREE_VIEW (treeview));
 }
 
+void gui_select_color(GtkCellRenderer *renderer, GtkCellEditable *editable, const gchar *path, gpointer user_data)
+{
+	GtkTreeModel *model = (GtkTreeModel *) user_data;
+	GdkColor color;
+	gchar *colorname;
+	GtkColorSelection *colorsel;
+
+	int column = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (renderer), "column"));
+	GtkTreeIter iter;
+
+	GtkWidget *dialog = gtk_color_selection_dialog_new("Select Color");
+	colorsel = GTK_COLOR_SELECTION(GTK_COLOR_SELECTION_DIALOG(dialog)->colorsel);
+
+	gtk_tree_model_get_iter_from_string (model, &iter, path);
+	gtk_tree_model_get (model, &iter, column, &colorname, -1);
+
+	if (gdk_color_parse (colorname, &color) == TRUE) {
+		gtk_color_selection_set_current_color(colorsel, &color);
+	}
+
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+
+		gtk_color_selection_get_current_color(colorsel, &color);
+		gchar *colorstring = gdk_color_to_string(&color);
+	
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter, column, colorstring, -1);
+	} 
+
+	gtk_widget_destroy(dialog);
+}
+
+
 int gui_init_lc_treeviews ()
 {
 	GtkWidget *phoebe_data_lc_treeview           = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
@@ -359,40 +391,43 @@ int gui_init_lc_treeviews ()
 
 	renderer    = gtk_cell_renderer_toggle_new ();
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_OBS));
-    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), lc_model);
+	g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), lc_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Observed:", renderer, "active", LC_COL_PLOT_OBS, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_toggle_new ();
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_SYN));
-    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), lc_model);
+	g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), lc_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Synthetic:", renderer, "active", LC_COL_PLOT_SYN, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_combo_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_OBS_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), lc_model);
-	column      = gtk_tree_view_column_new_with_attributes ("Obs color:", renderer, "text", LC_COL_PLOT_OBS_COLOR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
+	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), lc_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Obs color:", renderer, "text", LC_COL_PLOT_OBS_COLOR, "background", LC_COL_PLOT_OBS_COLOR, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_combo_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set (renderer, "text-column", 0, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_SYN_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), lc_model);
-	column      = gtk_tree_view_column_new_with_attributes ("Syn color:", renderer, "text", LC_COL_PLOT_SYN_COLOR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
+	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), lc_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Syn color:", renderer, "text", LC_COL_PLOT_SYN_COLOR, "background", LC_COL_PLOT_SYN_COLOR, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_text_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_OFFSET));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_numeric_cell_edited), lc_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Y Offset:", renderer, "text", LC_COL_PLOT_OFFSET, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_lc_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	/**************************************************************************/
@@ -535,47 +570,51 @@ int gui_init_rv_treeviews ()
 	/*                                                                        */
 	/**************************************************************************/
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_text_new ();
 	column      = gtk_tree_view_column_new_with_attributes ("Passband ID:", renderer, "text", RV_COL_ID, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_toggle_new ();
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OBS));
-    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
+	g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Observed:", renderer, "active", RV_COL_PLOT_OBS, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_toggle_new ();
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_SYN));
-    g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
+	g_signal_connect (renderer, "toggled", GTK_SIGNAL_FUNC (gui_toggle_cell_edited), rv_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Synthetic:", renderer, "active", RV_COL_PLOT_SYN, NULL);
 	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_combo_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set (renderer, "text-column", 0, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OBS_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
-	column      = gtk_tree_view_column_new_with_attributes ("Obs color:", renderer, "text", RV_COL_PLOT_OBS_COLOR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Obs color:", renderer, "text", RV_COL_PLOT_OBS_COLOR, "background", RV_COL_PLOT_OBS_COLOR, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_combo_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set (renderer, "text-column", 0, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_SYN_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
-	column      = gtk_tree_view_column_new_with_attributes ("Syn color:", renderer, "text", RV_COL_PLOT_SYN_COLOR, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), rv_model);
+	column      = gtk_tree_view_column_new_with_attributes ("Syn color:", renderer, "text", RV_COL_PLOT_SYN_COLOR, "background", RV_COL_PLOT_SYN_COLOR, NULL);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
-    renderer    = gtk_cell_renderer_text_new ();
+	renderer    = gtk_cell_renderer_text_new ();
 	g_object_set (renderer, "editable", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OFFSET));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_numeric_cell_edited), rv_model);
 	column      = gtk_tree_view_column_new_with_attributes ("Y Offset:", renderer, "text", RV_COL_PLOT_OFFSET, NULL);
-    gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
+	gtk_tree_view_insert_column ((GtkTreeView *) phoebe_rv_plot_treeview, column, -1);
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	/**************************************************************************/

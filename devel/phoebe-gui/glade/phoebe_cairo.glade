@@ -10,7 +10,6 @@
     <child>
       <widget class="GtkVBox" id="phoebe_vbox">
         <property name="visible">True</property>
-        <property name="orientation">vertical</property>
         <child>
           <widget class="GtkMenuBar" id="phoebe_menubar">
             <property name="visible">True</property>
@@ -279,7 +278,6 @@
                 <child>
                   <widget class="GtkVBox" id="phoebe_data_vbox">
                     <property name="visible">True</property>
-                    <property name="orientation">vertical</property>
                     <child>
                       <widget class="GtkHBox" id="phoebe_data_star_hbox">
                         <property name="visible">True</property>
@@ -346,7 +344,6 @@
                                 <child>
                                   <widget class="GtkVSeparator" id="vseparator48">
                                     <property name="visible">True</property>
-                                    <property name="orientation">vertical</property>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">2</property>
@@ -412,7 +409,6 @@
                               <widget class="GtkVBox" id="phoebe_data_lc_vbox">
                                 <property name="visible">True</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkHBox" id="phoebe_data_lc_hbox">
                                     <property name="visible">True</property>
@@ -750,7 +746,6 @@
                               <widget class="GtkVBox" id="phoebe_data_options_varlabels_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">7</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkLabel" id="phoebe_data_options_indep_label">
                                     <property name="visible">True</property>
@@ -795,7 +790,6 @@
                                 <property name="visible">True</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                 <property name="border_width">2</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkComboBox" id="phoebe_data_options_indep_combobox">
                                     <property name="visible">True</property>
@@ -839,7 +833,6 @@
                               <widget class="GtkVBox" id="phoebe_data_options_bins_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">7</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkCheckButton" id="phoebe_data_options_bins_checkbutton">
                                     <property name="label" translatable="yes">Bin input data</property>
@@ -907,7 +900,6 @@
                               <widget class="GtkVBox" id="phoebe_data_lcoptions_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">7</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkLabel" id="phoebe_data_lcoptions_mag_label">
                                     <property name="visible">True</property>
@@ -956,7 +948,6 @@
                               <widget class="GtkVBox" id="phoebe_data_rvoptions_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">7</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkCheckButton" id="phoebe_data_rvoptions_psepe_checkbutton">
                                     <property name="label" translatable="yes">Primary proximity effects</property>
@@ -1035,7 +1026,6 @@
                       <widget class="GtkVBox" id="vbox1">
                         <property name="visible">True</property>
                         <property name="border_width">2</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkFrame" id="phoebe_para_eph_hjd0_frame">
                             <property name="visible">True</property>
@@ -1723,7 +1713,6 @@
                       <widget class="GtkVBox" id="vbox2">
                         <property name="visible">True</property>
                         <property name="border_width">2</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkFrame" id="phoebe_para_eph_hjd0_frame1">
                             <property name="visible">True</property>
@@ -2410,7 +2399,6 @@
                       <widget class="GtkVBox" id="phoebe_para_orb_vbox">
                         <property name="visible">True</property>
                         <property name="border_width">2</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkFrame" id="phoebe_para_orb_perr0_frame">
                             <property name="visible">True</property>
@@ -3429,7 +3417,6 @@
                       <widget class="GtkVBox" id="vbox3">
                         <property name="visible">True</property>
                         <property name="border_width">2</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkFrame" id="phoebe_para_comp_tavh_frame">
                             <property name="visible">True</property>
@@ -3759,7 +3746,6 @@
                                 <child>
                                   <widget class="GtkVBox" id="vbox20">
                                     <property name="visible">True</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_phsv_spinbutton">
                                         <property name="width_request">120</property>
@@ -3947,7 +3933,6 @@
                                 <child>
                                   <widget class="GtkVBox" id="vbox21">
                                     <property name="visible">True</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_pcsv_spinbutton">
                                         <property name="width_request">120</property>
@@ -5378,7 +5363,6 @@
                     <child>
                       <widget class="GtkVBox" id="vbox14">
                         <property name="visible">True</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkFrame" id="phoebe_para_lum_levels_frame">
                             <property name="visible">True</property>
@@ -5388,7 +5372,6 @@
                               <widget class="GtkVBox" id="phoebe_para_lum_levels_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">4</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkHBox" id="hbox30">
                                     <property name="visible">True</property>
@@ -5729,7 +5712,6 @@
                               <widget class="GtkVBox" id="phoebe_para_lum_el3_vbox">
                                 <property name="visible">True</property>
                                 <property name="border_width">4</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkHBox" id="hbox38">
                                     <property name="visible">True</property>
@@ -6381,7 +6363,6 @@
                       <widget class="GtkVBox" id="phoebe_para_ld_vbox">
                         <property name="visible">True</property>
                         <property name="border_width">2</property>
-                        <property name="orientation">vertical</property>
                         <child>
                           <widget class="GtkTable" id="phoebe_para_ld_top_table">
                             <property name="visible">True</property>
@@ -6663,7 +6644,6 @@
                             <child>
                               <widget class="GtkVBox" id="phoebe_para_ld_lccoefs_vbox">
                                 <property name="visible">True</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkHBox" id="hbox29">
                                     <property name="visible">True</property>
@@ -7062,7 +7042,6 @@
                           <widget class="GtkVBox" id="phoebe_para_spots_vbox3">
                             <property name="visible">True</property>
                             <property name="border_width">1</property>
-                            <property name="orientation">vertical</property>
                             <property name="spacing">2</property>
                             <child>
                               <widget class="GtkHBox" id="phoebe_para_spots_vbox4">
@@ -7229,7 +7208,6 @@
                                           <widget class="GtkVBox" id="vbox6">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label18">
                                                 <property name="visible">True</property>
@@ -7300,7 +7278,6 @@
                                           <widget class="GtkVBox" id="vbox17">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label20">
                                                 <property name="visible">True</property>
@@ -7335,7 +7312,6 @@
                                           <widget class="GtkVBox" id="vbox18">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label21">
                                                 <property name="visible">True</property>
@@ -7370,7 +7346,6 @@
                                           <widget class="GtkVBox" id="vbox19">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label22">
                                                 <property name="visible">True</property>
@@ -7441,7 +7416,6 @@
                                           <widget class="GtkVBox" id="vbox25">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label28">
                                                 <property name="visible">True</property>
@@ -7512,7 +7486,6 @@
                                           <widget class="GtkVBox" id="vbox26">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label29">
                                                 <property name="visible">True</property>
@@ -7547,7 +7520,6 @@
                                           <widget class="GtkVBox" id="vbox27">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label30">
                                                 <property name="visible">True</property>
@@ -7582,7 +7554,6 @@
                                           <widget class="GtkVBox" id="vbox28">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label31">
                                                 <property name="visible">True</property>
@@ -7653,7 +7624,6 @@
                                           <widget class="GtkVBox" id="vbox29">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label33">
                                                 <property name="visible">True</property>
@@ -7724,7 +7694,6 @@
                                           <widget class="GtkVBox" id="vbox30">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label34">
                                                 <property name="visible">True</property>
@@ -7759,7 +7728,6 @@
                                           <widget class="GtkVBox" id="vbox31">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label35">
                                                 <property name="visible">True</property>
@@ -7794,7 +7762,6 @@
                                           <widget class="GtkVBox" id="vbox32">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label36">
                                                 <property name="visible">True</property>
@@ -7865,7 +7832,6 @@
                                           <widget class="GtkVBox" id="vbox33">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label38">
                                                 <property name="visible">True</property>
@@ -7936,7 +7902,6 @@
                                           <widget class="GtkVBox" id="vbox34">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label39">
                                                 <property name="visible">True</property>
@@ -7971,7 +7936,6 @@
                                           <widget class="GtkVBox" id="vbox35">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label40">
                                                 <property name="visible">True</property>
@@ -8006,7 +7970,6 @@
                                           <widget class="GtkVBox" id="vbox36">
                                             <property name="visible">True</property>
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label41">
                                                 <property name="visible">True</property>
@@ -8108,7 +8071,6 @@
                   <widget class="GtkVBox" id="notebook_fitt_vbox">
                     <property name="visible">True</property>
                     <property name="border_width">2</property>
-                    <property name="orientation">vertical</property>
                     <child>
                       <widget class="GtkHBox" id="phoebe_fitt_top_box">
                         <property name="visible">True</property>
@@ -8505,7 +8467,6 @@
                               <widget class="GtkVBox" id="vbox22">
                                 <property name="visible">True</property>
                                 <property name="border_width">4</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkScrolledWindow" id="phoebe_para_lum_weighting_scrolledwindow">
                                     <property name="visible">True</property>
@@ -8576,7 +8537,6 @@
                               <widget class="GtkVBox" id="vbox8">
                                 <property name="visible">True</property>
                                 <property name="border_width">1</property>
-                                <property name="orientation">vertical</property>
                                 <child>
                                   <widget class="GtkHBox" id="hbox32">
                                     <property name="visible">True</property>
@@ -8869,7 +8829,6 @@
                                         <child>
                                           <widget class="GtkVBox" id="vbox15">
                                             <property name="visible">True</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label12">
                                                 <property name="visible">True</property>
@@ -8925,7 +8884,6 @@
                                     <child>
                                       <widget class="GtkVBox" id="vbox16">
                                         <property name="visible">True</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkCheckButton" id="phoebe_lc_plot_options_alias_checkbutton">
                                             <property name="label" translatable="yes">Aliasing</property>
@@ -9132,7 +9090,6 @@
                                   <widget class="GtkVBox" id="vbox9">
                                     <property name="visible">True</property>
                                     <property name="border_width">1</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkTable" id="table21">
                                         <property name="visible">True</property>
@@ -9261,7 +9218,6 @@
                                       <widget class="GtkVBox" id="vbox11">
                                         <property name="visible">True</property>
                                         <property name="border_width">2</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_lc_plot_controls_zoomin_button">
                                             <property name="label" translatable="yes">Zoom In</property>
@@ -9304,7 +9260,6 @@
                                       <widget class="GtkVBox" id="vbox13">
                                         <property name="visible">True</property>
                                         <property name="border_width">2</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkLabel" id="label10">
                                             <property name="visible">True</property>
@@ -9374,7 +9329,6 @@
                                 <child>
                                   <widget class="GtkVBox" id="vbox5">
                                     <property name="visible">True</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkDrawingArea" id="phoebe_plot_lc_graph_area">
                                         <property name="visible">True</property>
@@ -9692,7 +9646,6 @@
                                   <widget class="GtkVBox" id="vbox10">
                                     <property name="visible">True</property>
                                     <property name="border_width">1</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkTable" id="table27">
                                         <property name="visible">True</property>
@@ -9821,7 +9774,6 @@
                                       <widget class="GtkVBox" id="vbox12">
                                         <property name="visible">True</property>
                                         <property name="border_width">2</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkButton" id="phoebe_rv_plot_controls_zoomin_button">
                                             <property name="label" translatable="yes">Zoom In</property>
@@ -9864,7 +9816,6 @@
                                       <widget class="GtkVBox" id="vbox23">
                                         <property name="visible">True</property>
                                         <property name="border_width">2</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkLabel" id="label7">
                                             <property name="visible">True</property>
@@ -9934,7 +9885,6 @@
                                 <child>
                                   <widget class="GtkVBox" id="vbox24">
                                     <property name="visible">True</property>
-                                    <property name="orientation">vertical</property>
                                     <child>
                                       <widget class="GtkDrawingArea" id="phoebe_plot_rv_graph_area">
                                         <property name="visible">True</property>
@@ -10045,7 +9995,6 @@
                                         <child>
                                           <widget class="GtkVBox" id="vbox38">
                                             <property name="visible">True</property>
-                                            <property name="orientation">vertical</property>
                                             <child>
                                               <widget class="GtkLabel" id="label43">
                                                 <property name="visible">True</property>
@@ -10101,7 +10050,6 @@
                                     <child>
                                       <widget class="GtkVBox" id="vbox39">
                                         <property name="visible">True</property>
-                                        <property name="orientation">vertical</property>
                                         <child>
                                           <widget class="GtkCheckButton" id="phoebe_rv_plot_options_alias_checkbutton">
                                             <property name="label" translatable="yes">Aliasing</property>
@@ -10475,7 +10423,6 @@
                         <child>
                           <widget class="GtkVBox" id="phoebe_plot_mesh_vbox">
                             <property name="visible">True</property>
-                            <property name="orientation">vertical</property>
                             <child>
                               <widget class="GtkFrame" id="phoebe_plot_mesh_graph_frame">
                                 <property name="visible">True</property>
@@ -10700,7 +10647,6 @@
                 <child>
                   <widget class="GtkVBox" id="phoebe_sidesheet_vbox">
                     <property name="visible">True</property>
-                    <property name="orientation">vertical</property>
                     <child>
                       <widget class="GtkHBox" id="hbox41">
                         <property name="visible">True</property>
