@@ -1882,6 +1882,14 @@ PHOEBE_array *phoebe_active_curves_get (PHOEBE_curve_type type)
 	return curves;
 }
 
+int countchar (const char instring[], char what )
+{
+	int i, count=0 ;
+	for (i=0; instring[i] != 0 ; i++)
+		if ( instring[i] == what ) count++;
+	return count;
+}
+
 int phoebe_open_parameter_file (const char *filename)
 {
 	/*
@@ -1965,7 +1973,16 @@ int phoebe_open_parameter_file (const char *filename)
 		 */
 
 		readout_str[strlen(readout_str)-1] = '\0';
-		if (strchr (readout_str, '#') != 0) (strchr (readout_str, '#'))[0] = '\0';
+		while (strrchr (readout_str, '#') != 0) {
+			/* Only when '#' is not between quotes is this a comment, otherwise RGB colors cannot be read from file */
+			char *start_comment = strrchr (readout_str, '#');
+			start_comment[0] = '\0';
+			if (countchar(readout_str, '"') == 1) {
+				/* This should be inside a string */
+				start_comment[0] = '#';
+				break;
+			}
+		}
 		if (strchr (readout_str, 13) != 0) (strchr (readout_str, 13))[0] = '\0';
 		while (readout_str[0] == ' ' || readout_str[0] == '\t') readout_str++;
 		while (readout_str[strlen(readout_str)-1] == ' ' || readout_str[strlen(readout_str)-1] == '\t') readout_str[strlen(readout_str)-1] = '\0';

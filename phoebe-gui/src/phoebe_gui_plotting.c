@@ -957,6 +957,21 @@ void gui_plot_interpolate_to_border (GUI_plot_data *data, double xin, double yin
 	gui_plot_yvalue (data, yb, yborder);
 }
 
+bool gui_plot_set_color (GUI_plot_data *data, gchar *colorname)
+{
+	/* Parses the color name, and sets the color for the next drawing commands (if parsing succeeds).  Returns FALSE when parsing does not succeed. */
+#define FULLINTENSITY 65535.0
+	GdkColor color;
+
+	if (gdk_color_parse (colorname, &color) == TRUE) {
+//printf ("Plot color = %s, red = %f, green = %f, blue = %f\n", gdk_color_to_string(&color), color.red/FULLINTENSITY, color.green/FULLINTENSITY, color.blue/FULLINTENSITY);
+		cairo_set_source_rgb (data->canvas, color.red/FULLINTENSITY, color.green/FULLINTENSITY, color.blue/FULLINTENSITY);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 {
 	int i, j;
@@ -1024,10 +1039,10 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
 		for (i = 0; i < data->objno; i++) {
 			if (data->request[i].query) {
-				if (!redirect)
-					cairo_set_source_rgb (data->canvas, 0, 0, 1);
-				else
+				if (redirect)
 					fprintf (redirect, "# Observed data-set %d:\n", i);
+				else if (gui_plot_set_color (data, data->request[i].obscolor) == FALSE)
+					cairo_set_source_rgb (data->canvas, 0, 0, 1);
 
 				for (j = 0; j < data->request[i].query->indep->dim; j++) {
 					if (!gui_plot_xvalue (data, data->request[i].query->indep->val[j], &x)) continue;
@@ -1071,11 +1086,10 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 			if (data->request[i].model) {
 				bool last_point_plotted = FALSE;
 				bool x_in_plot, y_in_plot;
-				//double lastx, lasty;
 
 				if (redirect)
 					fprintf (redirect, "# Synthetic data set %d:\n", i);
-				else
+				else if (gui_plot_set_color (data, data->request[i].syncolor) == FALSE) 
 					cairo_set_source_rgb (data->canvas, 1, 0, 0);
 
 				for (j = 0; j < data->request[i].model->indep->dim; j++) {
@@ -1113,14 +1127,12 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 							last_point_plotted = TRUE;
 						}
 					}
-					//lastx = x;
-					//lasty = y;
 				}
 
-				if (!redirect)
+				if (!redirect) {
 					cairo_stroke (data->canvas);
-
-				needs_ticks = TRUE;
+					needs_ticks = TRUE;
+				}
 			}
 		}
 	}
