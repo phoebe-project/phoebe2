@@ -404,7 +404,7 @@ int gui_init_lc_treeviews ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_combo_new ();
-	g_object_set (renderer, "editable", TRUE, NULL);
+	g_object_set (renderer, "editable", TRUE, "background-set", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_OBS_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), lc_model);
 	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), lc_model);
@@ -413,8 +413,7 @@ int gui_init_lc_treeviews ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_combo_new ();
-	g_object_set (renderer, "editable", TRUE, NULL);
-	g_object_set (renderer, "text-column", 0, NULL);
+	g_object_set (renderer, "editable", TRUE, "background-set", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (LC_COL_PLOT_SYN_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), lc_model);
 	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), lc_model);
@@ -590,8 +589,7 @@ int gui_init_rv_treeviews ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_combo_new ();
-	g_object_set (renderer, "editable", TRUE, NULL);
-	g_object_set (renderer, "text-column", 0, NULL);
+	g_object_set (renderer, "editable", TRUE, "background-set", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_OBS_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
 	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), rv_model);
@@ -600,8 +598,7 @@ int gui_init_rv_treeviews ()
 	gtk_tree_view_column_set_resizable (column, TRUE);
 
 	renderer    = gtk_cell_renderer_combo_new ();
-	g_object_set (renderer, "editable", TRUE, NULL);
-	g_object_set (renderer, "text-column", 0, NULL);
+	g_object_set (renderer, "editable", TRUE, "background-set", TRUE, NULL);
 	g_object_set_data (G_OBJECT (renderer), "column", GINT_TO_POINTER (RV_COL_PLOT_SYN_COLOR));
 	g_signal_connect (renderer, "edited", GTK_SIGNAL_FUNC (gui_text_cell_edited), rv_model);
 	g_signal_connect (renderer, "editing-started", GTK_SIGNAL_FUNC (gui_select_color), rv_model);
