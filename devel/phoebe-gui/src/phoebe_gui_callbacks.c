@@ -3,6 +3,8 @@
 #include <math.h>
 #include <libgen.h>
 
+#include <pthread.h>
+
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
@@ -651,53 +653,80 @@ G_MODULE_EXPORT void on_phoebe_para_orb_f2_spinbutton_changed (GtkComboBox *widg
 
 /* ******************************************************************** *
  *
- *                    phoebe fitting tab events
+ *                    Running minimization in a different thread
  *
  * ******************************************************************** */
 
+#define CALCULATE_IN_OTHER_THREAD 1
+
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 int accept_flag = 0;
+bool fitting_in_progress = FALSE;
 
-G_MODULE_EXPORT
-void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+int gui_progress_pulse (gpointer data)
 {
+    gtk_progress_bar_pulse(GTK_PROGRESS_BAR(data));
+    return fitting_in_progress;
+}
+
+void *gui_dc_fitting_thread (void *args)
+{
+	int status;
+
+	fitting_in_progress = TRUE;
+	gui_toggle_sensitive_widgets_for_minimization(FALSE);
+	status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
+	pthread_testcancel();
+	gui_on_fitting_finished (status);
+
+	pthread_exit(NULL);
+	return NULL;
+}
+
+void *gui_nms_fitting_thread (void *args)
+{
+	int status;
+
+	fitting_in_progress = TRUE;
+	gui_toggle_sensitive_widgets_for_minimization(FALSE);
+	status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
+	pthread_testcancel();
+	gui_on_fitting_finished (status);
+
+	pthread_exit(NULL);
+	return NULL;
+}
+
+void gui_on_fitting_finished (int status)
+{
+	/* Called after the minimization procedure finished */
 	GtkTreeView 	*phoebe_fitt_mf_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_first_treeview")->gtk);
-	GtkTreeView		*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
-	GtkComboBox 	*phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
-	GtkLabel		*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
+	GtkTreeView	*phoebe_fitt_second_treeview = GTK_TREE_VIEW(gui_widget_lookup("phoebe_fitt_second_treeview")->gtk);
+	GtkLabel	*phoebe_fitt_feedback_label = GTK_LABEL(gui_widget_lookup("phoebe_fitt_feedback_label")->gtk);
 	GtkTreeModel 	*model;
 	GtkTreeIter iter;
+	PHOEBE_curve *curve;
 	int index;
+	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback;
 	char *id;
 	char status_message[255] = "Minimizer feedback";
-	PHOEBE_curve *curve;
-	PHOEBE_minimizer_feedback *feedback;
+	char *method;
 
-	int status = 0;
+	fitting_in_progress = FALSE;
+	if (CALCULATE_IN_OTHER_THREAD) {
+		gui_toggle_sensitive_widgets_for_minimization(TRUE);
+		gtk_widget_hide(gui_widget_lookup("phoebe_fitt_progressbar")->gtk);
+	}
 
-	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
-	feedback = phoebe_minimizer_feedback;
-
-	gui_update_ld_coefficients_when_needed ();
-	status = gui_get_values_from_widgets ();
-
-	switch (gtk_combo_box_get_active (phoebe_fitt_method_combobox)) {
-		case 0:
-            gui_status ("Running DC minimization, please be patient...");
-			status = phoebe_minimize_using_dc (stdout, feedback);
-			phoebe_gui_debug ("DC minimizer: %s", phoebe_gui_error (status));
+	switch (feedback->algorithm) {
+		case PHOEBE_MINIMIZER_DC:
+			method = "Nelder-Mead Simplex";
 			gui_status ("DC minimization: %s", phoebe_gui_error (status));
-		break;
-		case 1:
-            gui_status ("Running NMS minimization, please be patient...");
-			status = phoebe_minimize_using_nms (stdout, feedback);
-			phoebe_gui_debug ("NMS minimizer: %s", phoebe_gui_error (status));
+			break;
+		case PHOEBE_MINIMIZER_NMS:
+			method = "Differential corrections";
 			gui_status ("NMS minimization: %s", phoebe_gui_error (status));
-		break;
-		default:
-			phoebe_minimizer_feedback_free (feedback);
-			gui_error ("Invalid minimization algorithm", "The minimization algorithm is not selected or is invalid. Please select a valid entry in the fitting tab and try again.");
-			return;
+			break;
 		break;
 	}
 
@@ -705,7 +734,7 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		PHOEBE_array *lc, *rv;
 		int lcno, rvno;
 
-		sprintf (status_message, "%s: done %d iterations in %f seconds; cost function value: %f", (gtk_combo_box_get_active(phoebe_fitt_method_combobox) ? "Nelder-Mead Simplex" : "Differential corrections"), feedback->iters, feedback->cputime, feedback->cfval);
+		sprintf (status_message, "%s: done %d iterations in %f seconds; cost function value: %f", method, feedback->iters, feedback->cputime, feedback->cfval);
 		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 
 		/* Results treeview: */
@@ -759,12 +788,73 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		accept_flag = 1;
 	}
 	else {
-		sprintf (status_message, "%s: %s", (gtk_combo_box_get_active(phoebe_fitt_method_combobox)? "Nelder-Mead Simplex":"Differential corrections"), phoebe_gui_error (status));
+		sprintf (status_message, "%s: %s", method, phoebe_gui_error (status));
 		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 	}
 
 	gui_beep ();
 }
+
+/* ******************************************************************** *
+ *
+ *                    phoebe fitting tab events
+ *
+ * ******************************************************************** */
+
+G_MODULE_EXPORT
+void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
+{
+	pthread_t thread;
+	int thread_return_code;
+
+	int status, fit_method;
+	GtkComboBox *phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
+	GtkWidget *phoebe_fitt_progressbar = gui_widget_lookup("phoebe_fitt_progressbar")->gtk;
+
+	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
+
+	gui_update_ld_coefficients_when_needed();
+	status = gui_get_values_from_widgets();
+	fit_method = gtk_combo_box_get_active (phoebe_fitt_method_combobox);
+
+	switch (fit_method) {
+		case 0:
+			gui_status("Running DC minimization, please be patient...");
+			if (CALCULATE_IN_OTHER_THREAD) {
+				thread_return_code = pthread_create(&thread, NULL, gui_dc_fitting_thread, NULL);
+				if (thread_return_code) printf("Error while attempting to run DC on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
+			}
+			else 
+				status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
+			break;
+		case 1:
+			gui_status("Running NMS minimization, please be patient...");
+			if (CALCULATE_IN_OTHER_THREAD) {
+				thread_return_code = pthread_create(&thread, NULL, gui_nms_fitting_thread, NULL);
+				if (thread_return_code) printf("Error while attempting to run NMS on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
+			}
+			else 
+				status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
+			break;
+		default:
+			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
+			gui_error ("Invalid minimization algorithm", "The minimization algorithm is not selected or is invalid. Please select a valid entry in the fitting tab and try again.");
+			return;
+		break;
+	}
+
+	if (CALCULATE_IN_OTHER_THREAD) {
+		if (thread_return_code) {
+			gui_error ("Error on minimization", "Could not create a separate thread to run the minimization calculations.");
+			return;
+		}
+		gtk_widget_show(phoebe_fitt_progressbar);
+		g_timeout_add_full(G_PRIORITY_DEFAULT, 100, gui_progress_pulse, (gpointer)phoebe_fitt_progressbar, NULL);
+	}
+	else
+		gui_on_fitting_finished (status);
+}
+
 
 int gui_spot_index(int spotsrc, int spotid)
 {
@@ -883,7 +973,7 @@ G_MODULE_EXPORT void on_phoebe_fitt_fitting_corrmat_button_clicked (GtkToolButto
 	gtk_window_set_icon (GTK_WINDOW (phoebe_cormat_dialog), gdk_pixbuf_new_from_file (glade_pixmap_file, NULL));
 	gtk_window_set_title (GTK_WINDOW(phoebe_cormat_dialog), "PHOEBE - Correlation matrix");
 
-	if(phoebe_minimizer_feedback){
+	if(phoebe_minimizer_feedback && (phoebe_minimizer_feedback->algorithm == PHOEBE_MINIMIZER_DC)) {
 		cormat_cols = phoebe_minimizer_feedback->cormat->cols;
 		cormat_rows = phoebe_minimizer_feedback->cormat->rows;
 		GType cormat_col_types[cormat_cols+1];

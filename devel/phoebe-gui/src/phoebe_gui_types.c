@@ -734,6 +734,19 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_rv_plot_options_phend_label",				glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_phend_label"),								0,					GUI_WIDGET_VALUE,		NULL, NULL);
 	gui_widget_add ("phoebe_plot_mesh_autoupdate_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_plot_mesh_autoupdate_checkbutton"),							0,					GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("gui_3d_plot_autoupdate"), NULL);
 
+	/* The following widgets need to be disabled during minimization calculations */
+	gui_widget_add ("phoebe_fitt_progressbar",                          glade_xml_get_widget(phoebe_window, "phoebe_fitt_progressbar"),                                         0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_fitt_fitting_corrmat_button",               glade_xml_get_widget(phoebe_window, "phoebe_fitt_fitting_corrmat_button"),                              0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_fitt_calculate_button",                     glade_xml_get_widget(phoebe_window, "phoebe_fitt_calculate_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_lc_plot_plot_button",                       glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_plot_button"),                                      0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_rv_plot_plot_button",                       glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_plot_button"),                                      0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_plot_mesh_plot_button",                     glade_xml_get_widget(phoebe_window, "phoebe_plot_mesh_plot_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_open_toolbutton",                           glade_xml_get_widget(phoebe_window, "phoebe_open_toolbutton"),                                          0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_file_open_menuitem",                        glade_xml_get_widget(phoebe_window, "phoebe_file_open_menuitem"),                                       0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_fitt_updateall_button",                     glade_xml_get_widget(phoebe_window, "phoebe_fitt_updateall_button"),                                    0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+	gui_widget_add ("phoebe_para_lum_levels_calc_button",               glade_xml_get_widget(phoebe_window, "phoebe_para_lum_levels_calc_button"),                              0,                  GUI_WIDGET_VALUE,       NULL, NULL);
+
+
 	/* ************************    GUI Containers   ************************* */
 
 	gui_widget_add ("phoebe_lc_plot_image",								glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_image"),									        0,					GUI_WIDGET_VALUE, 		NULL, NULL);
@@ -1375,3 +1388,32 @@ int gui_set_values_to_widgets ()
 	
 	return SUCCESS;
 }
+
+void gui_toggle_sensitive_widgets_for_minimization (bool enable)
+{
+	/* Disable widgets during minimization, otherwise they may give problems (especially those reading/writng files DC also uses) */
+	GUI_widget *widget;
+
+	/* Widgets that must be disabled while fitting is in progress: */
+	char *widgets[] = {
+				"phoebe_fitt_calculate_button",
+				"phoebe_fitt_updateall_button",
+				"phoebe_fitt_fitting_corrmat_button",
+				"phoebe_fitt_method_combobox",
+				"phoebe_open_toolbutton",
+				"phoebe_lc_plot_plot_button",
+				"phoebe_rv_plot_plot_button",
+				"phoebe_plot_mesh_plot_button",
+				"phoebe_file_open_menuitem",
+				"phoebe_para_lum_levels_calc_button",
+				"phoebe_open_toolbutton"
+                            };
+	int i;
+	for(i = 0; i < sizeof(widgets)/sizeof(gpointer); i++) {
+		if ((widget = gui_widget_lookup(widgets[i])) != NULL)
+			gtk_widget_set_sensitive(widget->gtk, enable);
+	}
+    	return;
+}
+
+
