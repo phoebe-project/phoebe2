@@ -61,4 +61,6 @@ typedef struct GUI_widget_table {
 
 GUI_widget_table *GUI_wt;
 
+void gui_toggle_sensitive_widgets_for_minimization (bool enable);
+
 #endif

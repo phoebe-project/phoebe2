@@ -10782,8 +10782,24 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkStatusbar" id="phoebe_statusbar">
+          <widget class="GtkHBox" id="phoebe_statusbox">
             <property name="visible">True</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <widget class="GtkStatusbar" id="phoebe_statusbar">
+                <property name="visible">True</property>
+                <property name="has_resize_grip">False</property>
+              </widget>
+            </child>
+            <child>
+              <widget class="GtkProgressBar" id="phoebe_fitt_progressbar">
+                <property name="activity_mode">True</property>
+                <property name="text" translatable="yes"></property>
+              </widget>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
           </widget>
           <packing>
             <property name="expand">False</property>
