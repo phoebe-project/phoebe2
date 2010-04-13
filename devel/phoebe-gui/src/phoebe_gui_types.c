@@ -443,6 +443,11 @@ int gui_init_widgets ()
 	gui_widget_add ("gui_infcon_phase",                                 glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_infconj_value"), 0, GUI_WIDGET_VALUE, NULL, NULL);
 	gui_widget_add ("gui_ascnode_phase",                                glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_ascnode_value"), 0, GUI_WIDGET_VALUE, NULL, NULL);
 	gui_widget_add ("gui_descnode_phase",                               glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_descnode_value"), 0, GUI_WIDGET_VALUE, NULL, NULL);
+	gui_widget_add ("gui_perr0_hjd",                                  glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_per_hjd"), 0, GUI_WIDGET_VALUE, NULL, NULL);
+	gui_widget_add ("gui_supcon_hjd",                                 glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_supconj_hjd"), 0, GUI_WIDGET_VALUE, NULL, NULL);
+	gui_widget_add ("gui_infcon_hjd",                                 glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_infconj_hjd"), 0, GUI_WIDGET_VALUE, NULL, NULL);
+	gui_widget_add ("gui_ascnode_hjd",                                glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_ascnode_hjd"), 0, GUI_WIDGET_VALUE, NULL, NULL);
+	gui_widget_add ("gui_descnode_hjd",                               glade_xml_get_widget (phoebe_window, "phoebe_para_orb_crph_descnode_hjd"), 0, GUI_WIDGET_VALUE, NULL, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_teff1");
 	gui_widget_add ("phoebe_para_comp_tavh_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_comp_tavh_spinbutton"), 								0,					GUI_WIDGET_VALUE, 		par, NULL);
@@ -1383,6 +1388,7 @@ int gui_set_values_to_widgets ()
 	
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_fitt_mf_treeview ();
+	on_orbital_elements_changed ((GtkSpinButton *)NULL, (gpointer)NULL);
 	
 	gui_status ("Parameters updated.");
 	

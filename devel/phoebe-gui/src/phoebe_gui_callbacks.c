@@ -2745,9 +2745,11 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	 */
 
 	double pp, scp, icp, anp, dnp;
-	double e  = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_ecc_spinbutton")->gtk));
-	double w  = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk));
-	double dp = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_pshift_spinbutton")->gtk));
+	double e    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_ecc_spinbutton")->gtk));
+	double w    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk));
+	double dp   = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_pshift_spinbutton")->gtk));
+	double p    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_period_spinbutton")->gtk));
+	double hjd0 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_hjd0_spinbutton")->gtk));
 	char value[255];
 
 	phoebe_compute_critical_phases (&pp, &scp, &icp, &anp, &dnp, w, e, dp);
@@ -2762,6 +2764,17 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_ascnode_phase")->gtk), value);
 	sprintf (value, "%lf", dnp);
 	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_descnode_phase")->gtk), value);
+
+	sprintf (value, "%lf", hjd0 + p * pp);
+	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_perr0_hjd")->gtk), value);
+	sprintf (value, "%lf", hjd0 + p * scp);
+	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_supcon_hjd")->gtk), value);
+	sprintf (value, "%lf", hjd0 + p * icp);
+	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_infcon_hjd")->gtk), value);
+	sprintf (value, "%lf", hjd0 + p * anp);
+	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_ascnode_hjd")->gtk), value);
+	sprintf (value, "%lf", hjd0 + p * dnp);
+	gtk_label_set_text (GTK_LABEL (gui_widget_lookup ("gui_descnode_hjd")->gtk), value);
 
 	return;
 }
