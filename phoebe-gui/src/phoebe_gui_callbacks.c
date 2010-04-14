@@ -373,6 +373,90 @@ void phoebe_gui_constrain_secondary_params (bool constrain)
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ld_secondary_adjust_checkbutton), FALSE);
 }
 
+G_MODULE_EXPORT void on_phoebe_para_orb_perr_units_combobox_changed (GtkComboBox *widget, gpointer user_data)
+{
+	GtkWidget *perr0_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk;
+	GtkWidget *perr0step_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0step_spinbutton")->gtk;
+	GtkWidget *perr0min_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0min_spinbutton")->gtk;
+	GtkWidget *perr0max_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0max_spinbutton")->gtk;
+	GtkAdjustment *perr0_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(perr0_spinbutton));
+	GtkAdjustment *perr0step_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(perr0step_spinbutton));
+	GtkAdjustment *perr0min_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(perr0min_spinbutton));
+	GtkAdjustment *perr0max_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(perr0max_spinbutton));
+
+	GtkWidget *dperdt_spinbutton = gui_widget_lookup ("phoebe_para_orb_dperdt_spinbutton")->gtk;
+	GtkWidget *dperdtstep_spinbutton = gui_widget_lookup ("phoebe_para_orb_dperdtstep_spinbutton")->gtk;
+	GtkWidget *dperdtmin_spinbutton = gui_widget_lookup ("phoebe_para_orb_dperdtmin_spinbutton")->gtk;
+	GtkWidget *dperdtmax_spinbutton = gui_widget_lookup ("phoebe_para_orb_dperdtmax_spinbutton")->gtk;
+	GtkAdjustment *dperdt_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(dperdt_spinbutton));
+	GtkAdjustment *dperdtstep_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(dperdtstep_spinbutton));
+	GtkAdjustment *dperdtmin_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(dperdtmin_spinbutton));
+	GtkAdjustment *dperdtmax_adjustment = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON(dperdtmax_spinbutton));
+
+	double change_factor;
+
+	if (gtk_combo_box_get_active(GTK_COMBO_BOX(widget)) == 0) {
+		/* Radians */
+		change_factor = M_PI/180.0;
+
+		perr0_adjustment->upper = M_PI;
+		perr0step_adjustment->upper = M_PI;
+		perr0min_adjustment->upper = M_PI;
+		perr0max_adjustment->upper = M_PI;
+		perr0_adjustment->step_increment = 0.02;
+		perr0step_adjustment->step_increment = 0.02;
+		perr0min_adjustment->step_increment = 0.02;
+		perr0max_adjustment->step_increment = 0.02;
+
+		dperdt_adjustment->lower = -M_PI/2;
+		dperdtmin_adjustment->lower = -M_PI/2;
+		dperdtmax_adjustment->lower = -M_PI/2;
+		dperdt_adjustment->upper = M_PI/2;
+		dperdtstep_adjustment->upper = M_PI/2;
+		dperdtmin_adjustment->upper = M_PI/2;
+		dperdtmax_adjustment->upper = M_PI/2;
+		dperdt_adjustment->step_increment = 0.02;
+		dperdtstep_adjustment->step_increment = 0.02;
+		dperdtmin_adjustment->step_increment = 0.02;
+		dperdtmax_adjustment->step_increment = 0.02;
+	}
+	else {
+		/* Degrees */
+		change_factor = 180.0/M_PI;
+
+		perr0_adjustment->upper = 180;
+		perr0step_adjustment->upper = 180;
+		perr0min_adjustment->upper = 180;
+		perr0max_adjustment->upper = 180;
+		perr0_adjustment->step_increment = 1;
+		perr0step_adjustment->step_increment = 1;
+		perr0min_adjustment->step_increment = 1;
+		perr0max_adjustment->step_increment = 1;
+
+		dperdt_adjustment->lower = -90;
+		dperdtmin_adjustment->lower = -90;
+		dperdtmax_adjustment->lower = -90;
+		dperdt_adjustment->upper = 90;
+		dperdtstep_adjustment->upper = 90;
+		dperdtmin_adjustment->upper = 90;
+		dperdtmax_adjustment->upper = 90;
+		dperdt_adjustment->step_increment = 1;
+		dperdtstep_adjustment->step_increment = 1;
+		dperdtmin_adjustment->step_increment = 1;
+		dperdtmax_adjustment->step_increment = 1;
+	}
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(perr0_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(perr0_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(perr0step_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(perr0step_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(perr0min_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(perr0min_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(perr0max_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(perr0max_spinbutton)) * change_factor);
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(dperdt_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(dperdt_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(dperdtstep_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(dperdtstep_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(dperdtmin_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(dperdtmin_spinbutton)) * change_factor);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(dperdtmax_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(dperdtmax_spinbutton)) * change_factor);
+}
+
 G_MODULE_EXPORT void on_phoebe_data_star_model_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
 	int star_model = gtk_combo_box_get_active(widget) - 1;

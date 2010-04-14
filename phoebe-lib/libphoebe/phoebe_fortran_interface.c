@@ -25,10 +25,14 @@ int create_lci_file (char *filename, WD_LCI_parameters *param)
 	double   wla = param->WLA/10000.0;
 	double   cla = param->CLA > 1e-6 ? param->CLA : 10.0;
 
+	double perr_units_conversion_factor = phoebe_perr_units_to_wd_conversion_factor ();
+	double perr0 = param->PERR0 * perr_units_conversion_factor;
+	double dperdt = param->DPERDT * perr_units_conversion_factor;
+
 	wd_wrlci (filename, param->MPAGE, param->NREF, param->MREF, param->IFSMV1, param->IFSMV2, param->ICOR1, param->ICOR2, param->LD,
 			  param->JDPHS, param->HJD0, param->PERIOD, param->DPDT, param->PSHIFT, param->SIGMA, param->WEIGHTING, param->SEED,
 			  param->HJDST, param->HJDSP, param->HJDIN, param->PHSTRT, param->PHSTOP, param->PHIN, param->PHNORM,
-			  param->MODE, param->IPB, param->IFAT1, param->IFAT2, param->N1, param->N2, param->PERR0, param->DPERDT, param->THE, vunit,
+			  param->MODE, param->IPB, param->IFAT1, param->IFAT2, param->N1, param->N2, perr0, dperdt, param->THE, vunit,
 			  param->E, param->SMA, param->F1, param->F2, vga, param->INCL, param->GR1, param->GR2, param->MET1,
 			  tavh, tavc, param->ALB1, param->ALB2, param->PHSV, param->PCSV, param->RM, param->XBOL1, param->XBOL2, param->YBOL1, param->YBOL2,
 			  param->IBAND, param->HLA, cla, param->X1A, param->X2A, param->Y1A, param->Y2A, param->EL3, param->OPSF, mzero, param->FACTOR, wla,
@@ -61,6 +65,10 @@ int create_dci_file (char *filename, void *pars)
 	double vga = params->vga / 100.0;
 	double tavh = params->teff1/10000.0;
 	double tavc = params->teff2/10000.0;
+
+	double perr_units_conversion_factor = phoebe_perr_units_to_wd_conversion_factor ();
+	double perr0 = params->perr0 * perr_units_conversion_factor;
+	double dperdt = params->dperdt * perr_units_conversion_factor;
 
 	double *step, *wla, *sigma, *cla;
 
@@ -97,6 +105,8 @@ int create_dci_file (char *filename, void *pars)
 	step[14] /= 100.0;   /* vga */
 	step[18] /= 10000.0; /* T1 */
 	step[19] /= 10000.0; /* T2 */
+	step[10] *= perr_units_conversion_factor;  /* PERR0 */
+	step[28] *= perr_units_conversion_factor;  /* DPERDT */
 
 	/* Spots */
 	double spots_units_conversion_factor = phoebe_spots_units_to_wd_conversion_factor ();
@@ -112,7 +122,7 @@ int create_dci_file (char *filename, void *pars)
 			  params->rv1data, params->rv2data, params->nlc, k0, kdisk, params->symder, nppl,
 			  params->refno, params->refswitch, params->spots1corotate, params->spots2corotate, params->rv1proximity, params->rv2proximity, params->ldmodel,
 			  params->indep, params->hjd0, params->period, params->dpdt, params->pshift,
-			  params->morph, params->cladec, params->ifat1, params->ifat2, params->n1f, params->n2f, params->n1c, params->n2c, params->perr0, params->dperdt, the, vunit,
+			  params->morph, params->cladec, params->ifat1, params->ifat2, params->n1f, params->n2f, params->n1c, params->n2c, perr0, dperdt, the, vunit,
 			  params->ecc, params->sma, params->f1, params->f2, vga, params->incl, params->grb1, params->grb2, params->met1,
 			  tavh, tavc, params->alb1, params->alb2, params->pot1, params->pot2, params->rm, params->xbol1, params->xbol2, params->ybol1, params->ybol2,
 			  params->passband, params->hla, cla, params->x1a, params->x2a, params->y1a, params->y2a, params->el3, params->opsf, params->levweight, sigma, wla,

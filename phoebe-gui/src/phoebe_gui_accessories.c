@@ -373,28 +373,33 @@ int gui_show_configuration_dialog ()
 			phoebe_read_in_passbands (dir);
 			g_free (dir);
 						
+			phoebe_config_entry_set ("PHOEBE_LD_DIR",    gtk_file_chooser_get_filename ((GtkFileChooser*) ld_internal_dir));
+			phoebe_config_entry_set ("PHOEBE_LD_VH_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*) ld_vanhamme_dir));
+			
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (ld_none))) {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", FALSE);
 			}
 			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (ld_internal))) {
+				char *pathname;
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", TRUE);
 				phoebe_config_entry_set ("PHOEBE_LD_INTERN", TRUE);
+				phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname); 
+				phoebe_ld_attach_all (pathname);
 			}
 			else {
 				phoebe_config_entry_set ("PHOEBE_LD_SWITCH", TRUE);
 				phoebe_config_entry_set ("PHOEBE_LD_INTERN", FALSE);
 			}
 			
-			phoebe_config_entry_set ("PHOEBE_LD_DIR",    gtk_file_chooser_get_filename ((GtkFileChooser*) ld_internal_dir));
-			phoebe_config_entry_set ("PHOEBE_LD_VH_DIR", gtk_file_chooser_get_filename ((GtkFileChooser*) ld_vanhamme_dir));
-			
+			phoebe_load_ld_tables ();
+
 			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (kurucz_checkbutton))) {
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", TRUE);
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_DIR",    gtk_file_chooser_get_filename ((GtkFileChooser *) kurucz_filechooserbutton));
 			}
 			else
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", FALSE);
-			
+
 			if (result == GTK_RESPONSE_YES) {
 				if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
 					char homedir[255], confdir[255];
@@ -416,7 +421,7 @@ int gui_show_configuration_dialog ()
 
 				if (status == SUCCESS)
 					gui_status ("Configuration successfully saved.");
-                else
+                		else
 					gui_status ("Configuration failed: %s", phoebe_gui_error (status));
 			}
         break;
