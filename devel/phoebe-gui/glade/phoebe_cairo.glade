@@ -2729,7 +2729,41 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkFrame" id="phoebe_para_orb_perr0_frame1">
+                          <widget class="GtkHBox" id="phoebe_para_orb_perr_units_hbox">
+                            <property name="visible">True</property>
+                            <child>
+                              <widget class="GtkLabel" id="phoebe_para_orb_perr_units_label">
+                                <property name="visible">True</property>
+                                <property name="xpad">5</property>
+                                <property name="label" translatable="yes">Argument of periastron unit:</property>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <widget class="GtkComboBox" id="phoebe_para_orb_perr_units_combobox">
+                                <property name="visible">True</property>
+                                <property name="items" translatable="yes"></property>
+                                <signal name="changed" handler="on_phoebe_para_orb_perr_units_combobox_changed"/>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </widget>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="position">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <widget class="GtkFrame" id="phoebe_para_orb_ecc_frame">
                             <property name="visible">True</property>
                             <property name="label_xalign">0</property>
                             <child>
@@ -2891,7 +2925,7 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">2</property>
+                            <property name="position">3</property>
                           </packing>
                         </child>
                         <child>
@@ -3056,7 +3090,7 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">3</property>
+                            <property name="position">4</property>
                           </packing>
                         </child>
                         <child>
@@ -3221,11 +3255,8 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">4</property>
+                            <property name="position">5</property>
                           </packing>
-                        </child>
-                        <child>
-                          <placeholder/>
                         </child>
                         <child>
                           <placeholder/>

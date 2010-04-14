@@ -831,7 +831,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	WD_DCI_parameters *params;
 	PHOEBE_parameter_list *marked_tba, *tba;
 	int lcno, rvno, no_tba;
-	bool calchla = FALSE, calcvga = FALSE, spots_conversion_factor;
+	bool calchla = FALSE, calcvga = FALSE, spots_conversion_factor, perr_conversion_factor;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 
 	/* Minimizer results: */
@@ -942,6 +942,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	feedback->cfval = cfval;
 
 	spots_conversion_factor = 1/phoebe_spots_units_to_wd_conversion_factor ();
+	perr_conversion_factor = 1/phoebe_perr_units_to_wd_conversion_factor ();
 
 	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
 	while (tba) {
@@ -955,6 +956,11 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 				else if (strcmp (tba->par->qualifier, "phoebe_vga") == 0) {
 					corrections[i] *= 100.0;
 					errors[i] *= 100.0;
+				}
+				else if (strcmp (tba->par->qualifier, "phoebe_perr0") == 0 ||
+					strcmp (tba->par->qualifier, "phoebe_dperdt") == 0) {
+					corrections[i] *= perr_conversion_factor;
+					errors[i] *= perr_conversion_factor;
 				}
 				else if ((spots_conversion_factor != 1.0) && ((strcmp (tba->par->qualifier, "wd_spots_lat1") == 0) ||
 					(strcmp (tba->par->qualifier, "wd_spots_lat2") == 0) ||

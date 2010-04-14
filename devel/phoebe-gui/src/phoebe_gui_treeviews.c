@@ -170,6 +170,11 @@ int gui_ld_treeview_update ()
 	GtkTreeModel *model = gtk_tree_view_get_model (GTK_TREE_VIEW (treeview));
 }
 
+void gui_gdk_color_to_string (GdkColor color, 	gchar *colorstring)
+{
+	sprintf (colorstring, "#%04x%04x%04x", color.red, color.green, color.blue);
+}
+
 void gui_select_color(GtkCellRenderer *renderer, GtkCellEditable *editable, const gchar *path, gpointer user_data)
 {
 	GtkTreeModel *model = (GtkTreeModel *) user_data;
@@ -191,9 +196,9 @@ void gui_select_color(GtkCellRenderer *renderer, GtkCellEditable *editable, cons
 	}
 
 	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
-
+		gchar colorstring[20];
 		gtk_color_selection_get_current_color(colorsel, &color);
-		gchar *colorstring = gdk_color_to_string(&color);
+		gui_gdk_color_to_string(color, colorstring);
 	
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, column, colorstring, -1);
 	} 

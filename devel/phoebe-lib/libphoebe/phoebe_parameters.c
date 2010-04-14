@@ -109,6 +109,7 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_ecc",                  "Orbital eccentricity",                       KIND_ADJUSTABLE, NULL,          "%lf",   0.0,    1.0,   0.01, NO, TYPE_DOUBLE,        0.0);
 	phoebe_parameter_add ("phoebe_perr0",                "Argument of periastron",                     KIND_ADJUSTABLE, NULL,          "%lf",   0.0, 2*M_PI,   0.01, NO, TYPE_DOUBLE,        0.0);
 	phoebe_parameter_add ("phoebe_dperdt",               "First time derivative of periastron",        KIND_ADJUSTABLE, NULL,          "%12.12lf",  -1.0,    1.0,   1E-6, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_perr_units",           "Argument of periastron unit",                KIND_MENU,       NULL,          "%s",    0,      0,        0, NO, TYPE_STRING,       "Radians");
 
 	/* *********************   Surface parameters   ************************* */
 
@@ -364,6 +365,10 @@ int phoebe_init_parameter_options ()
 	phoebe_parameter_add_option (par, "Flux");
 
 	par = phoebe_parameter_lookup ("phoebe_spots_units");
+	phoebe_parameter_add_option (par, "Radians");
+	phoebe_parameter_add_option (par, "Degrees");
+
+	par = phoebe_parameter_lookup ("phoebe_perr_units");
 	phoebe_parameter_add_option (par, "Radians");
 	phoebe_parameter_add_option (par, "Degrees");
 
@@ -1764,6 +1769,14 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 		return ERROR_INVALID_EL3_UNITS;
 
 	return SUCCESS;
+}
+
+double phoebe_perr_units_to_wd_conversion_factor ()
+{
+	char *phoebe_perr_units;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_perr_units"), &phoebe_perr_units);
+	return (strcmp(phoebe_perr_units, "Radians")) ? M_PI/180.0 : 1.0;
+
 }
 
 double phoebe_spots_units_to_wd_conversion_factor ()
