@@ -35,11 +35,15 @@ int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOE
 	gsl_interp_accel *acc;
 	gsl_spline       *spline;
 
-	/* Compute the integral over the passband transmission function:          */
+	/* Error handling: */
+	if (!SED) return ERROR_HIST_NOT_INITIALIZED;
+	if (!PTF) return ERROR_HIST_NOT_INITIALIZED;
+	
+	/* Compute the integral over the passband transmission function: */
 	status = phoebe_hist_integrate (&intPTF, PTF, PTF->range[0], PTF->range[PTF->bins]);
 	if (status != SUCCESS) return status;
 
-	/* Assemble an array of center-bin values:                                */
+	/* Assemble an array of center-bin values: */
 	PTFindeps = phoebe_malloc (PTF->bins * sizeof (*PTFindeps));
 	for (i = 0; i < PTF->bins; i++)
 		PTFindeps[i] = (PTF->range[i]+PTF->range[i+1])/2;
@@ -49,7 +53,7 @@ int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOE
 	spline = gsl_spline_alloc (gsl_interp_cspline, PTF->bins);
 	gsl_spline_init (spline, PTFindeps, PTF->val, PTF->bins);
 
-	/* Integrate spectral energy distribution function times this spline:     */
+	/* Integrate spectral energy distribution function times this spline: */
 	passband_flux = 0;
 	i = 0;
 	while (SED->range[i] < PTF->range[0]) i++;
@@ -58,13 +62,13 @@ int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOE
 		i++;
 	}
 
-	/* Compute the intensity:                                                 */
+	/* Compute the intensity: */
 	*intensity = M_PI * passband_flux / intPTF;
 
-	/* Free the array of center-bin values:                                   */
+	/* Free the array of center-bin values: */
 	free (PTFindeps);
 
-	/* Free the spline:                                                       */
+	/* Free the spline: */
 	gsl_spline_free (spline);
 	gsl_interp_accel_free (acc);
 
