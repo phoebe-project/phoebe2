@@ -114,7 +114,7 @@ int intern_spectra_repository_process (const char *filename, const struct stat *
 
 		/* Reallocate the memory in blocks of 10000 spectra (for efficiency): */
 		if (PHOEBE_spectra_repository.no % 10000 == 0)
-			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, 10000 * sizeof (*(PHOEBE_spectra_repository.prop)));
+			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, (PHOEBE_spectra_repository.no/10000+1)*10000*sizeof (*(PHOEBE_spectra_repository.prop)));
 		PHOEBE_spectra_repository.no++;
 
 		/* Add terminating characters to read strings: */
@@ -182,11 +182,12 @@ int intern_spectra_alt_repository_process (const char *filename, const struct st
 	int i, argmatch;
 	char *relative = strrchr (filename, '/');
 	int T, logg, met;
+	double mu;
 	char metsign;
 
-	argmatch = sscanf (relative, "/T%5dG%2d%c%2dM1.000.spectrum", &T, &logg, &metsign, &met);
+	argmatch = sscanf (relative, "/T%5dG%2d%c%2dM%lf.spectrum", &T, &logg, &metsign, &met, &mu);
 	phoebe_debug ("%2d matched; ", argmatch);
-	if (argmatch == 4) {
+	if (argmatch == 5 && mu > 0.999) {
 		/* Handle metallicity sign: */
 		if (metsign == 'M') met = -met;
 
@@ -223,7 +224,7 @@ int intern_spectra_alt_repository_process (const char *filename, const struct st
 		/* Reallocate the memory in blocks of 3800 spectra (for efficiency;
 		 * there are 3800 spectra in the generic repository): */
 		if (PHOEBE_spectra_repository.no % 3800 == 0)
-			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, 3800 * sizeof (*(PHOEBE_spectra_repository.prop)));
+			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, (PHOEBE_spectra_repository.no/3800+1)*3800*sizeof (*(PHOEBE_spectra_repository.prop)));
 		PHOEBE_spectra_repository.no++;
 
 		/* Add the parsed data to the repository: */
