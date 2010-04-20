@@ -161,7 +161,7 @@ int gui_fit_statistics_treeview_init    ();
 
 int gui_init_lc_plot_treeview           ();
 
-int gui_init_filter_combobox 			(GtkWidget *combo_box);
+int gui_init_filter_combobox 			(GtkWidget *combo_box, gint activefilter);
 
 int gui_data_lc_treeview_add 			();
 int gui_data_rv_treeview_add 			();
