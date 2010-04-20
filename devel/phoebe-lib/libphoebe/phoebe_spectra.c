@@ -159,6 +159,92 @@ int intern_spectra_repository_process (const char *filename, const struct stat *
 	return SUCCESS;
 }
 
+int intern_spectra_alt_repository_process (const char *filename, const struct stat *filestat, int flag)
+{
+	/*
+	 * intern_spectra_alt_repository_process:
+	 * @filename: filename (relative to dirpath) to be processed
+	 * @filestat: a variable for all file properties
+	 * @flag: file type passed by ftw(), which we don't use.
+	 * 
+	 * This is an internal function and should not be used by any function
+	 * except phoebe_spectra_set_repository (). It parses a filename passed
+	 * by the ftw() function and compares it to the following predefined
+	 * format:
+	 * 
+	 *   T%%5dG%%2d%%c%%2dM1.000.spectrum
+	 *
+	 * This will pick out only center-of-limb intensities (mu = 1).
+	 * 
+	 * Returns: #PHOEBE_error_code.
+	 */
+
+	int i, argmatch;
+	char *relative = strrchr (filename, '/');
+	int T, logg, met;
+	char metsign;
+
+	argmatch = sscanf (relative, "/T%5dG%2d%c%2dM1.000.spectrum", &T, &logg, &metsign, &met);
+	phoebe_debug ("%2d matched; ", argmatch);
+	if (argmatch == 4) {
+		/* Handle metallicity sign: */
+		if (metsign == 'M') met = -met;
+
+		/* Commit the temperature to the array of temperature nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.Teffnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.Teffnodes->val.iarray[i] == T)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.Teffnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.Teffnodes, PHOEBE_spectra_repository.Teffnodes->dim+1);
+			PHOEBE_spectra_repository.Teffnodes->val.iarray[i] = T;
+		}
+
+		/* Commit the log(g) to the array of log(g) nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.loggnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.loggnodes->val.iarray[i] == logg)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.loggnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.loggnodes, PHOEBE_spectra_repository.loggnodes->dim+1);
+			PHOEBE_spectra_repository.loggnodes->val.iarray[i] = logg;
+		}
+
+		/* Commit the metallicity to the array of metallicity nodes (if new): */
+		for (i = 0; i < PHOEBE_spectra_repository.metnodes->dim; i++) {
+			if (PHOEBE_spectra_repository.metnodes->val.iarray[i] == met)
+				break;
+		}
+		if (i == PHOEBE_spectra_repository.metnodes->dim) {
+			phoebe_array_realloc (PHOEBE_spectra_repository.metnodes, PHOEBE_spectra_repository.metnodes->dim+1);
+			PHOEBE_spectra_repository.metnodes->val.iarray[i] = met;
+		}
+
+		/* Reallocate the memory in blocks of 3800 spectra (for efficiency;
+		 * there are 3800 spectra in the generic repository): */
+		if (PHOEBE_spectra_repository.no % 3800 == 0)
+			PHOEBE_spectra_repository.prop = phoebe_realloc (PHOEBE_spectra_repository.prop, 3800 * sizeof (*(PHOEBE_spectra_repository.prop)));
+		PHOEBE_spectra_repository.no++;
+
+		/* Add the parsed data to the repository: */
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].filename = strdup (filename);
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].type = -1;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].lambda_min = 1760;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].lambda_max = 40000;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].resolution = -1;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].temperature = T;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].gravity = logg;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].metallicity = met;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].alpha = -1;
+		PHOEBE_spectra_repository.prop[PHOEBE_spectra_repository.no-1].microturbulence = -1;
+		phoebe_debug ("parsed:  %s\n", relative+1);
+	}
+	else
+		phoebe_debug ("skipped: %s\n", relative+1);
+
+	return SUCCESS;
+}
+
 int phoebe_spectra_set_repository (char *rep_name)
 {
 	/**
@@ -208,7 +294,7 @@ int phoebe_spectra_set_repository (char *rep_name)
 
 #ifdef HAVE_FTW_H
 	/* Under Linux we can use glibc's ftw() function to walk the file tree: */
-	ftw (rep_name, intern_spectra_repository_process, 10);
+	ftw (rep_name, intern_spectra_alt_repository_process, 10);
 #else
 {
 	/*
@@ -231,7 +317,7 @@ int phoebe_spectra_set_repository (char *rep_name)
 
 	while ((file = readdir (dirlist))) {
 		filename = phoebe_concatenate_strings (rep_name, "/", file->d_name, NULL);
-		intern_spectra_repository_process (filename, NULL, 0);
+		intern_spectra_alt_repository_process (filename, NULL, 0);
 		free (filename);
 	}
 
@@ -372,7 +458,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	FILE *input;
 	PHOEBE_spectrum *spectrum;
 	PHOEBE_vector *bin_centers;
-	int linecount = 1;
+	int linecount = 1, idx = 0;
 	
 	char line[255];
 	char *strptr;
@@ -384,9 +470,7 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 	spectrum = phoebe_spectrum_new ();
 	bin_centers = phoebe_vector_new ();
 	
-	while (!feof (input)) {
-		if (!fgets (line, 254, input)) break;
-		
+	while (fgets (line, 254, input)) {
 		/* Remove empty lines: */
 		if ( (strptr = strchr (line, '\n')) ) *strptr = '\0';
 		
@@ -398,6 +482,13 @@ PHOEBE_spectrum *phoebe_spectrum_new_from_file (char *filename)
 			phoebe_spectrum_realloc (spectrum, spectrum->data->bins + 1);
 			bin_centers->val[bin_centers->dim-1] = wl;
 			spectrum->data->val[spectrum->data->bins-1] = flux;
+		}
+		else if (sscanf (line, "%lf", &flux) == 1) {
+			phoebe_vector_realloc (bin_centers, bin_centers->dim + 1);
+			phoebe_spectrum_realloc (spectrum, spectrum->data->bins + 1);
+			bin_centers->val[bin_centers->dim-1] = 2500.0+idx;
+			spectrum->data->val[spectrum->data->bins-1] = flux;
+			idx += 1;
 		}
 		
 		linecount++;
