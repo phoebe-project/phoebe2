@@ -804,11 +804,11 @@ void gui_on_fitting_finished (int status)
 
 	switch (feedback->algorithm) {
 		case PHOEBE_MINIMIZER_DC:
-			method = "Nelder-Mead Simplex";
+			method = "Differential corrections";
 			gui_status ("DC minimization: %s", phoebe_gui_error (status));
 			break;
 		case PHOEBE_MINIMIZER_NMS:
-			method = "Differential corrections";
+			method = "Nelder-Mead Simplex";
 			gui_status ("NMS minimization: %s", phoebe_gui_error (status));
 			break;
 		break;
