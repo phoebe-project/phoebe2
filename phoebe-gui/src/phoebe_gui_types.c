@@ -219,6 +219,7 @@ int gui_init_widgets ()
 	GUI_plot_type ptype = GUI_PLOT_RV;
 
 	gui_widget_add ("phoebe_rv_plot_passband_info",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_observed"), NULL);
+	gui_widget_add ("phoebe_rv_plot_passband_syn",						(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_SYN,       GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_synthetic"), NULL);
 	gui_widget_add ("phoebe_rv_plot_obscolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_OBS_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_obscolor"), NULL);
 	gui_widget_add ("phoebe_rv_plot_syncolor",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_rv_plot_treeview), RV_COL_PLOT_SYN_COLOR, GUI_WIDGET_VALUE, phoebe_parameter_lookup ("gui_rvplot_syncolor"), NULL);
 
@@ -712,8 +713,8 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_lc_plot_options_phend_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_options_phend_spinbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_phend"), NULL);
 	gui_widget_add ("phoebe_lc_plot_controls_coarse_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_coarse_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_coarse"), NULL);
 	gui_widget_add ("phoebe_lc_plot_controls_fine_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_lc_plot_controls_fine_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_lc_plot_fine"), NULL);
-	gui_widget_add ("phoebe_rv_plot_options_syn_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_syn_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_synthetic"), NULL);
-	gui_widget_add ("phoebe_rv_plot_options_obs_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_observed"), NULL);
+	//gui_widget_add ("phoebe_rv_plot_options_syn_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_syn_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_synthetic"), NULL);
+	//gui_widget_add ("phoebe_rv_plot_options_obs_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_obs_checkbutton"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_observed"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_vertices_no_spinbutton",	glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_vertices_no_spinbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_verticesno"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_alias_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_alias_checkbutton"),						0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_alias"), NULL);
 	gui_widget_add ("phoebe_rv_plot_options_residuals_checkbutton",		glade_xml_get_widget(phoebe_window, "phoebe_rv_plot_options_residuals_checkbutton"),					0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("gui_rv_plot_residuals"), NULL);

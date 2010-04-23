@@ -92,8 +92,6 @@ bool gui_plot_xvalue (GUI_plot_data *data, double value, double *x)
 	double xmax = data->x_right;
 	if (value > xmax) return FALSE;
 	*x = data->leftmargin + data->layout->xmargin + (value - xmin) * gui_plot_width(data)/(xmax - xmin);
-	//if (*x < data->leftmargin) return FALSE;
-	//if (*x > data->width - data->layout->rmargin) return FALSE;
 	return TRUE;
 }
 
@@ -103,8 +101,6 @@ bool gui_plot_yvalue (GUI_plot_data *data, double value, double *y)
 	if (value < ((ymin < ymax) ? ymin : ymax)) return FALSE; 
 	if (value > ((ymin > ymax) ? ymin : ymax)) return FALSE; 
 	*y = data->height - (data->layout->bmargin + data->layout->ymargin) - (value - ymin) * gui_plot_height(data)/(ymax - ymin);
-	//if (*y < data->layout->tmargin) return FALSE;
-	//if (*y > data->height - data->layout->bmargin) return FALSE;
 	return TRUE;
 }
 
@@ -486,6 +482,9 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 
 	/* Read in parameter values from their respective widgets: */
 	gui_get_values_from_widgets ();
+
+	data->x_left = data->x_ll;
+	data->x_right = data->x_ul;
 
 	if (data->ptype == GUI_PLOT_LC || data->ptype == GUI_PLOT_RV) {
 		/* See what is requested: */
@@ -923,21 +922,21 @@ void gui_plot_interpolate_to_border (GUI_plot_data *data, double xin, double yin
 		x_outside_border = TRUE;
 	}
 
-	if (yout < data->y_top) {
-		ymargin = data->y_top;
+	if (yout < min(data->y_top, data->y_bottom)) {
+		ymargin = min(data->y_top, data->y_bottom);
 		y_outside_border = TRUE;
 	}
-	else if (yout > data->y_bottom) {
-		ymargin = data->y_bottom;
+	else if (yout > max(data->y_top, data->y_bottom)) {
+		ymargin = max(data->y_top, data->y_bottom);
 		y_outside_border = TRUE;
 	}
 
 	if (x_outside_border && y_outside_border) {
 		/* Both xout and yout lie outside the border */
-		yb = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
+		yb = yin + (yout - yin) * (xmargin - xin)/(xout - xin);
 		if ((yb < data->y_top) && (*yborder > data->y_bottom)) {
 			yb = ymargin;
-			xb = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
+			xb = xin + (xout - xin) * (ymargin - yin)/(yout - yin);
 		}
 		else {
 			xb = xmargin;
@@ -946,12 +945,12 @@ void gui_plot_interpolate_to_border (GUI_plot_data *data, double xin, double yin
 	else if (x_outside_border) {
 		/* Only xout lies outside the border */
 		xb = xmargin;
-		yb = yout + (yin - yout) * (xmargin - xout)/(xin - xout);
+		yb = yin + (yout - yin) * (xmargin - xin)/(xout - xin);
 	}
 	else {
 		/* Only yout lies outside the border */
 		yb = ymargin;
-		xb = xout + (xin - xout) * (ymargin - yout)/(yin - yout);
+		xb = xin + (xout - xin) * (ymargin - yin)/(yout - yin);
 	}
 	gui_plot_xvalue (data, xb, xborder);
 	gui_plot_yvalue (data, yb, yborder);
@@ -1084,7 +1083,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 			}
 
 			if (data->request[i].model) {
-				bool last_point_plotted = FALSE;
+				bool previous_point_plotted = FALSE;
 				bool x_in_plot, y_in_plot;
 
 				if (redirect)
@@ -1095,37 +1094,30 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 				for (j = 0; j < data->request[i].model->indep->dim; j++) {
 					x_in_plot = gui_plot_xvalue (data, data->request[i].model->indep->val[j], &x);
 					y_in_plot = gui_plot_yvalue (data, data->request[i].model->dep->val[j] + data->request[i].offset, &y);
-					if (!x_in_plot || !y_in_plot) {
-						if (last_point_plotted) {
-							double xborder, yborder;
-							gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, &xborder, &yborder);
-							if (!redirect)
-								cairo_line_to (data->canvas, xborder, yborder);
-							else
-								fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
 
-							last_point_plotted = FALSE;
+					if (x_in_plot && y_in_plot) {
+						if (redirect)
+							fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
+						else {
+							if (!previous_point_plotted && (j > 0)) {
+								double xborder, yborder;
+								gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, &xborder, &yborder);
+								cairo_move_to (data->canvas, xborder, yborder);
+								previous_point_plotted = TRUE;
+							}
+							if (previous_point_plotted)
+								cairo_line_to (data->canvas, x, y);
+							else {
+								cairo_move_to (data->canvas, x, y);
+								previous_point_plotted = TRUE;
+							}
 						}
 					}
-					else {
-						if (!last_point_plotted && (j > 0)) {
-							double xborder, yborder;
-							gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, &xborder, &yborder);
-							if (!redirect)
-								cairo_move_to (data->canvas, xborder, yborder);
-							last_point_plotted = TRUE;
-						}
-						if (last_point_plotted) {
-							if (!redirect)
-								cairo_line_to (data->canvas, x, y);
-							else
-								fprintf (redirect, "%lf\t%lf\n", data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset);
-						}
-						else {
-							if (!redirect)
-								cairo_move_to (data->canvas, x, y);
-							last_point_plotted = TRUE;
-						}
+					else if (previous_point_plotted) {
+						double xborder, yborder;
+						gui_plot_interpolate_to_border (data, data->request[i].model->indep->val[j-1], data->request[i].model->dep->val[j-1] + data->request[i].offset, data->request[i].model->indep->val[j], data->request[i].model->dep->val[j] + data->request[i].offset, &xborder, &yborder);
+						cairo_line_to (data->canvas, xborder, yborder);
+						previous_point_plotted = FALSE;
 					}
 				}
 
@@ -1202,7 +1194,7 @@ void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *pat
 void on_rv_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	printf ("* entered on_rv_plot_treeview_row_changed() function.\n");
+	//printf ("* entered on_rv_plot_treeview_row_changed() function.\n");
 
 	on_plot_treeview_row_changed(tree_model, data, RV_COL_PLOT_OBS, RV_COL_PLOT_SYN, RV_COL_PLOT_OBS_COLOR, RV_COL_PLOT_SYN_COLOR, RV_COL_PLOT_OFFSET);
 	return;
