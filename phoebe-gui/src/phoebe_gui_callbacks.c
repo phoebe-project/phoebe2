@@ -2829,8 +2829,9 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	 */
 
 	double pp, scp, icp, anp, dnp;
+	double w_unit = (gtk_combo_box_get_active(GTK_COMBO_BOX (gui_widget_lookup ("phoebe_para_orb_perr_units_combobox")->gtk)) == 0) ? 1.0 : M_PI/180.0;
 	double e    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_ecc_spinbutton")->gtk));
-	double w    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk));
+	double w    = w_unit * gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk));
 	double dp   = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_pshift_spinbutton")->gtk));
 	double p    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_period_spinbutton")->gtk));
 	double hjd0 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_hjd0_spinbutton")->gtk));
