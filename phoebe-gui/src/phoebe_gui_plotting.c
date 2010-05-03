@@ -712,6 +712,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 			return;
 		}
 		
+		params->JDPHS = 2; // Set the independent variable to "Phase"
 		lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
 		create_lci_file (lcin, params);
 		
@@ -1348,7 +1349,7 @@ int gui_plot_area_init (GtkWidget *area, GtkWidget *button)
 		data->cx_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cx_coordinate");
 		data->cy_widget = (GtkWidget *) g_object_get_data (G_OBJECT (button), "plot_cy_coordinate");
 	}
-	else /* if (data->ptype == GUI_PL0T_MESH) */ {
+	else /* if (data->ptype == GUI_PLOT_MESH) */ {
 		/* Since there is always a single object, we create the request here. */
 		data->objno   = 1;
 		data->request = phoebe_malloc (sizeof(*(data->request)));
