@@ -831,7 +831,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	WD_DCI_parameters *params;
 	PHOEBE_parameter_list *marked_tba, *tba;
 	int lcno, rvno, no_tba;
-	bool calchla = FALSE, calcvga = FALSE, spots_conversion_factor, perr_conversion_factor;
+	bool calchla = FALSE, calcvga = FALSE;
+	double spots_conversion_factor, perr_conversion_factor;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 
 	/* Minimizer results: */
@@ -978,10 +979,11 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 				/* Handle cyclic values: */
 				if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_perr0") == 0) {
+					double cycle_period = (phoebe_perr_units_are_degrees()) ? 360 : 2*M_PI;
 					if (feedback->newvals->val[i] < 0)
-						feedback->newvals->val[i] += 2*M_PI;
-					else if (feedback->newvals->val[i] > 2*M_PI)
-						feedback->newvals->val[i] -= 2*M_PI;
+						feedback->newvals->val[i] += cycle_period;
+					else if (feedback->newvals->val[i] > cycle_period)
+						feedback->newvals->val[i] -= cycle_period;
 				}
 				else if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_pshift") == 0) {
 					if (feedback->newvals->val[i] < -0.5)

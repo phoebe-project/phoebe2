@@ -195,4 +195,6 @@ int                wd_dci_parameters_free (WD_DCI_parameters *params);
 
 int phoebe_wd_model (char *phoebe_model);
 
+int intern_get_level_weighting_id (const char *type);
+
 #endif
