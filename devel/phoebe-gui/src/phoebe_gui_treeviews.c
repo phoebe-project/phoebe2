@@ -2183,7 +2183,47 @@ int gui_para_lum_levels_edit()
 	return status;
 }
 
-int gui_para_lum_levels_calc()
+int gui_para_lum_levels_calc(GtkTreeModel *model, GtkTreeIter iter)
+{
+	int status = 0;
+	int index;
+	PHOEBE_el3_units l3units;
+	PHOEBE_curve *syncurve;
+	PHOEBE_curve *obs;
+	gdouble hla, cla, l3;
+	gdouble alpha;
+
+	index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index, &l3);
+	
+	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index);
+	if (!obs)
+		return ERROR_CURVE_NOT_INITIALIZED;
+	
+	phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
+			
+	/* Synthesize a theoretical curve: */
+	syncurve = phoebe_curve_new ();
+	phoebe_curve_compute (syncurve, obs->indep, index, obs->itype, PHOEBE_COLUMN_FLUX);
+		
+	phoebe_el3_units_id (&l3units);
+	status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, l3, l3units);
+	phoebe_curve_free (obs);
+	phoebe_curve_free (syncurve);
+	if (status != SUCCESS)
+		return status;
+		
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index, &hla);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum2"), &cla);
+	hla /= alpha;
+	cla /= alpha;
+		
+	gtk_list_store_set ((GtkListStore *) model, &iter, LC_COL_HLA, hla, LC_COL_CLA, cla, -1);
+	
+	return status;
+}
+
+int gui_para_lum_levels_calc_selected()
 {
 	int status = 0, lcno;
 
@@ -2201,40 +2241,8 @@ int gui_para_lum_levels_calc()
 
 		selection = gtk_tree_view_get_selection ((GtkTreeView *) treeview);
 		if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
-			int index;
-			PHOEBE_el3_units l3units;
-			PHOEBE_curve *syncurve;
-			PHOEBE_curve *obs;
-			gdouble hla, cla, l3;
-			gdouble alpha;
-
 			gui_get_values_from_widgets ();
-			index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index, &l3);
-			
-			obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index);
-			if (!obs)
-				return ERROR_CURVE_NOT_INITIALIZED;
-			
-			phoebe_curve_transform (obs, obs->itype, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
-			
-			/* Synthesize a theoretical curve: */
-			syncurve = phoebe_curve_new ();
-			phoebe_curve_compute (syncurve, obs->indep, index, obs->itype, PHOEBE_COLUMN_FLUX);
-			
-			phoebe_el3_units_id (&l3units);
-			status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, l3, l3units);
-			phoebe_curve_free (obs);
-			phoebe_curve_free (syncurve);
-			if (status != SUCCESS)
-				return status;
-			
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index, &hla);
-			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum2"), &cla);
-			hla /= alpha;
-			cla /= alpha;
-			
-			gtk_list_store_set ((GtkListStore *) model, &iter, LC_COL_HLA, hla, LC_COL_CLA, cla, -1);
+			gui_para_lum_levels_calc (model, iter);
 		}
 	}
 	
