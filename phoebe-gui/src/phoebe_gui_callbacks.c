@@ -2158,7 +2158,30 @@ on_phoebe_para_lum_levels_edit_button_clicked (GtkButton *button, gpointer user_
 
 G_MODULE_EXPORT void on_phoebe_para_lum_levels_calc_button_clicked (GtkButton *button, gpointer user_data)
 {
-	gui_para_lum_levels_calc();
+	gui_para_lum_levels_calc_selected();
+}
+
+G_MODULE_EXPORT void on_phoebe_para_lum_levels_calc_all_button_clicked (GtkButton *button, gpointer user_data)
+{
+	int lcno;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+
+	if (lcno > 0) {
+		GtkTreeModel     *model;
+		GtkTreeIter       iter;
+		GtkWidget        *treeview = gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
+
+		model = gtk_tree_view_get_model ((GtkTreeView *) treeview);
+		gui_get_values_from_widgets ();
+
+		int state = gtk_tree_model_get_iter_first (model, &iter);
+
+		while (state) {
+			gui_para_lum_levels_calc (model, iter);
+			state = gtk_tree_model_iter_next (model, &iter);
+		}
+	}
 }
 
 
