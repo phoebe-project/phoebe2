@@ -1872,9 +1872,9 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_RELEASE_DATE "(snapshot)"
 _ACEOF
 
-if test $CALCULATE_IN_OTHER_THREAD; then
+if test $PHOEBE_GUI_THREADS; then
   cat >>confdefs.h <<\_ACEOF
-#define CALCULATE_IN_OTHER_THREAD 1
+#define PHOEBE_GUI_THREADS 1
 _ACEOF
 fi
 

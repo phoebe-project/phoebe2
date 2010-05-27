@@ -72,5 +72,5 @@
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
-/* Define to make calculations in a separate thread */ 
-#undef CALCULATE_IN_OTHER_THREAD
+/* Define to make DC and NMS calculations in a separate thread */ 
+#undef PHOEBE_GUI_THREADS
