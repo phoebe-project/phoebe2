@@ -3,13 +3,6 @@
 #include <math.h>
 #include <libgen.h>
 
-/* Enable this symbol if you want to make calculations in a separate thread */
-//#define CALCULATE_IN_OTHER_THREAD 1
-
-#ifdef CALCULATE_IN_OTHER_THREAD
-#include <pthread.h>
-#endif
-
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
@@ -20,6 +13,10 @@
 #include "phoebe_gui_plotting.h"
 #include "phoebe_gui_error_handling.h"
 #include "phoebe_gui_build_config.h"
+
+#ifdef CALCULATE_IN_OTHER_THREAD
+#include <pthread.h>
+#endif
 
 bool LD_COEFFS_NEED_UPDATING = TRUE;
 bool LOGG_VALUES_NEED_RECALCULATING = TRUE;

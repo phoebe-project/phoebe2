@@ -71,3 +71,6 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
+
+/* Define to make calculations in a separate thread */ 
+#undef CALCULATE_IN_OTHER_THREAD
