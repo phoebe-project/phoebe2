@@ -3,7 +3,12 @@
 #include <math.h>
 #include <libgen.h>
 
+/* Enable this symbol if you want to make calculations in a separate thread */
+//#define CALCULATE_IN_OTHER_THREAD 1
+
+#ifdef CALCULATE_IN_OTHER_THREAD
 #include <pthread.h>
+#endif
 
 #include <phoebe/phoebe.h>
 
@@ -741,10 +746,10 @@ G_MODULE_EXPORT void on_phoebe_para_orb_f2_spinbutton_changed (GtkComboBox *widg
  *
  * ******************************************************************** */
 
-#define CALCULATE_IN_OTHER_THREAD 1
-
 PHOEBE_minimizer_feedback *phoebe_minimizer_feedback;
 int accept_flag = 0;
+
+#ifdef CALCULATE_IN_OTHER_THREAD
 bool fitting_in_progress = FALSE;
 
 int gui_progress_pulse (gpointer data)
@@ -780,6 +785,7 @@ void *gui_nms_fitting_thread (void *args)
 	pthread_exit(NULL);
 	return NULL;
 }
+#endif
 
 void gui_on_fitting_finished (int status)
 {
@@ -796,11 +802,11 @@ void gui_on_fitting_finished (int status)
 	char status_message[255] = "Minimizer feedback";
 	char *method;
 
+#ifdef CALCULATE_IN_OTHER_THREAD
 	fitting_in_progress = FALSE;
-	if (CALCULATE_IN_OTHER_THREAD) {
-		gui_toggle_sensitive_widgets_for_minimization(TRUE);
-		gtk_widget_hide(gui_widget_lookup("phoebe_fitt_progressbar")->gtk);
-	}
+	gui_toggle_sensitive_widgets_for_minimization(TRUE);
+	gtk_widget_hide(gui_widget_lookup("phoebe_fitt_progressbar")->gtk);
+#endif
 
 	switch (feedback->algorithm) {
 		case PHOEBE_MINIMIZER_DC:
@@ -888,12 +894,13 @@ void gui_on_fitting_finished (int status)
 G_MODULE_EXPORT
 void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointer user_data)
 {
+#ifdef CALCULATE_IN_OTHER_THREAD
 	pthread_t thread;
 	int thread_return_code;
-
+	GtkWidget *phoebe_fitt_progressbar = gui_widget_lookup("phoebe_fitt_progressbar")->gtk;
+#endif
 	int status, fit_method;
 	GtkComboBox *phoebe_fitt_method_combobox = GTK_COMBO_BOX(gui_widget_lookup("phoebe_fitt_method_combobox")->gtk);
-	GtkWidget *phoebe_fitt_progressbar = gui_widget_lookup("phoebe_fitt_progressbar")->gtk;
 
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
 
@@ -904,21 +911,21 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 	switch (fit_method) {
 		case 0:
 			gui_status("Running DC minimization, please be patient...");
-			if (CALCULATE_IN_OTHER_THREAD) {
-				thread_return_code = pthread_create(&thread, NULL, gui_dc_fitting_thread, NULL);
-				if (thread_return_code) printf("Error while attempting to run DC on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
-			}
-			else 
-				status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
+#ifdef CALCULATE_IN_OTHER_THREAD
+			thread_return_code = pthread_create(&thread, NULL, gui_dc_fitting_thread, NULL);
+			if (thread_return_code) printf("Error while attempting to run DC on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
+#else 
+			status = phoebe_minimize_using_dc (stdout, phoebe_minimizer_feedback);
+#endif
 			break;
 		case 1:
 			gui_status("Running NMS minimization, please be patient...");
-			if (CALCULATE_IN_OTHER_THREAD) {
-				thread_return_code = pthread_create(&thread, NULL, gui_nms_fitting_thread, NULL);
-				if (thread_return_code) printf("Error while attempting to run NMS on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
-			}
-			else 
-				status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
+#ifdef CALCULATE_IN_OTHER_THREAD
+			thread_return_code = pthread_create(&thread, NULL, gui_nms_fitting_thread, NULL);
+			if (thread_return_code) printf("Error while attempting to run NMS on a separate thread: return code from pthread_create() is %d\n", thread_return_code);
+#else 
+			status = phoebe_minimize_using_nms (stdout, phoebe_minimizer_feedback);
+#endif
 			break;
 		default:
 			phoebe_minimizer_feedback_free (phoebe_minimizer_feedback);
@@ -927,16 +934,16 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 		break;
 	}
 
-	if (CALCULATE_IN_OTHER_THREAD) {
-		if (thread_return_code) {
-			gui_error ("Error on minimization", "Could not create a separate thread to run the minimization calculations.");
-			return;
-		}
-		gtk_widget_show(phoebe_fitt_progressbar);
-		g_timeout_add_full(G_PRIORITY_DEFAULT, 100, gui_progress_pulse, (gpointer)phoebe_fitt_progressbar, NULL);
+#ifdef CALCULATE_IN_OTHER_THREAD
+	if (thread_return_code) {
+		gui_error ("Error on minimization", "Could not create a separate thread to run the minimization calculations.");
+		return;
 	}
-	else
-		gui_on_fitting_finished (status);
+	gtk_widget_show(phoebe_fitt_progressbar);
+	g_timeout_add_full(G_PRIORITY_DEFAULT, 100, gui_progress_pulse, (gpointer)phoebe_fitt_progressbar, NULL);
+#else
+	gui_on_fitting_finished (status);
+#endif
 }
 
 
