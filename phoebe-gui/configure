@@ -1872,6 +1872,11 @@ cat >>confdefs.h <<\_ACEOF
 #define PHOEBE_GUI_RELEASE_DATE "(snapshot)"
 _ACEOF
 
+if test $CALCULATE_IN_OTHER_THREAD; then
+  cat >>confdefs.h <<\_ACEOF
+#define CALCULATE_IN_OTHER_THREAD 1
+_ACEOF
+fi
 
 # Initialize the location of the sources:
 
