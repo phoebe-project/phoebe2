@@ -3340,6 +3340,13 @@ int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
 	if (!feedback)
 		return ERROR_MINIMIZER_FEEDBACK_NOT_INITIALIZED;
 	
+	/* Get the secondary luminosities for those cases where they have been calculated by WD 
+	   (otherwise the next statement will just get the input values back) 
+	*/
+	for (i = 0; i < feedback->__cla->dim; i++)
+		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_cla"), i, feedback->__cla->val[i]);
+
+	/* Get the new values for the adjustable parameters */	
 	for (i = 0; i < feedback->qualifiers->dim; i++) {
 		phoebe_qualifier_string_parse (feedback->qualifiers->val.strarray[i], &qualifier, &index);
 		if (index == 0)
@@ -3349,10 +3356,7 @@ int phoebe_minimizer_feedback_accept (PHOEBE_minimizer_feedback *feedback)
 		
 		free (qualifier);
 	}
-	
-	for (i = 0; i < feedback->__cla->dim; i++)
-		phoebe_parameter_set_value (phoebe_parameter_lookup ("phoebe_cla"), i, feedback->__cla->val[i]);
-	
+
 	/* Satisfy all the constraints: */
 	phoebe_constraint_satisfy_all ();
 	
