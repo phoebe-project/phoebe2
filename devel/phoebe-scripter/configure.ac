@@ -141,7 +141,7 @@
 
 # Check if ltdl is installed:
   AC_CHECK_LIB(ltdl, lt_dlinit, , ltdl_missing=1)
-    if test $ltdl_missing -eq 1; then
+    if test "x$ltdl_missing" = "x1"; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -155,7 +155,7 @@
 
   AC_CHECK_LIB(phoebe, phoebe_init,, phoebe_missing=1)
 
-    if test $phoebe_missing -eq 1; then
+    if test "x$phoebe_missing" = "x1"; then
       echo ""
       echo "       *** PHOEBE configuration failure ***"
       echo ""
@@ -189,7 +189,7 @@
   [ac_enable_readline=$enableval], [ac_enable_readline=yes])
 
   readline_check_passed=1
-  AC_CHECK_LIB(readline, main, , readline_check_passed=0)
+  AC_CHECK_LIB(readline, rl_insert_text, , readline_check_passed=0, -ltermcap)
 
   readlinesupport="yes"
   if test $readline_check_passed -eq 0; then
