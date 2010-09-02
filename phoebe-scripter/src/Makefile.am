@@ -48,7 +48,7 @@ phoebe_scripter.lng.h:
 AM_YFLAGS = -d
 AM_CFLAGS = -Wall -Wextra
 
-phoebe_scripter_LDADD = -lscripter -lltdl -lm
+phoebe_scripter_LDADD = -lscripter
 
 library_includedir=$(includedir)/phoebe
 library_include_HEADERS = phoebe_scripter.h                \
