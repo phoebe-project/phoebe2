@@ -60,7 +60,7 @@ AM_YFLAGS = -d -p pc
 AM_LFLAGS = -P pc
 
 libphoebe_la_LDFLAGS = -release $(PACKAGE_VERSION)
-libphoebe_la_CFLAGS  = -Wall -Wextra
+libphoebe_la_CFLAGS  = -Wall $(EXTRA_WARNING_COMPILER_FLAG)
 
 libphoebe_la_LIBADD  = ../libwd/libwd.la
 
