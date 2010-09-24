@@ -1,5 +1,8 @@
 /* src/phoebe_gui_build_config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Set -Wextra if the c compiler recognizes it: */
+#undef EXTRA_WARNING_COMPILER_FLAG
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -45,6 +48,9 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -71,6 +77,3 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
-
-/* Define to make DC and NMS calculations in a separate thread */ 
-#undef PHOEBE_GUI_THREADS

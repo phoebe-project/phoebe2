@@ -193,6 +193,19 @@
   debugstate="yes"
   fi
 
+# Recent versions of gcc have a -Wextra option for more verbose warnings
+  extra_warn="-Wextra"
+  echo -n 'checking for $(CC) -Wextra... '
+  AC_LANG_CONFTEST([/* test for -Wextra */ int main(){}])
+  if gcc $extra_warn conftest.c -o -; then
+    echo yes
+  else
+    echo no
+    extra_warn=""
+  fi
+  
+  AC_DEFINE(EXTRA_WARNING_COMPILER_FLAG, $extra_warn, [Set -Wextra if the c compiler recognizes it:])
+
 # Check for C library features:
   AC_CHECK_HEADERS([stdlib.h string.h])
   AC_HEADER_STDC

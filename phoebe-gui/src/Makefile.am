@@ -16,7 +16,7 @@ phoebe_gui_SOURCES =                                                    \
 	phoebe_gui_error_handling.h     phoebe_gui_error_handling.c     \
 	phoebe_gui_global.h
 
-AM_CFLAGS = -Wall -g \
+AM_CFLAGS = -Wall $(EXTRA_WARNING_COMPILER_FLAG) -g \
 	-DGLADE_XML_DIR=\"$(prefix)/share/phoebe/gui/glade\" \
 	-DGLADE_PIXMAP_DIR=\"$(prefix)/share/phoebe/gui/pixmaps\"
 
