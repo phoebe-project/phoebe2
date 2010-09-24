@@ -188,12 +188,22 @@
   [  --enable-readline       Use GNU readline (default=yes)],
   [ac_enable_readline=$enableval], [ac_enable_readline=yes])
 
-  readline_check_passed=1
-  AC_CHECK_LIB(readline, rl_insert_text, , readline_check_passed=0, -ltermcap)
-
-  readlinesupport="yes"
-  if test $readline_check_passed -eq 0; then
-  readlinesupport="no"
+  if test $ac_enable_readline = "yes"; then
+    # termcap is a requirement for readline, check for it first
+    readline_check_passed=1
+    readlinesupport="no"
+    AC_CHECK_LIB(termcap, tgetstr, , readline_check_passed=0)
+    if test $readline_check_passed -eq 0; then
+      echo "NO LIB"
+      readlinesupport="no"
+    else 
+      AC_CHECK_LIB(readline, rl_insert_text, , readline_check_passed=0)
+      if test $readline_check_passed -eq 0; then
+        readlinesupport="no"
+      else      
+        readlinesupport="yes"
+      fi
+    fi
   fi
 
   if test $ac_enable_readline = "no"; then
@@ -217,13 +227,52 @@
   debugstate="yes"
   fi
 
+# Recent versions of gcc have a -Wextra option for more verbose warnings
+  extra_warn="-Wextra"
+  echo -n 'checking for $(CC) -Wextra... '
+  AC_LANG_CONFTEST([/* test for -Wextra */ int main(){}])
+  if gcc $extra_warn conftest.c -o - ; then
+    echo yes
+  else
+    echo no
+    extra_warn=""
+  fi
+  
+  AC_DEFINE(EXTRA_WARNING_COMPILER_FLAG, $extra_warn, [Set -Wextra if the c compiler recognizes it:])
+
 # Optional docbook support:
   AC_PROG_XSLTPROC
   docbookstate="no"
-  if test $XSLTPROC; then
-  docbookstate="yes"
+
+  AC_MSG_CHECKING([docbook.xsl])
+  # handle --with-docbook-xsl=PATH option if invoked
+  AC_ARG_WITH([docbook-xsl],
+              [AS_HELP_STRING([--with-docbook-xsl],
+                [Specify full path of docbook.xsl, or "no" to disable])],
+              [docbook_stylesheet=$with_docbook_xsl],
+              [])
+
+  # by default use docbook.xsl distributed with phoebe-scripter
+  if test "x$docbook_stylesheet" = "x" ; then
+    docbookstate="yes"
+    docbook_stylesheet="$srcdir/docs/reference/xsl-stylesheets/xhtml/docbook.xsl"
   fi
+
+  # check for the docbook.xsl file
+  if test  "x$docbook_stylesheet" != "xno"; then
+    if test -e  $docbook_stylesheet; then
+      docbookstate="yes" # docbook.xsl has been found
+
+    else # explicit path passed in but not found.
+      AC_MSG_WARN([docbook_stylesheet set to "$docbook_stylesheet" but file not found.  Skipping documentation.])
+    fi
+    else
+      docbook_stylesheet=""
+  fi
+
+  AC_SUBST([DOCBOOK_STYLESHEET], [$docbook_stylesheet])
   AM_CONDITIONAL([XSLTPROC_FOUND], [test "x$docbookstate" = "xyes"])
+  AC_MSG_RESULT([$docbookstate]);
 
 # Optional plugin support:
   AC_LIBTOOL_DLOPEN
@@ -268,6 +317,7 @@
   echo "Supported plotting packages:      $plotters"
   echo "GNU readline library support:     $readlinesupport"
   echo "Build API documentation:          $docbookstate"
+  echo "  Docbook XSL:                    $docbook_stylesheet"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 

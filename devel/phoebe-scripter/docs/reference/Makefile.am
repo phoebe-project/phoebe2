@@ -38,9 +38,12 @@ endif
 BUILT_SOURCES = api.html
 CLEANFILES    = api.html
 
+# configure determines stylesheet location relative to top of src dir -
+# if this doc directory changes this will need to be changed as well
+DOCBOOK_STYLESHEET = ../../@DOCBOOK_STYLESHEET@
 api.html:
 	if test ! "x@XSLTPROC@" = "x"; then \
-		xsltproc -o api.html /usr/share/xml/docbook/stylesheet/nwalsh/xhtml/docbook.xsl api.xml; \
+		xsltproc -o api.html $(DOCBOOK_STYLESHEET) $(top_srcdir)/docs/reference/api.xml; \
 	fi
 
 EXTRA_DIST = $(scripterdoc_DATA)

@@ -1,5 +1,8 @@
 /* src/phoebe_scripter_build_config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Set -Wextra if the c compiler recognizes it: */
+#undef EXTRA_WARNING_COMPILER_FLAG
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -23,6 +26,9 @@
 
 /* Define to 1 if you have the `readline' library (-lreadline). */
 #undef HAVE_LIBREADLINE
+
+/* Define to 1 if you have the `termcap' library (-ltermcap). */
+#undef HAVE_LIBTERMCAP
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
