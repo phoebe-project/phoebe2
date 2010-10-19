@@ -291,7 +291,7 @@ int gui_show_configuration_dialog ()
 	
 	GtkWidget *confirm_on_overwrite_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_confirmation_save_checkbutton");
 	GtkWidget *beep_after_plot_and_fit_checkbutton = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_beep_after_plot_and_fit_checkbutton");
-	
+	GtkWidget *units_widget = glade_xml_get_widget (phoebe_settings_xml, "phoebe_settings_angle_units");
 	gchar     *dir;
 	gboolean   toggle;
 	gint 	   result;
@@ -355,6 +355,21 @@ int gui_show_configuration_dialog ()
 	else
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (beep_after_plot_and_fit_checkbutton), 0);
 	
+	/* ANGLE UNITS: */
+	{
+		char *units;
+		phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+		if (strcmp(units, "Radians") == 0)
+			gtk_combo_box_set_active (GTK_COMBO_BOX(units_widget), 0);
+		else
+			gtk_combo_box_set_active (GTK_COMBO_BOX(units_widget), 1);
+	}
+
+	/* Now that everything is set according to the config, add a signal to
+	 * change angle units:
+	 */
+	g_signal_connect (units_widget, "changed", G_CALLBACK(on_angle_units_changed), NULL);
+
 	result = gtk_dialog_run (GTK_DIALOG (phoebe_settings_dialog));
 	
 	switch (result) {
@@ -400,6 +415,11 @@ int gui_show_configuration_dialog ()
 			else
 				phoebe_config_entry_set ("PHOEBE_KURUCZ_SWITCH", FALSE);
 
+			if (gtk_combo_box_get_active (GTK_COMBO_BOX (units_widget)) == 1)
+				phoebe_config_entry_set ("GUI_ANGLE_UNITS", "Degrees");
+			else
+				phoebe_config_entry_set ("GUI_ANGLE_UNITS", "Radians");
+
 			if (result == GTK_RESPONSE_YES) {
 				if (!PHOEBE_HOME_DIR || !phoebe_filename_is_directory (PHOEBE_HOME_DIR)) {
 					char homedir[255], confdir[255];
@@ -426,7 +446,7 @@ int gui_show_configuration_dialog ()
 			}
         break;
 		case GTK_RESPONSE_CANCEL:
-            gui_status ("Configuration cancelled.");
+            gui_status ("Configuration aborted.");
 		break;
 	}
 	

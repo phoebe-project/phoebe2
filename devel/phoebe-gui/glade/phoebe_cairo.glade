@@ -2411,7 +2411,7 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
+                                    <property name="adjustment">6.2799999999999105 0 6.2800000000000011 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
@@ -2516,7 +2516,7 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_perr0max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
-                                        <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
+                                        <property name="adjustment">0 0 6.2800000000000002 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -2729,40 +2729,6 @@
                           </packing>
                         </child>
                         <child>
-                          <widget class="GtkHBox" id="phoebe_para_orb_perr_units_hbox">
-                            <property name="visible">True</property>
-                            <child>
-                              <widget class="GtkLabel" id="phoebe_para_orb_perr_units_label">
-                                <property name="visible">True</property>
-                                <property name="xpad">5</property>
-                                <property name="label" translatable="yes">Argument of periastron unit:</property>
-                              </widget>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkComboBox" id="phoebe_para_orb_perr_units_combobox">
-                                <property name="visible">True</property>
-                                <property name="items" translatable="yes"></property>
-                                <signal name="changed" handler="on_phoebe_para_orb_perr_units_combobox_changed"/>
-                              </widget>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                          </widget>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="position">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <placeholder/>
-                        </child>
-                        <child>
                           <widget class="GtkFrame" id="phoebe_para_orb_ecc_frame">
                             <property name="visible">True</property>
                             <property name="label_xalign">0</property>
@@ -2925,7 +2891,7 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">3</property>
+                            <property name="position">2</property>
                           </packing>
                         </child>
                         <child>
@@ -3090,7 +3056,7 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">4</property>
+                            <property name="position">3</property>
                           </packing>
                         </child>
                         <child>
@@ -3255,8 +3221,14 @@
                           </widget>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="position">5</property>
+                            <property name="position">4</property>
                           </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
                         </child>
                         <child>
                           <placeholder/>
@@ -3489,6 +3461,9 @@
                                             <property name="top_attach">5</property>
                                             <property name="bottom_attach">6</property>
                                           </packing>
+                                        </child>
+                                        <child>
+                                          <placeholder/>
                                         </child>
                                       </widget>
                                     </child>
@@ -5552,22 +5527,6 @@
                                             <property name="expand">False</property>
                                             <property name="fill">False</property>
                                             <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <widget class="GtkButton" id="phoebe_para_lum_levels_calc_button">
-                                            <property name="label" translatable="yes">Calculate All</property>
-                                            <property name="visible">True</property>
-                                            <property name="can_focus">False</property>
-                                            <property name="receives_default">False</property>
-                                            <property name="border_width">2</property>
-                                            <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_calc_all_button_clicked"/>
-                                          </widget>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">2</property>
                                           </packing>
                                         </child>
                                       </widget>
@@ -10929,11 +10888,13 @@
                 <property name="visible">True</property>
                 <property name="has_resize_grip">False</property>
               </widget>
+              <packing>
+                <property name="position">0</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkProgressBar" id="phoebe_fitt_progressbar">
                 <property name="activity_mode">True</property>
-                <property name="text" translatable="yes"></property>
               </widget>
               <packing>
                 <property name="position">1</property>

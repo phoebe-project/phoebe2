@@ -90,6 +90,7 @@ G_MODULE_EXPORT void on_orbital_elements_changed                            (Gtk
 G_MODULE_EXPORT void on_star_shape_changed                                  (GtkSpinButton *spinbutton, gpointer user_data);
 G_MODULE_EXPORT void on_stellar_masses_changed                              (GtkSpinButton *spinbutton, gpointer user_data);
 G_MODULE_EXPORT void on_orbital_elements_changed                            (GtkSpinButton *spinbutton, gpointer user_data);
+G_MODULE_EXPORT void on_angle_units_changed                                 (GtkComboBox *widget, gpointer user_data);
 
 void gui_ld_coeffs_need_updating();
 void gui_on_fitting_finished (int status);

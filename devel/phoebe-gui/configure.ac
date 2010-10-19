@@ -129,7 +129,7 @@
 
   AC_CHECK_LIB(phoebe, phoebe_init, , phoebe_missing=1)
 
-  if test $phoebe_missing -eq 1; then
+  if test x$phoebe_missing == x1; then
     echo ""
     echo "       *** PHOEBE configuration failure ***"
     echo ""
