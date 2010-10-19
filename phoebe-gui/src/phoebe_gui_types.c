@@ -1400,10 +1400,14 @@ int gui_set_values_to_widgets ()
 
 void gui_toggle_sensitive_widgets_for_minimization (bool enable)
 {
-	/* Disable widgets during minimization, otherwise they may give problems (especially those reading/writng files DC also uses) */
+	/* Disable widgets during minimization, otherwise they may give problems
+	 * (especially those reading/writing files that DC also uses)
+	 */
+	
 	GUI_widget *widget;
 
 	/* Widgets that must be disabled while fitting is in progress: */
+
 	char *widgets[] = {
 				"phoebe_fitt_calculate_button",
 				"phoebe_fitt_updateall_button",
@@ -1415,14 +1419,18 @@ void gui_toggle_sensitive_widgets_for_minimization (bool enable)
 				"phoebe_plot_mesh_plot_button",
 				"phoebe_file_open_menuitem",
 				"phoebe_para_lum_levels_calc_button",
-				"phoebe_open_toolbutton"
-                            };
-	int i;
-	for(i = 0; i < sizeof(widgets)/sizeof(gpointer); i++) {
-		if ((widget = gui_widget_lookup(widgets[i])) != NULL)
-			gtk_widget_set_sensitive(widget->gtk, enable);
+				"phoebe_open_toolbutton",
+				NULL
+    };
+
+	int i = 0;
+	while (widgets[i]) {
+		if ((widget = gui_widget_lookup (widgets[i])))
+/*			gtk_widget_set_sensitive (widget->gtk, enable);*/
+		i++;
 	}
-    	return;
+
+	return;
 }
 
 

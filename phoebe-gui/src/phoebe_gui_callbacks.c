@@ -375,7 +375,8 @@ void phoebe_gui_constrain_secondary_params (bool constrain)
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ld_secondary_adjust_checkbutton), FALSE);
 }
 
-G_MODULE_EXPORT void on_phoebe_para_orb_perr_units_combobox_changed (GtkComboBox *widget, gpointer user_data)
+G_MODULE_EXPORT
+void on_angle_units_changed (GtkComboBox *widget, gpointer user_data)
 {
 	GtkWidget *perr0_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk;
 	GtkWidget *perr0step_spinbutton = gui_widget_lookup ("phoebe_para_orb_perr0step_spinbutton")->gtk;
@@ -401,14 +402,14 @@ G_MODULE_EXPORT void on_phoebe_para_orb_perr_units_combobox_changed (GtkComboBox
 		/* Radians */
 		change_factor = M_PI/180.0;
 
-		perr0_adjustment->upper = M_PI;
-		perr0step_adjustment->upper = M_PI;
-		perr0min_adjustment->upper = M_PI;
-		perr0max_adjustment->upper = M_PI;
-		perr0_adjustment->step_increment = 0.02;
-		perr0step_adjustment->step_increment = 0.02;
-		perr0min_adjustment->step_increment = 0.02;
-		perr0max_adjustment->step_increment = 0.02;
+		perr0_adjustment->upper = 2*M_PI;
+		perr0step_adjustment->upper = 2*M_PI;
+		perr0min_adjustment->upper = 2*M_PI;
+		perr0max_adjustment->upper = 2*M_PI;
+		perr0_adjustment->step_increment = 0.01;
+		perr0step_adjustment->step_increment = 0.01;
+		perr0min_adjustment->step_increment = 0.01;
+		perr0max_adjustment->step_increment = 0.01;
 
 		dperdt_adjustment->lower = -M_PI/2;
 		dperdtmin_adjustment->lower = -M_PI/2;
@@ -426,10 +427,10 @@ G_MODULE_EXPORT void on_phoebe_para_orb_perr_units_combobox_changed (GtkComboBox
 		/* Degrees */
 		change_factor = 180.0/M_PI;
 
-		perr0_adjustment->upper = 180;
-		perr0step_adjustment->upper = 180;
-		perr0min_adjustment->upper = 180;
-		perr0max_adjustment->upper = 180;
+		perr0_adjustment->upper = 360;
+		perr0step_adjustment->upper = 360;
+		perr0min_adjustment->upper = 360;
+		perr0max_adjustment->upper = 360;
 		perr0_adjustment->step_increment = 1;
 		perr0step_adjustment->step_increment = 1;
 		perr0min_adjustment->step_increment = 1;
@@ -2848,6 +2849,16 @@ void on_stellar_masses_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	gui_set_treeview_value (model, RS_COL_PARAM_VALUE, SIDESHEET_MASS_2, M2);
 }
 
+double intern_angle_factor ()
+{
+	char *units;
+	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+	if (strcmp (units, "Radians") == 0)
+		return 1.0;
+	else
+		return M_PI/180.0;
+}
+
 G_MODULE_EXPORT
 void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 {
@@ -2856,7 +2867,7 @@ void on_orbital_elements_changed (GtkSpinButton *spinbutton, gpointer user_data)
 	 */
 
 	double pp, scp, icp, anp, dnp;
-	double w_unit = (gtk_combo_box_get_active(GTK_COMBO_BOX (gui_widget_lookup ("phoebe_para_orb_perr_units_combobox")->gtk)) == 0) ? 1.0 : M_PI/180.0;
+	double w_unit = intern_angle_factor();
 	double e    = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_ecc_spinbutton")->gtk));
 	double w    = w_unit * gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_orb_perr0_spinbutton")->gtk));
 	double dp   = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_eph_pshift_spinbutton")->gtk));

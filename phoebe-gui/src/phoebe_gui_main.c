@@ -75,11 +75,12 @@ int main (int argc, char *argv[])
 		printf ("%s", phoebe_gui_error (status));
 		exit (0);
 	}
-	
-	/* Add all GUI-related options here: */
-	phoebe_config_entry_add (TYPE_BOOL, "GUI_CONFIRM_ON_OVERWRITE", TRUE);
-	phoebe_config_entry_add (TYPE_BOOL, "GUI_BEEP_AFTER_PLOT_AND_FIT", FALSE);
-	
+
+	/* Add all GUI-related options. */
+	phoebe_config_entry_add (TYPE_BOOL,   "GUI_CONFIRM_ON_OVERWRITE", TRUE);
+	phoebe_config_entry_add (TYPE_BOOL,   "GUI_BEEP_AFTER_PLOT_AND_FIT", FALSE);
+	phoebe_config_entry_add (TYPE_STRING, "GUI_ANGLE_UNITS", "Radians");
+
 	status = phoebe_configure ();
 	if (status == ERROR_PHOEBE_CONFIG_SUPPORTED_FILE ||
 		status == ERROR_PHOEBE_CONFIG_LEGACY_FILE    ||
@@ -92,7 +93,7 @@ int main (int argc, char *argv[])
 		configswitch = TRUE;
 	
 	phoebe_gui_init ();
-	
+
 	parse_startup_line (argc, argv);
 	
 	if (status == ERROR_PHOEBE_CONFIG_NOT_FOUND)
