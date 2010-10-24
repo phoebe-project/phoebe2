@@ -2411,7 +2411,7 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">6.2799999999999105 0 6.2800000000000011 0.01 0.10000000000000001 0</property>
+                                    <property name="adjustment">6.28318530718 0 6.28318530718 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
@@ -2516,7 +2516,7 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_perr0max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
-                                        <property name="adjustment">0 0 6.2800000000000002 0.01 0.10000000000000001 0</property>
+                                        <property name="adjustment">0 0 6.28318530718 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -7648,7 +7648,7 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">0 0 6.2800000000000002 0.01 0.10000000000000001 0</property>
+                                                <property name="adjustment">0 0 6.28318530718 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
@@ -7682,7 +7682,7 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                                <property name="adjustment">6.1800000000000006 0 6.2800000000000002 0.01 0.10000000000000001 0</property>
+                                                <property name="adjustment">6.28318530718 0 6.28318530718 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>

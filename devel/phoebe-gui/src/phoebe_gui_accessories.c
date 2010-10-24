@@ -174,8 +174,10 @@ int gui_open_parameter_file ()
 		PHOEBE_DIRFLAG = TRUE;
 		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 
-		if (status == SUCCESS)
+		if (status == SUCCESS) {
+			gui_update_angle_values ();
 			gui_status("%s successfully opened.", filename);
+		}
         else
 			gui_status("Opening %s failed with status %d.", filename, status);
 
@@ -243,9 +245,10 @@ int gui_save_parameter_file()
 	/* gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE); */
     gtk_window_set_icon (GTK_WINDOW(dialog), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
 
-	gchar *filename = gui_get_filename_with_overwrite_confirmation(dialog, "Save PHOEBE parameter file");
-	if (filename){
-		status = phoebe_save_parameter_file(filename);
+	gchar *filename = gui_get_filename_with_overwrite_confirmation (dialog, "Save PHOEBE parameter file");
+	if (filename) {
+		gui_export_angles_to_radians ();
+		status = phoebe_save_parameter_file (filename);
 
 		PHOEBE_FILEFLAG = TRUE;
 		PHOEBE_FILENAME = strdup(filename);
@@ -253,8 +256,10 @@ int gui_save_parameter_file()
 		PHOEBE_DIRFLAG = TRUE;
 		PHOEBE_DIRNAME = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
 
-		if(status == SUCCESS)gui_status("%s successfully saved.", filename);
-        else gui_status("Saving %s failed with status %d.", filename, status);
+		if (status == SUCCESS)
+			gui_status("%s successfully saved.", filename);
+        else
+			gui_status("Saving %s failed with status %d.", filename, status);
 
         g_free (filename);
 	}

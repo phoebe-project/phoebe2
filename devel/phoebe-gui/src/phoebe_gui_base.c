@@ -76,6 +76,8 @@ int phoebe_gui_init ()
 	}
 
 	gui_init_widgets ();
+	gui_init_angle_widgets ();
+	gui_update_angle_values ();
 
 	/* Add SVN version to the window title: */
 	if (strcmp (PACKAGE_VERSION, "svn") == 0) {
