@@ -404,21 +404,19 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_para_sys_inclmax_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_sys_inclmax_spinbutton"), 								0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
 	gui_widget_add ("phoebe_para_sys_inclmin_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_sys_inclmin_spinbutton"), 								0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
 
-	gui_widget_add ("phoebe_para_orb_perr_units_combobox",				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr_units_combobox"),							0,					GUI_WIDGET_VALUE, 		phoebe_parameter_lookup("phoebe_perr_units"), NULL);
-
 	par = phoebe_parameter_lookup ("phoebe_perr0");
-	gui_widget_add ("phoebe_para_orb_perr0_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0_spinbutton"), 								0,					GUI_WIDGET_VALUE, 		par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
+	gui_widget_add ("phoebe_para_orb_perr0_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0_spinbutton"), 								0,					GUI_WIDGET_VALUE, 		par, NULL);
 	gui_widget_add ("phoebe_para_orb_perr0adjust_checkbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0adjust_checkbutton"), 						0,					GUI_WIDGET_SWITCH_TBA, 	par, NULL);
-	gui_widget_add ("phoebe_para_orb_perr0step_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0step_spinbutton"), 							0,					GUI_WIDGET_VALUE_STEP, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
-	gui_widget_add ("phoebe_para_orb_perr0max_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0max_spinbutton"), 							0,					GUI_WIDGET_VALUE_MAX, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
-	gui_widget_add ("phoebe_para_orb_perr0min_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0min_spinbutton"), 							0,					GUI_WIDGET_VALUE_MIN, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
+	gui_widget_add ("phoebe_para_orb_perr0step_spinbutton", 			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0step_spinbutton"), 							0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_orb_perr0max_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0max_spinbutton"), 							0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
+	gui_widget_add ("phoebe_para_orb_perr0min_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_perr0min_spinbutton"), 							0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_dperdt");
-	gui_widget_add ("phoebe_para_orb_dperdt_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdt_spinbutton"), 								0,					GUI_WIDGET_VALUE, 		par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
+	gui_widget_add ("phoebe_para_orb_dperdt_spinbutton", 				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdt_spinbutton"), 								0,					GUI_WIDGET_VALUE, 		par, NULL);
 	gui_widget_add ("phoebe_para_orb_dperdtadjust_checkbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtadjust_checkbutton"), 						0,					GUI_WIDGET_SWITCH_TBA, 	par, NULL);
-	gui_widget_add ("phoebe_para_orb_dperdtstep_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtstep_spinbutton"), 							0,					GUI_WIDGET_VALUE_STEP, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
-	gui_widget_add ("phoebe_para_orb_dperdtmax_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtmax_spinbutton"), 							0,					GUI_WIDGET_VALUE_MAX, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
-	gui_widget_add ("phoebe_para_orb_dperdtmin_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtmin_spinbutton"), 							0,					GUI_WIDGET_VALUE_MIN, 	par, gui_widget_lookup("phoebe_para_orb_perr_units_combobox"));
+	gui_widget_add ("phoebe_para_orb_dperdtstep_spinbutton",			glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtstep_spinbutton"), 							0,					GUI_WIDGET_VALUE_STEP, 	par, NULL);
+	gui_widget_add ("phoebe_para_orb_dperdtmax_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtmax_spinbutton"), 							0,					GUI_WIDGET_VALUE_MAX, 	par, NULL);
+	gui_widget_add ("phoebe_para_orb_dperdtmin_spinbutton",				glade_xml_get_widget(phoebe_window, "phoebe_para_orb_dperdtmin_spinbutton"), 							0,					GUI_WIDGET_VALUE_MIN, 	par, NULL);
 
 	par = phoebe_parameter_lookup ("phoebe_ecc");
 	gui_widget_add ("phoebe_para_orb_ecc_spinbutton", 					glade_xml_get_widget(phoebe_window, "phoebe_para_orb_ecc_spinbutton"), 									0,					GUI_WIDGET_VALUE, 		par, NULL);
@@ -858,6 +856,142 @@ int gui_init_parameter_options()
 	phoebe_parameter_add_option (par, "Primary+Secondary RV");
 */
 	return status;
+}
+
+int gui_init_angle_widgets ()
+{
+	/*
+	 * gui_init_angle_widgets:
+	 *
+	 * All angles in the parameter file are saved in radians. The GUI offers
+	 * an option to display angles in degrees. This function checks the setup
+	 * and sets the adjustments accordingly. It does not, however, transform
+	 * the values. The gui_update_angle_values() function below does that.
+	 *
+	 * Returns: status.
+	 */
+	
+	GtkWidget *widget;
+	GtkAdjustment *adjust;
+	char *units;
+	int i = 0;
+
+	char *widget_name[] = {
+		"phoebe_para_orb_perr0_spinbutton",
+		"phoebe_para_orb_perr0step_spinbutton",
+		"phoebe_para_orb_perr0min_spinbutton",
+		"phoebe_para_orb_perr0max_spinbutton",
+		"phoebe_para_orb_dperdt_spinbutton",
+		"phoebe_para_orb_dperdtstep_spinbutton",
+		"phoebe_para_orb_dperdtmin_spinbutton",
+		"phoebe_para_orb_dperdtmax_spinbutton",
+		NULL
+	};
+
+	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+	printf ("angle units: %s\n", units);
+	if (strcmp (units, "Radians") == 0)
+		return SUCCESS;
+
+	while (widget_name[i] != NULL) {
+		widget = gui_widget_lookup (widget_name[i])->gtk;
+		adjust = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON (widget));
+		adjust->upper = 360.0;
+		i++;
+	}
+	
+	return SUCCESS;
+}
+
+int gui_update_angle_values ()
+{
+	/*
+	 * gui_update_angle_values:
+	 *
+	 * All angles in the parameter file are saved in radians. The GUI offers
+	 * an option to display angles in degrees. This function transforms all
+	 * current values to reflect this. It should be called as soon as the
+	 * file is opened.
+	 *
+	 * Returns: status.
+	 */
+	
+	GtkWidget *widget;
+	double conv = 180./3.1415926535897931;
+	char *units;
+	int i;
+
+	char *widget_name[] = {
+		"phoebe_para_orb_perr0_spinbutton",
+		"phoebe_para_orb_perr0step_spinbutton",
+		"phoebe_para_orb_perr0min_spinbutton",
+		"phoebe_para_orb_perr0max_spinbutton",
+		"phoebe_para_orb_dperdt_spinbutton",
+		"phoebe_para_orb_dperdtstep_spinbutton",
+		"phoebe_para_orb_dperdtmin_spinbutton",
+		"phoebe_para_orb_dperdtmax_spinbutton",
+		NULL
+	};
+
+	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+	if (strcmp (units, "Radians") == 0)
+		return SUCCESS;
+
+	i = 0;
+	while (widget_name[i] != NULL) {
+		widget = gui_widget_lookup (widget_name[i])->gtk;
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget), conv*gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget)));
+		i++;
+	}
+
+	return SUCCESS;
+}
+
+int gui_export_angles_to_radians ()
+{
+	/*
+	 * gui_export_angles_to_radians:
+	 *
+	 * All angles in the parameter file are saved in radians. The GUI offers
+	 * an option to display angles in degrees. If degrees are displayed, the
+	 * angles need to be transformed back to radians before the file is saved.
+	 * This function should be called before the file is saved.
+	 *
+	 * Returns: status.
+	 */
+	
+	GtkWidget *widget;
+	PHOEBE_parameter *par;
+	double conv = 3.1415926535897931/180.0;
+	char *units;
+	double val;
+	int i;
+
+	char *qualifier[] = {
+		"phoebe_perr0",
+		"phoebe_dperdt",
+		NULL
+	};
+
+	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+	if (strcmp (units, "Radians") == 0)
+		return SUCCESS;
+
+	i = 0;
+	while (qualifier[i] != NULL) {
+		par = phoebe_parameter_lookup (qualifier[i]);
+		phoebe_parameter_get_value (par, &val);
+		phoebe_parameter_set_value (par, conv*val);
+		phoebe_parameter_get_min   (par, &val);
+		phoebe_parameter_set_min   (par, conv*val);
+		phoebe_parameter_get_max   (par, &val);
+		phoebe_parameter_set_max   (par, conv*val);
+		phoebe_parameter_get_step  (par, &val);
+		phoebe_parameter_set_step  (par, conv*val);
+		i++;
+	}
+
+	return SUCCESS;
 }
 
 GUI_widget *gui_widget_new ()
