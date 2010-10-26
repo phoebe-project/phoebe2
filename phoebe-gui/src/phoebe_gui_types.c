@@ -5,6 +5,7 @@
 #include <phoebe/phoebe.h>
 
 #include "phoebe_gui_accessories.h"
+#include "phoebe_gui_callbacks.h"
 #include "phoebe_gui_error_handling.h"
 #include "phoebe_gui_global.h"
 #include "phoebe_gui_plotting.h"
@@ -893,7 +894,7 @@ int gui_init_angle_widgets ()
 	if (strcmp (units, "Radians") == 0)
 		return SUCCESS;
 
-	while (widget_name[i] != NULL) {
+	while (widget_name[i]) {
 		widget = gui_widget_lookup (widget_name[i])->gtk;
 		adjust = gtk_spin_button_get_adjustment (GTK_SPIN_BUTTON (widget));
 		adjust->upper = 360.0;
@@ -954,13 +955,12 @@ int gui_export_angles_to_radians ()
 	 *
 	 * All angles in the parameter file are saved in radians. The GUI offers
 	 * an option to display angles in degrees. If degrees are displayed, the
-	 * angles need to be transformed back to radians before the file is saved.
-	 * This function should be called before the file is saved.
+	 * angles need to be transformed back to radians before any computation
+	 * is done or a file is saved.
 	 *
 	 * Returns: status.
 	 */
 	
-	GtkWidget *widget;
 	PHOEBE_parameter *par;
 	double conv = 3.1415926535897931/180.0;
 	char *units;
@@ -1482,8 +1482,6 @@ int gui_set_value_to_widget (GUI_widget *widget)
 
 int gui_get_values_from_widgets ()
 {
-    gui_status("Reading out parameters...");
-
  	phoebe_debug("\n\n******** Entering gui_get_values_from_widgets!******* \n\n");
 
 	int i, status;
@@ -1499,6 +1497,8 @@ int gui_get_values_from_widgets ()
 		}
 	}
 
+	gui_export_angles_to_radians();
+	
 	gui_status("Readout completed.");
 
 	return SUCCESS;
