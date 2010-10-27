@@ -801,6 +801,7 @@ int gui_init_widgets ()
 	}
 
 	gui_set_values_to_widgets();
+	gui_update_angle_values ();
 
 	gui_status("PHOEBE started. All fields initialized to default values.");
 
@@ -1525,6 +1526,7 @@ int gui_set_values_to_widgets ()
 	
 	gui_fill_sidesheet_fit_treeview ();
 	gui_fill_fitt_mf_treeview ();
+	gui_update_angle_values ();
 	on_orbital_elements_changed ((GtkSpinButton *)NULL, (gpointer)NULL);
 	
 	gui_status ("Parameters updated.");
