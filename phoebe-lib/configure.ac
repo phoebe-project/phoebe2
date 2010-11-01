@@ -189,6 +189,8 @@
     AC_CHECK_FUNCS([geteuid getegid])
     AC_CHECK_HEADERS([ftw.h])
 
+    ACX_PTHREAD([pthreadsupport="yes"],[pthreadsupport="no"])
+
   # GSL support:
     AC_ARG_ENABLE(gsl,
         [  --enable-gsl            Use GNU Scientific Library (default=yes)],
@@ -279,6 +281,7 @@ GTK_DOC_CHECK(1.0)
   echo "Fortran compiler used:            $F77"
   echo "PHOEBE library directory:         $prefix/lib"
   echo "PHOEBE include directory:         $prefix/include/phoebe"
+  echo "POSIX threading support:          $pthreadsupport"
   echo "GNU Scientific Library support:   $gslsupport"
   echo "Build API documentation:          $gtkdocstate"
   echo "Maintainer mode (build sources):  $USE_MAINTAINER_MODE"

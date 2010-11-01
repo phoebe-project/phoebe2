@@ -832,7 +832,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	PHOEBE_parameter_list *marked_tba, *tba;
 	int lcno, rvno, no_tba;
 	bool calchla = FALSE, calcvga = FALSE;
-	double spots_conversion_factor, perr_conversion_factor;
+	double spots_conversion_factor;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 
 	/* Minimizer results: */
@@ -942,8 +942,7 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	feedback->cfval = cfval;
 
-	spots_conversion_factor = 1/phoebe_spots_units_to_wd_conversion_factor ();
-	perr_conversion_factor = 1/phoebe_perr_units_to_wd_conversion_factor ();
+	spots_conversion_factor = 1./phoebe_spots_units_to_wd_conversion_factor ();
 
 	tba = phoebe_parameter_list_get_marked_tba (); i = 0;
 	while (tba) {
@@ -957,11 +956,6 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 				else if (strcmp (tba->par->qualifier, "phoebe_vga") == 0) {
 					corrections[i] *= 100.0;
 					errors[i] *= 100.0;
-				}
-				else if (strcmp (tba->par->qualifier, "phoebe_perr0") == 0 ||
-					strcmp (tba->par->qualifier, "phoebe_dperdt") == 0) {
-					corrections[i] *= perr_conversion_factor;
-					errors[i] *= perr_conversion_factor;
 				}
 				else if ((spots_conversion_factor != 1.0) && ((strcmp (tba->par->qualifier, "wd_spots_lat1") == 0) ||
 					(strcmp (tba->par->qualifier, "wd_spots_lat2") == 0) ||
@@ -978,13 +972,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 				feedback->ferrors->val[i] = errors[i];
 
 				/* Handle cyclic values: */
-				if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_perr0") == 0) {
-					double cycle_period = (phoebe_perr_units_are_degrees()) ? 360 : 2*M_PI;
-					if (feedback->newvals->val[i] < 0)
-						feedback->newvals->val[i] += cycle_period;
-					else if (feedback->newvals->val[i] > cycle_period)
-						feedback->newvals->val[i] -= cycle_period;
-				}
+				if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_perr0") == 0)
+					feedback->newvals->val[i] = fmod (2*M_PI+feedback->newvals->val[i], 2*M_PI);
 				else if (strcmp (feedback->qualifiers->val.strarray[i], "phoebe_pshift") == 0) {
 					if (feedback->newvals->val[i] < -0.5)
 						feedback->newvals->val[i] += 1.0;
