@@ -891,7 +891,6 @@ int gui_init_angle_widgets ()
 	};
 
 	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
-	printf ("angle units: %s\n", units);
 	if (strcmp (units, "Radians") == 0)
 		return SUCCESS;
 

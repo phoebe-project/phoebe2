@@ -1766,18 +1766,6 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 	return SUCCESS;
 }
 
-bool phoebe_perr_units_are_degrees()
-{
-	char *phoebe_perr_units;
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_perr_units"), &phoebe_perr_units);
-	return strcmp(phoebe_perr_units, "Radians");
-}
-
-double phoebe_perr_units_to_wd_conversion_factor ()
-{
-	return (phoebe_perr_units_are_degrees()) ? M_PI/180.0 : 1.0;
-}
-
 double phoebe_spots_units_to_wd_conversion_factor ()
 {
 	char *phoebe_spots_units;

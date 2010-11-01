@@ -65,9 +65,11 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	ChangeLog INSTALL NEWS TODO autoconfig/compile \
 	autoconfig/config.guess autoconfig/config.sub \
 	autoconfig/depcomp autoconfig/install-sh autoconfig/ltmain.sh \
-	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap
+	autoconfig/missing autoconfig/mkinstalldirs autoconfig/ylwrap \
+	config.guess config.sub ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/autoconfig/libtool.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/autoconfig/acx_pthread.m4 \
+	$(top_srcdir)/autoconfig/libtool.m4 \
 	$(top_srcdir)/autoconfig/ltoptions.m4 \
 	$(top_srcdir)/autoconfig/ltsugar.m4 \
 	$(top_srcdir)/autoconfig/ltversion.m4 \
@@ -198,6 +200,9 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
+PTHREAD_CC = @PTHREAD_CC@
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -213,6 +218,7 @@ abs_top_srcdir = @abs_top_srcdir@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 ac_ct_F77 = @ac_ct_F77@
+acx_pthread_config = @acx_pthread_config@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
