@@ -28,6 +28,16 @@ GtkWidget *GUI_DETACHED_SIDESHEET_WINDOW;
 
 gchar *GUI_SAVED_DATA_DIR;
 
+double intern_angle_factor ()
+{
+	char *units;
+	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+	if (strcmp (units, "Radians") == 0)
+		return 1.0;
+	else
+		return M_PI/180.0;
+}
+
 G_MODULE_EXPORT
 void on_combo_box_selection_changed_get_index (GtkComboBox *combo, gpointer user_data)
 {
@@ -832,12 +842,24 @@ void gui_on_fitting_finished (int status)
 		for (index = 0; index < feedback->qualifiers->dim; index++) {
 			gtk_list_store_append (GTK_LIST_STORE (model), &iter);
 
-			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-				MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
-				MF_COL_INITVAL,   feedback->initvals->val[index],
-				MF_COL_NEWVAL,    feedback->newvals->val[index],
-				MF_COL_ERROR,     feedback->ferrors->val[index],
-				-1);
+			/* We need a little hack here if angles are in degrees: */
+			if (strcmp (feedback->qualifiers->val.strarray[index], "phoebe_perr0") == 0 ||
+			    strcmp (feedback->qualifiers->val.strarray[index], "phoebe_dperdt") == 0) {
+				double cv = intern_angle_factor ();
+				gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+					MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
+					MF_COL_INITVAL,   feedback->initvals->val[index]/cv,
+					MF_COL_NEWVAL,    feedback->newvals->val[index]/cv,
+					MF_COL_ERROR,     feedback->ferrors->val[index]/cv,
+					-1);
+			}
+			else
+				gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+					MF_COL_QUALIFIER, feedback->qualifiers->val.strarray[index],
+					MF_COL_INITVAL,   feedback->initvals->val[index],
+					MF_COL_NEWVAL,    feedback->newvals->val[index],
+					MF_COL_ERROR,     feedback->ferrors->val[index],
+					-1);
 		}
 
 		/* Statistics treeview: */
@@ -2847,16 +2869,6 @@ void on_stellar_masses_changed (GtkSpinButton *spinbutton, gpointer user_data)
 
 	gui_set_treeview_value (model, RS_COL_PARAM_VALUE, SIDESHEET_MASS_1, M1);
 	gui_set_treeview_value (model, RS_COL_PARAM_VALUE, SIDESHEET_MASS_2, M2);
-}
-
-double intern_angle_factor ()
-{
-	char *units;
-	phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
-	if (strcmp (units, "Radians") == 0)
-		return 1.0;
-	else
-		return M_PI/180.0;
 }
 
 G_MODULE_EXPORT
