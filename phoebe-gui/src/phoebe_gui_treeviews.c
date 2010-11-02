@@ -1324,12 +1324,32 @@ int gui_fill_sidesheet_fit_treeview ()
 				status = phoebe_parameter_get_max(par, &max);
 
 				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-				gtk_list_store_set((GtkListStore*)model, &iter,
-														FS_COL_PARAM_NAME, par->qualifier,
-														FS_COL_PARAM_VALUE, value,
-														FS_COL_PARAM_STEP, step,
-														FS_COL_PARAM_MIN, min,
-														FS_COL_PARAM_MAX, max, -1);
+
+				/* We need a little hack here if angles are in degrees: */
+				if (strcmp (par->qualifier, "phoebe_perr0") == 0 ||
+					strcmp (par->qualifier, "phoebe_dperdt") == 0) {
+					double cv;
+					char *units;
+					phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+					if (strcmp (units, "Radians") == 0)
+						cv = 1.0;
+					else
+						cv = M_PI/180.0;
+
+					gtk_list_store_set((GtkListStore*)model, &iter,
+															FS_COL_PARAM_NAME, par->qualifier,
+															FS_COL_PARAM_VALUE, value/cv,
+															FS_COL_PARAM_STEP, step/cv,
+															FS_COL_PARAM_MIN, min/cv,
+															FS_COL_PARAM_MAX, max/cv, -1);
+				}
+				else
+					gtk_list_store_set((GtkListStore*)model, &iter,
+															FS_COL_PARAM_NAME, par->qualifier,
+															FS_COL_PARAM_VALUE, value,
+															FS_COL_PARAM_STEP, step,
+															FS_COL_PARAM_MIN, min,
+															FS_COL_PARAM_MAX, max, -1);
 			break;
 			case TYPE_DOUBLE_ARRAY: {
 				int i, n = par->value.vec->dim;
@@ -2061,9 +2081,26 @@ int gui_fill_fitt_mf_treeview ()
 				status = phoebe_parameter_get_value(par, &value);
 
 				gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-				gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-					MF_COL_QUALIFIER, par->qualifier,
-					MF_COL_INITVAL, value, -1);
+
+				/* We need a little hack here if angles are in degrees: */
+				if (strcmp (par->qualifier, "phoebe_perr0") == 0 ||
+					strcmp (par->qualifier, "phoebe_dperdt") == 0) {
+					double cv;
+					char *units;
+					phoebe_config_entry_get ("GUI_ANGLE_UNITS", &units);
+					if (strcmp (units, "Radians") == 0)
+						cv = 1.0;
+					else
+						cv = M_PI/180.0;
+
+					gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+						MF_COL_QUALIFIER, par->qualifier,
+						MF_COL_INITVAL,   value/cv, -1);
+				}
+				else
+					gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+						MF_COL_QUALIFIER, par->qualifier,
+						MF_COL_INITVAL, value, -1);
 			}
 			break;
 			case TYPE_DOUBLE_ARRAY: {
