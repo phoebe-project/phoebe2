@@ -90,6 +90,7 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  johnson.L                   \
                  johnson.M                   \
                  johnson.N                   \
+                 kepler_mean.ptf             \
                  sdss_u.txt                  \
                  sdss_g.txt                  \
                  sdss_r.txt                  \
