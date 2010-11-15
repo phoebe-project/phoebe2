@@ -1,0 +1,29 @@
+# PASS_SET  Sloan
+# PASSBAND  g'
+# EFFWL     4825.0
+# WLFACTOR  1.0
+# REFERENCE Fukugita, Ichikawa, Gunn, Doi, Shimasaku, Schneider 1996, AJ 111, 1748
+# Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
+3760  0.000
+3860  0.008
+3960  0.176
+4060  0.442
+4160  0.663
+4260  0.748
+4360  0.820
+4460  0.868
+4560  0.907
+4660  0.940
+4760  0.957
+4860  0.968
+4960  0.985
+5060  0.975
+5160  1.000
+5260  0.990
+5360  0.965
+5460  0.705
+5560  0.117
+5660  0.017
+5760  0.003
+5860  0.001
+5960  0.000

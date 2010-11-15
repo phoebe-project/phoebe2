@@ -246,9 +246,9 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  geneva_1962_u.txt           \
                  geneva_1962_v1.txt          \
                  geneva_1962_v.txt           \
-                 hipparcos_1989_bt.txt       \
+                 tycho.bT                    \
+                 tycho.vT                    \
                  hipparcos_1989_hp.txt       \
-                 hipparcos_1989_vt.txt       \
                  hst_foc_1989_f48_f140w.txt  \
                  hst_foc_1989_f48_f150w.txt  \
                  hst_foc_1989_f48_f175w.txt  \
@@ -288,9 +288,9 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  hst_foc_1989_f96_f550m.txt  \
                  hst_foc_1989_f96_f600m.txt  \
                  hst_foc_1989_f96_f630m.txt  \
-                 johnson.U                   \
-                 johnson.B                   \
-                 johnson.V                   \
+                 johnson_u.ptf               \
+                 johnson_b.ptf               \
+                 johnson_v.ptf               \
                  johnson.R                   \
                  johnson.I                   \
                  johnson.J                   \
@@ -300,17 +300,17 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  johnson.M                   \
                  johnson.N                   \
                  kepler_mean.ptf             \
-                 sdss_u.txt                  \
-                 sdss_g.txt                  \
-                 sdss_r.txt                  \
-                 sdss_i.txt                  \
-                 sdss_z.txt                  \
-                 stromgren_1956_b.txt        \
+                 sloan_u.ptf                 \
+                 sloan_g.ptf                 \
+                 sloan_r.ptf                 \
+                 sloan_i.ptf                 \
+                 sloan_z.ptf                 \
+                 stromgren_u.ptf             \
+                 stromgren_v.ptf             \
+                 stromgren_b.ptf             \
+                 stromgren_y.ptf             \
                  stromgren_1956_hbnarrow.txt \
-                 stromgren_1956_hbwide.txt   \
-                 stromgren_1956_u.txt        \
-                 stromgren_1956_v.txt        \
-                 stromgren_1956_y.txt
+                 stromgren_1956_hbwide.txt
 
 EXTRA_DIST = $(phoebeptf_DATA)
 all: all-am
