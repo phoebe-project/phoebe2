@@ -3045,9 +3045,10 @@ scripter_ast_value scripter_integrate_spectrum (scripter_ast_list *args)
 		return out;
 	}
 
-	if (vals[1].type != type_void) ll = vals[1].value.d; else ll =  2500.0;
-	if (vals[2].type != type_void) ul = vals[2].value.d; else ul = 10500.0;
+	if (vals[1].type != type_void) ll = vals[1].value.d; else ll = vals[0].value.spectrum->data->range[0];
+	if (vals[2].type != type_void) ul = vals[2].value.d; else ul = vals[0].value.spectrum->data->range[vals[0].value.spectrum->data->bins];
 
+	printf ("ll = %lf, ul = %lf\n", ll, ul);
 	status = phoebe_spectrum_integrate (vals[0].value.spectrum, ll, ul, &result);
 
 	if (status != SUCCESS) {
