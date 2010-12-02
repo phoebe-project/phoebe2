@@ -163,14 +163,14 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	clock_t clock_start, clock_stop;
 	PHOEBE_parameter_list *tba;
 	PHOEBE_parameter *par;
-	PHOEBE_column_type indep;
+	PHOEBE_column_type indep, rvdep;
 
 	PHOEBE_nms_parameters *passed;
 
 	double accuracy;
 	int iter_max;
 
-	int lcno, rvno, rvdep;
+	int lcno, rvno;
 	PHOEBE_el3_units l3units;
 	PHOEBE_array *active_lcindices, *active_rvindices;
 	char *qualifier;
@@ -199,6 +199,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	if (feedback->qualifiers->dim != 0)
 		return ERROR_MINIMIZER_FEEDBACK_ALREADY_ALLOCATED;
 
+	feedback->algorithm = PHOEBE_MINIMIZER_NMS;
+	
 	/* Fire up the stop watch: */
 	clock_start = clock ();
 
@@ -310,6 +312,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		}
 		phoebe_curve_transform (obs[i], indep, PHOEBE_COLUMN_FLUX, PHOEBE_COLUMN_SIGMA);
 	}
+
 	for (i = 0; i < rvno; i++) {
 		obs[lcno+i] = phoebe_curve_new_from_pars (PHOEBE_CURVE_RV, active_rvindices->val.iarray[i]);
 		if (!obs[lcno+i]) {
@@ -318,7 +321,8 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 			free (obs);
 			return ERROR_FILE_NOT_FOUND;
 		}
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &rvdep);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_dep"), i, &readout_str);
+		phoebe_column_get_type (&rvdep, readout_str);
 		phoebe_curve_transform (obs[lcno+i], indep, rvdep, PHOEBE_COLUMN_SIGMA);
 	}
 
@@ -418,7 +422,6 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 	clock_stop = clock ();
 
 	/* Populate the feedback structure: */
-	feedback->algorithm = PHOEBE_MINIMIZER_NMS;
 	feedback->cputime   = (double) (clock_stop - clock_start) / CLOCKS_PER_SEC;
 	feedback->iters     = iter;
 	feedback->cfval     = cfval;
@@ -854,6 +857,8 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 	if (feedback->qualifiers->dim != 0)
 		return ERROR_MINIMIZER_FEEDBACK_ALREADY_ALLOCATED;
 
+	feedback->algorithm = PHOEBE_MINIMIZER_DC;
+
 	/* Assign the filenames for atmcof and atmcofplanck needed by WD: */
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 	atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
@@ -928,7 +933,6 @@ int phoebe_minimize_using_dc (FILE *dc_output, PHOEBE_minimizer_feedback *feedba
 
 	phoebe_minimizer_feedback_alloc (feedback, no_tba+(calchla*lcno)+calcvga, lcno+rvno, lcno);
 
-	feedback->algorithm = PHOEBE_MINIMIZER_DC;
 	feedback->iters = 1;
 
 	for (i = 0; i < rvno; i++)
