@@ -808,7 +808,7 @@ void gui_on_fitting_finished (int status)
 	PHOEBE_minimizer_feedback *feedback = phoebe_minimizer_feedback;
 	char *id;
 	char status_message[255] = "Minimizer feedback";
-	char *method;
+	char method[255];
 
 #ifdef PHOEBE_GUI_THREADS
 	fitting_in_progress = FALSE;
@@ -818,16 +818,21 @@ void gui_on_fitting_finished (int status)
 
 	switch (feedback->algorithm) {
 		case PHOEBE_MINIMIZER_DC:
-			method = "Differential corrections";
-			gui_status ("DC minimization: %s", phoebe_gui_error (status));
+			sprintf (method, "DC minimizer");
 			break;
 		case PHOEBE_MINIMIZER_NMS:
-			method = "Nelder-Mead Simplex";
-			gui_status ("NMS minimization: %s", phoebe_gui_error (status));
+			sprintf (method, "NMS minimizer");
 			break;
-		break;
+		default:
+			phoebe_gui_debug ("gui_on_fitting_finished: invalid algorithm passed (code %d).\n", feedback->algorithm);
+			return;
 	}
 
+	sprintf (status_message, "%s: %s", method, phoebe_gui_error (status));
+	status_message[strlen(status_message)-1] = '\0';
+	gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
+	gui_status (status_message);
+	
 	if (status == SUCCESS) {
 		PHOEBE_array *lc, *rv;
 		int lcno, rvno;
@@ -896,10 +901,6 @@ void gui_on_fitting_finished (int status)
 		phoebe_array_free (lc);
 		phoebe_array_free (rv);
 		accept_flag = 1;
-	}
-	else {
-		sprintf (status_message, "%s: %s", method, phoebe_gui_error (status));
-		gtk_label_set_text (phoebe_fitt_feedback_label, status_message);
 	}
 
 	gui_beep ();
