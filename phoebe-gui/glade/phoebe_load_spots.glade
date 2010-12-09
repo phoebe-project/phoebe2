@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.0 on Thu Nov 15 20:04:23 2007 -->
+<?xml version="1.0"?>
 <glade-interface>
+  <!-- interface-requires gtk+ 2.6 -->
+  <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkDialog" id="phoebe_load_spots_dialog">
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <property name="border_width">5</property>
-    <property name="window_position">GTK_WIN_POS_CENTER_ON_PARENT</property>
-    <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
+    <property name="window_position">center-on-parent</property>
+    <property name="type_hint">dialog</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
@@ -39,17 +39,20 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_lat_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                <property name="adjustment">0 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                 <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
+                              <packing>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
                             <child>
                               <widget class="GtkCheckButton" id="phoebe_load_spots_latadjust_checkbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -68,13 +71,16 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Step:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_latstep_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0.02 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
@@ -97,12 +103,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Min:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_latmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -125,12 +134,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Max:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_latmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">3.14159 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="adjustment">3.1415899999999999 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -162,6 +174,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">False</property>
+                    <property name="position">0</property>
                   </packing>
                 </child>
                 <child>
@@ -183,17 +196,20 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_lon_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                 <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
+                              <packing>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
                             <child>
                               <widget class="GtkCheckButton" id="phoebe_load_spots_lonadjust_checkbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -212,13 +228,16 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Step:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_lonstep_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0.02 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
@@ -241,12 +260,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Min:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_lonmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -269,12 +291,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Max:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_lonmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">6.2831849999999996 0 6.2831849999999996 0.01 0.1 0.1</property>
+                                    <property name="adjustment">6.2831849999999996 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -328,17 +353,20 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_rad_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                <property name="adjustment">0 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                 <property name="climb_rate">0.01</property>
                                 <property name="digits">4</property>
                               </widget>
+                              <packing>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
                             <child>
                               <widget class="GtkCheckButton" id="phoebe_load_spots_radadjust_checkbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -357,13 +385,16 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Step:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_radstep_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">3</property>
                                   </widget>
@@ -386,12 +417,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Min:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_radmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -414,12 +448,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Max:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_radmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">3.14159 0 3.14159 0.01 0.1 0.1</property>
+                                    <property name="adjustment">3.1415899999999999 0 3.1415899999999999 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.01</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -473,17 +510,20 @@
                               <widget class="GtkSpinButton" id="phoebe_load_spots_temp_spinbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="adjustment">1 0 10 0.01 0.1 0.1</property>
+                                <property name="adjustment">1 0 10 0.01 0.10000000000000001 0</property>
                                 <property name="climb_rate">0.02</property>
                                 <property name="digits">4</property>
                               </widget>
+                              <packing>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
                             <child>
                               <widget class="GtkCheckButton" id="phoebe_load_spots_tempadjust_checkbutton">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                <property name="response_id">0</property>
                                 <property name="draw_indicator">True</property>
                               </widget>
                               <packing>
@@ -502,13 +542,16 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Step:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_tempstep_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                                    <property name="adjustment">0.02 0 1 0.01 0.1 0.1</property>
+                                    <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="climb_rate">0.02</property>
                                     <property name="digits">3</property>
                                   </widget>
@@ -531,12 +574,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Min:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_tempmin_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0.2 0 100 0.1 1 1</property>
+                                    <property name="adjustment">0.20000000000000001 0 100 0.10000000000000001 1 0</property>
                                     <property name="climb_rate">0.02</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -559,12 +605,15 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="label" translatable="yes">Max:</property>
                                   </widget>
+                                  <packing>
+                                    <property name="position">0</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_load_spots_tempmax_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">5 0 100 0.1 1 1</property>
+                                    <property name="adjustment">5 0 100 0.10000000000000001 1 0</property>
                                     <property name="climb_rate">0.02</property>
                                     <property name="digits">4</property>
                                   </widget>
@@ -641,6 +690,7 @@ Secondary star</property>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">False</property>
+                <property name="position">0</property>
               </packing>
             </child>
           </widget>
@@ -652,34 +702,42 @@ Secondary star</property>
           <widget class="GtkHButtonBox" id="dialog-action_area1">
             <property name="visible">True</property>
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-            <property name="layout_style">GTK_BUTTONBOX_END</property>
+            <property name="layout_style">end</property>
             <child>
               <widget class="GtkButton" id="phoebe_load_spots_ok_button">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">gtk-ok</property>
-                <property name="use_stock">True</property>
+                <property name="label">gtk-ok</property>
                 <property name="response_id">-5</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_stock">True</property>
               </widget>
               <packing>
                 <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
               </packing>
             </child>
             <child>
               <widget class="GtkButton" id="phoebe_load_spots_cancel_button">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">gtk-cancel</property>
-                <property name="use_stock">True</property>
+                <property name="label">gtk-cancel</property>
                 <property name="response_id">-6</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_stock">True</property>
               </widget>
               <packing>
                 <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="position">1</property>
               </packing>
             </child>
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="pack_type">GTK_PACK_END</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
           </packing>
         </child>
       </widget>

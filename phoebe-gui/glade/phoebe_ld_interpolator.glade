@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.0 on Thu Nov 15 18:50:08 2007 -->
+<?xml version="1.0"?>
 <glade-interface>
+  <!-- interface-requires gtk+ 2.6 -->
+  <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkDialog" id="phoebe_ld_dialog">
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <property name="border_width">5</property>
     <property name="title" translatable="yes">LD Coefficients Interpolation</property>
-    <property name="window_position">GTK_WIN_POS_CENTER_ON_PARENT</property>
-    <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
+    <property name="window_position">center-on-parent</property>
+    <property name="type_hint">dialog</property>
     <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
@@ -142,7 +142,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">3500 3500 50000 10 100 100</property>
+                        <property name="adjustment">3500 3500 50000 10 100 0</property>
                         <property name="climb_rate">10</property>
                       </widget>
                       <packing>
@@ -157,7 +157,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">4.2999999999999998 0 10 0.10000000000000001 1 1</property>
+                        <property name="adjustment">4.2999999999999998 0 10 0.10000000000000001 1 0</property>
                         <property name="climb_rate">0.0099999997764825821</property>
                         <property name="digits">5</property>
                       </widget>
@@ -175,7 +175,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0.10000000000000001</property>
+                        <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                         <property name="climb_rate">0.0099999997764825821</property>
                         <property name="digits">3</property>
                       </widget>
@@ -214,6 +214,9 @@
                   </packing>
                 </child>
               </widget>
+              <packing>
+                <property name="position">0</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkFrame" id="frame3">
@@ -269,7 +272,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">3500 3500 50000 10 100 100</property>
+                        <property name="adjustment">3500 3500 50000 10 100 0</property>
                         <property name="climb_rate">10</property>
                       </widget>
                       <packing>
@@ -284,7 +287,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">4.2999999999999998 0 10 0.10000000000000001 1 1</property>
+                        <property name="adjustment">4.2999999999999998 0 10 0.10000000000000001 1 0</property>
                         <property name="climb_rate">0.0099999997764825821</property>
                         <property name="digits">5</property>
                       </widget>
@@ -302,7 +305,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0.10000000000000001</property>
+                        <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                         <property name="climb_rate">0.0099999997764825821</property>
                         <property name="digits">3</property>
                       </widget>
@@ -368,7 +371,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                             <property name="climb_rate">0.0099999997764825821</property>
                             <property name="digits">4</property>
                           </widget>
@@ -397,7 +400,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                             <property name="climb_rate">0.0099999997764825821</property>
                             <property name="digits">4</property>
                           </widget>
@@ -437,6 +440,7 @@
                   </widget>
                   <packing>
                     <property name="expand">False</property>
+                    <property name="position">0</property>
                   </packing>
                 </child>
                 <child>
@@ -456,7 +460,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                             <property name="climb_rate">0.0099999997764825821</property>
                             <property name="digits">4</property>
                           </widget>
@@ -474,7 +478,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0.10000000000000001</property>
+                            <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                             <property name="climb_rate">0.0099999997764825821</property>
                             <property name="digits">4</property>
                           </widget>
@@ -551,27 +555,32 @@
             <property name="visible">True</property>
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
             <property name="homogeneous">True</property>
-            <property name="layout_style">GTK_BUTTONBOX_SPREAD</property>
+            <property name="layout_style">spread</property>
             <child>
               <widget class="GtkButton" id="phoebe_ld_dialog_interpolate_button">
+                <property name="label" translatable="yes">Interpolate</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                <property name="label" translatable="yes">Interpolate</property>
-                <property name="response_id">0</property>
               </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
             </child>
             <child>
               <widget class="GtkButton" id="phoebe_ld_dialog_update_button">
+                <property name="label" translatable="yes">Update</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                <property name="label" translatable="yes">Update</property>
-                <property name="response_id">0</property>
               </widget>
               <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="position">1</property>
               </packing>
             </child>
@@ -580,22 +589,24 @@
             </child>
             <child>
               <widget class="GtkButton" id="phoebe_ld_dialog_close_button">
+                <property name="label">gtk-close</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                <property name="label" translatable="yes">gtk-close</property>
                 <property name="use_stock">True</property>
-                <property name="response_id">0</property>
               </widget>
               <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="position">3</property>
               </packing>
             </child>
           </widget>
           <packing>
             <property name="expand">False</property>
-            <property name="pack_type">GTK_PACK_END</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
           </packing>
         </child>
       </widget>
