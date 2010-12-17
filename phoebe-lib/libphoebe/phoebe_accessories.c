@@ -572,13 +572,13 @@ char *phoebe_create_temp_filename (char *templ)
 	 * Returns: string with a unique filename.
 	 */
 
+	int fd = -1;
 	char *tmpdir, *tmpfname, *check;
 
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 	tmpfname = phoebe_concatenate_strings (tmpdir, "/", templ, NULL);
 
-	check = mktemp (tmpfname);
-	if (!check || strlen (check) == 0) {
+	if ((fd = mkstemp (tmpfname)) == -1) {
 		free (tmpfname);
 		return NULL;
 	};

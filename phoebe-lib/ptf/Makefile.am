@@ -21,7 +21,10 @@
 ########################################################################
 
 phoebeptfdir = $(datarootdir)/phoebe/ptf
-phoebeptf_DATA = bessell_1988_h.txt          \
+phoebeptf_DATA = 2mass_j.ptf                 \
+                 2mass_h.ptf                 \
+                 2mass_ks.ptf                \
+                 bessell_1988_h.txt          \
                  bessell_1988_j.txt          \
                  bessell_1988_k.txt          \
                  bessell_1988_lprime.txt     \
@@ -91,6 +94,7 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  johnson.M                   \
                  johnson.N                   \
                  kepler_mean.ptf             \
+                 most.ptf                    \
                  sloan_u.ptf                 \
                  sloan_g.ptf                 \
                  sloan_r.ptf                 \
@@ -101,6 +105,8 @@ phoebeptf_DATA = bessell_1988_h.txt          \
                  stromgren_b.ptf             \
                  stromgren_y.ptf             \
                  stromgren_1956_hbnarrow.txt \
-                 stromgren_1956_hbwide.txt
+                 stromgren_1956_hbwide.txt   \
+                 swasp_2004.ptf              \
+                 swasp_2006.ptf
 
 EXTRA_DIST = $(phoebeptf_DATA)

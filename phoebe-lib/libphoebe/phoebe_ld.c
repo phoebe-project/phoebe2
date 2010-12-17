@@ -71,11 +71,15 @@ PHOEBE_ld *phoebe_ld_new ()
 
 	PHOEBE_ld *table = phoebe_malloc (sizeof (*table));
 
-	table->lin_x  = NULL;
-	table->log_x  = NULL;
-	table->log_y  = NULL;
-	table->sqrt_x = NULL;
-	table->sqrt_y = NULL;
+	table->set      = NULL;
+	table->name     = NULL;
+	table->reftable = NULL;
+	
+	table->lin_x    = NULL;
+	table->log_x    = NULL;
+	table->log_y    = NULL;
+	table->sqrt_x   = NULL;
+	table->sqrt_y   = NULL;
 
 	return table;
 }
@@ -151,11 +155,15 @@ int phoebe_ld_free (PHOEBE_ld *table)
 	if (!table)
 		return SUCCESS;
 
-	if (table->lin_x)  phoebe_vector_free (table->lin_x);
-	if (table->log_x)  phoebe_vector_free (table->log_x);
-	if (table->log_y)  phoebe_vector_free (table->log_y);
-	if (table->sqrt_x) phoebe_vector_free (table->sqrt_x);
-	if (table->sqrt_y) phoebe_vector_free (table->sqrt_y);
+	if (table->set)      free (table->set);
+	if (table->name)     free (table->name);
+	if (table->reftable) free (table->reftable);
+
+	if (table->lin_x)    phoebe_vector_free (table->lin_x);
+	if (table->log_x)    phoebe_vector_free (table->log_x);
+	if (table->log_y)    phoebe_vector_free (table->log_y);
+	if (table->sqrt_x)   phoebe_vector_free (table->sqrt_x);
+	if (table->sqrt_y)   phoebe_vector_free (table->sqrt_y);
 
 	free (table);
 

@@ -775,6 +775,7 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 
 	if (par->qualifier)   free (par->qualifier);
 	if (par->description) free (par->description);
+	if (par->format)      free (par->format);
 
 	/* Free parameter options: */
 	if (par->menu) {
@@ -785,8 +786,10 @@ int phoebe_parameter_free (PHOEBE_parameter *par)
 	}
 
 	/* If parameters are strings or arrays, we need to free them as well: */
-	if (par->type == TYPE_STRING)
+	if (par->type == TYPE_STRING) {
 		free (par->value.str);
+		free (par->defaultvalue.str);
+	}
 
 	if (par->type == TYPE_STRING_ARRAY) {
 		phoebe_array_free (par->value.array);
