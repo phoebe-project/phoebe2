@@ -9,6 +9,7 @@
 #include "phoebe_data.h"
 #include "phoebe_error_handling.h"
 #include "phoebe_global.h"
+#include "phoebe_ld.h"
 #include "phoebe_parameters.h"
 #include "phoebe_types.h"
 
@@ -330,6 +331,7 @@ int phoebe_passband_free (PHOEBE_passband *passband)
 	free (passband->set);
 	free (passband->name);
 	phoebe_hist_free (passband->tf);
+	phoebe_ld_free (passband->ld);
 	free (passband);
 
 	return SUCCESS;
