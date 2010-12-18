@@ -41,12 +41,15 @@ int phoebe_gui_init ()
 			PHOEBE_GLADE_XML_DIR = g_build_filename ("glade", NULL);
 			glade_xml_file = g_build_filename (PHOEBE_GLADE_XML_DIR, "phoebe_cairo.glade", NULL);
 			if (!g_file_test (glade_xml_file, G_FILE_TEST_EXISTS)) {
+				g_free (PHOEBE_GLADE_XML_DIR); g_free (glade_xml_file);
 #warning DO_PROPER_ERROR_HANDLING_HERE
 				printf ("*** Glade files cannot be found, aborting.\n");
 				exit (-1);
 			}
 		}
 	}
+
+	g_free (glade_xml_file);
 
 	/*
 	 * Initialize a global PHOEBE_GLADE_PIXMAP_DIR string to point to a valid
@@ -68,12 +71,15 @@ int phoebe_gui_init ()
 			PHOEBE_GLADE_PIXMAP_DIR = g_build_filename ("pixmaps", NULL);
 			glade_pixmap_file = g_build_filename (PHOEBE_GLADE_PIXMAP_DIR, "ico.png", NULL);
 			if (!g_file_test (glade_pixmap_file, G_FILE_TEST_EXISTS)) {
+				g_free (PHOEBE_GLADE_PIXMAP_DIR); g_free (glade_pixmap_file);
 #warning DO_PROPER_ERROR_HANDLING_HERE
 				printf ("*** Pixmaps files cannot be found, aborting.\n");
 				exit (-1);
 			}
 		}
 	}
+
+	g_free (glade_pixmap_file);
 
 	gui_init_widgets ();
 	gui_init_angle_widgets ();
@@ -94,6 +100,7 @@ int phoebe_gui_init ()
 int phoebe_gui_quit ()
 {
 	gui_free_widgets ();
+	phoebe_quit ();
 
 	return SUCCESS;
 }
