@@ -1156,13 +1156,17 @@ int gui_get_value_from_widget (GUI_widget *widget)
 			GtkTreeIter iter;
 			int index;
 			bool state;
+			gchar *iterstr;
 
 			phoebe_debug ("\twidget type: tree model\n");
 
 			state = gtk_tree_model_get_iter_first (model, &iter);
 
 			while (state) {
-				index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
+				iterstr = gtk_tree_model_get_string_from_iter (model, &iter);
+				index = atoi (iterstr);
+				g_free (iterstr);
+				
 				switch (widget->par->type) {
 					case TYPE_INT_ARRAY: {
 						int value;
@@ -1190,6 +1194,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 						gtk_tree_model_get (model, &iter, widget->aux, &value, -1);
 						phoebe_debug ("\tsetting value %d to %s\n", index, value);
 						status = phoebe_parameter_set_value (widget->par, index, value);
+						free (value);
 					}
 					break;
 					default:
@@ -1280,8 +1285,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
 		if (GTK_IS_COMBO_BOX (widget->gtk)) {
 			phoebe_debug ("\twidget type: combo box\n");
 			if (gtk_combo_box_get_active((GtkComboBox*) widget->gtk) >= 0){
-				phoebe_debug ("\tsetting option to index %d, value %s\n", gtk_combo_box_get_active((GtkComboBox*) widget->gtk), strdup (widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]));
-				status = phoebe_parameter_set_value (widget->par, strdup (widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]));
+				phoebe_debug ("\tsetting option to index %d, value %s\n", gtk_combo_box_get_active((GtkComboBox*) widget->gtk), widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]);
+				status = phoebe_parameter_set_value (widget->par, widget->par->menu->option[gtk_combo_box_get_active((GtkComboBox*) widget->gtk)]);
 				return status;
 			}
 			else{
@@ -1318,13 +1323,17 @@ int gui_set_value_to_widget (GUI_widget *widget)
 			GtkTreeIter iter;
 			int index;
 			bool state;
+			gchar *iterstr;
 
 			phoebe_debug ("\twidget type: tree model\n");
 
 			state = gtk_tree_model_get_iter_first (model, &iter);
 
 			while (state) {
-				index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
+				iterstr = gtk_tree_model_get_string_from_iter (model, &iter);
+				index = atoi (iterstr);
+				g_free (iterstr);
+				
 				switch (widget->par->type) {
 					case TYPE_INT_ARRAY: {
 						int value;
