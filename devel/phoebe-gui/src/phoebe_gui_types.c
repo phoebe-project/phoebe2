@@ -779,13 +779,15 @@ int gui_init_widgets ()
 	gui_set_button_image ("phoebe_fitt_detach_button",      detach_pixmap_file);
 	gui_set_button_image ("phoebe_lc_plot_detach_button",   detach_pixmap_file);
 	gui_set_button_image ("phoebe_rv_plot_detach_button",   detach_pixmap_file);
+	g_free (detach_pixmap_file);
 
 	gui_init_parameter_options ();
 	gui_init_combo_boxes();
 
 	gtk_widget_show (gui_widget_lookup ("phoebe_window")->gtk);
 	gtk_window_set_icon (GTK_WINDOW(gui_widget_lookup ("phoebe_window")->gtk), gdk_pixbuf_new_from_file(glade_pixmap_file, NULL));
-
+	g_free (glade_pixmap_file);
+	
 	{
 		int _i;
 		GUI_wt_bucket *elem;
@@ -820,7 +822,7 @@ int gui_init_combo_boxes()
 				if (bucket->widget->par->kind == KIND_MENU && bucket->widget->par->type == TYPE_STRING) {
 					optcount = bucket->widget->par->menu->optno;
 					for (optindex = 0; optindex < optcount; optindex++)
-						gtk_combo_box_append_text (GTK_COMBO_BOX (bucket->widget->gtk), strdup(bucket->widget->par->menu->option[optindex]));
+						gtk_combo_box_append_text (GTK_COMBO_BOX (bucket->widget->gtk), bucket->widget->par->menu->option[optindex]);
 				}
 			}
 			bucket = bucket->next;
@@ -1192,8 +1194,8 @@ int gui_get_value_from_widget (GUI_widget *widget)
 					break;
 					default:
 						/* change to phoebe_gui_error! */
-						phoebe_debug ("\t*** I'm not supposed to be here!\n");
-						phoebe_debug ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_TREE_VIEW_COLUMN block, GUI_WIDGET_VALUE block; please report this!\n");
+						phoebe_gui_output ("\t*** I'm not supposed to be here!\n");
+						phoebe_gui_output ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_TREE_VIEW_COLUMN block, GUI_WIDGET_VALUE block; please report this!\n");
 						return ERROR_EXCEPTION_HANDLER_INVOKED;
 				}
 				state = gtk_tree_model_iter_next (model, &iter);
@@ -1216,7 +1218,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 						break;
 						default:
 							/* change to phoebe_gui_error! */
-							phoebe_debug ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->par->type switch; please report this!\n");
+							phoebe_gui_output ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, widget->par->type switch; please report this!\n");
 							return ERROR_EXCEPTION_HANDLER_INVOKED;
 					}
 				}
@@ -1238,7 +1240,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				break;
 				default:
 					/* change to phoebe_gui_error! */
-					phoebe_debug ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, par->type switch; please report this!\n");
+					phoebe_gui_output ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_SPIN_BUTTON block, par->type switch; please report this!\n");
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
 			}
 			return status;
@@ -1269,7 +1271,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 					status = phoebe_parameter_set_tba (widget->par, gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget->gtk)));
 				break;
 				default:
-					phoebe_debug ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_CHECK_BUTTON block, widget->type switch; please report this!\n");
+					phoebe_gui_output ("\t*** exception handler invoked in gui_get_value_from_widget (), GTK_IS_CHECK_BUTTON block, widget->type switch; please report this!\n");
 					return ERROR_EXCEPTION_HANDLER_INVOKED;
 			}
 			return status;
@@ -1283,14 +1285,14 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				return status;
 			}
 			else{
-				phoebe_debug ("\t*** nothing selected in combo.\n");
+				phoebe_gui_output ("\t*** nothing selected in combo.\n");
 				return SUCCESS;
 			}
 		}
 	}
 
-	phoebe_debug ("\t*** I got where I am not supposed to be!!\n");
-	phoebe_debug ("\t*** exception handler invoked in gui_get_value_from_widget (); please report this!\n");
+	phoebe_gui_output ("\t*** I got where I am not supposed to be!!\n");
+	phoebe_gui_output ("\t*** exception handler invoked in gui_get_value_from_widget (); please report this!\n");
 
 	return SUCCESS;
 }

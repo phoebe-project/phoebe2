@@ -545,40 +545,39 @@ void on_phoebe_potential_parameter_value_changed (GtkSpinButton *spinbutton, gpo
 	gtk_list_store_set((GtkListStore*)model, &iter, RS_COL_PARAM_NAME, "Ω(L<sub>2</sub>)", RS_COL_PARAM_VALUE, L2, -1);
 }
 
-int gui_interpolate_all_ld_coefficients (char* ldlaw, double tavh, double tavc, double logg1, double logg2, double met1, double met2)
+int gui_interpolate_all_ld_coefficients (char *ldlaw, double tavh, double tavc, double logg1, double logg2, double met1, double met2)
 {
 	/* Interpolate all LD coefficients */
 	PHOEBE_passband *passband;
 	int status, lcno, index;
 	char *notice_title = "LD coefficients interpolation";
-	int calc_ld1 = 1, calc_ld2 = 1;
 	GtkTreeModel *model = GTK_TREE_MODEL (gui_widget_lookup ("phoebe_para_ld_lccoefs_primx")->gtk);
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 
-	for (index = -1; (index < lcno) && (calc_ld1 || calc_ld2); index++) {
+	for (index = -1; index < lcno; index++) {
 		GtkTreeIter iter;
 		double x1, x2, y1, y2;
 
-		if (index == -1) {
+		if (index == -1)
 			/* Bolometric LD coefficients */
 			passband = phoebe_passband_lookup ("Bolometric:3000A-10000A");
-		}
 		else {
 			char *id;
 			int i;
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), index, &id);
 			passband = phoebe_passband_lookup_by_id (id);
+			
 			gtk_tree_model_get_iter_first (model, &iter);
 			for (i = 0; i < index; i++)
 				gtk_tree_model_iter_next (model, &iter);
 		}
+		
+		status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met1, tavh, logg1, &x1, &y1);
 
-		if (calc_ld1) {
-			status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met1, tavh, logg1, &x1, &y1);
-
-			if (status == SUCCESS) {
+		switch (status) {
+			case SUCCESS:
 				if (index == -1) {
 					/* Bolometric LD coefficients */
 					gtk_spin_button_set_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_ld_bolcoefs_primx_spinbutton")->gtk), x1);
@@ -586,17 +585,24 @@ int gui_interpolate_all_ld_coefficients (char* ldlaw, double tavh, double tavc, 
 				}
 				else
 					gtk_list_store_set (GTK_LIST_STORE (model), &iter, LC_COL_X1, x1, LC_COL_Y1, y1, -1);
+			break;
+			case ERROR_LD_TABLES_MISSING:
+			{
+				char message[255];
+				sprintf (message, "Limb darkening coefficients missing for passband %s:%s. To enable LD readouts, you must install the corresponding LD table.", passband->set, passband->name);
+				gui_notice (notice_title, message);
+				return status;
 			}
-			else {
+			break;
+			default:
 				gui_notice (notice_title, phoebe_gui_error (status));
-				calc_ld1 = 0;
-			}
+				return status;
 		}
 
-		if (calc_ld2) {
-			status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavh, logg2, &x2, &y2); 
+		status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavh, logg2, &x2, &y2); 
 
-			if (status == SUCCESS) {
+		switch (status) {
+			case SUCCESS:
 				if (index == -1) {
 					/* Bolometric LD coefficients */
 					gtk_spin_button_set_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_ld_bolcoefs_secx_spinbutton")->gtk), x2);
@@ -604,24 +610,32 @@ int gui_interpolate_all_ld_coefficients (char* ldlaw, double tavh, double tavc, 
 				}
 				else
 					gtk_list_store_set (GTK_LIST_STORE(model), &iter, LC_COL_X2, x2, LC_COL_Y2, y2, -1);
+			break;
+			case ERROR_LD_TABLES_MISSING:
+			{
+				char message[255];
+				sprintf (message, "Limb darkening coefficients missing for passband %s:%s. To enable LD readouts, you must install the corresponding LD table.", passband->set, passband->name);
+				gui_notice (notice_title, message);
+				return status;
 			}
-			else {
+			break;
+			default:
 				gui_notice (notice_title, phoebe_gui_error (status));
-				calc_ld2 = 0;
-			}
+				return status;
 		}
 	}
 
-	return (calc_ld1 && calc_ld2);
+	return SUCCESS;
 }
 
-void gui_update_ld_coefficients ()
+int gui_update_ld_coefficients ()
 {
 	/*
 	 * Update calculated values (log g, mass, radius, ...) and interpolate LD
 	 * coefficients
 	 */
 
+	int status;
 	double tavh, tavc, logg1, logg2, met1, met2;
 	char* ldlaw;
 
@@ -642,26 +656,38 @@ void gui_update_ld_coefficients ()
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met2"), &met2);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &ldlaw);
 
-	if (gui_interpolate_all_ld_coefficients (ldlaw, tavh, tavc, logg1, logg2, met1, met2))
+	status = gui_interpolate_all_ld_coefficients (ldlaw, tavh, tavc, logg1, logg2, met1, met2);
+
+	if (status == SUCCESS)
 		LD_COEFFS_NEED_UPDATING = FALSE;
 
 	gui_fill_sidesheet_res_treeview ();
+
+	return status;
 }
 
-void gui_update_ld_coefficients_on_autoupdate ()
+int gui_update_ld_coefficients_on_autoupdate ()
 {
+	int status = SUCCESS;
+	
 	/* Update LD coefficients when parameter gui_ld_model_autoupdate is set */
 	GtkWidget *phoebe_para_ld_model_autoupdate_checkbutton = gui_widget_lookup("phoebe_para_ld_model_autoupdate_checkbutton")->gtk;
 
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(phoebe_para_ld_model_autoupdate_checkbutton)))
-		gui_update_ld_coefficients();
+		status = gui_update_ld_coefficients ();
+
+	return status;
 }
 
-void gui_update_ld_coefficients_when_needed ()
+int gui_update_ld_coefficients_when_needed ()
 {
+	int status = SUCCESS;
+	
 	/* Update LD coefficients when changes have been made to M/T/log g/LD law */
 	if (LD_COEFFS_NEED_UPDATING)
-		gui_update_ld_coefficients_on_autoupdate();
+		status = gui_update_ld_coefficients_on_autoupdate();
+
+	return status;
 }
 
 
@@ -925,7 +951,11 @@ void on_phoebe_fitt_calculate_button_clicked (GtkToolButton *toolbutton, gpointe
 
 	phoebe_minimizer_feedback = phoebe_minimizer_feedback_new ();
 
-	gui_update_ld_coefficients_when_needed();
+	/* Make sure LD coefficients are current: */
+	status = gui_update_ld_coefficients_when_needed ();
+	if (status != SUCCESS)
+		return;
+	
 	status = gui_get_values_from_widgets();
 	fit_method = gtk_combo_box_get_active (phoebe_fitt_method_combobox);
 
@@ -1295,18 +1325,18 @@ G_MODULE_EXPORT void on_phoebe_data_rv_active_checkbutton_toggled (GtkCellRender
 
 G_MODULE_EXPORT void on_phoebe_data_rv_model_row_changed (GtkTreeModel *tree_model, GtkTreePath  *path, GtkTreeIter *iter, gpointer user_data)
 {
-	PHOEBE_parameter *par = phoebe_parameter_lookup("gui_rv_plot_obsmenu");
+	PHOEBE_parameter *par = phoebe_parameter_lookup ("gui_rv_plot_obsmenu");
 	GtkTreeIter rv_iter;
 	char *option;
 
-	int state = gtk_tree_model_get_iter_first(tree_model, &rv_iter);
+	int state = gtk_tree_model_get_iter_first (tree_model, &rv_iter);
 
 	par->menu->option = NULL;
 	par->menu->optno = 0;
 
 	while (state){
-		gtk_tree_model_get(tree_model, &rv_iter, RV_COL_FILTER, &option, -1);
-		if (option) phoebe_parameter_add_option(par, option);
+		gtk_tree_model_get (tree_model, &rv_iter, RV_COL_FILTER, &option, -1);
+		if (option) phoebe_parameter_add_option (par, option);
 		else break;
 		state = gtk_tree_model_iter_next(tree_model, &rv_iter);
 	}

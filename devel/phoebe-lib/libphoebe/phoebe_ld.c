@@ -864,6 +864,10 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 	if (!passband)
 		return ERROR_PASSBAND_INVALID;
 
+	phoebe_debug ("  checking if a corresponding LD table exists.\n");
+	if (!passband->ld)
+		return ERROR_LD_TABLES_MISSING;
+	
 	/* Get node array indices: */
 	for (i = 1; i < LD->Mnodes->dim; i++)
 		if (10.0*M < LD->Mnodes->val.iarray[i])

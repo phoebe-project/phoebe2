@@ -490,18 +490,13 @@ int gui_question (char *title, char *message)
 	GtkWidget *dialog;
 	int answer = 0;
 	
-	dialog = gtk_message_dialog_new ( GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
-									  GTK_DIALOG_DESTROY_WITH_PARENT,
-									  GTK_MESSAGE_QUESTION,
-									  GTK_BUTTONS_NONE,
-									  message);
+	dialog = gtk_message_dialog_new (GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
+									 GTK_DIALOG_DESTROY_WITH_PARENT,
+									 GTK_MESSAGE_QUESTION,
+	    							 GTK_BUTTONS_YES_NO,
+									 message);
 	
-	gtk_dialog_add_buttons(GTK_DIALOG (dialog), GTK_STOCK_NO, GTK_RESPONSE_REJECT,
-										  		GTK_STOCK_YES, GTK_RESPONSE_ACCEPT,
-										  		NULL);
-	
-	gtk_window_set_title(GTK_WINDOW (dialog), title);
-	
+	gtk_window_set_title (GTK_WINDOW (dialog), title);
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
 		answer = 1;
 	
