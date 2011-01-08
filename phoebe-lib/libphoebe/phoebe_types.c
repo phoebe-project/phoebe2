@@ -2835,7 +2835,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	if (status != SUCCESS) return status;
 	params.JDPHS = jdphs;
 	create_lci_file (lcin, &params);
-
+	
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
 
 	switch (dtype) {
@@ -2923,14 +2923,17 @@ int phoebe_curve_transform (PHOEBE_curve *curve, PHOEBE_column_type itype, PHOEB
 	phoebe_column_type_get_name (curve->itype, &rs1);
 	phoebe_column_type_get_name (       itype, &rs2);
 	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
+	free (rs1); free (rs2);
 
 	phoebe_column_type_get_name (curve->dtype, &rs1);
 	phoebe_column_type_get_name (       dtype, &rs2);
 	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
+	free (rs1); free (rs2);
 
 	phoebe_column_type_get_name (curve->wtype, &rs1);
 	phoebe_column_type_get_name (       wtype, &rs2);
 	phoebe_debug ("* requested transformation from %s to %s\n", rs1, rs2);
+	free (rs1); free (rs2);
 
 	if (curve->itype == PHOEBE_COLUMN_HJD && itype == PHOEBE_COLUMN_PHASE) {
 		double hjd0, period, dpdt, pshift;

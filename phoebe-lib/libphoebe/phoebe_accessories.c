@@ -583,6 +583,7 @@ char *phoebe_create_temp_filename (char *templ)
 		return NULL;
 	};
 
+	close(fd);
 	return tmpfname;
 }
 
