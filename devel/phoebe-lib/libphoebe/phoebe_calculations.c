@@ -250,7 +250,7 @@ int get_atmcof_filenames (char **atmcof, char **atmcofplanck)
 
 	phoebe_config_entry_get ("PHOEBE_BASE_DIR", &basedir);
 
-	*atmcof       = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat",       NULL);
+	*atmcof = phoebe_concatenate_strings (basedir, "/wd/phoebe_atmcof.dat", NULL);
 	if (!phoebe_filename_exists (*atmcof)) {
 		free (*atmcof);
 		return ERROR_ATMCOF_NOT_FOUND;
@@ -315,6 +315,8 @@ int phoebe_compute_lc_using_wd (PHOEBE_curve *curve, PHOEBE_vector *indep, char 
 
 	intern_call_wd_lc (atmcof, atmcofplanck, lcin, &request, &nodes, &L3perc, curve->indep->val, curve->dep->val, NULL, NULL);
 
+	free (atmcof); free (atmcofplanck);
+	
 	return SUCCESS;
 }
 

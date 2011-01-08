@@ -396,6 +396,7 @@ int phoebe_minimize_using_nms (FILE *nms_output, PHOEBE_minimizer_feedback *feed
 		
 		phoebe_parameter_get_step (par, &(steps->val[i]));
 		feedback->initvals->val[i] = adjpars->val[i];
+		free (qualifier);
 	}
 
 	/* Allocate the minimizer: */
