@@ -162,6 +162,8 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PTHREAD_CC = @PTHREAD_CC@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
 PTHREAD_LIBS = @PTHREAD_LIBS@
@@ -240,6 +242,8 @@ phoebeptf_DATA = 2mass_j.ptf                 \
                  bessell_1988_l.txt          \
                  bessell_1988_m.txt          \
                  bolometric.ptf              \
+                 corot.exo                   \
+                 corot.sis                   \
                  cousins.R                   \
                  cousins.I                   \
                  geneva_1962_b1.txt          \
