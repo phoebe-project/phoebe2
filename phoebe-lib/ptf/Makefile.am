@@ -31,6 +31,8 @@ phoebeptf_DATA = 2mass_j.ptf                 \
                  bessell_1988_l.txt          \
                  bessell_1988_m.txt          \
                  bolometric.ptf              \
+                 corot.exo                   \
+                 corot.sis                   \
                  cousins.R                   \
                  cousins.I                   \
                  geneva_1962_b1.txt          \
