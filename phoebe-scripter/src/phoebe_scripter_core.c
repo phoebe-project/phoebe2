@@ -234,7 +234,7 @@ int scripter_main_loop ()
 #if defined HAVE_LIBREADLINE && !defined PHOEBE_READLINE_DISABLED
 		phoebe_debug ("initializing GNU readline prompt.\n");
 		line = readline (prompt);
-
+		
 		if (line == '\0') {
 			printf ("\n");
 			free (line);
@@ -290,9 +290,9 @@ int scripter_main_loop ()
 		}
 
 		if (line != 0) {
-			YY_BUFFER_STATE yybuf = yy_scan_string (buffer);
+			main_thread = yy_scan_string (buffer);
 			yyparse ();
-			yy_delete_buffer (yybuf);
+			yy_delete_buffer (main_thread);
 		}
 
 		free (buffer);
