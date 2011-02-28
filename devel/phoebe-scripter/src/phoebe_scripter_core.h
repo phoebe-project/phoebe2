@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 #include <phoebe/phoebe.h>
+#include "phoebe_scripter.lng.h"
+
+YY_BUFFER_STATE main_thread;
 
 typedef struct PHOEBE_COMMAND_LINE_ARGS {
 	int PARAMETER_SWITCH;

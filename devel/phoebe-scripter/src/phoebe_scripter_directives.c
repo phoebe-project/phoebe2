@@ -98,8 +98,8 @@ int scripter_directive_execute (scripter_ast_list *args)
 
 	YY_BUFFER_STATE lexbuffer;
 	char *buffer = NULL;
-
 	scripter_ast_value *vals;
+	
 	int status = scripter_command_args_evaluate (args, &vals, 1, 1, type_string);
 	if (status != SUCCESS) {
 		phoebe_scripter_output ("%s", phoebe_scripter_error (status));
@@ -132,10 +132,9 @@ int scripter_directive_execute (scripter_ast_list *args)
 
 	lexbuffer = yy_scan_string (buffer);
 	yyparse ();
-
 	yy_delete_buffer (lexbuffer);
+	yy_switch_to_buffer (main_thread);
 	free (buffer);
-
 	scripter_ast_value_array_free (vals, 1);
 	return SUCCESS;
 }
