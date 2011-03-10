@@ -1771,9 +1771,9 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units)
 
 double phoebe_spots_units_to_wd_conversion_factor ()
 {
-	char *phoebe_spots_units;
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_units"), &phoebe_spots_units);
-	return (strcmp(phoebe_spots_units, "Radians")) ? M_PI/180.0 : 1.0;
+	char *units;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_units"), &units);
+	return (strcmp (units, "Radians")) ? M_PI/180.0 : 1.0;
 }
 
 int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotindices)

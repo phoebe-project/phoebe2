@@ -135,6 +135,7 @@ int phoebe_el3_units_id (PHOEBE_el3_units *el3_units);
 
 PHOEBE_array *phoebe_active_curves_get (PHOEBE_curve_type type);
 int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotindices);
+double phoebe_spots_units_to_wd_conversion_factor ();
 
 /* ************************************************************************** */
 
