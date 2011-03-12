@@ -29,6 +29,8 @@ int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOE
 #if defined (HAVE_LIBGSL) && !defined (PHOEBE_GSL_DISABLED)
 	int status, i;
 
+	PHOEBE_hist *ptf;
+	
 	double intPTF;
 	double *PTFindeps;
 	double passband_flux;
@@ -40,40 +42,44 @@ int phoebe_compute_passband_intensity (double *intensity, PHOEBE_hist *SED, PHOE
 	if (!SED) return ERROR_HIST_NOT_INITIALIZED;
 	if (!PTF) return ERROR_HIST_NOT_INITIALIZED;
 
+	ptf = phoebe_hist_duplicate (PTF);
+	
 	/* If we are weighting the integrals with photon flux, we need to multiply
 	 * the response function with \lambda:
 	 */
 	if (mode == 2)
-		for (i = 0; i < PTF->bins; i++)
-			PTF->val[i] *= 0.5*(PTF->range[i]+PTF->range[i+1]);
+		for (i = 0; i < ptf->bins; i++)
+			ptf->val[i] *= 0.5*(ptf->range[i]+ptf->range[i+1]);
 	
 	/* Compute the integral over the passband transmission function: */
-	status = phoebe_hist_integrate (&intPTF, PTF, PTF->range[0], PTF->range[PTF->bins]);
+	status = phoebe_hist_integrate (&intPTF, ptf, ptf->range[0], ptf->range[ptf->bins]);
 	if (status != SUCCESS) return status;
 
 	/* Assemble an array of center-bin values: */
-	PTFindeps = phoebe_malloc (PTF->bins * sizeof (*PTFindeps));
-	for (i = 0; i < PTF->bins; i++)
-		PTFindeps[i] = (PTF->range[i]+PTF->range[i+1])/2;
+	PTFindeps = phoebe_malloc (ptf->bins * sizeof (*PTFindeps));
+	for (i = 0; i < ptf->bins; i++)
+		PTFindeps[i] = (ptf->range[i]+ptf->range[i+1])/2;
 
 	/* Interpolate a cubic spline through the passband transmission function: */
 	acc    = gsl_interp_accel_alloc ();
-	spline = gsl_spline_alloc (gsl_interp_cspline, PTF->bins);
-	gsl_spline_init (spline, PTFindeps, PTF->val, PTF->bins);
+	spline = gsl_spline_alloc (gsl_interp_cspline, ptf->bins);
+	gsl_spline_init (spline, PTFindeps, ptf->val, ptf->bins);
 
 	/* Integrate spectral energy distribution function times this spline: */
 	passband_flux = 0;
 	i = 0;
-	while (SED->range[i] < PTF->range[0]) i++;
-	while (SED->range[i] < PTF->range[PTF->bins]) {
+	while (SED->range[i] < ptf->range[0]) i++;
+	while (SED->range[i] < ptf->range[ptf->bins]) {
 		passband_flux += SED->val[i] * gsl_spline_eval (spline, (SED->range[i]+SED->range[i+1])/2, acc) * (SED->range[i+1]-SED->range[i]);
 		i++;
 	}
 
+/*	printf ("pf = %12.4e int = %12.4e rat = %12.4e\n", passband_flux, intPTF, passband_flux/intPTF); */
+	
 	/* Compute the intensity: */
 	*intensity = M_PI * passband_flux / intPTF;
 
-	/* Free the array of center-bin values: */
+	phoebe_hist_free (ptf);
 	free (PTFindeps);
 
 	/* Free the spline: */
