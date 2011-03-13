@@ -2014,6 +2014,10 @@ void gui_save_parameter_file_with_confirmation ()
 	int status;
 	bool confirm;
 
+	phoebe_gui_debug ("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
+	if (PHOEBE_FILEFLAG)
+		phoebe_gui_debug ("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
+
 	status = gui_get_values_from_widgets ();
 
 	if (PHOEBE_FILEFLAG) {
@@ -2021,7 +2025,7 @@ void gui_save_parameter_file_with_confirmation ()
 		if (!confirm)
 			status = phoebe_save_parameter_file (PHOEBE_FILENAME);
 		else {
-			char *message = phoebe_concatenate_strings ("Do you want to overwrite file ", PHOEBE_FILENAME, "?", NULL);
+			char *message = phoebe_concatenate_strings ("Do you want to overwrite ", PHOEBE_FILENAME, "?", NULL);
 			int answer = gui_question ("Overwrite?", message);
 			free (message);
 
@@ -2033,9 +2037,6 @@ void gui_save_parameter_file_with_confirmation ()
 	}
 	else
 		status = gui_save_parameter_file ();
-
-	phoebe_gui_debug ("\tPHOEBE_FILEFLAG = %d\n", PHOEBE_FILEFLAG);
-	phoebe_gui_debug ("\tPHOEBE_FILENAME = %s\n", PHOEBE_FILENAME);
 
 	if( status != SUCCESS )
 		gui_error ("Error on Save", phoebe_gui_error (status));
