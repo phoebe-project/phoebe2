@@ -1290,7 +1290,7 @@ int gui_get_value_from_widget (GUI_widget *widget)
 				return status;
 			}
 			else{
-				phoebe_gui_output ("\t*** nothing selected in combo.\n");
+				phoebe_gui_output ("\t*** nothing selected in the combo for %s.\n", widget->par->qualifier);
 				return SUCCESS;
 			}
 		}

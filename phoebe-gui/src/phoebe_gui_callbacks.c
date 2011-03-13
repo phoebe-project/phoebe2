@@ -2625,53 +2625,71 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(g_object_get_data (G_OBJECT (button), "data_id_combobox")));
 	PHOEBE_passband *passband;
 
+	int lcno, rvno, status;
+	char *id;
+	double x1, x2, y1, y2;
+
+	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_lc_id"));
+	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_rv_id"));
+	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_lc_filter"));
+	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_rv_filter"));
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+
 	if (index == 0) {
 		/* Bolometric LD coefficients */
 		passband = phoebe_passband_lookup ("Bolometric:3000A-10000A");
 	}
 	else {
-		char *id;
-		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index - 1, &id);
-		passband = phoebe_passband_lookup_by_id(id);
+		if (index-1 < lcno)
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), index-1, &id);
+		else
+			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), index-lcno-1, &id);
+		passband = phoebe_passband_lookup_by_id (id);
+	}
+	printf ("passband: %s\n", id);
+
+	if (!passband) {
+		gui_notice ("LD coefficient interpolation", "The selected passband is either unsupported or is invalid.");
+		return;
 	}
 
-	double x1, x2, y1, y2;
-	char *title = "LD coefficients interpolation";
-
-	switch (phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met1, tavh, logg1, &x1, &y1)) {
-		case SUCCESS:
-			gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")), x1);
-			gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")), y1);
-			break;
-		case ERROR_LD_TABLES_MISSING:
-			gui_notice(title, "Van Hamme tables are missing");
-			return;
-		case ERROR_LD_PARAMS_OUT_OF_RANGE:
-			gui_notice(title, "Parameters for the primary component are out of range");
-			break;
+	status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met1, tavh, logg1, &x1, &y1);
+	if (status != SUCCESS)
+		gui_notice ("LD coefficient interpolation", phoebe_gui_error (status));
+	else {
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")), x1);
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")), y1);
 	}
 
-	switch (phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavc, logg2, &x2, &y2)) {
-		case SUCCESS:
-			gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")), x2);
-			gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")), y2);
-			break;
-		case ERROR_LD_PARAMS_OUT_OF_RANGE:
-			gui_notice(title, "Parameters for the secondary component are out of range");
-			break;
+	status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavc, logg2, &x2, &y2);
+	if (status != SUCCESS)
+		gui_notice ("LD coefficient interpolation", phoebe_gui_error (status));
+	else {
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")), x2);
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")), y2);
 	}
 }
 
-G_MODULE_EXPORT void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_ld_dialog_update_button_clicked (GtkButton *button, gpointer user_data)
 {
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	char path[10];
+	int lcno, rvno;
+	
 	double x1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_x1_spinbutton")));
 	double x2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_x2_spinbutton")));
 	double y1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_y1_spinbutton")));
 	double y2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (g_object_get_data (G_OBJECT (button), "data_y2_spinbutton")));
 
-	int index = gtk_combo_box_get_active (GTK_COMBO_BOX (g_object_get_data (G_OBJECT (button), "data_id_combobox")));
-	char *id, *id_in_model;
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 
+	int index = gtk_combo_box_get_active (GTK_COMBO_BOX (g_object_get_data (G_OBJECT (button), "data_id_combobox")));
+	
 	if (index == 0) {
 		/* Bolometric LD coefficients */
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_ld_bolcoefs_primx_spinbutton")->gtk), x1);
@@ -2680,25 +2698,21 @@ G_MODULE_EXPORT void on_phoebe_ld_dialog_update_button_clicked (GtkButton *butto
 		gtk_spin_button_set_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_ld_bolcoefs_secy_spinbutton")->gtk), y2);
 	}
 	else {
-		phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_lc_id"), index - 1, &id);
-
-		GtkTreeModel *model = GTK_TREE_MODEL(gui_widget_lookup("phoebe_para_ld_lccoefs_primx")->gtk);
-		GtkTreeIter iter;
-
-		int state = gtk_tree_model_get_iter_first (model, &iter);
-
-		while (state) {
-			index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
-
-			gtk_tree_model_get (model, &iter, LC_COL_ID, &id_in_model, -1);
-			if(strcmp(id, id_in_model) == 0){
-				gtk_list_store_set (GTK_LIST_STORE(model), &iter, 	LC_COL_X1, x1,
-																LC_COL_X2, x2,
-																LC_COL_Y1, y1,
-																LC_COL_Y2, y2, -1);
-				break;
-			}
-			state = gtk_tree_model_iter_next (model, &iter);
+		if (index-1 < lcno) {
+			/* Light curves: */
+			model = GTK_TREE_MODEL (gui_widget_lookup ("phoebe_para_ld_lccoefs_primx")->gtk);
+			sprintf (path, "%d", index-1);
+			gtk_tree_model_get_iter_from_string (model, &iter, path);
+			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+			    LC_COL_X1, x1, LC_COL_X2, x2, LC_COL_Y1, y1, LC_COL_Y2, y2, -1);
+		}
+		else {
+			/* RV curves: */
+			model = GTK_TREE_MODEL (gui_widget_lookup ("phoebe_para_ld_rvcoefs_primx")->gtk);
+			sprintf (path, "%d", index-lcno-1);
+			gtk_tree_model_get_iter_from_string (model, &iter, path);
+			gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+			    RV_COL_X1, x1, RV_COL_X2, x2, RV_COL_Y1, y1, RV_COL_Y2, y2, -1);
 		}
 	}
 }
@@ -2711,15 +2725,18 @@ static void gui_ld_filter_cell_data_func (GtkCellLayout *cell_layout, GtkCellRen
 
 int gui_init_ld_filter_combobox (GtkWidget *combo_box)
 {
-	GtkTreeStore 		*store;
-	GtkTreeIter 		 toplevel;
-	GtkCellRenderer 	*renderer;
+	GtkTreeStore 	*store;
+	GtkTreeModel    *lcs, *rvs;
+	GtkTreeIter 	 toplevel, iter;
+	GtkCellRenderer *renderer;
 
-	int i, lcno;
-	char *cid;
+	int i, lcno, rvno;
+	char *cid, path[10];
+
+	lcs = gtk_tree_view_get_model ((GtkTreeView *) gui_widget_lookup ("phoebe_data_lc_treeview")->gtk);
+	rvs = gtk_tree_view_get_model ((GtkTreeView *) gui_widget_lookup ("phoebe_data_rv_treeview")->gtk);
 
 	store = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_INT);
-
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_box), GTK_TREE_MODEL (store));
 	gtk_cell_layout_clear (GTK_CELL_LAYOUT (combo_box));
 
@@ -2731,20 +2748,33 @@ int gui_init_ld_filter_combobox (GtkWidget *combo_box)
 
 	gtk_tree_store_append (store, &toplevel, NULL);
 	gtk_tree_store_set (store, &toplevel, 0, "Bolometric", 1, 0, -1);
-
+	
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
 	for (i = 0; i < lcno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), i, &cid);
+		sprintf (path, "%d", i);
+		gtk_tree_model_get_iter_from_string (lcs, &iter, path);
+		gtk_tree_model_get (lcs, &iter, LC_COL_ID, &cid, -1);
 		gtk_tree_store_append (store, &toplevel, NULL);
-		gtk_tree_store_set (store, &toplevel, 0, cid, 1, i + 1, -1);
+		gtk_tree_store_set (store, &toplevel, 0, cid, 1, i+1, -1);
 	}
+	
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
+	for (i = 0; i < rvno; i++) {
+		sprintf (path, "%d", i);
+		gtk_tree_model_get_iter_from_string (rvs, &iter, path);
+		gtk_tree_model_get (rvs, &iter, RV_COL_ID, &cid, -1);
+		gtk_tree_store_append (store, &toplevel, NULL);
+		gtk_tree_store_set (store, &toplevel, 0, cid, 1, i+1, -1);
+	}
+	
 	g_object_unref (store);
-
-	gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box), 0);
+	
+	gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), 0);
 	return SUCCESS;
 }
 
-G_MODULE_EXPORT void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, gpointer user_data)
+G_MODULE_EXPORT
+void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, gpointer user_data)
 {
 	GtkCellRenderer *renderer;
 
