@@ -444,6 +444,16 @@ gboolean on_plot_area_motion (GtkWidget *widget, GdkEventMotion *event, gpointer
 			return FALSE;
 	}
 
+	/* If cp_str is longer than 13 characters, trim it so that it doesn't
+	 * rescale the plot area too much.
+	 */
+	if (strlen(cp_ptr) > 13) {
+		cp_ptr[10] = '.';
+		cp_ptr[11] = '.';
+		cp_ptr[12] = '.';
+		cp_ptr[13] = '\0';
+	}
+	
 	sprintf (cp_str, "in %s:", cp_ptr);
 
 	sprintf (cx_str, "%lf", data->request[cp].query->indep->val[ci]);
