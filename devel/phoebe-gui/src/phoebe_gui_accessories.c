@@ -488,7 +488,7 @@ int gui_warning (char *title, char *message)
 int gui_question (char *title, char *message)
 {
 	GtkWidget *dialog;
-	int answer = 0;
+	int answer = 0, response;
 	
 	dialog = gtk_message_dialog_new (GTK_WINDOW(gui_widget_lookup("phoebe_window")->gtk),
 									 GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -497,7 +497,9 @@ int gui_question (char *title, char *message)
 									 message);
 	
 	gtk_window_set_title (GTK_WINDOW (dialog), title);
-	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+
+	response = gtk_dialog_run (GTK_DIALOG (dialog));
+	if (response == GTK_RESPONSE_ACCEPT || response == GTK_RESPONSE_YES || response == GTK_RESPONSE_OK)
 		answer = 1;
 	
 	gtk_widget_destroy (dialog);
