@@ -57,26 +57,31 @@ int phoebe_init_parameters ()
 	phoebe_parameter_add ("phoebe_lc_active",            "Observed LC data is used",                   KIND_SWITCH,     "phoebe_lcno", "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
 	phoebe_parameter_add ("phoebe_rv_id",                "Observed RV identification name",            KIND_PARAMETER,  "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_rv_filename",          "Observed RV data filename",                  KIND_PARAMETER,  "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
-	phoebe_parameter_add ("phoebe_rv_sigma",             "Observed RV data standard deviation",        KIND_PARAMETER,  "phoebe_rvno", "%lf",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 1.0);
+	phoebe_parameter_add ("phoebe_rv_filename",          "Observed RV data filename",                  KIND_PARAMETER,  "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Undefined");
+	phoebe_parameter_add ("phoebe_rv_sigma",             "Observed RV data standard deviation",        KIND_PARAMETER,  "phoebe_rvno", "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE_ARRAY, 1.0);
 	phoebe_parameter_add ("phoebe_rv_filter",            "Observed RV data filter",                    KIND_MENU,       "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Johnson:V");
-	phoebe_parameter_add ("phoebe_rv_indep",             "Observed RV data independent variable",      KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
-	phoebe_parameter_add ("phoebe_rv_dep",               "Observed RV data dependent variable",        KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Primary RV");
-	phoebe_parameter_add ("phoebe_rv_indweight",         "Observed RV data individual weighting",      KIND_MENU,       "phoebe_rvno", "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
-	phoebe_parameter_add ("phoebe_rv_active",            "Observed RV data is used",                   KIND_SWITCH,     "phoebe_rvno", "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
+	phoebe_parameter_add ("phoebe_rv_indep",             "Observed RV data independent variable",      KIND_MENU,       "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Time (HJD)");
+	phoebe_parameter_add ("phoebe_rv_dep",               "Observed RV data dependent variable",        KIND_MENU,       "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Primary RV");
+	phoebe_parameter_add ("phoebe_rv_indweight",         "Observed RV data individual weighting",      KIND_MENU,       "phoebe_rvno", "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING_ARRAY, "Standard deviation");
+	phoebe_parameter_add ("phoebe_rv_active",            "Observed RV data is used",                   KIND_SWITCH,     "phoebe_rvno", "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL_ARRAY,    YES);
 
-	phoebe_parameter_add ("phoebe_spectra_disptype",     "Dispersion type of theoretical spectra",     KIND_MENU,       NULL,          "%s",   0.0,    0.0,    0.0, NO, TYPE_STRING,       "Linear");
-	phoebe_parameter_add ("phoebe_mnorm",                "Flux-normalizing magnitude",                 KIND_PARAMETER,  NULL,          "%lf",  0.0,    0.0,    0.0, NO, TYPE_DOUBLE,       10.0);
+	phoebe_parameter_add ("phoebe_spectra_disptype",     "Dispersion type of theoretical spectra",     KIND_MENU,       NULL,          "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING,       "Linear");
+	phoebe_parameter_add ("phoebe_mnorm",                "Flux-normalizing magnitude",                 KIND_PARAMETER,  NULL,          "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE,           10.0);
 
-	phoebe_parameter_add ("phoebe_bins_switch",          "Data binning",                               KIND_SWITCH,     NULL,          "%d",   0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_bins",                 "Number of bins",                             KIND_PARAMETER,  NULL,          "%d",   0.0,    0.0,    0.0, NO, TYPE_INT,           100);
+	phoebe_parameter_add ("phoebe_bins_switch",          "Data binning",                               KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,               NO);
+	phoebe_parameter_add ("phoebe_bins",                 "Number of bins",                             KIND_PARAMETER,  NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_INT,               100);
 
-	phoebe_parameter_add ("phoebe_ie_switch",            "Interstellar extinction (reddening)",        KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
-	phoebe_parameter_add ("phoebe_ie_factor",            "Interstellar extinction coefficient",        KIND_PARAMETER,  NULL,          "%lf",   0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        3.1);
-	phoebe_parameter_add ("phoebe_ie_excess",            "Interstellar extinction color excess value", KIND_PARAMETER,  NULL,          "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE,        0.0);
+	phoebe_parameter_add ("phoebe_ie_switch",            "Interstellar extinction (reddening)",        KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,               NO);
+	phoebe_parameter_add ("phoebe_ie_factor",            "Interstellar extinction coefficient",        KIND_PARAMETER,  NULL,          "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE,            3.1);
+	phoebe_parameter_add ("phoebe_ie_excess",            "Interstellar extinction color excess value", KIND_PARAMETER,  NULL,          "%lf", 0.0,    0.0,    0.0, NO, TYPE_DOUBLE,            0.0);
 
+	phoebe_parameter_add ("phoebe_cadence_switch",       "Finite cadence integration",                 KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,               NO);
+	phoebe_parameter_add ("phoebe_cadence",              "Cadence in seconds",                         KIND_PARAMETER,  NULL,          "%lf", 0.0, 3600.0,    1.0, NO, TYPE_DOUBLE,         1766.0);
+	phoebe_parameter_add ("phoebe_cadence_rate",         "Cadence sampling rate (times per cadence)",  KIND_PARAMETER,  NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_INT,                10);
+	phoebe_parameter_add ("phoebe_cadence_timestamp",    "Cadence timestamp",                          KIND_MENU,       NULL,          "%s",  0.0,    0.0,    0.0, NO, TYPE_STRING, "Mid-exposure");
+	
 	phoebe_parameter_add ("phoebe_proximity_rv1_switch", "Proximity effects for primary star RV",      KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
-	phoebe_parameter_add ("phoebe_proximity_rv2_switch", "Proximity effects for secondary star RV",    KIND_SWITCH,     NULL,          "%d", 0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
+	phoebe_parameter_add ("phoebe_proximity_rv2_switch", "Proximity effects for secondary star RV",    KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,          YES);
 
 	/* **********************   System parameters   ************************* */
 
@@ -319,6 +324,11 @@ int phoebe_init_parameter_options ()
 	phoebe_parameter_add_option (par, "Poissonian scatter");
 	phoebe_parameter_add_option (par, "Low light scatter");
 
+	par = phoebe_parameter_lookup ("phoebe_cadence_timestamp");
+	phoebe_parameter_add_option (par, "Start-exposure");
+	phoebe_parameter_add_option (par, "Mid-exposure");
+	phoebe_parameter_add_option (par, "End-exposure");
+	
 	par = phoebe_parameter_lookup ("phoebe_rv_filter");
 	for (i = 0; i < PHOEBE_passbands_no; i++) {
 		passband_str = phoebe_concatenate_strings (PHOEBE_passbands[i]->set, ":", PHOEBE_passbands[i]->name, NULL);
