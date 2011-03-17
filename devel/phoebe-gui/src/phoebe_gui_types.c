@@ -321,6 +321,11 @@ int gui_init_widgets ()
 	gui_widget_add ("phoebe_data_lc_active",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview), 						LC_COL_ACTIVE,		GUI_WIDGET_VALUE, 		phoebe_parameter_lookup ("phoebe_lc_active"), NULL);
 	gui_widget_add ("phoebe_data_lc_id",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_lc_treeview),						LC_COL_ID,			GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_lc_id"), NULL);
 
+	gui_widget_add ("phoebe_data_cadence_switch",                       glade_xml_get_widget (phoebe_window, "phoebe_cadence_switch"),                                          0,                  GUI_WIDGET_VALUE,       phoebe_parameter_lookup ("phoebe_cadence_switch"), NULL);
+	gui_widget_add ("phoebe_data_cadence",                              glade_xml_get_widget (phoebe_window, "phoebe_cadence"),                                                 0,                  GUI_WIDGET_VALUE,       phoebe_parameter_lookup ("phoebe_cadence"), NULL);
+	gui_widget_add ("phoebe_data_cadence_rate",                         glade_xml_get_widget (phoebe_window, "phoebe_cadence_rate"),                                            0,                  GUI_WIDGET_VALUE,       phoebe_parameter_lookup ("phoebe_cadence_rate"), NULL);
+	gui_widget_add ("phoebe_data_cadence_timestamp",                    glade_xml_get_widget (phoebe_window, "phoebe_cadence_timestamp"),                                       0,                  GUI_WIDGET_VALUE,       phoebe_parameter_lookup ("phoebe_cadence_timestamp"), NULL);
+
 	gui_widget_add ("phoebe_data_rv_filename",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_FILENAME,	GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filename"), NULL);
 	gui_widget_add ("phoebe_data_rv_sigma",								(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_SIGMA,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_sigma"), NULL);
 	gui_widget_add ("phoebe_data_rv_filter",							(GtkWidget *) gtk_tree_view_get_model ((GtkTreeView *) phoebe_data_rv_treeview),						RV_COL_FILTER,		GUI_WIDGET_VALUE,		phoebe_parameter_lookup ("phoebe_rv_filter"), NULL);

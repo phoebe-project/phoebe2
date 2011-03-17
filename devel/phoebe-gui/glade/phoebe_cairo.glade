@@ -366,7 +366,7 @@
                                 <child>
                                   <widget class="GtkEntry" id="phoebe_data_star_name_entry">
                                     <property name="visible">True</property>
-                                    <property name="can_focus">False</property>
+                                    <property name="can_focus">True</property>
                                     <signal name="changed" handler="on_phoebe_data_star_name_entry_changed" swapped="no"/>
                                   </widget>
                                   <packing>
@@ -589,7 +589,6 @@
                                 </child>
                                 <child>
                                   <widget class="GtkHBox" id="phoebe_data_lc_noise_hbox">
-                                    <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="spacing">5</property>
@@ -704,6 +703,124 @@
                                     <property name="expand">True</property>
                                     <property name="fill">False</property>
                                     <property name="position">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkHBox" id="phoebe_cadence_hbox">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <child>
+                                      <widget class="GtkCheckButton" id="phoebe_cadence_switch">
+                                        <property name="label" translatable="yes">Finite integration time</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="use_action_appearance">False</property>
+                                        <property name="xalign">0</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_label"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate_label"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp_label"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp"/>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkLabel" id="phoebe_cadence_label">
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="label" translatable="yes">Cadence [sec]:</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="padding">20</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkSpinButton" id="phoebe_cadence">
+                                        <property name="adjustment">1766 0 100000 1 10 0</property>
+                                        <property name="numeric">True</property>
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="invisible_char">●</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">True</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkLabel" id="phoebe_cadence_rate_label">
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="label" translatable="yes">Oversampling rate:</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="padding">20</property>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkSpinButton" id="phoebe_cadence_rate">
+                                        <property name="adjustment">10 0 1000 2 10 0</property>
+                                        <property name="numeric">True</property>
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="invisible_char">●</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">True</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkLabel" id="phoebe_cadence_timestamp_label">
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="label" translatable="yes">Time-stamp:</property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="padding">20</property>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <widget class="GtkComboBox" id="phoebe_cadence_timestamp">
+                                        <property name="visible">True</property>
+                                        <property name="sensitive">False</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="items"></property>
+                                      </widget>
+                                      <packing>
+                                        <property name="expand">True</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">6</property>
+                                      </packing>
+                                    </child>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">3</property>
                                   </packing>
                                 </child>
                               </widget>

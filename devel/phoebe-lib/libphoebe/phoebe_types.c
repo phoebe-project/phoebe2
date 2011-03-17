@@ -2759,13 +2759,19 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	 * Returns: #PHOEBE_error_code.
 	 */
 
-	int i;
+	int i, j;
 	int mpage;
 	int jdphs;
 	int status;
 
+	bool fti;
+	double cadence;
+	int rate;
+
 	char *filter;
 	char *lcin;
+	PHOEBE_vector *verts;
+	PHOEBE_curve  *fticurve;
 	WD_LCI_parameters params;
 
 	double A;
@@ -2838,16 +2844,37 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 	
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_extinction"), index, &A);
 
+	/* If finite integration time should be taken into account, we need to
+	 * oversample the nodes vector.
+	 */
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence_switch"), &fti);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence"), &cadence);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence_rate"), &rate);
+	cadence /= 86400.0;
+
+	if (fti && mpage == 1) {
+		verts = phoebe_vector_new ();
+		phoebe_vector_alloc (verts, (rate+1)*nodes->dim);
+
+		printf ("itype: %d\tcadence: %lf\trate: %d\n", itype, cadence, rate);
+		for (i = 0; i < nodes->dim; i++)
+			for (j = -rate/2; j <= rate/2; j++)
+				verts->val[i*(rate+1)+j+rate/2] = (jdphs == 1 ? nodes->val[i]+(double)j/rate*cadence : nodes->val[i]+(double)j/rate*cadence/params.PERIOD);
+		
+		fticurve = phoebe_curve_duplicate (curve);
+	}
+
 	switch (dtype) {
 		case PHOEBE_COLUMN_MAGNITUDE:
-			status = phoebe_compute_lc_using_wd (curve, nodes, lcin);
+			status = phoebe_compute_lc_using_wd (fti ? fticurve : curve, fti ? verts : nodes, lcin);
 			if (status != SUCCESS) return status;
-			apply_extinction_correction (curve, A);
+			apply_extinction_correction (fti ? fticurve : curve, A);
 		break;
 		case PHOEBE_COLUMN_FLUX:
-			status = phoebe_compute_lc_using_wd (curve, nodes, lcin);
+			status = phoebe_compute_lc_using_wd (fti ? fticurve : curve, fti ? verts : nodes, lcin);
 			if (status != SUCCESS) return status;
-			apply_extinction_correction (curve, A);
+			apply_extinction_correction (fti ? fticurve : curve, A);
 		break;
 		case PHOEBE_COLUMN_PRIMARY_RV:
 			status = phoebe_compute_rv1_using_wd (curve, nodes, lcin);
@@ -2865,6 +2892,25 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 //	remove (lcin);
 	free (lcin);
 
+	if (fti && mpage == 1) {
+		/* If finite integration time is selected, the fluxes need to be averaged out. */
+		phoebe_curve_alloc (curve, nodes->dim);
+		for (i = 0; i < nodes->dim; i++) {
+			curve->indep->val[i] = nodes->val[i];
+			curve->dep->val[i] = 0.0;
+			for (j = -rate/2; j <= rate/2; j++) {
+				curve->dep->val[i] += fticurve->dep->val[i*(rate+1)+j+rate/2];
+				printf ("%3d\t% lf\t% lf", i*(rate+1)+j+rate/2, fticurve->indep->val[i*(rate+1)+j+rate/2], fticurve->dep->val[i*(rate+1)+j+rate/2]);
+				if (j != rate/2)
+					printf ("\n");
+			}
+			curve->dep->val[i] /= (rate+1);
+			printf ("\t% lf\t% lf\n", curve->indep->val[i], curve->dep->val[i]);
+		}
+		phoebe_curve_free (fticurve);
+		phoebe_vector_free (verts);
+	}
+	
 	if (dtype == PHOEBE_COLUMN_MAGNITUDE) {
 		double mnorm;
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_mnorm"), &mnorm);
