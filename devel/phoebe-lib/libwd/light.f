@@ -43,12 +43,6 @@ c   Version of October 18, 2004
       dtr=pi/180.d0
       kstp=4
       cirf=.002d0
-ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c     ADDED ON JUN 17, 2008, TO AVOID COMPARISON WITH THE UNINITIALIZED
-c     VALUES IN BBL.F
-      sumhot=0.d0
-      sumkul=0.d0
-ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(ifphn.eq.1) goto 16
       if(mpage.ne.3) goto 16
       nbins=90000
@@ -93,8 +87,9 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       LLLL1=(LL1+LLL1)/2
       LLLL2=(LL2+LLL2)/2
       SINSQE=0.d0
-      IF(SINI.GT.0.d0) SINSQE=((1.10d0*(RV(LLL1)+RVQ(LLL2))/D)**2
+      IF(SINI.GT.0.d0) SINSQE=((1.02d0*(RV(LLL1)+RVQ(LLL2))/D)**2
      $-cosi**2)/SINI**2
+      if(sinsqe.gt..96d0) sinsqe=.96d0
       CICP=COSI*COSPH
       CISP=COSI*SINPH
       XLOS=COSPH*SINI
@@ -188,11 +183,17 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GZ=UPDOWN*GRZ(IY)
       grmag=gmag1(iy)
    29 COSSAV=(XLOS*GX+YLOS*GY+ZLOS*GZ)/GRMAG
+      mflag=0
+      rhosave=0.d0
       SUMJ=0.d0
       SOMJ=0.d0
       MPP=MM+1
       IY=IY-1
       DO 26 J=1,MM
+      phsjmh=(phs-.5d0)*dfloat(j-mh)
+      inboard=0
+      if(komp.eq.1.and.phsjmh.lt.0.d0) inboard=1
+      if(komp.eq.2.and.phsjmh.gt.0.d0) inboard=1
       IF(J.GT.MH) GOTO 58
       RTLEFT=1.d0
       JK=J
@@ -206,6 +207,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       COSFI=CSFI(IS)
       STSF=SINTH*SINFI
       STCF=SINTH*COSFI
+      jflag=0
       IF(TEST.LE..0625d0)GOTO 39
       IF(RVQ(IX).EQ.-1.d0) GOTO 26
       GX=GRXQ(IX)
@@ -213,6 +215,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GZ=UPDOWN*GRZQ(IX)
       R=RVQ(IX)
       grmag=gmag2(ix)
+      if(ix.le.1) goto 49
+      if(r.ne.-1.d0.and.rvq(ix-1).eq.-1.d0) jflag=1
       GOTO 49
    39 IF(RV(IX).EQ.-1.d0) GOTO 26
       GX=GRX(IX)
@@ -220,11 +224,26 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       GZ=UPDOWN*GRZ(IX)
       R=RV(IX)
       grmag=gmag1(ix)
+      if(ix.le.1) goto 49
+      if(r.ne.-1.d0.and.rv(ix-1).eq.-1.d0) jflag=1
    49 COSGAM=(XLOS*GX+YLOS*GY+ZLOS*GZ)/GRMAG
+      abscosgam=dabs(cosgam)
+      xcoordr=stcf*r
+      xneck=sefac*(cmp+comp*x1)
       ZZ=R*COSTH
       YY=R*COMP*STSF
       XX=CMPD+COMP*STCF*R
+      YSKY=XX*SINPH+YY*COSPH-cmpd*SINPH
+      ZSKY=-XX*CICP+YY*CISP+ZZ*SINI+CMPD*CICP
+      rptsq=YSKY**2+ZSKY**2
+      rtstsq=absq/(BSQ+ASBS*(ZSKY**2/rptsq))
       if(mpage.ne.5) goto 174
+c
+c  Next 2 lines delete self-eclipsed surface elements from images
+c
+      if(tests.lt.2.2562d-3.or.xcoordr.le.xneck) goto 194
+      if(rptsq.le.rtstsq) goto 174
+  194 continue
       if(cosgam.gt.0.d0) goto 174
       ipc=ipc+1
       yskp(ipc)=(xx-qfacd)*sinph+yy*cosph
@@ -244,36 +263,49 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   179 continue
   174 continue
       if(sinsq.gt.sinsqe) goto 27
-      IF(TESTS.LT.2.2562d-3) GOTO 170
-      IF((STCF*R).GT.(sefac*(CMP+COMP*X1))) GOTO 129
-  170 PROD=COSSAV*COSGAM
-      IF(PROD.GT.0.d0) GOTO 22
-      COSSAV=-COSSAV
-      YSKY=XX*SINPH+YY*COSPH-cmpd*SINPH
-      ZSKY=-XX*CICP+yy*CISP+ZZ*SINI+CMPD*CICP
-      RHO(L)=dsqrt(YSKY**2+ZSKY**2)
-      THETA(L)=dasin(ZSKY/RHO(L))
-      IF(YSKY.LT.0.d0) GOTO 92
-      THETA(L)=twopi+THETA(L)
-      GOTO 93
-   92 THETA(L)=pi-THETA(L)
-   93 IF (THETA(L).GE.twopi) THETA(L)=THETA(L)
-     $-twopi
-      L=L+1
-      GOTO 27
-   22 COSSAV=COSGAM
-      GOTO 27
-  129 COSSAV=COSGAM
-      IF(KF.LE.0) GOTO 27
-      ZZ=R*COSTH
-      YY=R*COMP*STSF
-      XX=CMPD+COMP*STCF*R
-      YSKY=XX*SINPH+YY*COSPH-cmpd*SINPH
-      ZSKY=-XX*CICP+YY*CISP+ZZ*SINI+CMPD*CICP
-      rptsq=YSKY**2+ZSKY**2
-      rtstsq=absq/(BSQ+ASBS*(ZSKY**2/rptsq))
-      IF(rptsq.LE.rtstsq) GOTO 26
+      PROD=COSSAV*COSGAM
+      cossav=cosgam
+c
+c  The next 5 lines allow two ways to enter the horizon point-saving logic
+c    (i.e. to identify a given point as a horizon point). The first way is if it's an
+c    ordinary horizon point (cosgam changes sign in crossing the horizon).
+c    The second way is if the point is the first one outside the hole in
+c    the neck of an OC binary AND it's on the "inboard" side of the line
+c    of sight. jflag=1 only for the first point outside the hole. For all
+c    other surface elements, jflag=0.
+c
+      if(prod.le.0.d0.and.jflag.ne.1) goto 88
+      if(jflag.eq.1.and.inboard.eq.1) goto 88
+      goto 27
+   88 continue
+      ysky=xx*sinph+yy*cosph-cmpd*sinph
+      zsky=-xx*cicp+yy*cisp+zz*sini+cmpd*cicp
+      xrho=dsqrt(ysky**2+zsky**2)
+      xtheta=dasin(zsky/xrho)
+      if(ysky.lt.0.d0) goto 92
+      xtheta=twopi+xtheta
+      goto 93
+   92 xtheta=pi-xtheta
+   93 if(xtheta.ge.twopi) xtheta=xtheta-twopi
+c
+c  mflag remembers whether or not xrho has previously been saved into rhosave on a given
+c   latitude row. mflag=0 for "no", mflag=1 for "yes". The idea is to increment L no more
+c   than once on a given latitude row.
+c
+      if(inboard.eq.0) L=L+1
+      if(inboard.eq.1.and.mflag.eq.0) L=L+1
+      if(inboard.eq.0) goto 134
+      if(xrho.le.rhosave) goto 133
+  134 continue
+      rho(L)=xrho
+      theta(L)=xtheta
+  133 continue
+      if(inboard.eq.0) goto 27
+      rhosave=xrho
+      mflag=1
    27 IF(COSGAM.GE.0.d0) GOTO 26
+      if(tests.ge.2.2562d-3.and.rptsq.le.rtstsq.and.xcoordr.gt.xneck)
+     $goto 26
       COSGAM=-COSGAM
       DARKEN=1.d0-X+X*COSGAM
       if(ld.ne.2) goto 141
@@ -374,7 +406,6 @@ c    of accuracy for distorted stars without those terms. See notes.
       SOM=SOM+SOMJ
    36 SUM=SUM+SUMJ
       IF(SINSQ.GE.SINSQE) GOTO 75
-      L=L-1
       LK=k
       if(L.lt.14) LK=L/2-1
       CALL fourls(theta,rho,L,LK,aa,bb)
@@ -692,3 +723,4 @@ c    of accuracy for distorted stars without those terms. See notes.
  2914 continue
       return
       END
+
