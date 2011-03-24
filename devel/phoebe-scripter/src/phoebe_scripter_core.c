@@ -20,6 +20,7 @@
 	#include <readline/history.h>
 #endif
 
+YY_BUFFER_STATE main_thread;
 PHOEBE_COMMAND_LINE_ARGS PHOEBE_args;
 bool PHOEBE_INTERRUPT;
 
@@ -156,21 +157,22 @@ int scripter_init ()
 	 * This function initializes all global scripter variables and flags.
 	 */
 
-	/* Scripter output device:                                                */
+	/* Scripter output device: */
 	PHOEBE_output = stdout;
 
-	/* Create a global symbol table and set the current symbol table to point */
-	/* to it:                                                                 */
+	/* Create a global symbol table and set the current symbol table to point
+	 * to it:
+	 */
 	symbol_table = symbol_table_add (NULL, "global");
 
-	/* Define important constants:                                            */
+	/* Define important constants: */
 	scripter_symbol_commit (symbol_table, "CONST_PI",   scripter_ast_add_double (3.14159265359));
 	scripter_symbol_commit (symbol_table, "CONST_E",    scripter_ast_add_double (2.71828182846));
 	scripter_symbol_commit (symbol_table, "CONST_AU",   scripter_ast_add_double (149597870.691));
 	scripter_symbol_commit (symbol_table, "CONST_RSUN", scripter_ast_add_double (696000.0));
 	scripter_symbol_commit (symbol_table, "CONST_MSUN", scripter_ast_add_double (1.99E30));
 
-	/* Initialize the main symbol table (used for the main script flow):      */
+	/* Initialize the main symbol table (used for the main script flow): */
 	symbol_table = symbol_table_add (symbol_table, "phoebe_main");
 
 	/* Initialize all scripter-related parameters: */
@@ -201,8 +203,8 @@ int scripter_config_populate ()
 	 * automatically.
 	 */
 
-	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_BASE_DIR",    "/usr/local/share/phoebe_scripter");
-	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_HELP_DIR",    "/usr/local/share/phoebe_scripter/help");
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_BASE_DIR", "/usr/local/share/phoebe_scripter");
+	phoebe_config_entry_add (TYPE_STRING, "SCRIPTER_HELP_DIR", "/usr/local/share/phoebe_scripter/help");
 
 	return SUCCESS;
 }
