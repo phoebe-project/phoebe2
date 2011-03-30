@@ -122,6 +122,8 @@ typedef struct WD_DCI_parameters {
 	int    n2c;
 	int    n1f;
 	int    n2f;
+	int    nph;
+	double delph;
 	double hjd0;
 	double period;
 	double dpdt;

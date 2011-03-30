@@ -1082,7 +1082,7 @@ int wd_dci_parameters_get (WD_DCI_parameters *params, int *marked_tba)
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_proximity_rv2_switch"), &readout_bool);
 	params->rv2proximity = readout_bool;
-
+	
 	/* Limb darkening effect: */
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &readout_str);
 	params->ldmodel = phoebe_ld_model_type (readout_str);
@@ -1155,6 +1155,18 @@ int wd_dci_parameters_get (WD_DCI_parameters *params, int *marked_tba)
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_xbol2"), &(params->xbol2));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol1"), &(params->ybol1));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_ybol2"), &(params->ybol2));
+
+	/* Finite integration time; must do after system parameters. */
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence_switch"), &readout_bool);
+	if (readout_bool) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence_rate"), &(params->nph));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_cadence"), &readout_dbl);
+		params->delph = readout_dbl/86400/params->period;
+	}
+	else {
+		params->nph = 1;
+		params->delph = 1.0;
+	}
 
 	/* Passband-dependent parameters: */
 	{
