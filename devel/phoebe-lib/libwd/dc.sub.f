@@ -1,5 +1,5 @@
       subroutine dc(atmtab,pltab,L3perc,knobs,indeps,fluxes,weights,
-     $              corrs,stdevs,chi2s,cormat,ccla,cfval)
+     $              nph,delph,corrs,stdevs,chi2s,cormat,ccla,cfval)
 
 c  This is the Differential Corrections Main Program.
 c
@@ -149,9 +149,11 @@ c        chi2s   ..   chi2 values of individual curves after the fit
 c       cormat   ..   correlation matrix (a wrapped 1D array)
 c         ccla   ..   computed CLA values
 c        cfval   ..   cost function value (global goodness-of-fit value)
+c          nph   ..   finite time integration oversampling rate
+c        delph   ..   finite time integration cadence
 c
-      integer L3perc,knobs(*)
-      double precision indeps(*),fluxes(*),weights(*),cfval
+      integer L3perc,knobs(*),nph
+      double precision indeps(*),fluxes(*),weights(*),cfval,delph
       double precision corrs(*),stdevs(*),chi2s(*),cormat(*),ccla(*)
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -433,7 +435,7 @@ c   2 FORMAT(5(F14.5,F8.4,F6.2))
    64 format(3f10.4,f9.4,d12.4,f10.4,d12.4,f9.4,f9.3,d12.4)
    69 format('      xcl       ycl       zcl      rcl       op1         f
      $cl        ne       mu e      encl     dens')
-  170 format(i3,f17.6,d18.10,d14.6,f10.4)
+  170 format(i3,f17.6,d18.10,d14.6,f10.4,f11.5,i5)
   649 format(i1,f15.6,d17.10,d14.6,f10.4)
   171 format('JDPHS',5x,'J.D. zero',7x,'Period',11x,'dPdt',
      $6x,'Ph. shift')
@@ -868,7 +870,7 @@ c***************************************************************
       write(16,912)nref,mref,ifsmv1,ifsmv2,icor1,icor2,ld
       WRITE(16,101)
       write(16,171)
-      write(16,170) jdphs,hjd0,period,dpdt,pshift
+      write(16,170) jdphs,hjd0,period,dpdt,pshift,delph,nph
       WRITE(16,101)
       WRITE(16,12)
       WRITE(16,1)MODE,IPB,IFAT1,IFAT2,N1,N2,N1L,N2L,perr0,dperdt,THE,
@@ -1053,34 +1055,35 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(ifap*kh.eq.11) goto 842
       if(ifphi*kh.eq.14) goto 842
       IF(KEEP(KH).EQ.1) GOTO 420
-  842 IF(E.EQ.0.d0) GOTO 889
-      IF(KSR.LE.2) GOTO 889
-      IF(KH.LE.9) IRTE=1
-      IF(KH.LE.9) IRVOL1=1
-      IF(KH.LE.9) IRVOL2=1
-      IF(KH.EQ.12) IRVOL2=1
-      IF(KH.EQ.13) IRVOL1=1
-      IF(KH.EQ.15) IRTE=1
-      IF(KH.EQ.15) IRVOL1=1
-      IF(KH.EQ.15) IRVOL2=1
-      IF(KH.EQ.16) IRTE=1
-      IF(KH.EQ.16) IRVOL1=1
-      IF(KH.EQ.16) IRVOL2=1
-      IF(KH.EQ.17) IRVOL2=1
-      IF(KH.EQ.18) IRVOL1=1
-      IF(KH.EQ.19) IRVOL1=1
-      IF(KH.EQ.19) IRVOL2=1
-      IF(KH.EQ.20) IRVOL1=1
-      IF(KH.EQ.20) IRVOL2=1
-      IF(KH.EQ.21) IRVOL1=1
-      IF(KH.EQ.21) IRVOL2=1
-      IF(KH.EQ.22) IRVOL1=1
-      IF(KH.EQ.22) IRVOL2=1
-      IF(KH.EQ.23) IRVOL2=1
-      IF(KH.EQ.24) IRVOL1=1
-      IF(KH.GE.31) IRVOL1=1
-      IF(KH.GE.31) IRVOL2=1
-  889 CONTINUE
+  842 continue
+c 842 IF(E.EQ.0.d0) GOTO 889
+c     IF(KSR.LE.2) GOTO 889
+c     IF(KH.LE.9) IRTE=1
+c     IF(KH.LE.9) IRVOL1=1
+c     IF(KH.LE.9) IRVOL2=1
+c     IF(KH.EQ.12) IRVOL2=1
+c     IF(KH.EQ.13) IRVOL1=1
+c     IF(KH.EQ.15) IRTE=1
+c     IF(KH.EQ.15) IRVOL1=1
+c     IF(KH.EQ.15) IRVOL2=1
+c     IF(KH.EQ.16) IRTE=1
+c     IF(KH.EQ.16) IRVOL1=1
+c     IF(KH.EQ.16) IRVOL2=1
+c     IF(KH.EQ.17) IRVOL2=1
+c     IF(KH.EQ.18) IRVOL1=1
+c     IF(KH.EQ.19) IRVOL1=1
+c     IF(KH.EQ.19) IRVOL2=1
+c     IF(KH.EQ.20) IRVOL1=1
+c     IF(KH.EQ.20) IRVOL2=1
+c     IF(KH.EQ.21) IRVOL1=1
+c     IF(KH.EQ.21) IRVOL2=1
+c     IF(KH.EQ.22) IRVOL1=1
+c     IF(KH.EQ.22) IRVOL2=1
+c     IF(KH.EQ.23) IRVOL2=1
+c     IF(KH.EQ.24) IRVOL1=1
+c     IF(KH.GE.31) IRVOL1=1
+c     IF(KH.GE.31) IRVOL2=1
+c 889 CONTINUE
       LCF=0
       IF(KH.GT.30) LCF=IB-NVC
       KPCT1=0
@@ -1360,10 +1363,15 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $RMASS,POT1,POT2,G1,G2,A1,A2,N1,N2,FF1,FF2,MOD,XINC,THE,MODE,
      $SNTHH,CSTHH,SNFIH,CSFIH,GRV1,GRV2,XX1,YY1,ZZ1,XX2,YY2,ZZ2,GLUMP1,
      $GLUMP2,CSBT1,CSBT2,GMAG1,GMAG2,glog1,glog2)
+      hot=0.d0
+      cool=0.d0
+      do 551 iph=1,nph
+      if(nph.gt.1.and.ib.gt.nvc) phasin=phas(ix)+delph*(dfloat(iph-1)/
+     $dfloat(nph-1)-.5d0)
       CALL BBL(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVH,FR1,FR2,HLD,
      $SLUMP1,SLUMP2,THETA,RHO,AA,BB,POT1,POT2,N1,N2,FF1,FF2,d,hl,cl,x1,
      $x2,y1,y2,g1,g2,wla(ib),sm1,sm2,tph,tpc,sbrh,sbrc,t1,
-     $t2,a1,a2,xbol1,xbol2,ybol1,ybol2,phas(ix),rmass,xinc,hot,cool,
+     $t2,a1,a2,xbol1,xbol2,ybol1,ybol2,phasin,rmass,xinc,hotr,coolr,
      $snthh,csthh,snfih,csfih,tldh,glump1,glump2,xx1,xx2,yy1,yy2,zz1,
      $zz2,dint1,dint2,grv1,grv2,rftemp,rf1,rf2,csbt1,csbt2,gmag1,gmag2,
      $glog1,glog2,
@@ -1371,16 +1379,24 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $wl1,wl2,dvks1,dvks2,tau1,tau2,emm1,emm2,hbarw1,hbarw2,xcl,ycl,zcl,
      $rcl,op1,fcl,dens,encl,edens,taug,emmg,yskp,zskp,mode,iband(ib),
      $ifat1,ifat2,1)
+      hot=hot+hotr/dfloat(nph)
+      cool=cool+coolr/dfloat(nph)
+  551 continue
       GOTO 801
   802 CONTINUE
       CALL MODLOG(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVL,FR1,FR2,HLD,
      $RMASS,POT1,POT2,G1,G2,A1,A2,N1L,N2L,FF1,FF2,MOD,XINC,THE,MODE,
      $SNTHL,CSTHL,SNFIL,CSFIL,GRV1,GRV2,XX1,YY1,ZZ1,XX2,YY2,ZZ2,GLUMP1,
      $GLUMP2,CSBT1,CSBT2,GMAG1,GMAG2,glog1,glog2)
+      hot=0.d0
+      cool=0.d0
+      do 550 iph=1,nph
+      if(nph.gt.1.and.ib.gt.nvc) phasin=phas(ix)+delph*(dfloat(iph-1)/
+     $dfloat(nph-1)-.5d0)
       CALL BBL(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVL,FR1,FR2,HLD,
      $SLUMP1,SLUMP2,THETA,RHO,AA,BB,POT1,POT2,N1L,N2L,FF1,FF2,d,hl,cl,
      $x1,x2,y1,y2,g1,g2,wla(ib),sm1,sm2,tph,tpc,sbrh,sbrc,
-     $t1,t2,a1,a2,xbol1,xbol2,ybol1,ybol2,phas(ix),rmass,xinc,hot,cool,
+     $t1,t2,a1,a2,xbol1,xbol2,ybol1,ybol2,phasin,rmass,xinc,hotr,coolr,
      $snthl,csthl,snfil,csfil,tldl,glump1,glump2,xx1,xx2,yy1,yy2,zz1,
      $zz2,dint1,dint2,grv1,grv2,rftemp,rf1,rf2,csbt1,csbt2,gmag1,gmag2,
      $glog1,glog2,
@@ -1388,6 +1404,9 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      $wl1,wl2,dvks1,dvks2,tau1,tau2,emm1,emm2,hbarw1,hbarw2,xcl,ycl,zcl,
      $rcl,op1,fcl,dens,encl,edens,taug,emmg,yskp,zskp,mode,iband(ib),
      $ifat1,ifat2,1)
+      hot=hot+hotr/dfloat(nph)
+      cool=cool+coolr/dfloat(nph)
+  550 continue
   801 CONTINUE
       IF(E.NE.0.d0) GOTO 4111
       IF(ISYM.EQ.0) GOTO 602

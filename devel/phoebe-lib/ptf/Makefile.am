@@ -35,6 +35,7 @@ phoebeptf_DATA = 2mass_j.ptf                 \
                  corot.sis                   \
                  cousins.R                   \
                  cousins.I                   \
+                 IRAC.ch1.ptf                \
                  geneva_1962_b1.txt          \
                  geneva_1962_b2.txt          \
                  geneva_1962_b.txt           \
