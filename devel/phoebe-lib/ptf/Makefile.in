@@ -308,6 +308,13 @@ phoebeptf_DATA = 2mass_j.ptf                 \
                  johnson.M                   \
                  johnson.N                   \
                  kepler_mean.ptf             \
+                 lsst_u.ptf                  \
+                 lsst_g.ptf                  \
+                 lsst_r.ptf                  \
+                 lsst_i.ptf                  \
+                 lsst_z.ptf                  \
+                 lsst_y3.ptf                 \
+                 lsst_y4.ptf                 \
                  most.ptf                    \
                  sloan_u.ptf                 \
                  sloan_g.ptf                 \

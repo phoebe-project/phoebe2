@@ -712,13 +712,13 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	 */
 
 	double D = 1.0 - e;
-	double  xL = D/2.0;                           /* Initial x coordinate value */
-	double dxL = 1.1e-6;                          /* Initial x coordinate step  */
-	double Force;                                 /* Gravitational force        */
-	double dxLdF;                                 /* Spatial derivative         */
+	double  xL = D/2.0;                         /* Initial x coordinate value */
+	double dxL = 1.1e-6;                        /* Initial x coordinate step  */
+	double Force;                               /* Gravitational force        */
+	double dxLdF;                               /* Spatial derivative         */
 
-	double xL1;                                   /* L1 x coordinate            */
-	double xL2;                                   /* L2 x coordinate            */
+	double xL1;                                 /* L1 x coordinate            */
+	double xL2;                                 /* L2 x coordinate            */
 
 	double q2;
 	double factor;

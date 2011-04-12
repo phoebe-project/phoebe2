@@ -62,7 +62,7 @@ c
       parameter (iclmax=   100)
       parameter (iptmax= 50000)
       parameter (ncmax=     50)
-      parameter (iplmax=    41)
+      parameter (iplmax=    48)
       parameter (ipmax=     50)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -305,6 +305,13 @@ c      38   SDSS g     Sloan DSS instrument book, Fukugita et al. (1996)
 c      39   SDSS r     Sloan DSS instrument book, Fukugita et al. (1996)
 c      40   SDSS i     Sloan DSS instrument book, Fukugita et al. (1996)
 c      41   SDSS z     Sloan DSS instrument book, Fukugita et al. (1996)
+c      42   LSST u     LSST science book
+c      43   LSST g     LSST science book
+c      44   LSST r     LSST science book
+c      45   LSST i     LSST science book
+c      46   LSST z     LSST science book
+c      47   LSST y3    LSST science book
+c      48   LSST y4    LSST science book
 c
    15 FORMAT(1X,16(F11.5))
    16 FORMAT(1X,18(F7.4))
