@@ -163,17 +163,19 @@ int phoebe_load_ld_tables ()
 	char *model_list;
 
 	phoebe_config_entry_get ("PHOEBE_LD_INTERN", &intern);
-	phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
 
 	phoebe_ld_table_free (PHOEBE_ld_table);
 
 	if (intern == 1) {
+		phoebe_config_entry_get ("PHOEBE_LD_DIR", &pathname);
 		model_list = phoebe_concatenate_strings (pathname, "/models.list", NULL);
 		PHOEBE_ld_table = phoebe_ld_table_intern_load (model_list);
 		free (model_list);
 	}
-	else
+	else {
+		phoebe_config_entry_get ("PHOEBE_LD_VH_DIR", &pathname);
 		PHOEBE_ld_table = phoebe_ld_table_vh1993_load (pathname);
+	}
 
 	if (!PHOEBE_ld_table) {
 		phoebe_lib_error ("reading LD table coefficients failed, disabling readouts.\n");

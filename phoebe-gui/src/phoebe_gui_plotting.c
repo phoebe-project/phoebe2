@@ -579,6 +579,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 						case GUI_PLOT_LC:
 							data->request[i].model->type = PHOEBE_CURVE_LC;
 							status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+
 						break;
 						case GUI_PLOT_RV:
 						{
@@ -754,7 +755,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 
 	gui_plot_area_refresh (data);
 
-	phoebe_gui_debug ("* leaving on_plot_button_clicked.\n");
+	phoebe_gui_debug ("* leaving on_plot_button_clicked().\n");
 
 	return;
 }
@@ -987,34 +988,35 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 	int i, j;
 	double x, y, aspect;
 	bool needs_ticks = FALSE;
-//	cairo_pattern_t *circle, *cross;
-//
-//	if (!redirect) {
-//		/* Get the symbols ready: */
-//		cairo_push_group (data->canvas);
-//		cairo_set_source_rgb (data->canvas, 0, 0, 1);
-//		cairo_arc (data->canvas, 0, 0, 2.0, 0, 2*M_PI);
-//		cairo_stroke_preserve (data->canvas);
-////		cairo_set_source_rgb (data->canvas, 0.7, 0.7, 0.7);
-////		cairo_fill (data->canvas);
-//		circle = cairo_pop_group (data->canvas);
-//
-//		cairo_push_group (data->canvas);
-//		cairo_set_source_rgb (data->canvas, 1, 0, 0);
-//		cairo_move_to (data->canvas, -2, -2);
-//		cairo_line_to (data->canvas, +2, +2);
-//		cairo_move_to (data->canvas, +2, -2);
-//		cairo_line_to (data->canvas, -2, +2);
-//		cairo_stroke_preserve (data->canvas);
-//		cross = cairo_pop_group (data->canvas);
-//	}
+
+	cairo_pattern_t *circle, *cross;
+	double CIRCLE_RADIUS = 2.0;
+
+	if (!redirect) {
+		/* Get the symbols ready: */
+		cairo_push_group (data->canvas);
+		cairo_set_source_rgb (data->canvas, 0, 0, 1);
+		cairo_arc (data->canvas, 2, 2, CIRCLE_RADIUS, 0, 2*M_PI);
+		cairo_stroke_preserve (data->canvas);
+		cairo_fill (data->canvas);
+		circle = cairo_pop_group (data->canvas);
+
+		cairo_push_group (data->canvas);
+		cairo_set_source_rgb (data->canvas, 1, 0, 0);
+		cairo_move_to (data->canvas, -2, -2);
+		cairo_line_to (data->canvas, +2, +2);
+		cairo_move_to (data->canvas, +2, -2);
+		cairo_line_to (data->canvas, -2, +2);
+		cairo_stroke_preserve (data->canvas);
+		cross = cairo_pop_group (data->canvas);
+	}
 	
 	if (data->ptype == GUI_PLOT_MESH && data->request[0].model) {
 		if (redirect)
 			fprintf (redirect, "# Mesh plot -- plane of sky (v, w) coordinates at phase %lf:\n", data->request[0].phase);
 		else {
 			cairo_set_source_rgb (data->canvas, 0, 0, 1);
-			//cairo_set_source (data->canvas, circle);
+			cairo_set_source (data->canvas, circle);
 		}
 		
 		aspect = gui_plot_height (data)/gui_plot_width (data);
@@ -1028,20 +1030,20 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 			if (!gui_plot_yvalue (data, data->request[0].model->dep->val[j], &y)) continue;
 			
 			if (!redirect) {
-				cairo_move_to (data->canvas, x, y); 
-				cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
-				//cairo_save (data->canvas);
-				//cairo_translate (data->canvas, x, y);
-				//cairo_set_source (data->canvas, circle);
-				//cairo_paint (data->canvas);
-				//cairo_restore (data->canvas);
+//				cairo_move_to (data->canvas, x, y); 
+//				cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+				cairo_save (data->canvas);
+				cairo_translate (data->canvas, x, y);
+				cairo_set_source (data->canvas, circle);
+				cairo_paint (data->canvas);
+				cairo_restore (data->canvas);
 			}
 			else
 				fprintf (redirect, "% lf\t% lf\n", data->request[0].model->indep->val[j], data->request[0].model->dep->val[j]);
 		}
 
 		if (!redirect) {
-			cairo_stroke (data->canvas); 
+			cairo_stroke (data->canvas);
 			needs_ticks = TRUE;
 		}
 	}
@@ -1053,34 +1055,34 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 					fprintf (redirect, "# Observed data-set %d:\n", i);
 				else if (gui_plot_set_color (data, data->request[i].obscolor) == FALSE)
 					cairo_set_source_rgb (data->canvas, 0, 0, 1);
-
+				
 				for (j = 0; j < data->request[i].query->indep->dim; j++) {
 					if (!gui_plot_xvalue (data, data->request[i].query->indep->val[j], &x)) continue;
 					if (!gui_plot_yvalue (data, data->request[i].query->dep->val[j] + data->request[i].offset, &y)) continue;
 					if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_OMITTED) continue;
-
+					
 					if (!redirect) {
 						if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_REGULAR
 						||  data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_ALIASED) {
-							cairo_move_to (data->canvas, x, y); 
-							cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
-							//cairo_save (data->canvas);
-							//cairo_translate (data->canvas, x, y);
-							//cairo_set_source (data->canvas, circle);
-							//cairo_paint (data->canvas);
-							//cairo_restore (data->canvas);
+//							cairo_move_to (data->canvas, x, y); 
+//							cairo_arc (data->canvas, x, y, 2.0, 0, 2*M_PI);
+							cairo_save (data->canvas);
+							cairo_translate (data->canvas, x-CIRCLE_RADIUS, y-CIRCLE_RADIUS);
+							cairo_set_source (data->canvas, circle);
+							cairo_paint (data->canvas);
+							cairo_restore (data->canvas);
 						}
 						else if (data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED ||
 						         data->request[i].query->flag->val.iarray[j] == PHOEBE_DATA_DELETED_ALIASED) {
-							cairo_move_to (data->canvas, x-2, y-2); 
-							cairo_line_to (data->canvas, x+2, y+2); 
-							cairo_move_to (data->canvas, x+2, y-2);
-							cairo_line_to (data->canvas, x-2, y+2); 
-							//cairo_save (data->canvas);
-							//cairo_translate (data->canvas, x, y);
-							//cairo_set_source (data->canvas, cross);
-							//cairo_paint (data->canvas);
-							//cairo_restore (data->canvas);
+//							cairo_move_to (data->canvas, x-2, y-2); 
+//							cairo_line_to (data->canvas, x+2, y+2); 
+//							cairo_move_to (data->canvas, x+2, y-2);
+//							cairo_line_to (data->canvas, x-2, y+2); 
+							cairo_save (data->canvas);
+							cairo_translate (data->canvas, x, y);
+							cairo_set_source (data->canvas, cross);
+							cairo_paint (data->canvas);
+							cairo_restore (data->canvas);
 						}
 					}
 					else
@@ -1088,7 +1090,7 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 				}
 
 				if (!redirect) {
-					cairo_stroke (data->canvas);
+//					cairo_stroke (data->canvas);
 					needs_ticks = TRUE;
 				}
 			}
