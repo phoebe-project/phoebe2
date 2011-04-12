@@ -2649,7 +2649,6 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rv_id"), index-lcno-1, &id);
 		passband = phoebe_passband_lookup_by_id (id);
 	}
-	printf ("passband: %s\n", id);
 
 	if (!passband) {
 		gui_notice ("LD coefficient interpolation", "The selected passband is either unsupported or is invalid.");

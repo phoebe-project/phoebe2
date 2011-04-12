@@ -770,7 +770,7 @@ char *phoebe_ld_get_vh1993_passband_name (PHOEBE_passband *passband)
 */
 }
 
-int intern_get_ld_node (const char *fn, long int pos, LD_model ldlaw, PHOEBE_passband *passband, double *x0, double *y0)
+int intern_get_ld_node (const char *fn, long int pos, LD_model ldlaw, PHOEBE_passband *passband, double *x0, double *y0, bool ld_intern)
 {
 	/*
 	 * This is an internal wrapper to get the LD coefficients from a file.
@@ -779,10 +779,6 @@ int intern_get_ld_node (const char *fn, long int pos, LD_model ldlaw, PHOEBE_pas
 	FILE *in;
 	char line[255], pass[10];
 	double linx, sqrtx, sqrty, logx, logy;
-
-	bool ld_intern;
-
-	phoebe_config_entry_get ("PHOEBE_LD_INTERN", &ld_intern);
 
 	if (ld_intern == 1) {
 		if (!passband->ld)
@@ -842,6 +838,7 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 
 	LD_table *LD = PHOEBE_ld_table;
 	int i, j, k, l;
+	bool ld_intern;
 
 	/* Interpolation structures: */
 	double pars[3], lo[3], hi[3];
@@ -851,6 +848,8 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 	} fv;
 
 	phoebe_debug ("entering phoebe_get_ld_coefficients () function.\n");
+
+	phoebe_config_entry_get ("PHOEBE_LD_INTERN", &ld_intern);
 
 	phoebe_debug ("  checking whether LD tables are present...\n");
 	if (!LD)
@@ -864,9 +863,11 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 	if (!passband)
 		return ERROR_PASSBAND_INVALID;
 
-	phoebe_debug ("  checking if a corresponding LD table exists.\n");
-	if (!passband->ld)
+	phoebe_debug ("  checking if a corresponding LD table exists...\n");
+	if (ld_intern && !passband->ld)
 		return ERROR_LD_TABLES_MISSING;
+
+	phoebe_debug ("  all checks are fine, proceeding.\n");
 	
 	/* Get node array indices: */
 	for (i = 1; i < LD->Mnodes->dim; i++)
@@ -911,14 +912,14 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 
 		/* Read out the values of coefficients: */
 
-		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &fv.d[0], NULL);
-		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &fv.d[1], NULL);
-		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &fv.d[2], NULL);
-		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &fv.d[3], NULL);
-		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &fv.d[4], NULL);
-		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &fv.d[5], NULL);
-		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &fv.d[6], NULL);
-		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &fv.d[7], NULL);
+		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &fv.d[0], NULL, ld_intern);
+		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &fv.d[1], NULL, ld_intern);
+		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &fv.d[2], NULL, ld_intern);
+		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &fv.d[3], NULL, ld_intern);
+		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &fv.d[4], NULL, ld_intern);
+		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &fv.d[5], NULL, ld_intern);
+		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &fv.d[6], NULL, ld_intern);
+		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &fv.d[7], NULL, ld_intern);
 
 		/* Do the interpolation: */
 		phoebe_interpolate (3, pars, lo, hi, TYPE_DOUBLE, fv.d);
@@ -936,14 +937,14 @@ int phoebe_ld_get_coefficients (LD_model ldlaw, PHOEBE_passband *passband, doubl
 		}
 
 		/* Read out the values of coefficients: */
-		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &(fv.vec[0]->val[0]), &(fv.vec[0]->val[1]));
-		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &(fv.vec[1]->val[0]), &(fv.vec[1]->val[1]));
-		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &(fv.vec[2]->val[0]), &(fv.vec[2]->val[1]));
-		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &(fv.vec[3]->val[0]), &(fv.vec[3]->val[1]));
-		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &(fv.vec[4]->val[0]), &(fv.vec[4]->val[1]));
-		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &(fv.vec[5]->val[0]), &(fv.vec[5]->val[1]));
-		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &(fv.vec[6]->val[0]), &(fv.vec[6]->val[1]));
-		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &(fv.vec[7]->val[0]), &(fv.vec[7]->val[1]));
+		intern_get_ld_node (LD->table[i-1][j-1][k-1].fn, LD->table[i-1][j-1][k-1].pos, ldlaw, passband, &(fv.vec[0]->val[0]), &(fv.vec[0]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[ i ][j-1][k-1].fn, LD->table[ i ][j-1][k-1].pos, ldlaw, passband, &(fv.vec[1]->val[0]), &(fv.vec[1]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[i-1][ j ][k-1].fn, LD->table[i-1][ j ][k-1].pos, ldlaw, passband, &(fv.vec[2]->val[0]), &(fv.vec[2]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[ i ][ j ][k-1].fn, LD->table[ i ][ j ][k-1].pos, ldlaw, passband, &(fv.vec[3]->val[0]), &(fv.vec[3]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[i-1][j-1][ k ].fn, LD->table[i-1][j-1][ k ].pos, ldlaw, passband, &(fv.vec[4]->val[0]), &(fv.vec[4]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[ i ][j-1][ k ].fn, LD->table[ i ][j-1][ k ].pos, ldlaw, passband, &(fv.vec[5]->val[0]), &(fv.vec[5]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[i-1][ j ][ k ].fn, LD->table[i-1][ j ][ k ].pos, ldlaw, passband, &(fv.vec[6]->val[0]), &(fv.vec[6]->val[1]), ld_intern);
+		intern_get_ld_node (LD->table[ i ][ j ][ k ].fn, LD->table[ i ][ j ][ k ].pos, ldlaw, passband, &(fv.vec[7]->val[0]), &(fv.vec[7]->val[1]), ld_intern);
 
 		/* Do the interpolation: */
 		phoebe_interpolate (3, pars, lo, hi, TYPE_DOUBLE_ARRAY, fv.vec);
