@@ -411,6 +411,13 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	if (strcmp (passband,       "Sloan:r'") == 0) { *id = 39; return SUCCESS; }
 	if (strcmp (passband,       "Sloan:i'") == 0) { *id = 40; return SUCCESS; }
 	if (strcmp (passband,       "Sloan:z'") == 0) { *id = 41; return SUCCESS; }
+	if (strcmp (passband,         "LSST:u") == 0) { *id = 42; return SUCCESS; }
+	if (strcmp (passband,         "LSST:g") == 0) { *id = 43; return SUCCESS; }
+	if (strcmp (passband,         "LSST:r") == 0) { *id = 44; return SUCCESS; }
+	if (strcmp (passband,         "LSST:i") == 0) { *id = 45; return SUCCESS; }
+	if (strcmp (passband,         "LSST:z") == 0) { *id = 46; return SUCCESS; }
+	if (strcmp (passband,        "LSST:y3") == 0) { *id = 47; return SUCCESS; }
+	if (strcmp (passband,        "LSST:y4") == 0) { *id = 48; return SUCCESS; }
 
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;

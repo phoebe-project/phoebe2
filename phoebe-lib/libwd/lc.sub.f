@@ -49,7 +49,7 @@ c
       parameter (lpomax=100000)
       parameter (ispmax=   100)
       parameter (iclmax=   100)
-      parameter (iplmax=    41)
+      parameter (iplmax=    48)
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
@@ -257,6 +257,13 @@ c      38   SDSS g     Sloan DSS instrument book, Fukugita et al. (1996)
 c      39   SDSS r     Sloan DSS instrument book, Fukugita et al. (1996)
 c      40   SDSS i     Sloan DSS instrument book, Fukugita et al. (1996)
 c      41   SDSS z     Sloan DSS instrument book, Fukugita et al. (1996)
+c      42   LSST u     LSST science book
+c      43   LSST g     LSST science book
+c      44   LSST r     LSST science book
+c      45   LSST i     LSST science book
+c      46   LSST z     LSST science book
+c      47   LSST y3    LSST science book
+c      48   LSST y4    LSST science book
 
       ot=1.d0/3.d0
       pi=dacos(-1.d0)
