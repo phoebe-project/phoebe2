@@ -1373,6 +1373,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       hot=0.d0
       cool=0.d0
       do 551 iph=1,nph
+      phasin=phas(ix)
       if(nph.gt.1.and.ib.gt.nvc) phasin=phas(ix)+delph*(dfloat(iph-1)/
      $dfloat(nph-1)-.5d0)
       CALL BBL(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVH,FR1,FR2,HLD,
@@ -1398,6 +1399,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       hot=0.d0
       cool=0.d0
       do 550 iph=1,nph
+      phasin=phas(ix)
       if(nph.gt.1.and.ib.gt.nvc) phasin=phas(ix)+delph*(dfloat(iph-1)/
      $dfloat(nph-1)-.5d0)
       CALL BBL(RV,GRX,GRY,GRZ,RVQ,GRXQ,GRYQ,GRZQ,MMSAVL,FR1,FR2,HLD,
