@@ -537,16 +537,17 @@ int call_wd_to_get_logg_values (double *logg1, double *logg2)
 	return SUCCESS;
 }
 
-int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs, double l3, PHOEBE_el3_units l3units)
+int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs, int levweight, double l3, PHOEBE_el3_units l3units)
 {
 	/**
 	 * phoebe_calculate_plum_correction:
-	 * @alpha:   placeholder for passband luminosity correction:
-	 *           L1 -> L1/@alpha, L2 -> L2/@alpha
-	 * @syn:     synthetic (model) light curve
-	 * @obs:     observed light curve
-	 * @l3:      value of third light
-	 * @l3units: units of third light
+	 * @alpha:     placeholder for passband luminosity correction:
+	 *             L1 -> L1/@alpha, L2 -> L2/@alpha
+	 * @syn:       synthetic (model) light curve
+	 * @obs:       observed light curve
+	 * @levweight: level-dependent weighting (0 .. none, 1 .. sqrt, 2 .. lin)
+	 * @l3:        value of third light
+	 * @l3units:   units of third light
 	 *
 	 * Computes the correction @alpha by solving:
 	 *
@@ -568,21 +569,39 @@ int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_c
 	 */
 
 	int i;
-	double wsum_xx = 0.0, wsum_xy = 0.0;
+	double wsum_xx = 0.0, wsum_xy = 0.0, lw;
 
 	if (!obs || !syn)
 		return ERROR_CURVE_NOT_INITIALIZED;
 	
 	if (l3 > 1e-5 && l3units == PHOEBE_EL3_UNITS_FLUX) {
 		for (i = 0; i < obs->dep->dim; i++) {
-			wsum_xy += obs->weight->val[i] * (obs->dep->val[i]-l3) * (syn->dep->val[i]-l3);
-			wsum_xx += obs->weight->val[i] * (obs->dep->val[i]-l3) * (obs->dep->val[i]-l3);
+			switch (levweight) {
+				case 0: lw = 1.0;                    break;
+				case 1: lw = sqrt(obs->dep->val[i]); break;
+				case 2: lw = obs->dep->val[i];       break;
+				default:
+					phoebe_lib_error ("level-dependent weighting invalid.\n");
+					return ERROR_INVALID_WEIGHT;
+			}
+			
+			wsum_xy += obs->weight->val[i] * lw * (obs->dep->val[i]-l3) * (syn->dep->val[i]-l3);
+			wsum_xx += obs->weight->val[i] * lw * (obs->dep->val[i]-l3) * (obs->dep->val[i]-l3);
 		}
 	}
 	else {
 		for (i = 0; i < obs->dep->dim; i++) {
-			wsum_xy += obs->weight->val[i] * obs->dep->val[i] * syn->dep->val[i];
-			wsum_xx += obs->weight->val[i] * obs->dep->val[i] * obs->dep->val[i];
+			switch (levweight) {
+				case 0: lw = 1.0;                    break;
+				case 1: lw = sqrt(obs->dep->val[i]); break;
+				case 2: lw = obs->dep->val[i];       break;
+				default:
+					phoebe_lib_error ("level-dependent weighting (lw=%d) invalid.\n", levweight);
+					return ERROR_INVALID_WEIGHT;
+			}
+
+			wsum_xy += obs->weight->val[i] * lw * obs->dep->val[i] * syn->dep->val[i];
+			wsum_xx += obs->weight->val[i] * lw * obs->dep->val[i] * obs->dep->val[i];
 		}
 	}
 	
@@ -628,11 +647,10 @@ int phoebe_calculate_gamma_correction (double *gamma, PHOEBE_curve *syn, PHOEBE_
 	return SUCCESS;
 }
 
-double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
+double phoebe_calculate_pot1 (double D, double q, double r, double F, double lambda, double nu)
 {
 	/**
 	 * phoebe_calculate_pot1:
-	 * @ELLIPTIC: elliptic orbit switch: 1 for elliptic orbits, 0 for circular
 	 * @D: instantaneous separation in units of semi-major axis
 	 * @q: mass ratio
 	 * @r: effective radius of the star
@@ -646,17 +664,13 @@ double phoebe_calculate_pot1 (bool ELLIPTIC, double D, double q, double r, doubl
 	 * Returns: value of the primary star surface potential
 	 */
 
-	if (ELLIPTIC == 0)
-		return 1./r + q*pow(D*D+r*r,-0.5) + 0.5*(1.+q)*r*r;
-	else
-		return 1./r + q*(pow(D*D+r*r-2*r*lambda*D,-0.5)-r*lambda/D/D) + 0.5*F*F*(1.+q)*r*r*(1-nu*nu);
+	return 1./r + q*(pow(D*D+r*r-2*r*lambda*D,-0.5)-r*lambda/D/D) + 0.5*F*F*(1.+q)*r*r*(1-nu*nu);
 }
 	
-double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu)
+double phoebe_calculate_pot2 (double D, double q, double r, double F, double lambda, double nu)
 {
 	/**
 	 * phoebe_calculate_pot2:
-	 * @ELLIPTIC: elliptic orbit switch: 1 for elliptic orbits, 0 for circular
 	 * @D: instantaneous separation in units of semi-major axis
 	 * @q: mass ratio
 	 * @r: effective radius of the star
@@ -677,11 +691,7 @@ double phoebe_calculate_pot2 (bool ELLIPTIC, double D, double q, double r, doubl
 	/* We transform the coordinate system: q -> 1/q: */
 	q = 1./q;
 
-	if (ELLIPTIC == 0)
-		phsv = phoebe_calculate_pot1 (0, D, q, r, 0, 0, 0);
-	else
-		phsv = phoebe_calculate_pot1 (1, D, q, r, F, lambda, nu);
-
+	phsv = phoebe_calculate_pot1 (D, q, r, F, lambda, nu);
 	return phsv/q + 0.5 * (q-1)/q;
 }
 
@@ -731,7 +741,7 @@ int phoebe_calculate_critical_potentials (double q, double F, double e, double *
 	}
 
 	xL1 = xL;
-	*L1crit = phoebe_calculate_pot1 (1, D, q, xL1, F, 1.0, 0.0);
+	*L1crit = phoebe_calculate_pot1 (D, q, xL1, F, 1.0, 0.0);
 
 	/* Next, L2: we have to make sure that L2 is properly defined, i.e. behind  */
 	/* the lower mass star, and that it makes sense to calculate it only in     */
@@ -1376,8 +1386,8 @@ int calculate_main_sequence_parameters (double T1, double T2, double P0, double 
 	*R2 = pow (*L2, 1./2.) * pow (T2/Tsun, -2.);
 
 	/* Sixth step: let's calculate the potentials:                              */
-	*Omega1 = phoebe_calculate_pot1 (0, 1, *q, *R1 / *a, 1.0, 1.0, 0.0);
-	*Omega2 = phoebe_calculate_pot2 (0, 1, *q, *R2 / *a, 1.0, 1.0, 0.0);
+	*Omega1 = phoebe_calculate_pot1 (1, *q, *R1 / *a, 1.0, 1.0, 0.0);
+	*Omega2 = phoebe_calculate_pot2 (1, *q, *R2 / *a, 1.0, 1.0, 0.0);
 
 	/* That's all. Goodbye!                                                     */
 	return SUCCESS;

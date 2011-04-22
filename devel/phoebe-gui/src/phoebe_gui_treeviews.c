@@ -2229,7 +2229,8 @@ int gui_para_lum_levels_calc(GtkTreeModel *model, GtkTreeIter iter)
 	PHOEBE_curve *syncurve;
 	PHOEBE_curve *obs;
 	gdouble hla, cla, l3;
-	gdouble alpha;
+	gdouble alpha, lw;
+	char *lw_str;
 
 	index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index, &l3);
@@ -2243,9 +2244,15 @@ int gui_para_lum_levels_calc(GtkTreeModel *model, GtkTreeIter iter)
 	/* Synthesize a theoretical curve: */
 	syncurve = phoebe_curve_new ();
 	phoebe_curve_compute (syncurve, obs->indep, index, obs->itype, PHOEBE_COLUMN_FLUX);
-		
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), index, &lw_str);
+	lw = -1;
+	if (strcmp (lw_str, "None") == 0)               lw = 0;
+	if (strcmp (lw_str, "Poissonian scatter") == 0) lw = 1;
+	if (strcmp (lw_str, "Low light scatter") == 0)  lw = 2;
+	
 	phoebe_el3_units_id (&l3units);
-	status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, l3, l3units);
+	status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, lw, l3, l3units);
 	phoebe_curve_free (obs);
 	phoebe_curve_free (syncurve);
 	if (status != SUCCESS)

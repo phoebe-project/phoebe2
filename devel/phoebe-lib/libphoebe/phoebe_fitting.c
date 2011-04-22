@@ -115,7 +115,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 
 		if (params->autolevels && i < lcno) {
 			double alpha;
-			phoebe_calculate_plum_correction (&alpha, curve, obs[i], l3->val[i], l3units);
+			phoebe_calculate_plum_correction (&alpha, curve, obs[i], lcipars[i]->WEIGHTING, l3->val[i], l3units);
 			phoebe_vector_multiply_by (curve->dep, 1./alpha);
 			levels->val[i] = alpha;
 			printf ("    alpha[%d] = %lf\n", i, alpha);
