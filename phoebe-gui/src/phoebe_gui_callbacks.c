@@ -2459,22 +2459,21 @@ G_MODULE_EXPORT void on_phoebe_pot_calc_update_button_clicked (GtkButton *button
 G_MODULE_EXPORT
 void on_phoebe_pot_calc_calculate_button_clicked (GtkButton *button, gpointer user_data)
 {
-	gboolean circ 	= gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(g_object_get_data (G_OBJECT (button), "data_circ_checkbutton")));
-	gdouble d		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_d_spinbutton")));
-	gdouble rm		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_rm_spinbutton")));
-	gdouble r		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_r_spinbutton")));
-	gdouble f		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_f_spinbutton")));
-	gdouble lambda	= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_lambda_spinbutton")));
-	gdouble nu		= gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_nu_spinbutton")));
+	gdouble d      = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_d_spinbutton")));
+	gdouble rm     = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_rm_spinbutton")));
+	gdouble r      = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_r_spinbutton")));
+	gdouble f      = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_f_spinbutton")));
+	gdouble lambda = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_lambda_spinbutton")));
+	gdouble nu     = gtk_spin_button_get_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_nu_spinbutton")));
 
 	gdouble pot;
 
 	gchar *source = phoebe_strdup ((gchar *) g_object_get_data (G_OBJECT (button), "star"));
 
 	if (strcmp (source, "primary") == 0)
-		pot = phoebe_calculate_pot1 ((int)(!circ), d, rm, r, f, lambda, nu);
+		pot = phoebe_calculate_pot1 (d, rm, r, f, lambda, nu);
 	else
-		pot = phoebe_calculate_pot2 ((int)(!circ), d, rm, r, f, lambda, nu);
+		pot = phoebe_calculate_pot2 (d, rm, r, f, lambda, nu);
 
 	gtk_spin_button_set_value (GTK_SPIN_BUTTON(g_object_get_data (G_OBJECT (button), "data_pot_spinbutton")), pot);
 

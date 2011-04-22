@@ -43,11 +43,11 @@ int phoebe_compute_pos_using_wd (PHOEBE_vector *poscoy, PHOEBE_vector *poscoz, c
 
 int call_wd_to_get_logg_values (double *logg1, double *logg2);
 
-int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs, double l3, PHOEBE_el3_units l3units);
+int phoebe_calculate_plum_correction (double *alpha, PHOEBE_curve *syn, PHOEBE_curve *obs, int levweight, double l3, PHOEBE_el3_units l3units);
 int phoebe_calculate_gamma_correction (double *gamma, PHOEBE_curve *syn, PHOEBE_curve *obs);
 
-double phoebe_calculate_pot1   (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
-double phoebe_calculate_pot2   (bool ELLIPTIC, double D, double q, double r, double F, double lambda, double nu);
+double phoebe_calculate_pot1   (double D, double q, double r, double F, double lambda, double nu);
+double phoebe_calculate_pot2   (double D, double q, double r, double F, double lambda, double nu);
 int    phoebe_calculate_masses (double sma, double P, double q, double *M1, double *M2);
 
 int phoebe_calculate_critical_potentials (double q, double F, double e, double *L1crit, double *L2crit);

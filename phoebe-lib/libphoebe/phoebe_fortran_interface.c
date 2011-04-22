@@ -143,11 +143,11 @@ int intern_get_level_weighting_id (const char *type)
 	if (strcmp (type, "Poissonian scatter") == 0) id = 1;
 	if (strcmp (type, "Low light scatter") == 0)  id = 2;
 
-	if (id == -1)
-		{
+	if (id == -1) {
 		phoebe_lib_error ("level weighting type invalid, assuming Poissonian scatter.\n");
 		return 1;
-		}
+	}
+	
 	return id;
 }
 
