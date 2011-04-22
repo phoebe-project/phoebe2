@@ -331,6 +331,7 @@ scripter_ast *scripter_ast_duplicate (scripter_ast *in)
 		break;
 		case ast_minfeedback:
 			out = scripter_ast_add_minfeedback (in->value.minfeedback);
+		break;
 		case ast_node:
 			args = in->value.node.args;
 			while (args) {
@@ -440,17 +441,14 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 	switch (in->type) {
 		case ast_int:
-			/* It is an integer value. Return it.                             */
 			out.type    = type_int;
 			out.value.i = in->value.integer;
 			return out;
 		case ast_bool:
-			/* It's a boolean (switched) value, which may be TRUE or FALSE.   */
 			out.type    = type_bool;
 			out.value.b = in->value.boolean;
 			return out;
 		case ast_double:
-			/* It is a numeric value. Return it without any complications.    */
 			out.type    = type_double;
 			out.value.d = in->value.real;
 			return out;
@@ -494,6 +492,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 			 * pointer here, it would get freed and the next evaluation of the
 			 * variable would cause a segfault.
 			 */
+			
 			scripter_symbol *s = scripter_symbol_lookup (symbol_table, in->value.variable);
 			if (!s) {
 				phoebe_scripter_output ("variable '%s' is not initialized.\n", in->value.variable);
@@ -503,6 +502,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 				phoebe_scripter_output ("variable '%s' is empty.\n", in->value.variable);
 				out.type = type_void; return out;
 			}
+
 			switch (s->link->type) {
 				case ast_int:
 					out.type = type_int;
@@ -549,7 +549,7 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 					out.value.feedback = phoebe_minimizer_feedback_duplicate (s->link->value.minfeedback);
 				break;
 				default:
-					phoebe_scripter_output ("variable '%s' doesn't hold a numeric or string value.\n", in->value.variable);
+					phoebe_scripter_output ("variable '%s' doesn't hold a numeric or string value (s->link->type = %d).\n", in->value.variable, s->link->type);
 				break;
 			}
 			return out;
@@ -1872,6 +1872,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						case type_spectrum:
 							arguments = scripter_ast_construct_list (scripter_ast_add_spectrum (val.value.spectrum), arguments);
 						break;
+						case type_minfeedback:
+							arguments = scripter_ast_construct_list (scripter_ast_add_minfeedback (val.value.feedback), arguments);
+						break;
 						default:
 							phoebe_scripter_output ("exception handler invoked in function evaluation, please report this.\n");
 							scripter_ast_list_free (arguments);
@@ -1951,10 +1954,11 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 
 				body   = id->link->value.node.args->next->elem;
 				params = id->link->value.node.args->next->next;
-
-				/* Now we have to evaluate the macro arguments:               */
+				
+				/* Now we have to evaluate the macro arguments: */
 				for (list = in->value.node.args->next; list; list = list->next) {
 					scripter_ast_value val = scripter_ast_evaluate (list->elem);
+
 					if (val.type == type_void) {
 						phoebe_scripter_output ("invalid argument in macro call, aborting.\n");
 						scripter_ast_list_free (arguments);
@@ -2006,18 +2010,18 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 					out.type = type_void; return out;
 				}
 
-				/* Start a new environment where the function will be evaluated:      */
+				/* Start a new environment where the function will be evaluated: */
 				symbol_table = symbol_table_add (symbol_table, in->value.node.args->elem->value.variable);
 
 				for (list = params, arglist = arguments; list; list = list->next, arglist = arglist->next)
 					scripter_symbol_commit (symbol_table, list->elem->value.variable, scripter_ast_duplicate (arglist->elem));
-
+				
 				scripter_ast_list_free (arguments);
 
 				scripter_ast_evaluate (body);
-
+				
 				symbol_table = symbol_table_remove (symbol_table, in->value.node.args->elem->value.variable);
-
+				
 				out.type = type_void;
 				return out;
 			}

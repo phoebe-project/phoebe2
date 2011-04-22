@@ -1326,9 +1326,10 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 	
 	PHOEBE_vector *levels = NULL;
 	
-	double level, alpha, l3;
+	double level, alpha, l3, lw;
 	int index, lcno;
 	PHOEBE_el3_units l3units;
+	char *lw_str;
 	
 	PHOEBE_curve *syncurve;
 	PHOEBE_curve *obs;
@@ -1374,8 +1375,14 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 		
 		phoebe_el3_units_id (&l3units);
 		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index-1, &l3);
+
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_levweight"), index-1, &lw_str);
+		lw = -1;
+		if (strcmp (lw_str, "None") == 0)               lw = 0;
+		if (strcmp (lw_str, "Poissonian scatter") == 0) lw = 1;
+		if (strcmp (lw_str, "Low light scatter") == 0)  lw = 2;
 		
-		status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, l3, l3units);
+		status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, lw, l3, l3units);
 		if (status != SUCCESS) {
 			phoebe_scripter_output ("%s", phoebe_scripter_error (status));
 			scripter_ast_value_array_free (vals, 1);

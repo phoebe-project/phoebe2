@@ -135,7 +135,7 @@ scripter_symbol *scripter_symbol_commit (scripter_symbol_table *table, char *id,
 {
 	int hash = scripter_symbol_hash (id);
 	scripter_symbol *s = table->symbol[hash];
-
+	
 	while (s) {
 		if (strcmp (s->name, id) == 0) break;
 		s = s->next;
