@@ -1637,10 +1637,13 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						if (strcmp (func,  "sqrt") == 0) out.value.d = sqrt  (value.value.d);
 						if (strcmp (func,  "norm") == 0) out.value.d =        value.value.d;
 						if (strcmp (func,  "rand") == 0) out.value.d = value.value.d * rand () / RAND_MAX;
-						if (strcmp (func,   "int") == 0) out.value.d = (double) ((int) value.value.d);
 						if (strcmp (func,  "frac") == 0) out.value.d = fabs (value.value.d - (int) value.value.d);
 						if (strcmp (func,   "abs") == 0) out.value.d = fabs (value.value.d);
 						out.type = type_double;
+						if (strcmp (func,   "int") == 0) {
+							out.type = type_int;
+							out.value.i = (int) value.value.d;
+						}
 						if (strcmp (func,   "dim") == 0) {
 							out.type = type_int;
 							out.value.i = 1;
@@ -1978,6 +1981,9 @@ scripter_ast_value scripter_ast_evaluate (scripter_ast *in)
 						break;
 						case type_spectrum:
 							arguments = scripter_ast_construct_list (scripter_ast_add_spectrum (val.value.spectrum), arguments);
+						break;
+						case type_minfeedback:
+							arguments = scripter_ast_construct_list (scripter_ast_add_minfeedback (val.value.feedback), arguments);
 						break;
 						default:
 							phoebe_scripter_output ("handling exception invoked in kind_execute_macro, please report this.\n");
