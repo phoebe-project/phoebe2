@@ -241,38 +241,38 @@
   AC_DEFINE(EXTRA_WARNING_COMPILER_FLAG, $extra_warn, [Set -Wextra if the c compiler recognizes it:])
 
 # Optional docbook support:
-  AC_PROG_XSLTPROC
-  docbookstate="no"
-
-  AC_MSG_CHECKING([docbook.xsl])
-  # handle --with-docbook-xsl=PATH option if invoked
-  AC_ARG_WITH([docbook-xsl],
-              [AS_HELP_STRING([--with-docbook-xsl],
-                [Specify full path of docbook.xsl, or "no" to disable])],
-              [docbook_stylesheet=$with_docbook_xsl],
-              [])
-
-  # by default use docbook.xsl distributed with phoebe-scripter
-  if test "x$docbook_stylesheet" = "x" ; then
-    docbookstate="yes"
-    docbook_stylesheet="$srcdir/docs/reference/xsl-stylesheets/xhtml/docbook.xsl"
-  fi
-
-  # check for the docbook.xsl file
-  if test  "x$docbook_stylesheet" != "xno"; then
-    if test -e  $docbook_stylesheet; then
-      docbookstate="yes" # docbook.xsl has been found
-
-    else # explicit path passed in but not found.
-      AC_MSG_WARN([docbook_stylesheet set to "$docbook_stylesheet" but file not found.  Skipping documentation.])
-    fi
-    else
-      docbook_stylesheet=""
-  fi
-
-  AC_SUBST([DOCBOOK_STYLESHEET], [$docbook_stylesheet])
-  AM_CONDITIONAL([XSLTPROC_FOUND], [test "x$docbookstate" = "xyes"])
-  AC_MSG_RESULT([$docbookstate]);
+# AC_PROG_XSLTPROC
+# docbookstate="no"
+#
+# AC_MSG_CHECKING([docbook.xsl])
+# handle --with-docbook-xsl=PATH option if invoked
+# AC_ARG_WITH([docbook-xsl],
+#             [AS_HELP_STRING([--with-docbook-xsl],
+#               [Specify full path of docbook.xsl, or "no" to disable])],
+#             [docbook_stylesheet=$with_docbook_xsl],
+#             [])
+#
+# by default use docbook.xsl distributed with phoebe-scripter
+# if test "x$docbook_stylesheet" = "x" ; then
+#   docbookstate="yes"
+#   docbook_stylesheet="$srcdir/docs/reference/xsl-stylesheets/xhtml/docbook.xsl"
+# fi
+#
+# check for the docbook.xsl file
+# if test  "x$docbook_stylesheet" != "xno"; then
+#   if test -e  $docbook_stylesheet; then
+#     docbookstate="yes" # docbook.xsl has been found
+#
+#   else # explicit path passed in but not found.
+#     AC_MSG_WARN([docbook_stylesheet set to "$docbook_stylesheet" but file not found.  Skipping documentation.])
+#   fi
+#   else
+#     docbook_stylesheet=""
+# fi
+#
+# AC_SUBST([DOCBOOK_STYLESHEET], [$docbook_stylesheet])
+# AM_CONDITIONAL([XSLTPROC_FOUND], [test "x$docbookstate" = "xyes"])
+# AC_MSG_RESULT([$docbookstate]);
 
 # Optional plugin support:
   AC_LIBTOOL_DLOPEN
@@ -294,7 +294,6 @@
 # Finally, write everything to Makefiles:
   AC_CONFIG_FILES([
                   Makefile
-                  docs/reference/Makefile
                   help/Makefile
                   src/Makefile
                   ])
@@ -316,8 +315,8 @@
   echo "Plugins go to:                    $prefix/lib"
   echo "Supported plotting packages:      $plotters"
   echo "GNU readline library support:     $readlinesupport"
-  echo "Build API documentation:          $docbookstate"
-  echo "  Docbook XSL:                    $docbook_stylesheet"
+# echo "Build API documentation:          $docbookstate"
+# echo "  Docbook XSL:                    $docbook_stylesheet"
   echo "Verbose debugging messages:       $debugstate"
   echo ""
 

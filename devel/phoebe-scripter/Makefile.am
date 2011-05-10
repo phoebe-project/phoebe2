@@ -27,7 +27,8 @@
 
 ACLOCAL_AMFLAGS = -I autoconfig
 
-SUBDIRS = help src docs/reference
+#SUBDIRS = help src docs/reference
+SUBDIRS = help src
 
 EXTRA_DIST = autoconfig/compile                      \
              autoconfig/depcomp                      \
