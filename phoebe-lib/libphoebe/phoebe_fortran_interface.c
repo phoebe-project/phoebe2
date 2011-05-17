@@ -623,6 +623,7 @@ int wd_spots_parameters_get ()
 	double colat_step, lon_step, rad_step, temp_step;
 
 	PHOEBE_parameter *par;
+	PHOEBE_array *active_spots;
 
 	/* Set all adjustment switches to 0: */
 	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_lat1"), 0);
@@ -635,10 +636,7 @@ int wd_spots_parameters_get ()
 	phoebe_parameter_set_tba (phoebe_parameter_lookup ("wd_spots_temp2"), 0);
 
 	/* First test: are there any spots defined in the model: */
-
-	//phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_no"), &spno);
-	PHOEBE_array *active_spotindices;
-	phoebe_active_spots_get (&spno, &active_spotindices);
+	phoebe_active_spots_get (&spno, &active_spots);
 	if (spno == 0)
 		return SUCCESS;
 
@@ -651,10 +649,10 @@ int wd_spots_parameters_get ()
 	 temp_tba = phoebe_malloc (spno * sizeof (*temp_tba));
 
 	for (i = 0; i < spno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_tba"), active_spotindices->val.iarray[i], &(colat_tba[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_tba"),  active_spotindices->val.iarray[i], &(long_tba[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_tba"),     active_spotindices->val.iarray[i], &(rad_tba[i]));
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_tba"), active_spotindices->val.iarray[i], &(temp_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_tba"), active_spots->val.iarray[i], &(colat_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_tba"),  active_spots->val.iarray[i], &(long_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_tba"),     active_spots->val.iarray[i], &(rad_tba[i]));
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_tba"), active_spots->val.iarray[i], &(temp_tba[i]));
 
 		if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i])
 			tbano++;
@@ -674,31 +672,31 @@ int wd_spots_parameters_get ()
 	/* pass through the list and copy the values to WD spot parameters.       */
 
 	for (i = 0; i < spno; i++) {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), active_spotindices->val.iarray[i], &src);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_source"), active_spots->val.iarray[i], &src);
 
 		if (src == 1) {
 			sp1no++;
 
 			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), active_spotindices->val.iarray[i], &colat);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), active_spotindices->val.iarray[i], &colat_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), active_spotindices->val.iarray[i], &colat_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), active_spotindices->val.iarray[i], &colat_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), active_spots->val.iarray[i], &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), active_spots->val.iarray[i], &colat_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), active_spots->val.iarray[i], &colat_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), active_spots->val.iarray[i], &colat_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), active_spotindices->val.iarray[i], &lon);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), active_spotindices->val.iarray[i], &lon_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), active_spotindices->val.iarray[i], &lon_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), active_spotindices->val.iarray[i], &lon_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), active_spots->val.iarray[i], &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), active_spots->val.iarray[i], &lon_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), active_spots->val.iarray[i], &lon_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), active_spots->val.iarray[i], &lon_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), active_spotindices->val.iarray[i], &rad);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), active_spotindices->val.iarray[i], &rad_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), active_spotindices->val.iarray[i], &rad_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), active_spotindices->val.iarray[i], &rad_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), active_spots->val.iarray[i], &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), active_spots->val.iarray[i], &rad_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), active_spots->val.iarray[i], &rad_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), active_spots->val.iarray[i], &rad_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), active_spotindices->val.iarray[i], &temp);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), active_spotindices->val.iarray[i], &temp_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), active_spotindices->val.iarray[i], &temp_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), active_spotindices->val.iarray[i], &temp_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), active_spots->val.iarray[i], &temp);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), active_spots->val.iarray[i], &temp_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), active_spots->val.iarray[i], &temp_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), active_spots->val.iarray[i], &temp_step);
 
 				if (tbacur == 1) {
 					if (colat_tba[i]) {
@@ -780,25 +778,25 @@ int wd_spots_parameters_get ()
 			sp2no++;
 
 			if (colat_tba[i] || long_tba[i] || rad_tba[i] || temp_tba[i]) {
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), active_spotindices->val.iarray[i], &colat);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), active_spotindices->val.iarray[i], &colat_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), active_spotindices->val.iarray[i], &colat_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), active_spotindices->val.iarray[i], &colat_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude"), active_spots->val.iarray[i], &colat);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_min"), active_spots->val.iarray[i], &colat_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_max"), active_spots->val.iarray[i], &colat_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_colatitude_step"), active_spots->val.iarray[i], &colat_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), active_spotindices->val.iarray[i], &lon);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), active_spotindices->val.iarray[i], &lon_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), active_spotindices->val.iarray[i], &lon_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), active_spotindices->val.iarray[i], &lon_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude"), active_spots->val.iarray[i], &lon);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_min"), active_spots->val.iarray[i], &lon_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_max"), active_spots->val.iarray[i], &lon_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_longitude_step"), active_spots->val.iarray[i], &lon_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), active_spotindices->val.iarray[i], &rad);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), active_spotindices->val.iarray[i], &rad_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), active_spotindices->val.iarray[i], &rad_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), active_spotindices->val.iarray[i], &rad_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius"), active_spots->val.iarray[i], &rad);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_min"), active_spots->val.iarray[i], &rad_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_max"), active_spots->val.iarray[i], &rad_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_radius_step"), active_spots->val.iarray[i], &rad_step);
 
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), active_spotindices->val.iarray[i], &temp);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), active_spotindices->val.iarray[i], &temp_min);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), active_spotindices->val.iarray[i], &temp_max);
-				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), active_spotindices->val.iarray[i], &temp_step);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor"), active_spots->val.iarray[i], &temp);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_min"), active_spots->val.iarray[i], &temp_min);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_max"), active_spots->val.iarray[i], &temp_max);
+				phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_spots_tempfactor_step"), active_spots->val.iarray[i], &temp_step);
 
 				if (tbacur == 1) {
 					if (colat_tba[i]) {
@@ -879,7 +877,7 @@ int wd_spots_parameters_get ()
 	}
 
 	free (colat_tba); free (long_tba); free (rad_tba); free (temp_tba);
-	phoebe_array_free (active_spotindices);
+	phoebe_array_free (active_spots);
 
 	return SUCCESS;
 }
