@@ -29,4 +29,6 @@ int              phoebe_free_passbands          ();
 
 int              wd_passband_id_lookup          (int *id, const char *passband);
 
+PHOEBE_curve *phoebe_bin_data (PHOEBE_curve *data, int bins);
+
 #endif

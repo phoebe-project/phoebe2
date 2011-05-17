@@ -422,3 +422,64 @@ int wd_passband_id_lookup (int *id, const char *passband)
 	*id = -1;
 	return ERROR_PASSBAND_INVALID;
 }
+
+PHOEBE_curve *phoebe_bin_data (PHOEBE_curve *data, int bins)
+{
+	/**
+	 * phoebe_bin_data:
+	 * @data: original data to be binned
+	 * @bins: number of bins
+	 * 
+	 * 
+	 */
+	
+	int i, j, culled;
+	PHOEBE_curve *input, *binned;
+	
+	if (!data)
+		return ERROR_CURVE_NOT_INITIALIZED;
+	
+	input = phoebe_curve_duplicate (data);
+	
+	if (input->itype == PHOEBE_COLUMN_HJD)
+		phoebe_curve_transform (input, PHOEBE_COLUMN_PHASE, input->dtype, input->wtype);
+
+	binned = phoebe_curve_new ();
+	phoebe_curve_alloc (binned, bins);
+	phoebe_curve_set_properties (binned, input->type, input->filename, input->passband, PHOEBE_COLUMN_PHASE, input->dtype, PHOEBE_COLUMN_WEIGHT, input->sigma);
+	
+	for (i = 0; i < bins; i++) {
+		binned->indep->val[i] = -0.5 + (double)i/(bins-1);
+		binned->dep->val[i] = 0.0;
+		binned->weight->val[i] = 0.0;
+		binned->flag->val.iarray[i] = PHOEBE_DATA_REGULAR;
+	}
+
+	for (i = 0; i < input->indep->dim; i++) {
+		binned->dep->val[(int)(bins*(0.5+input->indep->val[i]))] += input->dep->val[i];
+		binned->weight->val[(int)(bins*(0.5+input->indep->val[i]))] += 1;
+	}
+
+	phoebe_curve_free (input);
+
+	culled = 0;
+	for (i = 0; i < bins-culled; i++) {
+		if (binned->weight->val[i] > 0.5)
+			binned->dep->val[i] /= binned->weight->val[i];
+		else {
+			culled += 1;
+			for (j = i; j < bins-culled; j++) {
+				binned->indep->val[j]       = binned->indep->val[j+1];
+				binned->dep->val[j]         = binned->dep->val[j+1];
+				binned->weight->val[j]      = binned->weight->val[j+1];
+				binned->flag->val.iarray[j] = binned->flag->val.iarray[j+1];
+			}
+			i--;
+		}
+	}
+
+	if (culled != 0)
+		phoebe_curve_realloc (binned, bins-culled);
+
+	return binned;
+}

@@ -1795,9 +1795,9 @@ int phoebe_active_spots_get (int *active_spots_no, PHOEBE_array **active_spotind
 	 *
 	 * Sweeps through all defined spots and counts the ones that are
 	 * active (i.e. their activity switch is set to 1). Active spot
-	 * indices are stored in the passed array @active_spots. The array
+	 * indices are stored in the passed array @active_spotindices. The array
 	 * should not be initialized or allocated by the calling function, but
-	 * it should be freed afrer use.
+	 * it should be freed after use.
 	 *
 	 * Returns: #PHOEBE_error_code.
 	 */

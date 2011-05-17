@@ -2531,6 +2531,7 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	PHOEBE_passband *passband = NULL;
 	char *filename;
 	double sigma;
+	bool bin_data;
 
 	int status;
 
@@ -2633,6 +2634,18 @@ PHOEBE_curve *phoebe_curve_new_from_pars (PHOEBE_curve_type ctype, int index)
 	}
 
 	phoebe_curve_set_properties (curve, ctype, filename, passband, itype, dtype, wtype, sigma);
+
+	/* Bin data if requested: */
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_bins_switch"), &bin_data);
+	if (ctype == PHOEBE_CURVE_LC && bin_data) {
+		int bins;
+		PHOEBE_curve *binned;
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_bins"), &bins);
+		binned = phoebe_bin_data (curve, bins);
+		phoebe_curve_free (curve);
+		return binned;
+	}
+	
 	return curve;
 }
 
@@ -2644,39 +2657,39 @@ PHOEBE_curve *phoebe_curve_duplicate (PHOEBE_curve *curve)
 	 */
 
 	int i;
-	PHOEBE_curve *new;
+	PHOEBE_curve *dup;
 
 	if (!curve) {
 		phoebe_lib_error ("curve passed for duplication not initialized, aborting.\n");
 		return NULL;
 	}
 
-	new = phoebe_curve_new ();
+	dup = phoebe_curve_new ();
 
-	new->type     = curve->type;
-	new->passband = curve->passband;
-	new->itype    = curve->itype;
-	new->dtype    = curve->dtype;
-	new->wtype    = curve->wtype;
+	dup->type     = curve->type;
+	dup->passband = curve->passband;
+	dup->itype    = curve->itype;
+	dup->dtype    = curve->dtype;
+	dup->wtype    = curve->wtype;
 
 	if (curve->filename)
-		new->filename = strdup (curve->filename);
+		dup->filename = strdup (curve->filename);
 	else
-		new->filename = NULL;
+		dup->filename = NULL;
 
-	new->passband = curve->passband; /* No need to copy this! */
-	new->sigma    = curve->sigma;
+	dup->passband = curve->passband; /* No need to copy this! */
+	dup->sigma    = curve->sigma;
 
-	phoebe_curve_alloc (new, curve->indep->dim);
+	phoebe_curve_alloc (dup, curve->indep->dim);
 	for (i = 0; i < curve->indep->dim; i++) {
-		new->indep->val[i]       = curve->indep->val[i];
-		new->dep->val[i]         = curve->dep->val[i];
-		new->flag->val.iarray[i] = curve->flag->val.iarray[i];
+		dup->indep->val[i]       = curve->indep->val[i];
+		dup->dep->val[i]         = curve->dep->val[i];
+		dup->flag->val.iarray[i] = curve->flag->val.iarray[i];
 		if (curve->weight->dim != 0)
-			new->weight->val[i] = curve->weight->val[i];
+			dup->weight->val[i] = curve->weight->val[i];
 	}
 
-	return new;
+	return dup;
 }
 
 int phoebe_curve_alloc (PHOEBE_curve *curve, int dim)
