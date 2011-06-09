@@ -8,7 +8,7 @@ c       evaluated).
 c    This subroutine can handle nth only up to 6. Additional             
 c      programming is needed for larger values.                          
 c                                                                        
-      dimension aa(*),bb(*),th(*),ro(*),obs(5000),ll(14),mm(14),         
+      dimension aa(*),bb(*),th(*),ro(*),obs(50000),ll(14),mm(14),
      $cn(196),cl(14),out(14)                                             
       mpl=nth+1                                                          
       ml=mpl+nth                                                         
