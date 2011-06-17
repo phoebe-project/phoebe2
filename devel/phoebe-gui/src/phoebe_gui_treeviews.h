@@ -178,6 +178,7 @@ int gui_data_lc_treeview_remove			();
 int gui_data_rv_treeview_remove			();
 
 int gui_set_treeview_value              (GtkTreeModel *model, int col_id, int row_id, double value);
+int gui_update_cla_value                (int row);
 
 int gui_spots_treeview_toggle_show_all	();
 int gui_spots_parameters_marked_tba		();
