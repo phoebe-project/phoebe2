@@ -1112,6 +1112,17 @@ int gui_fill_sidesheet_res_treeview ()
 	return SUCCESS;
 }
 
+int gui_update_cla_value (int row)
+{
+	GtkTreeView *master = (GtkTreeView *) gui_widget_lookup ("phoebe_data_lc_treeview")->gtk;
+	GtkTreeModel *model = gtk_tree_view_get_model (master);
+	GtkTreeIter iter;
+	double cla;
+
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_plum2"), &cla);
+	return gui_set_treeview_value (model, LC_COL_CLA, row, cla);
+}
+
 int gui_set_treeview_value (GtkTreeModel *model, int col_id, int row_id, double value)
 {
 	/*
@@ -2233,7 +2244,6 @@ int gui_para_lum_levels_calc(GtkTreeModel *model, GtkTreeIter iter)
 	char *lw_str;
 
 	index = atoi (gtk_tree_model_get_string_from_iter (model, &iter));
-	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index, &l3);
 	
 	obs = phoebe_curve_new_from_pars (PHOEBE_CURVE_LC, index);
 	if (!obs)
@@ -2251,7 +2261,9 @@ int gui_para_lum_levels_calc(GtkTreeModel *model, GtkTreeIter iter)
 	if (strcmp (lw_str, "Poissonian scatter") == 0) lw = 1;
 	if (strcmp (lw_str, "Low light scatter") == 0)  lw = 2;
 	
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_el3"), index, &l3);
 	phoebe_el3_units_id (&l3units);
+
 	status = phoebe_calculate_plum_correction (&alpha, syncurve, obs, lw, l3, l3units);
 	phoebe_curve_free (obs);
 	phoebe_curve_free (syncurve);
@@ -2283,8 +2295,8 @@ int gui_para_lum_levels_calc_selected()
 		model = gtk_tree_view_get_model ((GtkTreeView *) treeview);
 
 		treeview = gui_widget_lookup ("phoebe_para_lc_levels_treeview")->gtk;
-
 		selection = gtk_tree_view_get_selection ((GtkTreeView *) treeview);
+
 		if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
 			gui_get_values_from_widgets ();
 			gui_para_lum_levels_calc (model, iter);

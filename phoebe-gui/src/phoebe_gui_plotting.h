@@ -44,42 +44,43 @@ typedef struct GUI_plot_request {
 } GUI_plot_request;
 
 typedef struct GUI_plot_data {
-	GUI_plot_layout   *layout;      /* Plot layout (margins, ticks, ...)      */
-	GUI_plot_request  *request;     /* Structure with all data and properties */
-	GUI_plot_type      ptype;       /* Plot type (LC, RV or mesh)             */
-	GtkWidget         *container;   /* Widget container                       */
-	cairo_t           *canvas;      /* Cairo canvas                           */
-	double             width;       /* Graph width in pixels                  */
-	double             height;      /* Graph height in pixels                 */
-	int                objno;       /* Number of objects for plotting         */
-	bool               alias;       /* Should data be aliased?                */
-	bool               residuals;   /* Should residuals be plotted?           */
-	const char        *x_request;   /* Requested x-coordinate                 */
-	const char        *y_request;   /* Requested y-coordinate                 */
-	double             x_ll;        /* Lower plotting limit for the x-axis    */
-	double             x_ul;        /* Upper plotting limit for the x-axis    */
-	double             y_ll;        /* Lower plotting limit for the y-axis    */
-	double             y_ul;        /* Upper plotting limit for the y-axis    */
-	double             x_min;       /* Minimum x value in the query dataset   */
-	double             x_max;       /* Maximum x value in the query dataset   */
-	double             y_min;       /* Minimum y value in the query dataset   */
-	double             y_max;       /* Maximum y value in the query dataset   */
-	int                vertices;    /* Number of vertices for synthetic plots */
-	bool               coarse_grid; /* Should a coarse grid be plotted?       */
-	bool               fine_grid;   /* Should a fine grid be plotted?         */
-	GtkWidget         *x_widget;    /* Widget to be connected to x-coordinate */
-	GtkWidget         *y_widget;    /* Widget to be connected to y-coordinate */
-	GtkWidget         *cp_widget;   /* Widget to be connected to closest psb. */
-	GtkWidget         *cx_widget;   /* Widget to be connected to closest x pt */
-	GtkWidget         *cy_widget;   /* Widget to be connected to closest y pt */
-	double             leftmargin;
-	bool               select_zoom; /* Indicates whether a rectangle to zoom in is being drawn */
-	double             select_x;    /* Window x value at which zoom started   */
-	double             select_y;    /* Window y value at which zoom started   */
-	double             x_left;      /* Current left x value                   */
-	double             x_right;     /* Current right x value                  */
-	double             y_top;       /* Current top y value                    */
-	double             y_bottom;    /* Current bottom y value                 */
+	GUI_plot_layout   *layout;       /* Plot layout (margins, ticks, ...)      */
+	GUI_plot_request  *request;      /* Structure with all data and properties */
+	GUI_plot_type      ptype;        /* Plot type (LC, RV or mesh)             */
+	GtkWidget         *container;    /* Widget container                       */
+	cairo_t           *canvas;       /* Cairo canvas                           */
+	double             width;        /* Graph width in pixels                  */
+	double             height;       /* Graph height in pixels                 */
+	int                objno;        /* Number of objects for plotting         */
+	bool               alias;        /* Should data be aliased?                */
+	bool               residuals;    /* Should residuals be plotted?           */
+	const char        *x_request;    /* Requested x-coordinate                 */
+	const char        *y_request;    /* Requested y-coordinate                 */
+	double             x_ll;         /* Lower plotting limit for the x-axis    */
+	double             x_ul;         /* Upper plotting limit for the x-axis    */
+	double             y_ll;         /* Lower plotting limit for the y-axis    */
+	double             y_ul;         /* Upper plotting limit for the y-axis    */
+	double             x_min;        /* Minimum x value in the query dataset   */
+	double             x_max;        /* Maximum x value in the query dataset   */
+	double             y_min;        /* Minimum y value in the query dataset   */
+	double             y_max;        /* Maximum y value in the query dataset   */
+	int                vertices;     /* Number of vertices for synthetic plots */
+	bool               coarse_grid;  /* Should a coarse grid be plotted?       */
+	bool               fine_grid;    /* Should a fine grid be plotted?         */
+	GtkWidget         *x_widget;     /* Widget to be connected to x-coordinate */
+	GtkWidget         *y_widget;     /* Widget to be connected to y-coordinate */
+	GtkWidget         *cp_widget;    /* Widget to be connected to closest psb. */
+	GtkWidget         *cx_widget;    /* Widget to be connected to closest x pt */
+	GtkWidget         *cy_widget;    /* Widget to be connected to closest y pt */
+	double             leftmargin;   /* The value of left margin               */
+	bool               select_zoom;  /* Indicates whether a rectangle to zoom in is being drawn */
+	double             select_x;     /* Window x value at which zoom started   */
+	double             select_y;     /* Window y value at which zoom started   */
+	double             x_left;       /* Current left x value                   */
+	double             x_right;      /* Current right x value                  */
+	double             y_top;        /* Current top y value                    */
+	double             y_bottom;     /* Current bottom y value                 */
+	bool               block_signal; /* Whether the row-changed signal should be blocked */
 } GUI_plot_data;
 
 GUI_plot_data *gui_plot_data_new ();

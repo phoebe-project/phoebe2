@@ -67,14 +67,15 @@ GUI_plot_data *gui_plot_data_new ()
 
 	GUI_plot_data *data = phoebe_malloc (sizeof (*data));
 
-	data->layout      = gui_plot_layout_new ();
-	data->canvas      = NULL;
-	data->request     = NULL;
-	data->objno       = 0;
-	data->leftmargin  = data->layout->lmargin;
-	data->y_min       = 0.0;
-	data->y_max       = 1.0;
-	data->select_zoom = FALSE;
+	data->layout       = gui_plot_layout_new ();
+	data->canvas       = NULL;
+	data->request      = NULL;
+	data->objno        = 0;
+	data->leftmargin   = data->layout->lmargin;
+	data->y_min        = 0.0;
+	data->y_max        = 1.0;
+	data->select_zoom  = FALSE;
+	data->block_signal = FALSE;
 
 	return data;
 }
@@ -579,7 +580,8 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 						case GUI_PLOT_LC:
 							data->request[i].model->type = PHOEBE_CURVE_LC;
 							status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
-
+							data->block_signal = TRUE;
+							gui_update_cla_value (i);
 						break;
 						case GUI_PLOT_RV:
 						{
@@ -644,6 +646,8 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 					case GUI_PLOT_LC:
 						data->request[i].model->type = PHOEBE_CURVE_LC;
 						status = phoebe_curve_compute (data->request[i].model, indep, i, itype, dtype);
+						data->block_signal = TRUE;
+						gui_update_cla_value (i);
 					break;
 					case GUI_PLOT_RV:
 					{
@@ -678,7 +682,7 @@ void on_plot_button_clicked (GtkButton *button, gpointer user_data)
 				 */
 
 				/* Determine plot limits */
-				if (plot_syn) {
+				if (plot_syn && data->request[i].model) {
 					phoebe_vector_min_max (data->request[i].model->indep, &x_min, &x_max);
 					phoebe_vector_min_max (data->request[i].model->dep,   &y_min, &y_max);
 
@@ -1152,6 +1156,11 @@ int gui_plot_area_draw (GUI_plot_data *data, FILE *redirect)
 
 void on_plot_treeview_row_changed (GtkTreeModel *tree_model, GUI_plot_data *data, int col_plot_obs, int col_plot_syn, int col_plot_obs_color, int col_plot_syn_color, int col_plot_offset)
 {
+	/*
+	 * This function is called whenever any of the fields in a given tree model
+	 * (either LC or RV store) is changed.
+	 */
+	
 	int i, rows;
 	GtkTreeIter traverser;
 
@@ -1159,11 +1168,21 @@ void on_plot_treeview_row_changed (GtkTreeModel *tree_model, GUI_plot_data *data
 	char *obscolor, *syncolor;
 	double offset;
 
+	/* Some changes shouldn't reload the data; such is, for example, the update
+	 * of the secondary passband luminosity. Such changes should set the block_
+	 * signal flag to TRUE.
+	 */
+	
+	if (data->block_signal) {
+		data->block_signal = FALSE;
+		return;
+	}
+	
 	/* Check whether to save changed data */
 	if (data->request != NULL) {
 		for (i = 0; i < data->objno; i++) {
 			if (data->request[i].data_changed) {
-				if(gui_warning("Data has been changed", "Do you want to save the data files?") == 1)
+				if(gui_warning("Data have been changed", "Do you want to save the data files?") == 1)
 					on_plot_save_data_button_clicked((GtkButton *)NULL, data);
 				break;
 			}
@@ -1200,7 +1219,7 @@ void on_plot_treeview_row_changed (GtkTreeModel *tree_model, GUI_plot_data *data
 void on_lc_plot_treeview_row_changed (GtkTreeModel *tree_model, GtkTreePath *path, GtkTreeIter *iter, gpointer user_data)
 {
 	GUI_plot_data *data = (GUI_plot_data *) user_data;
-	on_plot_treeview_row_changed(tree_model, data, LC_COL_PLOT_OBS, LC_COL_PLOT_SYN, LC_COL_PLOT_OBS_COLOR, LC_COL_PLOT_SYN_COLOR, LC_COL_PLOT_OFFSET);
+	on_plot_treeview_row_changed (tree_model, data, LC_COL_PLOT_OBS, LC_COL_PLOT_SYN, LC_COL_PLOT_OBS_COLOR, LC_COL_PLOT_SYN_COLOR, LC_COL_PLOT_OFFSET);
 	return;
 }
 
