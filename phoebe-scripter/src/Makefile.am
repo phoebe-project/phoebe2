@@ -52,6 +52,7 @@ phoebe_scripter_LDADD = -lscripter
 
 library_includedir=$(includedir)/phoebe
 library_include_HEADERS = phoebe_scripter.h                \
+                          phoebe_scripter.lng.h            \
                           phoebe_scripter_arithmetics.h    \
                           phoebe_scripter_ast.h            \
                           phoebe_scripter_commands.h       \
