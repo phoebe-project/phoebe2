@@ -1326,7 +1326,7 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 	
 	PHOEBE_vector *levels = NULL;
 	
-	double level, alpha, l3, lw;
+	double hla, alpha, l3, lw;
 	int index, lcno;
 	PHOEBE_el3_units l3units;
 	char *lw_str;
@@ -1393,8 +1393,8 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 			return out;
 		}
 		
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index-1, &level);
-		level /= alpha;
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_hla"), index-1, &hla);
+		hla /= alpha;
 		
 		phoebe_curve_free (obs);
 		phoebe_curve_free (syncurve);
@@ -1402,15 +1402,15 @@ scripter_ast_value scripter_compute_light_levels (scripter_ast_list *args)
 		if (vals[0].type != type_void) {
 			scripter_ast_value_array_free (vals, 1);
 			out.type = type_double;
-			out.value.d = level;
+			out.value.d = hla;
 			return out;
 		}
 		else {
-			levels->val[index-1] = level;
+			levels->val[index-1] = hla;
 			index++;
 		}
 	}
-
+	
 	scripter_ast_value_array_free (vals, 1);
 	out.type = type_vector;
 	out.value.vec = levels;
