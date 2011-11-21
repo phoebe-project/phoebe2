@@ -2296,6 +2296,9 @@ int scripter_ast_value_print (scripter_ast_value val)
 		case (type_vector):
 			phoebe_vector_print (val.value.vec);
 		break;
+		case (type_qualifier):
+			phoebe_scripter_output ("Please use get_parameter_value() to access qualifier values.\n");
+		break;
 		case (type_curve):
 			phoebe_curve_print (val.value.curve);
 		break;
