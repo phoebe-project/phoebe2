@@ -1072,9 +1072,12 @@ scripter_ast_value scripter_get_parameter_value (scripter_ast_list *args)
 			out.type = type_double;
 			status = phoebe_parameter_get_value (par, &(out.value.d));
 		break;
-		case (TYPE_STRING):
+		case (TYPE_STRING): {
+			const char *valstr;
 			out.type = type_string;
-			status = phoebe_parameter_get_value (par, &(out.value.str));
+			status = phoebe_parameter_get_value (par, &valstr);
+			out.value.str = strdup (valstr);
+		}
 		break;
 		case (TYPE_INT_ARRAY):
 			if (vals[1].type == type_void) {
