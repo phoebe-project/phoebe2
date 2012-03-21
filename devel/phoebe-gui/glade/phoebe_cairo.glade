@@ -367,6 +367,10 @@
                                   <widget class="GtkEntry" id="phoebe_data_star_name_entry">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <signal name="changed" handler="on_phoebe_data_star_name_entry_changed"/>
                                   </widget>
                                   <packing>
@@ -640,6 +644,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -669,6 +677,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">10 0 200000000 1 10 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -747,12 +759,16 @@
                                     </child>
                                     <child>
                                       <widget class="GtkSpinButton" id="phoebe_cadence">
-                                        <property name="adjustment">1766 0 100000 1 10 0</property>
-                                        <property name="numeric">True</property>
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
                                         <property name="invisible_char">●</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
+                                        <property name="adjustment">1766 0 100000 1 10 0</property>
+                                        <property name="numeric">True</property>
                                       </widget>
                                       <packing>
                                         <property name="expand">True</property>
@@ -776,13 +792,17 @@
                                     </child>
                                     <child>
                                       <widget class="GtkSpinButton" id="phoebe_cadence_rate">
-                                        <property name="adjustment">10 0 1000 2 10 0</property>
-                                        <property name="numeric">True</property>
                                         <property name="visible">True</property>
-                                        <property name="snap_to_ticks">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
                                         <property name="invisible_char">●</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
+                                        <property name="adjustment">10 0 1000 2 10 0</property>
+                                        <property name="snap_to_ticks">True</property>
+                                        <property name="numeric">True</property>
                                       </widget>
                                       <packing>
                                         <property name="expand">True</property>
@@ -1117,6 +1137,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_data_options_binsno_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 2000 1 10 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -1176,6 +1200,10 @@
                                   <widget class="GtkSpinButton" id="phoebe_data_lcoptions_mag_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -30 30 0.10000000149 1 0</property>
                                     <property name="digits">2</property>
                                     <property name="numeric">True</property>
@@ -1309,6 +1337,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -10000000000 10000000000 0.10000000000000001 1 0</property>
                                     <property name="digits">6</property>
                                     <property name="numeric">True</property>
@@ -1381,6 +1413,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10000000000 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                         <property name="numeric">True</property>
@@ -1419,6 +1455,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10000000000 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                       </widget>
@@ -1435,6 +1475,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10000000000 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                       </widget>
@@ -1489,6 +1533,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                     <property name="digits">10</property>
                                     <property name="numeric">True</property>
@@ -1554,6 +1602,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1589,6 +1641,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1607,6 +1663,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1674,6 +1734,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">10</property>
                                     <property name="numeric">True</property>
@@ -1736,6 +1800,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_dpdtstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                       </widget>
@@ -1768,6 +1836,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_dpdtmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1785,6 +1857,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_dpdtmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1851,6 +1927,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -0.5 0.5 0.0099999997764800008 0.10000000149 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -1923,6 +2003,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_pshiftstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -0.5 0.5 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1949,6 +2033,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_pshiftmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -0.5 0.5 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -1966,6 +2054,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_eph_pshiftmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -0.5 0.5 0.01 0.10000000000000001 0</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
@@ -2062,6 +2154,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">10 0 10000000000 0.10000000000000001 1 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -2125,6 +2221,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_smastep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2159,6 +2259,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_smamin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2176,6 +2280,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_smamax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2243,6 +2351,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -2308,6 +2420,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_rmstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.90000000000000002 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2342,6 +2458,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_rmmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2359,6 +2479,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_rmmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">1 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2426,6 +2550,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -300000 300000 0.01 0.10000000000000001 0</property>
                                     <property name="digits">6</property>
                                     <property name="numeric">True</property>
@@ -2487,6 +2615,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_vgastep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 100 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                         <property name="wrap">True</property>
@@ -2521,6 +2653,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_vgamin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">-300000 -300000 300000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                         <property name="numeric">True</property>
@@ -2538,6 +2674,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_vgamax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">299999 -300000 300000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">6</property>
                                         <property name="numeric">True</property>
@@ -2604,6 +2744,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">80 0 180 0.10000000000000001 1 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -2675,6 +2819,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_inclstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.01 0 10 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2701,6 +2849,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_inclmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 180 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2718,6 +2870,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_sys_inclmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">179 0 180 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2818,6 +2974,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">6.2831853071800001 0 6.2831853071800001 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -2890,6 +3050,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_perr0step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2916,6 +3080,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_perr0min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2933,6 +3101,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_perr0max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 6.2831853071800001 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -2999,6 +3171,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">10</property>
                                     <property name="numeric">True</property>
@@ -3070,6 +3246,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_dperdtstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="climb_rate">0.0099999997764825821</property>
                                         <property name="digits">5</property>
@@ -3097,6 +3277,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_dperdtmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="climb_rate">0.0099999997764825821</property>
                                         <property name="digits">5</property>
@@ -3115,6 +3299,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_dperdtmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3181,6 +3369,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -3247,6 +3439,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_eccstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3281,6 +3477,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_eccmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3298,6 +3498,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_eccmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3364,6 +3568,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">1 0 1000 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -3429,6 +3637,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f1step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3463,6 +3675,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f1min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3480,6 +3696,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f1max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3546,6 +3766,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">1 0 1000 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -3610,6 +3834,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f2step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -3644,6 +3872,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f2min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="climb_rate">0.0099999997764825821</property>
                                         <property name="digits">5</property>
@@ -3662,6 +3894,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_orb_f2max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4043,6 +4279,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">6000 500 100000 10 100 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
@@ -4104,6 +4344,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavhstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">10 0 1000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -4137,6 +4381,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavhmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">500 500 100000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -4154,7 +4402,11 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavhmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
-                                        <property name="adjustment">49900 500 100000 10 100 0</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
+                                        <property name="adjustment">500 500 100000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
                                       </widget>
@@ -4219,6 +4471,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">6000 500 100000 10 100 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
@@ -4281,6 +4537,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavcstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">10 0 1000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -4314,6 +4574,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavcmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">49900 500 100000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -4330,6 +4594,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_tavcmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">500 500 100000 10 100 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -4400,6 +4668,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4486,6 +4758,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_phsvstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.10000000000000001 1 0</property>
                                         <property name="climb_rate">0.10000000149011612</property>
                                         <property name="digits">5</property>
@@ -4521,6 +4797,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_phsvmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4539,6 +4819,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_phsvmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4609,6 +4893,10 @@
                                         <property name="width_request">120</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4703,6 +4991,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_pcsvstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4729,6 +5021,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_pcsvmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4747,6 +5043,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_comp_pcsvmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">100 0 10000000000 0.10000000000000001 1 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -4813,6 +5113,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                     <property name="digits">3</property>
                                     <property name="numeric">True</property>
@@ -4887,6 +5191,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -4914,6 +5222,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -4933,6 +5245,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -4999,6 +5315,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                     <property name="digits">3</property>
                                     <property name="numeric">True</property>
@@ -5072,6 +5392,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -5100,6 +5424,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -10 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -5119,6 +5447,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">5 -10 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">3</property>
                                         <property name="numeric">True</property>
@@ -5177,13 +5509,160 @@
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <child>
-                              <placeholder/>
+                              <widget class="GtkFrame" id="phoebe_para_comp_raster_frame">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label_xalign">0</property>
+                                <property name="shadow_type">etched-out</property>
+                                <child>
+                                  <widget class="GtkAlignment" id="phoebe_para_comp_raster_alignment">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <child>
+                                      <widget class="GtkTable" id="phoebe_para_comp_raster_table">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="n_rows">2</property>
+                                        <property name="n_columns">3</property>
+                                        <child>
+                                          <widget class="GtkLabel" id="phoebe_para_comp_fine_raster_label">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">False</property>
+                                            <property name="xpad">30</property>
+                                            <property name="label" translatable="yes">Fine grid raster:</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkLabel" id="phoebe_para_comp_coarse_raster_label">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">False</property>
+                                            <property name="label" translatable="yes">Coarse grid raster:</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="top_attach">1</property>
+                                            <property name="bottom_attach">2</property>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkSpinButton" id="phoebe_fitt_parameters_finesize1_spinbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="invisible_char">●</property>
+                                            <property name="invisible_char_set">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">50 5 200 1 10 0</property>
+                                            <property name="numeric">True</property>
+                                            <property name="update_policy">if-valid</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="left_attach">1</property>
+                                            <property name="right_attach">2</property>
+                                            <property name="x_options">GTK_EXPAND</property>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkSpinButton" id="phoebe_fitt_parameters_finesize2_spinbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="invisible_char">●</property>
+                                            <property name="invisible_char_set">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">50 5 200 1 10 0</property>
+                                            <property name="numeric">True</property>
+                                            <property name="update_policy">if-valid</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="left_attach">2</property>
+                                            <property name="right_attach">3</property>
+                                            <property name="x_options">GTK_EXPAND</property>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkSpinButton" id="phoebe_fitt_parameters_coarsize1_spinbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="invisible_char">●</property>
+                                            <property name="invisible_char_set">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">20 5 200 1 10 0</property>
+                                            <property name="numeric">True</property>
+                                            <property name="update_policy">if-valid</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="left_attach">1</property>
+                                            <property name="right_attach">2</property>
+                                            <property name="top_attach">1</property>
+                                            <property name="bottom_attach">2</property>
+                                            <property name="x_options">GTK_EXPAND</property>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <widget class="GtkSpinButton" id="phoebe_fitt_parameters_coarsize2_spinbutton">
+                                            <property name="visible">True</property>
+                                            <property name="can_focus">True</property>
+                                            <property name="invisible_char">●</property>
+                                            <property name="invisible_char_set">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">20 5 200 1 10 0</property>
+                                            <property name="numeric">True</property>
+                                            <property name="update_policy">if-valid</property>
+                                          </widget>
+                                          <packing>
+                                            <property name="left_attach">2</property>
+                                            <property name="right_attach">3</property>
+                                            <property name="top_attach">1</property>
+                                            <property name="bottom_attach">2</property>
+                                            <property name="x_options">GTK_EXPAND</property>
+                                            <property name="y_options"></property>
+                                          </packing>
+                                        </child>
+                                      </widget>
+                                    </child>
+                                  </widget>
+                                </child>
+                                <child>
+                                  <widget class="GtkLabel" id="phoebe_para_comp_raster_label">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt; Surface discritization: &lt;/b&gt;</property>
+                                    <property name="use_markup">True</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="type">label_item</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
                             <child>
                               <widget class="GtkFrame" id="phoebe_para_comp_info_frame">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="label_xalign">0</property>
+                                <property name="shadow_type">etched-out</property>
                                 <child>
                                   <widget class="GtkAlignment" id="phoebe_para_comp_info_alignment">
                                     <property name="visible">True</property>
@@ -5399,10 +5878,13 @@
                                 <property name="position">1</property>
                               </packing>
                             </child>
+                            <child>
+                              <placeholder/>
+                            </child>
                           </widget>
                           <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
                             <property name="position">6</property>
                           </packing>
                         </child>
@@ -5443,6 +5925,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -5513,6 +5999,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb1step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5539,6 +6029,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb1min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5556,6 +6050,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb1max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5620,6 +6118,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -5690,6 +6192,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb2step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5716,6 +6222,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb2min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5733,6 +6243,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_alb2max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5799,6 +6313,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -5869,6 +6387,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr1step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5895,6 +6417,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr1min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5912,6 +6438,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr1max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -5978,6 +6508,10 @@
                                     <property name="width_request">120</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
@@ -6048,6 +6582,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr2step_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6074,6 +6612,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr2min_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6091,6 +6633,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_surf_gr2max_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6329,6 +6875,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6346,6 +6896,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6397,6 +6951,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.10000000000000009 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6414,6 +6972,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.10000000000000009 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6433,6 +6995,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6450,6 +7016,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6779,6 +7349,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6797,6 +7371,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6816,6 +7394,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6835,6 +7417,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6852,6 +7438,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6872,6 +7462,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6891,6 +7485,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6908,6 +7506,10 @@
                                         <property name="width_request">100</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -6928,6 +7530,10 @@
                                         <property name="visible">True</property>
                                         <property name="sensitive">False</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 10000000000 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7088,6 +7694,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_lum_options_reflections_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">2 1 20 1 5 0</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
@@ -7323,6 +7933,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_bolcoefs_secy_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.5 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7342,6 +7956,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_bolcoefs_primy_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.5 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7361,6 +7979,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_bolcoefs_secx_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.5 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7380,6 +8002,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_bolcoefs_primx_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0.5 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7637,6 +8263,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_secstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7655,6 +8285,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_primstep_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7795,6 +8429,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_primmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7811,6 +8449,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_secmin_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7829,6 +8471,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_primmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -7845,6 +8491,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_para_ld_lccoefs_secmax_spinbutton">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
@@ -8203,6 +8853,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 3.1415920000000002 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8287,6 +8941,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8329,6 +8987,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 3.1415920000000002 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8371,6 +9033,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">3.04 0 3.1400000000000001 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8454,6 +9120,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 6.2831849999999996 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8538,6 +9208,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8580,6 +9254,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 6.2831853071800001 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8622,6 +9300,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">6.2831853071800001 0 6.2831853071800001 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8705,6 +9387,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 3.1415920000000002 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8789,6 +9475,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8831,6 +9521,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0 0 3.1415920000000002 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8873,6 +9567,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">3.04 0 3.1400000000000001 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -8956,6 +9654,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">1 0 100 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -9040,6 +9742,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0.02 0 1 0.01 0.10000000000000001 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -9082,6 +9788,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">0.20000000000000001 0 100 0.10000000000000001 1 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -9124,6 +9834,10 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
                                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">5 0 100 0.10000000000000001 1 0</property>
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
@@ -9373,8 +10087,8 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="border_width">5</property>
-                                <property name="n_rows">4</property>
-                                <property name="n_columns">3</property>
+                                <property name="n_rows">2</property>
+                                <property name="n_columns">2</property>
                                 <child>
                                   <widget class="GtkCheckButton" id="phoebe_fitt_dc_symder_switch_checkbutton">
                                     <property name="label" translatable="yes">Symmetric derivatives</property>
@@ -9387,87 +10101,9 @@
                                   </widget>
                                   <packing>
                                     <property name="right_attach">2</property>
-                                    <property name="top_attach">3</property>
-                                    <property name="bottom_attach">4</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkLabel" id="label1">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">False</property>
-                                    <property name="xalign">0</property>
-                                    <property name="label" translatable="yes">Fine grid raster:</property>
-                                  </widget>
-                                </child>
-                                <child>
-                                  <widget class="GtkSpinButton" id="phoebe_fitt_parameters_finesize1_spinbutton">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="adjustment">50 5 200 1 10 0</property>
-                                    <property name="numeric">True</property>
-                                    <property name="update_policy">if-valid</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="left_attach">1</property>
-                                    <property name="right_attach">2</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkSpinButton" id="phoebe_fitt_parameters_finesize2_spinbutton">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="adjustment">50 5 200 1 10 0</property>
-                                    <property name="numeric">True</property>
-                                    <property name="update_policy">if-valid</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="left_attach">2</property>
-                                    <property name="right_attach">3</property>
-                                    <property name="x_options">GTK_EXPAND</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkLabel" id="label2">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">False</property>
-                                    <property name="xalign">0</property>
-                                    <property name="label" translatable="yes">Coarse grid raster:</property>
-                                  </widget>
-                                  <packing>
                                     <property name="top_attach">1</property>
                                     <property name="bottom_attach">2</property>
-                                    <property name="x_options">GTK_FILL</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkSpinButton" id="phoebe_fitt_parameters_coarsize1_spinbutton">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="adjustment">5 5 200 1 10 0</property>
-                                    <property name="numeric">True</property>
-                                    <property name="update_policy">if-valid</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="left_attach">1</property>
-                                    <property name="right_attach">2</property>
-                                    <property name="top_attach">1</property>
-                                    <property name="bottom_attach">2</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkSpinButton" id="phoebe_fitt_parameters_coarsize2_spinbutton">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="adjustment">5 5 200 1 10 0</property>
-                                    <property name="numeric">True</property>
-                                    <property name="update_policy">if-valid</property>
-                                  </widget>
-                                  <packing>
-                                    <property name="left_attach">2</property>
-                                    <property name="right_attach">3</property>
-                                    <property name="top_attach">1</property>
-                                    <property name="bottom_attach">2</property>
-                                    <property name="x_options">GTK_EXPAND</property>
+                                    <property name="y_options"></property>
                                   </packing>
                                 </child>
                                 <child>
@@ -9475,35 +10111,32 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="xalign">0</property>
+                                    <property name="xpad">10</property>
                                     <property name="label" translatable="yes">Marquardt Lambda:</property>
                                   </widget>
                                   <packing>
-                                    <property name="top_attach">2</property>
-                                    <property name="bottom_attach">3</property>
+                                    <property name="y_options"></property>
                                   </packing>
                                 </child>
                                 <child>
                                   <widget class="GtkSpinButton" id="phoebe_fitt_parameters_lambda_spinbutton">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
+                                    <property name="adjustment">1 0 1 0.01 0.10000000000000001 0</property>
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
                                   </widget>
                                   <packing>
-                                    <property name="left_attach">2</property>
-                                    <property name="right_attach">3</property>
-                                    <property name="top_attach">2</property>
-                                    <property name="bottom_attach">3</property>
+                                    <property name="left_attach">1</property>
+                                    <property name="right_attach">2</property>
                                     <property name="x_options"></property>
+                                    <property name="y_options"></property>
                                   </packing>
-                                </child>
-                                <child>
-                                  <placeholder/>
-                                </child>
-                                <child>
-                                  <placeholder/>
                                 </child>
                               </widget>
                             </child>
@@ -9561,6 +10194,10 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">200 0 10000000 1 10 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
@@ -9592,6 +10229,10 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                                    <property name="primary_icon_activatable">False</property>
+                                    <property name="secondary_icon_activatable">False</property>
+                                    <property name="primary_icon_sensitive">True</property>
+                                    <property name="secondary_icon_sensitive">True</property>
                                     <property name="adjustment">0.001 0 1 0.001 0.01 0</property>
                                     <property name="digits">4</property>
                                     <property name="numeric">True</property>
@@ -10083,6 +10724,10 @@
                                               <widget class="GtkSpinButton" id="phoebe_lc_plot_options_vertices_no_spinbutton">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">100 2 1000000 1 10 0</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
@@ -10208,6 +10853,10 @@
                                           <widget class="GtkSpinButton" id="phoebe_lc_plot_options_phend_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">0.59999999999999998 -2 2 0.01 0.10000000000000001 0</property>
                                             <property name="digits">5</property>
                                             <property name="numeric">True</property>
@@ -10225,6 +10874,10 @@
                                           <widget class="GtkSpinButton" id="phoebe_lc_plot_options_phstart_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">-0.59999999999999998 -2 2 0.01 0.10000000000000001 0</property>
                                             <property name="digits">5</property>
                                             <property name="numeric">True</property>
@@ -11397,6 +12050,10 @@
                                               <widget class="GtkSpinButton" id="phoebe_rv_plot_options_vertices_no_spinbutton">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
+                                                <property name="primary_icon_activatable">False</property>
+                                                <property name="secondary_icon_activatable">False</property>
+                                                <property name="primary_icon_sensitive">True</property>
+                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">100 2 1000000 1 10 0</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
@@ -11522,6 +12179,10 @@
                                           <widget class="GtkSpinButton" id="phoebe_rv_plot_options_phend_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">0.59999999999999998 -2 2 0.01 0.10000000000000001 0</property>
                                             <property name="digits">5</property>
                                             <property name="numeric">True</property>
@@ -11539,6 +12200,10 @@
                                           <widget class="GtkSpinButton" id="phoebe_rv_plot_options_phstart_spinbutton">
                                             <property name="visible">True</property>
                                             <property name="can_focus">True</property>
+                                            <property name="primary_icon_activatable">False</property>
+                                            <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">-0.59999999999999998 -2 2 0.01 0.10000000000000001 0</property>
                                             <property name="digits">5</property>
                                             <property name="numeric">True</property>
@@ -11961,6 +12626,10 @@
                                       <widget class="GtkSpinButton" id="phoebe_plot_mesh_phase">
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
+                                        <property name="primary_icon_activatable">False</property>
+                                        <property name="secondary_icon_activatable">False</property>
+                                        <property name="primary_icon_sensitive">True</property>
+                                        <property name="secondary_icon_sensitive">True</property>
                                         <property name="adjustment">0 -0.5 0.5 0.01 0.10000000000000001 0</property>
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
