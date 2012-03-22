@@ -144,6 +144,7 @@ int phoebe_init_parameters ()
 
 	phoebe_parameter_add ("phoebe_compute_hla_switch",   "Compute passband (HLA) levels",              KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
 	phoebe_parameter_add ("phoebe_compute_vga_switch",   "Compute gamma velocity",                     KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
+	phoebe_parameter_add ("phoebe_compute_logg_switch",  "Adopt log(g) values from the model",         KIND_SWITCH,     NULL,          "%d",  0.0,    0.0,    0.0, NO, TYPE_BOOL,           NO);
 
 	/* **********************   DC fit parameters   ************************* */
 
