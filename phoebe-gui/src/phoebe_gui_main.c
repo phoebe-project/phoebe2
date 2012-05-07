@@ -110,7 +110,7 @@ int main (int argc, char *argv[])
 	
 	phoebe_gui_quit ();
 	
-	phoebe_quit ();
+	//phoebe_quit ();
 	
 	return SUCCESS;
 }

@@ -394,6 +394,9 @@ int phoebe_quit ()
 	/* Free all global PHOEBE strings: */
 	free (PHOEBE_STARTUP_DIR);
 	free (PHOEBE_INPUT_LOCALE);
+#ifdef __MINGW32__
+	if (getenv ("HOME"))
+#endif
 	free (USER_HOME_DIR);
 	free (PHOEBE_HOME_DIR);
 	free (PHOEBE_CONFIG);

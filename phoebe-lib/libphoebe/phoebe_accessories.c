@@ -578,12 +578,26 @@ char *phoebe_create_temp_filename (char *templ)
 	phoebe_config_entry_get ("PHOEBE_TEMP_DIR", &tmpdir);
 	tmpfname = phoebe_concatenate_strings (tmpdir, "/", templ, NULL);
 
+#ifdef __MINGW32__
+	check = mktemp (tmpfname);
+	if (!check || strlen (check) == 0) {
+		free (tmpfname);
+		return NULL;
+	};
+	FILE *f;
+	if ((f = fopen(tmpfname, "w")) == -1) {
+		free (tmpfname);
+		return NULL;
+	};
+	fclose(f);
+#else
 	if ((fd = mkstemp (tmpfname)) == -1) {
 		free (tmpfname);
 		return NULL;
 	};
 
 	close(fd);
+#endif
 	return tmpfname;
 }
 
