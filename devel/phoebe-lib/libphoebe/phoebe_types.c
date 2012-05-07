@@ -2902,7 +2902,7 @@ int phoebe_curve_compute (PHOEBE_curve *curve, PHOEBE_vector *nodes, int index, 
 			return ERROR_EXCEPTION_HANDLER_INVOKED;
 	}
 
-//	remove (lcin);
+	remove (lcin);
 	free (lcin);
 
 	if (fti && mpage == 1) {

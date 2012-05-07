@@ -111,6 +111,7 @@ double phoebe_chi2_cost_function (PHOEBE_vector *adjpars, PHOEBE_nms_parameters 
 		lcin = phoebe_create_temp_filename ("phoebe_lci_XXXXXX");
 		create_lci_file (lcin, lcipars[i]);
 		phoebe_compute_lc_using_wd (curve, obs[i]->indep, lcin);
+		remove (lcin);
 		free (lcin);
 
 		if (params->autolevels && i < lcno) {
