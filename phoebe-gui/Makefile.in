@@ -265,7 +265,8 @@ EXTRA_DIST = autoconfig/depcomp                      \
              autoconfig/missing                      \
              phoebe-gui.xml                          \
              phoebe-gui.mime                         \
-             phoebe-gui.desktop
+             phoebe-gui.desktop                      \
+             src/version.h
 
 all: all-recursive
 

@@ -470,6 +470,20 @@ void on_angle_units_changed (GtkComboBox *widget, gpointer user_data)
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(dperdtmax_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(dperdtmax_spinbutton)) * change_factor);
 }
 
+G_MODULE_EXPORT
+void on_auto_logg_switch_toggled (GtkToggleButton *togglebutton, gpointer user_data)
+{
+	/* Toggle log(g) spin button sensitivity based on the toggle state: */
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(togglebutton)) == TRUE) {
+		gtk_widget_set_sensitive (GTK_WIDGET(gui_widget_lookup("phoebe_para_comp_logg1_spinbutton")->gtk), FALSE);
+		gtk_widget_set_sensitive (GTK_WIDGET(gui_widget_lookup("phoebe_para_comp_logg2_spinbutton")->gtk), FALSE);
+	}
+	else {
+		gtk_widget_set_sensitive (GTK_WIDGET(gui_widget_lookup("phoebe_para_comp_logg1_spinbutton")->gtk), TRUE);
+		gtk_widget_set_sensitive (GTK_WIDGET(gui_widget_lookup("phoebe_para_comp_logg2_spinbutton")->gtk), TRUE);
+	}
+}
+
 G_MODULE_EXPORT void on_phoebe_data_star_model_combobox_changed (GtkComboBox *widget, gpointer user_data)
 {
 	int star_model = gtk_combo_box_get_active(widget) - 1;
@@ -530,11 +544,11 @@ void on_phoebe_potential_parameter_value_changed (GtkSpinButton *spinbutton, gpo
 	e = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_ecc_spinbutton));
 	F = gtk_spin_button_get_value(GTK_SPIN_BUTTON(phoebe_para_orb_f1_spinbutton));
 
-	printf("\nq = %f, e = %f, f1 = %f\n", q, e, F);
+//	printf("\nq = %f, e = %f, f1 = %f\n", q, e, F);
 
 	status = phoebe_calculate_critical_potentials(q, F, e, &L1, &L2);
 
-	printf("L1 = %f, L2 = %f\n", L1, L2);
+//	printf("L1 = %f, L2 = %f\n", L1, L2);
 
 	/* Conviniently the potentials are in the first two rows */
 
@@ -549,11 +563,12 @@ int gui_interpolate_all_ld_coefficients (char *ldlaw, double tavh, double tavc, 
 {
 	/* Interpolate all LD coefficients */
 	PHOEBE_passband *passband;
-	int status, lcno, index;
+	int status, lcno, rvno, index;
 	char *notice_title = "LD coefficients interpolation";
 	GtkTreeModel *model = GTK_TREE_MODEL (gui_widget_lookup ("phoebe_para_ld_lccoefs_primx")->gtk);
 
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lcno"), &lcno);
+	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_rvno"), &rvno);
 
 	for (index = -1; index < lcno; index++) {
 		GtkTreeIter iter;
@@ -568,13 +583,18 @@ int gui_interpolate_all_ld_coefficients (char *ldlaw, double tavh, double tavc, 
 
 			phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_lc_id"), index, &id);
 			passband = phoebe_passband_lookup_by_id (id);
+			if (!passband) {
+				printf ("Passband %s is invalid or unsupported.\n", id);
+			}
 			
 			gtk_tree_model_get_iter_first (model, &iter);
 			for (i = 0; i < index; i++)
 				gtk_tree_model_iter_next (model, &iter);
 		}
 		
+		/* PRIMARY STAR: */
 		status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met1, tavh, logg1, &x1, &y1);
+//		printf("star 1: teff=%1.1f, logg=%3.3f, [M/H]=%2.2f, x=%f, y=%f\n", tavh, logg1, met1, x1, y1);
 
 		switch (status) {
 			case SUCCESS:
@@ -596,10 +616,13 @@ int gui_interpolate_all_ld_coefficients (char *ldlaw, double tavh, double tavc, 
 			break;
 			default:
 				gui_notice (notice_title, phoebe_gui_error (status));
+				printf ("tavh = %lf, logg1 = %lf, met1 = %lf\n", tavh, logg1, met1);
 				return status;
 		}
 
-		status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavh, logg2, &x2, &y2); 
+		/* SECONDARY STAR: */
+		status = phoebe_ld_get_coefficients (phoebe_ld_model_type (ldlaw), passband, met2, tavc, logg2, &x2, &y2); 
+//		printf("star 2: teff=%1.1f, logg=%3.3f, [M/H]=%2.2f: x=%f, y=%f\n", tavc, logg2, met2, x2, y2);
 
 		switch (status) {
 			case SUCCESS:
@@ -621,6 +644,7 @@ int gui_interpolate_all_ld_coefficients (char *ldlaw, double tavh, double tavc, 
 			break;
 			default:
 				gui_notice (notice_title, phoebe_gui_error (status));
+				printf ("tavc = %lf, logg2 = %lf, met2 = %lf\n", tavc, logg2, met2);
 				return status;
 		}
 	}
@@ -642,19 +666,19 @@ int gui_update_ld_coefficients ()
 	gui_get_values_from_widgets ();
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff1"), &tavh);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_teff2"), &tavc);
-
-	if (LOGG_VALUES_NEED_RECALCULATING) {
-		call_wd_to_get_logg_values (&logg1, &logg2);
-		LOGG_VALUES_NEED_RECALCULATING = FALSE;
-	}
-	else {
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg1"), &logg1);
-		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg2"), &logg2);
-	}
-
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met1"), &met1);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_met2"), &met2);
 	phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_ld_model"), &ldlaw);
+
+	/* For log(g) we need to see whether the automatic updating is in place: */
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (gui_widget_lookup ("phoebe_para_lum_atmospheres_grav_checkbutton")->gtk)) == TRUE) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg1"), &logg1);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg2"), &logg2);
+	}
+	else {
+		logg1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_comp_logg1_spinbutton")->gtk));
+		logg2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_comp_logg2_spinbutton")->gtk));
+	}
 
 	status = gui_interpolate_all_ld_coefficients (ldlaw, tavh, tavc, logg1, logg2, met1, met2);
 
@@ -673,9 +697,11 @@ int gui_update_ld_coefficients_on_autoupdate ()
 	/* Update LD coefficients when parameter gui_ld_model_autoupdate is set */
 	GtkWidget *phoebe_para_ld_model_autoupdate_checkbutton = gui_widget_lookup("phoebe_para_ld_model_autoupdate_checkbutton")->gtk;
 
+//	printf("LD autoupdate status: %d\nLD need updating: %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(phoebe_para_ld_model_autoupdate_checkbutton)), LD_COEFFS_NEED_UPDATING);
+
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(phoebe_para_ld_model_autoupdate_checkbutton)))
 		status = gui_update_ld_coefficients ();
-
+	
 	return status;
 }
 
@@ -2629,6 +2655,7 @@ void on_phoebe_ld_dialog_interpolate_button_clicked (GtkButton *button, gpointer
 	char *id;
 	double x1, x2, y1, y2;
 
+	/* Make sure that ID and filter parameter arrays are updated: */
 	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_lc_id"));
 	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_rv_id"));
 	gui_get_value_from_widget (gui_widget_lookup ("phoebe_data_lc_filter"));
@@ -2827,33 +2854,40 @@ void on_phoebe_para_ld_model_tables_vanhamme_button_clicked (GtkButton *button, 
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_tavc_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_tavc_spinbutton")->gtk)));
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_met2_spinbutton), gtk_spin_button_get_value(GTK_SPIN_BUTTON(gui_widget_lookup("phoebe_para_comp_met2_spinbutton")->gtk)));
 
-	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_logg1"), &logg1);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_logg1_spinbutton), logg1);
+	/* For log(g) we need to see whether the automatic updating is in place: */
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (gui_widget_lookup ("phoebe_para_lum_atmospheres_grav_checkbutton")->gtk)) == TRUE) {
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg1"), &logg1);
+		phoebe_parameter_get_value (phoebe_parameter_lookup ("phoebe_logg2"), &logg2);
+	}
+	else {
+		logg1 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_comp_logg1_spinbutton")->gtk));
+		logg2 = gtk_spin_button_get_value (GTK_SPIN_BUTTON (gui_widget_lookup ("phoebe_para_comp_logg2_spinbutton")->gtk));
+	}
 
-	phoebe_parameter_get_value(phoebe_parameter_lookup("phoebe_logg2"), &logg2);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(phoebe_ld_dialog_logg2_spinbutton), logg2);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_ld_dialog_logg1_spinbutton), logg1);
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (phoebe_ld_dialog_logg2_spinbutton), logg2);
 
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_law_combobox", (gpointer) phoebe_ld_dialog_law_combobox);
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_id_combobox", (gpointer) phoebe_ld_dialog_id_combobox);
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavh_spinbutton", (gpointer) phoebe_ld_dialog_tavh_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg1_spinbutton", (gpointer) phoebe_ld_dialog_logg1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met1_spinbutton", (gpointer) phoebe_ld_dialog_met1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavc_spinbutton", (gpointer) phoebe_ld_dialog_tavc_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg2_spinbutton", (gpointer) phoebe_ld_dialog_logg2_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met2_spinbutton", (gpointer) phoebe_ld_dialog_met2_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x1_spinbutton", (gpointer) phoebe_ld_dialog_x1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y1_spinbutton", (gpointer) phoebe_ld_dialog_y1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x2_spinbutton", (gpointer) phoebe_ld_dialog_x2_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y2_spinbutton", (gpointer) phoebe_ld_dialog_y2_spinbutton );
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_law_combobox",     (gpointer) phoebe_ld_dialog_law_combobox);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_id_combobox",      (gpointer) phoebe_ld_dialog_id_combobox);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavh_spinbutton",  (gpointer) phoebe_ld_dialog_tavh_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg1_spinbutton", (gpointer) phoebe_ld_dialog_logg1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met1_spinbutton",  (gpointer) phoebe_ld_dialog_met1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_tavc_spinbutton",  (gpointer) phoebe_ld_dialog_tavc_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_logg2_spinbutton", (gpointer) phoebe_ld_dialog_logg2_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_met2_spinbutton",  (gpointer) phoebe_ld_dialog_met2_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x1_spinbutton",    (gpointer) phoebe_ld_dialog_x1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y1_spinbutton",    (gpointer) phoebe_ld_dialog_y1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_x2_spinbutton",    (gpointer) phoebe_ld_dialog_x2_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_interpolate_button), "data_y2_spinbutton",    (gpointer) phoebe_ld_dialog_y2_spinbutton);
 
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_x1_spinbutton", (gpointer) phoebe_ld_dialog_x1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y1_spinbutton", (gpointer) phoebe_ld_dialog_y1_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_x2_spinbutton", (gpointer) phoebe_ld_dialog_x2_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_y2_spinbutton", (gpointer) phoebe_ld_dialog_y2_spinbutton );
-	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button), "data_id_combobox", (gpointer) phoebe_ld_dialog_id_combobox);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button),      "data_x1_spinbutton",    (gpointer) phoebe_ld_dialog_x1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button),      "data_y1_spinbutton",    (gpointer) phoebe_ld_dialog_y1_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button),      "data_x2_spinbutton",    (gpointer) phoebe_ld_dialog_x2_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button),      "data_y2_spinbutton",    (gpointer) phoebe_ld_dialog_y2_spinbutton);
+	g_object_set_data (G_OBJECT (phoebe_ld_dialog_update_button),      "data_id_combobox",      (gpointer) phoebe_ld_dialog_id_combobox);
 
-	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_close_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_close_button_clicked), (gpointer) phoebe_ld_dialog);
-	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_update_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_update_button_clicked), NULL);
+	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_close_button),       "clicked", G_CALLBACK (on_phoebe_ld_dialog_close_button_clicked), (gpointer) phoebe_ld_dialog);
+	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_update_button),      "clicked", G_CALLBACK (on_phoebe_ld_dialog_update_button_clicked), NULL);
 	g_signal_connect (GTK_WIDGET(phoebe_ld_dialog_interpolate_button), "clicked", G_CALLBACK (on_phoebe_ld_dialog_interpolate_button_clicked), NULL);
 
 	gtk_widget_show (phoebe_ld_dialog);

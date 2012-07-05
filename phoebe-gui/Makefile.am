@@ -41,7 +41,8 @@ EXTRA_DIST = autoconfig/depcomp                      \
              autoconfig/missing                      \
              phoebe-gui.xml                          \
              phoebe-gui.mime                         \
-             phoebe-gui.desktop
+             phoebe-gui.desktop                      \
+             src/version.h
 
 #install-data-hook:
 #	if test "x@have_update_mime_database@" = "xyes"; then \
