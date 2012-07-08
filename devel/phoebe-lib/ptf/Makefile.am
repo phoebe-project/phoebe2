@@ -117,6 +117,11 @@ phoebeptf_DATA = 2mass_j.ptf                 \
                  stromgren_1956_hbnarrow.txt \
                  stromgren_1956_hbwide.txt   \
                  swasp_2004.ptf              \
-                 swasp_2006.ptf
+                 swasp_2006.ptf              \
+                 walraven_b.ptf              \
+                 walraven_l.ptf              \
+                 walraven_u.ptf              \
+                 walraven_v.ptf              \
+                 walraven_w.ptf
 
 EXTRA_DIST = $(phoebeptf_DATA)
