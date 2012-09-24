@@ -3250,7 +3250,7 @@
                                         <property name="secondary_icon_activatable">False</property>
                                         <property name="primary_icon_sensitive">True</property>
                                         <property name="secondary_icon_sensitive">True</property>
-                                        <property name="adjustment">0 0 1 0.01 0.10000000000000001 0</property>
+                                        <property name="adjustment">0 -1 1 0.01 0.10000000000000001 0</property>
                                         <property name="climb_rate">0.0099999997764825821</property>
                                         <property name="digits">10</property>
                                         <property name="numeric">True</property>
