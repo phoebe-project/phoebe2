@@ -1,33 +1,84 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <glade-interface>
   <!-- interface-requires gtk+ 2.6 -->
   <!-- interface-naming-policy toplevel-contextual -->
   <widget class="GtkDialog" id="phoebe_load_lc_dialog">
+    <property name="can_focus">False</property>
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <property name="border_width">5</property>
     <property name="window_position">center-on-parent</property>
     <property name="type_hint">dialog</property>
-    <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox1">
         <property name="visible">True</property>
+        <property name="can_focus">False</property>
         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
         <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <widget class="GtkHButtonBox" id="dialog-action_area1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+            <property name="layout_style">end</property>
+            <child>
+              <widget class="GtkButton" id="phoebe_load_lc_ok_button">
+                <property name="label">gtk-ok</property>
+                <property name="response_id">-5</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkButton" id="phoebe_load_lc_cancel_button">
+                <property name="label">gtk-cancel</property>
+                <property name="response_id">-6</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </widget>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
         <child>
           <widget class="GtkFrame" id="frame3">
             <property name="visible">True</property>
+            <property name="can_focus">False</property>
             <property name="border_width">1</property>
             <property name="label_xalign">0</property>
             <child>
               <widget class="GtkVBox" id="vbox4">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <child>
                   <widget class="GtkHBox" id="hbox1">
                     <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <child>
                       <widget class="GtkLabel" id="phoebe_load_lc_id_label">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                         <property name="yalign">0.50999999046325684</property>
                         <property name="xpad">10</property>
@@ -35,6 +86,7 @@
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">True</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
@@ -44,43 +96,58 @@
                         <property name="can_focus">True</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                         <property name="tooltip" translatable="yes">Common name of the light curve; this name will be used to identify the curve throughout PHOEBE.</property>
+                        <property name="primary_icon_activatable">False</property>
+                        <property name="secondary_icon_activatable">False</property>
+                        <property name="primary_icon_sensitive">True</property>
+                        <property name="secondary_icon_sensitive">True</property>
                       </widget>
                       <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">0</property>
                   </packing>
                 </child>
                 <child>
                   <widget class="GtkHBox" id="hbox6">
                     <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                     <child>
                       <widget class="GtkLabel" id="phoebe_load_lc_filename_label">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="xpad">10</property>
                         <property name="label" translatable="yes">Filename:</property>
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">True</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
                       <widget class="GtkFileChooserButton" id="phoebe_load_lc_filechooserbutton">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="border_width">1</property>
                         <property name="width_chars">5</property>
                       </widget>
                       <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="expand">False</property>
+                    <property name="fill">True</property>
                     <property name="padding">4</property>
                     <property name="position">1</property>
                   </packing>
@@ -88,9 +155,11 @@
                 <child>
                   <widget class="GtkHSeparator" id="hseparator7">
                     <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                   </widget>
                   <packing>
                     <property name="expand">False</property>
+                    <property name="fill">True</property>
                     <property name="padding">4</property>
                     <property name="position">2</property>
                   </packing>
@@ -98,9 +167,11 @@
                 <child>
                   <widget class="GtkHBox" id="hbox8">
                     <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                     <child>
                       <widget class="GtkTable" id="table7">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="border_width">4</property>
                         <property name="n_rows">3</property>
                         <property name="n_columns">2</property>
@@ -108,6 +179,7 @@
                         <child>
                           <widget class="GtkLabel" id="phoebe_load_lc_column1_label">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Column 1:</property>
                           </widget>
                           <packing>
@@ -117,6 +189,7 @@
                         <child>
                           <widget class="GtkLabel" id="phoebe_load_lc_column2_label">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Column 2:</property>
                           </widget>
                           <packing>
@@ -128,6 +201,7 @@
                         <child>
                           <widget class="GtkLabel" id="phoebe_load_lc_column3_label">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Column 3:</property>
                           </widget>
                           <packing>
@@ -139,6 +213,7 @@
                         <child>
                           <widget class="GtkComboBox" id="phoebe_load_lc_column1_combobox">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
@@ -150,6 +225,7 @@
                         <child>
                           <widget class="GtkComboBox" id="phoebe_load_lc_column2_combobox">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
@@ -164,6 +240,7 @@
                         <child>
                           <widget class="GtkComboBox" id="phoebe_load_lc_column3_combobox">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
@@ -178,15 +255,18 @@
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">True</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
                       <widget class="GtkVSeparator" id="vseparator3">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">True</property>
                         <property name="padding">4</property>
                         <property name="position">1</property>
                       </packing>
@@ -194,6 +274,7 @@
                     <child>
                       <widget class="GtkTable" id="table8">
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="border_width">4</property>
                         <property name="n_rows">2</property>
                         <property name="n_columns">2</property>
@@ -202,6 +283,7 @@
                         <child>
                           <widget class="GtkLabel" id="phoebe_load_lc_sigma_label">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Sigma:</property>
                           </widget>
                           <packing>
@@ -211,6 +293,7 @@
                         <child>
                           <widget class="GtkLabel" id="phoebe_load_lc_filter_label">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Filter:</property>
                           </widget>
                           <packing>
@@ -223,9 +306,13 @@
                           <widget class="GtkSpinButton" id="phoebe_load_lc_sigma_spinbutton">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
-                            <property name="adjustment">0.01 0 100 0.01 0.10000000000000001 0</property>
+                            <property name="primary_icon_activatable">False</property>
+                            <property name="secondary_icon_activatable">False</property>
+                            <property name="primary_icon_sensitive">True</property>
+                            <property name="secondary_icon_sensitive">True</property>
+                            <property name="adjustment">0.01 0 1000000 0.01 0.10000000000000001 0</property>
                             <property name="climb_rate">0.0099999997764825821</property>
-                            <property name="digits">5</property>
+                            <property name="digits">8</property>
                           </widget>
                           <packing>
                             <property name="left_attach">1</property>
@@ -236,6 +323,7 @@
                         <child>
                           <widget class="GtkComboBox" id="phoebe_load_lc_filter_combobox">
                             <property name="visible">True</property>
+                            <property name="can_focus">False</property>
                             <property name="items" translatable="yes"></property>
                           </widget>
                           <packing>
@@ -249,21 +337,25 @@
                       </widget>
                       <packing>
                         <property name="expand">False</property>
+                        <property name="fill">True</property>
                         <property name="position">2</property>
                       </packing>
                     </child>
                   </widget>
                   <packing>
                     <property name="expand">False</property>
+                    <property name="fill">True</property>
                     <property name="position">3</property>
                   </packing>
                 </child>
                 <child>
                   <widget class="GtkHSeparator" id="hseparator8">
                     <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                   </widget>
                   <packing>
                     <property name="expand">False</property>
+                    <property name="fill">True</property>
                     <property name="padding">4</property>
                     <property name="position">4</property>
                   </packing>
@@ -280,12 +372,15 @@
                       <widget class="GtkTextView" id="phoebe_load_lc_preview_textview">
                         <property name="height_request">150</property>
                         <property name="visible">True</property>
+                        <property name="can_focus">False</property>
                         <property name="editable">False</property>
                         <property name="cursor_visible">False</property>
                       </widget>
                     </child>
                   </widget>
                   <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">5</property>
                   </packing>
                 </child>
@@ -294,6 +389,7 @@
             <child>
               <widget class="GtkLabel" id="phoebe_load_lc_label">
                 <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <property name="label" translatable="yes">&lt;b&gt;LC data&lt;/b&gt;</property>
                 <property name="use_markup">True</property>
               </widget>
@@ -303,49 +399,9 @@
             </child>
           </widget>
           <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
             <property name="position">1</property>
-          </packing>
-        </child>
-        <child internal-child="action_area">
-          <widget class="GtkHButtonBox" id="dialog-action_area1">
-            <property name="visible">True</property>
-            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-            <property name="layout_style">end</property>
-            <child>
-              <widget class="GtkButton" id="phoebe_load_lc_ok_button">
-                <property name="label">gtk-ok</property>
-                <property name="response_id">-5</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="receives_default">False</property>
-                <property name="use_stock">True</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkButton" id="phoebe_load_lc_cancel_button">
-                <property name="label">gtk-cancel</property>
-                <property name="response_id">-6</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="receives_default">False</property>
-                <property name="use_stock">True</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </widget>
-          <packing>
-            <property name="expand">False</property>
-            <property name="pack_type">end</property>
-            <property name="position">0</property>
           </packing>
         </child>
       </widget>
