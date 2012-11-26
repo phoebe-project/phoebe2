@@ -7,7 +7,7 @@
     <property name="title" translatable="yes">PHOEBE</property>
     <property name="default_width">800</property>
     <property name="default_height">600</property>
-    <signal name="delete_event" handler="on_phoebe_window_delete_event" object="phoebe_window"/>
+    <signal name="delete_event" handler="on_phoebe_window_delete_event" object="phoebe_window" swapped="yes"/>
     <child>
       <widget class="GtkVBox" id="phoebe_vbox">
         <property name="visible">True</property>
@@ -34,7 +34,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_file_new_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_new_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                     <child>
@@ -45,7 +45,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_file_open_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_open_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                     <child>
@@ -56,7 +56,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_file_save_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_save_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                     <child>
@@ -67,7 +67,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_file_saveas_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_saveas_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                     <child>
@@ -85,7 +85,7 @@
                         <property name="tooltip" translatable="yes">Import Binary Maker (BM3) parameter file</property>
                         <property name="use_action_appearance">False</property>
                         <property name="use_stock">False</property>
-                        <signal name="activate" handler="on_phoebe_file_import_bm3_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_import_bm3_menuitem_activate" swapped="no"/>
                         <child internal-child="image">
                           <widget class="GtkImage" id="image1">
                             <property name="visible">True</property>
@@ -109,7 +109,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_file_quit_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_file_quit_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                   </widget>
@@ -134,7 +134,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_settings_configuration_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_settings_configuration_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                   </widget>
@@ -159,7 +159,7 @@
                         <property name="use_action_appearance">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_phoebe_help_about_menuitem_activate"/>
+                        <signal name="activate" handler="on_phoebe_help_about_menuitem_activate" swapped="no"/>
                       </widget>
                     </child>
                   </widget>
@@ -184,7 +184,7 @@
                 <property name="can_focus">False</property>
                 <property name="use_action_appearance">False</property>
                 <property name="stock_id">gtk-open</property>
-                <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_open_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -197,7 +197,7 @@
                 <property name="can_focus">False</property>
                 <property name="use_action_appearance">False</property>
                 <property name="stock_id">gtk-save</property>
-                <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_save_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -220,7 +220,7 @@
                 <property name="use_action_appearance">False</property>
                 <property name="label">LC Plot</property>
                 <property name="stock_id">gtk-select-color</property>
-                <signal name="clicked" handler="on_phoebe_lc_plot_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_lc_plot_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -234,7 +234,7 @@
                 <property name="use_action_appearance">False</property>
                 <property name="label">RV Plot</property>
                 <property name="stock_id">gtk-select-color</property>
-                <signal name="clicked" handler="on_phoebe_rv_plot_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_rv_plot_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -258,7 +258,7 @@
                 <property name="label">Fitting</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-execute</property>
-                <signal name="clicked" handler="on_phoebe_fitting_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_fitting_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -282,7 +282,7 @@
                 <property name="label">Settings</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-preferences</property>
-                <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_settings_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -304,7 +304,7 @@
                 <property name="can_focus">False</property>
                 <property name="use_action_appearance">False</property>
                 <property name="stock_id">gtk-quit</property>
-                <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked"/>
+                <signal name="clicked" handler="on_phoebe_quit_toolbutton_clicked" swapped="no"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -371,7 +371,7 @@
                                     <property name="secondary_icon_activatable">False</property>
                                     <property name="primary_icon_sensitive">True</property>
                                     <property name="secondary_icon_sensitive">True</property>
-                                    <signal name="changed" handler="on_phoebe_data_star_name_entry_changed"/>
+                                    <signal name="changed" handler="on_phoebe_data_star_name_entry_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">1</property>
@@ -398,7 +398,7 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="items" translatable="yes"></property>
-                                    <signal name="changed" handler="on_phoebe_data_star_model_combobox_changed"/>
+                                    <signal name="changed" handler="on_phoebe_data_star_model_combobox_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">4</property>
@@ -428,7 +428,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_lum_options_decouple_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_lum_options_decouple_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">3</property>
@@ -499,7 +499,7 @@
                                           <widget class="GtkTreeView" id="phoebe_data_lc_treeview">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <signal name="row_activated" handler="on_phoebe_data_lc_treeview_row_activated"/>
+                                            <signal name="row_activated" handler="on_phoebe_data_lc_treeview_row_activated" swapped="no"/>
                                           </widget>
                                         </child>
                                       </widget>
@@ -523,7 +523,7 @@
                                             <property name="border_width">4</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_data_lc_add_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_data_lc_add_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -540,7 +540,7 @@
                                             <property name="border_width">4</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_data_lc_edit_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_data_lc_edit_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -557,7 +557,7 @@
                                             <property name="border_width">4</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_data_lc_remove_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_data_lc_remove_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -701,7 +701,7 @@
                                         <property name="receives_default">False</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_data_lc_seedgen_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_data_lc_seedgen_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -730,12 +730,12 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="xalign">0</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_label"/>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence"/>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate_label"/>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate"/>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp_label"/>
-                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_label" swapped="yes"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence" swapped="yes"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate_label" swapped="yes"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_rate" swapped="yes"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp_label" swapped="yes"/>
+                                        <signal name="toggled" handler="on_toggle_make_sensitive" object="phoebe_cadence_timestamp" swapped="yes"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -883,7 +883,7 @@
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="hover_expand">True</property>
-                                        <signal name="row_activated" handler="on_phoebe_data_rv_treeview_row_activated"/>
+                                        <signal name="row_activated" handler="on_phoebe_data_rv_treeview_row_activated" swapped="no"/>
                                       </widget>
                                     </child>
                                   </widget>
@@ -907,7 +907,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_data_rv_add_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_data_rv_add_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -924,7 +924,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_data_rv_edit_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_data_rv_edit_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -941,7 +941,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_data_rv_remove_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_data_rv_remove_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1374,7 +1374,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1541,8 +1541,8 @@
                                     <property name="digits">10</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_eph_period_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_stellar_masses_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_eph_period_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_stellar_masses_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1571,7 +1571,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1770,7 +1770,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1935,7 +1935,7 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="value_changed" handler="on_orbital_elements_changed"/>
+                                    <signal name="value_changed" handler="on_orbital_elements_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1965,7 +1965,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2162,8 +2162,8 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_sys_sma_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_stellar_masses_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_sys_sma_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_stellar_masses_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2191,7 +2191,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2359,10 +2359,10 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_sys_rm_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_star_shape_changed"/>
-                                    <signal name="value_changed" handler="on_critical_potentials_changed"/>
-                                    <signal name="value_changed" handler="on_stellar_masses_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_sys_rm_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_critical_potentials_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_stellar_masses_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2390,7 +2390,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2585,7 +2585,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2781,7 +2781,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -2982,7 +2982,7 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="value_changed" handler="on_orbital_elements_changed"/>
+                                    <signal name="value_changed" handler="on_orbital_elements_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3012,7 +3012,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3208,7 +3208,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3377,10 +3377,10 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_orb_ecc_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_orbital_elements_changed"/>
-                                    <signal name="value_changed" handler="on_star_shape_changed"/>
-                                    <signal name="value_changed" handler="on_critical_potentials_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_orb_ecc_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_orbital_elements_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_critical_potentials_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3409,7 +3409,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3576,9 +3576,9 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_orb_f1_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_star_shape_changed"/>
-                                    <signal name="value_changed" handler="on_critical_potentials_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_orb_f1_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_critical_potentials_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3607,7 +3607,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3774,8 +3774,8 @@
                                     <property name="digits">5</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_orb_f2_spinbutton_changed"/>
-                                    <signal name="value_changed" handler="on_star_shape_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_orb_f2_spinbutton_changed" swapped="no"/>
+                                    <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3804,7 +3804,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4286,7 +4286,7 @@
                                     <property name="adjustment">6000 500 100000 10 100 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_comp_tavh_spinbutton_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_comp_tavh_spinbutton_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4314,7 +4314,7 @@
                                     <property name="border_width">8</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4478,7 +4478,7 @@
                                     <property name="adjustment">1000 500 100000 10 100 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="changed" handler="on_phoebe_para_comp_tavc_spinbutton_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_comp_tavc_spinbutton_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4507,7 +4507,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4676,8 +4676,8 @@
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
-                                        <signal name="changed" handler="on_phoebe_para_comp_phsv_spinbutton_changed"/>
-                                        <signal name="value_changed" handler="on_star_shape_changed"/>
+                                        <signal name="changed" handler="on_phoebe_para_comp_phsv_spinbutton_changed" swapped="no"/>
+                                        <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -4692,7 +4692,7 @@
                                         <property name="can_focus">False</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_action_appearance">False</property>
-                                        <signal name="clicked" handler="on_phoebe_para_comp_phsv_calculate_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_comp_phsv_calculate_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">True</property>
@@ -4728,7 +4728,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -4901,8 +4901,8 @@
                                         <property name="digits">5</property>
                                         <property name="numeric">True</property>
                                         <property name="update_policy">if-valid</property>
-                                        <signal name="changed" handler="on_phoebe_para_comp_pcsv_spinbutton_changed"/>
-                                        <signal name="value_changed" handler="on_star_shape_changed"/>
+                                        <signal name="changed" handler="on_phoebe_para_comp_pcsv_spinbutton_changed" swapped="no"/>
+                                        <signal name="value_changed" handler="on_star_shape_changed" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -4917,7 +4917,7 @@
                                         <property name="can_focus">False</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_action_appearance">False</property>
-                                        <signal name="clicked" handler="on_phoebe_para_comp_pcsv_calculate_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_comp_pcsv_calculate_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">True</property>
@@ -4953,7 +4953,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -5549,7 +5549,7 @@
                                             <property name="digits">3</property>
                                             <property name="numeric">True</property>
                                             <property name="update_policy">if-valid</property>
-                                            <signal name="changed" handler="on_phoebe_para_comp_met1_spinbutton_changed"/>
+                                            <signal name="changed" handler="on_phoebe_para_comp_met1_spinbutton_changed" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -5572,7 +5572,7 @@
                                             <property name="digits">3</property>
                                             <property name="numeric">True</property>
                                             <property name="update_policy">if-valid</property>
-                                            <signal name="changed" handler="on_phoebe_para_comp_met2_spinbutton_changed"/>
+                                            <signal name="changed" handler="on_phoebe_para_comp_met2_spinbutton_changed" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">2</property>
@@ -5674,7 +5674,7 @@
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_auto_logg_switch_toggled"/>
+                                            <signal name="toggled" handler="on_auto_logg_switch_toggled" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="right_attach">3</property>
@@ -5837,7 +5837,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -6030,7 +6030,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -6225,7 +6225,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -6420,7 +6420,7 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -6626,7 +6626,7 @@
                                           <widget class="GtkTreeView" id="phoebe_para_lum_levels_treeview">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <signal name="row_activated" handler="on_phoebe_para_lum_levels_treeview_row_activated"/>
+                                            <signal name="row_activated" handler="on_phoebe_para_lum_levels_treeview_row_activated" swapped="no"/>
                                           </widget>
                                         </child>
                                       </widget>
@@ -6650,7 +6650,7 @@
                                             <property name="border_width">2</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_edit_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_edit_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -6667,7 +6667,7 @@
                                             <property name="border_width">2</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_calc_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_calc_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -6683,7 +6683,7 @@
                                             <property name="receives_default">False</property>
                                             <property name="border_width">2</property>
                                             <property name="use_action_appearance">False</property>
-                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_calc_all_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_para_lum_levels_calc_all_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -6721,7 +6721,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="x_options">GTK_FILL</property>
@@ -6737,7 +6737,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -7029,7 +7029,7 @@
                                           <widget class="GtkTreeView" id="phoebe_para_lum_el3_treeview">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <signal name="row_activated" handler="on_phoebe_para_lum_el3_treeview_row_activated"/>
+                                            <signal name="row_activated" handler="on_phoebe_para_lum_el3_treeview_row_activated" swapped="no"/>
                                           </widget>
                                         </child>
                                       </widget>
@@ -7053,7 +7053,7 @@
                                             <property name="border_width">2</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_lum_el3_edit_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_para_lum_el3_edit_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -7108,7 +7108,7 @@
                                     </child>
                                   </widget>
                                   <packing>
-                                    <property name="expand">True</property>
+                                    <property name="expand">False</property>
                                     <property name="fill">True</property>
                                     <property name="position">1</property>
                                   </packing>
@@ -7129,7 +7129,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="x_options">GTK_FILL</property>
@@ -7145,7 +7145,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -7164,7 +7164,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">2</property>
@@ -7541,7 +7541,7 @@
                             </child>
                           </widget>
                           <packing>
-                            <property name="expand">False</property>
+                            <property name="expand">True</property>
                             <property name="fill">True</property>
                             <property name="position">1</property>
                           </packing>
@@ -7889,7 +7889,7 @@
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="items" translatable="yes"></property>
-                                        <signal name="changed" handler="on_phoebe_para_ld_model_combobox_changed"/>
+                                        <signal name="changed" handler="on_phoebe_para_ld_model_combobox_changed" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="bottom_attach">2</property>
@@ -7920,7 +7920,7 @@
                                         <property name="border_width">2</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_ld_model_tables_vanhamme_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_ld_model_tables_vanhamme_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="left_attach">2</property>
@@ -8003,7 +8003,7 @@
                                           <widget class="GtkTreeView" id="phoebe_para_ld_lccoefs_treeview">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <signal name="row_activated" handler="on_phoebe_para_ld_lccoefs_treeview_row_activated"/>
+                                            <signal name="row_activated" handler="on_phoebe_para_ld_lccoefs_treeview_row_activated" swapped="no"/>
                                           </widget>
                                         </child>
                                       </widget>
@@ -8027,7 +8027,7 @@
                                             <property name="border_width">4</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="use_underline">True</property>
-                                            <signal name="clicked" handler="on_phoebe_para_ld_lccoefs_edit_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_para_ld_lccoefs_edit_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -8138,7 +8138,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="top_attach">1</property>
@@ -8156,7 +8156,7 @@
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
                                         <property name="draw_indicator">True</property>
-                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled"/>
+                                        <signal name="toggled" handler="on_phoebe_para_tba_checkbutton_toggled" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="x_options">GTK_FILL</property>
@@ -8356,7 +8356,7 @@
                                       <widget class="GtkTreeView" id="phoebe_para_ld_rvcoefs_treeview">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
-                                        <signal name="row_activated" handler="on_phoebe_para_ld_rvcoefs_treeview_row_activated"/>
+                                        <signal name="row_activated" handler="on_phoebe_para_ld_rvcoefs_treeview_row_activated" swapped="no"/>
                                       </widget>
                                     </child>
                                   </widget>
@@ -8379,7 +8379,7 @@
                                         <property name="receives_default">False</property>
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
-                                        <signal name="clicked" handler="on_phoebe_para_ld_rvcoefs_edit_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_ld_rvcoefs_edit_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -8459,8 +8459,8 @@
                                       <widget class="GtkTreeView" id="phoebe_para_spots_treeview">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
-                                        <signal name="cursor_changed" handler="on_phoebe_para_spots_treeview_cursor_changed"/>
-                                        <signal name="row_activated" handler="on_phoebe_para_spots_treeview_row_activated"/>
+                                        <signal name="cursor_changed" handler="on_phoebe_para_spots_treeview_cursor_changed" swapped="no"/>
+                                        <signal name="row_activated" handler="on_phoebe_para_spots_treeview_row_activated" swapped="no"/>
                                       </widget>
                                     </child>
                                   </widget>
@@ -8484,7 +8484,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_spots_add_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_add_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -8501,7 +8501,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_spots_edit_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_edit_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -8518,7 +8518,7 @@
                                         <property name="border_width">4</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="use_underline">True</property>
-                                        <signal name="clicked" handler="on_phoebe_para_spots_remove_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_para_spots_remove_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">False</property>
@@ -8594,7 +8594,7 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="items" translatable="yes"></property>
-                                    <signal name="changed" handler="on_phoebe_para_spots_units_combobox_changed"/>
+                                    <signal name="changed" handler="on_phoebe_para_spots_units_combobox_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -8658,7 +8658,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_lat_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lat_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -8694,7 +8694,7 @@
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_para_spots_latadjust_checkbutton_toggled"/>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_latadjust_checkbutton_toggled" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -8746,7 +8746,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_latstep_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latstep_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -8792,7 +8792,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmin_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmin_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -8838,7 +8838,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmax_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_latmax_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -8925,7 +8925,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_lon_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lon_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -8961,7 +8961,7 @@
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_para_spots_lonadjust_checkbutton_toggled"/>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_lonadjust_checkbutton_toggled" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -9013,7 +9013,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonstep_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonstep_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9059,7 +9059,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmin_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmin_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9105,7 +9105,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmax_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_lonmax_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9192,7 +9192,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_rad_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_rad_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9228,7 +9228,7 @@
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_para_spots_radadjust_checkbutton_toggled"/>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_radadjust_checkbutton_toggled" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -9280,7 +9280,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_radstep_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radstep_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9326,7 +9326,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmin_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmin_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9372,7 +9372,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmax_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_radmax_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9459,7 +9459,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_temp_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_temp_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9495,7 +9495,7 @@
                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                             <property name="use_action_appearance">False</property>
                                             <property name="draw_indicator">True</property>
-                                            <signal name="toggled" handler="on_phoebe_para_spots_tempadjust_checkbutton_toggled"/>
+                                            <signal name="toggled" handler="on_phoebe_para_spots_tempadjust_checkbutton_toggled" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -9547,7 +9547,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempstep_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempstep_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9593,7 +9593,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmin_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmin_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9639,7 +9639,7 @@
                                                 <property name="digits">4</property>
                                                 <property name="numeric">True</property>
                                                 <property name="update_policy">if-valid</property>
-                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmax_spinbutton_value_changed"/>
+                                                <signal name="value_changed" handler="on_phoebe_para_spots_tempmax_spinbutton_value_changed" swapped="no"/>
                                               </widget>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -9764,7 +9764,7 @@
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="items" translatable="yes"></property>
-                                    <signal name="changed" handler="on_phoebe_fitt_method_combobox_changed"/>
+                                    <signal name="changed" handler="on_phoebe_fitt_method_combobox_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -9831,7 +9831,7 @@
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">True</property>
                                         <property name="use_action_appearance">False</property>
-                                        <signal name="clicked" handler="on_phoebe_fitt_cfval_compute_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_fitt_cfval_compute_button_clicked" swapped="no"/>
                                       </widget>
                                       <packing>
                                         <property name="expand">True</property>
@@ -9999,7 +9999,7 @@
                                     <property name="adjustment">200 0 10000000 1 10 0</property>
                                     <property name="numeric">True</property>
                                     <property name="update_policy">if-valid</property>
-                                    <signal name="value_changed" handler="on_phoebe_fitt_nms_iters_spinbutton_value_changed"/>
+                                    <signal name="value_changed" handler="on_phoebe_fitt_nms_iters_spinbutton_value_changed" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="left_attach">1</property>
@@ -10051,7 +10051,7 @@
                                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_phoebe_fitt_nms_nolimit_checkbutton_toggled"/>
+                                    <signal name="toggled" handler="on_phoebe_fitt_nms_nolimit_checkbutton_toggled" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="right_attach">2</property>
@@ -10102,7 +10102,7 @@
                                       <widget class="GtkTreeView" id="phoebe_para_lum_weighting_treeview">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
-                                        <signal name="row_activated" handler="on_phoebe_para_lum_weighting_treeview_row_activated"/>
+                                        <signal name="row_activated" handler="on_phoebe_para_lum_weighting_treeview_row_activated" swapped="no"/>
                                       </widget>
                                     </child>
                                   </widget>
@@ -10121,7 +10121,7 @@
                                     <property name="border_width">2</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="use_underline">True</property>
-                                    <signal name="clicked" handler="on_phoebe_para_lum_weighting_edit_button_clicked"/>
+                                    <signal name="clicked" handler="on_phoebe_para_lum_weighting_edit_button_clicked" swapped="no"/>
                                   </widget>
                                   <packing>
                                     <property name="expand">False</property>
@@ -10197,7 +10197,7 @@
                                         <property name="receives_default">False</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="relief">none</property>
-                                        <signal name="clicked" handler="on_phoebe_fitt_fitting_detach_button_clicked"/>
+                                        <signal name="clicked" handler="on_phoebe_fitt_fitting_detach_button_clicked" swapped="no"/>
                                         <child>
                                           <widget class="GtkImage" id="phoebe_fitt_detach_button_image">
                                             <property name="visible">True</property>
@@ -10321,7 +10321,7 @@
                                             <property name="can_focus">False</property>
                                             <property name="receives_default">False</property>
                                             <property name="use_action_appearance">False</property>
-                                            <signal name="clicked" handler="on_phoebe_fitt_fitting_corrmat_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_fitt_fitting_corrmat_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -10348,7 +10348,7 @@
                                             <property name="can_focus">False</property>
                                             <property name="receives_default">False</property>
                                             <property name="use_action_appearance">False</property>
-                                            <signal name="clicked" handler="on_phoebe_fitt_calculate_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_fitt_calculate_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -10363,7 +10363,7 @@
                                             <property name="can_focus">False</property>
                                             <property name="receives_default">False</property>
                                             <property name="use_action_appearance">False</property>
-                                            <signal name="clicked" handler="on_phoebe_fitt_updateall_button_clicked"/>
+                                            <signal name="clicked" handler="on_phoebe_fitt_updateall_button_clicked" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="expand">False</property>
@@ -10461,7 +10461,7 @@
                                     <property name="receives_default">False</property>
                                     <property name="use_action_appearance">False</property>
                                     <property name="relief">none</property>
-                                    <signal name="clicked" handler="on_phoebe_lc_plot_detach_button_clicked"/>
+                                    <signal name="clicked" handler="on_phoebe_lc_plot_detach_button_clicked" swapped="no"/>
                                     <child>
                                       <widget class="GtkImage" id="phoebe_lc_plot_detach_button_image">
                                         <property name="visible">True</property>
@@ -10718,7 +10718,7 @@
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
                                             <property name="items" translatable="yes"></property>
-                                            <signal name="changed" handler="on_phoebe_lc_plot_options_x_combobox_changed"/>
+                                            <signal name="changed" handler="on_phoebe_lc_plot_options_x_combobox_changed" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -11394,7 +11394,7 @@
                                     <property name="relief">none</property>
                                     <property name="xalign">0</property>
                                     <property name="yalign">0</property>
-                                    <signal name="clicked" handler="on_phoebe_rv_plot_detach_button_clicked"/>
+                                    <signal name="clicked" handler="on_phoebe_rv_plot_detach_button_clicked" swapped="no"/>
                                     <child>
                                       <widget class="GtkImage" id="phoebe_rv_plot_detach_button_image">
                                         <property name="visible">True</property>
@@ -12044,7 +12044,7 @@
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
                                             <property name="items" translatable="yes"></property>
-                                            <signal name="changed" handler="on_phoebe_rv_plot_options_x_combobox_changed"/>
+                                            <signal name="changed" handler="on_phoebe_rv_plot_options_x_combobox_changed" swapped="no"/>
                                           </widget>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -12597,7 +12597,7 @@
                             <property name="receives_default">False</property>
                             <property name="use_action_appearance">False</property>
                             <property name="relief">none</property>
-                            <signal name="clicked" handler="on_phoebe_sidesheet_detach_button_clicked"/>
+                            <signal name="clicked" handler="on_phoebe_sidesheet_detach_button_clicked" swapped="no"/>
                             <child>
                               <widget class="GtkImage" id="phoebe_sideseet_detach_button_image">
                                 <property name="visible">True</property>
