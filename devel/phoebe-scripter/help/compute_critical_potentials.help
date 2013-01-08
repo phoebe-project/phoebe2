@@ -1,8 +1,0 @@
-  Synopsis:     compute_critical_potentials (q, F, e)
-  Summary:      Compute inner (L1) and outer (L2) lobe potentials
-  Description:  Takes the mass ratio q=M2/M1, synchronicity parameter F
-                and eccentricity e, and computes critical equipotentials
-                that correspond to the inner lobe (L1) and the outer lobe
-                (L2). It returns an array with two elements: the first
-                element is the inner potential and the second element is
-                the outer potential.

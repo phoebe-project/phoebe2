@@ -1,9 +1,0 @@
-  Synopsis:     info qualifier
-                info variable
-  Summary:      Print the information about a qualifier or variable to screen.
-  Description:  This directive may be used with qualifiers or variables. In
-                case of qualifiers, info queries the parameter table for all
-                properties of the parameter that is referenced by the passed
-                qualifier. If the parameter is adjustable, its range and
-                step-size are also printed. In case of variables, info queries
-                the symbol table for all properties of the variable.
