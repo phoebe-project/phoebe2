@@ -1,8 +1,0 @@
-  Synopsis:     if (condition) action_if_true
-                if (condition) action_if_true else action_if_false
-  Summary:      Determine the action to be executed depending on condition.
-  Description:  The 'if' and 'if-else' directives are used to test if the
-                boolean condition is true or false. If it is true, a statement
-                'action_if_true' is executed. If it is false, 'action_if_false'
-                is executed. In case of nested 'if' sentences the dangling
-                'else' corresponds to the innermost 'if' statement.

@@ -1,0 +1,26 @@
+# PASS_SET  Bessell IR
+# PASSBAND  H
+# EFFWL     1.63
+# WLFACTOR  10000
+# REFERENCE Bessell, M.S. and Brett, J.M. 1988, PASP 100, 1134              
+# Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
+14600  0.00
+14800  0.15
+15000  0.44
+15200  0.86
+15400  0.94
+15600  0.98
+15800  0.95
+16000  0.99
+16200  0.99
+16400  0.99
+16600  0.99
+16800  0.99
+17000  0.99
+17200  0.95
+17400  0.87
+17600  0.84
+17800  0.71
+18000  0.52
+18200  0.02
+18400  0.00

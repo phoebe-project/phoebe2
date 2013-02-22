@@ -1,9 +1,0 @@
-  Synopsis:     set spout = broaden_spectrum (spin, R)
-  Summary:      Broaden the spectrum by Gaussian convolution.
-  Description:  This command is used to properly change the true resolution
-                of the spectrum while keeping the sampling resolution
-                unchanged. This is done by computing the full-width-half-
-                maximum (FWHM) from the true resolution at each sampling
-                point and convolving it with the Gaussian with a corresponding
-                FWHM. It does *not* apply any line-broadening corrections
-                such as Doppler or Stark broadening.
