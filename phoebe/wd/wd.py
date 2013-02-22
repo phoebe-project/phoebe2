@@ -589,6 +589,8 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     lcdep2['ld_coeffs'] = [lc['ld_lcx2'],lc['ld_lcy2']]
     lcdep1['beaming'] = False
     lcdep2['beaming'] = False
+    rvdep1['ld_coeffs'] = [rv['ld_rvx1'],rv['ld_rvy1']]
+    rvdep2['ld_coeffs'] = [rv['ld_rvx2'],rv['ld_rvy2']]
     
     body1['atm'] = (ps_wd['ifat1']==0) and 'blackbody' or 'kurucz'
     body2['atm'] = (ps_wd['ifat2']==0) and 'blackbody' or 'kurucz'
@@ -609,12 +611,19 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     rvdep1['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     rvdep2['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     
+    lcdep1['pblum'] = lc['hla']
+    lcdep2['pblum'] = lc['cla']
+    lcdep1['l3'] = lc['el3']
+    lcdep2['l3'] = 0.
+    
+    body1['label'] = 'star1'
+    body2['label'] = 'star2'
+    
     orbit['c1label'] = body1['label']
     orbit['c2label'] = body2['label']
     
     comp1 = body1,lcdep1,rvdep1
     comp2 = body2,lcdep2,rvdep2
-    
     
     #-- convert from t0 (superior conjunction) to t0 (periastron passage)
     t_supconj = orbit['t0']
@@ -623,6 +632,7 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     per0 = orbit.get_value('per0','rad')
     t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
     orbit['t0'] = t0
+    orbit['vgamma'] = orbit['vgamma']*100.
     
     return comp1,comp2,orbit
 
