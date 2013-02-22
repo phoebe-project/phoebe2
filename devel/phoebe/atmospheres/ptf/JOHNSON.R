@@ -1,0 +1,29 @@
+# PASS_SET  Johnson
+# PASSBAND  R
+# EFFWL     7000.0
+# WLFACTOR  1.0
+# REFERENCE Johnson, H. L. (1965), ApJ 141, 923
+# Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
+5200  0.00
+5400  0.06
+5600  0.28
+5800  0.50
+6000  0.69
+6200  0.79
+6400  0.88
+6600  0.94
+6800  0.98
+7000  1.00
+7200  0.94
+7400  0.85
+7600  0.73
+7800  0.57
+8000  0.42
+8200  0.31
+8400  0.17
+8600  0.11
+8800  0.06
+9000  0.04
+9200  0.02
+9400  0.01
+9600  0.00
