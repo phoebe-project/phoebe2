@@ -119,6 +119,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import utils
+from phoebe.utils import cgeometry
 from phoebe.algorithms import marching
 from phoebe.algorithms import subdivision
 from phoebe.algorithms import eclipse
@@ -273,6 +274,9 @@ def init_mesh(self):
     else:
         dtypes = self.mesh.dtype
     self.mesh = np.zeros(N,dtype=dtypes)
+
+
+
 
 def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
     """
@@ -1534,11 +1538,10 @@ class PhysicalBody(Body):
             t2 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][3:6]/scale,*mesh_args)
             t3 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][6:9]/scale,*mesh_args)
             #-- make sure the normal is pointed in the same direction as before:
-            #from pyphoebe.utils import coordinates
-            #cosangle = coordinates.cos_angle(old_mesh['_o_center'][tri:tri+1],
-            #                                 np.array([p0.n]),axis=1)
-            cosangle = cgeometry.cos_theta(old_mesh_['_o_center'][tri:tri+1].ravel(order='F').reshape((-1,3)),
-                                           np.array([p0.n]))
+            cosangle = coordinates.cos_angle(old_mesh['_o_center'][tri:tri+1],
+                                             np.array([p0.n]),axis=1)
+            #cosangle = cgeometry.cos_theta(old_mesh['_o_center'][tri:tri+1].ravel(order='F').reshape((-1,3)),
+            #                               np.array([p0.n]))
             sign = cosangle<0 and -1 or 1
             for prefix in ['_o_','']:
                 old_mesh[prefix+'center'][tri] = p0.r*scale
@@ -1907,25 +1910,7 @@ class BodyBag(Body):
                 check_for_this_body = []
         #-- obfuscated uncommented code here we come!!!
         if solve_problems:
-            #-- here, we check which columns are missing from each Body's
-            #   mesh. If they are missing, we simply add them and copy
-            #   the contents from the original mesh.
-            names = list(self.bodies[0].mesh.dtype.names)
-            descrs = self.bodies[0].mesh.dtype.descr
-            for b in self.bodies[1:]:
-                descrs_ = b.mesh.dtype.descr
-                for descr in descrs_:
-                    if descr[0] in names: continue
-                    descrs.append(descr)                    
-                    names.append(descr[0])
-            dtypes = np.dtype(descrs)
-            for b in self.bodies:
-                N = len(b.mesh)
-                new_mesh = np.zeros(N,dtype=dtypes)
-                if N:
-                    cols_to_copy = list(b.mesh.dtype.names)
-                    new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
-                b.mesh = new_mesh
+            self.fix_mesh()
         self.params['syn'] = OrderedDict()
         self.params['obs'] = OrderedDict()
         if obs is not None:
@@ -2040,6 +2025,30 @@ class BodyBag(Body):
     
     def __str__(self):
         return self.to_string()
+    
+    def fix_mesh(self):
+        """
+        Make sure all bodies in a list have the same mesh columns.
+        """
+        #-- here, we check which columns are missing from each Body's
+        #   mesh. If they are missing, we simply add them and copy
+        #   the contents from the original mesh.
+        names = list(self.bodies[0].mesh.dtype.names)
+        descrs = self.bodies[0].mesh.dtype.descr
+        for b in self.bodies[1:]:
+            descrs_ = b.mesh.dtype.descr
+            for descr in descrs_:
+                if descr[0] in names: continue
+                descrs.append(descr)                    
+                names.append(descr[0])
+        dtypes = np.dtype(descrs)
+        for b in self.bodies:
+            N = len(b.mesh)
+            new_mesh = np.zeros(N,dtype=dtypes)
+            if N:
+                cols_to_copy = list(b.mesh.dtype.names)
+                new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
+            b.mesh = new_mesh
     
     def add_obs(self,obs):
         _parse_obs(self,obs)

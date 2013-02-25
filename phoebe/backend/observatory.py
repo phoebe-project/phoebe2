@@ -20,6 +20,7 @@ from phoebe.units import conversions
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.algorithms import eclipse
+from phoebe.algorithms import reflection
 from phoebe.atmospheres import tools
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
@@ -902,9 +903,15 @@ def compute(system,params=None,**kwargs):
         for labl in labl_per_time:
             labl.append('__bol')
     #-- if we include reflection, we need to reserve space in the mesh
-    #   for the reflected light
+    #   for the reflected light. We need to fix the mesh afterwards because
+    #   each body can have different fields appended in the mesh.
     if reflect:
-        system.prepare_reflection()
+        system.prepare_reflection(ref='all')
+        x1 = set(system[0].mesh.dtype.names)
+        x2 = set(system[1].mesh.dtype.names)
+        if len(x1-x2) or len(x2-x1):
+            #raise ValueError("When including reflection, you need to call 'prepare_reflection' and 'fix_mesh' first")
+            system.fix_mesh()
     #-- now we're ready to do the real stuff
     for i,(time,ref,type) in enumerate(zip(time_per_time,labl_per_time,type_per_time)):
         #-- clear previous reflection effects if necessary

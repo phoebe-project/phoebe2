@@ -6,6 +6,7 @@ from mpi4py import MPI
 import pickle
 import cPickle
 import sys
+import os
 import time
 from phoebe.backend import observatory
 from phoebe.backend import universe
@@ -25,16 +26,24 @@ nprocs = comm.Get_size()
 
 # Which function do we wich to run?
 function = sys.argv[1]
-# Load the system that we want to compute
-system = universe.load(sys.argv[2])
-# Load the arguments to the function
-with open(sys.argv[3],'r') as ff: args = cPickle.load(ff)
-# Load the keyword arguments to the function
-with open(sys.argv[4],'r') as ff: kwargs = cPickle.load(ff)
-
-res = []
 
 if myrank == 0:
+    
+    
+    # Load the system that we want to compute
+    system = universe.load(sys.argv[2])
+    # Load the arguments to the function
+    with open(sys.argv[3],'r') as ff: args = cPickle.load(ff)
+    # Load the keyword arguments to the function
+    with open(sys.argv[4],'r') as ff: kwargs = cPickle.load(ff)
+    #-- Clean up pickle files once they are loaded:
+    os.unlink(sys.argv[2])
+    os.unlink(sys.argv[3])
+    os.unlink(sys.argv[4])
+    
+    res = []
+
+
     # Derive at which phases this system needs to be computed
     params = kwargs.pop('params')
     observatory.extract_times_and_refs(system,params,tol=1e-6)
@@ -45,7 +54,10 @@ if myrank == 0:
     # This is the manager: we set the time of the system first, so that
     # the mesh gets created. This system will be distributed over the nodes,
     # so the workers have less overhead.
-    system.set_time(params['time'][0])   
+    if params['refl']:
+        system.prepare_reflection(ref='all')
+        system.fix_mesh()
+    system.set_time(params['time'][0])
     
     
     # Instead of computing one phase per worker, we'll let each worker do

@@ -174,8 +174,11 @@ def mpirun(fctn):
                 merge_synthetic([system,results])
             finally:
                 # Clean up pickle files that are lying around
-                os.unlink(sys_file.name)
-                os.unlink(args_file.name)
-                os.unlink(kwargs_file.name)
+                if os.path.isfile(sys_file.name):
+                    os.unlink(sys_file.name)
+                if os.path.isfile(args_file.name):
+                    os.unlink(args_file.name)
+                if os.path.isfile(kwargs_file.name):
+                    os.unlink(kwargs_file.name)
     return do_run
     
