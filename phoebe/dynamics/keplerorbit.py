@@ -217,7 +217,7 @@ Use Kepler's third law to derive the semi-major axis of the absolute orbits
 
 Convert the angles to radians to pass them to L{get_orbit}:
 
->>> per0,long_an,incl = per0/180*pi,long_an/180*pi,incl/180*pi
+>>> per0,long_an,incl = per0/180.*pi,long_an/180.*pi,incl/180.*pi
 
 Finally compute the orbits of the primary and secondary in sky coordinates.
 
@@ -446,7 +446,7 @@ def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
         10.deccdt: allow for a change of eccentricity (/s)
         
     By a freak-accident of nature, this function is purely geometrical and
-    does not use any physical constants. This means that you are in principal
+    does not use any physical constants. This means that you are in principle
     allowed to B{pass any units} to this function, as long as you're
     consistent. If you want to give C{times} in days, go ahead, but also set
     the C{period} and C{t0} in days. The velocities should then be in m/days.
@@ -764,7 +764,8 @@ def calculate_phase(T,ecc,per0,phshift=0):
     
 def calculate_critical_phases(per0,ecc,phshift=0):
     """
-    Compute phase of superior conjunction and periastron passage.
+    Computes critical phases in the orbit: periastron passage, superior conjunction,
+    inferior conjunction, ascending node and descending node.
     
     Example usage:
     
@@ -773,7 +774,7 @@ def calculate_critical_phases(per0,ecc,phshift=0):
     >>> print(calculate_critical_phases(per0,ecc))
     [ 0.          0.06735539 -0.29554513 -0.06735539  0.29554513]
     
-    With superior conjuection as t0:
+    With superior conjunction as t0:
     (-0.125, -0.057644612788576133, -0.42054512757020118, -0.19235538721142384, 0.17054512757020118)
     
     @parameter per0: argument of periastron (radians)
