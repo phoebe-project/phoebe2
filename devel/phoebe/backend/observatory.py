@@ -18,7 +18,9 @@ except ImportError:
 from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
+from phoebe.utils import coordinates
 from phoebe.units import conversions
+from phoebe.units import constants
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.algorithms import eclipse
@@ -27,6 +29,7 @@ from phoebe.atmospheres import tools
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
+from phoebe.dynamics import keplerorbit
 
         
 np.seterr(all='ignore')
@@ -131,7 +134,7 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
         vmax_ = 1
     else:
         if select=='rv':
-            values = -mesh['velo_'+ref+'_'][:,2]
+            values = -mesh['velo___bol_'][:,2]
         elif select=='intensity':
             values = mesh['ld_'+ref+'_'][:,-1]
         elif select=='proj2':
@@ -882,6 +885,9 @@ def compute(system,params=None,**kwargs):
     #-- gather the parameters that give us more details on how to compute
     #   the system: subdivisions, eclipse detection, optimization flags...
     im = kwargs.pop('im',False)
+    extra_func = kwargs.pop('extra_func',[])
+    extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])
+    
     if params is None:
         params = parameters.ParameterSet(context='compute',**kwargs)
     else:
@@ -902,6 +908,14 @@ def compute(system,params=None,**kwargs):
     if hasattr(system,'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
         circular = (system.bodies[0].params['orbit']['ecc']==0)
         logger.info("Figured out that system is{0}circular".format(circular and ' ' or ' not '))
+        #-- perhaps one of the components is a star with a spot or pulsations
+        for body in system.bodies:
+            if 'puls' in body.params or 'circ_spot' in body.params:
+                circular = False
+                logger.info("... but at least one of the components has spots or pulsations: set circular=False")
+                break
+            
+        
     else:
         circular = False
         logger.info("Cannot figure out if system is circular or not, leaving at circular={}".format(circular))
@@ -976,14 +990,17 @@ def compute(system,params=None,**kwargs):
             else:
                 savefig = ('compute_dependable_%014.6f.png'%(time)).replace('.','_')
             image(system,ref=ref[0],savefig=savefig)
-            
+        #-- call extra funcs if necessary
+        for ef,kw in zip(extra_func,extra_func_kwargs):
+            ef(system,time,i,**kw)
         #-- unsubdivide to prepare for next step
         if params['subdiv_num']:  
             system.unsubdivide()
     system.compute_pblum_or_l3()
 
 
-def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,**kwargs):
+def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
+            extra_func=[],extra_func_kwargs=[{}],**kwargs):
     #-- gather the parameters that give us more details on how to compute
     #   the system: subdivisions, eclipse detection, optimization flags...
     params = parameters.ParameterSet(context='compute',**kwargs)
@@ -1005,7 +1022,8 @@ def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,*
     params['refs'] = [refs]*len(times)
     params['types'] = [typs]*len(times)  
     #-- and run compute
-    compute(system,params=params,mpi=mpi,im=im)
+    compute(system,params=params,mpi=mpi,im=im,extra_func=extra_func,
+            extra_func_kwargs=extra_func_kwargs)
 
 
         
@@ -1059,7 +1077,7 @@ def choose_eclipse_algorithm(all_systems,algorithm='auto'):
 
 #{ Extrafuncs for compute_dependables
 
-def ef_binary_image(system,times,sampling_times,i,j,name='ef_binary_image',**kwargs):
+def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     """
     Make an image of a binary system.
     
@@ -1070,10 +1088,11 @@ def ef_binary_image(system,times,sampling_times,i,j,name='ef_binary_image',**kwa
     easy.
     """
     # Compute the orbit of the system
-    period = system[0].params['orbit']['period']
-    t0 = system[0].params['orbit']['t0']
-    times_ = np.linspace(t0,t0+period,250)
-    orbit1,orbit2 = keplerorbit.orbit(system[0],times_)
+    orbit = system[0].params['orbit']
+    period = orbit['period']
+    times_ = np.linspace(0,period,250)
+    orbit1 = keplerorbit.get_binary_orbit(times_,orbit,component='primary')[0]
+    orbit2 = keplerorbit.get_binary_orbit(times_,orbit,component='secondary')[0]
     # What's the radius of the stars?
     r1 = coordinates.norm(system[0].mesh['_o_center'],axis=1).mean()
     r2 = coordinates.norm(system[1].mesh['_o_center'],axis=1).mean()
@@ -1090,33 +1109,13 @@ def ef_binary_image(system,times,sampling_times,i,j,name='ef_binary_image',**kwa
     pl.figure(figsize=(8,abs(ymin-ymax)/abs(xmin-xmax)*8))
     ax = pl.axes([0,0,1,1],aspect='equal',axisbg='k')
     image(system,ax=ax,**kwargs)
+    #pl.plot(orbit1[0],orbit1[1],'r-',lw=2)
+    #pl.plot(orbit2[0],orbit2[1],'b-',lw=2)
     pl.xlim(xmin,xmax)
     pl.ylim(ymin,ymax)
     pl.savefig('{}_{:04d}'.format(name,i))
     pl.close()
 
-def ef_debug(system,times,sampling_times,i,j,name='ef_debug',**kwargs):
-    """
-    Maken and/or pop up images after each iteration for debugging reasons.
-    """
-    try:
-        from enthought.mayavi import mlab
-    except ImportError:
-        from mayavi import mlab
-    
-    check_image_type = kwargs.get('check_image_type',['mesh','intensity','teff','logg','rv','mu'])
-    debug = kwargs.get('debug',True)
-    for select in check_image_type:
-        if not debug:
-            figname = name+'_%s_%04d.png'%(select,i)
-        else:
-            mlab.figure(bgcolor=(0.5,0.5,0.5))
-            figname = False
-        if select=='mesh':
-            the_system.plot3D(velos=debug,savefig=figname)
-        else:
-            the_system.plot3D(select=select,savefig=figname)
-    mlab.show()
 
 
 def plot_system(system):

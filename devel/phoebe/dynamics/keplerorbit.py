@@ -1358,6 +1358,24 @@ def walk_hierarchical(o,orbits=None,components=None):
                     yield None,orbits,components
 
 
+def get_binary_orbit(time,orbit,component):
+    #-- get some information
+    P = orbit.get_value('period','d')
+    e = orbit.get_value('ecc')
+    a = orbit.get_value('sma','Rsol')
+    a1 = orbit.get_constraint('sma1','Rsol')
+    a2 = orbit.get_constraint('sma2','Rsol')
+    inclin = orbit.get_value('incl','rad')
+    argper = orbit.get_value('per0','rad')
+    long_an = orbit.get_value('long_an','rad')
+    vgamma = orbit.get_value('vgamma','Rsol/d')
+    T0 = orbit.get_value('t0')
+    a_comp = [a1,a2][['primary','secondary'].index(component)]
+    
+    #-- where in the orbit are we? We need everything in cartesian Rsol units
+    loc,velo,euler = get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
+                               incl=inclin,component=component)
+    return loc,velo,euler
 
 
 def place_in_binary_orbit(self,time):

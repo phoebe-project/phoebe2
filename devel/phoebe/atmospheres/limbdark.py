@@ -1212,7 +1212,8 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
     if np.all(proj_intens==0):
         proj_velo = 0.
     else:
-        proj_velo = np.average(-system.mesh['velo_'+ref+'_'][keep,2],weights=proj_intens)
+        #proj_velo = np.average(-system.mesh['velo_'+ref+'_'][keep,2],weights=proj_intens)
+        proj_velo = np.average(-system.mesh['velo___bol_'][keep,2],weights=proj_intens)
         logger.info("projected velocity with ld_func %s = %.3g Rsol/d"%(ld_func,proj_velo))
     return proj_velo
 

@@ -223,6 +223,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='sigma',  description='Data sigma',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context=['lcobs','rvobs','lcsyn','rvsyn']),
          dict(qualifier='flag',    description='Signal flag',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
          dict(qualifier='weight',    description='Signal weight',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
+         dict(qualifier='fittransfo',    description='Transform variable in fit',repr='%s',cast_type=str,value='linear',frame=["phoebe"],context=['lcobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weights'],frame=["phoebe"],context=['lcobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma'],frame=["phoebe"],context=['lcsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv','error'],frame=["phoebe"],context=['rvobs']),
@@ -340,6 +341,10 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
          dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:emcee'),
+        ]
+        
+defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
         ]
 
 #    MPI and computation context

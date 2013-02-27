@@ -21,7 +21,7 @@ try:
     import emcee
 except ImportError:
     print("Unable to load mcmc fitting routines from emcee: restricted fitting facilities")
-
+    
 logger = logging.getLogger("FITTING")
 
 #{ MCMC samplers.
@@ -62,7 +62,7 @@ def run_mcmc(system,params=None,fitparams=None,mpi=None,accept=False):
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
     fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
-    utils.pop_filehandlers(mylogger)
+    #utils.pop_filehandlers(mylogger)
     mylogger.handlers = mylogger.handlers[:-1]
     
     #-- accept the best fitting model and compute the system
@@ -80,9 +80,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     
     Be sure to set the parameters to fit to be adjustable in the system.
     Be sure to set the priors of the parameters to fit in the system.
-    
-    The posteriors are added to the parameters.
-    
+        
     @param system: the system to fit
     @type system: Body
     @param params: computation parameters
@@ -214,8 +212,6 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
     Be sure to set the parameters to fit to be adjustable in the system.
     Be sure to set the priors of the parameters to fit in the system.
     
-    The posteriors are added to the parameters.
-    
     @param system: the system to fit
     @type system: Body
     @param params: computation parameters
@@ -297,12 +293,6 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
         observatory.compute(system,params=params,mpi=mpi)
         logp = system.get_logp()
         mu,sigma,model = system.get_model()
-        
-        #plt.errorbar(range(len(mu)),mu,yerr=sigma,fmt='ko')
-        #plt.plot(range(len(mu)),model,'ro-')
-        #plt.title('logp = {}, chi2={}'.format(logp,np.mean((model-mu)**2/sigma**2)))
-        #plt.show()
-        
         return logp
     
     #-- if we need to do incremental stuff, we'll need to open a chain file
@@ -391,8 +381,6 @@ def run_wd_emcee(system,data,fitparams=None):
     
     Be sure to set the parameters to fit to be adjustable in the system.
     Be sure to set the priors of the parameters to fit in the system.
-    
-    The posteriors are added to the parameters.
     
     @param system: the system to fit
     @type system: 3xtuple (ps,lc,rv)
@@ -549,7 +537,7 @@ def run_wd_emcee(system,data,fitparams=None):
 
 #{ Verifiers
 
-def summarize_fit(system,fitparams):
+def summarize_fit(system,fitparams,savefig=False):
     """
     Summarize a fit.
     
@@ -577,18 +565,39 @@ def summarize_fit(system,fitparams):
                 path = path[:orb_index-1]+path[orb_index:]
             index = fitted_param_labels.index(this_label)
             trace = fitparams['feedback']['traces'][index]
+            prior = fitparams['feedback']['priors'][index]
+            # Raftery-Lewis diagnostics
+            req_iters,thin_,burn_in,further_iters,thin = pymc.raftery_lewis(trace,q=0.025,r=0.1,verbose=0)
+            thinned_trace = trace[burn_in::thin]
+            indtrace = np.arange(len(trace))
+            indtrace = indtrace[burn_in::thin]
             if param.has_unit():
                 unit = param.get_unit()
             else:
                 unit=''
-            plt.figure(figsize=(10,8))
+            plt.figure(figsize=(14,8))
             plt.subplot(221)
             plt.title("Marginalised distribution")
-            plt.hist(trace)
+            #-- bins according to Scott's normal reference rule
+            bins = trace.ptp()/(3.5*np.std(trace)/len(trace)**0.333)
+            bins_thinned = thinned_trace.ptp()/(3.5*np.std(thinned_trace)/len(thinned_trace)**0.333)
+            plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
+            plt.hist(trace,bins=bins,alpha=0.5,normed=True)
+            if prior['distribution']=='uniform':
+                plt.axvspan(prior['lower'],prior['upper'],alpha=0.05,color='r')
             plt.xlabel("/".join(path)+' [{}]'.format(unit))
             plt.ylabel('Number of occurrences')
             plt.grid()
-            plt.subplot(222)
+            plt.subplot(243)
+            plt.title("Geweke plot")
+            scores = np.array(pymc.geweke(trace)).T
+            plt.plot(scores[0],scores[1],'o')
+            plt.axhline(-2,color='g',linewidth=2,linestyle='--')
+            plt.axhline(+2,color='b',linewidth=2,linestyle='--')
+            plt.grid()
+            plt.xlabel("Iteration")
+            plt.ylabel("Score")
+            plt.subplot(244)
             plt.title("Box and whisper plot")
             plt.boxplot(trace)
             plt.ylabel("/".join(path)+' [{}]'.format(unit))
@@ -597,10 +606,15 @@ def summarize_fit(system,fitparams):
             plt.xticks([])
             plt.grid()
             plt.subplot(212)
-            plt.plot(trace)
+            plt.plot(indtrace,thinned_trace,'b-',lw=2,alpha=0.5)
+            plt.plot(trace,'g-')
+            plt.xlim(0,len(trace))
             plt.xlabel("Iteration")
             plt.ylabel("/".join(path)+' [{}]'.format(unit))
             plt.grid()
+            if savefig:
+                plt.savefig("_".join(path).replace('.','_')+'.png')
+            
             
             had.append(this_label)
             indices.append(index)
@@ -608,16 +622,17 @@ def summarize_fit(system,fitparams):
             units.append(unit)
             
             table.append(["/".join(path),'{:.3g}'.format(trace.mean()),
-                                         '{:.3g}'.format(trace.std()),unit])
+                                         '{:.3g}'.format(trace.std()),
+                                         '{:.3g}'.format(np.median(trace)),unit])
     
     #-- print a summary table
     #-- what is the width of the columns?
-    col_widths = [9,4,3,4]
+    col_widths = [9,4,3,3,4]
     for line in table:
         for c,col in enumerate(line):
             col_widths[c] = max(col_widths[c],len(col))
-    template = '{{:{:d}s}} = ({{:{:d}s}} +/- {{:{:d}s}}) {{}}'.format(*[c+1 for c in col_widths])
-    header = template.format('Qualifier','Mean','Std','Unit')
+    template = '{{:{:d}s}} = ({{:{:d}s}} +/- {{:{:d}s}}) {{:{:d}s}} {{}}'.format(*[c+1 for c in col_widths])
+    header = template.format('Qualifier','Mean','Std','50%','Unit')
     print('='*len(header))
     print(header)
     print('='*len(header))
@@ -631,10 +646,10 @@ def summarize_fit(system,fitparams):
             plt.xlabel("/".join(ipath)+' [{}]'.format(units[i]))
             plt.ylabel("/".join(jpath)+' [{}]'.format(units[j]))
             plt.hexbin(fitparams['feedback']['traces'][iind],
-                       fitparams['feedback']['traces'][jind],bins='log')
+                       fitparams['feedback']['traces'][jind],bins='log',gridsize=50)
             cbar = plt.colorbar()
             cbar.set_label("Number of occurrences")
-    
+    print("MCMC path length = {}".format(len(fitparams['feedback']['traces'][iind])))
     return None
 
 def accept_fit(system,fitparams):
@@ -658,5 +673,4 @@ def accept_fit(system,fitparams):
                 #-- [iwalker,trace,iparam]
                 this_param.set_value(np.median(feedback['traces'][index]))
                 logger.info("Set {} = {} from MCMC trace".format(qual,this_param.as_string()))
-#}
 
