@@ -1,3 +1,8 @@
+"""
+Plotting and multimedia routines.
+"""
+import os
+import subprocess
 try:
     import matplotlib as mpl
 except ImportError:
@@ -106,4 +111,22 @@ def blackbody_cmap():
              (0.39516773798752425, 0.53384035315828104, 1.0), 
              (0.39378310089774704, 0.53266331641837317, 1.0)]
     return mpl.colors.ListedColormap(clist)
-#}
+
+
+
+
+def make_movie(filecode,fps=24,bitrate=None,output='output.avi'):
+    """
+    Repeat last 10 frames!
+    """
+    if os.path.splitext(output)[1]=='.avi':
+        if bitrate is None:
+            cmd = 'mencoder "mf://%s" -mf fps=%d -o %s -ovc lavc -lavcopts vcodec=mpeg4'%(filecode,fps,output)
+        else:
+            bitrate*=1000
+            cmd = 'mencoder "mf://%s" -mf fps=%d -o %s -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=%d'%(filecode,fps,output,bitrate)
+    elif os.path.splitext(output)[1]=='.gif':
+        delay = 100./fps
+        cmd = 'convert -delay {:.0f} -loop 0 {} {}'.format(delay,filecode,output)
+    print 'Executing %s'%(cmd)
+    subprocess.call(cmd,shell=True)

@@ -837,7 +837,7 @@ class Parameter(object):
         @rtype: str
         """
         if not hasattr(self,'_unique_label'):
-            self._unique_label = uuid.uuid4()
+            self._unique_label = str(uuid.uuid4())
         return self._unique_label
     
     #}

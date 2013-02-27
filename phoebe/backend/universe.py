@@ -125,9 +125,9 @@ from phoebe.algorithms import subdivision
 from phoebe.algorithms import eclipse
 from phoebe.backend import decorators
 from phoebe.backend import observatory
+from phoebe.backend import processing
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
-from phoebe.parameters import constraints
 from phoebe.atmospheres import roche
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
@@ -605,7 +605,10 @@ class Body(object):
         self.subdivision = dict(orig=None,mesh_args=None,N=None)
         self.params = OrderedDict()
         self._plot = {'plot3D':dict(rv=(-150,150))}
-        self._constraints = []
+        #-- the following list of functions will be executed before and
+        #   after a call to set_time
+        self._preprocessing = []
+        self._postprocessing = []
         #self.params['pbdep'] = {}
     
     
@@ -615,6 +618,11 @@ class Body(object):
     def to_string(self,only_adjustable=False):
         """
         String representation of a Body.
+        
+        @param only_adjustable: only return the adjustable parameters
+        @type only_adjustable: bool
+        @return: string representation of the parameterSets
+        @rtype: str
         """
         txt = ''
         params = self.params
@@ -792,6 +800,9 @@ class Body(object):
         
         Every data set has a statistical weight, which is used to weigh them
         in the computation of the total probability.
+        
+        @return: log probability
+        @rtype: float
         """
         logp = 0.
         for idata in self.params['obs'].values():
@@ -840,7 +851,10 @@ class Body(object):
     
     def get_model(self):
         """
-        Specifically for pymc
+        Return all data and complete model in one long chain of data.
+        
+        @return: obs, sigma, model
+        @rtype: 3xarray
         """
         model = []
         mu = []
@@ -864,6 +878,12 @@ class Body(object):
                     raise NotImplementedError('probability')  
                 #-- statistical weight:
                 statweight = observations['statweight']
+                #-- transform to log if necessary:
+                if 'fittransfo' in observations and observations['fittransfo']=='log10':
+                    sigma_ = sigma_/(obser_*np.log(10))
+                    model_ = np.log10(model_)
+                    obser_ = np.log10(obser_)
+                    logger.info("Transformed model to log10 for fitting")
                 #-- append to the "whole" model.
                 model.append(model_)
                 mu.append(obser_)
@@ -876,6 +896,9 @@ class Body(object):
     def get_label(self):
         """
         Return the label of the class instance.
+        
+        @return: the label of the class instance
+        @rtype: str
         """
         return self.label
     
@@ -888,18 +911,45 @@ class Body(object):
         """
         self.label = label
     
-    def add_constraint(self,func):
+    def add_preprocess(self,func):
         """
-        Add a constraint to the Body.
+        Add a preprocess to the Body.
+        
+        The list of preprocessing functions are executed before set_time is
+        called.
+        
+        @param func: name of a processing function in backend.processes
+        @type func: str
         """
-        self._constraints.append(func)
+        self._preprocessing.append(func)
+
+    def add_postprocess(self,func):
+        """
+        Add a postprocess to the Body.
+        
+        @param func: name of a processing function in backend.processes
+        @type func: str
+        """
+        self._postprocessing.append(func)
     
-    def run_constraints(self):
+        
+    def preprocess(self,time=None):
         """
-        Run the constraints.
+        Run the preprocessors.
+        
+        @param time: time to which the Body will be set
+        @type time: float or None
         """
-        for func in self._constraints:
-            getattr(constraints,func)(self)
+        for func in self._preprocessing:
+            getattr(processes,func)(self,time)
+    
+    def postprocess(self):
+        """
+        Run the postprocessors.
+        """
+        for func in self._postprocessing:
+            getattr(processes,func)(self)
+    
     
     
     #{ Functions to manipulate the mesh    
@@ -1877,8 +1927,8 @@ class BodyBag(Body):
                            los=[0,0,+1],conv='YXZ',vector=[0,0,0])
         self.subdivision = dict(orig=None)
         self.params = OrderedDict()
-        if len(list_of_bodies)==1:
-            self.params = list_of_bodies[0].params
+        #if len(list_of_bodies)==1:
+        #    self.params = list_of_bodies[0].params
         self._plot = self.bodies[0]._plot
         for key in kwargs:
             if key=='label':
@@ -2147,8 +2197,8 @@ class BodyBag(Body):
                 self.params['orbit']['c1label'] = label
             elif comp==1:
                 self.params['orbit']['c2label'] = label
-        except:
-            pass
+        except Exception,msg:
+            logger.error(str(msg))
         self.label = label
             
             
@@ -2785,7 +2835,7 @@ class Star(PhysicalBody):
         #-- We need to rotate the velocities so that they are in line with the
         #   current configuration
         #velo_rot_ = fgeometry.rotate3d_orbit_conv(velo_rot,(0,inclin,0),[0,0,0],'YXZ')
-        for iref in ref:
+        for iref in ['__bol']:#ref:
             ps,iref = self.get_parset(iref)
             self.mesh['_o_velo_'+iref+'_'] = velo_rot
             self.mesh['velo_'+iref+'_'] = velo_rot#_
@@ -2878,8 +2928,7 @@ class Star(PhysicalBody):
                     self.subdivide(subtype=2)
                 
     
-    @decorators.parse_ref
-    def add_pulsations(self,time=None,ref='all'):
+    def add_pulsations(self,time=None):
         if time is None:
             time = self.time
         
@@ -2936,7 +2985,7 @@ class Star(PhysicalBody):
             elif scheme=='nonrotating' or scheme=='coriolis':
                 if scheme=='coriolis' and l>0:
                     spinpar = rotfreq/freq
-                    Cnl = pls.get_value('ledoux_cln')
+                    Cnl = pls.get_value('ledoux_coeff')
                     k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
                     logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
                 else:
@@ -2975,9 +3024,10 @@ class Star(PhysicalBody):
         self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
         self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
         self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T
-        for iref in ref:
-            ps,iref = self.get_parset(iref)
-            self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
+        #for iref in ref:
+        #    ps,iref = self.get_parset(iref)
+        #    self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
+        self.mesh['velo___bol_'] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
         self.mesh['center'] = np.array(coordinates.spher2cart_coord(r4,phi4,theta4))[index_inv].T
         self.mesh['teff'] = teff
         self.mesh['logg'] = logg
@@ -3126,7 +3176,7 @@ class Star(PhysicalBody):
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))
         #-- first execute any external constraints:
-        self.run_constraints()
+        self.preprocess()
         #-- this mesh is mostly independent of time! We collect some values
         #   that could be handy later on: inclination and rotation frequency
         rotperiod = self.params['star'].request_value('rotperiod','d')
@@ -3156,7 +3206,7 @@ class Star(PhysicalBody):
             self.temperature(time)
             #-- perhaps add pulsations
             if has_freq:
-                self.add_pulsations(time,ref=ref)
+                self.add_pulsations(time)
             if has_magnetic_field:
                 self.magnetic_field()
             #-- compute intensity, rotate to the right position and set default
@@ -3173,6 +3223,7 @@ class Star(PhysicalBody):
             self.detect_eclipse_horizon(eclipse_detection='simple')
         #-- remember the time... 
         self.time = time
+        self.postprocess()
     
     
 class BinaryRocheStar(PhysicalBody):    
@@ -3622,7 +3673,13 @@ class BinaryStar(Star):
     def set_time(self,*args,**kwargs):
         self.reset_mesh()
         super(BinaryStar,self).set_time(*args,**kwargs)
-        keplerorbit.place_in_binary_orbit(self,*args)
+        #keplerorbit.place_in_binary_orbit(self,*args)
+        n_comp = self.get_component()
+        component = ('primary','secondary')[n_comp]
+        orbit = self.params['orbit']
+        loc,velo,euler = keplerorbit.get_binary_orbit(self.time,orbit,component)
+        self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+        
     
     
     def projected_velocity(self,los=[0,0,+1],ref=0):
