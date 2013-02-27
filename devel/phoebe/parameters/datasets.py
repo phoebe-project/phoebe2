@@ -60,7 +60,7 @@ class DataSet(parameters.ParameterSet):
      columns ['date', 'flux']  --     test No description available
      
     """
-    def load(self):
+    def load(self,force=True):
         """
         Load the contents of a data file.
         
@@ -72,6 +72,10 @@ class DataSet(parameters.ParameterSet):
         if self.has_qualifier('filename') and os.path.isfile(self.get_value('filename')):
             filename = self.get_value('filename')
             columns = self.get_value('columns')
+            #-- check if the data is already in here, and only reload when
+            #   it is not, or when force is True
+            if not force and len(self[self['columns'][0]])>0:
+                return False
             data_columns = np.loadtxt(filename).T
             for i,col in enumerate(data_columns):
                 if not columns[i] in self:
@@ -79,10 +83,13 @@ class DataSet(parameters.ParameterSet):
                 else:
                     self[columns[i]] = col
            # logger.info("Loaded contents of {}".format(filename))
-        elif self.has_qualifier('filename'):
+        elif self.has_qualifier('filename') and self['filename']:
             raise IOError("File {} does not exist".format(self.get_value('filename')))
+        elif self.has_qualifier('filename'):
+            return False
         else:
             logger.info("No file to reload")
+        return True
             
     def unload(self):
         """
@@ -110,6 +117,10 @@ class DataSet(parameters.ParameterSet):
             filename = self['filename']
         if not filename:
             filename = self['ref']
+        #-- possibly we need to redefine the columns here:
+        for col in self['columns']:
+            if not len(self[col]):
+                self[col] = np.zeros(len(self['time']))
         np.savetxt(filename,np.column_stack([self[col] for col in self['columns']]))
         logger.info('Wrote file {} with columns {} from dataset {}:{}'.format(filename,', '.join(self['columns']),self.context,self['ref']))
     
@@ -161,6 +172,45 @@ class LCDataSet(DataSet):
     def __init__(self,**kwargs):
         kwargs.setdefault('context','lcobs')
         super(LCDataSet,self).__init__(**kwargs)
+    
+    def plot(self,ax=None,**plotoptions):
+        """
+        Plot spectra.
+        """
+        if ax is None:
+            ax = plt.gca()
+        loaded = self.load(force=False)
+        if self.context[-3:]=='obs':
+            plotoptions.setdefault('color','k')
+            plotoptions.setdefault('linestyle','None')
+            plotoptions.setdefault('marker','o')
+        else:
+            plotoptions.setdefault('color','r')
+            plotoptions.setdefault('linestyle','-')
+            plotoptions.setdefault('marker','None')
+            plotoptions.setdefault('linewidth',2)
+        plotoptions.setdefault('mode','time series')
+        
+        if plotoptions['mode']=='time series':
+            x = np.array(self['time'])
+        
+        flux = np.array(self['flux'])
+        
+        if 'sigma' in self:
+            e_flux = np.array(self['sigma'])
+        else:
+            e_flux = None
+            
+        #-- and then plot!
+        if e_flux is not None:
+            ax.errorbar(x,flux,e_flux,**plotoptions)
+        else:   
+            ax.plot(x,flux,**plotoptions)
+        ax.set_xlim(x.min(),x.max())
+        ax.set_xlabel('Time')
+        ax.set_ylabel("Flux")
+        if loaded:
+            self.unload()
         
 class RVDataSet(DataSet):
     pass

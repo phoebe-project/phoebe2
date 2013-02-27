@@ -2,6 +2,7 @@
 Convert a Body to an observable quantity.
 """
 import logging
+import os
 import itertools
 import numpy as np
 from numpy import pi
@@ -16,12 +17,14 @@ except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
 from phoebe.backend import decorators
 from phoebe.utils import plotlib
+from phoebe.utils import pergrams
 from phoebe.units import conversions
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.algorithms import eclipse
 from phoebe.algorithms import reflection
 from phoebe.atmospheres import tools
+from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
 
@@ -71,7 +74,7 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
     """
     #-- default color maps and background depend on the type of dependables:
     if cmap is None and select=='rv':
-        cmap = pl.cm.RdBu
+        cmap = pl.cm.RdBu_r
     elif cmap is None and select=='teff':
         cmap = pl.cm.hot
         if background is None:
@@ -128,7 +131,7 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
         vmax_ = 1
     else:
         if select=='rv':
-            values = mesh['velo_'+ref+'_'][:,2]
+            values = -mesh['velo_'+ref+'_'][:,2]
         elif select=='intensity':
             values = mesh['ld_'+ref+'_'][:,-1]
         elif select=='proj2':
@@ -253,7 +256,7 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
     return xlim,ylim,p
     
     
-def ifm(the_system,ref=0,figname=None,keepfig=True):
+def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
     
@@ -261,8 +264,8 @@ def ifm(the_system,ref=0,figname=None,keepfig=True):
     """
     #-- information on what to compute
     data_pars,ref = the_system.get_parset(ref)
-    posangle = data_pars.request_value('posangle','deg')
-    baseline = data_pars.request_value('baseline','m')
+    #posangle = [0.]#data_pars.request_value('posangle','deg')
+    #baseline = [100.]#data_pars.request_value('baseline','m')
     passband = data_pars.request_value('passband')
     
     #-- helper function
@@ -286,25 +289,40 @@ def ifm(the_system,ref=0,figname=None,keepfig=True):
     angular_profile_out = []
     
     #-- set effective wavelength
-    eff_wave = filters.get_info([passband])['eff_wave'][0]
+    eff_wave = passbands.get_info([passband])['eff_wave'][0]
     logger.info("ifm: cyclic frequency to m at lambda=%.4g angstrom"%(eff_wave))
     #-- make an image if necessary, but in any case retrieve it's
     #   dimensions
     if figname is None:
         figname = 'ifmfig_temp.png'
+        keep_figname = False
         xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
     else:
+        keep_figname = True
         figname,xlims,ylims = figname
-    if not keepfig:
-        os.unlink(figname)
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
     #-- load the image as a numpy array
     data = pl.imread(figname)[:,:,0]
+    if not keep_figname:
+        os.unlink(figname)
     #-- cycle over all baselines and position angles
-    for bl,pa in zip(baseline,posangle):        
+    for nr,(bl,pa) in enumerate(zip(baseline,posangle)):        
+        if keepfig:
+            xlims,ylims,p = image(the_system,ref=ref)
+            pl.gca().set_autoscale_on(False)
+            #-- add the baseline on the figure
+            x_toplot = np.linspace(xlims[0]-0.5*(xlims[1]-xlims[0]),xlims[1]+0.5*(xlims[1]-xlims[0]),100)
+            y_toplot = np.zeros_like(x_toplot)
+            x_toplot = x_toplot*np.cos(pa/180.*pi)
+            y_toplot = x_toplot*np.sin(pa/180.*pi)
+            pl.plot(x_toplot,y_toplot,'r-',lw=2)
+            pl.annotate('PA={:.2f}$^\circ$'.format(pa),(0.95,0.95),va='top',ha='right',xycoords='axes fraction',color='r',size=20)
+            if keepfig is not True:
+                pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
+                pl.close()
         #-- rotate counter clockwise by angle in degrees, and recalculate the
         #   values of the corners
-        data_ = imrotate(data,pa,reshape=True,cval=0.)
+        data_ = imrotate(data,-pa,reshape=True,cval=0.)
         coords2 = np.dot(coords,rotmatrix(-pa/180.*np.pi))
         xlims = coords2[:,0].min(),coords2[:,0].max()
         ylims = coords2[:,1].min(),coords2[:,1].max()
@@ -333,7 +351,7 @@ def ifm(the_system,ref=0,figname=None,keepfig=True):
         #   Fourier transforms but weighted with the SED intensity
         #   times the transmission filter.
         signal = signal/signal.sum()
-        f1,s1 = utils.DFTpower(x,signal,full_output=True,
+        f1,s1 = pergrams.DFTpower(x,signal,full_output=True,
                             f0=f0,fn=fn,df=df)
         s1_vis = np.abs(s1)
         s1_phs = np.angle(s1)
@@ -473,7 +491,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
             return wavelengths,np.zeros(len(wavelengths)),0.
     
         proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
-        rad_velos = the_system.mesh['velo_'+ref+'_'][keep,2]
+        rad_velos = -the_system.mesh['velo_'+ref+'_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
@@ -491,7 +509,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
-        rad_velos = the_system.mesh['velo_'+ref+'_'][keep,2]
+        rad_velos = -the_system.mesh['velo_'+ref+'_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         sizes = the_system.mesh['size'][keep]
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
@@ -719,7 +737,8 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
 #}
 #{ Input/output
 
-def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1):
+def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
+               update_intensities=False):
     """
     Add a pattern from a bitmap figure to a mesh column.
     
@@ -733,7 +752,13 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1):
     #-- get the coordinates in the original frame of reference.
     r,phi,theta = system.get_coords()
     #-- read in the data
-    data = (pl.imread(image_file)[::res,::res,:]).mean(axis=2).T
+    data = pl.imread(image_file)[::res,::res]
+    #   convert color images to gray scale
+    if len(data.shape)>2:
+        data = data.mean(axis=2).T
+    else:
+        data = data.T
+    data = data[::-1]
     #-- normalise the coordinates so that we can map the coordinates
     PHI = (phi+np.pi)/(2*np.pi)*data.shape[0]
     THETA = (theta)/np.pi*data.shape[1]
@@ -752,6 +777,8 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1):
     vals = vals*(maxval-minval) + minval
     #-- and replace the values in the particular column
     system.mesh[select][keep] = vals[keep]
+    if update_intensities:
+        system.intensity()
     logger.info("Added bitmap {}".format(image_file))
             
 def extract_times_and_refs(system,params,tol=1e-8):
@@ -790,7 +817,7 @@ def extract_times_and_refs(system,params,tol=1e-8):
             continue
         if not parset.context[-3:]=='obs':
             continue
-        parset.load()
+        loaded = parset.load(force=False)
         #-- exposure times
         if 'exptime' in parset:
             exps = parset['exptime']
@@ -805,15 +832,14 @@ def extract_times_and_refs(system,params,tol=1e-8):
             times.append(np.linspace(itime-iexp/2.0,itime+iexp/2.0,isamp))
             refs.append([parset['ref']]*isamp)
             types.append([parset.context]*isamp)
-        parset.unload()
-        
+        if loaded: parset.unload()
     #-- what times are actually the same? We cannot test "true" equality
     #   because of possible numerical rounding (e.g. when reading or writing
     #   files). We test which times are "nearly" equal
     try:
         times = np.hstack(times)
     except ValueError,msg:
-        raise ValueError("Failed to derive at which points the system needs to be computed (original message: {})".format(str(msg)))
+        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps the lcobs are not DataSets? (original message: {})".format(str(msg)))
     sa    = np.argsort(times)
     types = np.hstack(types)[sa]
     refs  = np.hstack(refs)[sa]

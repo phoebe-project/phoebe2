@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from numpy import sin,cos,sqrt,pi,arctan2
 from phoebe.utils import cgeometry
+#from pyphoebe import fgeometry
 
 logger = logging.getLogger('UTILS.COORDS')
 
@@ -82,6 +83,7 @@ def rotate_and_translate(mesh,theta=0,incl=0,Omega=0,
         if lbl[:4]=='velo':
             mesh_[lbl] = rotate_in_place(mesh_[prefix+lbl],(theta,Omega,incl),(0,0,0))
     mesh_['mu'] = cgeometry.cos_theta(mesh_['normal_'].ravel(order='F').reshape((-1,3)),np.array(los,float))
+    #mesh_['mu'] = fgeometry.cos_theta(mesh_['normal_'],los)
     return mesh_
 
 
@@ -123,6 +125,56 @@ def cart2spher_coord(x,y,z):
     phi = arctan2(y,x)
     theta = arctan2(np.sqrt(x**2+y**2),z)
     return rho,phi,theta
+
+
+def spher2cart_coord(r,phi,theta):
+    """
+    Spherical to Cartesian coordinate tranfomation.
+    
+    @return: x, y, z
+    @rtype: 3-tuple
+    """
+    x = r*cos(phi)*sin(theta)
+    y = r*sin(phi)*sin(theta)
+    z = r*cos(theta)
+    return x,y,z
+
+def spher2cart((r,phi,theta),(a_r,a_phi,a_theta)):
+    """
+    Spherical to cartesian vector transformation.
+    
+    theta is angle from z-axis (colatitude)
+    phi is longitude
+    
+    E.g. http://www.engin.brown.edu/courses/en3/Notes/Vector_Web2/Vectors6a/Vectors6a.htm
+    
+    >>> np.random.seed(111)
+    >>> r,phi,theta = np.random.uniform(low=-1,high=1,size=(3,2))
+    >>> a_r,a_phi,a_theta = np.random.uniform(low=-1,high=1,size=(3,2))
+    >>> a_x,a_y,a_z = spher2cart((r,phi,theta),(a_r,a_phi,a_theta))
+    
+    @return: a_x, a_y, a_z
+    @rtype: 3-tuple
+    """
+    ax = sin(theta)*cos(phi)*a_r + cos(theta)*cos(phi)*a_theta - sin(phi)*a_phi
+    ay = sin(theta)*sin(phi)*a_r + cos(theta)*sin(phi)*a_theta + cos(phi)*a_phi
+    az = cos(theta)         *a_r - sin(theta)         *a_theta
+    return ax,ay,az
+
+
+def cos_angle(vec1,vec2,axis=0):
+    """
+    Compute cosine of angle between two vectors (or between two grids of vectors).
+    
+    Input vectors should be numpy arrays of size (3xN) when axis=0
+    or of size (Nx3) when axis=1
+    
+    @return: cosine of angle between input vectors
+    @rtype: array/float
+    
+    """
+    return (vec1*vec2).sum(axis=axis) / (norm(vec1,axis=axis)*norm(vec2,axis=axis))
+
 
 
 def normal_from_points(*args):
