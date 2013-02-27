@@ -220,7 +220,10 @@ def ld_nonlinear(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    mu[mu==0] = 1e-16
+    if hasattr(mu,'__iter__'):
+        mu[mu==0] = 1e-16
+    elif mu==0:
+        mu = 1e-16
     return 1-coeffs[0]*(1-mu)-coeffs[1]*mu*np.log(mu)
 
 def ld_logarithmic(mu,coeffs):
@@ -570,6 +573,7 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
         #-- get some basic info
         abun = atm_kwargs['abun']
         ld_func = atm_kwargs['ld_func']
+        if ld_func=='uniform': ld_func = 'claret' # not important anyway here
         #-- do we need to interpolate in abundance?
         if hasattr(abun,'__iter__'):
             if np.all(abun==abun[0]):
@@ -580,6 +584,7 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
                 prefix = ''
                 raise ValueError("Cannot automatically detect atmosphere file")
         else:
+            prefix = 'm' if abun<0 else 'p'
             basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun*10,ld_func)        
         ret_val = os.path.join(basedir_ld_coeffs,basename)
         if os.path.isfile(ret_val):
@@ -800,7 +805,34 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                 filename[0].header.update(key,gg[0].header[key],'key from first atm_file')
         
     filename.close()
-        
+
+
+def match_teff_logg(atm_files):
+    """
+    Extract the maximal set of teff/logg coordinates that are common to all
+    atm_files.
+    """
+    use = []
+    remove = []
+    ref_file = atm_files[0]
+    for ival in iter_grid_dimensions(ref_file,['teff','logg'],[]):
+        ival_is_in_file = 1
+        for j,jatm_file in enumerate(atm_files[1:]):
+            for jval in iter_grid_dimensions(jatm_file,['teff','logg'],[]):
+                if jval[0]==ival[0] and jval[1]==ival[1]:
+                    ival_is_in_file += 1
+                    break
+            else:
+                print("Did not find {} in file {}".format(ival,jatm_file))
+                break
+        if ival_is_in_file==len(atm_files):
+            use.append(ival)
+            print ival
+        else:
+            remove.append(ival)
+    return use,remove
+                    
+    
 #}
 
 #{ Analytical expressions
@@ -1010,7 +1042,7 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
     #   "interp_ld_coeffs" only extract those that are relevant.
     atm_kwargs = dict(parset_pbdep)
     #-- No reddening for bolometric fluxes!
-    if ref=='__bol' and parset_isr.get_context()=='reddening:interstellar':
+    if ref=='__bol':# and parset_isr.get_context()=='reddening:interstellar':
         red_kwargs = {}
         logger.info("Not propagating interstellar reddening info for {} (taking default from grid)".format(ref))
     else:

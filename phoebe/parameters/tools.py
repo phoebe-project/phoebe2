@@ -119,4 +119,67 @@ def add_teffpolar(star,teffpolar,**kwargs):
     logger.info("star '{}': 'teff' redefined to be equal to 'teffpolar'".format(star['label']))
     
 
+def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
+    add_solarosc_numax(star,numax,unit=unit)
+    add_solarosc_Deltanu0(star,Deltanu0,unit=unit)
+
+def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
+    if kwargs and 'numax' in star:
+        raise ValueError("You cannot give extra kwargs to add_solarosc_numax if it already exist")
+    
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('description','Frequency of maximum power')
+    kwargs.setdefault('llim',0)
+    kwargs.setdefault('ulim',1e20)
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('frame','phoebe')
+    
+    add_surfgrav(star,0,derive='radius')
+    
+    #-- remove any constraints on surfgrav and add the parameter
+    star.pop_constraint('numax',None)
+    if not 'numax' in star:
+        star.add(parameters.Parameter(qualifier='numax',value=numax,**kwargs))
+    else:
+        star['numax'] = numax
+    
+    # we need to divide by 2pi because SI units of frequency are rad/s instead of Hz
+    scale = 'constants.Msol/constants.Rsol**2/np.sqrt(constants.Tsol)*constants.GG/(constants.numax_sol[0]*1e-6)'
+    star.add_constraint('{surfgrav} = '+scale+'*np.sqrt({teff})*{numax}/(2*np.pi)')
+    #-- append the constraint on the radius to be after the surface gravity.
+    star.add_constraint('{radius} = '+star.pop_constraint('radius'))
+    
+
+def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
+    """
+    You can only add this one if numax was added first!
+    """
+    if kwargs and 'Deltanu0' in star:
+        raise ValueError("You cannot give extra kwargs to add_solarosc if it already exist")
+    
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('description','Large separation between radial modes')
+    kwargs.setdefault('llim',0)
+    kwargs.setdefault('ulim',1e20)
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on surfgrav and add the parameter
+    star.pop_constraint('Deltanu0',None)
+    if not 'Deltanu0' in star:
+        star.add(parameters.Parameter(qualifier='Deltanu0',value=Deltanu0,**kwargs))
+    else:
+        star['Deltanu0'] = Deltanu0
+        
+    star.pop_constraint('mass',None)
+    star.pop_constraint('radius',None)
+    scale = '*(constants.Deltanu0_sol[0]*1e-6)**2/(constants.numax_sol[0]*1e-6)/np.sqrt(constants.Tsol)'
+    star.add_constraint('{radius} = np.sqrt({teff})*{numax}/{Deltanu0}**2*(2*np.pi)*constants.Rsol'+scale)
+    star.add_constraint('{mass} = {surfgrav}/constants.GG*{radius}**2')
+    
+    
+    
+
 #}

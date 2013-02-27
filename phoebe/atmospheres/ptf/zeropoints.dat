@@ -48,7 +48,7 @@
 # THE FOLLOWING SYSTEMS ARE VERY UNCERTAIN
 #- JOHNSON
 #=================================
-#photband         eff_wave type    vegamag vegamag_lit ABmag ABmag_lit STmag STmag_lit       Flam0 Flam0_units Flam0_lit        Fnu0 Fnu0_units   Fnu0_lit source                                                               
+#passband         eff_wave type    vegamag vegamag_lit ABmag ABmag_lit STmag STmag_lit       Flam0 Flam0_units Flam0_lit        Fnu0 Fnu0_units   Fnu0_lit source                                                               
 #|S50                  >f8 |S3         >f8       int32   >f8     int32   >f8     int32         >f8 |S50            int32         >f8 |S50            int32 |S100                                                                
  2MASS.H           16497.1 CCD       0.009           1   nan         0   nan         0 1.13535e-10 erg/s/cm2/AA         0 1.03036e-20 erg/s/cm2/Hz        0 Maiz-Appellaniz2007                                                  
  2MASS.J           12412.1 CCD      -0.021           1   nan         0   nan         0 3.11048e-10 erg/s/cm2/AA         0 1.59361e-20 erg/s/cm2/Hz        0 Maiz-Appellaniz2007                                                  

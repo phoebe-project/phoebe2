@@ -29,17 +29,18 @@ function = sys.argv[1]
 
 if myrank == 0:
     
-    
-    # Load the system that we want to compute
-    system = universe.load(sys.argv[2])
-    # Load the arguments to the function
-    with open(sys.argv[3],'r') as ff: args = cPickle.load(ff)
-    # Load the keyword arguments to the function
-    with open(sys.argv[4],'r') as ff: kwargs = cPickle.load(ff)
-    #-- Clean up pickle files once they are loaded:
-    os.unlink(sys.argv[2])
-    os.unlink(sys.argv[3])
-    os.unlink(sys.argv[4])
+    try:
+        # Load the system that we want to compute
+        system = universe.load(sys.argv[2])
+        # Load the arguments to the function
+        with open(sys.argv[3],'r') as ff: args = cPickle.load(ff)
+        # Load the keyword arguments to the function
+        with open(sys.argv[4],'r') as ff: kwargs = cPickle.load(ff)
+    finally:
+        #-- Clean up pickle files once they are loaded:
+        os.unlink(sys.argv[2])
+        os.unlink(sys.argv[3])
+        os.unlink(sys.argv[4])
     
     res = []
 

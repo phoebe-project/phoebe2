@@ -364,7 +364,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
          dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
-         dict(qualifier='refl_num',             description='Number of reflection',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
+         dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
          dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),

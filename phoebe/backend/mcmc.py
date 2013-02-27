@@ -135,6 +135,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
         algorithm = list(algorithm)[0]
         logger.info('Choosing back-end {}'.format(algorithm))
     
+    
     def model_eval(*args,**kwargs):
         #-- evaluate the system, get the results and return a probability
         had = []
@@ -157,6 +158,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
         return model
    
     mu,sigma,model = system.get_model()
+    #mu,sigma,model = system.get_data()
     
     #-- define the model
     mymodel = pymc.Deterministic(eval=model_eval,name='model',parents=pars,doc='Once upon a time there were three bears',\
@@ -294,6 +296,13 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
         logp = system.get_logp()
+        mu,sigma,model = system.get_model()
+        
+        #plt.errorbar(range(len(mu)),mu,yerr=sigma,fmt='ko')
+        #plt.plot(range(len(mu)),model,'ro-')
+        #plt.title('logp = {}, chi2={}'.format(logp,np.mean((model-mu)**2/sigma**2)))
+        #plt.show()
+        
         return logp
     
     #-- if we need to do incremental stuff, we'll need to open a chain file
@@ -622,7 +631,7 @@ def summarize_fit(system,fitparams):
             plt.xlabel("/".join(ipath)+' [{}]'.format(units[i]))
             plt.ylabel("/".join(jpath)+' [{}]'.format(units[j]))
             plt.hexbin(fitparams['feedback']['traces'][iind],
-                       fitparams['feedback']['traces'][jind])
+                       fitparams['feedback']['traces'][jind],bins='log')
             cbar = plt.colorbar()
             cbar.set_label("Number of occurrences")
     
@@ -647,7 +656,7 @@ def accept_fit(system,fitparams):
                 myid = this_param.get_unique_label()
                 index = fitted_param_labels.index(myid)
                 #-- [iwalker,trace,iparam]
-                this_param.set_value(np.mean(feedback['traces'][index]))
+                this_param.set_value(np.median(feedback['traces'][index]))
                 logger.info("Set {} = {} from MCMC trace".format(qual,this_param.as_string()))
 #}
 

@@ -88,7 +88,7 @@ Make 3D plots with L{Body.plot3D} or make 2D plots with L{Body.plot2D}. The
 latter is just a shortcut to L{observatory.image}.
 
 """
-enable_mayavi = True
+enable_mayavi = False
 #-- load standard libraries
 import sys
 import os
@@ -131,6 +131,7 @@ from phoebe.parameters import constraints
 from phoebe.atmospheres import roche
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
+from phoebe.atmospheres import pulsations
 from phoebe.dynamics import keplerorbit
 
 #-- we are not interested in messages from numpy, but we are in messages
@@ -1049,6 +1050,8 @@ class Body(object):
             return list(self.params.values())[0],'__bol'
         else:
             counter = 0
+            if not type in self.params:
+                return self[0].get_parset(ref=ref,type=type,subtype=subtype)
             subtypes = subtype and [subtype] or self.params[type].keys()
             for itype in subtypes:
                 #itype += type[-3:] # we want here subtype=='lc'-->'lcdep' or 'lcsyn'
@@ -2802,7 +2805,8 @@ class Star(PhysicalBody):
         ld_func = idep['ld_func']
         l3 = idep.get('l3',0.)
         pblum = idep.get('pblum',4*np.pi)
-        proj_int = limbdark.projected_intensity(self,method=method,ld_func=ld_func,ref=ref)
+        proj_int = limbdark.projected_intensity(self,method=method,
+                ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
         return proj_int*pblum/(4*np.pi) + l3
         
     
@@ -2904,7 +2908,7 @@ class Star(PhysicalBody):
             freq = pls.get_value('freq','cy/d')
             freq_Hz = freq / (24.*3600.)
             ampl = pls.get_value('ampl')
-            deltaT = pls.get_value('deltatemp')
+            deltaT = pls.get_value('deltateff')
             deltag = pls.get_value('deltagrav')
             omega = 2*pi*freq_Hz
             k0 = constants.GG*M/omega**2/R**3    
@@ -3636,7 +3640,7 @@ class BinaryStar(Star):
         return proj_velo
     
     
-    def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None):
+    def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None,with_partial_as_half=True):
         """
         Calculate local intensity.
         """
@@ -3644,7 +3648,7 @@ class BinaryStar(Star):
         if method is None:
             method = 'method' in idep and idep['method'] or 'numerical'
         if method=='numerical':
-            return super(BinaryStar,self).projected_intensity(los=los,ref=ref)
+            return super(BinaryStar,self).projected_intensity(los=los,ref=ref,with_partial_as_half=with_partial_as_half)
         #-- analytical computation
         elif method=='analytical':
             ld_func = idep['ld_func']

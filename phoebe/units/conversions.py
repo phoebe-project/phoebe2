@@ -295,7 +295,7 @@ For help and a list of all defined units and abbreviations, do::
                             Fnu)
         -f FREQ, --freq=FREQ
                             frequency (e.g. used to convert Flambda to Fnu)
-        -p PHOTBAND, --photband=PHOTBAND
+        -p PHOTBAND, --passband=PHOTBAND
                             photometric passband
 
 To convert from one unit to another, do::
@@ -313,7 +313,7 @@ to SI::
 It is also possible to compute with uncertainties, and you can give extra
 keyword arguments if extra information is needed for conversions::
 
-    $:> python conversions.py --from=mag --to=erg/s/cm2/AA --photband=GENEVA.U 7.84 0.02
+    $:> python conversions.py --from=mag --to=erg/s/cm2/AA --passband=GENEVA.U 7.84 0.02
     7.84 +/- 0.02 mag    =    4.12191e-12 +/- 7.59283e-14 erg/s/cm2/AA
     
 If you want to do coordinate transformations, e.g. from fractional radians to 
@@ -522,7 +522,7 @@ from phoebe.units.uncertainties.unumpy import log10,log,exp,sqrt
 from phoebe.units.uncertainties.unumpy import sin,cos,tan
 from phoebe.units.uncertainties.unumpy import arcsin,arccos,arctan
 from phoebe.utils.decorators import memoized
-#from pyphoebe.sed import filters
+from phoebe.atmospheres import passbands
 
 logger = logging.getLogger("UNITS.CONV")
 logger.addHandler(logging.NullHandler())
@@ -678,19 +678,19 @@ def convert(_from,_to,*args,**kwargs):
     
     B{Magnitudes and amplitudes}:
     
-    >>> print(convert('ABmag','Jy',0.,photband='SDSS.U'))
+    >>> print(convert('ABmag','Jy',0.,passband='SDSS.U'))
     3767.03798984
     >>> print(convert('Jy','erg cm-2 s-1 AA-1',3630.7805477,wave=(1.,'micron')))
     1.08848062485e-09
-    >>> print(convert('ABmag','erg cm-2 s-1 AA-1',0.,wave=(1.,'micron'),photband='SDSS.G'))
+    >>> print(convert('ABmag','erg cm-2 s-1 AA-1',0.,wave=(1.,'micron'),passband='SDSS.G'))
     4.97510278172e-09
-    >>> print(convert('erg cm-2 s-1 AA-1','ABmag',1e-8,wave=(1.,'micron'),photband='SDSS.G'))
+    >>> print(convert('erg cm-2 s-1 AA-1','ABmag',1e-8,wave=(1.,'micron'),passband='SDSS.G'))
     -0.757994856607
     >>> print(convert('ppm','muAmag',1.))
     1.0857356618
     >>> print(convert('mAmag','ppt',1.,0.1))
     (0.9214583192957981, 0.09218827316735488)
-    >>> print(convert('mag_color','flux_ratio',0.599,0.004,photband='GENEVA.U-B'))
+    >>> print(convert('mag_color','flux_ratio',0.599,0.004,passband='GENEVA.U-B'))
     (1.1391327795013377, 0.004196720251233046)
     
     B{Frequency analysis}:
@@ -827,10 +827,10 @@ def convert(_from,_to,*args,**kwargs):
     
     #-- convert the kwargs to SI units if they are tuples (make a distinction
     #   when uncertainties are given)
-    if uni_from!=uni_to and is_basic_unit(uni_from,'length') and not ('wave' in kwargs):# or 'freq' in kwargs_SI or 'photband' in kwargs_SI):
+    if uni_from!=uni_to and is_basic_unit(uni_from,'length') and not ('wave' in kwargs):# or 'freq' in kwargs_SI or 'passband' in kwargs_SI):
         kwargs['wave'] = (start_value,_from)
         logger.warning('Assumed input value to serve also for "wave" key')
-    elif uni_from!=uni_to and is_type(uni_from,'frequency') and not ('freq' in kwargs):# or 'freq' in kwargs_SI or 'photband' in kwargs_SI):
+    elif uni_from!=uni_to and is_type(uni_from,'frequency') and not ('freq' in kwargs):# or 'freq' in kwargs_SI or 'passband' in kwargs_SI):
         kwargs['freq'] = (start_value,_from)
         logger.warning('Assumed input value to serve also for "freq" key')
     kwargs_SI = {}
@@ -1731,8 +1731,8 @@ def fnu2flambda(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1740,8 +1740,8 @@ def fnu2flambda(arg,**kwargs):
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1763,8 +1763,8 @@ def flambda2fnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI, W/m2/m)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1772,8 +1772,8 @@ def flambda2fnu(arg,**kwargs):
     @return: spectral irradiance (SI,W/m2/Hz)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1795,8 +1795,8 @@ def fnu2nufnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1804,8 +1804,8 @@ def fnu2nufnu(arg,**kwargs):
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1827,8 +1827,8 @@ def nufnu2fnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1836,8 +1836,8 @@ def nufnu2fnu(arg,**kwargs):
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1859,8 +1859,8 @@ def flam2lamflam(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1868,8 +1868,8 @@ def flam2lamflam(arg,**kwargs):
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1891,8 +1891,8 @@ def lamflam2flam(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1900,8 +1900,8 @@ def lamflam2flam(arg,**kwargs):
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1920,8 +1920,8 @@ def distance2spatialfreq(arg,**kwargs):
     
     @param arg: distance (SI, m)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1929,8 +1929,8 @@ def distance2spatialfreq(arg,**kwargs):
     @return: spatial frequency (SI, cy/as)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -1947,8 +1947,8 @@ def spatialfreq2distance(arg,**kwargs):
     
     @param arg: spatial frequency (SI, cy/as)
     @type arg: float
-    @keyword photband: photometric passband
-    @type photband: str ('SYSTEM.FILTER')
+    @keyword passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
     @keyword wave: reference wavelength (SI, m)
     @type wave: float
     @keyword freq: reference frequency (SI, Hz)
@@ -1956,8 +1956,8 @@ def spatialfreq2distance(arg,**kwargs):
     @return: distance (SI, m)
     @rtype: float
     """
-    if 'photband' in kwargs:
-        lameff = filters.eff_wave(kwargs['photband'])
+    if 'passband' in kwargs:
+        lameff = passbands.eff_wave(kwargs['passband'])
         lameff = convert('AA','m',lameff)
         kwargs['wave'] = lameff
     if 'wave' in kwargs:
@@ -2593,11 +2593,11 @@ class VegaMag(NonLinearConverter):
     """
     Convert a Vega magnitude to W/m2/m (Flambda) and back
     """
-    def __call__(self,meas,photband=None,inv=False,**kwargs):
+    def __call__(self,meas,passband=None,inv=False,**kwargs):
         #-- this part should include something where the zero-flux is retrieved
-        zp = filters.get_info()
-        match = zp['photband']==photband.upper()
-        if sum(match)==0: raise ValueError("No calibrations for %s"%(photband))
+        zp = passbands.get_info()
+        match = zp['passband']==passband.upper()
+        if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
         F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])
         mag0 = float(zp['vegamag'][match][0])
         if not inv: return 10**(-(meas-mag0)/2.5)*F0
@@ -2607,11 +2607,11 @@ class ABMag(NonLinearConverter):
     """
     Convert an AB magnitude to W/m2/Hz (Fnu) and back
     """
-    def __call__(self,meas,photband=None,inv=False,**kwargs):
-        zp = filters.get_info()
+    def __call__(self,meas,passband=None,inv=False,**kwargs):
+        zp = passbands.get_info()
         F0 = convert('W/m2/Hz',constants._current_convention,3.6307805477010024e-23)
-        match = zp['photband']==photband.upper()
-        if sum(match)==0: raise ValueError("No calibrations for %s"%(photband))
+        match = zp['passband']==passband.upper()
+        if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
         mag0 = float(zp['ABmag'][match][0])
         if np.isnan(mag0): mag0 = 0.
         if not inv:
@@ -2629,11 +2629,11 @@ class STMag(NonLinearConverter):
     
     F0 = 3.6307805477010028e-09 erg/s/cm2/AA
     """
-    def __call__(self,meas,photband=None,inv=False,**kwargs):
-        zp = filters.get_info()
+    def __call__(self,meas,passband=None,inv=False,**kwargs):
+        zp = passbands.get_info()
         F0 = convert('erg/s/cm2/AA',constants._current_convention,3.6307805477010028e-09)#0.036307805477010027
-        match = zp['photband']==photband.upper()
-        if sum(match)==0: raise ValueError("No calibrations for %s"%(photband))
+        match = zp['passband']==passband.upper()
+        if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
         mag0 = float(zp['STmag'][match][0])
         if np.isnan(mag0): mag0 = 0.
         if not inv: return 10**(-(meas-mag0)/-2.5)*F0
@@ -2663,46 +2663,46 @@ class Color(NonLinearConverter):
     c1 = u - 2v + b
     Hbeta = HBN - HBW
     """
-    def __call__(self,meas,photband=None,inv=False,**kwargs):
+    def __call__(self,meas,passband=None,inv=False,**kwargs):
         #-- we have two types of colours: the stromgren M1/C1 type, and the
         #   normal Band1 - Band2 type. We need to have conversions back and
         #   forth: this translates into four cases.
-        system,band = photband.split('.')
+        system,band = passband.split('.')
         if '-' in band and not inv:
             band0,band1 = band.split('-')
-            f0 = convert('mag','SI',meas,photband='.'.join([system,band0]),unpack=False)
-            f1 = convert('mag','SI',0.00,photband='.'.join([system,band1]))
+            f0 = convert('mag','SI',meas,passband='.'.join([system,band0]),unpack=False)
+            f1 = convert('mag','SI',0.00,passband='.'.join([system,band1]))
             return f0/f1
         elif '-' in band and inv:
             #-- the units don't really matter, we choose SI'
             #   the flux ratio is converted to color by assuming that the
             #   denominator flux is equal to one.
             band0,band1 = band.split('-')
-            m0 = convert('W/m3','mag',meas,photband='.'.join([system,band0]),unpack=False)
-            m1 = convert('W/m3','mag',1.00,photband='.'.join([system,band1]))
+            m0 = convert('W/m3','mag',meas,passband='.'.join([system,band0]),unpack=False)
+            m1 = convert('W/m3','mag',1.00,passband='.'.join([system,band1]))
             return m0-m1
-        elif photband=='STROMGREN.C1' and not inv:
-            fu = convert('mag','SI',meas,photband='STROMGREN.U',unpack=False)
-            fb = convert('mag','SI',0.00,photband='STROMGREN.B')
-            fv = convert('mag','SI',0.00,photband='STROMGREN.V')
+        elif passband=='STROMGREN.C1' and not inv:
+            fu = convert('mag','SI',meas,passband='STROMGREN.U',unpack=False)
+            fb = convert('mag','SI',0.00,passband='STROMGREN.B')
+            fv = convert('mag','SI',0.00,passband='STROMGREN.V')
             return fu*fb/fv**2
-        elif photband=='STROMGREN.C1' and inv:
-            mu = convert('W/m3','mag',meas,photband='STROMGREN.U',unpack=False)
-            mb = convert('W/m3','mag',1.00,photband='STROMGREN.B')
-            mv = convert('W/m3','mag',1.00,photband='STROMGREN.V')
+        elif passband=='STROMGREN.C1' and inv:
+            mu = convert('W/m3','mag',meas,passband='STROMGREN.U',unpack=False)
+            mb = convert('W/m3','mag',1.00,passband='STROMGREN.B')
+            mv = convert('W/m3','mag',1.00,passband='STROMGREN.V')
             return mu-2*mv+mb
-        elif photband=='STROMGREN.M1' and not inv:
-            fv = convert('mag','SI',meas,photband='STROMGREN.V',unpack=False)
-            fy = convert('mag','SI',0.00,photband='STROMGREN.Y')
-            fb = convert('mag','SI',0.00,photband='STROMGREN.B')
+        elif passband=='STROMGREN.M1' and not inv:
+            fv = convert('mag','SI',meas,passband='STROMGREN.V',unpack=False)
+            fy = convert('mag','SI',0.00,passband='STROMGREN.Y')
+            fb = convert('mag','SI',0.00,passband='STROMGREN.B')
             return fv*fy/fb**2
-        elif photband=='STROMGREN.M1' and inv:
-            mu = convert('W/m3','mag',meas,photband='STROMGREN.V',unpack=False)
-            mb = convert('W/m3','mag',1.00,photband='STROMGREN.Y')
-            mv = convert('W/m3','mag',1.00,photband='STROMGREN.B')
+        elif passband=='STROMGREN.M1' and inv:
+            mu = convert('W/m3','mag',meas,passband='STROMGREN.V',unpack=False)
+            mb = convert('W/m3','mag',1.00,passband='STROMGREN.Y')
+            mv = convert('W/m3','mag',1.00,passband='STROMGREN.B')
             return mv-2*mb+my
         else:
-            raise ValueError("No color calibrations for %s"%(photband))
+            raise ValueError("No color calibrations for %s"%(passband))
 
 class JulianDay(NonLinearConverter):
     """
@@ -3598,7 +3598,7 @@ if __name__=="__main__":
                         help="wavelength with units (e.g. used to convert Flambda to Fnu)",default=None)
     group.add_option('--freq','-f',dest='freq',type='str',
                         help="frequency (e.g. used to convert Flambda to Fnu)",default=None)
-    group.add_option('--photband','-p',dest='photband',type='str',
+    group.add_option('--passband','-p',dest='passband',type='str',
                         help="photometric passband",default=None)
     parser.add_option_group(group)
     

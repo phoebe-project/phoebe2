@@ -601,8 +601,9 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     rvdep1['atm'] = (ps_wd['ifat1']==0) and 'blackbody' or 'kurucz'
     rvdep2['atm'] = (ps_wd['ifat2']==0) and 'blackbody' or 'kurucz'
     
-    body1['irradiator'] = True
-    body2['irradiator'] = True
+    #-- reflection?
+    body1['irradiator'] = ps_wd['mref']>0
+    body2['irradiator'] = ps_wd['mref']>0
     
     body1['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     body2['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
@@ -611,11 +612,14 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     rvdep1['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     rvdep2['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     
+    #-- passband luminosities and third light
     lcdep1['pblum'] = lc['hla']
     lcdep2['pblum'] = lc['cla']
     lcdep1['l3'] = lc['el3']
     lcdep2['l3'] = 0.
     
+    #-- set explicit labels; this guarantees the same label for consecutive
+    #   calls, otherwise the labels are random strings
     body1['label'] = 'star1'
     body2['label'] = 'star2'
     
@@ -632,6 +636,7 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     per0 = orbit.get_value('per0','rad')
     t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
     orbit['t0'] = t0
+    #-- gamma velocity needs to be corrected
     orbit['vgamma'] = orbit['vgamma']*100.
     
     return comp1,comp2,orbit
