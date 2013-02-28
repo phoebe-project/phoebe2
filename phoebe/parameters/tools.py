@@ -15,7 +15,9 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     
     Only two parameters out of surface gravity, mass and radius are
     independent. If you add surface gravity, you have to choose to derive
-    either mass or radius from the other two.
+    either mass or radius from the other two::
+    
+        g = G * M / R**2
     
     This is a list of stuff that happens:
     - A I{parameter} C{surfgrav} will be added if it does not exist yet
@@ -63,25 +65,25 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
     logger.info("star '{}': '{}' constrained by 'surfgrav'".format(star['label'],derive))
-    
-def add_rotperiodcrit(star,rotperiodcrit,**kwargs):
-    kwargs.setdefault('adjust',False)
-    kwargs.setdefault('context',star.context)
-    kwargs.setdefault('description','Polar rotation period/ critical period')
-    kwargs.setdefault('frame','phoebe')
-    
-    star.pop_constraint('rotperiodcrit',None)
-    star.pop_constraint('rotfreqcrit',None)
-    star.pop('rotfreqcrit',None)
-    if not 'rotperiodcrit' in star:
-        star.add(parameters.Parameter(qualifier='rotperiodcrit',
-                                      value=rotperiodcrit,**kwargs))
-    else:
-        star['rotperiodcrit'] = rotperiodcrit
-    star.add_constraint('{rotperiod} = {rotperiodcrit}*2*np.pi*np.sqrt(27*{radius}**3/(8*constants.GG*{mass}))')
-    logger.info("star '{}': 'rotperiod' constrained by 'rotperiodcrit'".format(star['label']))
+   
     
 def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
+    """
+    Add the critical rotation frequency to a Star.
+    
+    The rotation period will then be constrained by the critical rotation
+    frequency::
+    
+        rotperiod = 2*pi sqrt(27*R**3/(8*G*M)) / rotfreqcrit
+    
+    Extra C{kwargs} will be passed to the creation of the parameter if it does
+    not exist yet.
+   
+    @param star: star parameterset
+    @type star: ParameterSet of context star
+    @param rotfreqcrit: value for the critical rotation frequency
+    @type rotfreqcrit: float
+    """
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('description','Polar rotation freq/ critical freq')
@@ -100,7 +102,24 @@ def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     star.add_constraint('{rotperiod} = 2*np.pi*np.sqrt(27*{radius}**3/(8*constants.GG*{mass}))/{rotfreqcrit}')
     logger.info("star '{}': 'rotperiod' constrained by 'rotfreqcrit'".format(star['label']))
     
+    
 def add_teffpolar(star,teffpolar,**kwargs):
+    """
+    Add the polar effective temperature to a Star.
+    
+    The C{teff} parameter will be set to be equal to C{teffpolar}, but Phoebe
+    knows how to interpret C{teffpolar}, and, if it exists, to ignore the
+    value for C{teff}. If you want to know the mean passband effective
+    temperature, you will need to call C{as_point_source} on the Body.
+    
+    Extra C{kwargs} will be passed to the creation of the parameter if it does
+    not exist yet.
+   
+    @param star: star parameterset
+    @type star: ParameterSet of context star
+    @param teffpolar: value for the polar effective temperature
+    @type teffpolar: float
+    """
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('description','Polar effective temperature')
@@ -120,6 +139,11 @@ def add_teffpolar(star,teffpolar,**kwargs):
     
 
 def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
+    """
+    Add numax and Deltanu0 to a Star.
+    
+    See Kjeldsen 1995 for the relations.
+    """
     add_solarosc_numax(star,numax,unit=unit)
     add_solarosc_Deltanu0(star,Deltanu0,unit=unit)
 
@@ -149,6 +173,7 @@ def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
     star.add_constraint('{surfgrav} = '+scale+'*np.sqrt({teff})*{numax}/(2*np.pi)')
     #-- append the constraint on the radius to be after the surface gravity.
     star.add_constraint('{radius} = '+star.pop_constraint('radius'))
+    logger.info("star '{}': 'surfgrav' constrained by 'numax' and 'teff'".format(star['label']))
     
 
 def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
@@ -178,6 +203,8 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
     scale = '*(constants.Deltanu0_sol[0]*1e-6)**2/(constants.numax_sol[0]*1e-6)/np.sqrt(constants.Tsol)'
     star.add_constraint('{radius} = np.sqrt({teff})*{numax}/{Deltanu0}**2*(2*np.pi)*constants.Rsol'+scale)
     star.add_constraint('{mass} = {surfgrav}/constants.GG*{radius}**2')
+    logger.info("star '{}': 'radius' constrained by 'numax', 'teff' and 'Deltanu0'".format(star['label']))
+    logger.info("star '{}': 'mass' constrained by 'surfgrav' and 'radius'".format(star['label']))
     
     
     

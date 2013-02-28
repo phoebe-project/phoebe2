@@ -483,7 +483,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         #-- compute normalised intensity using the already calculated limb darkening
         #   coefficents. They are normalised so that center of disk equals 1. Then
         #   these values are used to compute the weighted sum of the spectra.
-        logger.info('using limbdarkening law %s - spectra interpolated from grid'%(ld_model))
+        logger.info('using limbdarkening law {} - spectra interpolated from grid {}'.format(ld_model,idep['profile']))
         Imu = getattr(limbdark,'ld_%s'%(ld_model))(mus,the_system.mesh['ld_'+ref][keep].T)
         teff,logg = the_system.mesh['teff'][keep],the_system.mesh['logg'][keep]
         #-- fitters can go outside of the grid
@@ -494,7 +494,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
             return wavelengths,np.zeros(len(wavelengths)),0.
     
         proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
-        rad_velos = -the_system.mesh['velo_'+ref+'_'][keep,2]
+        rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
@@ -512,7 +512,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
-        rad_velos = -the_system.mesh['velo_'+ref+'_'][keep,2]
+        rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         sizes = the_system.mesh['size'][keep]
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
@@ -927,6 +927,7 @@ def compute(system,params=None,**kwargs):
     heating = params['heating'] 
     reflect = params['refl']
     nreflect = params['refl_num']
+    ltt = params['ltt']
     #   so what about heating then...
     if heating and circular:
         heating = 1
@@ -962,6 +963,9 @@ def compute(system,params=None,**kwargs):
         #-- compute intensities
         if i==0 or not circular:
             system.intensity(ref=ref)
+        #-- update intensity should be set to True when we're doing beaming.
+        #   Perhaps we need to detect which refs have "beaming=True", collect
+        #   those in a list and update the intensities for them anyway?
         update_intensity = False
         #-- compute reflection effect (maybe just once, maybe always)
         if (reflect is True or heating is True) or (i==0 and (reflect==1 or heating==1)):
@@ -979,6 +983,9 @@ def compute(system,params=None,**kwargs):
         for k in range(params['subdiv_num']):
             system.subdivide(threshold=0,algorithm=params['subdiv_alg'])
             choose_eclipse_algorithm(system,algorithm=params['eclipse_alg'])
+        #-- correct for light travel time effects
+        if ltt:
+            system.correct_time()
         #-- compute stuff
         for itype,iref in zip(type,ref):
             logger.info('Calling {} for ref {}'.format(itype[:-3],iref))
@@ -1088,14 +1095,24 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     easy.
     """
     # Compute the orbit of the system
-    orbit = system[0].params['orbit']
+    if hasattr(system,'__len__'):
+        orbit = system[0].params['orbit']
+        star1 = system[0]
+        star2 = system[1]
+    else:
+        orbit = system.params['orbit']
+        star1 = system
+        star2 = None
     period = orbit['period']
     times_ = np.linspace(0,period,250)
     orbit1 = keplerorbit.get_binary_orbit(times_,orbit,component='primary')[0]
     orbit2 = keplerorbit.get_binary_orbit(times_,orbit,component='secondary')[0]
     # What's the radius of the stars?
-    r1 = coordinates.norm(system[0].mesh['_o_center'],axis=1).mean()
-    r2 = coordinates.norm(system[1].mesh['_o_center'],axis=1).mean()
+    r1 = coordinates.norm(star1.mesh['_o_center'],axis=1).mean()
+    if star2 is not None:
+        r2 = coordinates.norm(star2.mesh['_o_center'],axis=1).mean()
+    else:
+        r2 = r1
     # Compute the limits
     xmin = min(orbit1[0].min(),orbit2[0].min())
     xmax = max(orbit1[0].max(),orbit2[0].max())

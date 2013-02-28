@@ -59,6 +59,11 @@ def run_nonlin(system,params=None,fitparams=None,mpi=None,accept=False):
     fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
     #utils.pop_filehandlers(mylogger)
     mylogger.handlers = mylogger.handlers[:-1]
+    for handler in mylogger.handlers:
+        if not hasattr(handler,'baseFilename'):
+            if mylogger.level<logging._levelNames['WARNING']:
+                handler.setLevel('INFO')
+    logger.info("Reset logger")
     
     #-- accept the best fitting model and compute the system
     if accept:
@@ -96,6 +101,7 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     # which fitting algorithm to use.
     ids = []
     pars = lmfit.Parameters()
+    ppars = [] # Phoebe parameters
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
@@ -116,9 +122,14 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
                 #   prior of this object
                 name = '{}_{}'.format(qual,myid).replace('-','_')
                 prior = parameter.get_prior()
-                pars.add(name,value=parameter.get_value(),min=prior['lower'],max=prior['upper'],vary=True)
+                if fitparams['bounded']:
+                    minimum,maximum = prior['lower'],prior['upper']
+                else:
+                    minimum,maximum = None,None
+                pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
                 #-- and add the id
                 ids.append(myid)
+                ppars.append(parameter)
     #-- derive which algorithm to use for fitting. If all the contexts are the
     #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
     algorithm = set(frames)
@@ -150,135 +161,42 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
         mu,sigma,model = system.get_model()
         return (model-mu)/sigma
     
+    #-- do the fit and report on the errors to the screen
     result = lmfit.minimize(model_eval,pars,args=(system,),method=fitparams['method'])
     lmfit.report_errors(pars)
+    #-- extract the values to put them in the feedback
     if not result.success:
-        print("Warning: nonlinear fit failed!")
-    print("Estimating confidence intervals")
-    ci = lmfit.conf_interval(result,sigmas=(0.674,0.997))
-    lmfit.printfuncs.report_ci(ci)
-    feedback = dict(parameters=pars,redchi=result.redchi,success=result.success)
+        logger.error("nonlinear fit with method {} failed".format(fitparams['method']))
+        values = [np.nan for ipar in pars]
+    else:
+        values = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].value for ipar in ppars]
+    #-- the same with the errors and correlation coefficients, if there are any
+    if result.errorbars:
+        sigmas = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].stderr for ipar in ppars]
+        correl = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].correl for ipar in ppars]
+    else:
+        sigmas = [np.nan for ipar in pars]
+        correl = [np.nan for ipar in pars]
+        logger.error("Could not estimate errors (set to nan)")
+    #-- when asked, compute detailed confidence intervals
+    if fitparams['compute_ci']:
+        #-- if we do this, we need to disable boundaries
+        for name in pars:
+            pars[name].min = None
+            pars[name].max = None
+        try:
+            ci = lmfit.conf_interval(result,sigmas=(0.674,0.997),verbose=True,maxiter=10)
+            lmfit.printfuncs.report_ci(ci)
+        except Exception,msg:
+            logger.error("Could not estimate CI (original error: {}".format(str(msg)))
+    feedback = dict(parameters=ppars,values=values,sigmas=sigmas,correls=correl,\
+                    redchi=result.redchi,success=result.success)
     fitparams['feedback'] = feedback
     return fitparams
 
 #}
 
 #{ Verifiers
-
-def summarize_fit(system,fitparams,savefig=False):
-    """
-    Summarize a fit.
-    
-    @param system: the fitted system
-    @type system: Body
-    @param fitparams: the fit parameters (containing feedback)
-    @type fitparams: ParameterSet
-    """
-    #-- which parameters were fitted?
-    fitted_param_labels = [par.get_unique_label() for par in fitparams['feedback']['parameters']]
-    #-- walk through all parameterSets until you encounter a parameter that
-    #   was used in the fit
-    had = []
-    indices = []
-    paths = []
-    units = []
-    table = []
-    for path,param in system.walk_all(path_as_string=True):
-        if not isinstance(param,parameters.Parameter):
-            continue
-        this_label = param.get_unique_label()
-        if this_label in fitted_param_labels and not this_label in had:
-            if 'orbit' in path:
-                orb_index = path.index('orbit')
-                path = path[:orb_index-1]+path[orb_index:]
-            index = fitted_param_labels.index(this_label)
-            trace = fitparams['feedback']['traces'][index]
-            prior = fitparams['feedback']['priors'][index]
-            # Raftery-Lewis diagnostics
-            req_iters,thin_,burn_in,further_iters,thin = pymc.raftery_lewis(trace,q=0.025,r=0.1,verbose=0)
-            thinned_trace = trace[burn_in::thin]
-            indtrace = np.arange(len(trace))
-            indtrace = indtrace[burn_in::thin]
-            if param.has_unit():
-                unit = param.get_unit()
-            else:
-                unit=''
-            plt.figure(figsize=(14,8))
-            plt.subplot(221)
-            plt.title("Marginalised distribution")
-            #-- bins according to Scott's normal reference rule
-            bins = trace.ptp()/(3.5*np.std(trace)/len(trace)**0.333)
-            bins_thinned = thinned_trace.ptp()/(3.5*np.std(thinned_trace)/len(thinned_trace)**0.333)
-            plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
-            plt.hist(trace,bins=bins,alpha=0.5,normed=True)
-            if prior['distribution']=='uniform':
-                plt.axvspan(prior['lower'],prior['upper'],alpha=0.05,color='r')
-            plt.xlabel("/".join(path)+' [{}]'.format(unit))
-            plt.ylabel('Number of occurrences')
-            plt.grid()
-            plt.subplot(243)
-            plt.title("Geweke plot")
-            scores = np.array(pymc.geweke(trace)).T
-            plt.plot(scores[0],scores[1],'o')
-            plt.axhline(-2,color='g',linewidth=2,linestyle='--')
-            plt.axhline(+2,color='b',linewidth=2,linestyle='--')
-            plt.grid()
-            plt.xlabel("Iteration")
-            plt.ylabel("Score")
-            plt.subplot(244)
-            plt.title("Box and whisper plot")
-            plt.boxplot(trace)
-            plt.ylabel("/".join(path)+' [{}]'.format(unit))
-            txtval = '{}=({:.3g}$\pm${:.3g}) {}'.format(path[-1],trace.mean(),trace.std(),unit)
-            plt.xlabel(txtval)#,xy=(0.05,0.05),ha='left',va='top',xycoords='axes fraction')
-            plt.xticks([])
-            plt.grid()
-            plt.subplot(212)
-            plt.plot(indtrace,thinned_trace,'b-',lw=2,alpha=0.5)
-            plt.plot(trace,'g-')
-            plt.xlim(0,len(trace))
-            plt.xlabel("Iteration")
-            plt.ylabel("/".join(path)+' [{}]'.format(unit))
-            plt.grid()
-            if savefig:
-                plt.savefig("_".join(path).replace('.','_')+'.png')
-            
-            
-            had.append(this_label)
-            indices.append(index)
-            paths.append(path)
-            units.append(unit)
-            
-            table.append(["/".join(path),'{:.3g}'.format(trace.mean()),
-                                         '{:.3g}'.format(trace.std()),
-                                         '{:.3g}'.format(np.median(trace)),unit])
-    
-    #-- print a summary table
-    #-- what is the width of the columns?
-    col_widths = [9,4,3,3,4]
-    for line in table:
-        for c,col in enumerate(line):
-            col_widths[c] = max(col_widths[c],len(col))
-    template = '{{:{:d}s}} = ({{:{:d}s}} +/- {{:{:d}s}}) {{:{:d}s}} {{}}'.format(*[c+1 for c in col_widths])
-    header = template.format('Qualifier','Mean','Std','50%','Unit')
-    print('='*len(header))
-    print(header)
-    print('='*len(header))
-    for line in table:
-        print(template.format(*line))
-    print('='*len(header))
-    for i,(ipar,iind,ipath) in enumerate(zip(had,indices,paths)):
-        for j,(jpar,jind,jpath) in enumerate(zip(had,indices,paths)):
-            if j<=i: continue
-            plt.figure()
-            plt.xlabel("/".join(ipath)+' [{}]'.format(units[i]))
-            plt.ylabel("/".join(jpath)+' [{}]'.format(units[j]))
-            plt.hexbin(fitparams['feedback']['traces'][iind],
-                       fitparams['feedback']['traces'][jind],bins='log',gridsize=50)
-            cbar = plt.colorbar()
-            cbar.set_label("Number of occurrences")
-    print("MCMC path length = {}".format(len(fitparams['feedback']['traces'][iind])))
-    return None
 
 def accept_fit(system,fitparams):
     """
@@ -299,6 +217,6 @@ def accept_fit(system,fitparams):
                 myid = this_param.get_unique_label()
                 index = fitted_param_labels.index(myid)
                 #-- [iwalker,trace,iparam]
-                this_param.set_value(np.median(feedback['traces'][index]))
-                logger.info("Set {} = {} from MCMC trace".format(qual,this_param.as_string()))
+                this_param.set_value(feedback['values'][index])
+                logger.info("Set {} = {} from {} fit".format(qual,this_param.as_string(),fitparams['method']))
 

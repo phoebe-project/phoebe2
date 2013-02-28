@@ -564,16 +564,25 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
     """
     Choose a default LD coeffs file.
     """
+    #-- perhaps the user gave a filename: then return it
     if os.path.isfile(atm):
         return atm
+    #-- if the user wants tabulated blackbodies, we have a file for that.
     elif atm=='blackbody':
         basename = 'blackbody_uniform_none_teff.fits'
         return os.path.join(basedir_ld_coeffs,basename)
+    #-- else we need to be a little bit more clever and derive the file with
+    #   the tabulated values based on abundance, LD func etc...
     else:
         #-- get some basic info
         abun = atm_kwargs['abun']
         ld_func = atm_kwargs['ld_func']
-        if ld_func=='uniform': ld_func = 'claret' # not important anyway here
+        ld_coeffs = atm_kwargs['ld_coeffs']
+        #-- if the LD is uniform or given by the user itself, we're only
+        #   interested in the center intensities, so we can use the default
+        #   grid
+        if ld_func=='uniform' or not isinstance(ld_coeffs,str):
+            ld_func = 'claret'
         #-- do we need to interpolate in abundance?
         if hasattr(abun,'__iter__'):
             if np.all(abun==abun[0]):
@@ -589,13 +598,15 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
         ret_val = os.path.join(basedir_ld_coeffs,basename)
         if os.path.isfile(ret_val):
             return ret_val
+        else:
+            raise ValueError("Cannot interpret atm parameter {} I think the file that I need is {}, but it doesn't exist.".format(atm,ret_val))
     return atm
     
 def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     """
     Interpolate an atmosphere table.
     
-    @param atm: atmosphere table fileanme or alias
+    @param atm: atmosphere table filename or alias
     @type atm: string
     @param atm_kwargs: dict with keys specifying the atmospheric parameters
     @type atm_kwargs: dict
@@ -762,7 +773,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                                        red_kwargs=red_kwargs,vgamma=vgamma,
                                        passbands=passbands)
             elif law=='uniform':
-                Imu_blackbody = sed.blackbody(wave_,val[0])
+                Imu_blackbody = sed.blackbody(wave_,val[0],vrad=vgamma)
                 Imu = sed.synthetic_flux(wave_*10,Imu_blackbody,passbands)
             else:
                 raise ValueError("Blackbodies must have a uniform LD law")
@@ -1019,7 +1030,7 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
     #-- radial velocity needs to be in km/s, while the natural units in the 
     #   Universe are Rsol/d. If vrad needs to be computed, we'll also include
     #   gravitational redshift
-    vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo_'+ref+'_'][:,2])
+    vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
     if include_vgamma:
         vrad += 0. # tools.gravitational_redshift
     else:
@@ -1063,13 +1074,13 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
         atm_kwargs['logg'] = system.mesh['logg'][:1]
         atm_kwargs['abun'] = system.mesh['abun'][:1]
         vgamma = vrad[:1]
-        log_msg += '(single faces)'
+        log_msg += '(single faces) (vgamma={})'.format(vgamma)
     else:
         atm_kwargs['teff'] = system.mesh['teff']
         atm_kwargs['logg'] = system.mesh['logg']
         atm_kwargs['abun'] = system.mesh['abun']
         vgamma = vrad
-        log_msg += '(multiple faces)'
+        log_msg += '(multiple faces) (vgamma_mean={})'.format(vgamma.mean())
     #-- what kind of atmosphere is used to compute the limb darkening
     #   coefficients? They come from a model atmosphere (ld_coeffs is a filename),
     #   or they are a list of LD coeffs, assumed to be constant over the
@@ -1093,11 +1104,11 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
         wave_ = np.logspace(2,5,10000)
         log_msg += ', intens via atm=true_blackbody'
         if uniform_pars:
-            Imu_blackbody = sed.blackbody(wave_,atm_kwargs['teff'][0])
+            Imu_blackbody = sed.blackbody(wave_,atm_kwargs['teff'][0],vrad=vgamma)
             system.mesh[tag][:,-1] = sed.synthetic_flux(wave_*10,Imu_blackbody,[passband])[0]
         else:
             for i,T in enumerate(atm_kwargs['teff']):
-                Imu_blackbody = sed.blackbody(wave_,T)
+                Imu_blackbody = sed.blackbody(wave_,T,vrad=vgamma[i])
                 system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,Imu_blackbody,[passband])[0]
     #-- remember that if the ld_coeffs was a string, we already set the intensities
     elif not ld_coeffs_from_grid or atm!=ld_coeffs:
