@@ -216,9 +216,9 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='%s',value=False,cast_type='make_bool',frame=['phoebe'],context=['lcdep','ifdep','spdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
-         dict(qualifier='filename', description='Name of the file containing the data',repr='%s',cast_type=str,value='',adjust=False,frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','lcsyn','ifsyn','rvsyn','spsyn']),
+         dict(qualifier='filename', description='Name of the file containing the data',repr='%s',cast_type=str,value='',adjust=False,frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','lcsyn','ifsyn','rvsyn','spsyn','ifobs','ifsyn']),
          dict(qualifier='ref',    description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcobs','rvobs','spobs','ifobs','psdep','lcsyn','spsyn','rvsyn','ifsyn']),
-         dict(qualifier='time',     description='Timepoints of the data',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context=['lcobs','spobs','rvobs']),
+         dict(qualifier='time',     description='Timepoints of the data',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs']),
          dict(qualifier='flux',   description='Observed signal',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context='lcobs'),
          dict(qualifier='sigma',  description='Data sigma',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context=['lcobs','rvobs','lcsyn','rvsyn']),
          dict(qualifier='flag',    description='Signal flag',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
@@ -246,7 +246,7 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spec
 defs += [dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='rvdep'),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context='rvdep'),
          dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='rvdep'),
-         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','psres']),
+         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','pssyn']),
         ]        
 
 defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type=str,value='uniform',frame=["phoebe"],context='spdep'),
@@ -266,11 +266,14 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
 defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s',cast_type=str,value='uniform',frame=["phoebe"],context='ifdep'),
          dict(qualifier='ld_coeffs',         description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='ifdep'),
          dict(qualifier='passband',   description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context='ifdep'),
-         dict(qualifier='baseline',   description='Length of the baseline',repr='%f',value=0.,unit='m',frame=["phoebe"],context='ifdep'),
-         dict(qualifier='posangle',   description='Position angle of the baseline',repr='%f',value=0.,unit='deg',frame=["phoebe"],context='ifdep'),
-         dict(qualifier='freq',  description='Cyclic frequency',repr='%s',value=[],unit='cy/arcsec',frame=["phoebe"],context='ifsyn'),
-         dict(qualifier='vis', description='Visibility',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
-         dict(qualifier='phase',   description='Phase of visibility',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
+         dict(qualifier='baseline',   description='Length of the baseline',repr='%f',value=0.,unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='posangle',   description='Position angle of the baseline',repr='%f',value=0.,unit='deg',frame=["phoebe"],context=['ifobs','ifsyn']),
+         #dict(qualifier='freq',  description='Cyclic frequency',repr='%s',value=[],unit='cy/arcsec',frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='vis', description='Visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vis', description='Error on visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='phase',   description='Phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','baseline','posangle','vis','phase'],unit='nm',cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
         ]
 
 defs += [dict(qualifier='coordinates',description="Location of geometrical barycenter",cast_type=np.array,repr='%s',value=[0.,0.,0.],unit='Rsol',frame=["phoebe"],context=['point_source']),
@@ -345,6 +348,9 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='bounded',description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
 
 #    MPI and computation context
@@ -370,6 +376,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
          dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
+         dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
          dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),

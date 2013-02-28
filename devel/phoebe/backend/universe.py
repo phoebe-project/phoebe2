@@ -1329,7 +1329,7 @@ class PhysicalBody(Body):
         """
         #-- what's our distance from the barycentre?
         mydistance = np.average(self.mesh['center'][:,2],weights=self.mesh['size'])
-        correction = mydistance/constants.cc
+        correction = mydistance/constants.cc*constants.Rsol/(24*3600.)
         #-- add the time correction so that the time is corrected for the
         #   light travel time.
         self.time += correction
@@ -2756,7 +2756,7 @@ class Star(PhysicalBody):
         grav_th = r_*omega**2*sin_theta*cos_theta
         local_grav = np.sqrt(grav_r**2 + grav_th**2)
         self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',local_grav)
-        logger.info("derived surface gravity: %.3f <= log g<= %.3f (Rp=%s)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),rp))
+        logger.info("derived surface gravity: %.3f <= log g<= %.3f (Rp=%s)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),rp/constants.Rsol))
     
     
     def temperature(self,time):
@@ -3625,6 +3625,8 @@ class BinaryRocheStar(PhysicalBody):
             else:
                 self.reset_mesh()
                 self.conserve_volume(time)
+            #-- once we have the mesh, we need to place it into orbit
+            keplerorbit.place_in_binary_orbit(self,time)
             #-- compute polar radius and logg!
             self.surface_gravity()
             self.temperature()
@@ -3633,8 +3635,8 @@ class BinaryRocheStar(PhysicalBody):
                 self.intensity(photband='OPEN.BOL')
         else:
             self.reset_mesh()
-        #-- once we have the mesh, we need to place it into orbit
-        keplerorbit.place_in_binary_orbit(self,time)
+            #-- once we have the mesh, we need to place it into orbit
+            keplerorbit.place_in_binary_orbit(self,time)
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
         

@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import phoebe
 from phoebe.backend import observatory
+from phoebe.utils import plotlib
 
 logger = phoebe.get_basic_logger()
 c0 = time.time()
@@ -42,11 +43,11 @@ mesh1['delta'] = 0.1
 
 # Create a ParameterSet with Parameters for the pulsation mode
 freq_pars1 = phoebe.ParameterSet(frame='phoebe',context='puls',add_constraints=True)
-freq_pars1['freq'] = 1.5,'cy/d' # so that K0=0.1
-freq_pars1['ampl'] = 0.01
+freq_pars1['freq'] = 1.0,'cy/d' # so that K0=0.1
+freq_pars1['ampl'] = 0.015
 freq_pars1['l'] = 4
-freq_pars1['m'] = 3
-freq_pars1['deltateff'] = 0.1
+freq_pars1['m'] = -3
+freq_pars1['deltateff'] = 0.2
 freq_pars1['ledoux_coeff'] = 0.5
 freq_pars1['scheme'] = 'coriolis'
 
@@ -93,7 +94,7 @@ system = phoebe.BodyBag([pulsating_star,rotating_star])
 # Now calculate the light curves numerically and analytically:
     
 P = orbit['period']
-times = np.linspace(0,P,100)
+times = np.linspace(-0.2*P,+0.2*P,100)
 
 extra_funcs = [observatory.ef_binary_image]*4
 extra_funcs_kwargs = [dict(select='teff',cmap=plt.cm.spectral,name='pulsbin_teff',ref='Light curve'),
@@ -115,10 +116,13 @@ flux = np.array(pulsating_star.params['syn']['lcsyn'].values()[0]['flux'])+\
 
     
 #-- plot light curve: I ommit comments because frankly, it's just plotting
-pl.figure()
-pl.plot(times,flux,'ko-')
-pl.xlabel('Time [d]')
-pl.savefig('pulsbin_lc.png')
+plt.figure()
+plt.plot(times,flux,'ko-')
+plt.xlim(times[0],times[-1])
+plt.xlabel('Time [d]')
+plt.ylabel("Flux [erg/s/cm2/AA]")
+plt.grid()
+plt.savefig('pulsbin_lc.png')
     
 
 """
@@ -150,7 +154,6 @@ print "Analysis of results: %10.3f sec"%((c2-c1))
 print "-----------------------------------"
 print "Total time:          %10.3f min"%((c2-c0)/60.)
 
-subprocess.call('convert -loop 0 pulsbin_bb*.png pulsbin_bb.gif',shell=True)
-subprocess.call('convert -loop 0 pulsbin_rv*.png pulsbin_rv.gif',shell=True)
-subprocess.call('convert -loop 0 pulsbin_teff*.png pulsbin_teff.gif',shell=True)    
-subprocess.call('convert -loop 0 pulsbin_proj*.png pulsbin_proj.gif',shell=True)    
+for ext in ['.gif','.avi']:
+    for root in ['bb','rv','teff','proj']:
+        plotlib.make_movie('pulsbin_{}*.png'.format(root),output='pulsbin_{}{}'.format(root,ext))

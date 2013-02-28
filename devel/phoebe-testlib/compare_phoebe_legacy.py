@@ -34,6 +34,9 @@ And to analyse (if you have runSnakeRun installed):
 
 $:> runsnake myprofile.cprof
 
+Beware that if you profile the code, it will not be run through MPI, and so
+it can take a *long* time to run it!
+
 """
 from matplotlib import pyplot as plt
 import socket
@@ -52,42 +55,6 @@ from pyphoebe.parameters import create
 
 logger = phoebe.get_basic_logger()
 
-def get_mpi_parameters():
-    #-- setup MPI stuff: check which host the script is running on. If it is
-    #   clusty and we can readily find a hosts file, we fill in the MPI parameter
-    #   set.
-    hostname = socket.gethostname()
-    if hostname=='clusty':
-        hostfile = os.path.expanduser('~/mpi/hosts')
-        print("Running on Clusty, trying to load hostfile {}".format(hostfile)) 
-        if not os.path.isfile(hostfile):
-            print("Cannot load hostfile {} (file does not exist), falling back to defaults".format(hostfile))
-        else:
-            mpi = phoebe.ParameterSet(context='mpi',np=24,hostfile=hostfile,
-                                        byslot=True,python='python2.7')
-    #-- If the hostname isn't clusty, we're probably running on a normal computer
-    #   in that case, just take the number of available processes.
-    else:
-        mpi = phoebe.ParameterSet(context='mpi',np=multiprocessing.cpu_count())
-    return mpi 
-
-
-def get_meshes(name,type=''):
-    #-- Retrieve the filenames and the times from the meshes
-    times_file = name+'-important_times.dat'
-    phasenames = ['mesh-periastron','mesh-sup_conj','mesh-inf_conj',
-                  'mesh-asc_node','mesh-dec_node']
-    #-- read in the file with the times
-    with open(times_file,'r') as ff:
-        crit_times = [float(line.strip().split()[-1]) for line in ff.readlines()[2:]]
-    #-- output the filenames with the times
-    crit_files = [name+'-'+phasename+type+'.dat' for phasename in phasenames]
-    return crit_times,crit_files
-            
-    
-
-
-
 def compare(test_case,delta=0.1,recompute=False,mesh='marching',
             conserve_volume='periastron'):
     """
@@ -95,7 +62,7 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     """
     #-- figure out which critical phase is the reference for conservation of
     #   volume
-    cvol_index = ['periastron','sup_conj','inf_conj','asc_node','dec_node'].index(conserve_volume)
+    cvol_index = ['periastron','sup_conj','inf_conj','asc_node','desc_node'].index(conserve_volume)
     
     #========= FILES and INPUTS =============================================
     #--------- PHOEBE LEGACY ------------------------------------------------
@@ -158,14 +125,14 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     #   remember). Make sure to conserve volume at periastron: we compute the system at
     #   T0 (time of periastron passage). Phoebe 2.0 remembers the volume at the
     #   first computed time point
-    time = np.hstack([phoebe_crit_times[cvol_index],np.linspace(otime[0],otime[-1],250)])
+    time = np.hstack([phoebe_crit_times[cvol_index]-P/2,np.linspace(otime[0],otime[-1],250)])
     
     #--------- WD -----------------------------------------------------------
     #-- read in the WD lcin file, and make sure we compute stuff in JD
     wd_input_file = legacy_basename + '-test.lcin'
     ps,lc,rv = wd.lcin_to_ps(wd_input_file,version='wdphoebe')
-    lc['jdstrt'] = otime[0]
-    lc['jdend'] = otime[-1]
+    lc['jdstrt'] = time[1]
+    lc['jdend'] = time[-1]+time[-1]-time[-2]
     lc['jdinc'] = time[-1]-time[-2]
     lc['indep_type'] = 'time (hjd)'
    
@@ -189,16 +156,16 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
             ff.write('PH:'+line1+'\n')
             ff.write('WD:'+line2+'\n')
     #============ COMPUTATIONS ===============================================
-    #-- get mpi-stuff and details
-    if not 'cProfile' in globals():
-        mpi = get_mpi_parameters()    
-    else:
+    #-- get mpi-stuff and details, but only if we're not profiling the code.
+    if 'cProfile' in globals():
         mpi = None
-    
+    else:
+        mpi = get_mpi_parameters()
+
     #-- compute the system if the light curves haven't been computed before
     if not os.path.isfile(phoebe_lc_file) or recompute:
         #-- compute the system
-        phoebe.observe(system,time,lc=True,mpi=mpi,subdiv_num=0,refl=True,heating=True)
+        phoebe.observe(system,time,lc=True,mpi=mpi,subdiv_num=0,refl=False,heating=True)
         #-- retrieve the results: for each component and for the whole system
         lcref = system[0].params['pbdep']['lcdep'].values()[0]['ref']
         lc = system.get_synthetic(type='lcsyn',ref=lcref)
@@ -278,7 +245,39 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     
     
 
+def get_mpi_parameters():
+    #-- setup MPI stuff: check which host the script is running on. If it is
+    #   clusty and we can readily find a hosts file, we fill in the MPI parameter
+    #   set.
+    hostname = socket.gethostname()
+    if hostname=='clusty':
+        hostfile = os.path.expanduser('~/mpi/hosts')
+        print("Running on Clusty, trying to load hostfile {}".format(hostfile)) 
+        if not os.path.isfile(hostfile):
+            print("Cannot load hostfile {} (file does not exist), falling back to defaults".format(hostfile))
+        else:
+            mpi = phoebe.ParameterSet(context='mpi',np=24,hostfile=hostfile,
+                                        byslot=True,python='python2.7')
+    #-- If the hostname isn't clusty, we're probably running on a normal computer
+    #   in that case, just take the number of available processes.
+    else:
+        mpi = phoebe.ParameterSet(context='mpi',np=multiprocessing.cpu_count())
+    return mpi 
 
+
+def get_meshes(name,type=''):
+    #-- Retrieve the filenames and the times from the meshes
+    times_file = name+'-important_times.dat'
+    phasenames = ['mesh-periastron','mesh-sup_conj','mesh-inf_conj',
+                  'mesh-asc_node','mesh-desc_node']
+    #-- read in the file with the times
+    with open(times_file,'r') as ff:
+        crit_times = [float(line.strip().split()[-1]) for line in ff.readlines()[2:]]
+    #-- output the filenames with the times
+    crit_files = [name+'-'+phasename+type+'.dat' for phasename in phasenames]
+    return crit_times,crit_files
+            
+    
 
 if __name__=="__main__":
     

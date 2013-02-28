@@ -213,7 +213,9 @@ class LCDataSet(DataSet):
             self.unload()
         
 class RVDataSet(DataSet):
-    pass
+    def __init__(self,**kwargs):
+        kwargs.setdefault('context','rvobs')
+        super(RVDataSet,self).__init__(**kwargs)
 
 class SPDataSet(DataSet):
     """
@@ -227,6 +229,10 @@ class SPDataSet(DataSet):
     the user to define different wavelength ranges for each computation,
     it's only automatic saving that becomes difficult).
     """
+    def __init__(self,**kwargs):
+        kwargs.setdefault('context','spobs')
+        super(SPDataSet,self).__init__(**kwargs)
+        
     def load(self,force=True):
         """
         Load the contents of a spectrum file.
@@ -379,5 +385,7 @@ class SPDataSet(DataSet):
 
 
 class IFDataSet(DataSet):
-    pass
+    def __init__(self,**kwargs):
+        kwargs.setdefault('context','ifobs')
+        super(IFDataSet,self).__init__(**kwargs)
     

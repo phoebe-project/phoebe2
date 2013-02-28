@@ -7,10 +7,11 @@ import numpy as np
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.atmospheres import passbands as pbs
+from phoebe.atmospheres import tools
 
 logger = logging.getLogger('ATM.SED')
 
-def blackbody(x,T):
+def blackbody(x,T,vrad=0):
     """
     Definition of black body curve.
     
@@ -29,6 +30,9 @@ def blackbody(x,T):
     expont = constants.hh*constants.cc / (constants.kB*T)
     I = factor / x**5. * 1. / (np.exp(expont/x) - 1.)
     #from SI to erg/s/cm2/AA:
+    if vrad!=0:
+        I_ = tools.doppler_shift(x,-vrad,flux=I,vrad_units='km/s')
+        I = I_ + 5.*vrad/constants.cc*1000*I
     return I*1e-7
 
 def synthetic_flux(wave,flux,passbands,units=None):
