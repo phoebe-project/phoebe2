@@ -45,6 +45,9 @@ import re
 import numpy as np
 from phoebe.parameters import parameters
 from phoebe.backend import universe
+from phoebe.dynamics import keplerorbit
+from phoebe.atmospheres import roche
+from phoebe.units import conversions
 
 
 logger = logging.getLogger('PARS.CREATE')
@@ -329,7 +332,7 @@ def star_from_spectral_type(spectype,create_body=False,**kwargs):
     #-- stellar parameters that are equal for all stars
     star = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True)
     star['incl'] = 90.,'deg'
-    star['surface'] = 'roche'
+    star['shape'] = 'equipot'
     star['distance'] = 10.,'pc'
     star['ld_func'] = 'claret'
     star['atm'] = 'kurucz'
@@ -340,7 +343,7 @@ def star_from_spectral_type(spectype,create_body=False,**kwargs):
     #   and rotation period (luminosity follows from these)
     
     #-- first get information
-    data = utils.loadtxt(os.path.join(os.path.dirname(os.path.abspath(__file__)),'catalogs','spectypes.dat'),dtype=np.str)
+    data = np.loadtxt(os.path.join(os.path.dirname(os.path.abspath(__file__)),'catalogs','spectypes.dat'),dtype=np.str)
     sptypes = np.rec.fromarrays(data.T,dtype=np.dtype([('SpType', '|S9'),\
          ('teff', '<f8'), ('lumi', '<f8'), ('rad', '<f8'), ('mass', '<f8'),\
          ('Mbol', '<f8'), ('rotperiod', '<f8')]))
@@ -381,7 +384,94 @@ def dep_from_object(myobject,context,**kwargs):
             obsdep[key] = myobject[key]
     return obsdep
 
+@make_body
+def binary_from_stars(star1,star2,sma=None,period=None,\
+                      kwargs1=None,kwargs2=None,orbitkwargs=None,\
+                      create_body=False,**kwargs):
+    """
+    Create a binary system from two separate stars.
     
+    Extra information given is the separation (C{sma}) between the two objects
+    or the orbital period. You should give one of them (and only one) as a
+    tuple (value,unit).
+    
+    Extra ``kwargs1`` override defaults in the creation of the primary, extra
+    ``kwargs2`` for the secondary, and ``orbitkwargs`` does the same for the
+    creation of the orbit.
+    
+    Extra kwargs are used to create observables if C{create_body=True}. Else,
+    they are ignored.
+    
+    @param star1: ParameterSet representing star 1
+    @type star1: ParameterSet
+    @param star2: ParameterSet representing star 2
+    @type star2: ParameterSet
+    @param sma: sma between the two components, and its unit
+    @type sma: (float,string)
+    @param period: period of the system
+    @type period: float
+    @param create_body: create a BodyBag containing both objects
+    @type create_body: bool
+    @return: parameterSets component 1, component 2 and orbit, or BodyBag instance
+    @rtype: ParameterSet,ParameterSet,ParameterSet or BodyBag
+    """
+    if kwargs1 is None:
+        kwargs1 = {}
+    if kwargs2 is None:
+        kwargs2 = {}
+    if orbitkwargs is None:
+        orbitkwargs = {}
+    if sma is not None and period is not None:
+        raise ValueError("Give only sma or period, not both")
+    
+    comp1 = parameters.ParameterSet(context='component',**kwargs1)
+    comp2 = parameters.ParameterSet(context='component',**kwargs2)
+    orbit = parameters.ParameterSet(context='orbit',**orbitkwargs)
+    
+    #-- get value on total mass
+    M = star1.get_value('mass','Msol')+star2.get_value('mass','Msol')
+    #-- get information on semi-major axis
+    if sma is not None:
+        sma = conversions.convert(sma[1],'au',sma[0])
+        period = keplerorbit.third_law(totalmass=M,sma=sma)
+        orbit['sma'] = sma,'au'
+        orbit['period'] = period,'d'
+    elif period is not None:
+        period = conversions.convert(period[1],'d',period[0])
+        sma = keplerorbit.third_law(totalmass=M,period=period)
+        orbit['sma'] = sma,'au'
+        orbit['period'] = period,'d'
+    
+    orbit['q'] = star2.get_value('mass','Msol')/star1.get_value('mass','Msol')
+    
+    logger.info("Creating binary: sma={:.3g}au, period={:.3g}d, ecc={:.3g}, q={:.3g}".format(orbit['sma'],orbit['period'],orbit['ecc'],orbit['q']))
+    
+    if not 'syncpar' in kwargs1:
+        comp1['syncpar'] = orbit.request_value('period','d')/star1.request_value('rotperiod','d')
+    if not 'syncpar' in kwargs2:
+        comp2['syncpar'] = orbit.request_value('period','d')/star2.request_value('rotperiod','d')
+    
+    logger.info('Creating binary: syncpar1={:.3g}, syncpar2={:.3g}'.format(comp1['syncpar'],comp2['syncpar']))
+    
+    R1 = star1.get_value('radius','au')
+    R2 = star2.get_value('radius','au')
+    R1crit = roche.calculate_critical_radius(orbit['q'],component=1,F=comp1['syncpar'])*sma
+    R2crit = roche.calculate_critical_radius(orbit['q'],component=2,F=comp2['syncpar'])*sma
+    #if R1>R1crit: raise ValueError("Star1 radius exceeds critical radius: R/Rcrit={}".format(R1/R1crit))
+    #if R2>R2crit: raise ValueError("Star2 radius exceeds critical radius: R/Rcrit={}".format(R2/R2crit))
+    comp1['pot'] = roche.radius2potential(R1/sma,orbit['q'],component=1,F=comp1['syncpar'])
+    comp2['pot'] = roche.radius2potential(R2/sma,orbit['q'],component=2,F=comp2['syncpar'])
+    
+    for key in ['teff']:
+        comp1[key] = star1.get_value_with_unit(key)
+        comp2[key] = star2.get_value_with_unit(key)
+    for key in ['atm','label','ld_func','ld_coeffs']:
+        comp1[key] = star1[key]
+        comp2[key] = star2[key]
+    orbit['c1label'] = comp1['label']
+    orbit['c2label'] = comp2['label']
+    logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
+    return comp1,comp2,orbit    
 #}  
 
 #{ More complicated systems

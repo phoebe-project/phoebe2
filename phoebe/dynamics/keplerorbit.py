@@ -905,6 +905,25 @@ def third_law(totalmass=None,sma=None,period=None):
         - C{sma} = semi-major axis (au)
         - C{period} = period (d)
     
+    The ``totalmass`` :math:`M` is computed as:
+    
+    .. math::
+        
+        M = 4\pi^2 \mathrm{sma}^3/\mathrm{period}^2/G\quad\mathrm{kg}
+    
+    The system semi-major axis ``sma`` as
+    
+    .. math::
+    
+        \mathrm{sma} = (G M\mathrm{period}^2/(4\pi^2))^{1/3}\quad\mathrm{m}
+
+    And the ``period`` as
+    
+    .. math::
+    
+        \mathrm{period} = \sqrt{4\pi^2\mathrm{sma}^3/(G*M)} \quad\mathrm{s}
+    
+    
     Example of Jupiter (Jupiter mass negligeable):
     
     >>> print third_law(totalmass=1.,sma=5.204)

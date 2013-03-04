@@ -144,13 +144,13 @@ plt.savefig('02_rv_comparison')
 
 """
 
-+-----------------------------------+---------------------------------+
-| Light curve comparison            | Radial velocity comparison      |
-+-----------------------------------+---------------------------------+
-| .. image:: 02_lc_comparison.png   | .. image:: 02_rv_comparison.png |
-|    :height: 233px                 |    :height: 233px               |
-|    :width: 233px                  |    :width: 233px                |
-+-----------------------------------+---------------------------------+
++----------------------------------------------+--------------------------------------------+
+| Light curve comparison                       | Radial velocity comparison                 |
++----------------------------------------------+--------------------------------------------+
+| .. image:: images_tut/02_lc_comparison.png   | .. image:: images_tut/02_rv_comparison.png |
+|    :height: 233px                            |    :height: 233px                          |
+|    :width: 233px                             |    :width: 233px                           |
++----------------------------------------------+--------------------------------------------+
 
 """
 
@@ -164,7 +164,7 @@ plt.plot(star2.mesh['center'][:,0]/sma,star2.mesh['center'][:,1]/sma,'co',ms=4,m
 plt.savefig('02_image_comparison')
 
 """
-.. figure:: 02_image_comparison.png
+.. figure:: images_tut/02_image_comparison.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure

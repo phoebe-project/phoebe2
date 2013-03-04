@@ -17,17 +17,24 @@ class DataSet(parameters.ParameterSet):
     
     A L{DataSet} is similar to a L{ParameterSet}, with additional features:
     
-        1. It can L{load} columns of data (arrays) from a C{filename} to
-        L{Parameter}s in the L{DataSet}. This eliminates the need for parameters
-        to be always loaded into memory. The L{DataSet} needs to contain the
-        L{Parameter}s C{filename} specifying the location of the file and
-        C{columns} specifying the columns in the file.
-        2. It can L{unload} C{columns} from the L{DataSet}. This removes them from
-        memory, but they can always be reloaded from the file again. All in-place
-        changes to these arrays since loading from the file will be lost.
-        3. It can L{save} data from C{columns} in C{filename}.
+        1. It can :py:func:`load` columns of data (arrays) from a C{filename} to
+           C{Parameters} in the L{DataSet}. This eliminates the need for parameters
+           to be always loaded into memory. The L{DataSet} needs to contain the
+           C{Parameter} C{filename} specifying the location of the file and
+           C{columns} specifying the columns in the file.
+        
+        2. It can :py:func:`unload` C{columns} from the C{DataSet}. This removes them from
+           memory, but they can always be reloaded from the file again. All in-place
+           changes to these arrays since loading from the file will be lost.
+        
+        3. It can :py:func:`save` data from C{columns} in C{filename}.
+        
+        4. ``DataSets`` can be plotted
+        
+        5. It is possible to perform basic arithmic operations on DataSets,
+           e.g. to take the difference between two DataSets.
     
-    B{Example usage:} Create two L{Parameter}s 
+    B{Example usage:} Create two C{Parameters} 
     
     >>> filename = Parameter(qualifier='filename',value='sample.lc')
     >>> columns = Parameter(qualifier='columns',value=['date','flux'])
@@ -43,7 +50,7 @@ class DataSet(parameters.ParameterSet):
     
     At this point, only the C{filename} and C{columns} exist, but there is
     no way to access the data itself directly. For this, we need to hit the
-    L{load} function:
+    :py:func:`load` function:
     
     >>> ds.load()
     >>> print(ds)
@@ -52,7 +59,7 @@ class DataSet(parameters.ParameterSet):
         date [0.0 ... 4.0]                 --     test <loaded from file sample.lc>
         flux [0.0 ... -1.22464679915e-15]  --     test <loaded from file sample.lc>
     
-    To remove these arrays from memory, hit L{unload}.
+    To remove these arrays from memory, hit py:func:`unload`.
     
     >>> ds.unload()
     >>> print(ds)

@@ -997,7 +997,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     #   in a table: if the given coefficients are a string, assume it is a
     #   reference to a table. Otherwise, just use the coefficients.
     if isinstance(ld_coeffs,str):
-        atm_kwargs = dict(atm=atm,ld_func=ld_func,teff=teff,logg=logg,abun=abun)
+        atm_kwargs = dict(atm=atm,ld_func=ld_func,teff=teff,logg=logg,abun=abun,ld_coeffs=ld_coeffs)
         ld_coeffs = interp_ld_coeffs(atm,passband,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs)[:,0]
     #-- we compute projected and total intensity. We have to correct for solid
     #-- angle, radius of the star and distance to the star.

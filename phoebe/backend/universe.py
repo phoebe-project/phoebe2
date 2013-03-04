@@ -2,6 +2,9 @@
 Classes representing meshes and functions to handle them.
 
 .. autosummary::    
+
+   AccretionDisk
+   Star
     
 Section 1. Basic meshing
 ========================
@@ -135,6 +138,10 @@ from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
 from phoebe.atmospheres import pulsations
 from phoebe.dynamics import keplerorbit
+try:
+    from phoebe.utils import transit
+except ImportError:
+    print("Soft warning: Analytical transit computations from Mandel & Agol 2002 are not available")
 
 #-- we are not interested in messages from numpy, but we are in messages
 #   from our own code: that's why we create a logger.
@@ -959,10 +966,21 @@ class Body(object):
         """
         Detect the triangles at the horizon and the eclipsed triangles.
         
+        Possible C{eclipse_detection} algorithms are:
+        
+            1. **hierarchical**: full generic detection
+            
+            2. **simple**: horizon detection based on the direction of the
+               :math:`\mu`-angle
+        
         Extra kwargs are passed on to the eclipse detection algorithm.
         
         A possible kwarg is for example C{threshold} when
         C{eclipse_detection=False}.
+        
+        @param eclipse_detection: name of the algorithm to use to detect
+        the horizon or eclipses
+        @type eclipse_detection: str
         """
         if eclipse_detection is None:
             eclipse_detection = self.eclipse_detection
@@ -1625,14 +1643,26 @@ class PhysicalBody(Body):
         We need to keep track of the original partially visible triangles so
         that at any point, we can revert to the original, unsubdivided mesh.
         
+        Subtype is an integer, meaning:
+            
+            - C{subtype=0}: only subdivide the current mesh
+            - C{subtype=1}: only subdivide the original mesh
+            - C{subtype=2}: subdivide both current and original mesh
+        
         Complexity is a number, meaning:
+        
             - complexity=0: roughest subdivision, just subdivide and let the
-            subdivided triangles keep all properties of the parent triangles,
-            except their size
+              subdivided triangles keep all properties of the parent triangles,
+              except their size
+        
             - complexity=1: subdivide but reproject the centers and vertices,
-            and recompute normals.
+              and recompute normals.
+        
             - complexity=2: subdivide and recalculate all quantities of the
-            subdivided triangles
+              subdivided triangles
+        
+        Algorithm is a string, but should be set to C{edge} unless you know
+        what you're doing.
         """
         if subtype==0:
             prefix = ''
@@ -1714,10 +1744,19 @@ class PhysicalBody(Body):
     
     def get_synthetic(self,type=None,ref=0,cumulative=True):
         """
-        Retrieve results.
+        Retrieve results from synethetic calculations.
         
-        If C{label} is not present in the C{results} section of the C{params}
+        If the C{ref} is not present in the C{syn} section of the C{params}
         attribute of this Body, then C{None} will be returned.
+        
+        @param type: type of synthetics to retrieve
+        @type type: str, one of C{lcsyn}, C{rvsyn}, C{spsyn}, C{ifsyn}
+        @param ref: reference to the synthetics
+        @type ref: string (the reference) or integer (index)
+        @param cumulative: sum results over all lower level Bodies
+        @type cumulative: bool
+        @return: the ParameterSet containing the synthetic calculations
+        @rtype: ParameterSet
         """
         if type is None:
             logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
@@ -2533,7 +2572,9 @@ class AccretionDisk(PhysicalBody):
         """
         Temperature is calculated according to Wood et al., 1992, ApJ.
         
-            Teff4 = GG*Mwd*Mdot / (8 pi r**3) * (1-b*sqrt(Rin/r))
+        .. math::
+        
+            T_\mathrm{eff}(r)^4 = (G M_\mathrm{wd} \dot{M}) / (8\pi r^3) (1-b\sqrt{R_\mathrm{in}/r}) 
         
         An alternative formula might be from Frank et al. 1992 (p. 78):
         
@@ -3607,6 +3648,28 @@ class BinaryRocheStar(PhysicalBody):
     
     
     def set_time(self,time,ref='all'):
+        """
+        Set the time of a BinaryRocheStar.
+        
+        The following steps are done:
+        
+            1. Compute the mesh if it hasn't been computed before
+            2. Conserve volume of the mesh if required
+            3. Place the mesh in its appropriate location in the orbit
+            4. Compute the local surface gravity and temperature
+            5. Compute the local intensities
+            6. Perform a simple horizon detection.
+        
+        This function is optimized for circular orbits, i.e the mesh will
+        not be recomputed or adapted. Only steps (3) and (6) are then
+        excecuted.
+        
+        @param time: time to be set (d)
+        @type time: float
+        @param ref: pbdeps to consider for computation of intensities. If
+        set to ``all``, all pbdeps are considered.
+        @type ref: string (ref) or list of strings
+        """
         logger.info('===== SET TIME TO %.3f ====='%(time))
         #-- rotate in 3D in orbital plane
         #   for zero-eccentricity, we don't have to recompute local quantities, and not
@@ -3715,11 +3778,12 @@ class BinaryStar(Star):
             ld_func = idep['ld_func']
             body = list(self.params.values())[0]
             #-- we should scale the flux with the theoretical total flux:
-            total_flux = limbdark.intensity_sphere(body,idep)[1]
-            my_binary_orbit = keplerorbit.orbit(self,self.time)
+            total_flux = limbdark.sphere_intensity(body,idep)[1]
+            prim_orbit = keplerorbit.get_binary_orbit(self.time,self.params['orbit'],'primary')[0]
+            secn_orbit = keplerorbit.get_binary_orbit(self.time,self.params['orbit'],'secondary')[0]
             component = self.get_component()
-            pos1 = my_binary_orbit[component]
-            pos2 = my_binary_orbit[1-component]
+            pos1 = [prim_orbit,secn_orbit][component]
+            pos2 = [prim_orbit,secn_orbit][1-component]
             x1,y1 = pos1[0],pos1[1]
             x2,y2 = pos2[0],pos2[1]
             d = np.sqrt( (x1-x2)**2 + (y1-y2)**2)
@@ -3729,7 +3793,7 @@ class BinaryStar(Star):
             p = rplan/rstar
             #-- if this star is actually in front of the component, the flux
             #   should be the total flux:
-            if pos1[2]<pos2[2]:
+            if pos1[2]>pos2[2]:
                 z,p = 5.,1.
             #-- assume uniform source and dark component
             if ld_func=='uniform':

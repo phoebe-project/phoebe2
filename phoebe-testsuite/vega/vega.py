@@ -167,13 +167,13 @@ phoebe.image(star3,savefig='vega_image3.png',ref=0,subtype='ifdep')
 phoebe.image(star4,savefig='vega_image4.png',ref=0,subtype='ifdep')
 
 """
-+------------------------------+----------------------------+------------------------------+----------------------------+
-| Fast rotator (Claret)        | Fast rotator (Aufdenberg)  | Slow rotator (uniform disk)  | Slow rotator (Claret)      |
-+------------------------------+----------------------------+------------------------------+----------------------------+
-| .. image:: vega_image1.png   | .. image:: vega_image3.png | .. image:: vega_image2.png   | .. image:: vega_image4.png |
-|    :width: 233px             |    :width: 233px           |    :width: 233px             |    :width: 233px           |                          
-|    :height: 233px            |    :height: 233px          |    :height: 233px            |    :height: 233px          |                          
-+------------------------------+----------------------------+------------------------------+----------------------------+
++-----------------------------------------+---------------------------------------+-----------------------------------------+---------------------------------------+
+| Fast rotator (Claret)                   | Fast rotator (Aufdenberg)             | Slow rotator (uniform disk)             | Slow rotator (Claret)                 |
++-----------------------------------------+---------------------------------------+-----------------------------------------+---------------------------------------+
+| .. image:: images_tut/vega_image1.png   | .. image:: images_tut/vega_image3.png | .. image:: images_tut/vega_image2.png   | .. image:: images_tut/vega_image4.png |
+|    :width: 233px                        |    :width: 233px                      |    :width: 233px                        |    :width: 233px                      |                          
+|    :height: 233px                       |    :height: 233px                     |    :height: 233px                       |    :height: 233px                     |                          
++-----------------------------------------+---------------------------------------+-----------------------------------------+---------------------------------------+
 
 """
 
@@ -240,7 +240,7 @@ plt.xlim(0,1)
 plt.savefig('vega_details')
 
 """
-.. figure:: vega_details.png
+.. figure:: images_tut/vega_details.png
    :align: center
    :width: 700px
    :alt: map to buried treasure
