@@ -9,9 +9,10 @@ Table of contents
             1. Constructs
             2. Constraints
             3. Input and output
-        2. Advanced usage
-            1. Units
-            2. Dictionaries
+            4. Units
+        2. Fitting
+            1. Setting parameters to be fitted
+            2. Setting limits and priors
 
 Section 1. Parameter preparation
 ================================
@@ -22,47 +23,51 @@ Section 1.1 Basic usage
 Section 1.1.1 Constructs
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The parsing of parameters to the different codes is done via a L{ParameterSet},
-which can be regarded as a modified (nested) ordered dictionary. Default parameters
-can be loaded:
+The parsing of parameters is done via a L{ParameterSet}, which can be
+regarded as a modified (nested) ordered dictionary. Default parameters can be
+loaded (the following two lines are equivalent and show the default behaviour):
 
->>> bps = ParameterSet()
->>> bps = ParameterSet(frame='main',context='root')
+>>> ps = ParameterSet()
+>>> ps = ParameterSet(frame='phoebe',context='star')
 
-The type of parameters is set by an extra optional keyword argument C{context},
-which defaults to C{root}. The different contexts represent different types of
-L{ParameterSet}s: parameters describing binary systems as a whole (C{root}, i.e.,
-the period, eccentricity...) are different than the ones describing the a light
-curve (C{lc}, i.e. filter, limb darkening coefficients, data).
+The context of parameters is set by the keyword C{context}, which defaults to
+C{phoebe}. The different contexts represent different types of L{ParameterSet}s:
+parameters describing binary systems as a whole (C{orbt}, i.e., the period,
+eccentricity...) are different than the ones describing the a light curve
+(C{lcdep}, i.e. passband, limb darkening coefficients, atmosphere tables...).
 
-A L{ParameterSet} acts like a dictionary, i.e. you can ask for keys, cycle
+A L{ParameterSet} acts like a dictionary, i.e. you can ask for its keys, cycle
 through it, ask and change values:
 
->>> print bps.keys()
-['name', 'model', 'hjd0', 'period', 'dpdt', 'pshift', 'sma', 'rm', 'incl', 'vga', 'ecc', 'omega', 'domegadt', 'long', 'f1', 'f2', 'teff1', 'teff2', 'pot1', 'pot2', 'met1', 'met2', 'alb1', 'alb2', 'grb1', 'grb2', 'ld_model', 'ld_xbol1', 'ld_ybol1', 'ld_xbol2', 'ld_ybol2', 'label']
->>> print bps['period']
-22.1891087
->>> bps['period'] = 11.7
->>> print bps['period']
+>>> print(ps.keys())
+['teff', 'radius', 'mass', 'atm', 'rotperiod', 'diffrot', 'gravb', 'incl', 'long', 'distance', 'shape', 'alb', 'redist', 'irradiator', 'abun', 'label', 'ld_func', 'ld_coeffs']
+>>> print(ps['radius'])
+1.0
+>>> ps['radius'] = 11.7
+>>> print(ps['radius'])
 11.7
 
-You can add light or radial velocity curves. These are also L{ParameterSet}s with 
-their own L{Parameter}s (limb darkening coefficients, filter information, data...).
-All curves are accessed via their names. Thus, after adding a default light curve
-but changing the filter,
+Upon creation, you can immediately set some of the keywords to override the
+default values:
 
->>> mylc = ParameterSet(frame='main',context='lc')
->>> mylc['filter'] = 'JOHNSON.V'
->>> bps.add(Parameter(qualifier='my_lc_curve',value=mylc))
+>>> mylc = ParameterSet(frame='phoebe',context='lcdep',passband='GENEVA.V')
 
-you change the filter system via
+You can, if you wish, nest L{ParameterSets}:
 
->>> bps['my_lc_curve']['filter'] = 'JOHNSON.B'
+>>> ps.add(Parameter(qualifier='my_lc_curve',value=mylc))
+
+you then intuitively access all keywords via a nested structure:
+
+>>> ps['my_lc_curve']['passband'] = 'JOHNSON.B'
 
 and check your results have been passed on via
 
->>> print bps['my_lc_curve']['filter']
+>>> print(ps['my_lc_curve']['passband'])
 JOHNSON.B
+
+To remove a parameter,simply do:
+
+>>> out = ps.pop('my_lc_curve')
 
 The L{ParameterSet}s can then be passed on to different codes. Different codes
 usually mean different frames.
@@ -72,15 +77,15 @@ Section 2.1.2 Constraints
 
 It is possible to put a constraints on L{Parameter}s, but only in the context of
 a L{ParameterSet}, since constraints are in general given with respect to the
-other L{Parameter}s. As an example, we construct a default L{ParameterSet} and
-add a new L{Parameter} called {asini},
+other L{Parameter}s. As an example, we construct an orbit L{ParameterSet} and
+add a new L{Parameter} called C{asini},
 
->>> ps_constr = ParameterSet()
+>>> ps_constr = ParameterSet(context='orbit')
 >>> ps_constr.add(Parameter(qualifier='asini',value=12.1,unit='Rsol'))
 
-which represent the value of the semi-major axis times
-the sine of the inclination. This could originate e.g. from radial velocity data.
-If you only want to change C{asini} and C{incl}, and desire that C{sma} changes
+which represent the value of the semi-major axis times the sine of the
+inclination. This could originate e.g. from radial velocity data. If you only
+want to change C{asini} and C{incl}, and desire that C{sma} changes
 accordingly, you can do:
 
 >>> ps_constr.add_constraint('{sma} = {asini}/sin({incl})')
@@ -95,60 +100,35 @@ physical constants via C{constants.GG} for the gravitational constant etc.
 If you change either C{asini} or C{incl}, C{sma} will automatically be updated.
 Changing C{sma} is no longer possible: the L{ParameterSet} will execute all
 defined constraints when a variable is set, so after setting C{sma}, the
-L{ParameterSet} will reset C{sma} to satisfy the constraint. To remove the
-constraint on a qualifier, simply do
+L{ParameterSet} will reset C{sma} to satisfy the constraint. To remove (and
+return) the constraint on a qualifier, simply do
 
->>> ps_constr.remove_constraint('sma')
+>>> out = ps_constr.remove_constraint('sma')
 
 From this syntax it is clear that you cannot put different constraints on one
 qualifier, and if you add a new contraint on a Parameter that was constrained
-before, the old one will be overwritten in favour of the new one.
+before, the old one will be overwritten in favour of the new one. This
+satisfies the principle of least surprise.
 
-Note that the constraints are only run when a parameter a set (i.e. via
-L{ParameterSet.__setitem__}, and not when asking for a value. This is to 
+Note that the constraints are only run when a parameter is I{set} (i.e. via
+L{ParameterSet.__setitem__}, and I{not when asking for a value}. This is to 
 save time, so that the constraints are not executed each time you retrieve a
 value while nothing has changed.
 
 It is not mandatory to have the right hand side of the constraint defined as
 a parameter. You could simply do:
 
->>> ps_constr = ParameterSet(frame='main',context='root')
+>>> ps_constr = ParameterSet(frame='phoebe',context='orbit')
 >>> ps_constr.add_constraint('{asini} = {sma}*sin({incl})')
 
 And now C{asini} can be queried via:
 
 >>> ps_constr.get_constraint('asini','Rsol')
-11.002763990483658
+200.0
 
 If you do not specify the units, they will be SI. The parameter C{asini} is not
 visible when accessing L{ParameterSet.keys()} and it is not listed in the string
 representation of the ParameterSet.
-
-It is also possible to give contraints over nested parameterSets. Suppose we
-have two stars and put them in a binary orbit:
-
->>> star1 = ParameterSet(context='star')
->>> star2 = ParameterSet(context='star')
->>> orbit = ParameterSet(context='orbit',c1label=star1['label'],c2label=star2['label'])
-
-Now, we add the constraint that the radius of first star must come from a given
-value of vsini, e.g. 20km/s or 20000 m/s in a synchronised orbit.
-
-#The value of the radius should be:
-#>>> print(orbit.get_value('period','s')*20000/(2*np.pi*np.sin(orbit.get_value('incl','rad'))))/constants.Rsol
-#0.395422830022
-
-But at the moment, the radius is still the default one:
-
-#>>> print(orbit['c1pars.radius'])
-1.0
-
-We can derive the value for the radius from the period and inclination of the
-orbit, assuming synchronisation. Thus, we can add the following constraint:
-
-#>>> orbit.add_constraint('{c1pars.radius} = {period}*20000/(2*np.pi*np.sin({incl}))')
-#>>> print(orbit['c1pars']['radius'])
-#0.395422830022
 
 
 Section 2.1.3 Input and output
@@ -157,13 +137,14 @@ Section 2.1.3 Input and output
 The contents of a ParameterSet can be displayed for viewing purposes via
 the command
 
->>> #print bps
+>>> #print(ps)
 
+    
 A ParameterSet can easily be saved and loaded to and from a binary file:
 
->>> bps.save('mytest.par')
->>> bps2 = load('mytest.par')
->>> print str(bps)==str(bps2)
+>>> ps.save('mytest.par')
+>>> ps2 = load('mytest.par')
+>>> print(str(ps)==str(ps2))
 True
 >>> os.unlink('mytest.par') # clean up
 
@@ -175,21 +156,18 @@ If units are disputed, one can always have a look at the context/framework
 of the parameterSet, and then look up the definitions in L{definitions.py}. It
 is impossible to read and write ParameterSets that are not predefined:
 
->>> bps.save_ascii('mytest2.par')
+>>> ps.save_ascii('mytest2.par')
 >>> os.unlink('mytest2.par') # clean up
 
 You can also read and write a bunch of parameterSets to one file:
 
->>> bps2 = bps.copy()
->>> bps2['label'] = 'bla'
->>> save_ascii('myfile.par',bps,bps2)
->>> bps1,bps2 = load_ascii('myfile.par')
+>>> ps2 = ps.copy()
+>>> ps2['label'] = 'bla'
+>>> save_ascii('myfile.par',ps,ps2)
+>>> ps,ps2 = load_ascii('myfile.par')
 >>> os.unlink('myfile.par') # clean up
 
-Section 2.2 Advanced usage
---------------------------
-
-Section 2.2.1 Units
+Section 2.1.4 Units
 ~~~~~~~~~~~~~~~~~~~
 
 Parameters are smart in the sense that they can have units and know about them.
@@ -199,50 +177,71 @@ units framework given by each frame (see L{parameter_definitions}). However, if
 the user really wants to give a parameter in other units, a parameter in any given
 units can be passed as a tuple (value,units) instead of only a value:
 
-E.g., if you desperately want to give period in seconds, omega in radians and
-effective temperature in Fahrenheit:
+E.g., if you desperately want to give period in seconds and argument of
+periastron in radians:
 
+>>> bps = ParameterSet(context='orbit')
 >>> bps['period'] = 23.4*86400.,'s'
->>> bps['omega'] = 3.14,'rad'
->>> bps['teff1'] = 40000.,'Far'
+>>> bps['per0'] = 3.14,'rad'
 
 Internally, the value is converted to whatever units were defined in this module's
 framework:
 
 >>> print bps['period']
 23.4
->>> print bps['omega']
+>>> print bps['per0']
 179.908747671
->>> print bps['teff1']
-22477.5944444
 
 However, again if you're desparate, you can get a parameter in whatever units
 you like:
 
 >>> print bps.get_value('period','s')
 2021760.0
->>> print bps.get_value('omega','rad')
+>>> print bps.get_value('per0','rad')
 3.14
->>> print bps.get_value('teff1','Cel')
-22204.4444444
 
-Section 2.2.2 Dictionaries
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Section 2.2 Fitting
+-------------------
 
-It is not obligatory to use the ParameterSets. Standard (nested) dictionary
-are also accepted by the different code interfaces, but then the user is responsable
-to pick the right units and types (string, float, integer...). For example, the
-WD doesn't accept filter names as input, but translates them to indices:
+Section 2.2.1 Setting parameters to be fitted
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
->>> bps_wd = ParameterSet(frame='wd',context='root')
->>> mylc = ParameterSet(definitions=defs.defs,frame='wd',context='lc')
->>> mylc['filter'] = 'JOHNSON.V'
->>> bps_wd.add(Parameter(qualifier='my_lc_curve',value=mylc))
->>> bps_wd['my_lc_curve']['filter'] = 'JOHNSON.B'
->>> print bps_wd['my_lc_curve']['filter']
-6
+By default, none of the parameters are marked for fitting. This made clear to
+the code via the attribute C{adjust}. If C{adjust=False}, the parameter will
+not be adjusted in the fit. Otherwise it will be.
 
-All known parameters are defined in the module L{parameter_definitions}.
+>>> bps.get_parameter('period').set_adjust(True)
+
+is equivalent to
+
+>>> bps.set_adjust(True,'period')
+
+
+Section 2.2.2 Setting limits and priors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are two distinct interfaces to set a valid range for a parameter value.
+One is via C{limits}, the other via C{priors}. These are different concepts,
+and their values I{can} be equal but they don't have to be.
+
+Limits are real limits on the values of the parameters: e.g. it doesn't make
+sense to set a negative effective temperature, or to set an inclination angle
+of 1000 degrees. Trying to set a value to a parameter outside of these limits,
+will raise a warning and reset it to be equal to the closest limit. This
+information can be useful also for GUI purposes.
+
+>>> bps.get_parameter('period').set_limits(1.,100.)
+
+Priors are B{distributions}, not B{limits}. If the distribution is uniform,
+then the distribution limits can be equal to C{limits}, but they don't have
+to be. For example, although a physical limit for the effective temperature
+is 0 Kelvin, you know that the temperature of a star will be way higher than
+that, and for example set the prior to a uniform distribution with limits
+3000K and 10000K.
+
+>>> bps.get_parameter('period').set_prior(distribution='uniform',lower=1,upper=100.)
+
+
 
 """
 #-- load standard modules
@@ -422,7 +421,7 @@ class Parameter(object):
     Value:          JOHNSON.V
     Raw value:      JOHNSON.V
     Type:           <type 'str'>
-    Module:         main
+    Frame:          main
     
     For convenience, it is also possible to immediately use the predefined
     parameters from L{defs.defs}:
@@ -857,7 +856,6 @@ class Parameter(object):
             if not hasattr(self,'unit'):
                 raise ValueError('Parameter {0} has no units'.format(self.qualifier))
             try:
-                #print self.cast_type(value)
                 value = conversions.convert(args[0],self.unit,self.cast_type(value))
             except:
                 #-- if something went wrong, try to give as much information
@@ -873,7 +871,7 @@ class Parameter(object):
                 default_unit = self.get_unit()
                 if default_unit in loau:
                     loau.remove(default_unit)
-                raise ValueError("Given unit type '{0}' is {1}: {2} must be '{3}' (default) or one of {4} or equivalent".format(args[0],given_type,utype,default_unit,loau))
+                raise ValueError("Given unit type '{0}' is {1}: {2} must be '{3}' (default) or one of {4} or equivalent. Or perpaps there was not enough information.".format(args[0],given_type,utype,default_unit,loau))
         self.value = value
         if hasattr(self,'llim'):
             value = self.get_value()
@@ -1259,29 +1257,30 @@ class ParameterSet(object):
     next example, we take the first few parameters from the parameter definition
     module, and put them in a ParameterSet:
     
-    >>> bps = ParameterSet(definitions=defs.defs[:4],frame='main',context='root')
+    >>> bps = ParameterSet(definitions=defs.defs[:3],frame='wd',context='root')
     
     Access the values via a qualifier or alias:
     
-    >>> print bps['model']
-    Unconstrained binary system
+    >>> print(bps['model'])
+    2
     
     Is equal to
     
-    >>> print bps['phoebe_model']
-    Unconstrained binary system
+    >>> print(bps['mode'])
+    2
     
     The parameter itself can be accessed via L{get_parameter}. E.g., to print all
     information on a specific parameter to the screen:
     
-    >>> print bps.get_parameter('model')
+    >>> print(bps.get_parameter('model'))
     Name:           model
     Description:    Morphological constraints
-    Value:          Unconstrained binary system
+    Value:          2
     Raw value:      Unconstrained binary system
-    Type:           choose
-    Module:         main
+    Type:           indexf
+    Frame:          wd
     Allowed values: X-ray binary -- Unconstrained binary system -- Overcontact binary of the W UMa type -- Detached binary -- Overcontact binary not in thermal contact -- Semi-detached binary, primary star fills Roche lobe -- Semi-detached binary, secondary star fills Roche lobe -- Double contact binary
+     (Unconstrained binary system)
      
     Change the model to X-ray binary, and print out both the parameter and the
     entire parameter set.
@@ -1290,15 +1289,16 @@ class ParameterSet(object):
     >>> print(bps.get_parameter('model'))
     Name:           model
     Description:    Morphological constraints
-    Value:          X-ray binary
+    Value:          1
     Raw value:      xra
-    Type:           choose
-    Module:         main
+    Type:           indexf
+    Frame:          wd
     Allowed values: X-ray binary -- Unconstrained binary system -- Overcontact binary of the W UMa type -- Detached binary -- Overcontact binary not in thermal contact -- Semi-detached binary, primary star fills Roche lobe -- Semi-detached binary, secondary star fills Roche lobe -- Double contact binary
+     (X-ray binary)
     >>> print bps
-     name mybinary      --     main Common name of the binary
-    model X-ray binary  --     main Morphological constraints
-     hjd0 55124.89703  HJD -   main Origin of time
+     name mybinary     --       wd Common name of the binary
+    model 1            --       wd Morphological constraints
+     hjd0 55124.89703 HJD -     wd Origin of time
     
     Because a ParameterSet is meant to mimic the behaviour of an ordered
     dictionary, you can cycle through it or ask the available keys:
@@ -1315,9 +1315,9 @@ class ParameterSet(object):
     
     >>> bps['phoebe_name'] = 'Still My Binary'
     >>> print bps
-     name Still My Binary  --     main Common name of the binary
-    model X-ray binary     --     main Morphological constraints
-     hjd0 55124.89703     HJD -   main Origin of time
+     name Still My Binary  --       wd Common name of the binary
+    model 1                --       wd Morphological constraints
+     hjd0 55124.89703     HJD -     wd Origin of time
     
     
     """
@@ -1530,12 +1530,14 @@ class ParameterSet(object):
         """
         #clear_memoization(self)
         self.get_parameter(qualifier).set_value(value,*args)
+        self.run_constraints()
     
     def set_value_from_posterior(self,qualifier):
         """
         Set the value of parameter from it's posterior.
         """
         self.get_parameter(qualifier).set_value_from_posterior()
+        self.run_constraints()
         
     
     def get_value(self,qualifier,*args):
@@ -1618,13 +1620,13 @@ class ParameterSet(object):
         
         B{Example:} First we add a new parameter named C{asini}.
         
-        >>> ps = ParameterSet(frame='main',context='root')
+        >>> ps = ParameterSet(frame='phoebe',context='orbit',add_constraints=False)
         >>> ps.add(Parameter(qualifier='asini',value=12.1,unit='Rsol'))
         
         These are the values before the hook is added:
         
         >>> print ps['sma'],ps['incl'],ps['asini']
-        11.0104 87.866 12.1
+        200.0 90.0 12.1
         
         We want to add the contraint that C{sma} is always equal to {asini/sini}.
         
@@ -1633,7 +1635,7 @@ class ParameterSet(object):
         Now check the values:
         
         >>> print ps['sma'],ps['incl'],ps['asini']
-        12.1083975004 87.866 12.1
+        12.1 90.0 12.1
         
         Changing the value of C{incl} or C{asini} changes C{sma}:
         
@@ -1906,12 +1908,12 @@ class ParameterSet(object):
         Difference of two ParameterSets.
         
         >>> ps1 = ParameterSet(frame='wd',context='root')
-        >>> ps2 = ParameterSet(frame='main',context='root')
+        >>> ps2 = ParameterSet(frame='phoebe',context='orbit')
         >>> diffps = (ps1-ps2)
         """
         diffParSet = self.copy()
         for parameter in other:
-            if (parameter in self):
+            if (parameter in diffParSet):
                 diffParSet.remove(parameter)
         return diffParSet
    
@@ -1971,7 +1973,9 @@ class ParameterSet(object):
         @return: the parameter
         @rtype: Parameter
         """
+        qualifier = self.alias2qualifier(qualifier)
         parameter = self.get_parameter(qualifier)
+        
         #-- remove it from the container
         if qualifier in self.container:
             return self.container.pop(parameter.qualifier)

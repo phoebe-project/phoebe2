@@ -88,13 +88,13 @@ mesh1.plot2D(savefig='fast_rotator_image.png')
 mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
 """
 
-+-----------------------------------+--------------------------------+
-| Image                             | Radial velocity map            |
-+-----------------------------------+--------------------------------+
-| .. image:: fast_rotator_image.png | .. image:: fast_rotator_rv.png |
-|    :align: center                 |    :align: center              |
-|    :width: 233px                  |    :width: 233px               |
-+-----------------------------------+--------------------------------+
++----------------------------------------------+-------------------------------------------+
+| Image                                        | Radial velocity map                       |
++----------------------------------------------+-------------------------------------------+
+| .. image:: images_tut/fast_rotator_image.png | .. image:: images_tut/fast_rotator_rv.png |
+|    :align: center                            |    :align: center                         |
+|    :width: 233px                             |    :width: 233px                          |
++----------------------------------------------+-------------------------------------------+
 
 """
 
@@ -116,7 +116,7 @@ pl.legend(loc='best')
 pl.savefig('fast_rotator_spectrum')
 
 """
-.. figure:: fast_rotator_spectrum.png
+.. figure:: images_tut/fast_rotator_spectrum.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure

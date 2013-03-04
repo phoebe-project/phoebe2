@@ -96,39 +96,39 @@ for i,polar_period in enumerate(polar_periods):
 
 """
 
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| Image                                  | Effective temperature map             | Radial velocity map                   |
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| .. image:: diff_rotator_image_0.png    | .. image:: diff_rotator_teff_0.png    | .. image:: diff_rotator_rv_0.png      |
-|    :width: 266px                       |    :width: 266px                      |    :width: 266px                      |
-|    :height: 266px                      |    :height: 266px                     |    :height: 266px                     |
-|    :scale:  80 %                       |    :scale: 80 %                       |    :scale: 80 %                       |
-|    :align: center                      |                                       |                                       |
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| .. image:: diff_rotator_image_1.png    | .. image:: diff_rotator_teff_1.png    | .. image:: diff_rotator_rv_1.png      |
-|    :width: 266px                       |    :width: 266px                      |    :width: 266px                      |
-|    :height: 266px                      |    :height: 266px                     |    :height: 266px                     |
-|    :scale:  80 %                       |    :scale: 80 %                       |    :scale: 80 %                       |
-|    :align: center                      |                                       |                                       |
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| .. image:: diff_rotator_image_2.png    | .. image:: diff_rotator_teff_2.png    | .. image:: diff_rotator_rv_2.png      |
-|    :width: 266px                       |    :width: 266px                      |    :width: 266px                      |
-|    :height: 266px                      |    :height: 266px                     |    :height: 266px                     |
-|    :scale:  80 %                       |    :scale: 80 %                       |    :scale: 80 %                       |
-|    :align: center                      |                                       |                                       |
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| .. image:: diff_rotator_image_3.png    | .. image:: diff_rotator_teff_3.png    | .. image:: diff_rotator_rv_3.png      |
-|    :width: 266px                       |    :width: 266px                      |    :width: 266px                      |
-|    :height: 266px                      |    :height: 266px                     |    :height: 266px                     |
-|    :scale:  80 %                       |    :scale: 80 %                       |    :scale: 80 %                       |
-|    :align: center                      |                                       |                                       |
-+----------------------------------------+---------------------------------------+---------------------------------------+
-| .. image:: diff_rotator_image_4.png    | .. image:: diff_rotator_teff_4.png    | .. image:: diff_rotator_rv_4.png      |
-|    :width: 266px                       |    :width: 266px                      |    :width: 266px                      |
-|    :height: 266px                      |    :height: 266px                     |    :height: 266px                     |
-|    :scale:  80 %                       |    :scale: 80 %                       |    :scale: 80 %                       |
-|    :align: center                      |                                       |                                       |
-+----------------------------------------+---------------------------------------+---------------------------------------+
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| Image                                             | Effective temperature map                        | Radial velocity map                              |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/diff_rotator_image_0.png    | .. image:: images_tut/diff_rotator_teff_0.png    | .. image:: images_tut/diff_rotator_rv_0.png      |
+|    :width: 266px                                  |    :width: 266px                                 |    :width: 266px                                 |
+|    :height: 266px                                 |    :height: 266px                                |    :height: 266px                                |
+|    :scale:  80 %                                  |    :scale: 80 %                                  |    :scale: 80 %                                  |
+|    :align: center                                 |                                                  |                                                  |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/diff_rotator_image_1.png    | .. image:: images_tut/diff_rotator_teff_1.png    | .. image:: images_tut/diff_rotator_rv_1.png      |
+|    :width: 266px                                  |    :width: 266px                                 |    :width: 266px                                 |
+|    :height: 266px                                 |    :height: 266px                                |    :height: 266px                                |
+|    :scale:  80 %                                  |    :scale: 80 %                                  |    :scale: 80 %                                  |
+|    :align: center                                 |                                                  |                                                  |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/diff_rotator_image_2.png    | .. image:: images_tut/diff_rotator_teff_2.png    | .. image:: images_tut/diff_rotator_rv_2.png      |
+|    :width: 266px                                  |    :width: 266px                                 |    :width: 266px                                 |
+|    :height: 266px                                 |    :height: 266px                                |    :height: 266px                                |
+|    :scale:  80 %                                  |    :scale: 80 %                                  |    :scale: 80 %                                  |
+|    :align: center                                 |                                                  |                                                  |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/diff_rotator_image_3.png    | .. image:: images_tut/diff_rotator_teff_3.png    | .. image:: images_tut/diff_rotator_rv_3.png      |
+|    :width: 266px                                  |    :width: 266px                                 |    :width: 266px                                 |
+|    :height: 266px                                 |    :height: 266px                                |    :height: 266px                                |
+|    :scale:  80 %                                  |    :scale: 80 %                                  |    :scale: 80 %                                  |
+|    :align: center                                 |                                                  |                                                  |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/diff_rotator_image_4.png    | .. image:: images_tut/diff_rotator_teff_4.png    | .. image:: images_tut/diff_rotator_rv_4.png      |
+|    :width: 266px                                  |    :width: 266px                                 |    :width: 266px                                 |
+|    :height: 266px                                 |    :height: 266px                                |    :height: 266px                                |
+|    :scale:  80 %                                  |    :scale: 80 %                                  |    :scale: 80 %                                  |
+|    :align: center                                 |                                                  |                                                  |
++---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
 
 """
 
@@ -159,7 +159,7 @@ plt.gcf().frameon = False
 plt.savefig('diff_rotator_spectrum.pdf')
 
 """
-.. figure:: diff_rotator_spectrum.png
+.. figure:: images_tut/diff_rotator_spectrum.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure

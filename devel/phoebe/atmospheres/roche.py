@@ -5,6 +5,7 @@ Most of these parameters are local atmospheric parameters.
 """
 import logging
 import numpy as np
+from numpy import cos,sin,sqrt
 from scipy.optimize import newton
 from phoebe.algorithms import marching
 from phoebe.units import constants
@@ -70,7 +71,247 @@ def temperature(system):
     logger.info("derived effective temperature (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
     
     
+def approximate_lagrangian_points(q,d=1.,sma=1.):
+    """
+    Approximate Langrangian points L1, L2 and L3.
     
+    Give C{d} as a fraction of semi-major axis. The units of the lagrangian
+    points that you get out are C{sma}. So if you give the C{sma} in km, then
+    you get the lagrangian points in km (see examples below).
+    
+    >>> approximate_lagrangian_points(1.)
+    (0.5034722608505247, 1.6893712419226086, -0.6995580853748713)
+    >>> approximate_lagrangian_points(constants.Mearth/constants.Msol)
+    (0.990028699155567, 1.010038030137821, -0.9999982474945123)
+    
+    The Sun/Earth L1 is located about 1.5 million km from Earth:
+    >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mearth/constants.Msol,sma=constants.au)
+    >>> (constants.au-L1)/1000.
+    1491685.3744362793
+    
+    The Earth/Moon L1 is located about 60.000 km from the Moon:
+    >>> dlun = 384499. # km
+    >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mlun/constants.Mearth,sma=dlun)
+    >>> (dlun-L1)
+    58032.18404510553
+    
+    @parameter q: mass ratio M1/M2
+    @type q: float
+    @parameter d: separation between the two objects (in units of sma)
+    @type d: float
+    @parameter sma: system semi-major axis
+    @type sma: float
+    @return: L1, L2, L3 (zero is center of primary, d is center of secondary)
+    @rtype: float,float,float
+    """
+    mu = q/(1.+q)
+    z = (mu/3.)**(1./3.)
+    x_L1 = z - 1./3.*z**2 - 1./9.*z**3 + 58./81.*z**4
+    x_L2 = z + 1./3.*z**2 - 1./9.*z**3 + 50./81.*z**4
+    x_L3 = 1. - 7./12.*mu - 1127./20736.*mu**3 - 7889./248832*mu**4
+    return (d-x_L1*d)*sma,(d+x_L2*d)*sma,(-x_L3*d)*sma
+
+def calculate_critical_potentials(q,F=1.,d=1.,component=1):
+    """
+    Calculate the (approximate) critical potentials in L1, L2 and L3.
+    
+    Only approximate for synchroneous case.
+    
+    You need to give orbital separation C{d} as a fraction of the semi-major
+    axies. E.g. for circular orbits, C{d=1}.
+    
+    @parameter q: mass ratio M2/M1
+    @parameter d: separation between the two objects
+    @type d: float
+    @param F: synchronicity parameter
+    @type F: float
+    @return: critical potentials at L1,L2 and L3
+    @rtype: float,float,float
+    """
+    L1,L2,L3 = approximate_lagrangian_points(q,d=d,sma=1.)
+    theta,phi = np.pi/2,0
+    Phi_L1 = -binary_potential(L1,theta,phi,0.0,q,d,F,component=component)
+    Phi_L2 = -binary_potential(L2,theta,phi,0.0,q,d,F,component=component)
+    Phi_L3 = -binary_potential(L3,theta,phi,0.0,q,d,F,component=component)
+    return Phi_L1,Phi_L2,Phi_L3    
+
+def calculate_critical_radius(q,F=1.,d=1.,sma=1.,component=1,loc='pole'):
+    """
+    Calculate the (approximate) critical radius.
+    
+    When C{loc='pole'}, the critical radius is that polar radius for which the
+    equatorial radius reaches L1. When C{loc='eq'}, the returned radius is the
+    critical radius at the equator.
+    
+    Example: suppose you want to compute the critical radius in Rsol:
+    
+    >>> Req = calculate_critical_radius(0.45,component=1,loc='eq',sma=32.)
+    >>> Rpl = calculate_critical_radius(0.45,component=1,loc='pole',sma=32.)
+    >>> print Req,Rpl
+    18.58379386 13.5364047855
+    >>> print Req/Rpl
+    1.37287515811
+    
+    And for the other component:
+    >>> Req = calculate_critical_radius(0.45,component=2,loc='eq',sma=32.)
+    >>> Rpl = calculate_critical_radius(0.45,component=2,loc='pole',sma=32.)
+    >>> print Req,Rpl
+    13.381671155 9.32997069024
+    >>> print Req/Rpl
+    1.43426722326
+    
+    @parameter q: mass ratio M2/M1
+    @parameter d: separation between the two objects as a fraction of sma.
+    @type d: float
+    @parameter sma: system semi-major axis
+    @type sma: float
+    @param F: synchronicity parameter
+    @type F: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
+    @return: critical radius at L1 (in units of sma)
+    @rtype: float
+    """
+    pL1,pL2,pL3 = calculate_critical_potentials(q,F=F,d=d)
+    rL1 = potential2radius(pL1,q,d=d,F=F,sma=sma,loc=loc,component=component)
+    return rL1
+    
+
+def potential2radius(pot,q,d=1,F=1.,component=1,sma=1.,loc='pole',tol=1e-10,maxiter=50):
+    """
+    Convert a potential value to a radius.
+    
+    Returns radius in units of system semi-major axis (C{sma}), unless it is
+    given. In that case, the radius is in the same units as the semi-major axis.
+    
+    To compute the polar radius, set C{loc='pole'}. For equatorial radius, set
+    C{loc='eq'}.
+    
+    >>> M1,M2 = 1.5,0.75
+    >>> q = M2/M1
+    >>> L1,L2,L3 = calculate_critical_potentials(q)
+    >>> print L1,L2,L3
+    2.87584628665 2.57731605358 -0.082438791412
+    
+    Far away from the critical potentials, the polar and equatorial values are
+    similar:
+    
+    >>> Rpole = potential2radius(2*L1,q,component=1,loc='pole')
+    >>> Req = potential2radius(2*L1,q,component=1,loc='eq')
+    >>> print Rpole,Req
+    0.190096394806 0.192267598622
+    
+    At the critical potential, this is no longer the case.
+    
+    >>> Rpole = potential2radius(L1,q,component=1,loc='pole')
+    >>> Req = potential2radius(L1,q,component=1,loc='eq')
+    >>> print Rpole,Req
+    0.414264812638 0.57038700404
+    
+    Example for primary and secondary component, in a system with C{q=0.45} and
+    C{sma=32} Rsol:
+    
+    >>> Req1 = potential2radius(14.75,0.45,loc='eq',sma=32,component=1)
+    >>> Req2 = potential2radius( 6.00,0.45,loc='eq',sma=32,component=2)
+    >>> print Req1,Req2
+    2.23868846442 3.0584436335
+    
+    @param pot: Roche potential value (unitless)
+    @type pot: float
+    @param q: mass ratio
+    @type q: float
+    @param d: separation (in units of semi-major axis)
+    @type d: float
+    @param F: synchronicity parameter
+    @type F: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
+    @param sma: semi-major axis
+    @type sma: value of the semi-major axis.
+    @param loc: location of the radius ('pole' or 'eq')
+    @type loc: str
+    @return: potential value for a certain radius
+    @rtype: float
+    """
+    if 'pol' in loc.lower():
+        theta = 0
+    elif 'eq' in loc.lower():
+        theta = np.pi/2.
+    else:
+        ValueError,"don't understand loc=%s"%(loc)
+    try:
+        r_pole = newton(binary_potential,1e-5,args=(theta,0,pot,q,d,F,component),tol=tol,maxiter=maxiter)
+    except RuntimeError:
+        raise ValueError("Failed to converge, potential {} is probably too low".format(pot))
+    return r_pole*sma
+
+def radius2potential(radius,q,d=1.,F=1.,component=1,sma=1.,loc='pole',tol=1e-10,maxiter=50):
+    """
+    Convert a radius to a potential value.
+    
+    Radius should be in units of C{sma}: if you want to give radius in Rsol,
+    make sure C{sma} is also given in Rsol. If you leave C{sma=1}, you need to
+    give C{radius} as a fraction of C{sma}.
+    
+    For eccentric orbits, the radius/potential are dependent on the orbital
+    phase. You should explicitly set C{d} to the instantaneous seperation in
+    units of semi-major axis. Setting C{d=1} gives the potential at periastron.
+    
+    >>> M1,M2 = 1.5,0.75
+    >>> q = M2/M1
+    >>> L1,L2,L3 = calculate_critical_potentials(q)
+    >>> print L1,L2,L3
+    2.87584628665 2.57731605358 -0.082438791412
+    
+    In this case, a polar radius of 0.5 sma units has a lower potential than
+    the critical potential, so the system should be in Roche lobe overflow.
+    
+    >>> pot1 = radius2potential(0.5,q,component=1,loc='pole')
+    >>> pot2 = radius2potential(0.5,q,component=1,loc='eq')
+    >>> print pot1,pot2
+    2.4472135955 2.9375
+    
+    An inverse example of L{potential2radius}:
+    
+    >>> Req1 = potential2radius(14.75,0.45,loc='eq',sma=32.,component=1)
+    >>> Req2 = potential2radius( 6.00,0.45,loc='eq',sma=32.,component=2)
+    
+    >>> pot1 = radius2potential(Req1,0.45,loc='eq',sma=32.,component=1)
+    >>> pot2 = radius2potential(Req2,0.45,loc='eq',sma=32.,component=2)
+    
+    >>> print Req1,Req2
+    2.23868846442 3.0584436335
+    >>> print pot1,pot2
+    14.75 6.0
+        
+    @param radius: radius (in same units as C{sma})
+    @type radius: float
+    @param q: mass ratio
+    @type q: float
+    @param d: separation (in units of semi-major axis)
+    @type d: float
+    @param F: synchronicity parameter
+    @type F: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
+    @param sma: semi-major axis
+    @type sma: value of the semi-major axis.
+    @param loc: location of the radius ('pole' or 'eq')
+    @type loc: str
+    @return: radius corresponding to the potential
+    @rtype: float
+    """
+    if 'pol' in loc.lower():
+        theta = 0
+    elif 'eq' in loc.lower():
+        theta = np.pi/2.
+    else:
+        ValueError,"don't understand loc=%s"%(loc)
+    def _binary_potential(Phi,r,theta,phi,q,d,F,component=1):
+        return binary_potential(r,theta,phi,Phi,q,d,F,component=component)
+    pot = newton(_binary_potential,1000.,args=(radius/sma,theta,0.,q,d,F,component),tol=tol,maxiter=maxiter)
+    return pot
+
 #}
 
 #{ Binaries
@@ -136,6 +377,47 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
         return np.linalg.norm(g_pole)
     else:
         return g_pole
+
+def binary_potential(r,theta,phi,Phi,q,d,F,component=1):
+    """
+    Unitless eccentric asynchronous Roche potential in spherical coordinates.
+    
+    See Wilson, 1979.
+    
+    The  synchronicity parameter F is 1 for synchronised circular orbits. For
+    pseudo-synchronous eccentrical orbits, it is equal to (Hut, 1981)
+    
+    F = sqrt( (1+e)/ (1-e)^3)
+    
+    Periastron is reached when d = 1-e.
+        
+    @param r: radius of Roche volume at potential Phi (in units of semi-major axis)
+    @type r: float
+    @param theta: colatitude (0 at the pole, pi/2 at the equator)
+    @type theta: float
+    @param phi: longitude (0 in direction of COM)
+    @type phi: float
+    @param Phi: Roche potential value (unitless)
+    @type Phi: float
+    @param q: mass ratio
+    @type q: float
+    @param d: separation (in units of semi-major axis)
+    @type d: float
+    @param F: synchronicity parameter
+    @type F: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
+    @return: residu between Phi and roche potential
+    @rtype: float
+    """
+    #-- transform into system of component (defaults to primary)
+    if component==2:
+        q,Phi = change_component(q,Phi)
+    lam,nu = cos(phi)*sin(theta),cos(theta)
+    term1 = 1. / r
+    term2 = q * ( 1./sqrt(d**2 - 2*lam*d*r + r**2) - lam*r/d**2)
+    term3 = 0.5 * F**2 * (q+1) * r**2 * (1-nu**2)
+    return (Phi - (term1 + term2 + term3))
 
 def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
     """
@@ -227,9 +509,10 @@ def improve_potential(V,V0,pot0,rpole0,d,q,F,sma=1.):
     
     newPot = DeltaPot+pot0
     return newPot
-#}
 
-#{ Rotation
+
+
+#}
 
 #{ Rotating stars
 
