@@ -1,6 +1,6 @@
 """
-Vega
-====
+Vega (interferometry)
+======================
 
 Last updated: ***time***
 
@@ -22,9 +22,7 @@ We compare the values of the total projected intensity (calculated
 numerically and the observed values). We make an image and a plot of the radial
 velocities of all surface elements.
 
-Execution time (Dual Core Genuine Intel(R) CPU, T2600, 2.16GHz, 32-bit):
-
-    117 sec
+Inspired upon [Aufdenberg2008]_.
     
 Initialisation
 --------------

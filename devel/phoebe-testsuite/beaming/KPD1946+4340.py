@@ -1,11 +1,13 @@
 """
-KPD1946+4340 - a beaming binary
-===============================
+KPD1946+4340 (beaming)
+==================================
 
 Compute the light curve of a beaming binary, with and without beaming.
 
 This example is only a crude approximation, we use no dedicated WD or sdB
 atmosphere grids but approximate with a blackbody.
+
+Inspired on [Bloemen2012]_.
 
 Initialisation
 --------------

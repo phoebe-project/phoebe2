@@ -1,6 +1,6 @@
 """
-Pulsating binary
-================
+Pulsating binary (eclipse mapping)
+==================================
 
 Compute the light curve of a pulsating star in a binary with a rapidly rotating
 star.
@@ -126,24 +126,24 @@ plt.savefig('pulsbin_lc.png')
     
 
 """
-+------------------------------+----------------------------+
-| Primary light curve          | Secondary light curve      |
-+------------------------------+----------------------------+
-| .. image:: pulsbin_proj.gif  | .. image:: pulsbin_teff.gif|
-|    :scale: 100 %             |    :scale: 100 %           |
-|    :height: 233px            |    :height: 233px          |
-|    :width: 450px             |    :width: 450px           |
-+------------------------------+----------------------------+
-| Combined light curve         | Radial velocity curve      |
-+------------------------------+----------------------------+
-| .. image:: pulsbin_rv.gif    | .. image:: pulsbin_bb.gif  |
-|    :scale: 100 %             |    :scale: 100 %           |
-|    :height: 233px            |    :height: 233px          |
-|    :width: 450px             |    :width: 450px           |
-+------------------------------+----------------------------+
++-----------------------------------------+--------------------------------------------------+
+| Projected flux                          | Effective temperature                            |
++-----------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/pulsbin_proj.gif  | .. image:: images_tut/pulsbin_teff.gif           |
+|    :scale: 100 %                        |    :scale: 100 %                                 |
+|    :height: 233px                       |    :height: 233px                                |
+|    :width: 301px                        |    :width: 301px                                 |
++-----------------------------------------+--------------------------------------------------+
+| Radial velocity map                     | Black body colors                                |
++-----------------------------------------+--------------------------------------------------+
+| .. image:: images_tut/pulsbin_rv.gif    | .. image:: images_tut/pulsbin_bb.gif             |
+|    :scale: 100 %                        |    :scale: 100 %                                 |
+|    :height: 233px                       |    :height: 233px                                |
+|    :width: 301px                        |    :width: 301px                                 |
++-----------------------------------------+--------------------------------------------------+
 
 
-.. image:: pulsbin_lc.png
+.. image:: images_tut/pulsbin_lc.png
    :scale: 75 %
 """            
                         

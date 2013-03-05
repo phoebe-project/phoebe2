@@ -1,6 +1,6 @@
 """
-Fast rotating star
-==================
+Fast rotating star (rotational convolution)
+===========================================
 
 Last updated: ***time***
 
@@ -17,20 +17,15 @@ The following setup is used:
 * linear limbdarkening law
 * Black body atmosphere
 
-Total execution time (Dual Core Genuine Intel(R) CPU, T2600, 2.16GHz, 32-bit):
-
-+-----------+------------+
-|Total time |   22.8 sec |
-+-----------+------------+
-
 Initialisation
 --------------
 
 """
-# First, import the necessary modules
+# First, import the necessary modules and create a logger to show messages
+# to the screen:
 import time
 import numpy as np
-import pylab as pl
+from matplotlib import pyplot as plt
 import phoebe
 
 logger = phoebe.get_basic_logger()
@@ -40,10 +35,10 @@ c0 = time.time()
 # Parameter preparation
 # ---------------------
 
-# Create a ParameterSet with parameters matching the Sun, but make a fine-enough
-# mesh. Also, the rotation period is set to almost 90% of the Sun's critical
-# rotation period.
-star = phoebe.ParameterSet(frame='phoebe',context='star',add_constraints=True)
+# Create a :ref:`star ParameterSet <parlabel-phoebe-star>` with parameters
+# matching the Sun, but make a fine-enough mesh. Also, the rotation period is
+# set to almost 90% of the Sun's critical rotation period.
+star = phoebe.ParameterSet(context='star',add_constraints=True)
 star['atm'] = 'blackbody'
 star['ld_func'] = 'linear'
 star['ld_coeffs'] = [0.6]
@@ -52,12 +47,12 @@ star['shape'] = 'sphere'
 star['teff'] = 10000.
 star['radius'] = 1.0,'Rsol'
 
-mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
+mesh = phoebe.ParameterSet(context='mesh:marching')
 mesh['delta'] = 0.05
 
-# These are the parameters for the calculation of the spectrum. We assume the
+# These are the parameters for the calculation of the :ref:`spectrum <parlabel-phoebe-spdep>`. We assume the
 # spectral line is in the visual region, and use a linear limb darkening law.
-spdep1 = phoebe.ParameterSet(frame='phoebe',context='spdep')
+spdep1 = phoebe.ParameterSet(context='spdep')
 spdep1['ld_func'] = 'linear'
 spdep1['atm'] = 'blackbody'
 spdep1['ld_coeffs'] = [0.6]
@@ -72,7 +67,7 @@ spdep2['ref'] = 'Via convolution'
 
 # Body setup
 # ----------
-# Build the Star body.
+# Build the :py:class:`Star <phoebe.backend.universe.Star>` body.
 mesh1 = phoebe.Star(star,mesh,pbdep=[spdep1,spdep2])
 print mesh1
 
@@ -104,16 +99,16 @@ mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
 result1 = mesh1.get_synthetic(type='spsyn',ref=0)
 result2 = mesh1.get_synthetic(type='spsyn',ref=1)
 
-pl.figure()
-pl.plot(result1['wavelength'][0],
+plt.figure()
+plt.plot(result1['wavelength'][0],
         np.array(result1['flux'][0])/np.array(result1['continuum'][0]),
         'k-',label=result1['ref'])
-pl.plot(result2['wavelength'][0],
+plt.plot(result2['wavelength'][0],
         np.array(result2['flux'][0])/np.array(result2['continuum'][0]),'r--',lw=2,label=result2['ref'])
-pl.xlabel('Wavelength [A]')
-pl.ylabel('Normalized flux')
-pl.legend(loc='best')
-pl.savefig('fast_rotator_spectrum')
+plt.xlabel('Wavelength [A]')
+plt.ylabel('Normalized flux')
+plt.legend(loc='best')
+plt.savefig('fast_rotator_spectrum')
 
 """
 .. figure:: images_tut/fast_rotator_spectrum.png

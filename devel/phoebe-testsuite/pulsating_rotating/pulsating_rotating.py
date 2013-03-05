@@ -1,6 +1,6 @@
 """
-Pulsating rotating star
-=======================
+Pulsating rotating star (Ledoux splitting)
+==========================================
 
 Last updated: ***time***
     

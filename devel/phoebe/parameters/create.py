@@ -44,10 +44,12 @@ import inspect
 import re
 import numpy as np
 from phoebe.parameters import parameters
+from phoebe.parameters import tools
 from phoebe.backend import universe
 from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.units import conversions
+from phoebe.units import constants
 
 
 logger = logging.getLogger('PARS.CREATE')
@@ -472,6 +474,161 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     orbit['c2label'] = comp2['label']
     logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
     return comp1,comp2,orbit    
+
+
+@make_body
+def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
+             vsini1=None,vsini2=None,\
+             logg1=None,logg2=None,\
+             syncpar1=1.,syncpar2=1.,\
+             eclipse_duration=None):
+    """
+    Initiate a consistent set of parameters for a binary system from spectroscopic parameters.
+    
+    Set one of the star's radius to 0 if you give the eclipse duration,
+    the second radius will be calculated then.
+    
+    Set one of the star's masses to 0 if you give K2.
+    
+    The parameters that you want to derive, need to be adjustable!
+    
+    @param period: period in days
+    @param K1: semi-amplitude in km/s
+    """
+    logger.info("Creating binary from spectroscopy")
+    #-- take care of logg parameters
+    for i,(star,logg) in enumerate(zip([star1,star2],[logg1,logg2])):
+        if logg is not None:
+            tools.add_surfgrav(star,logg,derive='mass')   
+    
+    #-- period, ecc and q
+    comp1 = parameters.ParameterSet(context='component')
+    comp2 = parameters.ParameterSet(context='component')
+    orbit = parameters.ParameterSet(context='orbit',c1label=comp1['label'],c2label=comp2['label'],add_constraints=True)
+    orbit['period'] = period,'d'
+    orbit['ecc'] = ecc
+    
+    #-- take over some values
+    for key in ['teff','ld_func','ld_coeffs','label','atm','irradiator','gravb']:
+        comp1[key] = star1[key]
+        comp2[key] = star2[key]
+    
+    period_sec = orbit.request_value('period','s')
+    K1_ms = conversions.convert('km/s','m/s',K1)
+    
+    #-- if we have K2, we can derive the mass ratio and the system semi-major
+    #   axis. Otherwise, we use the masses from the stars
+    if K2 is not None:
+        q = abs(K1/K2)
+        K2_ms = conversions.convert('km/s','m/s',K2)
+        star2['mass'] = q*star1['mass']
+    else:
+        q = star2['mass']/star1['mass']
+        K2_ms = K1_ms/q
+    
+    orbit['q'] = q
+    logger.info('Mass ratio q = {}'.format(q))
+    asini = conversions.convert('m','Rsol',keplerorbit.calculate_asini(period_sec,ecc,K1=K1_ms,K2=K2_ms))
+    tools.add_asini(orbit,asini,derive='incl',unit='Rsol')        
+    
+    #-- calculate the mass function
+    fm = keplerorbit.calculate_mass_function(period_sec,ecc,K1_ms)
+    
+    #-- inclination angle from masses and mass function, but make sure it's
+    #   an allowed value
+    for i in range(2):
+        M1 = star1.request_value('mass','Msol')
+        M2 = star2.request_value('mass','Msol')
+        orbit['sma'] = keplerorbit.third_law(totalmass=M1+M2,period=orbit['period']),'au'
+        if np.isnan(orbit['incl']):
+            logger.warning("Invalid masses: sma={} but asini={}".format(orbit['sma'],orbit['asini']))
+            star1['mass'] = fm*(1+orbit['q'])**2/orbit['q']**3,'kg'
+            star2['mass'] = q*star1['mass']
+        else:
+            break
+    
+    logger.info("Total mass of the system = {} Msol".format(star1['mass']+star2['mass']))
+    logger.info("Inclination of the system = {} deg".format(orbit['incl']))
+    
+    #-- when the vsini is fixed, we can only adjust the radius or the synchronicity!
+    for i,(comp,star,vsini) in enumerate(zip([comp1,comp2],[star1,star2],[vsini1,vsini2])):
+        if vsini is None:
+            continue
+        radius = star.get_value_with_unit('radius')
+        #-- adjust the radius if possible
+        if star.get_adjust('radius'):
+            comp.add(parameters.Parameter(qualifier='radius',value=radius[0],unit=radius[1],description='Approximate stellar radius',adjust=star.get_adjust('radius')))
+            comp.add(parameters.Parameter(qualifier='vsini',value=vsini,unit='km/s',description='Approximate projected equatorial velocity',adjust=(vsini is None)))
+            orbit.add_constraint('{{c{:d}pars.radius}} = {{period}}*{{c{:d}pars[vsini]}}/(2*np.pi*np.sin({{incl}}))'.format(i+1,i+1))
+            orbit.run_constraints()
+            logger.info('Star {:d}: radius will be derived from vsini={:.3g} {:s} (+ period and incl)'.format(i+1,*comp.get_value_with_unit('vsini')))
+        #-- or else adjust the synchronicity
+        else:
+            radius_km = conversions.convert(radius[1],'km',radius[0])
+            syncpar = period_sec*vsini/(2*np.pi*radius_km*np.sin(incl[0]))
+            comp['syncpar'] = syncpar
+            logger.info('Star {:d}: Synchronicity parameters is set to synpar={:.4f} match vsini={:.3g} km/s'.format(i+1,syncpar,vsini))        
+    
+    #if 'radius' in orbit['c1pars']:
+    #    logger.info('Radius 1 = {} {}'.format(*orbit['c1pars'].get_value_with_unit('radius')))
+    #    star1['radius'] = orbit['c1pars'].get_value_with_unit('radius')
+    #if 'radius' in orbit['c2pars']:
+    #    logger.info('Radius 2 = {} {}'.format(*orbit['c2pars'].get_value_with_unit('radius')))
+    #    star1['radius'] = orbit['c2pars'].get_value_with_unit('radius')
+    
+    R1 = star1.get_value('radius','au')
+    R2 = star2.get_value('radius','au')
+    
+    sma = orbit.get_value_with_unit('sma')
+    #-- we can also derive something on the radii from the eclipse duration, but
+    #   only in the case for cicular orbits
+    if eclipse_duration is not None and ecc==0.:
+        total_radius = keplerorbit.calculate_total_radius_from_eclipse_duration(eclipse_duration,orbit.get_value('incl','rad'))
+        total_radius*= sma[0]
+        logger.info('Eclipse duration: {}'.format(eclipse_duration))
+        logger.info('Total radius: {} Rsol'.format(total_radius*constants.au/constants.Rsol))
+        #-- we can derive the total radius. Thus, if one of the radii is fixed,
+        #   we can derive the other one. If both are unknown, the eclipse
+        #   duration doesn't give any immediate constraints, but the user should
+        #   have given radii which are compatible.
+        if star1.get_adjust('radius'):
+            R1 = total_radius-R2
+            star1['radius'] = R1,'au'
+            logger.info('Radius 1 = {} {}'.format(*star1.get_value_with_unit('radius')))
+        elif star2.get_adjust('radius'):
+            R2 = total_radius-R1
+            star2['radius'] = R2,'au'
+            logger.info('Radius 2 = {} {}'.format(*star2.get_value_with_unit('radius')))
+        else:
+            if total_radius!=(R1+R2):
+                raise ValueError("Sum of radii not compatible with eclipse duration and inclination angle")
+    
+    #-- check if eclipsing, but only if the system is circular
+    if ecc==0:
+        incl = orbit.request_value('incl','rad')
+        logger.info("The circular system is{}eclipsing".format((np.sin(np.pi/2-incl)<=((R1+R2)/sma[0])) and ' ' or ' not '))
+    
+    #-- fill in Roche potentials
+    R1crit = roche.calculate_critical_radius(orbit['q'],component=1)*sma[0]
+    R2crit = roche.calculate_critical_radius(orbit['q'],component=2)*sma[0]
+    R1crit = conversions.convert(sma[1],star1.get_unit('radius'),R1crit)
+    R2crit = conversions.convert(sma[1],star1.get_unit('radius'),R2crit)
+    logger.info('Primary critical radius = {} Rsol'.format(R1crit))
+    logger.info('Secondary critical radius = {} Rsol'.format(R2crit))
+    if R1crit<R1:
+        raise ValueError("Primary exceeds its Roche lobe")
+    if R2crit<R2:
+        raise ValueError("Secondary exceeds its Roche lobe")
+    
+    try:
+        comp1['pot'] = roche.radius2potential(R1/sma[0],orbit['q'],component=1)
+        comp2['pot'] = roche.radius2potential(R2/sma[0],orbit['q'],component=2)
+    except:
+        raise ValueError("One of the star has an impossible Roche geometry")
+
+    return comp1,comp2,orbit
+
+
 #}  
 
 #{ More complicated systems
