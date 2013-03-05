@@ -1182,6 +1182,8 @@ class Body(object):
     def plot2D(self,**kwargs):
         """
         Plot mesh in 2D using matplotlib.
+        
+        For more information, see :py:func:`phoebe.backend.observatory.image`.
         """
         return observatory.image(self,**kwargs)
         

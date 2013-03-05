@@ -988,9 +988,11 @@ def calculate_mass_function(period,ecc,K):
     """
     Calculate mass function f(m).
     
-    f(m) = (m*sini)**3/(m1+m)**2
+    .. math::
+        
+        f(M) = (M\sin \mathrm{incl})^3/(M_1+M)^2
     
-    f(m) = 1.0361e7 *(1-e**2)**(1.5) * K**3*P
+        f(M) = 1.0361\times 10^7 (1-\mathrm{ecc}^2)^(1.5) K^3 \mathrm{period}
     
     Fixing the primary and secondary mass, you can use this relation to compute
     the inclination angle.
@@ -1009,6 +1011,10 @@ def calculate_mass_function(period,ecc,K):
 def get_incl_from_mass_function(mass_function,mass1,mass2):
     """
     Derive the inclination angle from the mass function
+    
+    .. math::
+    
+        \sin\mathrm{incl} = (f(M) M_\mathrm{tot}^2/ M_2^3)^{1/3}
     
     @param mass_function: mass function (kg)
     @type mass_function: float
@@ -1055,9 +1061,9 @@ def calculate_mass(component,sma,period,q):
     
     @rtype: float
     """
-    if component==1:
+    if component==0:
         _q_ = q
-    elif component==2:
+    elif component==1:
         _q_ = 1./q
     else:
         raise ValueError("Component {} not understood".format(component))

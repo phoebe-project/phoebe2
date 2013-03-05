@@ -753,8 +753,9 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
         #-- special case if blackbody: we need to build our atmosphere model
         if atm_file=='blackbody':
             wave_ = np.logspace(2,5,10000)
-        for val in iter_grid_dimensions(atm_file,atm_par_names,other_pars):
+        for nval,val in enumerate(iter_grid_dimensions(atm_file,atm_par_names,other_pars)):
             print(atm_file,val)
+            
             #-- the first values are from the atmosphere grid
             atm_kwargs = {name:val[i] for i,name in enumerate(atm_par_names)}
             val_ = val[len(atm_par_names):]
@@ -772,6 +773,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                 mu,Imu = get_limbdarkening(atm_file,atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs,vgamma=vgamma,
                                        passbands=passbands)
+                print atm_file,atm_kwargs
             elif law=='uniform':
                 Imu_blackbody = sed.blackbody(wave_,val[0],vrad=vgamma)
                 Imu = sed.synthetic_flux(wave_*10,Imu_blackbody,passbands)

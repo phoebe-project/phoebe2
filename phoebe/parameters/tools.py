@@ -15,9 +15,11 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     
     Only two parameters out of surface gravity, mass and radius are
     independent. If you add surface gravity, you have to choose to derive
-    either mass or radius from the other two::
+    either mass or radius from the other two:
     
-        g = G * M / R**2
+    .. math::
+    
+        g = G  M / R^2
     
     This is a list of stuff that happens:
     - A I{parameter} C{surfgrav} will be added if it does not exist yet
@@ -72,9 +74,11 @@ def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     Add the critical rotation frequency to a Star.
     
     The rotation period will then be constrained by the critical rotation
-    frequency::
+    frequency:
     
-        rotperiod = 2*pi sqrt(27*R**3/(8*G*M)) / rotfreqcrit
+    .. math::
+    
+        \mathrm{rotperiod} = 2\pi \sqrt{27 R^3 / (8GM)} / \mathrm{rotfreqcrit}
     
     Extra C{kwargs} will be passed to the creation of the parameter if it does
     not exist yet.
@@ -142,7 +146,16 @@ def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
     """
     Add numax and Deltanu0 to a Star.
     
-    See Kjeldsen 1995 for the relations.
+    See Kjeldsen 1995 for the relations:
+    
+    Given everything in solar units (also frequencies):
+    
+    .. math::
+        
+        \mathrm{surfgrav} =G \sqrt{T_\mathrm{eff}}  f_\mathrm{max}\quad [\mathrm{solar units}]
+        
+        \mathrm{radius} = \sqrt{T_\mathrm{eff}} f_\mathrm{max}/(\Delta f_0)^2 \quad [\mathrm{solar units}]
+        
     """
     add_solarosc_numax(star,numax,unit=unit)
     add_solarosc_Deltanu0(star,Deltanu0,unit=unit)
@@ -207,6 +220,68 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
     logger.info("star '{}': 'mass' constrained by 'surfgrav' and 'radius'".format(star['label']))
     
     
-    
-
 #}
+
+
+#{ Common constraints for the BinaryRocheStar or Orbit
+
+def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
+    """
+    Add asini to an orbit parameterSet.
+    
+    Only two parameters out of C{asini}, C{sma} and C{incl} are
+    independent. If you add C{asini}, you have to choose to derive
+    either C{sma} or C{incl} from the other two:
+    
+    .. math::
+    
+        \mathrm{asini} = \mathrm{sma} \sin(\mathrm{incl})
+    
+    This is a list of stuff that happens:
+    - A I{parameter} C{asini} will be added if it does not exist yet
+    - A I{constraint} to derive the parameter C{derive} will be added.
+    - If C{asini} already exists as a constraint, it will be removed
+    - If there are any other constraints on the parameter C{derive}, they
+      will be removed
+    
+    Extra C{kwargs} will be passed to the creation of C{asini} if it does
+    not exist yet.
+   
+    @param orbit: orbit parameterset
+    @type orbit: ParameterSet of context star
+    @param asini: system projected semi-major axis
+    @type asini: float
+    @param derive: qualifier of the dependent parameter
+    @type derive: str, one of C{sma}, C{incl}
+    @param unit: units of semi-major axis
+    @type unit: str
+    """
+    if kwargs and 'asini' in orbit:
+        raise ValueError("You cannot give extra kwargs to add_asini if it already exist")
+    
+    kwargs.setdefault('description','Projected system semi-major axis')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',orbit.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on surfgrav and add the parameter
+    orbit.pop_constraint('asini',None)
+    if not 'asini' in orbit:
+        orbit.add(parameters.Parameter(qualifier='asini',value=asini,
+                                      **kwargs))
+    else:
+        orbit['asini'] = asini
+        
+    #-- specify the dependent parameter
+    if derive=='sma':
+        orbit.pop_constraint('sma',None)
+        orbit.add_constraint('{sma} = {asini}/np.sin({incl})')
+    elif derive=='incl':
+        orbit.pop_constraint('incl',None)
+        orbit.add_constraint('{incl} = np.arcsin({asini}/{sma})')
+    else:
+        raise ValueError("Cannot derive {} from asini".format(derive))
+    logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
+   
+    

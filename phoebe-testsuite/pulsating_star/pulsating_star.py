@@ -1,6 +1,6 @@
 """
-Pulsating star
-==============
+Pulsating star (mode identification)
+======================================
 
 Last updated: ***time***
 
@@ -10,6 +10,8 @@ behaviour is chosen such that it is similar to the simulations done in Aerts et
 al. 1993, so that comparison between the results presented there and those shown
 here is facilitated. We generate the light curve, some effective temperature,
 radial velocity and intensity maps, and a spectroscopic timeseries.
+
+Inspired [Aerts1993]_
 
 Initialisation
 --------------

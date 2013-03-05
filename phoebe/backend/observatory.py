@@ -48,19 +48,22 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
     All the default parameters are set to make a true flux image of the system,
     in linear grayscale such that white=maximum flux and black=zero flux.
     
-    You can set C{select} to plot effective temperature, logg etc instead of
+    You can set C{select} to plot effective temperature (C{select='teff'}, logg
+    (C{select='logg'}) etc instead of
     projected flux, and you can adjust the colormap via the C{cmap} keyword.
+    
     Set the color of the background via C{background}.
     
     Setting C{select='rv'} will plot the radial velocity of the system, and then
     the colormap will automatically be changed to RdBu, which means blue for
     velocities towards the observer, white for velocities in the plane of the
-    sky, and red for velocities away from the observer. B{If you set the limits,
-    beware that the units or RV are Rsol/d!}
+    sky, and red for velocities away from the observer. **If you set the limits,
+    beware that the units of RV are Rsol/d!**
     
     Setting C{select='teff'} gives you the option to color the map according to
-    black body colors, via C{cmap='blackbody'}. You cannot adjust the colorbar
-    yourself then, it will be scaled automatically between 2000K and 20000K. Hot
+    black body colors, via C{cmap='blackbody'}. Otherwise a heat map will
+    be used. You cannot adjust the colorbar
+    yourself when using blackbody colors, it will be scaled automatically between 2000K and 20000K. Hot
     objects will appear blue, cool objects will appear red, intermediate
     objects will appear white. Other scaling schemes with blackbodies are
     C{cmap='blackbody_proj'} and C{cmap='eye'}.

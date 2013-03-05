@@ -1,6 +1,6 @@
 """
-Venus
-=====
+Venus (apparent magnitude)
+==========================
 
 Compute the visual magnitude of Venus taking into account the Sun's
 reflection.

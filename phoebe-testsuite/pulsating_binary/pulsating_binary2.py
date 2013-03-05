@@ -1,9 +1,10 @@
 """
-Pulsating binary 2
-==================
+Pulsating binary (frequency modulation)
+=======================================
 
-Compute the light curve of a pulsating star in a binary with a rapidly rotating
-star.
+Compute the frequency spectrum of a pulsating star in an eccentric orbit.
+
+Inspired upon [Kurtz2012]_.
 
 Initialisation
 --------------
