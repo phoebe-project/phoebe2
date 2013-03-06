@@ -2,6 +2,7 @@
 Plotting and multimedia routines.
 """
 import os
+import glob
 import subprocess
 try:
     import matplotlib as mpl
@@ -115,7 +116,7 @@ def blackbody_cmap():
 
 
 
-def make_movie(filecode,fps=24,bitrate=None,output='output.avi'):
+def make_movie(filecode,fps=24,bitrate=None,output='output.avi',cleanup=False):
     """
     Repeat last 10 frames!
     """
@@ -128,5 +129,10 @@ def make_movie(filecode,fps=24,bitrate=None,output='output.avi'):
     elif os.path.splitext(output)[1]=='.gif':
         delay = 100./fps
         cmd = 'convert -delay {:.0f} -loop 0 {} {}'.format(delay,filecode,output)
-    print 'Executing %s'%(cmd)
+    print('Executing {}'.format(cmd))
     subprocess.call(cmd,shell=True)
+    if cleanup:
+        print("Cleaning up files...")
+        for ff in glob.glob(filecode):
+            os.unlink(ff)
+        print("Done!")

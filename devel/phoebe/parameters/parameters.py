@@ -883,6 +883,17 @@ class Parameter(object):
                 #self.value = old_value
                 logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
     
+    def set_value_from_prior(self):
+        """
+        Set a random value from the prior.
+        """
+        try:
+            value = self.get_value_from_prior()[0]
+        except ValueError:
+            return None
+        self.set_value(value)
+        logger.info("Set value of {} to {}".format(self.get_qualifier(),value))
+    
     def set_value_from_posterior(self):
         """
         Change a parameter value to the mean of the posterior distribution.
@@ -1538,7 +1549,14 @@ class ParameterSet(object):
         """
         self.get_parameter(qualifier).set_value_from_posterior()
         self.run_constraints()
-        
+    
+    def set_value_from_prior(self,qualifier):
+        """
+        Set the value of parameter from it's prior.
+        """
+        self.get_parameter(qualifier).set_value_from_prior()
+        self.run_constraints()
+    
     
     def get_value(self,qualifier,*args):
         """

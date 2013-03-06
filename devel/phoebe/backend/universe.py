@@ -93,7 +93,7 @@ Make 3D plots with L{Body.plot3D} or make 2D plots with L{Body.plot2D}. The
 latter is just a shortcut to L{observatory.image}.
 
 """
-enable_mayavi = False
+enable_mayavi = True
 #-- load standard libraries
 import sys
 import os
@@ -959,6 +959,19 @@ class Body(object):
         for func in self._postprocessing:
             getattr(processes,func)(self)
     
+    def set_values_from_priors(self):
+        """
+        Set values from adjustable parameters with a prior to a random value
+        from it's prior.
+        """
+        walk = utils.traverse(self,list_types=(BodyBag,Body,list,tuple),dict_types=(dict,))
+        for parset in walk:
+            #-- for each parameterSet, walk through all the parameters
+            for qual in parset:
+                #-- extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):
+                    parset.get_parameter(qual).set_value_from_prior()
+                
     
     
     #{ Functions to manipulate the mesh    
@@ -2143,7 +2156,9 @@ class BodyBag(Body):
             new_mesh = np.zeros(N,dtype=dtypes)
             if N:
                 cols_to_copy = list(b.mesh.dtype.names)
-                new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
+                for col in cols_to_copy:
+                    new_mesh[col] = b.mesh[col]
+                #new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
             b.mesh = new_mesh
     
     def add_obs(self,obs):

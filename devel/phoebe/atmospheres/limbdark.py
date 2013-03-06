@@ -721,6 +721,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
     """
     Create an interpolatable grid of limb darkening coefficients.
     """
+    overwrite = None
     #-- OPEN.BOL must always be in there:
     passbands = sorted(list(set(list(passbands)+['OPEN.BOL'])))
     print("Creating grid from {} in passbands {}".format(", ".join(atm_files),", ".join(passbands)))
@@ -733,12 +734,26 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
             filename += '_{}{}'.format(key,red_pars_fixed[key])
         filename += '.fits'
     #-- if the file already exists, we'll append to it; so don't do any work
-    #   twice
+    #   twice (but first backup it!)
     if os.path.isfile(filename):
+        #-- safely backup existing file if needed
+        if os.path.isfile(filename+'.backup'):
+            if overwrite is None:
+                    answer = raw_input('Backup file for {} already exists. Overwrite? (Y/n): '.format(filename))
+                    if answer=='n': overwrite = False
+                    elif answer=='y': overwrite = None
+                    elif answer=='Y' or answer=='': overwrite = True
+                    else:
+                        raise ValueError("option '{}' not recognised".format(answer))
+            if overwrite is True:
+                shutil.copy(filename,filename+'.backup')
+        #-- sort out which passbands are already computed
         with pyfits.open(filename) as ff:
-            existing_passbands = [ext['extname'] for ext in ff[1:]]
+            existing_passbands = [ext.header['extname'] for ext in ff[1:]]
         logger.info("Skipping passbands {} (they already exist)".format(set(passbands) & set(existing_passbands)))
         passbands = sorted(list(set(passbands)-set(existing_passbands)))
+    else:
+        logger.info("Gridfile '{}' does not exist yet".format(filename))
     #-- collect parameter names and values
     atm_par_names = list(atm_pars)
     red_par_names = sorted(list(red_pars_iter.keys()))

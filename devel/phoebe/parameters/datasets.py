@@ -1,15 +1,41 @@
 """
 Classes and functions handling synthetic or observed data.
+
+Introduction
+============
+
+The following datasets are defined:
+
+.. autosummary::
+
+    LCDataSet
+    RVDataSet
+    SPDataSet
+    IFDataSet
+
+The following ASCII parsers translate ASCII files to lists of DataSets. The
+string following ``parse_`` in the name of the function refers to the extension
+the file should have.
+
+.. autosummary::
+
+    parse_phot
+    parse_spec_as_lprof
+
 """
+
 import logging
 import os
+import glob
 import numpy as np
+from collections import OrderedDict
 from phoebe.parameters import parameters
+from phoebe.units import conversions
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger("PARS.DATA")
 
-
+#{
                     
 class DataSet(parameters.ParameterSet):
     """
@@ -176,6 +202,9 @@ class DataSet(parameters.ParameterSet):
             return self.__add__(other)
     
 class LCDataSet(DataSet):
+    """
+    DataSet representing a light curve or photometry
+    """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','lcobs')
         super(LCDataSet,self).__init__(**kwargs)
@@ -220,13 +249,16 @@ class LCDataSet(DataSet):
             self.unload()
         
 class RVDataSet(DataSet):
+    """
+    DataSet reprensenting radial velocity measurements
+    """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','rvobs')
         super(RVDataSet,self).__init__(**kwargs)
 
 class SPDataSet(DataSet):
     """
-    DataSet representing a spectrum.
+    DataSet representing a spectrum
     
     There is not a one-to-one correspondence to load and unload, since we
     assume the wavelengths to be the same for each spectrum. What to do with
@@ -392,7 +424,191 @@ class SPDataSet(DataSet):
 
 
 class IFDataSet(DataSet):
+    """
+    DataSet representing interferometry
+    """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','ifobs')
         super(IFDataSet,self).__init__(**kwargs)
     
+
+#}
+
+#{ ASCII parsers
+
+def parse_lc(filenames):
+    pass
+
+def parse_phot(filenames,**kwargs):
+    """
+    Parse PHOT files to LCDataSets and lcdeps.
+    
+    The structure of a PHOT file is::
+    
+        # atm = kurucz
+        # fittransfo = log
+        STROMGREN.U    7.43   0.01   mag   0.
+        STROMGREN.B    7.13   0.02   mag   0.
+        GENEVA.U       7.2    0.001  mag   0.
+        IRAS.48        2.     0.1    Jy    0.
+    
+    An attempt will be made to interpret the comment lines as qualifier/value
+    for either the :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them.
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output LCDataSets or pbdeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file.
+    
+    Example usage:
+    
+    >>> obs,pbdeps = parse_phot('myfile.phot')
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    @param filenames: list of filename or a filename glob pattern
+    @type filenames: list or string
+    @return: list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`
+    """
+    pbdeps = OrderedDict()
+    datasets = OrderedDict()
+    if not isinstance(filenames,list):
+        filenames = sorted(glob.glob(filenames))
+    for filename in filenames:
+        #-- create a default LCDataSet and pbdep
+        ds = LCDataSet(columns=['time','flux','sigma'])
+        pb = parameters.ParameterSet(context='lcdep')
+        with open(filename,'r') as ff:
+            for line in ff.readlines():
+                line = line.strip()
+                if not line: continue
+                #-- coment lines can contain qualifiers from the LCOBS dataset:
+                if line[0]=='#':
+                    split = line[1:].split("=")
+                    # if they do, they consist of "qualifier = value"
+                    if len(split)>1:
+                        qualifier = split[0].strip()
+                        if qualifier in ds:
+                            ds[qualifier] = "=".join(split[1:]).strip()
+                        if qualifier in pb:
+                            pb[qualifier] = "=".join(split[1:]).strip()
+                #-- data lines: consist of passband, flux, error, unit and time
+                else:
+                    line = line.split('#')[0]
+                    passband,flux,sigma,unit,time = line.split()
+                    #-- add these to an existing dataset, or a new one.
+                    #   also create pbdep to go with it!
+                    time = float(time)
+                    flux = float(flux)
+                    sigma = float(sigma)
+                    flux,sigma = conversions.convert(unit,'erg/s/cm2/AA',flux,sigma,passband=passband)
+                    ref = "{}-{}".format(passband,filename)
+                    if not ref in datasets:
+                        datasets[ref] = ds.copy()
+                        pbdeps[ref] = pb.copy()
+                    datasets[ref]['time'] = np.hstack([datasets[ref]['time'],time])
+                    datasets[ref]['flux'] = np.hstack([datasets[ref]['flux'],flux])
+                    datasets[ref]['sigma'] = np.hstack([datasets[ref]['sigma'],sigma])
+                    datasets[ref]['ref'] = ref
+                    pbdeps[ref]['ref'] = ref
+                    pbdeps[ref]['passband'] = passband
+                    #-- override with extra kwarg values
+                    for key in kwargs:
+                        if key in pbdeps[ref]: pbdeps[ref][key] = kwargs[key]
+                        if key in datasets[ref]: datasets[ref][key] = kwargs[key]
+    return datasets.values(),pbdeps.values()
+            
+
+def parse_lprof(filenames):
+    pass
+
+def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
+    """
+    Parse a SPEC file as an LPROF file to an SPDataSet and a spdep.
+    
+    This effectively extracts a line profile from a full spectrum.
+    
+    The structure of a SPEC file is::
+    
+        # atm = kurucz
+        # ld_func = claret
+        3697.204  5.3284e-01
+        3697.227  2.8641e-01
+        3697.251  2.1201e-01
+        3697.274  2.7707e-01
+    
+    An attempt will be made to interpret the comment lines as qualifier/value
+    for either the :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them.
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output SPDataSets or pbdeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file.
+    
+    Example usage:
+    
+    >>> obs,pbdeps = parse_spec_as_lprof('myfile.spec')
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    @param filenames: list of filename or a filename glob pattern
+    @type filenames: list or string
+    @return: list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`
+    """
+    spectrum = np.loadtxt(filename).T
+    ds = SPDataSet(columns=['wavelength','flux','continuum'])
+    pb = parameters.ParameterSet(context='lcdep')
+    #-- read the comments of the file
+    with open(filename,'r') as ff:
+        for line in ff.readlines():
+            line = line.strip()
+            if not line: continue
+            #-- coment lines can contain qualifiers from the LCOBS dataset:
+            if line[0]=='#':
+                split = line[1:].split("=")
+                # if they do, they consist of "qualifier = value"
+                if len(split)>1:
+                    qualifier = split[0].strip()
+                if qualifier in ds:
+                    ds[qualifier] = "=".join(split[1:]).strip()
+                if qualifier in pb:
+                    pb[qualifier] = "=".join(split[1:]).strip()
+            else:
+                break
+    #-- order spectrum and cut out the line profile
+    sa = np.argsort(spectrum[0])
+    spectrum = spectrum[:,sa]
+    start = np.searchsorted(spectrum[0],clambda-wrange/2.0)
+    end = np.searchsorted(spectrum[0],clambda+wrange/2.0)-1
+    spectrum = spectrum[:,start:end]
+    #-- save to the dataset
+    ref = "{}-{}".format(line_name,filename)
+    ds['continuum'] = np.ones(len(spectrum[0])).reshape((1,-1))
+    ds['wavelength'] = spectrum[0].reshape((1,-1))
+    ds['flux'] = spectrum[1].reshape((1,-1))
+    ds['ref'] = ref
+    ds['filename'] = ref+'.spobs'
+    ds.estimate_noise()
+    pb['ref'] = ref
+    #-- override with extra kwarg values
+    for key in kwargs:
+        if key in pb: pb[key] = kwargs[key]
+        if key in ds: ds[key] = kwargs[key]
+    ds.save()
+    ds.unload()
+    return [ds],[pb]
+    
+
+#}

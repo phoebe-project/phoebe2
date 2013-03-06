@@ -1,5 +1,17 @@
 """
 Tools to handle parameters and ParameterSets.
+
+.. autosummary::
+
+    add_asini
+    add_rotfreqcrit
+    add_solarosc
+    add_solarosc_Deltanu0
+    add_solarosc_numax
+    add_surfgrav
+    add_teffpolar
+    add_angdiam
+    
 """
 import logging
 from phoebe.parameters import parameters
@@ -7,7 +19,58 @@ from phoebe.parameters import parameters
 logger = logging.getLogger("PARS.TOOLS")
 
 #{ Common constraints for the star class
-
+def add_angdiam(star,angdiam=None,derive='distance',unit='mas',**kwargs):
+    """
+    Add angular diameter to a Star parameterSet.
+    
+    The photometry is scaled such that
+    
+    .. math::
+    
+        F_\mathrm{obs} = F_\mathrm{syn} \dot R_*^2 / d^2
+        
+    with :math:`R_*` the stellar radius and :math:`d` the distance to the star.
+    The angular diameter :math:`\theta` is defined as
+    
+    .. math::
+    
+        \theta = 2 R_* / d
+        
+    And so one of the angular diameter, radius or distance needs to be
+    derived from the others.
+    
+    """
+    if kwargs and 'angdiam' in star:
+        raise ValueError("You cannot give extra kwargs to add_angdiam if angdiam already exist")
+    
+    kwargs.setdefault('description','Angular diameter')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on angdiam and add the parameter
+    star.pop_constraint('angdiam',None)
+    if not 'angdiam' in star:
+        star.add(parameters.Parameter(qualifier='angdiam',
+                                value=angdiam if angdiam is not None else 0.,
+                                **kwargs))
+    else:
+        star['angdiam'] = angdiam
+        
+    #-- specify the dependent parameter
+    if angdiam is None:
+        star.pop_constraint('angdiam',None)
+        star.add_constraint('{angdiam} = 2.0*{radius}/{distance}')
+    elif derive=='distance':
+        star.pop_constraint('radius',None)
+        star.add_constraint('{distance} = 2.0*{radius}/{angdiam}')
+    elif derive=='radius':
+        star.pop_constraint('distance',None)
+        star.add_constraint('{radius} = 0.5*{angdiam}*{distance}')
+    else:
+        raise ValueError("Cannot derive {} from angdiam".format(derive))
+    logger.info("star '{}': '{}' constrained by 'angdiam'".format(star['label'],derive))
 
 def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     """
@@ -144,7 +207,7 @@ def add_teffpolar(star,teffpolar,**kwargs):
 
 def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
     """
-    Add numax and Deltanu0 to a Star.
+    Add :math:`\\nu_\mathrm{max}` and :math:`\Delta\\nu_0` to a star.
     
     See Kjeldsen 1995 for the relations:
     
@@ -161,6 +224,9 @@ def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
     add_solarosc_Deltanu0(star,Deltanu0,unit=unit)
 
 def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
+    """
+    Add :math:`\\nu_\mathrm{max}` to a star.
+    """
     if kwargs and 'numax' in star:
         raise ValueError("You cannot give extra kwargs to add_solarosc_numax if it already exist")
     
@@ -191,6 +257,8 @@ def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
 
 def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
     """
+    Add :math:`\Delta\\nu_0` to a star.
+    
     You can only add this one if numax was added first!
     """
     if kwargs and 'Deltanu0' in star:
