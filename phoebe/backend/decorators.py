@@ -7,6 +7,7 @@ import cPickle
 import tempfile
 import subprocess
 import os
+from phoebe.parameters import parameters
 
 def parse_ref(fctn):
     """
@@ -143,6 +144,8 @@ def mpirun(fctn):
         if mpirun is None:
             return fctn(system,*args,**kwargs)
         else:
+            if mpirun is True:
+                mpirun = parameters.ParameterSet(context='mpi')
             try:
                 #-- pickle args and kwargs in NamedTemporaryFiles, which we will
                 #   delete afterwards

@@ -201,7 +201,9 @@ class GenericBody(object):
             #-- merge given keyword arguments with derived keyword arguments
             return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         elif len(match)>1:
-            raise ValueError("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
+            match = match[-1:]
+            logger.warning("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
+            return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         else:
             best_match = '<no close match found>'
             nr_match = 0

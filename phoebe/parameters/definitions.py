@@ -347,10 +347,11 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='bounded',description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
 
 #    MPI and computation context

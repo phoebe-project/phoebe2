@@ -6,6 +6,7 @@ The top level function you should use is L{run}.
 import os
 import time
 import logging
+import functools
 import numpy as np
 from matplotlib import pyplot as plt
 from phoebe.utils import utils
@@ -36,9 +37,15 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     
     The type of code to use is defined by the context of C{fitparams}:
     
-        1. C{fitting:pymc}: Metropolis-Hastings MCMC via pymc
-        2. C{fitting:emcee}: Affine Invariant MCMC via emcee
-        3. C{fitting:lmfit}: nonlinear optimizers via lmfit
+        1. :ref:`fitting:pymc <parlabel-phoebe-fitting:pymc>`: Metropolis-Hastings MCMC via pymc
+        2. :ref:`fitting:emcee <parlabel-phoebe-fitting:emcee>`: Affine Invariant MCMC via emcee
+        3. :ref:`fitting:lmfit <parlabel-phoebe-fitting:lmfit>`: nonlinear optimizers via lmfit
+    
+    The parameters determining how the system is computed are defined by the
+    ParameterSet :ref:`params <parlabel-phoebe-compute>`.
+    
+    The computations can be threaded if an :ref:`mpi <parlabel-phoebe-mpi>`
+    ParameterSet is supplied.
     
     @param system: the system to fit
     @type system: Body
@@ -63,6 +70,9 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     if params is None:
         params = parameters.ParameterSet(context='compute')
         logger.info("No compute parameters given: adding default set")
+    #-- default fitter is nelder
+    if fitparams is None:
+        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:lmfit')
     if fitparams.context=='fitting:pymc':
         solver = run_pymc
     elif fitparams.context=='fitting:emcee':
@@ -89,6 +99,14 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         observatory.compute(system,params=params,mpi=mpi)
     
     return fitparams
+
+
+                
+            
+
+
+
+
 
 #{ MCMC samplers.
     
@@ -552,6 +570,30 @@ def run_wd_emcee(system,data,fitparams=None):
 
 def run_lmfit(system,params=None,mpi=None,fitparams=None):
     """
+    Iterate an lmfit to start from different representations.
+    """
+    if fitparams['iters']>0:
+        set_values_from_prior = True
+    else:
+        set_values_from_prior = False
+    iters = max(fitparams['iters'],1)
+    best_chi2 = np.inf
+    best_fitparams = None
+    for iteration in range(iters):
+        logger.warning("Iteration {}/{}".format(iteration+1,iters))
+        if set_values_from_prior:
+            system.set_values_from_priors()
+        fitparams = _run_lmfit(system,params=params,mpi=mpi,fitparams=fitparams)
+        if fitparams['feedback']['redchi']<best_chi2:
+            best_fitparams = fitparams
+            logger.warning("Found better fit = {} < {}".format(fitparams['feedback']['redchi'],best_chi2))
+            best_chi2 = fitparams['feedback']['redchi']
+            
+    return best_fitparams
+
+
+def _run_lmfit(system,params=None,mpi=None,fitparams=None):
+    """
     Perform nonlinear fitting of a system using lmfit.
     
     Be sure to set the parameters to fit to be adjustable in the system.
@@ -635,10 +677,23 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
         mu,sigma,model = system.get_model()
-        return (model-mu)/sigma
+        retvalue = (model-mu)/sigma
+        #-- short log message:
+        names = [par for par in pars]
+        vals = [pars[par].value for par in pars]
+        logger.warning("Current values: {} (RSS={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),retvalue.sum()))
+        return retvalue
     
     #-- do the fit and report on the errors to the screen
-    result = lmfit.minimize(model_eval,pars,args=(system,),method=fitparams['method'])
+    #   we suffer quite drastically from numerical effects, i.e. that for
+    #   example the total integrated flux changes relatively drastically for
+    #   very small inclination changes. This messes up the leastsq algorithm,
+    #   so we need to tell it that it has to take wide steps for the computation
+    #   of its derivatives.
+    extra_kwargs = {}
+    if fitparams['method']=='leastsq':
+        extra_kwargs['epsfcn'] = 1e-3
+    result = lmfit.minimize(model_eval,pars,args=(system,),method=fitparams['method'],**extra_kwargs)
     lmfit.report_errors(pars)
     #-- extract the values to put them in the feedback
     if not result.success:
