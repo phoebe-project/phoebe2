@@ -437,6 +437,182 @@ class IFDataSet(DataSet):
 
 #{ ASCII parsers
 
+def parse_header(filename):
+    """
+    Parse only the header of an ASCII file.
+    
+    The columns and components are returned as well as a pbdep and dataset
+    where the keywords in the header are parsed.
+    
+    If there are no columns defined, ``columns`` will be ``None``. If there
+    are no components defined, ``components`` will be ``None``.
+    
+    You cannot define components without defining the columns, but you can
+    define columns without defining components.
+    
+    When only columns are defined, they need to be in the second-to-last
+    line, followed by a separator ``#---``.
+    
+    When both columns and components are defined, the columns need to be in
+    the third-to-last line, the components in the second-to-last, followed
+    by a separator ``#---``.
+    
+    After the separator, it is assumed the data begin.
+    
+    You can give a component's name also by supplying a line ``# label = mylabel``
+    in the header. If column names are found, the output ``components`` will
+    be a list of the same length, with all elements set to ``mylabel``. If
+    there are no column names found, I cannot figure out how many columns there
+    are, so only a string ``mylabel`` is returned, instead of a list.
+    
+    These are possible headers with their output::
+    
+        # atm = kurucz
+        # fittransfo = log
+    
+    >>> info, ps = parse_header('example_file.phot')
+    >>> print(info)
+    (None, None)
+    >>> print(ps)
+    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
+    
+    Another one::
+      
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # label = componentA
+        
+    >>> info, ps = parse_header('example_file.rv')
+    >>> print(info)
+    (None, 'componentA')
+    >>> print(ps)
+    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
+    
+    Another one::
+      
+        # atm = kurucz
+        # fittransfo = log
+        # flux     passband    time  sigma  unit
+        #---------------------------------------
+        
+    >>> info, ps = parse_header('example_file.phot')
+    >>> print(info)
+    (['flux', 'passband', 'time', 'sigma', 'unit'], None)
+    >>> print(ps)
+    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
+    
+    Another one::
+      
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # label = componentA
+        # rv       time           sigma
+        #---------------------------------------
+        
+    >>> info, ps = parse_header('example_file.rv')
+    >>> print(info)
+    (['rv', 'time', 'sigma'], ['componentA', 'componentA', 'componentA'])
+    >>> print(ps)
+    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
+    
+    And the last example::
+    
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # rv       time           sigma   sigma   rv
+        # starA    None           starA   starB   starB
+        #------------------------------------------------
+    
+    >>> info, ps = parse_header('example_file.rv')
+    >>> print(info)
+    (['rv', 'time', 'sigma', 'sigma', 'rv'], ['starA', 'None', 'starA', 'starB', 'starB'])
+    >>> print(ps)
+    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
+        
+    @param filename: input file
+    @type filename: str
+    @return: (columns, components), (pbdep, dataset)
+    @rtype: (list/None, list/str/None), (ParameterSet, DataSet)
+    """
+    #-- create a default pbdep and DataSet
+    contexts = dict(rv='rvdep',
+                    phot='lcdep',lc='lcdep',
+                    spec='spdep',lprof='spdep')
+    dataset_classes = dict(rv=RVDataSet,
+                           phot=LCDataSet,lc=LCDataSet,
+                           spec=SPDataSet,lprof=SPDataSet)
+    ext = filename.split('.')[-1]
+    pb = parameters.ParameterSet(context=contexts[ext])
+    ds = dataset_classes[ext]()
+    #-- they belong together, so they should have the same reference
+    ds['ref'] = pb['ref']
+    #-- open the file and start reading the lines
+    with open(filename,'r') as ff:
+        # We can only avoid reading in the whole file by first going through
+        # it line by line, and collect the comment lines. We need to be able
+        # to look ahead to detect where the headers ends.
+        all_lines = []
+        for line in ff.xreadlines():
+            line = line.strip()
+            if not line: continue
+            elif line[0]=='#':
+                #-- break when we reached the end!
+                if line[1:4]=='---':
+                    break
+                all_lines.append(line[1:])
+            #-- perhaps the user did not give a '----', is this safe?
+            else:
+                break
+                
+    #-- prepare some output and helper variables
+    header_length = len(all_lines)
+    components = None
+    columns = None
+    #-- now iterate over the header lines
+    for iline,line in enumerate(all_lines):
+        #-- comment lines can contain qualifiers from the RVDataSet,
+        #   we recognise them by the presence of the equal "=" sign.
+        split = line[1:].split("=")
+        # if they do, they consist of "qualifier = value". Careful,
+        # perhaps there are more than 1 "=" signs in the value
+        # (e.g. the reference contains a "="). There are never
+        # "=" signs in the qualifier.
+        if len(split)>1:
+            #-- qualifier is for sure the first element
+            qualifier = split[0].strip()
+            #-- if this qualifier exists, in either the RVDataSet
+            #   or pbdep, add it. Text-to-value parsing is done
+            #   at the ParameterSet level
+            if qualifier in ds:
+                ds[qualifier] = "=".join(split[1:]).strip()
+            if qualifier in pb:
+                pb[qualifier] = "=".join(split[1:]).strip()
+            if qualifier=='label':
+                components = "=".join(split[1:]).strip()
+        #-- it is also possible that the line contains the column
+        #   names: they should then contain at least the required
+        #   columns! We recognise the column headers as that line
+        #   which is followed by a line containing '#---' at least.
+        #   Or the line after that one; in the latter case, also
+        #   the components are given
+        elif iline==(header_length-2):
+            columns = line.split()
+            components = all_lines[iline+1].split()
+            break
+        #-- now we only have column names
+        elif iline==(header_length-1):
+            columns = line.split()
+    #-- some post processing:
+    if isinstance(components,str) and columns is not None:
+        components = [components]*len(columns)
+    #-- that's it!
+    return (columns, components), (pb,ds)
+    
+
+
 def parse_lc(filenames):
     return None
 
