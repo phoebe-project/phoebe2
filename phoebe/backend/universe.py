@@ -105,6 +105,7 @@ from collections import OrderedDict
 #-- load 3rd party modules
 import numpy as np
 from numpy import sin,cos,pi,sqrt,pi
+from scipy.integrate import quad
 try:
     import pylab as pl
     from matplotlib.patches import Polygon
@@ -179,7 +180,32 @@ def get_binary_orbit(self,time):
     d = np.sqrt( (loc1[0]-loc2[0])**2 + (loc1[1]-loc2[1])**2+ (loc1[2]-loc2[2])**2)
     return list(loc1)+list(velo1),list(loc2)+list(velo1),d
     
-
+def luminosity(body):
+    """
+    Calculate the total luminosity of any object.
+    
+    This is a numerical general implementation of the intensity moments for
+    spheres.
+    
+    It integrates the limbdarkening law over the solid angle on one hemisphere
+    of the triangle, for every triangle on the surface.
+    
+    @return: luminosity of the object (erg/s)
+    @rtype: float
+    """
+    #-- set the intensities if they are not calculated yet
+    ld_law = body.params.values()[0]['ld_func']
+    ld = body.mesh['ld___bol']
+    if np.all(ld==0):
+        body.intensity(ref='__bol')
+    mesh = body.mesh
+    sizes = mesh['size']*(100*constants.Rsol)**2
+    def _tief(gamma,ld_law,coeffs):
+        """Small helper function to compute total intrinsic emergent flux"""
+        Imu = coeffs[-1]*getattr(limbdark,'ld_'+ld_law)(cos(gamma),coeffs)
+        return Imu*cos(gamma)*sin(gamma) # sin(gamma) is for solid angle integration
+    emer_Ibolmu = 2*pi*np.array([quad(_tief,0,pi/2,args=(ld_law,ld[i]))[0] for i in range(len(mesh))])
+    return (emer_Ibolmu*sizes).sum()
     
 def load(filename):
     """
@@ -1556,8 +1582,8 @@ class PhysicalBody(Body):
         #-- 1-3.  Geometric barycentre and photocentric barycentre
         ps['coordinates'] = np.average(self.mesh['center'],weights=wsize,axis=0)+origin,'Rsol'
         ps['photocenter'] = np.average(self.mesh['center'],weights=wflux*wsize,axis=0)+origin,'Rsol'
-        ps['velocity']    = np.average(self.mesh['velo_'+ref+'_'],axis=0)
-        ps['distance']    = np.sqrt(ps['coordinates'][0]**2+ps['coordinates'][1]**2+ps['coordinates'][2]**2)
+        ps['velocity']    = np.average(self.mesh['velo___bol_'],axis=0),'Rsol/d'
+        ps['distance']    = np.sqrt(ps['coordinates'][0]**2+ps['coordinates'][1]**2+ps['coordinates'][2]**2),'Rsol'
         #-- 4.  mass: try to call the function specifically designed to compute
         #       the mass, if the class implements it.
         try:
@@ -1570,7 +1596,7 @@ class PhysicalBody(Body):
         #-- 5.  mean observed passband temperature
         ps['teff'] = np.average(self.mesh['teff'],weights=wflux,axis=0),'K'
         #-- 6.  mean observed passband surface gravity
-        ps['surfgrav'] = np.average(10**(self.mesh['logg']-2),weights=wflux,axis=0)
+        ps['surfgrav'] = np.average(self.mesh['logg'],weights=wflux,axis=0)
         #-- 7.  projected flux
         ps['intensity'] = proj_int
         
@@ -1587,7 +1613,8 @@ class PhysicalBody(Body):
             #grav = 100.#self.params['body'].request_value('surfgrav','m/s2')
         
         #-- average radius
-        ps['radius'] = coordinates.norm((self.mesh['center']-ps['coordinates']).T).mean()
+        barycentre = (ps.get_value('coordinates','Rsol')-origin).T 
+        ps['radius'] = coordinates.norm(self.mesh['center']-barycentre).mean(),'Rsol'
         
         
         return ps
@@ -2609,7 +2636,6 @@ class AccretionDisk(PhysicalBody):
         sigTeff4[sigTeff4<0] = 1e-1 #-- numerical rounding (?) can do weird things
         self.mesh['teff'] = (sigTeff4/constants.sigma)**0.25
         
-    
     @decorators.parse_ref
     def intensity(self,*args,**kwargs):
         """
@@ -2826,6 +2852,12 @@ class Star(PhysicalBody):
         roche.temperature(self)
         #-- perhaps we want to add spots.
         self.add_spots(time)
+    
+    def abundance(self,time):
+        """
+        Set the abundance.
+        """
+        self.mesh['abun'] = self.params.values()[0]['abun']
     
     def magnetic_field(self):
         """
@@ -3259,6 +3291,8 @@ class Star(PhysicalBody):
         #   not computed before
         if self.time is None or has_freq or has_spot:
             self.velocity(ref=ref)
+            #-- set the abundance
+            self.abundance(time)
             #-- compute polar radius and logg, surface gravity and temperature
             self.surface_gravity()
             #-- if there are any spots, this is taken care of in the function
@@ -3835,10 +3869,15 @@ class BinaryStar(Star):
             return proj_intens*pblum/(4*np.pi) + l3
 
 
-def serialize(body,description=True,color=True,only_adjust=False):
+def serialize(body,description=True,color=True,only_adjust=False,filename=None):
     """
     Attempt no. 1 to serialize a Body.
     """
+    #-- if need write to a file, override the defaults
+    if filename is not None:
+        color = False
+        only_adjust = False
+        
     def par_to_str(val,color=True):
         adjust = val.get_adjust()
         par_repr = val.repr % val.get_value()
@@ -3847,6 +3886,9 @@ def serialize(body,description=True,color=True,only_adjust=False):
             par_repr = "\033[32m" + '\033[1m' + par_repr + '\033[m'
         elif adjust is False and color is True:
             par_repr = "\033[31m" + '\033[1m' + par_repr + '\033[m'
+        elif adjust is True and color is False:
+            par_repr = '*'+par_repr
+            N += 1
         if adjust is True and val.is_lim():
             par_repr = "\033[4m" + par_repr + '\033[m'
         if not adjust and only_adjust:
@@ -3894,7 +3936,11 @@ def serialize(body,description=True,color=True,only_adjust=False):
                 lines.append(template.format(*path)+' = {}'.format(par_str))
     
     txt = "\n".join(lines)
-    return txt
+    if filename is not None:
+        with open(filename,'w') as ff:
+            ff.write(txt)
+    else:   
+        return txt
 if __name__=="__main__":
     import doctest
     doctest.testmod()

@@ -681,7 +681,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
-        logger.warning("Current values: {} (RSS={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),retvalue.sum()))
+        #logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
         return retvalue
     
     #-- do the fit and report on the errors to the screen

@@ -19,6 +19,7 @@ the file should have.
 
 .. autosummary::
 
+    parse_rv
     parse_phot
     parse_spec_as_lprof
 
@@ -437,26 +438,381 @@ class IFDataSet(DataSet):
 #{ ASCII parsers
 
 def parse_lc(filenames):
-    pass
+    return None
 
-def parse_phot(filenames,**kwargs):
+def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
+    """
+    Parse RV files to RVDataSets and rvdeps.
+    
+    **File format description**
+    
+    The generic structure of an RV file is::
+        
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # label = componentA
+        2455453.0     -10.   0.1    
+        2455453.1      -5.   0.15    
+        2455453.2       2.   0.11    
+        2455453.3       6.   0.09    
+    
+    In this structure, you can only give RVs of one component in one
+    file. An attempt will be made to interpret the comment lines (i.e. those lines
+    where the first character equals '#') as qualifier/value for either the
+    :ref:`rvobs <parlabel-phoebe-rvobs>` or :ref:`rvdep <parlabel-phoebe-rvdep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them. The comments are optional. So this is also allowed::
+    
+        2455453.0     -10.   0.1    
+        2455453.1      -5.   0.15    
+        2455453.2       2.   0.11    
+        2455453.3       6.   0.09
+    
+    In this case all the defaults from the :ref:`rvobs <parlabel-phoebe-rvobs>`,
+    and :ref:`rvdep <parlabel-phoebe-rvdep>` ParameterSets will be kept, but can
+    be possibly overriden by the extra kwargs. If, in this last example, you
+    want to specify that different columns belong to different components,
+    you need to give a list of those component labels, and set ``None`` wherever
+    a column does not belong to a component (e.g. the time).
+    
+    The only way in which you are allowed to deviate from this structure, is
+    by specifying column names, followed by a comment line of dashes (there
+    needs to be at least one dash, no spaces)::
+    
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # label = componentA
+        # rv       time           sigma
+        #---------------------------------------
+        -10.       2455453.0       0.1    
+         -5.       2455453.1       0.15    
+          2.       2455453.2       0.11    
+          6.       2455453.3       0.09
+    
+    In the latter case, you are allowed to omit any column except for ``time``
+    ``rv`` and ``sigma``, which are required.
+    
+    The final option that you have is to supply information on multiple
+    components in one file. In that case, you need to specify the column names
+    **and** the components, in two consecutive lines (first column names, then
+    component labels), or pass ``columns`` and ``components`` arguments during
+    the function call::
+    
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # rv       time           sigma   sigma   rv
+        # starA    None           StarA   starB   starB
+        #------------------------------------------------
+        -10.       2455453.0       0.1   0.05     11.
+         -5.       2455453.1       0.15  0.12      6.
+          2.       2455453.2       0.11  nan      nan
+          6.       2455453.3       0.09  0.2     -12.
+    
+    .. tip::
+ 
+       You can give missing values by setting a value to ``nan``
+    
+    Radial velocities need to be in km/s.
+    
+    **Input and output**
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output RVDataSets or pbdeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file. For example, compare these two files:
+    
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = SiII_rvs
+        # rv       time           sigma   sigma   rv
+        # starA    None           starA   starB   starB
+        #------------------------------------------------
+        -10.       2455453.0       0.1   0.05     11.
+         -5.       2455453.1       0.15  0.12      6.
+          2.       2455453.2       0.11  nan      nan
+          6.       2455453.3       0.09  0.2     -12.
+
+    and::
+    
+        -10.       2455453.0       0.1   0.05     11.
+         -5.       2455453.1       0.15  0.12      6.
+          2.       2455453.2       0.11  nan      nan
+          6.       2455453.3       0.09  0.2     -12.
+    
+    Since all the information is available in the first example, you can
+    readily do:
+    
+    >>> output = parse_rv('myfile.rv')
+    
+    While you need to do supply more information the second case:
+    
+    >>> output = parse_rv('myfile.rv',columns=['rv','time','sigma','sigma','rv'],
+    ...     components=['starA',None,'StarA','starB','starB'])
+    
+    
+    If C{full_output=True}, you will get a consistent output, regardless what
+    the input file looks like. This can be useful for automatic parsing. In
+    this case, the output is an OrderedDict, with the keys at the first level
+    the key of the component (if no labels are given, this will be C{__nolabel__}).
+    The value for each key is a list of two lists: the first list contains the
+    LCDataSets, the second list the corresponding pbdeps.
+    
+    If C{full_output=False}, you will get the same output as described in the
+    previous paragraph only if labels are given in the file. Else, the output
+    consists of only one component, which is probably a bit confusing for the
+    user (at least me). So if there are no labels given and C{full_output=False},
+    the two lists are immediately returned.
+    
+    **Example usage**
+    
+    Assume that any of the **second** example is saved in 
+    file called ``myfile.phot``, you can do (the following lines are equivalent):
+    
+    >>> obs,pbdeps = parse_phot('myfile.rv')
+    >>> obs,pbdeps = parse_phot('myfile.rv',columns=['time','rv','sigma'])
+    
+    Which is in this case equivalent to:
+    
+    >>> output = parse_phot('myfile.rv',full_output=True)
+    >>> obs,pbdeps = output['__nolabel__']
+    
+    or 
+    
+    >>> obs,pbdeps = output.values()[0]
+    
+    The output can then be given to any Body:
+    
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    The first example explicitly contains a label, so an OrderedDict will
+    always be returned, regardless the value of ``full_output``.
+    
+    The last example contains labels, so the full output is always given.
+    Assume the contents of the last file is stored in ``myfile2.rv``:
+    
+    >>> output = parse_phot('myfile2.rv')
+    >>> obs1,pbdeps1 = output['starA']
+    >>> obs2,pbdeps2 = output['starB']
+    
+    @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
+    @type filenames: list or string
+    @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
+    @type columns: None or list of strings
+    @param components: list of components for each column in the file. If not given, they will be automatically detected.
+    @type components: None or list of strings
+    @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
+    @type full_output: bool
+    @return: (list of :ref:`rvobs <parlabel-phoebe-rvobs>`, list of :ref:`rvdep <parlabel-phoebe-rvdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
+    """
+    #-- which columns are present in the input file, and which columns are
+    #   possible in the RVDataSet? The columns that go into the RVDataSet
+    #   is the intersection of the two. The columns that are in the file but
+    #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
+    #   or for other purposes (e.g. label or unit).
+    if columns is None:
+        columns_in_file = ['time','rv','sigma']
+    else:
+        columns_in_file = columns
+    columns_required = ['time','rv','sigma']
+    columns_specs = dict(time=float,rv=float,sigma=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in RV file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    output = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- you are allowed to give a list of filenames. If you give a string,
+    #   it will be interpreted as a glob pattern
+    if not isinstance(filenames,list):
+        filenames = sorted(glob.glob(filenames))
+    
+    columns_detected = False
+    for filename in filenames:
+        #-- create a default LCDataSet and pbdep
+        ds = RVDataSet(columns=['time','rv','sigma'])
+        pb = parameters.ParameterSet(context='rvdep')
+        #-- collect all data
+        data = []
+        #-- open the file and start reading the lines
+        with open(filename,'r') as ff:
+            all_lines = ff.readlines()
+            for iline,line in enumerate(all_lines):
+                line = line.strip()
+                if not line: continue
+                #-- coment lines: can contain qualifiers from the RVDataSet,
+                #   we recognise them by the presence of the equal "=" sign.
+                if line[0]=='#':
+                    split = line[1:].split("=")
+                    # if they do, they consist of "qualifier = value". Careful,
+                    # perhaps there are more than 1 "=" signs in the value
+                    # (e.g. the reference contains a "="). There are never
+                    # "=" signs in the qualifier.
+                    if len(split)>1:
+                        #-- qualifier is for sure the first element
+                        qualifier = split[0].strip()
+                        #-- if this qualifier exists, in either the RVDataSet
+                        #   or pbdep, add it. Text-to-value parsing is done
+                        #   at the ParameterSet level
+                        if qualifier in ds:
+                            ds[qualifier] = "=".join(split[1:]).strip()
+                        if qualifier in pb:
+                            pb[qualifier] = "=".join(split[1:]).strip()
+                        if qualifier=='label':
+                            components = "=".join(split[1:]).strip()
+                    #-- it is also possible that the line contains the column
+                    #   names: they should then contain at least the required
+                    #   columns! We recognise the column headers as that line
+                    #   which is followed by a line containing '#-' at least.
+                    #   Or the line after that one; in the latter case, also
+                    #   the components are given
+                    #   We cannot safely automatically detect headers otherwise
+                    #   since it does not necessarily need to be the last
+                    #   comment line, since also the first (or any) data point
+                    #   can be commented out. We don't look for columns if
+                    #   they are explicitly given. We don't recognise labels
+                    #   if column names are not given.
+                    elif columns is None and not columns_detected:
+                        columns_detected = True
+                        only_col_names = len(all_lines)>(iline+1) and all_lines[iline+1][:2]=='#-'
+                        col_and_comp_names = len(all_lines)>(iline+2) and all_lines[iline+2][:2]=='#-'
+                        if only_col_names or col_and_comp_names:
+                            columns_in_file = line[1:].split()
+                            Ncol = len(columns_in_file)
+                            logger.info("Auto detecting columns in RV {}: {}".format(filename,", ".join(columns_in_file)))
+                            missing_columns = set(columns_required) - set(columns_in_file)
+                            if len(missing_columns)>0:
+                                raise ValueError("Auto detect: missing columns in RV file: {}".format(", ".join(missing_columns)))\
+                        #-- and extract the component names if they are there
+                        if col_and_comp_names:
+                            components = all_lines[iline+1][1:].split()
+                #-- data lines:
+                else:
+                    data.append(tuple(line.split()[:Ncol]))
+            #-- what components do we have?
+            if isinstance(components,str):
+                components = kwargs.pop('label',components)
+                components = [components]*Ncol
+            elif components is None:
+                components = kwargs.pop('label','__nolabel__')
+                components = [components]*Ncol
+            #-- we need unique names for the columns in the record array
+            columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+            #-- add these to an existing dataset, or a new one.
+            #   also create pbdep to go with it!
+            #-- numpy records to allow for arrays of mixed types. We do some
+            #   numpy magic here because we cannot efficiently predefine the
+            #   length of the strings in the file: therefore, we let numpy
+            #   first cast everything to strings:
+            data = np.core.records.fromrecords(data,names=columns_in_data)
+            #-- and then say that it can keep those string arrays, but it needs
+            #   to cast everything else to the column specificer (i.e. the right type)
+            descr = data.dtype.descr
+            descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+            dtype = np.dtype(descr)
+            data = np.array(data,dtype=dtype)
+            
+            #-- for each component, create two lists to contain the
+            #   RVDataSets or pbdeps    
+            for label in set(components):
+                if label.lower()=='none':
+                    continue
+                output[label] = [[ds.copy()],[pb.copy()]]
+            for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+                if label.lower()=='none':
+                    for lbl in output:
+                        output[lbl][0][-1][col] = data[coldat]
+                    continue
+                output[label][0][-1][col] = data[coldat]
+                #-- override values already there with extra kwarg values
+                for key in kwargs:
+                    if key in output[label][0][-1]:
+                        output[label][0][-1][key] = kwargs[key]
+                    if key in output[label][1][-1]:
+                        output[label][1][-1][key] = kwargs[key]
+                        
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
+
+def parse_phot(filenames,columns=None,full_output=False,**kwargs):
     """
     Parse PHOT files to LCDataSets and lcdeps.
     
-    The structure of a PHOT file is::
+    **File format description**
     
+    The generic structure of a PHOT file is::
+        
         # atm = kurucz
         # fittransfo = log
         STROMGREN.U    7.43   0.01   mag   0.
         STROMGREN.B    7.13   0.02   mag   0.
         GENEVA.U       7.2    0.001  mag   0.
-        IRAS.48        2.     0.1    Jy    0.
+        IRAC.45        2.     0.1    Jy    0.
     
-    An attempt will be made to interpret the comment lines as qualifier/value
-    for either the :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
+    An attempt will be made to interpret the comment lines (i.e. those lines
+    where the first character equals '#') as qualifier/value for either the
+    :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
     Failures are silently ignored, so you are allowed to put whatever comments
     in there (though with caution), or comment out data lines if you don't
-    want to use them.
+    want to use them. The comments are optional. So this is also allowed::
+    
+        STROMGREN.U    7.43   0.01   mag   0.
+        STROMGREN.B    7.13   0.02   mag   0.
+        GENEVA.U       7.2    0.001  mag   0.
+        IRAC.45        2.     0.1    Jy    0.
+        
+    The only way in which you are allowed to deviate from this structure, is
+    by specifying column names, followed by a comment line of dashes (there
+    needs to be at least one dash, no spaces)::
+    
+        # atm = kurucz
+        # fittransfo = log
+        # flux     passband    time  sigma  unit
+        #---------------------------------------
+        7.43       STROMGREN.U 0.     0.01  mag
+        7.13       STROMGREN.B 0.     0.02  mag
+        7.2        GENEVA.U    0.     0.001 mag
+        2.         IRAC.45     0.     0.1   Jy
+    
+    In the latter case, you are allowed to omit any column except for ``flux``
+    ``sigma`` and ``passband``, which are required. If not given, the default
+    ``unit`` is ``erg/s/cm2/AA`` and ``time`` is zero.
+        
+    Finally, there is also an option to merge data of different Bodies in
+    one PHOT file. In that case, an extra column is required containing the
+    label of the Body where the data needs to be attached to::
+    
+        # atm = kurucz
+        # fittransfo = log
+        # flux     passband    time  sigma  unit label
+        #---------------------------------------------
+        7.43       STROMGREN.U 0.     0.01  mag  starA
+        7.13       STROMGREN.B 0.     0.02  mag  starA
+        7.2        GENEVA.U    0.     0.001 mag  starA
+        2.         IRAC.45     0.     0.1   Jy   starB
+    
+    .. warning::
+    
+       You are not allowed to have missing values. Each column must
+       have a value for every observation.
+    
+    **Input and output**
     
     The output can be readily appended to the C{obs} and C{pbdep} keywords in
     upon initialization of a ``Body``.
@@ -465,64 +821,205 @@ def parse_phot(filenames,**kwargs):
     wherever they exist and override the contents of the comment lines in the
     phot file.
     
-    Example usage:
+    If C{full_output=True}, you will get a consistent output, regardless what
+    the input file looks like. This can be useful for automatic parsing. In
+    this case, the output is an OrderedDict, with the keys at the first level
+    the key of the component (if no labels are given, this will be C{__nolabel__}).
+    The value for each key is a list of two lists: the first list contains the
+    LCDataSets, the second list the corresponding pbdeps.
+    
+    If C{full_output=False}, you will get the same output as described in the
+    previous paragraph only if labels are given in the file. Else, the output
+    consists of only one component, which is probably a bit confusing for the
+    user (at least me). So if there are no labels given and C{full_output=False},
+    the two lists are immediately returned.
+    
+    **Example usage**
+    
+    Assume that any of the first three examples is saved in 
+    file called ``myfile.phot``, you can do (the following lines are equivalent):
     
     >>> obs,pbdeps = parse_phot('myfile.phot')
+    >>> obs,pbdeps = parse_phot('myfile.phot',columns=['passband','flux','sigma','unit','time'])
+    
+    Which is in this case equivalent to:
+    
+    >>> output = parse_phot('myfile.phot',full_output=True)
+    >>> obs,pbdeps = output['__nolabel__']
+    
+    or 
+    
+    >>> obs,pbdeps = output.values()[0]
+    
+    The output can then be given to any Body:
+    
     >>> starpars = parameters.ParameterSet(context='star')
     >>> meshpars = parameters.ParameterSet(context='mesh:marching')
     >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
     
-    @param filenames: list of filename or a filename glob pattern
+    The last example contains labels, so the full output is always given.
+    Assume the contents of the last file is stored in ``myfile2.phot``:
+    
+    >>> output = parse_phot('myfile2.phot')
+    >>> obs1,pbdeps1 = output['starA']
+    >>> obs2,pbdeps2 = output['starB']
+    
+    @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
     @type filenames: list or string
-    @return: list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`
+    @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
+    @type columns: None or list of strings
+    @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
+    @type full_output: bool
+    @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
     """
-    pbdeps = OrderedDict()
-    datasets = OrderedDict()
+    #-- which columns are present in the input file, and which columns are
+    #   possible in the LCDataSet? The columns that go into the LCDataSet
+    #   is the intersection of the two. The columns that are in the file but
+    #   not in the LCDataSet are probably used for the pbdeps (e.g. passband)
+    #   or for other purposes (e.g. label or unit).
+    if columns is None:
+        columns_in_file = ['passband','flux','sigma','unit','time']
+    else:
+        columns_in_file = columns
+    columns_required = ['passband','flux','sigma']
+    columns_specs = dict(passband=str,flux=float,sigma=float,time=float,unit=str,label=str)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in PHOT file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    components = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- you are allowed to give a list of filenames. If you give a string,
+    #   it will be interpreted as a glob pattern
     if not isinstance(filenames,list):
         filenames = sorted(glob.glob(filenames))
+    
     for filename in filenames:
         #-- create a default LCDataSet and pbdep
         ds = LCDataSet(columns=['time','flux','sigma'])
         pb = parameters.ParameterSet(context='lcdep')
+        #-- collect all data
+        data = []
+        #-- open the file and start reading the lines
         with open(filename,'r') as ff:
-            for line in ff.readlines():
+            all_lines = ff.readlines()
+            for iline,line in enumerate(all_lines):
                 line = line.strip()
                 if not line: continue
-                #-- coment lines can contain qualifiers from the LCOBS dataset:
+                #-- coment lines: can contain qualifiers from the LCDataSet,
+                #   we recognise them by the presence of the equal "=" sign.
                 if line[0]=='#':
                     split = line[1:].split("=")
-                    # if they do, they consist of "qualifier = value"
+                    # if they do, they consist of "qualifier = value". Careful,
+                    # perhaps there are more than 1 "=" signs in the value
+                    # (e.g. the reference contains a "="). There are never
+                    # "=" signs in the qualifier.
                     if len(split)>1:
+                        #-- qualifier is for sure the first element
                         qualifier = split[0].strip()
+                        #-- if this qualifier exists, in either the LCDataSet
+                        #   or pbdep, add it. Text-to-value parsing is done
+                        #   at the ParameterSet level
                         if qualifier in ds:
                             ds[qualifier] = "=".join(split[1:]).strip()
                         if qualifier in pb:
                             pb[qualifier] = "=".join(split[1:]).strip()
-                #-- data lines: consist of passband, flux, error, unit and time
+                    #-- it is also possible that the line contains the column
+                    #   names: they should then contain at least the required
+                    #   columns! We recognise the column headers as that line
+                    #   which is followed by a line containing '#-' at least.
+                    #   We cannot safely automatically detect headers otherwise
+                    #   since it does not necessarily need to be the last
+                    #   comment line, since also the first (or any) data point
+                    #   can be commented out. We don't look for columns if
+                    #   they are explicitly given.
+                    elif columns is None:
+                        if len(all_lines)>(iline+1) and all_lines[iline+1][:2]=='#-':
+                            columns_in_file = line[1:].split()
+                            Ncol = len(columns_in_file)
+                            logger.info("Auto detecting columns in PHOT {}: {}".format(filename,", ".join(columns_in_file)))
+                            missing_columns = set(columns_required) - set(columns_in_file)
+                            if len(missing_columns)>0:
+                                raise ValueError("Missing columns in PHOT file: {}".format(", ".join(missing_columns)))\
+                #-- data lines:
                 else:
-                    line = line.split('#')[0]
-                    passband,flux,sigma,unit,time = line.split()
-                    #-- add these to an existing dataset, or a new one.
-                    #   also create pbdep to go with it!
-                    time = float(time)
-                    flux = float(flux)
-                    sigma = float(sigma)
-                    flux,sigma = conversions.convert(unit,'erg/s/cm2/AA',flux,sigma,passband=passband)
+                    data.append(tuple(line.split()[:Ncol]))
+            #-- add these to an existing dataset, or a new one.
+            #   also create pbdep to go with it!
+            #-- numpy records to allow for arrays of mixed types. We do some
+            #   numpy magic here because we cannot efficiently predefine the
+            #   length of the strings in the file: therefore, we let numpy
+            #   first cast everything to strings:
+            data = np.core.records.fromrecords(data,names=columns_in_file)
+            #-- and then say that it can keep those string arrays, but it needs
+            #   to cast everything else to the column specificer (i.e. the right type)
+            descr = [idescr if columns_specs[idescr[0]]==str else (idescr[0],columns_specs[idescr[0]]) for idescr in data.dtype.descr]
+            dtype = np.dtype(descr)
+            data = np.array(data,dtype=dtype)
+            #-- some columns were not required, they will be created
+            #   with default values:
+            auto_columns = []
+            auto_columns_names = []
+            if not 'time' in columns_in_file:
+                auto_columns_names.append('time')
+                auto_columns.append(np.zeros(len(data)))
+            if not 'unit' in columns_in_file:
+                auto_columns_names.append('unit')
+                auto_columns.append(np.array(['erg/s/cm2/AA']*len(data)))
+            if not 'label' in columns_in_file:
+                auto_columns_names.append('label')
+                auto_columns.append(np.array(['__nolabel__']*len(data)))
+            if len(auto_columns):
+                data = plt.mlab.rec_append_fields(data,auto_columns_names,auto_columns)
+            #-- now, make sure each flux value is in the right units:
+            flux,sigma = conversions.nconvert(data['unit'],'erg/s/cm2/AA',data['flux'],data['sigma'],passband=data['passband'])
+            data['flux'] = flux
+            data['sigma'] = sigma
+            #-- now create datasets for each component (be sure to add them
+            #   in the order they appear in the file
+            labels_indexes = np.unique(data['label'],return_index=True)[1]
+            labels = [data['label'][index] for index in sorted(labels_indexes)]
+            for label in labels:
+                #-- for each component, select those entries that go along
+                #   with it
+                selection = data[data['label']==label]
+                passbands_indexes = np.unique(selection['passband'],return_index=True)[1]
+                passbands = [selection['passband'][index] for index in sorted(passbands_indexes)]
+                #-- for each component, create two lists to contain the
+                #   LCDataSets or pbdeps
+                components[label] = [[],[]]
+                #-- for each component, make separate datasets for each
+                #   passband, and add that dataset to the master OrderedDicts
+                for passband in passbands:
+                    subselection = selection[selection['passband']==passband]
                     ref = "{}-{}".format(passband,filename)
-                    if not ref in datasets:
-                        datasets[ref] = ds.copy()
-                        pbdeps[ref] = pb.copy()
-                    datasets[ref]['time'] = np.hstack([datasets[ref]['time'],time])
-                    datasets[ref]['flux'] = np.hstack([datasets[ref]['flux'],flux])
-                    datasets[ref]['sigma'] = np.hstack([datasets[ref]['sigma'],sigma])
-                    datasets[ref]['ref'] = ref
-                    pbdeps[ref]['ref'] = ref
-                    pbdeps[ref]['passband'] = passband
-                    #-- override with extra kwarg values
+                    components[label][0].append(ds.copy())
+                    components[label][1].append(pb.copy())
+                    #-- fill in the actual data
+                    for col in ds['columns']:
+                        components[label][0][-1][col] = subselection[col] 
+                    #-- fill in other keys from the parameterSets
+                    components[label][0][-1]['ref'] = ref
+                    components[label][1][-1]['ref'] = ref
+                    components[label][1][-1]['passband'] = passband
+                    #-- override values already there with extra kwarg values
                     for key in kwargs:
-                        if key in pbdeps[ref]: pbdeps[ref][key] = kwargs[key]
-                        if key in datasets[ref]: datasets[ref][key] = kwargs[key]
-    return datasets.values(),pbdeps.values()
+                        if key in components[label][0][ref]:
+                            components[label][0][-1][key] = kwargs[key]
+                        if key in components[label][1][ref]:
+                            components[label][1][-1][key] = kwargs[key]
+                        
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if not 'label' in columns_in_file and not full_output:
+        return components.values()[0]
+    else:
+        return components
             
 
 def parse_lprof(filenames):

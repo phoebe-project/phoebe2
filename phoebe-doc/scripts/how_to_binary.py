@@ -145,7 +145,7 @@ ps,lc,rv = phoebe.wd.lcin_to_ps('test01lcin.active',version='wd2003')
 ps['n1'] = 60
 
 # Finally, you can convert these parameterSets to the Phoebe frame:
-pars1,pars2,orbit = parameters.wd_to_phoebe(ps,lc,rv)
+pars1,pars2,orbit = phoebe.wd.wd_to_phoebe(ps,lc,rv)
 comp1,lcdep1,rvdep1 = pars1
 comp2,lcdep2,rvdep2 = pars2
 
@@ -174,7 +174,7 @@ interface and/or upon initialisation:
 lcdep1a = phoebe.ParameterSet(context='lcdep',passband='JOHNSON.V',\
             atm='kurucz',ld_coeffs='kurucz',ld_func='claret')
 lcdep1b = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
-            atm='blackbody',ld_coeffs=[0.5],ld_model='linear',ref='linear thing')
+            atm='blackbody',ld_coeffs=[0.5],ld_func='linear',ref='linear thing')
 spdep = phoebe.ParameterSet(context='spdep')
 
 """
@@ -203,10 +203,10 @@ to make sure that the labels match (notice that you can do that even though
 a label is automatically generated):
 """
 
-lcdep2a = parameters.ParameterSet(context='lcdep',passband='JOHNSON.V',\
-            atm='kurucz',cl=[0.4],ld_model='linear',label=lcdep1a['label'])
-lcdep2b = parameters.ParameterSet(context='lcdep',passband='KEPLER.V',\
-            atm='blackbody',cl=[0.3],ld_model='linear',label='linear thing')
+lcdep2a = phoebe.ParameterSet(context='lcdep',passband='JOHNSON.V',\
+            atm='kurucz',ld_coeffs=[0.4],ld_func='linear',ref=lcdep1a['ref'])
+lcdep2b = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
+            atm='blackbody',ld_coeffs=[0.3],ld_func='linear',ref='linear thing')
 
 """
 
@@ -231,7 +231,7 @@ the ``create`` module as before, but setting also the keyword ``create_body``
 to ``True``:
 """
 
-system = create.from_library('V380_Cyg',create_body=True)
+system = phoebe.create.from_library('V380_Cyg',create_body=True)
 
 """
 If you want to change parameters, you need to go through the ``params``
@@ -255,15 +255,14 @@ information on how to compute the mesh. This is the last parameterSet that
 is required:
 
 """
-mesh = parameters.ParameterSet(context='mesh')
+mesh = phoebe.ParameterSet(context='mesh:marching')
 
 # The ``BinaryRocheStars`` are then easily created and (optionally) put in
 # a ``BodyBag``, after importing the universe:
 
-from pyphoebe import universe
-star1 = universe.BinaryRocheStar(comp1,orbit,mesh,obs=[lcdep1a,lcdep1b,spdep])
-star2 = universe.BinaryRocheStar(comp2,orbit,mesh,obs=[lcdep2a,lcdep2b,spdep])
-system = universe.BodyBag([star1,star2])
+star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
+star2 = phoebe.BinaryRocheStar(comp2,orbit=orbit,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
+system = phoebe.BodyBag([star1,star2])
 
 """
 
@@ -291,9 +290,9 @@ When creating a Body which requires an orbit to initialize, it is allowed in
 this case to set it to ``None``. But only in this case!
 """
 
-star1 = universe.BinaryRocheStar(comp1,None,mesh,obs=[lcdep1a,lcdep1b,spdep])
-star2 = universe.BinaryRocheStar(comp2,None,mesh,obs=[lcdep2a,lcdep2b,spdep])
-system = universe.BinaryBag([star1,star2],orbit=orbit)
+star1 = phoebe.BinaryRocheStar(comp1,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
+star2 = phoebe.BinaryRocheStar(comp2,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
+system = phoebe.BinaryBag([star1,star2],orbit=orbit)
 
 """
 
@@ -371,10 +370,10 @@ we start over quickly. We make a circular version of V380 Cyg:
 
 """
 
-comp1,comp2,orbit = create.from_library('V380_Cyg')
-star1 = universe.BinaryRocheStar(comp1,orbit,mesh,obs=[lcdep1a,lcdep1b,spdep])
-star2 = universe.BinaryRocheStar(comp2,orbit,mesh,obs=[lcdep2a,lcdep2b,spdep])
-system = universe.BodyBag([star1,star2])
+comp1,comp2,orbit = phoebe.create.from_library('V380_Cyg')
+star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
+star2 = phoebe.BinaryRocheStar(comp2,orbit=orbit,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
+system = phoebe.BodyBag([star1,star2])
 orbit['ecc'] = 0.
 
 
@@ -413,8 +412,7 @@ a file).
 All that is left to do now is to make the call to the function:
 """
 
-from pyphoebe import observatory
-observatory.compute_observables(system,times,lc=True)
+phoebe.observe(system,times,lc=True)
 
 """
 
@@ -422,11 +420,11 @@ The results are easily retrieved and plotted as before.
 
 """
 
-lightcurve = system.get_results(obstype='lcdep',label=0,cumulative=True)
+lightcurve = system.get_synthetic(type='lcsyn',ref=0,cumulative=True)
 
 import matplotlib.pyplot as plt
 
-plt.plot(lightcurve['date'],lightcurve['flux'],'ko-')
+plt.plot(lightcurve['time'],lightcurve['flux'],'ko-')
 plt.show()
 
 
@@ -442,15 +440,15 @@ we assume that our text file called ``mylc`` is rightly formatted.
 
 """
 
-lcdata = parameters.LCDataSet(context='lcddata',filename='mylc',label='mylc',
-                              columns=['date','flux','sigma'])
+lcdata = phoebe.LCDataSet(context='lcobs',filename='mylc',ref='mylc',
+                              columns=['time','flux','sigma'])
 
 
 # One of the features that separates ``DataSets`` from ``ParameterSets``, is
 # the ``load`` and ``unload`` method. The former extract the contents of
 # ``columns`` to a Parameter of the same name in the ``lcdata`` DataSet.
 # The latter removes the values from those parameters again. This is handy
-# to not always have all the data in memory.
+# to not always have all the data in memory:
 
 lcdata.load()
 lcdata.unload()
@@ -466,11 +464,11 @@ Spectroscopic data is initialized in the same way as light curve data:
 
 """
 
-spdata1 = parameters.SPDataSet(context='spdata',filename='rotation',
-                               label='rotation',columns=['date','wavelength',
+spdata1 = phoebe.SPDataSet(context='spobs',filename='rotation',
+                               ref='rotation',columns=['time','wavelength',
                                'flux','continuum','sigma'])
-spdata2 = parameters.SPDataSet(context='spdata',filename='temperature',
-                               label='temperature',columns=['date','wavelength',
+spdata2 = phoebe.SPDataSet(context='spobs',filename='temperature',
+                               ref='temperature',columns=['time','wavelength',
                                'flux','continuum','sigma'])
 
 """
@@ -488,11 +486,11 @@ to add data to all Bodies.
 
 """
 
-star1 = universe.BinaryRocheStar(comp1,orbit,mesh,
-                                 obs=[lcdep1a,lcdep1b,spdep],data=[spdata1])
-star2 = universe.BinaryRocheStar(comp2,orbit,mesh,
-                                 obs=[lcdep2a,lcdep2b,spdep],data=[spdata2])
-system = universe.BodyBag([star1,star2],data=[lcdata])
+star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,
+                                 pbdep=[lcdep1a,lcdep1b,spdep],obs=[spdata1])
+star2 = phoebe.BinaryRocheStar(comp2,orbit,mesh,
+                                 pbdep=[lcdep2a,lcdep2b,spdep],obs=[spdata2])
+system = phoebe.BodyBag([star1,star2],obs=[lcdata])
 
 """
 
@@ -514,9 +512,9 @@ how many nodes you want to use etc...
 
 """
 
-mpirun = parameters.ParameterSet(context='mpirun')
-params = parameters.ParameterSet(context='compute')
-observatory.auto_compute(system,params=params,mpirun=mpirun)
+mpi = phoebe.ParameterSet(context='mpi')
+params = phoebe.ParameterSet(context='compute')
+phoebe.compute(system,params=params,mpi=mpi)
 
 """
 
@@ -534,7 +532,7 @@ the observations, there are only two things that stand in our way:
 The first problem is solved by running Monte Carlo Markov Chains. The parameters
 for these chains are also given by a ParameterSet:
 """
-mcmc_params = parameters.ParameterSet(context='fitting_mcmc',iter=3000)
+mcmc_params = phoebe.ParameterSet(context='fitting:mcmc',iter=3000)
 
 """
 
@@ -551,14 +549,14 @@ orbit.get_parameter('incl').set_prior(distribution='uniform',lower=70.,upper=90.
 
 # Then we can run the sampler:
 
-mc = mcmc.solve(system,params=params,fitparams=mcmc_params,mpirun=mpirun)
+mc = phoebe.run(system,params=params,fitparams=mcmc_params,mpi=mpi)
 
 # Finally, we can choose to use the parameters from MCMC run.
 
 system.set_parameters_from_posterior()
 
 # And perhaps compute the system again to generate the final accepted fit:
-observatory.auto_compute(system,params=params,mpirun=mpirun)
+phoebe.compute(system,params=params,mpi=mpi)
 
 # Save everything for future analysis
 system.save('mybinary.phoebe')

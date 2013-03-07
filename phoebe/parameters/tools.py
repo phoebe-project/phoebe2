@@ -1,17 +1,5 @@
 """
 Tools to handle parameters and ParameterSets.
-
-.. autosummary::
-
-    add_asini
-    add_rotfreqcrit
-    add_solarosc
-    add_solarosc_Deltanu0
-    add_solarosc_numax
-    add_surfgrav
-    add_teffpolar
-    add_angdiam
-    
 """
 import logging
 from phoebe.parameters import parameters
@@ -62,15 +50,18 @@ def add_angdiam(star,angdiam=None,derive='distance',unit='mas',**kwargs):
     if angdiam is None:
         star.pop_constraint('angdiam',None)
         star.add_constraint('{angdiam} = 2.0*{radius}/{distance}')
+        logger.info("star '{}': 'angdiam' constrained by 'radius' and 'distance'".format(star['label'],derive))
     elif derive=='distance':
         star.pop_constraint('radius',None)
         star.add_constraint('{distance} = 2.0*{radius}/{angdiam}')
+        logger.info("star '{}': '{}' constrained by 'angdiam' and 'radius'".format(star['label'],derive))
     elif derive=='radius':
         star.pop_constraint('distance',None)
         star.add_constraint('{radius} = 0.5*{angdiam}*{distance}')
+        logger.info("star '{}': '{}' constrained by 'angdiam' and 'distance'".format(star['label'],derive))
     else:
         raise ValueError("Cannot derive {} from angdiam".format(derive))
-    logger.info("star '{}': '{}' constrained by 'angdiam'".format(star['label'],derive))
+    
 
 def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     """
@@ -121,15 +112,20 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
         star['surfgrav'] = surfgrav
         
     #-- specify the dependent parameter
-    if derive=='mass':
+    if derive is None:
+        star.pop_constraint('radius',None)
+        star.add_constraint('{surfgrav} = constants.GG*{mass}/{radius}**2')
+        logger.info("star '{}': 'surfgrav' constrained by 'mass' and 'radius'".format(star['label']))
+    elif derive=='mass':
         star.pop_constraint('radius',None)
         star.add_constraint('{mass} = {surfgrav}/constants.GG*{radius}**2')
+        logger.info("star '{}': '{}' constrained by 'surfgrav' and 'radius'".format(star['label'],derive))
     elif derive=='radius':
         star.pop_constraint('mass',None)
         star.add_constraint('{radius} = np.sqrt((constants.GG*{mass})/{surfgrav})')
+        logger.info("star '{}': '{}' constrained by 'surfgrav' and 'mass'".format(star['label'],derive))
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
-    logger.info("star '{}': '{}' constrained by 'surfgrav'".format(star['label'],derive))
    
     
 def add_rotfreqcrit(star,rotfreqcrit,**kwargs):

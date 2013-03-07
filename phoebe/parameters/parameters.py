@@ -349,7 +349,7 @@ def callback(fctn):
 
 class Parameter(object):
     """
-    Class Parameter represent a (binary) parameter and its properties.
+    Class Parameter represent a parameter and its properties.
     
     The parameter can describe a binary system, observational data or
     computational specifications.
