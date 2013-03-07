@@ -678,6 +678,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         observatory.compute(system,params=params,mpi=mpi)
         mu,sigma,model = system.get_model()
         retvalue = (model-mu)/sigma
+        
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
