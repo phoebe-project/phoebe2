@@ -1,4 +1,4 @@
-# passband = JOHNSON.V
+# passband = JOHNSON.B
 # atm = kurucz
 # ref = SiII_rvs
 # label = componentA
