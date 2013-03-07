@@ -15,6 +15,7 @@ print output[1][-1]
 print '==================='
 
 output = phoebe.parse_rv('example3.rv',components=['A',None,'A','B','B'])
+print output
 print output['A'][0][-1]
 print output['B'][0][-1]
 print '==================='

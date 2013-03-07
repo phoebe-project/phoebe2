@@ -13,10 +13,12 @@ Creating Parameters and ParameterSets:
 Parsing ASCII files:
 
 .. autosummary::
-
+    
+    datasets.parse_lc
     datasets.parse_rv
     datasets.parse_phot
     datasets.parse_spec_as_lprof
+    datasets.parse_header
     
 Convenience functions to create common stars and systems: by default these
 return (a list of) ParameterSets, but adding ``create_body=True`` builds

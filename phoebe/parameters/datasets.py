@@ -609,12 +609,218 @@ def parse_header(filename):
     if isinstance(components,str) and columns is not None:
         components = [components]*len(columns)
     #-- that's it!
-    return (columns, components), (pb,ds)
+    return (columns, components), (pb,ds)    
+
+
+def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
+    """
+    Parse LC files to LCDataSets and lcdeps.
     
-
-
-def parse_lc(filenames):
-    return None
+    **File format description**
+    
+    The filename **must** have the extension ``.lc``.
+    
+    The generic structure of an LC file is::
+        
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = april2011
+        # label = capella
+        2455453.0       1.     0.01    
+        2455453.1       1.01   0.015    
+        2455453.2       1.02   0.011    
+        2455453.3       0.96   0.009    
+    
+    In this structure, you can only give LCs of one component in one
+    file. An attempt will be made to interpret the comment lines (i.e. those lines
+    where the first character equals '#') as qualifier/value for either the
+    :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them. The comments are optional. So this is also allowed::
+    
+        2455453.0       1.     0.01    
+        2455453.1       1.01   0.015    
+        2455453.2       1.02   0.011    
+        2455453.3       0.96   0.009    
+    
+    In this case all the defaults from the :ref:`lcobs <parlabel-phoebe-lcobs>`,
+    and :ref:`lcdep <parlabel-phoebe-lcdep>` ParameterSets will be kept, but can
+    be possibly overriden by the extra kwargs. If, in this last example, you
+    want to specify that different columns belong to different components,
+    you need to give a list of those component labels, and set ``None`` wherever
+    a column does not belong to a component (e.g. the time).
+    
+    The only way in which you are allowed to deviate from this structure, is
+    by specifying column names, followed by a comment line of dashes (there
+    needs to be at least one dash, no spaces)::
+    
+        # passband = JOHNSON.V
+        # atm = kurucz
+        # ref = april2011
+        # label = capella
+        # flux     time           sigma
+        #---------------------------------------
+        1.         2455453.0       0.01     
+        1.01       2455453.1       0.015     
+        1.02       2455453.2       0.011     
+        0.96       2455453.3       0.009 
+    
+    In the latter case, you are allowed to omit any column except for ``time``
+    ``lc`` and ``sigma``, which are required.
+    
+    .. tip::
+ 
+       You can give missing values by setting a value to ``nan``
+    
+    Flux needs to be in erg/s/cm2/AA.
+    
+    **Input and output**
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    If C{full_output=True}, you will get a consistent output, regardless what
+    the input file looks like. This can be useful for automatic parsing. In
+    this case, the output is an OrderedDict, with the keys at the first level
+    the key of the component (if no labels are given, this will be C{__nolabel__}).
+    The value for each key is a list of two lists: the first list contains the
+    LCDataSets, the second list the corresponding pbdeps.
+    
+    If C{full_output=False}, you will get the same output as described in the
+    previous paragraph only if labels are given in the file. Else, the output
+    consists of only one component, which is probably a bit confusing for the
+    user (at least me). So if there are no labels given and C{full_output=False},
+    the two lists are immediately returned.
+    
+    **Example usage**
+    
+    Assume that any of the **second** example is saved in 
+    file called ``myfile.lc``, you can do (the following lines are equivalent):
+    
+    >>> obs,pbdeps = parse_lc('myfile.lc')
+    >>> obs,pbdeps = parse_lc('myfile.lc',columns=['time','flux','sigma'])
+    
+    Which is in this case equivalent to:
+    
+    >>> output = parse_lc('myfile.lc',full_output=True)
+    >>> obs,pbdeps = output['__nolabel__']
+    
+    or 
+    
+    >>> obs,pbdeps = output.values()[0]
+    
+    The output can then be given to any Body:
+    
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    The first example explicitly contains a label, so an OrderedDict will
+    always be returned, regardless the value of ``full_output``.
+    
+    The last example contains labels, so the full output is always given.
+    Assume the contents of the last file is stored in ``myfile2.lc``:
+    
+    >>> output = parse_lc('myfile2.lc')
+    >>> obs1,pbdeps1 = output['starA']
+    >>> obs2,pbdeps2 = output['starB']
+    
+    @param filename: filename
+    @type filename: string
+    @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
+    @type columns: None or list of strings
+    @param components: list of components for each column in the file. If not given, they will be automatically detected.
+    @type components: None or list of strings
+    @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
+    @type full_output: bool
+    @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
+    """
+    #-- which columns are present in the input file, and which columns are
+    #   possible in the RVDataSet? The columns that go into the RVDataSet
+    #   is the intersection of the two. The columns that are in the file but
+    #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
+    #   or for other purposes (e.g. label or unit).
+    #-- parse the header
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    
+    if columns is None and columns_in_file is None:
+        columns_in_file = ['time','flux','sigma']
+    elif columns is not None:
+        columns_in_file = columns
+    columns_required = ['time','flux','sigma']
+    columns_specs = dict(time=float,flux=float,sigma=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    output = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- collect all data
+    data = []
+    #-- open the file and start reading the lines    
+    with open(filename,'r') as ff:
+        for line in ff.readlines():
+            line = line.strip()
+            if not line: continue
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__']*len(columns_in_file)
+    elif components is None and isinstance(components_in_file,str):
+        components = [components_in_file]*len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+    #-- make sure all the components are strings
+    components = [str(c) for c in components]
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
+    
+    #-- for each component, create two lists to contain the
+    #   LCDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+                
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
 
 def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
     """
