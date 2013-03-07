@@ -67,10 +67,10 @@ setup(
                  "License :: OSI Approved :: GNU General Public License (GPL)",
                  "Operating System :: OS Independent"],
     
-    packages=['phoebe','phoebe.wd','phoebe.units',
+    packages=['phoebe','phoebe.wd','phoebe.units','phoebe.backend',
               'phoebe.units.uncertainties','phoebe.units.uncertainties.unumpy',
               'phoebe.utils','phoebe.atmospheres','phoebe.algorithms',
-              'phoebe.parameters'],
+              'phoebe.parameters','phoebe.io','phoebe.dynamics'],
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*']},
 
