@@ -684,23 +684,31 @@ def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
                     #   can be commented out. We don't look for columns if
                     #   they are explicitly given. We don't recognise labels
                     #   if column names are not given.
-                    elif columns is None and not columns_detected:
+                    elif (columns is None or components is None) and not columns_detected:
                         columns_detected = True
                         only_col_names = len(all_lines)>(iline+1) and all_lines[iline+1][:2]=='#-'
                         col_and_comp_names = len(all_lines)>(iline+2) and all_lines[iline+2][:2]=='#-'
                         if only_col_names or col_and_comp_names:
-                            columns_in_file = line[1:].split()
-                            Ncol = len(columns_in_file)
-                            logger.info("Auto detecting columns in RV {}: {}".format(filename,", ".join(columns_in_file)))
-                            missing_columns = set(columns_required) - set(columns_in_file)
+                            columns_from_file = line[1:].split()
+                            logger.info("Auto detecting columns in RV {}: {}".format(filename,", ".join(columns_from_file)))
+                            missing_columns = set(columns_required) - set(columns_from_file)
                             if len(missing_columns)>0:
                                 raise ValueError("Auto detect: missing columns in RV file: {}".format(", ".join(missing_columns)))\
                         #-- and extract the component names if they are there
                         if col_and_comp_names:
-                            components = all_lines[iline+1][1:].split()
+                            components_from_file = all_lines[iline+1][1:].split()
                 #-- data lines:
                 else:
-                    data.append(tuple(line.split()[:Ncol]))
+                    data.append(tuple(line.split()))
+            #-- we have the information from header now, but only use that
+            #   if it is not overriden
+            if components is None:
+                components = components_from_file
+            if columns is None:
+                columns_in_file = columns_from_file
+            #-- make sure all the components are strings
+            components = [str(c) for c in components]
+            Ncol = len(columns_in_file)
             #-- what components do we have?
             if isinstance(components,str):
                 components = kwargs.pop('label',components)

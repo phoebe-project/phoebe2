@@ -1,5 +1,17 @@
 """
 Tools to handle parameters and ParameterSets.
+
+.. autosummary::
+    
+    add_asini
+    add_rotfreqcrit
+    add_solarosc
+    add_solarosc_Deltanu0
+    add_solarosc_numax
+    add_surfgrav
+    add_teffpolar
+    add_angdiam
+    
 """
 import logging
 from phoebe.parameters import parameters
