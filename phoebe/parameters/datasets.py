@@ -616,7 +616,7 @@ def parse_header(filename):
 def parse_lc(filenames):
     return None
 
-def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
+def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
     """
     Parse RV files to RVDataSets and rvdeps.
     
@@ -778,8 +778,8 @@ def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
     >>> obs1,pbdeps1 = output['starA']
     >>> obs2,pbdeps2 = output['starB']
     
-    @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
-    @type filenames: list or string
+    @param filename: filename
+    @type filename: string
     @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
     @type columns: None or list of strings
     @param components: list of components for each column in the file. If not given, they will be automatically detected.
@@ -793,9 +793,12 @@ def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
     #   is the intersection of the two. The columns that are in the file but
     #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
-    if columns is None:
+    #-- parse the header
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    
+    if columns is None and columns_in_file is None:
         columns_in_file = ['time','rv','sigma']
-    else:
+    elif columns is not None:
         columns_in_file = columns
     columns_required = ['time','rv','sigma']
     columns_specs = dict(time=float,rv=float,sigma=float)
@@ -810,123 +813,60 @@ def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
     output = OrderedDict()
     Ncol = len(columns_in_file)
     
-    #-- you are allowed to give a list of filenames. If you give a string,
-    #   it will be interpreted as a glob pattern
-    if not isinstance(filenames,list):
-        filenames = sorted(glob.glob(filenames))
+    #-- collect all data
+    data = []
+    #-- open the file and start reading the lines    
+    with open(filename,'r') as ff:
+        for line in ff.readlines():
+            line = line.strip()
+            if not line: continue
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__']*len(columns_in_file)
+    elif components is None and isinstance(components_in_file,str):
+        components = [components_in_file]*len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+    #-- make sure all the components are strings
+    components = [str(c) for c in components]
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
     
-    columns_detected = False
-    for filename in filenames:
-        #-- create a default LCDataSet and pbdep
-        ds = RVDataSet(columns=['time','rv','sigma'])
-        pb = parameters.ParameterSet(context='rvdep')
-        #-- collect all data
-        data = []
-        #-- open the file and start reading the lines
-        with open(filename,'r') as ff:
-            all_lines = ff.readlines()
-            for iline,line in enumerate(all_lines):
-                line = line.strip()
-                if not line: continue
-                #-- coment lines: can contain qualifiers from the RVDataSet,
-                #   we recognise them by the presence of the equal "=" sign.
-                if line[0]=='#':
-                    split = line[1:].split("=")
-                    # if they do, they consist of "qualifier = value". Careful,
-                    # perhaps there are more than 1 "=" signs in the value
-                    # (e.g. the reference contains a "="). There are never
-                    # "=" signs in the qualifier.
-                    if len(split)>1:
-                        #-- qualifier is for sure the first element
-                        qualifier = split[0].strip()
-                        #-- if this qualifier exists, in either the RVDataSet
-                        #   or pbdep, add it. Text-to-value parsing is done
-                        #   at the ParameterSet level
-                        if qualifier in ds:
-                            ds[qualifier] = "=".join(split[1:]).strip()
-                        if qualifier in pb:
-                            pb[qualifier] = "=".join(split[1:]).strip()
-                        if qualifier=='label':
-                            components = "=".join(split[1:]).strip()
-                    #-- it is also possible that the line contains the column
-                    #   names: they should then contain at least the required
-                    #   columns! We recognise the column headers as that line
-                    #   which is followed by a line containing '#-' at least.
-                    #   Or the line after that one; in the latter case, also
-                    #   the components are given
-                    #   We cannot safely automatically detect headers otherwise
-                    #   since it does not necessarily need to be the last
-                    #   comment line, since also the first (or any) data point
-                    #   can be commented out. We don't look for columns if
-                    #   they are explicitly given. We don't recognise labels
-                    #   if column names are not given.
-                    elif (columns is None or components is None) and not columns_detected:
-                        columns_detected = True
-                        only_col_names = len(all_lines)>(iline+1) and all_lines[iline+1][:2]=='#-'
-                        col_and_comp_names = len(all_lines)>(iline+2) and all_lines[iline+2][:2]=='#-'
-                        if only_col_names or col_and_comp_names:
-                            columns_from_file = line[1:].split()
-                            logger.info("Auto detecting columns in RV {}: {}".format(filename,", ".join(columns_from_file)))
-                            missing_columns = set(columns_required) - set(columns_from_file)
-                            if len(missing_columns)>0:
-                                raise ValueError("Auto detect: missing columns in RV file: {}".format(", ".join(missing_columns)))\
-                        #-- and extract the component names if they are there
-                        if col_and_comp_names:
-                            components_from_file = all_lines[iline+1][1:].split()
-                #-- data lines:
-                else:
-                    data.append(tuple(line.split()))
-            #-- we have the information from header now, but only use that
-            #   if it is not overriden
-            if components is None:
-                components = components_from_file
-            if columns is None:
-                columns_in_file = columns_from_file
-            #-- make sure all the components are strings
-            components = [str(c) for c in components]
-            Ncol = len(columns_in_file)
-            #-- what components do we have?
-            if isinstance(components,str):
-                components = kwargs.pop('label',components)
-                components = [components]*Ncol
-            elif components is None:
-                components = kwargs.pop('label','__nolabel__')
-                components = [components]*Ncol
-            #-- we need unique names for the columns in the record array
-            columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
-            #-- add these to an existing dataset, or a new one.
-            #   also create pbdep to go with it!
-            #-- numpy records to allow for arrays of mixed types. We do some
-            #   numpy magic here because we cannot efficiently predefine the
-            #   length of the strings in the file: therefore, we let numpy
-            #   first cast everything to strings:
-            data = np.core.records.fromrecords(data,names=columns_in_data)
-            #-- and then say that it can keep those string arrays, but it needs
-            #   to cast everything else to the column specificer (i.e. the right type)
-            descr = data.dtype.descr
-            descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
-            dtype = np.dtype(descr)
-            data = np.array(data,dtype=dtype)
-            
-            #-- for each component, create two lists to contain the
-            #   RVDataSets or pbdeps    
-            for label in set(components):
-                if label.lower()=='none':
-                    continue
-                output[label] = [[ds.copy()],[pb.copy()]]
-            for col,coldat,label in zip(columns_in_file,columns_in_data,components):
-                if label.lower()=='none':
-                    for lbl in output:
-                        output[lbl][0][-1][col] = data[coldat]
-                    continue
-                output[label][0][-1][col] = data[coldat]
-                #-- override values already there with extra kwarg values
-                for key in kwargs:
-                    if key in output[label][0][-1]:
-                        output[label][0][-1][key] = kwargs[key]
-                    if key in output[label][1][-1]:
-                        output[label][1][-1][key] = kwargs[key]
-                        
+    #-- for each component, create two lists to contain the
+    #   RVDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+                
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:
