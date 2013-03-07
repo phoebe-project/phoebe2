@@ -525,7 +525,7 @@ def parse_rv(filenames,columns=None,components=None,full_output=False,**kwargs):
     
     Extra keyword arguments are passed to output RVDataSets or pbdeps,
     wherever they exist and override the contents of the comment lines in the
-    phot file. For example, compare these two files:
+    phot file. For example, compare these two files::
     
         # passband = JOHNSON.V
         # atm = kurucz
