@@ -116,8 +116,6 @@ plt.ylabel("Amplitude [%]")
 plt.xlabel("Frequency [d$^{-1}$]")
 plt.legend(loc='best').get_frame().set_alpha(0.5)
 plt.savefig('pulsbin2_freq.png')
-plt.gcf().frameon = False
-plt.savefig('pulsbin2_freq.pdf')
 
 
 c2 = time.time()
@@ -127,6 +125,11 @@ print "Analysis of results: %10.3f sec"%((c2-c1))
 print "-----------------------------------"
 print "Total time:          %10.3f min"%((c2-c0)/60.)
 
-plt.figure()
-plt.plot(times-intimes,'ko-')
-plt.show()
+"""
+.. figure:: images_tut/pulsbin2_freq.png
+   :scale: 75 %
+   :align: center
+   :alt: map to buried treasure
+
+   Computed Frequency spectrum.
+"""

@@ -74,7 +74,7 @@ plt.savefig('KPD1946_beaming.pdf')
 
 
 """
-.. figure:: KPD1946_beaming.png
+.. figure:: images_tut/KPD1946_beaming.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure

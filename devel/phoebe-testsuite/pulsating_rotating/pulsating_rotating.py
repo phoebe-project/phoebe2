@@ -83,3 +83,14 @@ for i,itime in enumerate(times):
     star.lc()
     phoebe.image(star,select='teff',ref=0,subtype='lcdep',savefig='image_{:05d}.png'.format(i))
 star.save('pulsating_rotating.phoebe')
+
+"""
+
++------------------------------------------------------+
+| Ledoux splitting                                     |
++------------------------------------------------------+
+| .. image:: images_tut/movie_pulsating_rotating.gif   |
+|    :scale: 100 %                                     |
++------------------------------------------------------+
+
+"""

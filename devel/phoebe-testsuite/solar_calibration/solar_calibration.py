@@ -39,6 +39,7 @@ import time
 import numpy as np
 import phoebe
 from phoebe.atmospheres import limbdark
+from phoebe.parameters import tools
 
 logger = phoebe.get_basic_logger()
 
@@ -62,6 +63,8 @@ sun['distance'] = 1.,'au'
 sun['atm'] = 'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
+tools.add_angdiam(sun)
+print("The Sun has an angular diameter of {:.3f}'".format(sun.get_value('angdiam','am')))
 
 # Aside from physical parameters, we also need numerical ones. We wish to use
 # the marching method to generate the grid, with a reasonably fine marching step.

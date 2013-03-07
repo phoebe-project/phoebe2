@@ -168,6 +168,7 @@ except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
 #-- Phoebe modules
 from phoebe.units import conversions
+from phoebe.units import constants
 from phoebe.utils import decorators
 from phoebe.io import fits
 from phoebe.algorithms import interp_nDgrid
@@ -562,7 +563,8 @@ def fit_law(mu,Imu,law='claret',fitmethod='equidist_r_leastsq'):
 #{ LD Passband coefficients
 def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
     """
-    Choose a default LD coeffs file.
+    Derive the filename of a precalculated LD grid from the input parameters.
+   
     """
     #-- perhaps the user gave a filename: then return it
     if os.path.isfile(atm):
@@ -587,19 +589,20 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
         if hasattr(abun,'__iter__'):
             if np.all(abun==abun[0]):
                 prefix = 'm' if abun[0]<0 else 'p'
-                abun = abun[0]*10
+                abun = abs(abun[0])*10
                 basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun,ld_func)
             else:
                 prefix = ''
                 raise ValueError("Cannot automatically detect atmosphere file")
         else:
             prefix = 'm' if abun<0 else 'p'
-            basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun*10,ld_func)        
+            abun = abs(abun*10)
+            basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun,ld_func)        
         ret_val = os.path.join(basedir_ld_coeffs,basename)
         if os.path.isfile(ret_val):
             return ret_val
         else:
-            raise ValueError("Cannot interpret atm parameter {} I think the file that I need is {}, but it doesn't exist.".format(atm,ret_val))
+            raise ValueError("Cannot interpret atm parameter {}: I think the file that I need is {}, but it doesn't exist.".format(atm,ret_val))
     return atm
     
 def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
@@ -684,7 +687,10 @@ def _prepare_grid(passband,atm):
     #-- not all columns hold data that needs to be interpolated
     nointerp_columns = data_columns + ['res','dflux']
     with pyfits.open(atm) as ff:
-        available = [col.lower() for col in ff[passband].data.names]
+        try:
+            available = [col.lower() for col in ff[passband].data.names]
+        except Exception, msg:
+            raise KeyError("Atmosphere file {} does not contain required information ({})".format(atm,str(msg)))
         #-- remove columns that are not available and derive which parameters
         #   need to be interpolated
         data_columns = [col for col in data_columns if col in available]
@@ -925,7 +931,6 @@ def intensity_moment(coeffs,ll=0,full_output=False):
     else:    
         return I_lx
     
-
 def I_ls(ll,ss):
     """
     Limb darkening moments (Dziembowski 1977, Townsend 2002)
@@ -946,7 +951,6 @@ def I_ls(ll,ss):
     else:
         return (ss-ll+2)/(ss+ll-2+3.)*_I_ls(ll-2,ss)        
     
-
 
 def sphere_intensity(body,pbdep,red_kwargs={}):
     """

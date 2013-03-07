@@ -14,8 +14,20 @@ Parsing ASCII files:
 
 .. autosummary::
 
+    datasets.parse_rv
     datasets.parse_phot
     datasets.parse_spec_as_lprof
+    
+Convenience functions to create common stars and systems: by default these
+return (a list of) ParameterSets, but adding ``create_body=True`` builds
+a default Body instead.
+
+.. autosummary::
+
+    create.from_library
+    create.star_from_spectral_type
+    create.binary_from_stars
+    create.binary_from_spectroscopy
     
 Adding constraints: these functions add new parameters to existing contexts,
 that are completely determined by the existing parameters. Constraints are
