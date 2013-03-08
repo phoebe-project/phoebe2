@@ -518,7 +518,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         sizes = the_system.mesh['size'][keep]
-        logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
+        logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
         total_spectrum = 0.
         #-- gravitational redshift:
@@ -535,7 +535,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         if not idep['ld_func']=='linear':
             raise ValueError("Analytical computation of spectrum requires a 'linear' limb-darkening model (not '{}')".format(idep['ld_func']))
         epsilon = idep['ld_coeffs'][0]
-        vrot = the_system.mesh['velo_'+ref+'_'][:,2].max()
+        vrot = the_system.mesh['velo_'+ref+'_'][:,2].max() # this is vsini!
         vrot = conversions.convert('Rsol/d','km/s',vrot)
         logger.info('analytically rotational broadening with veq=%.6f km/s'%(vrot))
         #teff = the_system.params['star']['teff']

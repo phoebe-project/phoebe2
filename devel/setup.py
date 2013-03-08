@@ -72,7 +72,8 @@ setup(
               'phoebe.utils','phoebe.atmospheres','phoebe.algorithms',
               'phoebe.parameters','phoebe.io','phoebe.dynamics'],
     
-    package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*']},
+    package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*'],
+                  'phoebe.parameters':['catalogs/*.dat','library/*.par'],},
 
     ext_modules = ext_modules,
 )
