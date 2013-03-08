@@ -254,6 +254,7 @@ import uuid
 import logging
 import json
 import inspect
+import difflib
 from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
@@ -1497,7 +1498,9 @@ class ParameterSet(object):
             if qualifier_ in self.container:
                 self.container[qualifier_].set_adjust(value)
             else:
-                raise KeyError('"{0}" not in ParameterSet ({1}, {2}): not any of {3}'.format(qualifier,self.frame,self.context,", ".join(list(self.keys()))) )
+                possibilities = list(self.keys())
+                close = difflib.get_close_matches(qualifier,possibilities)
+                raise KeyError('Did you mean any of "{}"? "{}" not in ParameterSet ({}, {}): not any of {}'.format('", "'.join(close),qualifier,self.frame,self.context,", ".join(list(self.keys()))) )
     
     def get_adjust(self,*qualifiers):
         """
@@ -2041,7 +2044,9 @@ class ParameterSet(object):
         Set the value of a parameter via its qualifier
         """
         if not qualifier in self:
-            raise KeyError('"{0}" not in ParameterSet ({1}, {2}): not any of {3}'.format(qualifier,self.frame,self.context,", ".join(list(self.keys()))) )
+            possibilities = list(self.keys())
+            close = difflib.get_close_matches(qualifier,possibilities)
+            raise KeyError('"{}" not in ParameterSet ({}, {}). Did you mean  "{}"? It is not any of {}'.format(qualifier,self.frame,self.context,'" or "'.join(close),", ".join(list(self.keys()))) )
         qualifier = self.alias2qualifier(qualifier)
         if isinstance(value,Parameter):
             self.container[qualifier] = value
