@@ -1154,11 +1154,14 @@ class Body(object):
         returns parset and it's reference (in reverse order)
         """
         if not hasattr(self,'params'):
+            logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
             return None,None
         if ref is None or ref=='__bol':
+            logger.info("Requested bolometric parameterSet")
             return list(self.params.values())[0],'__bol'
         else:
             counter = 0
+            #-- this could be dangerous!!
             if not type in self.params:
                 return self[0].get_parset(ref=ref,type=type,subtype=subtype)
             subtypes = subtype and [subtype] or self.params[type].keys()
@@ -1171,6 +1174,7 @@ class Body(object):
                     is_ref = ('ref' in ps) and (ps['ref']==ref)
                     is_number = counter==ref
                     if is_ref or is_number:
+                        logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
                         return ps,ps['ref']
                     counter += 1
             return None,None
@@ -1498,6 +1502,7 @@ class PhysicalBody(Body):
         returns parset and its ref (in reverse order)
         """
         if ref is None or ref=='__bol':
+            logger.info("Requested bolometric parameterSet")
             return list(self.params.values())[0],'__bol'
         else:
             counter = 0
@@ -1509,8 +1514,10 @@ class PhysicalBody(Body):
                     is_ref = ('ref' in ps) and (ps['ref']==ref)
                     is_number = counter==ref
                     if is_ref or is_number:
+                        logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
                         return ps,ps['ref']
                     counter += 1
+            logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
             return None,None
     
     
