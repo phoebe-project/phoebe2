@@ -1195,7 +1195,7 @@ class Body(object):
         #theta = np.hstack([theta1,theta2,theta3,theta4])
         return r4,phi4,theta4
     
-    def get_refs(self,context=None):
+    def get_refs(self,category=None):
         """
         Return the list of unique references.
         
@@ -1210,11 +1210,11 @@ class Body(object):
         which you want to compute the light curve), then the BodyBag has syn
         and obs but no pbdeps (these are then present in the Star Bodies).
         
-        When a ``context`` is given, only the references of that particular
-        pbdep will be returned.
+        When a ``category`` is given, only the references of that particular
+        category will be returned. A category is one of ``rv``, ``lc``, ``sp``...
         
-        @param context: context to limit the list of references to. Giving 'lcdep' will give the same results are 'lcsyn' or 'lcobs'.
-        @type context: str, recognised context (one of 'lcdep','lcsyn','lcobs','rvdep',...)
+        @param category: category to limit the list of references to.
+        @type category: str, recognised category (one of 'lc','rv',...)
         @return: list of unique references
         @rtype: list of str
         """
@@ -1223,11 +1223,12 @@ class Body(object):
         #-- run over all parameterSets
         for ps in self.walk():
             this_context = ps.context.split(':')[0]
+            this_category = this_context[:-3]
             #-- only treat those parameterSets that are deps, syns or obs
             #   (i.e. not component, orbit, star...)
             if this_context[-3:] in ['dep','syn','obs']:
                 #-- skip nonmatching contexts
-                if context is not None and context[:-3]!=this_context[:-3]:
+                if category is not None and category!=this_category:
                     continue
                 #-- but add all the rest!
                 refs.append(ps['ref'])

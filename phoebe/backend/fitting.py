@@ -770,10 +770,15 @@ def summarize_fit(system,fitparams,savefig=False):
             plt.subplot(221)
             plt.title("Marginalised distribution")
             #-- bins according to Scott's normal reference rule
-            bins = trace.ptp()/(3.5*np.std(trace)/len(trace)**0.333)
-            bins_thinned = thinned_trace.ptp()/(3.5*np.std(thinned_trace)/len(thinned_trace)**0.333)
-            plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
-            plt.hist(trace,bins=bins,alpha=0.5,normed=True)
+            if len(trace)>3 and np.std(trace)>0:
+                bins = int(trace.ptp()/(3.5*np.std(trace)/len(trace)**0.333))
+                if bins>0:
+                    plt.hist(trace,bins=bins,alpha=0.5,normed=True)
+            if len(thinned_trace)>3 and np.std(thinned_trace)>0:
+                bins_thinned = int(thinned_trace.ptp()/(3.5*np.std(thinned_trace)/len(thinned_trace)**0.333))
+                if bins_thinned>0:
+                    plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
+            
             if prior['distribution']=='uniform':
                 plt.axvspan(prior['lower'],prior['upper'],alpha=0.05,color='r')
             plt.xlabel("/".join(path)+' [{}]'.format(unit))
