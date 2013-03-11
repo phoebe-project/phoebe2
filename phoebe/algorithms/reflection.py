@@ -3,10 +3,12 @@ Algorithms related to (mutual) irradation.
 
 One star (A) can emit radiation onto the surface of another star (B).
 Essentially two things can happen with that flux:
+
     1. The flux emmited by star A can be absorbed by star B and used to heat up
-    star B (heating)
+       star B (heating)
+       
     2. The flux emmitted by star B can be reflected on the surface of star B,
-    isotropically or aspect-dependently (reflection).
+       isotropically or aspect-dependently (reflection).
 
 In the next sections, some physical and programmatical details are discussed.
 For further details, please refer to the documentation of the relevant
@@ -55,21 +57,20 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     Calculate the radiation budget for heating and reflection.
     
     For all refs in C{ref}, the following is done:
+        
         - if bolometric, the incoming radiation from all irradiator triangles
-        visbible onto each triangle of the irradiated will be calculated, as
-        well as the emergent flux coming from each triangle on irradiated. This
-        can than be used to compute local or global heating.
+          visbible onto each triangle of the irradiated will be calculated, as
+          well as the emergent flux coming from each triangle on irradiated. This
+          can than be used to compute local or global heating.
+        
         - if passband dependent, only the incoming radiation will be computed.
-        Typically used for reflection effects.
+          Typically used for reflection effects.
     
-    @param irradiated: star that gets irradiated. The flux or temperature of this
-    object will be altered
+    @param irradiated: star that gets irradiated. The flux or temperature of this object will be altered
     @type irradiated: Body
-    @param irradiator: star that irradiates the C{irradated} body. The properties
-    of this object will not be altered
+    @param irradiator: star that irradiates the C{irradated} body. The properties of this object will not be altered
     @type irradiator: Body
-    @param ref: ref that specificies in which filter (could be bolometric)
-    the irradiation budget needs to be calculated in
+    @param ref: ref that specificies in which filter (could be bolometric) the irradiation budget needs to be calculated in
     @type ref: string or list of strings or None
     """
     def _tief(gamma,ld_law,coeffs):

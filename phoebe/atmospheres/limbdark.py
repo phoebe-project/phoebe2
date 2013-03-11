@@ -602,7 +602,7 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
         if os.path.isfile(ret_val):
             return ret_val
         else:
-            raise ValueError("Cannot interpret atm parameter {}: I think the file that I need is {}, but it doesn't exist.".format(atm,ret_val))
+            raise ValueError("Cannot interpret atm parameter {}: I think the file that I need is {}, but it doesn't exist. If in doubt, consult the installation section of the documentation on how to add atmosphere tables.".format(atm,ret_val))
     return atm
     
 def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
@@ -908,8 +908,7 @@ def intensity_moment(coeffs,ll=0,full_output=False):
     @type coeffs: array
     @parameter ll: degree of the mode
     @type ll: float
-    @param full_output: if True, returns intensity, coefficients and integrals
-    separately
+    @param full_output: if True, returns intensity, coefficients and integrals separately
     @type full_output: boolean
     @return: intensity moment
     @rtype: float

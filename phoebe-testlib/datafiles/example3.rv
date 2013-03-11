@@ -1,8 +1,9 @@
-# passband = JOHNSON.V
+# passband = JOHNSON.B
+# ld_func = claret
 # atm = kurucz
 # ref = SiII_rvs
 # rv       time           sigma   sigma   rv
-# starA    None           starA   starB   starB
+# HV2241a  None           HV2241a HV2241b HV2241b
 #------------------------------------------------
 -10.       2455453.0       0.1   0.05     11.
  -5.       2455453.1       0.15  0.12      6.

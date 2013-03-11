@@ -535,9 +535,9 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         if not idep['ld_func']=='linear':
             raise ValueError("Analytical computation of spectrum requires a 'linear' limb-darkening model (not '{}')".format(idep['ld_func']))
         epsilon = idep['ld_coeffs'][0]
-        vrot = the_system.mesh['velo_'+ref+'_'][:,2].max() # this is vsini!
+        vrot = the_system.mesh['velo___bol_'][:,2].max() # this is vsini!
         vrot = conversions.convert('Rsol/d','km/s',vrot)
-        logger.info('analytically rotational broadening with veq=%.6f km/s'%(vrot))
+        logger.info('analytical rotational broadening with veq=%.6f km/s'%(vrot))
         #teff = the_system.params['star']['teff']
         #logg = the_system.params['star'].request_value('logg','[cm/s2]')
         #spectra = limbdark.interp_spectable('atlas',[teff],[logg],wavelengths)
@@ -640,7 +640,7 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
-        rad_velos = the_system.mesh['velo_'+ref+'_'][keep,2]
+        rad_velos = the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         sizes = the_system.mesh['size'][keep]
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))

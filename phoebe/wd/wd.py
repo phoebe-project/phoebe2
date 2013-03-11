@@ -1,7 +1,8 @@
 """
-Interface to the Wilson-Devinney code.
+Interface to the Wilson-Devinney code
+=======================================
 
-B{Example 1}: Generate a light curve with the WD code starting from an *.active
+B{Example 1}: Generate a light curve with the WD code starting from an ``*.active``
 WD parameter file.
 
 Convert a *.active parameter file to ParameterSet instances.
@@ -186,6 +187,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
     >>> output2,params = lc(bps,request='image')
     
     Keys of the output are:
+
         - C{indeps},C{lc},C{rv1},C{rv2} when C{request='curve'}
         - C{x},C{'y'} when C{request='image'}
     
@@ -208,6 +210,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
     ]include figure]]images/wd_lc2.png]
     
     The output dictionary C{params} contains:
+    
         - C{L1}:     star 1 passband luminosity
         - C{L2}:     star 2 passband luminosity
         - C{M1}:     star 1 mass in solar masses
@@ -225,18 +228,15 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
     
     @param binary_parameter_set: collection of all binary parameters
     @type binary_parameter_set: instance of BinarayParameterSet
-    @param request: request the light curve and radial velocity curves,
-    or an image ('curve' or 'image')
+    @param request: request the light curve and radial velocity curves, or an image ('curve' or 'image')
     @type request: string, one of 'curve' or 'image'
     @param light_curve: light curve parameterSet
     @type light_curve: ParameterSet
     @param rv_curve: radial velocity parameterSet
     @type rv_curve: ParameterSet
-    @param filename: supply a filename if the old interface to WD is desired.
-    An output file will be written and read in
+    @param filename: supply a filename if the old interface to WD is desired. An output file will be written and read in
     @type filename: str
-    @return: synthesized light curve or image, and dictionary containing extra
-    parameters
+    @return: synthesized light curve or image, and dictionary containing extra parameters
     @rtype: record array, dict
     """
     #-- we changed the definition of this keyword:
