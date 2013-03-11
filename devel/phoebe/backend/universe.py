@@ -553,7 +553,7 @@ class Body(object):
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
-    ]include figure]]images/universe/body_0001.png]
+    ]include figure]]images/universe_body_0001.png]
     
     Incline 10 degrees wrt the line of sight and plot
     
@@ -561,7 +561,7 @@ class Body(object):
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
-    ]include figure]]images/universe/body_0002.png]
+    ]include figure]]images/universe_body_0002.png]
     
     Rotate 10 degrees around the vertical axis and plot
     
@@ -569,7 +569,7 @@ class Body(object):
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
-    ]include figure]]images/universe/body_0003.png]
+    ]include figure]]images/universe_body_0003.png]
     
     Rotate 10 degrees in the plane of the sky and plot
     
@@ -577,7 +577,7 @@ class Body(object):
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
-    ]include figure]]images/universe/body_0004.png]
+    ]include figure]]images/universe_body_0004.png]
     """
     def __init__(self,data=None,dim=3,orientation=None,eclipse_detection='hierarchical',
                  compute_centers=False,compute_normals=False,compute_sizes=False):
@@ -765,14 +765,31 @@ class Body(object):
                 
             yield path,val
     
-    def compute_pblum_or_l3(self):
+    def compute_pblum_or_l3(self,link=None):
         """
-        Compute and set passband luminosity and third if required.
+        Compute and set passband luminosity and third light if required.
+        
+        We need to be able to compute pblum and l3 for all data individually
+        if we wish, but we might also want to force certain data to have the
+        same pblum and/or l3 (i.e link them). This could make sense for SED
+        fits, where pblum is then interpreted as some kind of scaling factor
+        (e.g. the angular diameter). Perhaps there are other applications.
         """
         if not 'obs' in self.params:
             logger.info('Cannot compute pblum or l3, no observations defined')
             return None
-            
+        #-- we'll collect the complete model first (i.e. all the observations
+        #   in one big 1D array). We'll keep track of the references,
+        #   so that we know which points represent a particular observation
+        #   set. Then afterwards, we compute the pblums for all the linked
+        #   datasets... or for all them separtely if link=None.
+        if link is not None:
+            complete_refrs = []
+            complete_model = []
+            complete_obser = []
+            complete_sigma = []
+            complete_pblum = []
+            complete_l3 = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 #-- get the model corresponding to this observation
@@ -805,6 +822,18 @@ class Body(object):
                     do_pblum = True
                 if 'l3' in observations and observations.get_adjust('l3'):
                     do_l3 = True
+                #-- keep track
+                if link is not None:
+                    complete_model.append(model)
+                    complete_obser.append(obser)
+                    complete_sigma.append(sigma)
+                    complete_refrs.append([observations['ref']]*len(model))
+                    complete_pblum.append([do_pblum]*len(model))
+                    complete_l3.append([do_l3]*len(model))
+                    continue
+                
+                #-- old stuff is below, to revert, just comment out everything
+                #   after the for-loop
                 if do_pblum or do_l3:
                     pblum,l3 = compute_pblum_or_l3(model,obser,sigma,pblum=do_pblum,l3=do_l3)
                 #   perhaps we don't need to fit, but we still need to
@@ -825,6 +854,31 @@ class Body(object):
                 if loaded:
                     observations.unload()
                 logger.info('{}: pblum={:.6g} ({}), l3={:.6g} ({})'.format(observations['ref'],pblum,do_pblum and 'computed' or 'fixed',l3,do_l3 and 'computed' or 'fixed'))
+        if link is not None and link=='all':
+            model = np.hstack(complete_model)
+            obser = np.hstack(complete_obser)
+            sigma = np.hstack(complete_sigma)
+            do_pblum = np.all(np.hstack(complete_pblum))
+            do_l3 = np.all(np.hstack(complete_l3))
+            pblum,l3 = compute_pblum_or_l3(model,obser,sigma,pblum=do_pblum,l3=do_l3)
+            for idata in self.params['obs'].values():
+                for observations in idata.values():
+                    if not do_pblum and 'pblum' in observations:
+                        pblum = observations['pblum']
+                    elif not do_pblum:
+                        pblum = 1.0
+                    if not do_l3 and 'l3' in observations:
+                        l3 = observations['l3']
+                    elif not do_l3:
+                        l3 = 0.0
+                    #-- set the values and add them to the posteriors
+                    if do_pblum:
+                        observations['pblum'] = pblum
+                    if do_l3:
+                        observations['l3'] = l3
+            logger.critical('Linking of subsets not yet implemented')
+            raise NotImplementedError("Linking of subsets")
+                            
     
     def get_logp(self):
         """
@@ -1140,7 +1194,49 @@ class Body(object):
         #phi = np.hstack([phi1,phi2,phi3,phi4])
         #theta = np.hstack([theta1,theta2,theta3,theta4])
         return r4,phi4,theta4
+    
+    def get_refs(self,context=None):
+        """
+        Return the list of unique references.
         
+        A *reference* (``ref``) is a unique label linking the right *pbdep*
+        with their *syn* and *obs* ParameterSets.
+        
+        Each reference can appear in three places: the pbdeps, syns and obs,
+        and each of them can be optional: if no computations are done, the
+        syns are obsolete. When no observations are given (e.g. only
+        simulations), no obs is given. When all observables are determined by
+        hierarchically packed Bodies (e.g. two stars in a binary system for
+        which you want to compute the light curve), then the BodyBag has syn
+        and obs but no pbdeps (these are then present in the Star Bodies).
+        
+        When a ``context`` is given, only the references of that particular
+        pbdep will be returned.
+        
+        @param context: context to limit the list of references to. Giving 'lcdep' will give the same results are 'lcsyn' or 'lcobs'.
+        @type context: str, recognised context (one of 'lcdep','lcsyn','lcobs','rvdep',...)
+        @return: list of unique references
+        @rtype: list of str
+        """
+        #-- collect references
+        refs = []
+        #-- run over all parameterSets
+        for ps in self.walk():
+            this_context = ps.context.split(':')[0]
+            #-- only treat those parameterSets that are deps, syns or obs
+            #   (i.e. not component, orbit, star...)
+            if this_context[-3:] in ['dep','syn','obs']:
+                #-- skip nonmatching contexts
+                if context is not None and context[:-3]!=this_context[:-3]:
+                    continue
+                #-- but add all the rest!
+                refs.append(ps['ref'])
+        #-- gaurantee a list of unique references, always given in the same
+        #   (alphabetical) order.
+        return sorted(set(refs))
+                
+                
+    
     def get_parset(self,ref=None,type='pbdep',subtype=None):
         """
         Return the parameter set with the given reference from the C{params}
@@ -2717,11 +2813,11 @@ class Star(PhysicalBody):
     >>> p = star.plot3D(select='mu',colormap='spectral')
     >>> p = mlab.colorbar()
     
-    ]include figure]]images/universe/star_0001.png]
+    ]include figure]]images/universe_star_0001.png]
     
     >>> out = observatory.image(star,savefig=False)
     
-    ]include figure]]images/universe/star_0002.png]
+    ]include figure]]images/universe_star_0002.png]
     
     We can do the same for a Sun-like star which is rotation close to its
     critical rotation velocity:
@@ -2737,11 +2833,11 @@ class Star(PhysicalBody):
     >>> p = star.plot3D(select='teff',colormap='spectral')
     >>> p = mlab.colorbar()
     
-    ]include figure]]images/universe/star_0003.png]
+    ]include figure]]images/universe_star_0003.png]
     
     >>> out = observatory.image(star,savefig=False)
     
-    ]include figure]]images/universe/star_0004.png]
+    ]include figure]]images/universe_star_0004.png]
     
     """
     def __init__(self,star,mesh,reddening=None,circ_spot=None,puls=None,

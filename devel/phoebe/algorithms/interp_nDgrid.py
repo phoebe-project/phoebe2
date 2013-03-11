@@ -18,7 +18,9 @@ def create_pixeltypegrid(grid_pars,grid_data):
     Starting from:
     
         - grid_pars: 2D numpy array, 1 column per parameter, unlimited number of cols
+        
         - grid_data: 2D numpy array, 1 column per variable, data corresponding to the rows in grid_pars
+    
     
     The grid should be rectangular and complete, i.e. every combination of the unique values in the 
     parameter columns should exist. If not, a nan value will be inserted.
@@ -26,7 +28,7 @@ def create_pixeltypegrid(grid_pars,grid_data):
     @param grid_pars: Npar x Ngrid array of parameters
     @type grid_pars: array
     @param grid_data: Ndata x Ngrid array of data
-    @type grid_data:array
+    @type grid_data: array
     @return: axis values and pixelgrid
     @rtype: array, array
     """

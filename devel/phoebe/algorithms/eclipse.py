@@ -31,12 +31,6 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     Threshold is some parameter that I don't exactly remember why it's there.
     I think it skips checking triangles facing backwards.
     
-    Example:
-    
-    Create a binary with a large star with a small star in front of
-    it. We detect eclipsed triangles and partially eclipsed triangles.
-    
-    ]include figure]]eclipse_detection.png]
     """
     if not isinstance(body_list,list): body_list = [body_list]
     mesh_list = [body.mesh for body in body_list]

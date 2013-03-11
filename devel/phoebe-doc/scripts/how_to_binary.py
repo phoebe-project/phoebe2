@@ -30,11 +30,13 @@ There are several possibilities to define these parameters, the result of
 which should each time be three ParameterSets: one for each component, and
 one for the (common) orbit. You can choose to:
 
-1. load a predefined binary from the library,
-2. define the components and orbits directly in the Roche framework,
-3. first create single stars, and convert these to binary components, or,
+1. load a predefined binary :ref:`from the library <label-load_from_library>`,
+2. define the components and orbits :ref:`directly in the Roche framework <label-load_directly>`,
+3. :ref:`first create single stars <label-load_from_stars>`, and convert these to binary components, or,
 4. load parameters from Phoebe Legacy or Wilson-Devinney and convert them to the
    Phoebe contexts
+
+.. _label-load_from_library:
 
 Possibility 1: Loading parameters from the library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -57,6 +59,8 @@ orbit['vgamma'] = 52.,'km/s'
 
 """
 
+.. _label-load_directly:
+
 Possibility 2: Defining binary components directly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -64,6 +68,7 @@ To create a binary system, you can define the parameters of the components and
 the orbit. The default parameters can be changed during initialisation, by
 adding them as keywords, or they can be altered using the dictionary-style
 interface:
+
 """
 
 comp1 = phoebe.ParameterSet(context='component',syncpar=1.0,teff=(10000.,'K'))
@@ -74,6 +79,8 @@ orbit = phoebe.ParameterSet(context='orbit',c1label=comp1['label'],
 orbit['distance'] = 1.,'kpc'
 
 """
+
+.. _label-load_from_stars
 
 Possibility 3: Defining binary components via stars
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -136,7 +143,7 @@ one for each component, and one for the orbit.
 Possibility 4: Loading components from Phoebe Legacy or Wilson-Devinney
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can load the contents of a WD lcin file to parameterSets in the WD
+You can load the contents of a WD lcin file (:download:`download <scripts/test01lcin.active>`) to parameterSets in the WD
 framework. You can afterwards change any of the parameters through the
 dictionary-style interface.
 """
@@ -161,11 +168,11 @@ Step 2: Define (multiple) light curves and friends
 Defining the parameters for the components (or individual stars) is one thing,
 but most often you want to compare models with observations. Observations are
 always performed in a certain passband or in a certain wavelength interval,
-and can be integrated across the surface, wavelength resolved, or creating
+and can be integrated across the surface, wavelength resolved, or created
 via interference patterns. Each type of observables has a predefined
 ParameterSet. The contexts are given by a prefix denoting the type of
 observable (``lc`` for light curve, ``rv`` for radial velocity curves, ``sp``
-for spectra and ``ifm`` for interferometry), followed by the suffix ``dep``. As
+for spectra and ``if`` for interferometry), followed by the suffix ``dep``. As
 with other ParameterSets, you can change the defaults via the dictionary-style
 interface and/or upon initialisation:
 
@@ -178,7 +185,7 @@ lcdep1b = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
 spdep = phoebe.ParameterSet(context='spdep')
 
 """
-Each observable parameterSet has a ``label`` keyword, which needs to be unique
+Each observable parameterSet has a ``label`` keyword, which needs to be a unique
 string. If not specified, the UUID framework is used to generate a unique
 label, but this is typically not human-readable. Since these labels are
 automatically generated, it is not strictly necessary to specify them
@@ -244,12 +251,12 @@ system[1].params['component']['teff'] = 9800.,'K'
 """
 It is, however, advised not to go through the interface of the Bodies once
 they are created. All parameterSets are passed by reference, so it is advised
-to work with those immediately.
+to work on the created ParameterSets immediately.
 
 Possibility 2: Via separate components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It is, however, easy to create a BodyBag yourself, but of course you need to
+It is easy to create a BodyBag yourself, but of course you need to
 create the two BinaryRocheStars first. To do that, you also need to specify
 information on how to compute the mesh. This is the last parameterSet that
 is required:
@@ -280,11 +287,11 @@ apply:
     * The first object you give is the primary, the second one the secondary
     
     * You can set an object equal to the ``None`` variable, in which case
-    that component will not be generated.
+      that component will not be generated.
     
     * An object can be a Body, a BodyBag, a BinaryBag or a list of Bodies.
-    In the latter case, the list will first be packed in a BodyBag itself.
-    This makes it easy to do *hiearchical packing*.
+      In the latter case, the list will first be packed in a BodyBag itself.
+      This makes it easy to do *hiearchical packing*.
 
 When creating a Body which requires an orbit to initialize, it is allowed in
 this case to set it to ``None``. But only in this case!
@@ -308,7 +315,7 @@ three lines before that.
        systemB = universe.BinaryBag([body1,body2],orbit=orbit)
     
    In the first call, ``systemA`` will be put as a whole in the orbit ``orbit``.
-   This could be useful when you want to put white dwarf star and it's accretion
+   This could be useful when you want to put a white dwarf star and its accretion
    disk in the same orbit, e.g. both as the primary component. You need to
    set the label of ``systemA`` to be one of ``orbit['c1label']`` or ``orbit['c2label']``.
    
@@ -341,25 +348,25 @@ Step 4: Computing observables
 For any Body that is created (including Stars, BinaryRocheStars, BodyBags...),
 you can compute observables in two ways, *manually* and *automatically*. The
 latter option again has two possibilities, for the case without observed data
-and the case with data:
+and the case with observed data:
 
-    1. *Manual computation*: you are responsible for computing the time
+    1. *Manual computation*: you are responsible for setting the time
     (``set_time``), eclipse detection, and subdivision. You can compute fluxes,
     velocities, generate images, spectra and visibilities. You are responsible
     for gathering and structuring the results.
     
     2. *Automatic computation*: you give an array of time points, specify
     what needs to be computed at all time points (lc, rv, sp, ifm...) and the
-    results are stored inside the Body (in the OrderedDictionary attribute
-    ``Body.params['results']``). You can get the results after computations
-    have finished (``get_results``), and analyse them.
+    result of the synthetic computations are stored inside the Body (in the OrderedDictionary attribute
+    ``Body.params['syn']``). You can get the results after computations
+    have finished (``get_synthetic``), and analyse them.
     
-        a. *Without data*, you can use ``observatory.compute_observables``. It
+        a. *Without data*, you can use ``observatory.observe``. It
         requires an array of time points to run.
         
-        b. *With data*, you can use ``observatory.auto_compute``. It requires
+        b. *With data*, you can use ``observatory.compute``. It requires
         no extra input, since all information is derived from the data. For
-        each added dataset, the observables will be computed at the relevant
+        each added dataset, the synthetics will be computed at the relevant
         time points (see Step 5).
     
 The first option is covered in earlier and later tutorials, in this tutorial
@@ -387,7 +394,7 @@ orbit['ecc'] = 0.
 
 
 Let us define a list (or array for that matter) of times at which we want to
-compute observables. The list of times does not to be equidistant. For all I
+compute observables. The list of times does not need to be equidistant. For all I
 care, they don't even need to be chronological.
 """
 
@@ -395,7 +402,7 @@ import numpy as np
 times = np.linspace(0,orbit['period'],100)
 
 """
-The function ``observatory.compute_observables`` requires this list of times
+The function ``observatory.observe`` requires this list of times
 as an argument. To specify want needs to be computed at each time point, set
 one of the flags ``lc``, ``rv``, ``sp`` or ``im`` to ``True``. Furthermore,
 you can also select the number of subdivisions you want to perform via the
@@ -430,8 +437,8 @@ plt.show()
 
 """
 
-Step 5: Adding data
--------------------------------------
+Step 5: Adding data (NOT UP TO DATE - STILL UNDER DISCUSSION
+--------------------------------------------------------------------------------
 
 Data are treated as a kind of ParameterSet in Phoebe, with some custom
 features. The easiest is probably to load the contents from a text file. How
