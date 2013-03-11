@@ -1229,6 +1229,9 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
     if not isinstance(filenames,list):
         filenames = sorted(glob.glob(filenames))
     
+    if not len(filenames):
+        raise IOError("PHOT file does not exist")
+    
     for filename in filenames:
         #-- create a default LCDataSet and pbdep
         ds = LCDataSet(columns=['time','flux','sigma'])

@@ -2046,7 +2046,8 @@ class ParameterSet(object):
         if not qualifier in self:
             possibilities = list(self.keys())
             close = difflib.get_close_matches(qualifier,possibilities)
-            raise KeyError('"{}" not in ParameterSet ({}, {}). Did you mean  "{}"? It is not any of {}'.format(qualifier,self.frame,self.context,'" or "'.join(close),", ".join(list(self.keys()))) )
+            suggestions = ("Did you mean "+' or '.join(close)+'? ') if close else ''
+            raise KeyError('"{}" not in ParameterSet ({}, {}). {}It is not any of {}'.format(qualifier,self.frame,self.context,suggestions,", ".join(list(self.keys()))) )
         qualifier = self.alias2qualifier(qualifier)
         if isinstance(value,Parameter):
             self.container[qualifier] = value
