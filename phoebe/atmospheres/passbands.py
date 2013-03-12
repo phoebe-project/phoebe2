@@ -1,6 +1,14 @@
 """
 Interface to information on a variety of passbands.
 
+.. autosummary::
+
+    get_response
+    list_response
+    eff_wave
+    get_info
+    
+
 Section 1. Available response functions
 =======================================
 

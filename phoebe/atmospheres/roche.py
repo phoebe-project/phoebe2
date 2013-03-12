@@ -5,17 +5,18 @@ Most of these parameters are local atmospheric parameters.
 """
 import logging
 import numpy as np
-from numpy import cos,sin,sqrt
+from numpy import cos,sin,sqrt,pi,log,tan
 from scipy.optimize import newton
 from phoebe.algorithms import marching
 from phoebe.units import constants
+from phoebe.utils import coordinates
 
 logger = logging.getLogger('ATM.ROCHE')
 
 
 #{ General
 
-def temperature(system):
+def temperature_zeipel(system):
     """
     Calculate local temperature.
     
@@ -68,8 +69,50 @@ def temperature(system):
     #   the body so that we can access the polar temperature if needed
     system.mesh['teff'] = Grav**0.25 * Tpole
     body.add_constraint('{{t_pole}} = {0:.16g}'.format(Tpole))
-    logger.info("derived effective temperature (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
+    logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
     
+
+def temperature_espinosa(system):
+    """
+    Calculate local temperature according to Espinosa Lara & Rieutord (2011).
+    
+    This model doesn't need a gravity darkening parameter.
+    
+    @param system: object to compute temperature of
+    @type system: Body
+    """
+    M = system.params['star'].request_value('mass','kg')
+    r_pole = system.params['star'].request_value('radius','m')
+    teffpolar = system.params['star'].request_value('teff')
+    #-- rotation frequency in units of critical rotation frequency
+    omega_rot = 2*np.pi/system.params['star'].request_value('rotperiod','s')
+    Omega_crit = np.sqrt( 8*constants.GG*M / (27.*r_pole**3))
+    omega = omega_rot/Omega_crit
+    #-- equatorial radius
+    Re = fast_rotation_radius(np.pi/2,r_pole,omega)
+    #-- surface coordinates
+    index = np.array([1,0,2])
+    r,phi,theta = coordinates.cart2spher_coord(*system.mesh['_o_center'].T[index])
+    cr = r*constants.Rsol/Re
+    cr_pole = r_pole/Re
+    #-- find var_theta for all points on the surface:
+    def funczero(var_theta,cr,theta):
+        sol = cos(var_theta)+log(tan(0.5*var_theta))-1./3.*omega**2*cr**3*cos(theta)**3 - cos(theta)-log(tan(0.5*theta))
+        return sol
+    var_theta = np.array([newton(funczero,itheta,args=(icr,itheta)) for icr,itheta in zip(cr,theta)])
+    #-- we scale everything to the polar effective temperature
+    factor_pole = np.exp(0.5/3.*omega**2*cr_pole**3)
+    #-- funczero is not defined for the equator and pole
+    factor_eq = (1-omega**2)**(-0.5/3.)
+    scale = teffpolar*np.sqrt(cr_pole)/factor_pole
+    #-- now compute the effective temperature
+    factor = sqrt(tan(var_theta)/tan(theta))
+    factor[(factor>factor_eq) | (factor<factor_pole)] = factor_eq
+    teff = scale * (cr**-4 + omega**4*cr**2*sin(theta)**2-2*omega**2*sin(theta)**2/cr)**0.125*factor
+    system.mesh['teff'] = teff
+    logger.info("derived effective temperature (Espinosa) (%.3f <= teff <= %.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max()))
+
+
     
 def approximate_lagrangian_points(q,d=1.,sma=1.):
     """
@@ -570,6 +613,12 @@ def critical_velocity(M,R_pole):
     veq = np.sqrt( 2*constants.GG * M*constants.Msol / (3*R_pole*constants.Rsol))
     return veq
 
+def fast_rotation_radius(colat,r_pole,omega):
+    Rstar = 3*r_pole/(omega*sin(colat)) * cos((np.pi + np.arccos(omega*sin(colat)))/3.)
+    #-- solve singularities
+    if np.isinf(Rstar) or sin(colat)<1e-10:
+        Rstar = r_pole
+    return Rstar
 
 def diffrotlaw_to_internal(omega_pole,omega_eq):
     """

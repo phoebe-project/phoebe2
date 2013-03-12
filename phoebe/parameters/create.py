@@ -407,6 +407,10 @@ def from_library(name,create_body=False,**kwargs):
         raise NotImplementedError("system not in library")
     ps = parameters.load_ascii(name)
     logger.info("Loaded {} from library".format(name))
+    for pset in ps:
+        for kw in kwargs:
+            if kw in pset:
+                pset[kw] = kwargs[kw]
     
     #-- we have a few special cases here:
     #-- perhaps we're not creating bodies. Then, if the ASCII files contains

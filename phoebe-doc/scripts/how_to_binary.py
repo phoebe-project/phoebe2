@@ -33,7 +33,7 @@ one for the (common) orbit. You can choose to:
 1. load a predefined binary :ref:`from the library <label-load_from_library>`,
 2. define the components and orbits :ref:`directly in the Roche framework <label-load_directly>`,
 3. :ref:`first create single stars <label-load_from_stars>`, and convert these to binary components, or,
-4. load parameters from Phoebe Legacy or Wilson-Devinney and convert them to the
+4. load parameters :ref:`from Phoebe Legacy or Wilson-Devinney <label-load_from_legacy>` and convert them to the
    Phoebe contexts
 
 .. _label-load_from_library:
@@ -41,7 +41,7 @@ one for the (common) orbit. You can choose to:
 Possibility 1: Loading parameters from the library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``create`` module contains several predefined systems, which you can use
+The :py:mod:`create <phoebe.parameters.create>` module contains several predefined systems, which you can use
 out of the box, or use as a starting point to create a new system:
 """
 
@@ -49,7 +49,7 @@ comp1,comp2,orbit = phoebe.create.from_library('V380_Cyg')
 
 """
 The argument to the function needs to be either a recognised system, or a
-filename. You can load parameters from a self-made ASCII file containing
+:download:`parameter file <../phoebe/parameters/library/V380_Cyg.par>`. You can load parameters from a self-made ASCII file containing
 components and an orbit too. This approach can be used to adjust and reload
 parameters in a file-based approach. You can further refine the values of the
 loaded parameters through the dictionary-style interface:
@@ -80,7 +80,7 @@ orbit['distance'] = 1.,'kpc'
 
 """
 
-.. _label-load_from_stars
+.. _label-load_from_stars:
 
 Possibility 3: Defining binary components via stars
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -139,6 +139,8 @@ comp1,comp2,orbit = phoebe.create.binary_from_spectroscopy(star1,star2,period=10
 """
 The result of the previous two operations is, again, three new parameterSets:
 one for each component, and one for the orbit.
+
+.. _label-load_from_legacy:
 
 Possibility 4: Loading components from Phoebe Legacy or Wilson-Devinney
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
