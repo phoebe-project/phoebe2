@@ -90,6 +90,9 @@ def temperature_espinosa(system):
     omega = omega_rot/Omega_crit
     #-- equatorial radius
     Re = fast_rotation_radius(np.pi/2,r_pole,omega)
+    #-- but define in terms of Keplerian instead of Roche (the former is used
+    #   in the paper
+    omega = omega_rot*np.sqrt(Re**3/(constants.GG*M))
     #-- surface coordinates
     index = np.array([1,0,2])
     r,phi,theta = coordinates.cart2spher_coord(*system.mesh['_o_center'].T[index])
