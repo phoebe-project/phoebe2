@@ -1,7 +1,7 @@
 """
 Library containing parameters of known stars, systems and objects.
 
-THis module contains one-liners to create default parameterSets and Bodies
+This module contains one-liners to create default parameterSets and Bodies
 representing well-known or often-used objects such as the Sun, Vega, Sirius,
 or specific binary systems. It also provides L{spectral_type} function for
 easy creation of generic stars of a given spectral type and luminosity class.
@@ -17,17 +17,130 @@ systems), and some functions can create Binaries from the information provided
 by single stars, plus extra information (e.g. spectroscopic observables in
 L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
 
-Example usage:
+.. autosummary::
+
+    from_library
+    star_from_spectral_type
+    binary_from_stars
+    binary_from_spectroscopy
+    T_CrB
+    KOI126
+    dep_from_object
+    
+
+**Example usage:**
 
 Only involving ParameterSets:
 
 >>> the_sun_pars = from_library('sun')
->>> myAstar_pars = star_from_spectral_type('A0V')
+>>> print(the_sun_pars)
+      teff 5779.5747            K - phoebe Effective temperature
+    radius 1.0               Rsol - phoebe Radius
+      mass 1.0               Msol - phoebe Stellar mass
+       atm kurucz              --   phoebe Bolometric Atmosphere model
+ rotperiod 22.0                 d - phoebe Polar rotation period
+   diffrot 0.0                  d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+     gravb 1.0                 -- - phoebe Bolometric gravity brightening
+      incl 82.75              deg - phoebe Inclination angle
+      long 0.0                deg - phoebe Orientation on the sky
+  distance 4.84813681108e-06   pc - phoebe Distance to the star
+     shape equipot             --   phoebe Shape of surface
+       alb 1.0                 -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+    redist 0.0                 -- - phoebe Global redist par (1-redist) local heating, redist global heating
+irradiator False               --   phoebe Treat body as irradiator of other objects
+      abun 0.0                 --   phoebe Metallicity
+     label Sun                 --   phoebe Name of the body
+   ld_func claret              --   phoebe Bolometric limb darkening model
+ ld_coeffs kurucz              --   phoebe Bolometric limb darkening coefficients
+  surfgrav 274.351532944      n/a   constr constants.GG*{mass}/{radius}**2
+  
+Upon creation, you can override the values of the parameters directly via
+extra keyword arguments:
+  
+>>> myAstar_pars = star_from_spectral_type('A0V',label='myA0V')
+>>> print(myAstar_pars)
+      teff 9549.92586       K - phoebe Effective temperature
+    radius 2.843097      Rsol - phoebe Radius
+      mass 4.202585      Msol - phoebe Stellar mass
+       atm kurucz          --   phoebe Bolometric Atmosphere model
+ rotperiod 0.821716         d - phoebe Polar rotation period
+   diffrot 0.0              d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+     gravb 1.0             -- - phoebe Bolometric gravity brightening
+      incl 90.0           deg - phoebe Inclination angle
+      long 0.0            deg - phoebe Orientation on the sky
+  distance 10.0            pc - phoebe Distance to the star
+     shape equipot         --   phoebe Shape of surface
+       alb 1.0             -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+    redist 0.0             -- - phoebe Global redist par (1-redist) local heating, redist global heating
+irradiator False           --   phoebe Treat body as irradiator of other objects
+      abun 0.0             --   phoebe Metallicity
+     label myA0V           --   phoebe Name of the body
+   ld_func claret          --   phoebe Bolometric limb darkening model
+ ld_coeffs kurucz          --   phoebe Bolometric limb darkening coefficients
+  surfgrav 142.639741491  n/a   constr constants.GG*{mass}/{radius}**2
 
-
->>> Astar = star_from_spectral_type('A0V')
->>> Bstar = star_from_spectral_type('B3V')
->>> comp1,comp2,orbit = binary_from_stars(Astar,Bstar,separation='well-detached')
+When creating binaries from stars, you can set the extra arguments also directly,
+but since there are three parameterSets to be created, you need to give them
+in three dictionaries, names ``kwargs1`` (for the primary), ``kwargs2`` (for
+the secondary) and ``orbitkwargs`` (for the orbit). The only exception are
+the semi major axis ``sma`` and period ``period``, one of which is required
+(but not both) to create the system.
+  
+>>> Astar = star_from_spectral_type('A0V',label='myA0V')
+>>> Bstar = star_from_spectral_type('B3V',label='myB3V')
+>>> comp1,comp2,orbit = binary_from_stars(Astar,Bstar,sma=(10,'Rsol'),orbitkwargs=dict(label='myorbit'))
+>>> print(comp1)
+       atm kurucz         --   phoebe Bolometric Atmosphere model
+       alb 1.0            -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+    redist 0.0            -- - phoebe Global redist par (1-redist) local heating, redist global heating
+   syncpar 1.30628493224  -- - phoebe Synchronicity parameter
+     gravb 1.0            -- - phoebe Bolometric gravity brightening
+       pot 5.21866195357  -- - phoebe Roche potential value
+      teff 9549.92586      K - phoebe Mean effective temperature
+irradiator False          --   phoebe Treat body as irradiator of other objects
+      abun 0.0            --   phoebe Metallicity
+     label myA0V          --   phoebe Name of the body
+   ld_func claret         --   phoebe Bolometric limb darkening model
+ ld_coeffs kurucz         --   phoebe Bolometric limb darkening coefficients
+>>> print(comp2)
+       atm kurucz         --   phoebe Bolometric Atmosphere model
+       alb 1.0            -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+    redist 0.0            -- - phoebe Global redist par (1-redist) local heating, redist global heating
+   syncpar 1.03283179352  -- - phoebe Synchronicity parameter
+     gravb 1.0            -- - phoebe Bolometric gravity brightening
+       pot 4.84468313898  -- - phoebe Roche potential value
+      teff 19054.60718     K - phoebe Mean effective temperature
+irradiator False          --   phoebe Treat body as irradiator of other objects
+      abun 0.0            --   phoebe Metallicity
+     label myB3V          --   phoebe Name of the body
+   ld_func claret         --   phoebe Bolometric limb darkening model
+ ld_coeffs kurucz         --   phoebe Bolometric limb darkening coefficients
+>>> print(orbit)
+     dpdt 0.0                 s/yr - phoebe Period change
+   dperdt 0.0               deg/yr - phoebe Periastron change
+      ecc 0.0                   -- - phoebe Eccentricity
+       t0 0.0                   JD - phoebe Zeropoint date
+     incl 90.0                 deg - phoebe Inclination angle
+    label myorbit               --   phoebe Name of the system
+   period 1.07339522938          d - phoebe Period of the system
+     per0 90.0                 deg - phoebe Periastron
+  phshift 0.0                   -- - phoebe Phase shift
+        q 1.76879729976         -- - phoebe Mass ratio
+   vgamma 0.0                 km/s - phoebe Systemic velocity
+      sma 10.0                Rsol - phoebe Semi major axis
+  long_an 0.0                  deg - phoebe Longitude of ascending node
+  c1label myA0V                 --   phoebe ParameterSet connected to the primary component
+  c2label myB3V                 --   phoebe ParameterSet connected to the secondary component
+ distance 10.0                  pc   phoebe Distance to the binary system
+     sma1 4443130136.21        n/a   constr {sma} / (1.0 + 1.0/{q})
+     sma2 2511949863.79        n/a   constr {sma} / (1.0 + {q})
+totalmass 2.3138943678e+31     n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG
+    mass1 8.35703779398e+30    n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + {q})
+    mass2 1.4781905884e+31     n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + 1.0/{q})
+    asini 6955080000.0         n/a   constr {sma} * sin({incl})
+      com 4443130136.21        n/a   constr {q}/(1.0+{q})*{sma}
+       q1 1.76879729976        n/a   constr {q}
+       q2 0.565355906036       n/a   constr 1.0/{q}
 
 Creating Bodies:
 
@@ -850,3 +963,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     return systemA_BC
 
 #}
+
+if __name__=="__main__":
+    import doctest
+    doctest.testmod()

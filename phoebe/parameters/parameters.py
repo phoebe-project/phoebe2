@@ -808,6 +808,9 @@ class Parameter(object):
         if self.prior['distribution'].lower()=='uniform':
             values = np.random.uniform(size=size,low=self.prior['lower'],
                                      high=self.prior['upper'])
+        elif self.prior['distribution'].lower()=='normal':
+            values = np.random.normal(size=size,loc=self.prior['mu'],
+                                     scale=self.prior['sigma'])
         else:
             raise NotImplementedError
         return values
