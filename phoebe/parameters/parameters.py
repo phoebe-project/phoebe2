@@ -994,9 +994,8 @@ class Parameter(object):
             self.prior = kwargs
         else:
             #-- if the distribution is changed, reset the whole dictionary
-            if 'distribution' in kwargs and 'distribution' in self.prior:
-                if kwargs['distribution']!=self.prior['distribution']:
-                    self.prior = kwargs
+            if 'distribution' in kwargs and 'distribution' in self.prior and kwargs['distribution']!=self.prior['distribution']:
+                self.prior = kwargs
             #-- otherwise just update
             else:
                 for kwarg in kwargs:
