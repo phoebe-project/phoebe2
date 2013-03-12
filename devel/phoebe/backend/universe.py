@@ -2953,7 +2953,7 @@ class Star(PhysicalBody):
         """
         Calculate local temperature.
         """
-        roche.temperature(self)
+        roche.temperature_zeipel(self)
         #-- perhaps we want to add spots.
         self.add_spots(time)
     
@@ -3755,7 +3755,7 @@ class BinaryRocheStar(PhysicalBody):
         """
         Calculate local temperature.
         """
-        roche.temperature(self)
+        roche.temperature_zeipel(self)
     
     
     def projected_velocity(self,los=[0,0,+1],ref=0,method=None):

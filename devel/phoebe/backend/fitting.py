@@ -158,6 +158,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
                 #   prior of this object
                 name = '{}_{}'.format(qual,myid)
                 pars[name] = parameter.get_prior(name=name,fitter='pymc')
+                logger.warning('Fitting {} with prior {}'.format(qual,parameter.get_prior(name=name,fitter=None)))
                 #-- and add the id
                 ids.append(myid)
     #-- derive which algorithm to use for fitting. If all the contexts are the
@@ -781,6 +782,9 @@ def summarize_fit(system,fitparams,savefig=False):
             
             if prior['distribution']=='uniform':
                 plt.axvspan(prior['lower'],prior['upper'],alpha=0.05,color='r')
+            elif prior['distribution']=='normal':
+                plt.axvspan(prior['mu']-1*prior['sigma'],prior['mu']+1*prior['sigma'],alpha=0.05,color='r')
+                plt.axvspan(prior['mu']-3*prior['sigma'],prior['mu']+3*prior['sigma'],alpha=0.05,color='r')
             plt.xlabel("/".join(path)+' [{}]'.format(unit))
             plt.ylabel('Number of occurrences')
             plt.grid()
