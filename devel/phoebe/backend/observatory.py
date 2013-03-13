@@ -312,31 +312,43 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     if not keep_figname:
         os.unlink(figname)
     #-- cycle over all baselines and position angles
+    d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
+    dpc = conversions.convert('Rsol','pc',d)
+        
     for nr,(bl,pa) in enumerate(zip(baseline,posangle)):        
+        #pa = 90.-pa
         if keepfig:
             xlims,ylims,p = image(the_system,ref=ref)
             pl.gca().set_autoscale_on(False)
             #-- add the baseline on the figure
-            x_toplot = np.linspace(xlims[0]-0.5*(xlims[1]-xlims[0]),xlims[1]+0.5*(xlims[1]-xlims[0]),100)
+            x_toplot = np.linspace(xlims[0]-0.5*abs(xlims[1]-xlims[0]),xlims[1]+0.5*abs(xlims[1]-xlims[0]),100)
             y_toplot = np.zeros_like(x_toplot)
-            x_toplot = x_toplot*np.cos(pa/180.*pi)
-            y_toplot = x_toplot*np.sin(pa/180.*pi)
-            pl.plot(x_toplot,y_toplot,'r-',lw=2)
-            pl.annotate('PA={:.2f}$^\circ$'.format(pa),(0.95,0.95),va='top',ha='right',xycoords='axes fraction',color='r',size=20)
-            if keepfig is not True:
-                pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
-                pl.close()
+            x_toplot_ = x_toplot*np.cos(pa/180.*pi)
+            y_toplot_ = x_toplot*np.sin(pa/180.*pi)
+            pl.plot(x_toplot_,y_toplot_,'r-',lw=2)
+            vc = bl*np.sin(pa/180.*np.pi)
+            uc = bl*np.cos(pa/180.*np.pi)
+            npix = data.shape[0]
+            resol = np.abs(xlims[0]-xlims[1])/d
+            resol = conversions.convert('rad','mas',resol)/npix
+            pl.annotate('PA={:.2f}$^\circ$\n$\lambda$={:.0f}$\AA$\nB={:.0f}m\nU,V=({:.1f},{:.1f}) m\n{:d} pix\n{:.3g} mas/pix'.format(pa,eff_wave,bl,uc,vc,npix,resol),(0.95,0.95),va='top',ha='right',xycoords='axes fraction',color='r',size=20)
+            
         #-- rotate counter clockwise by angle in degrees, and recalculate the
         #   values of the corners
-        data_ = imrotate(data,-pa,reshape=True,cval=0.)
-        coords2 = np.dot(coords,rotmatrix(-pa/180.*np.pi))
+        data_ = imrotate(data,-pa,reshape=True,cval=0.) # was -pa
+        if keepfig and keepfig is not True:
+            pl.figure()
+            pl.subplot(111,aspect='equal')
+            pl.imshow(data_,origin='image')
+            pl.savefig('{}_{:05d}_rot.png'.format(keepfig,nr))
+            pl.close()
+        coords2 = np.dot(coords,rotmatrix(-pa/180.*np.pi)) # was -pa
         xlims = coords2[:,0].min(),coords2[:,0].max()
         ylims = coords2[:,1].min(),coords2[:,1].max()
         #-- project onto X-axis
         signal = data_.sum(axis=0)
         #-- compute Discrete Fourier transform: amplitude and phases
         x = np.array(np.linspace(xlims[0],xlims[1],len(signal)),float)
-        d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
         x = x/d # radians
         x = conversions.convert('rad','as',x) # arseconds
         x -= x[0]
@@ -347,11 +359,19 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
             df = 0.01/x.ptp()
             logger.info('ifm: single baseline equal to 0m: computation of entire profile')
         else:
-            f0 = conversions.convert('m','cy/arcsec',bl,wave=(eff_wave,'angstrom'))
+            f0 = conversions.convert('m','cy/arcsec',bl,wave=(eff_wave,'angstrom'))*2*np.pi
             fn = f0
             df = 0
-            logger.info('ifm: computation of frequency and phase at f0=%.3g cy/as'%(f0))
-    
+            logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,eff_wave))
+            if keepfig and keepfig is not True:
+                pl.annotate('f={:.3g} cy/as\n d={:.3g} pc'.format(f0,dpc),(0.95,0.05),va='bottom',ha='right',xycoords='axes fraction',color='r',size=20)
+                pl.figure()
+                pl.plot(x*1000.,signal,'k-')
+                pl.grid()
+                pl.xlabel('Coordinate [mas]')
+                pl.ylabel("Flux")
+                pl.savefig('{}_{:05d}_prof.png'.format(keepfig,nr))
+                pl.close()
         #-- to take band pass smearing into account, we need to let the
         #   wavelength vary over the passband, and add up all the
         #   Fourier transforms but weighted with the SED intensity
@@ -366,6 +386,10 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
         s1_phs = (s1_phs % (2*pi))# -pi
         b1 = conversions.convert('cy/arcsec','m',f1,wave=(eff_wave,'angstrom'))
         b1/=(2*np.pi)
+        if keepfig and keepfig is not True:
+            pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
+            pl.close()
+        
         
         #-- append to output
         frequency_out.append(f1)
@@ -862,13 +886,16 @@ def extract_times_and_refs(system,params,tol=1e-8):
             labl_per_time.append([refs[i]])
             type_per_time.append([types[i]])
         #-- else, append the refs and times to the last time point
-        else:
+        elif labl_per_time[-1][-1]!=refs[i]:
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
+        else:
+            continue
     #-- and fill the parameterSet!
     params['time'] = time_per_time
     params['refs']= labl_per_time
     params['types'] = type_per_time
+    print params
 
 
 @decorators.mpirun
@@ -991,8 +1018,9 @@ def compute(system,params=None,**kwargs):
             system.correct_time()
         #-- compute stuff
         for itype,iref in zip(type,ref):
+            if itype[:-3]=='if': itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
             logger.info('Calling {} for ref {}'.format(itype[:-3],iref))
-            getattr(system,itype[:-3])(ref=iref)
+            getattr(system,itype[:-3])(ref=iref,time=time)
         #-- make an image if necessary
         if im:
             if isinstance(im,str):

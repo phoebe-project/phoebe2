@@ -18,7 +18,9 @@ logger = logging.getLogger('ATM.ROCHE')
 
 def temperature_zeipel(system):
     """
-    Calculate local temperature.
+    Calculate local temperature according to von Zeipel's law.
+    
+    See e.g. [Zeipel1924]_ and [Lucy1967]_.
     
     beta is gravity darkening parameter.
     
@@ -74,9 +76,15 @@ def temperature_zeipel(system):
 
 def temperature_espinosa(system):
     """
-    Calculate local temperature according to Espinosa Lara & Rieutord (2011).
+    Calculate local temperature according to [Espinosa2011]_.
     
-    This model doesn't need a gravity darkening parameter.
+    This model doesn't need a gravity darkening parameter:
+    
+    .. math::
+    
+        T_\mathrm{eff}^4 =  \left(L/(4\pi\sigma R_e^2)\\right) \sqrt{\\tilde{r}^{-4} + \omega^4\\tilde{r}^2\sin^2\\theta - 2\omega^2\sin^2\\theta/\\tilde{r}}\quad  \\tan^2\hat{\\theta}/\\tan^2\\theta
+        
+        \cos\hat{\\theta} + \log\\tan(\hat{\\theta}/2) - (1/3)\omega^2\\tilde{r}^3\cos^3\\theta - \cos\\theta - \log\\tan(\\theta/2) = 0
     
     @param system: object to compute temperature of
     @type system: Body
