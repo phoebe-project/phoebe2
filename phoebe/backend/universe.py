@@ -437,6 +437,10 @@ def _parse_obs(body,data):
     @param data: data to add to the Body
     @type data: list
     """
+    result_sets = dict(lcobs=datasets.LCDataSet,
+                       rvobs=datasets.RVDataSet,
+                       spobs=datasets.SPDataSet,
+                       ifobs=datasets.IFDataSet)
     #-- data needs to be a list. If not, make it one
     if not isinstance(data,list):
         data = [data]
@@ -466,6 +470,12 @@ def _parse_obs(body,data):
             logger.error('PARSING DATA: Reference {} already exists! Generating new one...')
             ref = str(uuid.uuid4())
             parset['ref'] = ref
+        #-- prepare results if they were not already added by the data
+        #   parser
+        if not ref in body.params['syn'][res_context]:
+            body.params['syn'][res_context][ref] = result_sets[data_context](context=res_context,ref=ref)
+            logger.debug('Prepared results PS for context {} (ref={})'.format(res_context,ref))
+       
         body.params['obs'][data_context][ref] = parset
         parsed_refs.append(ref)
     #-- that's it
@@ -1308,7 +1318,26 @@ class Body(object):
                     check =True
                 
         #logger.info('Removed previous synthetic calculations where present')
-    
+    def get_synthetic(self,type=None,ref=0,cumulative=True):
+        """
+        Retrieve results from synethetic calculations.
+        
+        If the C{ref} is not present in the C{syn} section of the C{params}
+        attribute of this Body, then C{None} will be returned.
+        
+        @param type: type of synthetics to retrieve
+        @type type: str, one of C{lcsyn}, C{rvsyn}, C{spsyn}, C{ifsyn}
+        @param ref: reference to the synthetics
+        @type ref: string (the reference) or integer (index)
+        @param cumulative: sum results over all lower level Bodies
+        @type cumulative: bool
+        @return: the ParameterSet containing the synthetic calculations
+        @rtype: ParameterSet
+        """
+        if type is None:
+            logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
+        base,ref = self.get_parset(ref=ref,type='syn',subtype=type)
+        return base
     
     def __add__(self,other):
         """
@@ -1888,26 +1917,7 @@ class PhysicalBody(Body):
         return params    
 
     
-    def get_synthetic(self,type=None,ref=0,cumulative=True):
-        """
-        Retrieve results from synethetic calculations.
-        
-        If the C{ref} is not present in the C{syn} section of the C{params}
-        attribute of this Body, then C{None} will be returned.
-        
-        @param type: type of synthetics to retrieve
-        @type type: str, one of C{lcsyn}, C{rvsyn}, C{spsyn}, C{ifsyn}
-        @param ref: reference to the synthetics
-        @type ref: string (the reference) or integer (index)
-        @param cumulative: sum results over all lower level Bodies
-        @type cumulative: bool
-        @return: the ParameterSet containing the synthetic calculations
-        @rtype: ParameterSet
-        """
-        if type is None:
-            logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
-        base,ref = self.get_parset(ref=ref,type='syn',subtype=type)
-        return base
+    
 
     
     def get_obs(self,type='lcobs',ref=0):
@@ -1921,7 +1931,7 @@ class PhysicalBody(Body):
     
         
     @decorators.parse_ref
-    def lc(self,correct_oversampling=1,ref='alllcdep'):
+    def lc(self,correct_oversampling=1,ref='alllcdep',time=None):
         """
         Compute projected intensity and add results to the pbdep ParameterSet.
         
@@ -1947,7 +1957,7 @@ class PhysicalBody(Body):
                     base['flux'].append(myintens)
                 
     @decorators.parse_ref
-    def rv(self,correct_oversampling=1,ref='allrvdep'):
+    def rv(self,correct_oversampling=1,ref='allrvdep',time=None):
         """
         Compute integrated radial velocity and add results to the pbdep ParameterSet.
         """
@@ -1962,7 +1972,7 @@ class PhysicalBody(Body):
                 base['rv'].append(proj_velo)
     
     @decorators.parse_ref
-    def ps(self,ref='alllcdep'):
+    def ps(self,ref='alllcdep',time=None):
         """
         Compute point-source representation of Body.
         """
@@ -1975,7 +1985,7 @@ class PhysicalBody(Body):
                     self.params['pbdep']['psdep'][lbl]['syn']['time'].append(self.time)
                     
     @decorators.parse_ref
-    def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4):
+    def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4,time=None):
         """
         Compute projected intensity and add results to the pbdep ParameterSet.
         """
@@ -1997,10 +2007,10 @@ class PhysicalBody(Body):
         """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('if' in self.params['pbdep']): return None
+            if not ('ifdep' in self.params['pbdep']): return None
             #-- compute the projected intensities for all ifdeps.
-            for nr,ref in enumerate(self.params['pbdep']['if'].keys()):
-                pbdep = self.params['pbdep']['if']
+            for nr,ref in enumerate(self.params['pbdep']['ifdep'].keys()):
+                pbdep = self.params['pbdep']['ifdep']
                 obs = self.get_parset(ref=ref,type='obs')
                 raise NotImplementedError
     
@@ -2433,11 +2443,22 @@ class BodyBag(Body):
         be merged.
         """
         cumulative = kwargs.get('cumulative',True)
+        #-- sometimes synthetics can be added directly to the BodyBag, instead
+        #   of being built from the ones in the bodies list. E.g. interferometry
+        #   can only be computed of the whole system, since the total Fourier
+        #   transform is not the sum of the component Fourier transforms.
+        try:
+            total_results = super(BodyBag,self).get_synthetic(*args,**kwargs)
+            if total_results:
+                return total_results
+        except ValueError:
+            pass
         total_results = []
+        
         for i,body in enumerate(self.bodies):
             out = body.get_synthetic(*args,**kwargs)
             total_results.append(out)
-        if cumulative:
+        if cumulative is True:
             total_results = sum(total_results)
         return total_results
     
@@ -2481,7 +2502,41 @@ class BodyBag(Body):
     
     
     def as_point_source(self):
-        return dict(coordinates=[0,0,10*constants.pc/constants.Rsol])
+        coords = self.mesh['center'].mean(axis=0)
+        if 'orbit' in self.params:
+            distance = self.params['orbit'].request_value('distance','Rsol')
+        elif 'orbit' in self.bodies[0].params:
+            distance = self.bodies[0].params['orbit'].request_value('distance','Rsol')
+        else:
+            raise ValueError("Don't know distance")
+        coords[2] += distance
+        return dict(coordinates=coords)
+    
+    @decorators.parse_ref
+    def ifm(self,ref='allifdep',time=None):
+        """
+        You can only do this if you have observations attached.
+        """
+        #-- don't bother if we cannot do anything...
+        if hasattr(self,'params') and 'obs' in self.params:
+            if not ('ifobs' in self.params['obs']): return None
+            for lbl in ref:
+                ifobs,lbl = self.get_parset(type='obs',ref=lbl)
+                times = ifobs['time']
+                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
+                baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
+                keep = np.abs(times-time)<1e-8
+                output = observatory.ifm(self,posangle=posangle[keep],
+                                     baseline=baseline[keep],
+                                     ref=lbl,keepfig=False)
+                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
+                ifsyn['time'] += [time]*len(output[0])
+                ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
+                ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
+                ifsyn['vis'] += list(output[3])
+                ifsyn['phase'] += list(output[4])
+        
     
     mesh = property(get_mesh,set_mesh)
 
@@ -2494,7 +2549,7 @@ class BinaryBag(BodyBag):
     
     Note: some stuff needs to be set automatically, like the mass ratio q.
     """
-    def __new__(self,objs,orbit,solve_problems=True):
+    def __new__(self,objs,orbit,solve_problems=True,**kwargs):
         """
         Parameter objs needs to a list, perhaps [None, object]  or [object, None]
         if you only want to create a BinaryBag of one object.
@@ -2551,7 +2606,7 @@ class BinaryBag(BodyBag):
         
         #-- pack in one system, but only if really necessary
         if len(system)>1:
-            return BodyBag(system,solve_problems=solve_problems)
+            return BodyBag(system,solve_problems=solve_problems,**kwargs)
         else:
             return system[0]
         
@@ -2958,10 +3013,8 @@ class Star(PhysicalBody):
         """
         Calculate local temperature.
         """
-        if 'gravblaw' in self.params['star']:
-            gravblaw = self.params['star']['gravblaw']
-        else:
-            gravblaw = 'zeipel'
+        #-- if the gravity brightening law is not specified, use 'Zeipel's
+        gravblaw = self.params['star'].get('gravblaw','zeipel')
         getattr(roche,'temperature_{}'.format(gravblaw))(self)
         #-- perhaps we want to add spots.
         self.add_spots(time)
