@@ -27,6 +27,15 @@ The values derived from our fit are::
     rotfreqcrit =  0.86 +/- 0.08
     teffpolar = 10127 +/- 255 K
     incl = 13.6 +/- 13.9 deg
+    
+And if we don't use Zeipel gravity darkening but Espinosa gd::
+
+    surfgrav        = 3.94995 +/- 0.0743 [cm/s2] (between 3.58-3.95)
+    radius          = 2.30837 +/- 0.114 Rsol
+    rotfreqcrit     = 0.88015 +/- 0.101 
+    teffpolar       = 10039.8 +/- 280 K
+    incl            = 1.85536 +/- 9.85 deg
+
         
 Note that not all parameters are good parameters to fit. For example, the
 angular diameter is not well defined for a rotationally distorted star,
@@ -55,7 +64,7 @@ logger = phoebe.get_basic_logger()
 # We load the parameters of Vega from the library, but add a few new ones
 # which we like to fit.
 
-star = phoebe.create.from_library('Vega')
+star = phoebe.create.from_library('Vega',gravblaw='espinosa')
 mesh = phoebe.PS(context='mesh:marching',alg='python',delta=0.1)
 
 # The parameters that we want to fit but are not available, are not very
@@ -106,11 +115,11 @@ mystar = phoebe.Star(star,mesh,pbdep=lcdeps,obs=lcdats)
 # in checking the parameters or the model.
 if True:
     fitparams = phoebe.run(mystar,fitparams=fitparams,accept=True)
-    mystar.save('vega_sed.phoebe')
-    fitparams.save('fitparams.phoebe')
+    mystar.save('vega_sed_{}.phoebe'.format(star['gravblaw']))
+    fitparams.save('fitparams_{}.phoebe'.format(star['gravblaw']))
 else:
-    mystar = phoebe.load_body('vega_sed.phoebe')
-    fitparams = phoebe.load_ps('fitparams.phoebe')
+    mystar = phoebe.load_body('vega_sed_{}.phoebe'.format(star['gravblaw']))
+    fitparams = phoebe.load_ps('fitparams_{}.phoebe'.format(star['gravblaw']))
     
 # Print out the fit results:
 fb = fitparams['feedback']
@@ -150,10 +159,10 @@ plt.xlabel("Wavelength [\AA]")
 plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
 plt.xlim(1000,25000)
 plt.ylim(2e-11,1e-8)
-plt.savefig('vega_sed_bestfit1.png')
+plt.savefig('vega_sed_bestfit1_{}.png'.format(star['gravblaw']))
 plt.xlim(1200,10000)
 plt.ylim(8e-10,8e-9)
-plt.savefig('vega_sed_bestfit2.png')
+plt.savefig('vega_sed_bestfit2_{}.png'.format(star['gravblaw']))
 
 """
 
