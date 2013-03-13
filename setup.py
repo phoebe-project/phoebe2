@@ -14,6 +14,11 @@ $:> sudo pip install dist/phoebe-2.0.tar.gz
 And with pip you can uninstall:
 
 $:> sudo pip uninstall phoebe
+
+On *buntu systems, the installation directory is
+
+/usr/local/lib/python2.7/dist-packages/phoebe
+
 """
 from numpy.distutils.core import setup, Extension
 import glob
@@ -39,6 +44,10 @@ ext_modules = [
                   sources = ['phoebe/utils/cgeometry.c']),
         Extension('phoebe.atmospheres.cspots',
                   sources = ['phoebe/atmospheres/cspots.c']),
+        #Extension('phoebe.algorithms.marching2FLib',
+        #          sources = ['phoebe/algorithms/marching2FLib.c'],
+        #          libraries = ['meschach'],
+        #          extra_compile_args=['-fPIC']),
         Extension('phoebe.algorithms.fsubdivision',
                   sources = ['phoebe/algorithms/fsubdivision.f']),
         Extension('phoebe.algorithms.fraytracing',

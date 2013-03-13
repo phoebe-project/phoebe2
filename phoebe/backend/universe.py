@@ -1992,11 +1992,16 @@ class PhysicalBody(Body):
                 base['continuum'].append(cont)
         
     def ifm(self):
+        """
+        You can only do this if you have observations attached.
+        """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'pbdep' in self.params:
             if not ('if' in self.params['pbdep']): return None
             #-- compute the projected intensities for all ifdeps.
-            for nr in range(len(self.params['pbdep']['if'])):
+            for nr,ref in enumerate(self.params['pbdep']['if'].keys()):
+                pbdep = self.params['pbdep']['if']
+                obs = self.get_parset(ref=ref,type='obs')
                 raise NotImplementedError
     
         
@@ -2953,7 +2958,11 @@ class Star(PhysicalBody):
         """
         Calculate local temperature.
         """
-        roche.temperature_zeipel(self)
+        if 'gravblaw' in self.params['star']:
+            gravblaw = self.params['star']['gravblaw']
+        else:
+            gravblaw = 'zeipel'
+        getattr(roche,'temperature_{}'.format(gravblaw))(self)
         #-- perhaps we want to add spots.
         self.add_spots(time)
     
@@ -3289,7 +3298,7 @@ class Star(PhysicalBody):
                     self.save('beforecrash.phoebe')
                     raise
             elif algorithm=='c':
-                the_grid = marching.cdiscretize(delta,max_triangles,'Sphere',r_pole_sol)
+                the_grid = marching.cdiscretize(delta,max_triangles,*self.subdivision['mesh_args'][:-1])
         elif gridstyle=='mesh:wd':
             #-- WD style.
             N = self.params['mesh'].request_value('gridsize')
