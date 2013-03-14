@@ -139,7 +139,7 @@ for i,polar_period in enumerate(polar_periods):
 # but we want to use them to label the plot. We want the first, second and third
 # spectrum calculated.
 
-spectrum = mesh1.get_synthetic(type='spsyn',ref=0)
+spectrum = mesh1.get_synthetic('sp',ref=0)
 
 # A plot is then easily made:
 waves = np.array(spectrum['wavelength'])

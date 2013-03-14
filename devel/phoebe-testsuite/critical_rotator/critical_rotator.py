@@ -127,9 +127,9 @@ phoebe.image(mesh1,select='teff',savefig='critical_rotator_teff2.png')
 # but we want to use them to label the plot. We want the first, second and third
 # spectrum calculated.
 
-result1 = mesh1.get_synthetic(type='spsyn',ref=0)
-result2 = mesh1.get_synthetic(type='spsyn',ref=1)
-result3 = mesh1.get_synthetic(type='spsyn',ref=2)
+result1 = mesh1.get_synthetic('sp',ref=0)
+result2 = mesh1.get_synthetic('sp',ref=1)
+result3 = mesh1.get_synthetic('sp',ref=2)
 
 # A plot is then easily made:
 wave1 = np.array(result1['wavelength'])
@@ -163,6 +163,5 @@ plt.savefig('critical_rotator_spectrum.png')
    Generated spectral line.
 
 """
-plt.show()
 print("Finished!")
 print("Total time:                 {:10.3g} min".format((time.time()-c0)/60.))
