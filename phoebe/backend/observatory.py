@@ -15,6 +15,10 @@ try:
     import matplotlib as mpl
 except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+try:
+    import pyfits
+except ImportError:
+    print("Unable to load pyfits, you cannot use FITS files")
 from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
@@ -39,7 +43,7 @@ logger.addHandler(logging.NullHandler())
 
 #{ Computing observational quantities
     
-def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
+def image(the_system,ref='__bol',context='lcdep',fourier=False,
             cmap=None,select='proj',background=None,vmin=None,vmax=None,
             size=800,ax=None,savefig=False,nr=0,with_partial_as_half=True):
     """
@@ -97,7 +101,7 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
     vmax_ = vmax
         
     if isinstance(ref,int):
-        ps,ref = the_system.get_parset(ref=ref,subtype=subtype)
+        ps,ref = the_system.get_parset(ref=ref,context=context)
     #-- to make an image, we need some info and we need to order it from
     #   back to front
     logger.info('Making image of dependable set {}: plotting {}'.format(ref,select))    
@@ -256,9 +260,43 @@ def image(the_system,ref='__bol',subtype='lcdep',fourier=False,
     if savefig==True:
         pl.savefig('image%06d.png'%(nr),facecolor='k',edgecolor='k')
         pl.close()
-    elif savefig:
+    elif savefig and os.path.splitext(savefig)[1]!='.fits':
         pl.savefig(savefig,facecolor='k',edgecolor='k')
         pl.close()
+    elif savefig:
+        pl.savefig('__temp.png',facecolor='k',edgecolor='k')
+        pl.close()
+        data = pl.imread('__temp.png')[:,:,0]
+        os.unlink('__temp.png')
+        d = the_system.as_point_source()['coordinates'][2]
+        hdu = pyfits.PrimaryHDU(data)
+        
+        # for a simple linear projection, in RA and DEC (watch out: 'data axis 0' = y-axis!)
+        hdu.header.update('CTYPE1',' ','')
+        hdu.header.update('CTYPE2',' ','')
+        
+        # the central pixel of the image is used as the 'reference point'
+        hdu.header.update('CRPIX1',data.shape[1]/2,'')
+        hdu.header.update('CRPIX2',data.shape[0]/2,'')
+        
+        # no absolute location on the sky is needed for our purposes, so the 'world coordinate' of the 'reference point' is put at (0.,0.)
+        hdu.header.update('CRVAL1',0.,'')
+        hdu.header.update('CRVAL2',0.,'')
+        
+        # the angular size of 1 pixel = linear scale of one pixel / distance = linear scale of full image / number of pixels / distance
+        resol1 = np.abs(xlim[0]-xlim[1])/d/data.shape[1]
+        resol2 = np.abs(xlim[0]-xlim[1])/d/data.shape[0]
+        hdu.header.update('CDELT1',resol1,'rad/pixel')
+        hdu.header.update('CDELT2',resol2,'rad/pixel')
+        
+        # to be FITS-verifiable, angular coordinates should be in degrees (however ASPRO2 needs radians, so for now we use radians)
+        hdu.header.update('CUNIT1',' ','should be deg, but is rad')
+        hdu.header.update('CUNIT2',' ','should be deg, but is rad')
+       
+        hdulist = pyfits.HDUList([hdu])
+        hdulist.writeto(savefig)
+        hdulist.close()
+    
     return xlim,ylim,p
     
     
@@ -449,13 +487,13 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
     """
     #-- is there data available? then we can steal the wavelength array
     #   from there
-    iobs,ref_ = the_system.get_parset(ref=ref,type='obs',subtype='spobs')
+    iobs,ref_ = the_system.get_parset(ref=ref,context='spobs')
     if ref_ is not None:
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
             iobs.load()
         wavelengths = iobs['wavelength']
     #-- information on dependable set
-    idep,ref = the_system.get_parset(ref=ref,type='pbdep',subtype='spdep')
+    idep,ref = the_system.get_parset(ref=ref,context='spdep')
     ld_model = idep['ld_func']
     method = idep['method']
     keep = the_system.mesh['mu']<=0
@@ -614,7 +652,7 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     mesh = the_system.mesh
     
     #-- information on dependable set
-    idep,ref = the_system.get_parset(ref=ref,type='pbdep',subtype='spdep')
+    idep,ref = the_system.get_parset(ref=ref,context='spdep')
     ld_model = idep['ld_func']
     method = idep['method']
     keep = the_system.mesh['mu']<=0

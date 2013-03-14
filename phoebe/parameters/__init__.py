@@ -17,6 +17,7 @@ Parsing ASCII files:
     datasets.parse_lc
     datasets.parse_rv
     datasets.parse_phot
+    datasets.parse_vis
     datasets.parse_spec_as_lprof
     datasets.parse_header
     

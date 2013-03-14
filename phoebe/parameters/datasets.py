@@ -21,6 +21,7 @@ the file should have.
 
     parse_rv
     parse_phot
+    parse_vis
     parse_spec_as_lprof
 
 """
@@ -1440,5 +1441,197 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
     ds.unload()
     return [ds],[pb]
     
+def parse_vis(filenames,columns=None,full_output=False,**kwargs):
+    """
+    Parse VIS files to IFDataSets and ifdeps.
+    
+    **File format description**
+    
+    The generic structure of a VIS file is::
+        
+        # atm = kurucz
+        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
+        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
+        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
+         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
+        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
 
+    
+    The columns represent respectively the **U-coordinate, V-coordinate, vis, sigma_vis, passband, time**.
+    An attempt will be made to interpret the comment lines (i.e. those lines
+    where the first character equals '#') as qualifier/value for either the
+    :ref:`ifobs <parlabel-phoebe-ifobs>` or :ref:`ifdep <parlabel-phoebe-ifdep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them. The comments are optional. So this is also allowed::
+    
+        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
+        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
+        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
+         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
+        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
+        
+    The only way in which you are allowed to deviate from this structure, is
+    by specifying column names, followed by a comment line of dashes (there
+    needs to be at least one dash, no spaces)::
+    
+        # atm = kurucz
+        # fittransfo = log
+        # ucoord  vcoord  vis  sigma_vis passband time
+        #---------------------------------------------
+        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
+        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
+        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
+         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
+        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
+    
+    In the latter case, you are allowed to omit any column except for ``ucoord``
+    ``vcoord``, ``vis``, ``sigma_vis`` and ``passband``, which are required.
+    If not given, the default ``time`` is zero.
+        
+    
+    .. warning::
+    
+       You are not allowed to have missing values. Each column must
+       have a value for every observation.
+    
+    **Input and output**
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output IFDataSets or pbdeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file.
+    
+    If C{full_output=True}, you will get a consistent output, regardless what
+    the input file looks like. This can be useful for automatic parsing. In
+    this case, the output is an OrderedDict, with the keys at the first level
+    the key of the component (if no labels are given, this will be C{__nolabel__}).
+    The value for each key is a list of two lists: the first list contains the
+    IFDataSets, the second list the corresponding pbdeps.
+    
+    If C{full_output=False}, you will get the same output as described in the
+    previous paragraph only if labels are given in the file. Else, the output
+    consists of only one component, which is probably a bit confusing for the
+    user (at least me). So if there are no labels given and C{full_output=False},
+    the two lists are immediately returned.
+    
+    **Example usage**
+    
+    Assume that any of the first three examples is saved in 
+    file called ``myfile.vis``, you can do (the following lines are equivalent):
+    
+    >>> obs,pbdeps = parse_vis('myfile.vis')
+    >>> obs,pbdeps = parse_vis('myfile.vis',columns=['passband','flux','sigma','unit','time'])
+    
+    Which is in this case equivalent to:
+    
+    >>> output = parse_vis('myfile.vis',full_output=True)
+    >>> obs,pbdeps = output['__nolabel__']
+    
+    or 
+    
+    >>> obs,pbdeps = output.values()[0]
+    
+    The output can then be given to any Body:
+    
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    The last example contains labels, so the full output is always given.
+    Assume the contents of the last file is stored in ``myfile2.phot``:
+    
+    >>> output = parse_phot('myfile2.phot')
+    >>> obs1,pbdeps1 = output['starA']
+    >>> obs2,pbdeps2 = output['starB']
+    
+    @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
+    @type filenames: list or string
+    @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
+    @type columns: None or list of strings
+    @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
+    @type full_output: bool
+    @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
+    """
+    #-- which columns are present in the input file, and which columns are
+    #   possible in the LCDataSet? The columns that go into the LCDataSet
+    #   is the intersection of the two. The columns that are in the file but
+    #   not in the LCDataSet are probably used for the pbdeps (e.g. passband)
+    #   or for other purposes (e.g. label or unit).
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    
+    if columns is None:
+        columns_in_file = ['ucoord','vcoord','vis','sigma_vis','passband','time']
+    else:
+        columns_in_file = columns
+    columns_required = ['ucoord','vcoord','vis','sigma_vis','passband']
+    columns_specs = dict(passband=str,ucoord=float,vcoord=float,sigma_vis=float,
+                         time=float,unit=str,vis=float,phase=float,sigma_phase=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in VIS file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    components = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- collect all data
+    data = []
+    #-- open the file and start reading the lines    
+    with open(filename,'r') as ff:
+        for line in ff.readlines():
+            line = line.strip()
+            if not line: continue
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    #-- we don't allow information on components
+    components = ['__nolabel__']*len(columns_in_file)
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
+    
+    #-- for each component, create two lists to contain the
+    #   IFDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+                
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
 #}

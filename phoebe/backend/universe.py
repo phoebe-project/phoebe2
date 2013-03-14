@@ -803,7 +803,7 @@ class Body(object):
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 #-- get the model corresponding to this observation
-                model = self.get_synthetic(type=observations.context[:-3]+'syn',
+                model = self.get_synthetic(category=observations.context[:-3],
                                            ref=observations['ref'],
                                            cumulative=True)
                 #-- make sure to have loaded the observations from a file
@@ -907,7 +907,7 @@ class Body(object):
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 #-- get the model corresponding to this observation
-                model = self.get_synthetic(type=observations.context[:-3]+'syn',
+                model = self.get_synthetic(category=observations.context[:-3],
                                            ref=observations['ref'],
                                            cumulative=True)
                 #-- make sure to have loaded the observations from a file
@@ -1248,7 +1248,7 @@ class Body(object):
                 
                 
     
-    def get_parset(self,ref=None,type='pbdep',subtype=None):
+    def get_parset(self,ref=None,context=None,type='pbdep',category=None):
         """
         Return the parameter set with the given reference from the C{params}
         dictionary attached to the Body.
@@ -1258,30 +1258,69 @@ class Body(object):
         If reference is a string, return the parameterSet with the reference
         matching the string.
         
+        If reference is an integer, I cannot figure out if you want the
+        pbdep, syn or obs with that reference.  Therefore, you either have
+        to give:
+        
+            - ``context`` (one of ``lcsyn``,``lcdep``,``lcobs``,``rvsyn``...)
+            - ``type`` and ``category``, where ``type`` should be ``pbdep``, ``syn`` or ``obs``, and ``category`` should be one of ``lc``,``rv``...
+        
+        ``context`` has preference over ``type`` and ``category``, i.e. only
+        when ``context=None``, the ``type`` and ``category`` will be looked
+        at.
+        
         returns parset and it's reference (in reverse order)
         """
+        #-- this Body needs to have parameters attached
         if not hasattr(self,'params'):
             logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
             return None,None
+        #-- in some circumstances, we want the parameterSet of the body. This
+        #   one often also contains information on the atmospheres etc.. but
+        #   then bolometrically
         if ref is None or ref=='__bol':
             logger.info("Requested bolometric parameterSet")
             return list(self.params.values())[0],'__bol'
+        #-- Next, we check if a context is given. If it is, we immediately can
+        #   derive the type and category, so there's no need for looping
+        if context is not None:
+            type = context[-3:]
+            if type=='dep': type = 'pbdep'
+            if type in self.params and context in self.params[type]:
+                if isinstance(ref,str) and ref in self.params[type][context]:
+                    ps = self.params[type][context][ref]
+                elif not isinstance(ref,str) and ref<len(self.params[type][context].values()):
+                    ps = self.params[type][context].values()[ref]
+                #-- look in a level down
+                elif hasattr(self,'bodies'):
+                    return self[0].get_parset(ref=ref,type=type,context=context,category=category)
+                else:
+                    logger.info("Requested parset ref={}, context={} but it does not seem to exist".format(ref,context))
+                    return None,None
+                logger.info("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
+                return ps,ps['ref']
+            elif hasattr(self,'bodies'):
+                return self[0].get_parset(ref=ref,type=type,context=context,category=category)
+            else:
+                logger.info("Requested parset ref={}, context={} but it does not exist".format(ref,context))
+                return None,None
+        #-- else, we need to start searching for the right type and category!
         else:
-            counter = 0
+            #counter = 0
             #-- this could be dangerous!!
             if not type in self.params:
-                return self[0].get_parset(ref=ref,type=type,subtype=subtype)
-            subtypes = subtype and [subtype] or self.params[type].keys()
-            for itype in subtypes:
-                #itype += type[-3:] # we want here subtype=='lc'-->'lcdep' or 'lcsyn'
-                if not itype in self.params[type]:
-                    raise ValueError('No {} defined: looking in type={}, availabe={}'.format(itype,type,self.params[type].keys()))
-                for ips in self.params[type][itype]:
-                    ps = self.params[type][itype][ips]
+                return self[0].get_parset(ref=ref,type=type,context=context,category=category)
+            categories = category and [category+type[-3:]] or self.params[type].keys()
+            for icat in categories:
+                if not icat in self.params[type]:
+                    raise ValueError('No {} defined: looking in type={}, availabe={}'.format(icat,type,list(self.params[type].keys())))
+                counter = 0
+                for ips in self.params[type][icat]:
+                    ps = self.params[type][icat][ips]
                     is_ref = ('ref' in ps) and (ps['ref']==ref)
                     is_number = counter==ref
                     if is_ref or is_number:
-                        logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
+                        logger.info("Requested parset ref={}, type={}, category={} and found ref={}, context={}".format(ref,type,category,ps['ref'],ps.get_context()))
                         return ps,ps['ref']
                     counter += 1
             return None,None
@@ -1318,7 +1357,7 @@ class Body(object):
                     check =True
                 
         #logger.info('Removed previous synthetic calculations where present')
-    def get_synthetic(self,type=None,ref=0,cumulative=True):
+    def get_synthetic(self,category=None,ref=0,cumulative=True):
         """
         Retrieve results from synethetic calculations.
         
@@ -1336,7 +1375,7 @@ class Body(object):
         """
         if type is None:
             logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
-        base,ref = self.get_parset(ref=ref,type='syn',subtype=type)
+        base,ref = self.get_parset(ref=ref,type='syn',category=category)
         return base
     
     def __add__(self,other):
@@ -1615,36 +1654,36 @@ class PhysicalBody(Body):
         logger.info('Emptied reflection columns')
                 
     
-    def get_parset(self,ref=None,type='pbdep',subtype=None):
-        """
-        Return the parameter set with the given ref from the C{params}
-        dictionary attached to the Body.
+    #def get_parset(self,ref=None,context=None,type='pbdep',category=None):
+        #"""
+        #Return the parameter set with the given ref from the C{params}
+        #dictionary attached to the Body.
         
-        If ref is None, return the parameterSet of the body itself.
-        If ref is an integer, return the "n-th" parameterSet.
-        If ref is a string, return the parameterSet with the ref matching
-        the string.
+        #If ref is None, return the parameterSet of the body itself.
+        #If ref is an integer, return the "n-th" parameterSet.
+        #If ref is a string, return the parameterSet with the ref matching
+        #the string.
         
-        returns parset and its ref (in reverse order)
-        """
-        if ref is None or ref=='__bol':
-            logger.info("Requested bolometric parameterSet")
-            return list(self.params.values())[0],'__bol'
-        else:
-            counter = 0
-            subtypes = subtype and [subtype] or self.params[type].keys()
-            for itype in subtypes:
-                #itype += type[-3:] # we want here subtype=='lc'-->'lcdep' or 'lcsyn'
-                for ips in self.params[type][itype]:
-                    ps = self.params[type][itype][ips]
-                    is_ref = ('ref' in ps) and (ps['ref']==ref)
-                    is_number = counter==ref
-                    if is_ref or is_number:
-                        logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
-                        return ps,ps['ref']
-                    counter += 1
-            logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
-            return None,None
+        #returns parset and its ref (in reverse order)
+        #"""
+        #if ref is None or ref=='__bol':
+            #logger.info("Requested bolometric parameterSet")
+            #return list(self.params.values())[0],'__bol'
+        #else:
+            #counter = 0
+            #subtypes = subtype and [subtype] or self.params[type].keys()
+            #for itype in subtypes:
+                ##itype += type[-3:] # we want here subtype=='lc'-->'lcdep' or 'lcsyn'
+                #for ips in self.params[type][itype]:
+                    #ps = self.params[type][itype][ips]
+                    #is_ref = ('ref' in ps) and (ps['ref']==ref)
+                    #is_number = counter==ref
+                    #if is_ref or is_number:
+                        #logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
+                        #return ps,ps['ref']
+                    #counter += 1
+            #logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
+            #return None,None
     
     
     def as_point_source(self,only_coords=False,ref=0):
@@ -1920,13 +1959,13 @@ class PhysicalBody(Body):
     
 
     
-    def get_obs(self,type='lcobs',ref=0):
+    def get_obs(self,category=None,ref=0):
         """
         Retrieve data.
         """
         #if pbdeptype.endswith('dep'):
         #    pbdeptype = pbdeptype[:-3]+'obs'
-        base,ref = self.get_parset(ref=ref,type='obs',subtype=type)
+        base,ref = self.get_parset(ref=ref,type='obs',category=category)
         return base
     
         
@@ -2462,11 +2501,11 @@ class BodyBag(Body):
             total_results = sum(total_results)
         return total_results
     
-    def get_obs(self,type='lc',ref=0):
+    def get_obs(self,category='lc',ref=0):
         """
         Retrieve obs.
         """
-        base,ref = self.get_parset(ref=ref,type='obs',subtype=type)
+        base,ref = self.get_parset(ref=ref,type='obs',category=category)
         return base
     
     def get_lc(self,ref=None):
@@ -2528,8 +2567,8 @@ class BodyBag(Body):
                 keep = np.abs(times-time)<1e-8
                 output = observatory.ifm(self,posangle=posangle[keep],
                                      baseline=baseline[keep],
-                                     ref=lbl,keepfig=False)
-                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                                     #ref=lbl,keepfig=False)
+                                     ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
                 ifsyn['time'] += [time]*len(output[0])
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
@@ -3212,6 +3251,7 @@ class Star(PhysicalBody):
             scheme = pls.get_value('scheme')
             l = pls.get_value('l')
             m = pls.get_value('m')
+            k_ = pls.get_value('k')
             freq = pls.get_value('freq','cy/d')
             freq_Hz = freq / (24.*3600.)
             ampl = pls.get_value('ampl')
@@ -3248,7 +3288,7 @@ class Star(PhysicalBody):
                     logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
                 else:
                     spinpar = 0.
-                    k = k0
+                    k = k_#k0
                     logger.info('puls: no Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=0'%(rotfreq,freq,l,m,k))
                 freqs.append(freq)
                 freqs_Hz.append(freq_Hz)
