@@ -214,15 +214,15 @@ def eff_wave(passband,model=None):
     """
     Return the effective wavelength of a photometric passband.
     
-    The effective wavelength is defined as the average wavelength weighed with
+    The effective wavelength is defined as the average wavelength weighted with
     the response curve.
     
     >>> eff_wave('2MASS.J')
     12412.136241640892
     
     If you give model fluxes as an extra argument, the wavelengths will take
-    these into account to calculate the `true' effective wavelength (e.g., 
-    Van Der Bliek, 1996), eq 2.
+    these into account to calculate the true effective wavelength (e.g., 
+    [VanDerBliek1996]_, Eq 2.)
     
     @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER') or array/list of str
@@ -289,6 +289,7 @@ def get_info(passbands=None):
     Return a record array containing all filter information.
     
     The record arrays contains following columns:
+    
         - passband
         - eff_wave
         - type
@@ -299,8 +300,7 @@ def get_info(passbands=None):
         - Fnu0, Fnu0_units, Fnu0_lit,
         - source
     
-    @param passbands: list of passbands to get the information from. The input
-    order is equal to the output order. If C{None}, all filters are returned.
+    @param passbands: list of passbands to get the information from. The input order is equal to the output order. If C{None}, all filters are returned.
     @type passbands: iterable container (list, tuple, 1Darray)
     @return: record array containing all information on the requested passbands.
     @rtype: record array

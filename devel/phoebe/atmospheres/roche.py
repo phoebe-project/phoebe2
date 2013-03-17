@@ -17,26 +17,30 @@ logger = logging.getLogger('ATM.ROCHE')
 #{ General
 
 def temperature_zeipel(system):
-    """
+    r"""
     Calculate local temperature according to von Zeipel's law.
     
     See e.g. [Zeipel1924]_ and [Lucy1967]_.
     
     beta is gravity darkening parameter.
     
-    Definition:: 
+    Definition [Eq. 4.23 in Phoebe Scientific Reference]:
     
-        T = Tpole * (g/gpole)**(beta/4) [Eq. 4.23 in Phoebe Scientific Reference]
+    .. math::
     
-    beta/gravb = 1.00 for radiative atmospheres (Teff>8000K)
-    beta/gravb = 0.32 for convective atmpsheres (Teff<5000K, but we're a
-    little bit less strict and set 6600)
+        T_\mathrm{eff}^4 = T_\mathrm{pole}  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
+        
+    
+    with
+    
+        - :math:`\beta/\mathrm{gravb} = 1.00` for radiative atmospheres (:math:`T_\mathrm{eff}\geq 8000\,\mathrm{K}`)
+        - :math:`\beta/\mathrm{gravb} = 0.32` for convective atmpsheres (:math:`T_\mathrm{eff}\leq 5000\,\mathrm{K}`, but we're a little bit less strict and set 6600K)
     
     Body C{system} needs to have the following parameters defined:
         
-        - teff or teffpolar
-        - gravb
-        - g_pole
+        - ``teff`` or ``teffpolar``
+        - ``gravb``
+        - ``g_pole``
     
     @param system: object to compute temperature of
     @type system: Body
@@ -75,16 +79,18 @@ def temperature_zeipel(system):
     
 
 def temperature_espinosa(system):
-    """
+    r"""
     Calculate local temperature according to [Espinosa2011]_.
     
     This model doesn't need a gravity darkening parameter:
     
     .. math::
     
-        T_\mathrm{eff}^4 =  \left(L/(4\pi\sigma R_e^2)\\right) \sqrt{\\tilde{r}^{-4} + \omega^4\\tilde{r}^2\sin^2\\theta - 2\omega^2\sin^2\\theta/\\tilde{r}}\quad  \\tan^2\hat{\\theta}/\\tan^2\\theta
+        T_\mathrm{eff}^4 =  \left(\frac{L}{4\pi\sigma R_e^2}\right) \sqrt{\tilde{r}^{-4} + \omega^4\tilde{r}^2\sin^2\theta - \frac{2\omega^2\sin^2\theta}{\tilde{r}}}\quad  \frac{\tan^2\hat{\theta}}{\tan^2\theta}
         
-        \cos\hat{\\theta} + \log\\tan(\hat{\\theta}/2) - (1/3)\omega^2\\tilde{r}^3\cos^3\\theta - \cos\\theta - \log\\tan(\\theta/2) = 0
+        \cos\hat{\theta} + \log\tan\frac{\hat{\theta}}{2} - \frac{\omega^2\tilde{r}^3\cos^3\theta}{3} - \cos\theta - \log\tan\frac{\theta}{2} = 0
+        
+    with :math:`\tilde{r} = r/R_e` the radius coordinate relative to the equatorial radius, and :math:`\theta` the colatitude.
     
     @param system: object to compute temperature of
     @type system: Body
@@ -207,6 +213,7 @@ def calculate_critical_radius(q,F=1.,d=1.,sma=1.,component=1,loc='pole'):
     1.37287515811
     
     And for the other component:
+    
     >>> Req = calculate_critical_radius(0.45,component=2,loc='eq',sma=32.)
     >>> Rpl = calculate_critical_radius(0.45,component=2,loc='pole',sma=32.)
     >>> print Req,Rpl

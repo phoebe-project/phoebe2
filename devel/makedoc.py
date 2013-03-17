@@ -10,148 +10,175 @@ import sys
 import subprocess
 import time
 import datetime
-from pyphoebe.parameters import definitions
-from pyphoebe.parameters import parameters
+from phoebe.parameters import definitions
+from phoebe.parameters import parameters
 
-def make_doc(output='html'):
+def python_to_sphinx(pythonfile,latex=False,type='testsuite.'):
     """
-    Generate documentation files.
+    Convert a Python script (*.py) to a Sphinx file (*.rst).
     """
-    #-- list files and directories that need to be included
-    include = ['phoebe/parameters/','phoebe/atmospheres/','phoebe/utils/',
-               'phoebe/algorithms/','phoebe/dynamics/','phoebe/backend/',
-               'phoebe/units','phoebe/wd/']
-    #-- execute the Epydoc command           
-    os.system('epydoc --%s %s -o phoebe-doc --parse-only --graph all -v --exclude=.*uncertainties.*'%(output,' '.join(include)))
+    myname = type+os.path.splitext(os.path.basename(pythonfile))[0]
     
-    #-- possibility to output html or pdf: in either case, we need to replace
-    #   the image code with the image filenames.
-    direc = os.path.abspath('phoebe-doc')
-    #-- when it's HTML, insert image HTML code
-    if output.lower()=='html':
-        files = sorted(glob.glob('phoebe-doc/*module.html'))
-        files+= sorted(glob.glob('phoebe-doc/*class.html'))
-        image_code = r"<img src='{0}' alt='[image example]' width=75%/>"
-    #-- when it's LaTeX, insert TeX code.
-    elif output.lower()=='pdf':
-        files = sorted(glob.glob('phoebe-doc/*.tex'))
-        image_code = r"\begin{{center}}\includegraphics[width=0.75\textwidth]{{{0}}}\end{{center}}"
-        shutil.move('phoebe-doc/api.tex','phoebe-doc/api.tex_')
-        ff = open('phoebe-doc/api.tex_','r')
-        oo = open('phoebe-doc/api.tex','w')
-        for line in ff.readlines():
-            if 'usepackage' in line:
-                oo.write(r'\usepackage{graphicx}'+'\n')
-                break
-            oo.write(line)
-        ff.close()
-        oo.close()
-    
-    #-- run over all files, and replace the ]include figure] code with the
-    #   image code
-    for myfile in files:
-        shutil.move(myfile,myfile+'_')
-        ff = open(myfile+'_','r')
-        oo = open(myfile,'w')
+    ff = open(pythonfile,'r')
+    tt = open('phoebe-doc/{}.rst'.format(myname),'w')
+
+    start_doc = False
+    inside_code = False
+
+    for line in ff.readlines():
+        if 'time.time(' in line: continue
+        if 'import time' in line: continue
+        if 'os.system' in line: continue
+        if 'subprocess.call' in line: continue
+        if '***time***' in line: line = line.replace('***time***','{}'.format(str(datetime.datetime.today())))
+        if latex and '.gif' in line:
+            line = line.replace('.gif','.png')
+        if latex and '.svg' in line:
+            line = line.replace('.svg','.png')
+            
+        if not start_doc and line[:3]=='"""':
+            start_doc = True
+            if inside_code:
+                tt.write('\n')
+                inside_code = False
+            continue
         
-        line_break = False
-        for line in ff.readlines():
-            
-            if ']include figure]' in line or line_break:
-                filenames1 = [os.path.join(direc,ifig.split(']')[-2].strip()) for ifig in line.split(';')]
-                filenames = [ifig.split(']')[-2].strip() for ifig in line.split(';')]
-                oo.write('<p style="white-space;nowrap;">\n\n')
-                for filename1,filename in zip(filenames1,filenames):
-                    if not os.path.isfile(filename1):
-                        print "Skipping image, file %s not found"%(filename)
-                        continue
-                    oo.write(image_code.format(filename)+'\n\n')
-                    print 'Added image %s to %s'%(filename,myfile)
-                    oo.write('\n\n')
-                line_break = False
-                oo.write('</p>\n\n')
-            
-                
-            elif ']include' in line:
-                line_break = True
-                
-                
-            else:
-                oo.write(line)
-        ff.close()
-        oo.close()
-        os.remove(myfile+'_')
-    
-    generate_parameterlist()
+        if start_doc and line[:3]=='"""':
+            start_doc = False
+            if inside_code:
+                tt.write('\n')
+                inside_code = False
+            continue
+        
+        if start_doc:
+            tt.write(line)
+            if inside_code:
+                tt.write('\n')
+                inside_code = False
+            continue
+        
+        if line[0]=='#':
+            if inside_code:
+                tt.write('\n')
+                inside_code = False
+            tt.write(line[1:].strip()+'\n')
+            continue
+        
+        if not inside_code and not line.strip():
+            continue
+        
+        if not inside_code:
+            inside_code = True
+            tt.write('\n::\n\n')
+        
+        tt.write('    '+line)
+    ff.close()
+    tt.close()
 
-
-
-def generate_parameterlist():
+def generate_parameterlist_sphinx():
     """
-    Replace the documentation page of the definitions file with a list of
-    all the ParameterSets and parameters.
+    Generate a list of parameters suitable for inclusion in sphinx.
     """
-    #-- keep track of all frames and contexts.
-    frames = {}
-    for par in definitions.defs:
-        for frame in par['frame']:
-            if not frame in ['phoebe','pywd']: continue
-            if frame not in frames:
-                if isinstance(par['context'],list):
-                    frames[frame]+= par['context']
-                else:
-                    frames[frame] = [par['context']]
-            elif not par['context'] in frames[frame]:
-                if isinstance(par['context'],list):
-                    frames[frame]+= par['context']
-                else:
-                    frames[frame].append(par['context'])
+    with open('phoebe-doc/parlist.rst','w') as ff:
+        ff.write("""
 
-    #-- ParameterSets
-    body = '<h1 class="heading"> ParameterSets</h1>'
+.. _list-of-parameters:        
+        
+List of ParameterSets and Parameters
+=============================================
 
-    frames_contexts = []
-    for frame in sorted(frames.keys()):
-        body += '<h2 class="heading">Frame "{frame}"</h2>'.format(frame=frame)
-        for context in sorted(frames[frame]):
-            if frame+context in frames_contexts: continue
-            frames_contexts.append(frame+context)
-            parset = parameters.ParameterSet(frame=frame,context=context)
-            
-            
-            body += '<h3 class="heading">Frame "{frame}", context "{context}"</h3>'.format(frame=frame,context=context)
-            body += """<pre class="py-doctest">
-<span class="py-output">{strrep}</span>
-</pre>""".format(strrep=str(parset))
+ParameterSets
+-------------
 
-    #-- Parameter
-    body += '<h1 class="heading"> Parameters</h1>'
+""")
+        #-- keep track of all frames and contexts.
+        frames = {}
+        for par in definitions.defs:
+            for frame in par['frame']:
+                if not frame in ['phoebe','pywd']: continue
+                if frame not in frames:
+                    if isinstance(par['context'],list):
+                        frames[frame]+= par['context']
+                    else:
+                        frames[frame] = [par['context']]
+                elif not par['context'] in frames[frame]:
+                    if isinstance(par['context'],list):
+                        frames[frame]+= par['context']
+                    else:
+                        frames[frame].append(par['context'])
 
-    frames_contexts = []
-    for frame in sorted(frames.keys()):
-        for context in sorted(frames[frame]):
-            if frame+context in frames_contexts: continue
-            frames_contexts.append(frame+context)
-            parset = parameters.ParameterSet(frame=frame,context=context)
-            for par in parset:
-                par = parset.get_parameter(par)
-                body += """<pre class="py-doctest">
-<span class="py-output">{strrep}</span>
-</pre>""".format(strrep=str(par))
-
-
-
-    basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'phoebe-doc')
-    with open(os.path.join(basedir,'parameter_list_template.html'),'r') as ff:
-        with open(os.path.join(basedir,'phoebe.parameters.definitions-module.html'),'w') as gg:
-            gg.write(ff.read().format(body=body))
-
-
+        frames_contexts = []
+        for frame in sorted(frames.keys()):
+            for context in sorted(frames[frame]):
+                if frame+context in frames_contexts: continue
+                frames_contexts.append(frame+context)
+                parset = parameters.ParameterSet(frame=frame,context=context)
+                if 'label' in parset:
+                    parset['label'] = 'mylbl'
+                if 'ref' in parset:
+                    parset['ref'] = 'myref'
+                if 'c1label' in parset:
+                    parset['c1label'] = 'primlbl'
+                if 'c2label' in parset:
+                    parset['c2label'] = 'secnlbl'
                 
                 
+                str_parset = str(parset).split('\n')
+                if len(str_parset)<2: continue
+                #-- add a label
+                ff.write('.. _parlabel-{}-{}:\n\n'.format(frame,context))
+                #-- add the parameterset
+                ff.write('**{}** ({})::\n\n'.format(context,frame))
+                str_parset = '    '+'\n    '.join(str_parset)                
+                ff.write(str_parset)
+                ff.write('\n\n')
+
+
+
 if __name__=="__main__":
-    options = sys.argv[1:]
-    if not options or 'doc' in options[0]:
-        make_doc()
-        if len(options)>1 and 'copy' in options[1]:
-            os.system('scp -r doc/* copernicus.ster.kuleuven.be:public_html/pyphoebe/')
+    
+    generate_parameterlist_sphinx()
+    giffiles = sorted(glob.glob('phoebe-doc/images_tut/*.gif'))
+    for giffile in giffiles:
+        subprocess.call('convert {}[0] {}'.format(giffile,os.path.splitext(giffile)[0]+'.png'),shell=True)
+    
+    test_suite = ['phoebe-testsuite/solar_calibration/solar_calibration.py',
+                  'phoebe-testsuite/vega/vega.py',
+                  'phoebe-testsuite/vega/vega_sed.py',
+                  'phoebe-testsuite/sirius/sirius.py',
+                  'phoebe-testsuite/wilson_devinney/wd_vs_phoebe.py',
+                  'phoebe-testsuite/wilson_devinney/eccentric_orbit.py',
+                  'phoebe-testsuite/wilson_devinney/reflection_effect.py',
+                  'phoebe-testsuite/venus/venus.py',
+                  'phoebe-testsuite/differential_rotation/differential_rotation.py',
+                  'phoebe-testsuite/fast_rotator/fast_rotator.py',
+                  'phoebe-testsuite/critical_rotator/critical_rotator.py',
+                  'phoebe-testsuite/spotted_star/spotted_star.py',
+                  'phoebe-testsuite/pulsating_star/pulsating_star.py',
+                  'phoebe-testsuite/pulsating_binary/pulsating_binary.py',
+                  'phoebe-testsuite/pulsating_binary/pulsating_binary2.py',
+                  'phoebe-testsuite/pulsating_rotating/pulsating_rotating.py',
+                  'phoebe-testsuite/beaming/KPD1946+4340.py',
+                  'phoebe-testsuite/example_systems/example_systems.py',
+                  'phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py',
+                  'phoebe-testsuite/occulting_dark_sphere/transit_colors.py']
+    
+    for pythonfile in test_suite:
+        python_to_sphinx(pythonfile,type='testsuite.',latex=False)
+    python_to_sphinx('phoebe-doc/scripts/how_to_binary.py',type='',latex=False)
+    
+    subprocess.call('sphinx-apidoc -f -o phoebe-doc phoebe',shell=True)
+    os.chdir('phoebe-doc')
+    subprocess.call('make html',shell=True)
+    
+    if 'pdf' in sys.argv[1:]:
+        os.chdir('..')
+        for pythonfile in test_suite:
+            python_to_sphinx(pythonfile,type='testsuite.',latex=True)
+        os.chdir('phoebe-doc')
+        subprocess.call('make latexpdf',shell=True)
+        shutil.copy('_build/latex/phoebe.pdf','_build/html/phoebe.pdf')
+    
+    if 'copy' in sys.argv[1:]:
+         subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
+         #subprocess.call('scp -r _build/html/* clusty.ast.villanova.edu:srv/www/phoebe/docs',shell=True)

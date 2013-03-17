@@ -445,34 +445,21 @@ def get_limbdarkening(atm,atm_kwargs={},red_kwargs={},vgamma=0,\
     
     You choose your own reddening function.
     
-    See e.g. Heyrovsky et al., 2007
+    See e.g. [Heyrovsky2007]_
     
-    If you specify one angle (mu in radians), it will take the closest match
+    If you specify one angle (:math:`\mu` in radians), it will take the closest match
     from the grid.
     
-    Mu = cos(theta) where theta is the angle between the surface and the line
-    of sight. mu=1 means theta=0 means center of the star.
+    :math:`\mu = \cos(\\theta)` where :math:`\\theta` is the angle between the
+    surface and the line of sight. :math:`\mu=1` means :math:`\\theta=0` means
+    center of the star.
     
     Example usage:
     
     >>> teff,logg = 5000,4.5
     >>> mu,intensities = get_limbdarkening(teff=teff,logg=logg,photbands=['JOHNSON.V'])
 
-    @keyword teff: effective temperature
-    @type teff: float
-    @keyword logg: logarithmic gravity (cgs)
-    @type logg: float
-    @keyword system: bandpass system
-    @type system: string
-    @keyword photbands: bandpass filters
-    @type photbands: list of strings
-    @keyword ebv: reddening coefficient
-    @type ebv: float
-    @keyword vrad: radial velocity (+ is redshift, - is blueshift)
-    @type vrad: float
-    @keyword mu: specificy specific angle
-    @type mu: float
-    @return: mu angles, intensities
+    @return: :math:`\mu` angles, intensities
     @rtype: array,array
     """
     #-- retrieve model atmosphere for a given teff and logg
@@ -1159,8 +1146,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
     @type system: Body or derivative class
     @param los: line-of-sight vector. Best leave it at the default
     @type los: list of three floats
-    @param method: flag denoting type of calculation: numerical or analytical
-    approximation
+    @param method: flag denoting type of calculation: numerical or analytical approximation
     @type method: str ('numerical' or 'analytical')
     @param ld_func: limb-darkening model
     @type ld_func: str
@@ -1215,8 +1201,7 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
     @type system: Body or derivative class
     @param los: line-of-sight vector. Best leave it at the default
     @type los: list of three floats
-    @param method: flag denoting type of calculation: numerical or analytical
-    approximation
+    @param method: flag denoting type of calculation: numerical or analytical approximation
     @type method: str ('numerical' or 'analytical')
     @param ld_func: limb-darkening model
     @type ld_func: str

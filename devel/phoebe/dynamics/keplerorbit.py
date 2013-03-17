@@ -603,11 +603,9 @@ def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False
     
     @param bary_times: barycentric time coordinates
     @type bary_times: float or array
-    @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit}
-    context
+    @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit} context
     @type orbits: list of ParameterSets of length N
-    @param comps: list of integers denoting which component (0 for primary,
-    1 for secondary) the object is for each orbit
+    @param comps: list of integers denoting which component (0 for primary, 1 for secondary) the object is for each orbit
     @type comps: list of integers
     @return: proper times, position vector, velocity vector, Euler angles
     @rtype: 3-tuple, 3-tuple, array/float
