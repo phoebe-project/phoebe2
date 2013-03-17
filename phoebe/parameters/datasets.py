@@ -541,10 +541,12 @@ def parse_header(filename):
     #-- create a default pbdep and DataSet
     contexts = dict(rv='rvdep',
                     phot='lcdep',lc='lcdep',
-                    spec='spdep',lprof='spdep')
+                    spec='spdep',lprof='spdep',
+                    vis='ifdep')
     dataset_classes = dict(rv=RVDataSet,
                            phot=LCDataSet,lc=LCDataSet,
-                           spec=SPDataSet,lprof=SPDataSet)
+                           spec=SPDataSet,lprof=SPDataSet,
+                           vis=IFDataSet)
     ext = filename.split('.')[-1]
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
@@ -1441,7 +1443,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
     ds.unload()
     return [ds],[pb]
     
-def parse_vis(filenames,columns=None,full_output=False,**kwargs):
+def parse_vis(filename,columns=None,full_output=False,**kwargs):
     """
     Parse VIS files to IFDataSets and ifdeps.
     
@@ -1450,14 +1452,15 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     The generic structure of a VIS file is::
         
         # atm = kurucz
-        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
-        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
-        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
-         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
-        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
+        # passband = 2MASS.KS
+        -7.779     7.980  0.932 0.047   56295.0550
+        -14.185    0.440  0.808 0.040   56295.0550
+        -29.093  -15.734  0.358 0.018   56295.0551
+         -6.406   -7.546  0.957 0.048   56295.0552
+        -21.314  -23.720  0.598 0.030   56295.0534
 
     
-    The columns represent respectively the **U-coordinate, V-coordinate, vis, sigma_vis, passband, time**.
+    The columns represent respectively the **U-coordinate, V-coordinate, vis, sigma_vis, time**.
     An attempt will be made to interpret the comment lines (i.e. those lines
     where the first character equals '#') as qualifier/value for either the
     :ref:`ifobs <parlabel-phoebe-ifobs>` or :ref:`ifdep <parlabel-phoebe-ifdep>`.
@@ -1465,11 +1468,11 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     in there (though with caution), or comment out data lines if you don't
     want to use them. The comments are optional. So this is also allowed::
     
-        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
-        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
-        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
-         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
-        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
+        -7.779     7.980  0.932 0.047  56295.0550
+        -14.185    0.440  0.808 0.040  56295.0550
+        -29.093  -15.734  0.358 0.018  56295.0551
+         -6.406   -7.546  0.957 0.048  56295.0552
+        -21.314  -23.720  0.598 0.030  56295.0534
         
     The only way in which you are allowed to deviate from this structure, is
     by specifying column names, followed by a comment line of dashes (there
@@ -1477,16 +1480,17 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     
         # atm = kurucz
         # fittransfo = log
-        # ucoord  vcoord  vis  sigma_vis passband time
+        # passband = 2MASS.KS
+        # ucoord  vcoord  vis  sigma_vis time
         #---------------------------------------------
-        -7.779     7.980  0.932 0.047 2MASS.KS  56295.0550
-        -14.185    0.440  0.808 0.040 2MASS.KS  56295.0550
-        -29.093  -15.734  0.358 0.018 2MASS.KS  56295.0551
-         -6.406   -7.546  0.957 0.048 2MASS.KS  56295.0552
-        -21.314  -23.720  0.598 0.030 2MASS.KS  56295.0534
+        -7.779     7.980  0.932 0.047 56295.0550
+        -14.185    0.440  0.808 0.040 56295.0550
+        -29.093  -15.734  0.358 0.018 56295.0551
+         -6.406   -7.546  0.957 0.048 56295.0552
+        -21.314  -23.720  0.598 0.030 56295.0534
     
     In the latter case, you are allowed to omit any column except for ``ucoord``
-    ``vcoord``, ``vis``, ``sigma_vis`` and ``passband``, which are required.
+    ``vcoord``, ``vis`` and ``sigma_vis``, which are required.
     If not given, the default ``time`` is zero.
         
     
@@ -1523,7 +1527,7 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     file called ``myfile.vis``, you can do (the following lines are equivalent):
     
     >>> obs,pbdeps = parse_vis('myfile.vis')
-    >>> obs,pbdeps = parse_vis('myfile.vis',columns=['passband','flux','sigma','unit','time'])
+    >>> obs,pbdeps = parse_vis('myfile.vis',columns=['ucoord','vcoord','vis','sigma_vis','time'])
     
     Which is in this case equivalent to:
     
@@ -1540,20 +1544,13 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     >>> meshpars = parameters.ParameterSet(context='mesh:marching')
     >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
     
-    The last example contains labels, so the full output is always given.
-    Assume the contents of the last file is stored in ``myfile2.phot``:
-    
-    >>> output = parse_phot('myfile2.phot')
-    >>> obs1,pbdeps1 = output['starA']
-    >>> obs2,pbdeps2 = output['starB']
-    
     @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
     @type filenames: list or string
     @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
     @type columns: None or list of strings
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
-    @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
+    @return: (list of :ref:`lcobs <parlabel-phoebe-ifobs>`, list of :ref:`ifdep <parlabel-phoebe-ifdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
     """
     #-- which columns are present in the input file, and which columns are
     #   possible in the LCDataSet? The columns that go into the LCDataSet
@@ -1563,11 +1560,11 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
     
     if columns is None:
-        columns_in_file = ['ucoord','vcoord','vis','sigma_vis','passband','time']
+        columns_in_file = ['ucoord','vcoord','vis','sigma_vis','time']
     else:
         columns_in_file = columns
-    columns_required = ['ucoord','vcoord','vis','sigma_vis','passband']
-    columns_specs = dict(passband=str,ucoord=float,vcoord=float,sigma_vis=float,
+    columns_required = ['ucoord','vcoord','vis','sigma_vis']
+    columns_specs = dict(ucoord=float,vcoord=float,sigma_vis=float,
                          time=float,unit=str,vis=float,phase=float,sigma_phase=float)
     
     missing_columns = set(columns_required) - set(columns_in_file)
@@ -1577,7 +1574,7 @@ def parse_vis(filenames,columns=None,full_output=False,**kwargs):
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
-    components = OrderedDict()
+    output = OrderedDict()
     Ncol = len(columns_in_file)
     
     #-- collect all data

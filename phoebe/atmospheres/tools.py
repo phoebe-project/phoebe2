@@ -100,23 +100,23 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
     Limb darkening law is linear, default value is epsilon=0.6
     
     Possibility to normalize as well by giving continuum in 'cont' parameter.
-    
-    B{Warning}: C{method='python'} is still experimental, but should work.
-    
-    Section 1. Parameters for rotational convolution 
-    ================================================
+        
+    **Parameters for rotational convolution**
 
     C{VROT}: v sin i (in km/s):
     
-        -  if VROT=0 - rotational convolution is 
-                 a) either not calculated,
-                 b) or, if simultaneously FWHM is rather large
-                 (vrot/c*lambda < FWHM/20.),
-                 vrot is set to  FWHM/20*c/lambda;
-        -  if VROT >0 but the previous condition b) applies, the
-        value of VROT is changed as  in the previous case
-        -  if VROT<0 - the value of abs(VROT) is used regardless of
-        how small compared to FWHM it is
+        -  if ``VROT=0`` - rotational convolution is 
+        
+                 - either not calculated,
+                 - or, if simultaneously FWHM is rather large
+                   (:math:`v_\mathrm{rot}\lambda/c < \mathrm{FWHM}/20.`),
+                   :math:`v_\mathrm{rot}` is set to  :math:`\mathrm{FWHM}/20\cdot c/\lambda`;
+        
+        -  if ``VROT >0`` but the previous condition b) applies, the
+           value of VROT is changed as  in the previous case
+        
+        -  if ``VROT<0`` - the value of abs(VROT) is used regardless of
+           how small compared to FWHM it is
      
     C{CHARD}: characteristic scale of the variations of unconvolved stellar
     spectrum (basically, characteristic distance between two neighbouring
@@ -127,28 +127,29 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
     C{STEPR}: wavelength step for evaluation rotational convolution;
      
         - if =0, the program sets up default (the wavelength
-        interval corresponding to the rotational velocity
-        devided by 3.)                           
+          interval corresponding to the rotational velocity
+          devided by 3.)                           
+    
         - if <0, convolved spectrum calculated on the original
-        (detailed) SYNSPEC wavelength mesh
+          (detailed) SYNSPEC wavelength mesh
 
 
-    Section 2. parameters for instrumental convolution
-    ==================================================
+    **Parameters for instrumental convolution**
 
     C{FWHM}: WARNING: this is not the full width at half maximum for Gaussian
     instrumental profile, but the sigma (FWHM = 2.3548 sigma).
     
     C{STEPI}: wavelength step for evaluating instrumental convolution
-          - if =0, the program sets up default (FWHM/10.)
-          - if <0, convolved spectrum calculated with the previous
-          wavelength mesh:
-          either the original (SYNSPEC) one if vrot=0,
-          or the one used in rotational convolution (vrot > 0)
+          
+          - if STEPI=0, the program sets up default (FWHM/10.)
+          
+          - if STEPI<0, convolved spectrum calculated with the previous
+            wavelength mesh:
+            either the original (SYNSPEC) one if vrot=0,
+            or the one used in rotational convolution (vrot > 0)
 
 
-    Section 3. wavelength interval and normalization of spectra
-    ===========================================================
+    **Wavelength interval and normalization of spectra**
 
     C{ALAM0}: initial wavelength
     C{ALAM1}: final wavelength

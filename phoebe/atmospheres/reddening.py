@@ -111,17 +111,21 @@ def get_law(name,passbands=None,**kwargs):
     this module.
     
     By default, the law will be interpolated on a grid from 100 angstrom to
-    10 micron in steps of 10 angstrom. This can be adjusted with the parameter
+    10 :math:`\mu`m in steps of 10 :math:`\AA`. This can be adjusted with the parameter
     C{wave} (array), which B{must} be in angstrom. You can change the units
     ouf the returned wavelength array via C{wave_units}.
     
     By default, the curve is normalised with respect to E(B-V) (you get
-    A(l)/E(B-V)). You can set the C{norm} keyword to Av if you want A(l)/Av.
+    :math:`A(\lambda)/E(B-V)`). You can set the C{norm} keyword to :math:`A_V`
+    if you want :math:`A(\lambda)/A_V`.
+    
     Remember that
     
-    A(V) = Rv * E(B-V)
+    ..math::
+        
+        A(V) = R_V E(B-V)
     
-    The parameter C{Rv} is by default 3.1, other reasonable values lie between
+    The parameter :math:`R_V` is by default 3.1, other reasonable values lie between
     2.0 and 5.1
     
     Extra accepted keywords depend on the type of reddening law used.
@@ -135,7 +139,7 @@ def get_law(name,passbands=None,**kwargs):
     @type name: str, one of the functions defined here
     @param passbands: list of photometric passbands
     @type passbands: list of strings
-    @keyword wave: wavelength array to interpolate the law on
+    @param wave: wavelength array to interpolate the law on
     @type wave: array
     @return: wavelength, reddening magnitude
     @rtype: (array,array)

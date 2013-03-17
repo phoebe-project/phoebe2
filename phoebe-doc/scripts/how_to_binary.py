@@ -429,7 +429,7 @@ The results are easily retrieved and plotted as before.
 
 """
 
-lightcurve = system.get_synthetic(type='lcsyn',ref=0,cumulative=True)
+lightcurve = system.get_synthetic('lc',ref=0,cumulative=True)
 
 import matplotlib.pyplot as plt
 

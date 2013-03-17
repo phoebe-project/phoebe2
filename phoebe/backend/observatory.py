@@ -294,6 +294,7 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
         hdu.header.update('CUNIT2',' ','should be deg, but is rad')
        
         hdulist = pyfits.HDUList([hdu])
+        if os.path.isfile(savefig): os.unlink(savefig)
         hdulist.writeto(savefig)
         hdulist.close()
     
@@ -480,8 +481,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
     You can get the normalised spectrum by dividing the spectrum with the
     continuum.
     
-    @param wavelengths: predefined array or list with 3 elements (central
-    wavelength (angstrom), range in km/s and number of wavelength points.
+    @param wavelengths: predefined array or list with 3 elements (central wavelength (angstrom), range in km/s and number of wavelength points.
     @param sigma: intrinsic width of the Gaussian profile in km/s
     @type sigma: float
     """
@@ -634,7 +634,8 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     visible stellar hemisphere.
 
     In practice, you loop over each grid point (l) and over each wavelength
-    point (i) and you calculate:
+    point (i) and you calculate::
+    
           delta = a*g*b(l)*So(i,1,l)*So(i,1,l)
           Sp(i,2,l) = (So(i,2,l)*(step-delta)+So(i+1,2,l)*delta)/step
           Sm(i,2,l) = (So(i,2,l)*(step-delta)+So(i-1,2,l)*delta)/step
@@ -642,11 +643,13 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     where So is the I spectrum, Sp and Sm are the plus (right) and minus(left)
     shifted profiles.
 
-    Then the local Stokes V is:
+    Then the local Stokes V is::
+    
           StV(i,2,l) = 0.5d0*(Sm(i,2,l) - Sp(i,2,l))*cos(gamma(l))
 
-    Then you integrate over the stellar disk :
-           StVint(i,2) = StVint(i,2) + StV(i,2,l) * Aproj * clight / So(i,1,l) / So(i,1,l)
+    Then you integrate over the stellar disk::
+    
+        StVint(i,2) = StVint(i,2) + StV(i,2,l) * Aproj * clight / So(i,1,l) / So(i,1,l)
     """
     
     mesh = the_system.mesh
@@ -746,8 +749,7 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
             #specp = pri/1e6*sz*(1.00 - depth*np.exp( -(wavelengths-delta_wl_zeemanp)**2/(2*sigma**2)))
             
             # third attempt
-            delta_nu_zeeman = iB#-glande*constants.qe*iB/(4*np.pi*constants.me)
-            print delta_nu_zeeman,iB
+            delta_nu_zeeman = -glande*constants.qe*iB/(4*np.pi*constants.me)
             template = 1.00 - depth*np.exp( -(mynu+delta_nu_zeeman)**2/(2*sigma**2))
             spec = pri*sz*(1.00 - depth*np.exp( -(mynu)**2/(2*sigma**2)))
             specm = pri*sz*(1.00 - depth*np.exp( -(mynu-delta_nu_zeeman)**2/(2*sigma**2)))

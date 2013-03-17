@@ -2567,8 +2567,8 @@ class BodyBag(Body):
                 keep = np.abs(times-time)<1e-8
                 output = observatory.ifm(self,posangle=posangle[keep],
                                      baseline=baseline[keep],
-                                     #ref=lbl,keepfig=False)
-                                     ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                                     ref=lbl,keepfig=False)
+                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
                 ifsyn['time'] += [time]*len(output[0])
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
@@ -2816,8 +2816,8 @@ class AccretionDisk(PhysicalBody):
         
     
     def temperature(self):
-        """
-        Temperature is calculated according to Wood et al., 1992, ApJ.
+        r"""
+        Temperature is calculated according to [Wood1992]_
         
         .. math::
         
@@ -2825,10 +2825,10 @@ class AccretionDisk(PhysicalBody):
         
         An alternative formula might be from Frank et al. 1992 (p. 78):
         
-            Teff4 = W**0.25 * 3GG*Mwd*Mdot / (8 pi r**3 *sigma) * (1-sqrt(Rstar/r))
-                    * (r/Rstar)**(0.25*beta)
+        .. math::
+            T_\mathrm{eff}r)^4 = \frac{W^{0.25} 3G M_\mathrm{wd} \dot{M}}{8 \pi r^3 \sigma}  (1-\sqrt{\frac{R_*}{r}}) \left(\frac{r}{R_*}\right)^{0.25\beta}
         
-        with beta=-0.75 and W=1.0 for the standard model.
+        with :math:`\beta=-0.75` and :math:`W=1.0` for the standard model.
         """
         r = coordinates.norm(self.mesh['_o_center'],axis=1)*constants.Rsol
         Mdot = self.params['disk'].get_value('mdot','kg/s')

@@ -88,8 +88,7 @@ def merge_synthetic(list_of_bodies):
     
     Could be useful for MPI stuff.
     
-    @param list_of_bodies: a list of bodies for which the results need to be
-    merged
+    @param list_of_bodies: a list of bodies for which the results need to be merged
     @type list_of_bodies: list of Bodies
     @return: the first body but with the results of all the others added
     @rtype: Body

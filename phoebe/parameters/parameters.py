@@ -989,7 +989,8 @@ class Parameter(object):
         >>> print(prior)
         {'upper': 0.0, 'distribution': 'uniform', 'lower': -1}
         
-        Or you can later on change the prior information:
+        Or you can change the prior information later on:
+        
         >>> mypar.set_prior(distribution='normal',mu=5,tau=1./1**2)
         
         """
@@ -1340,7 +1341,7 @@ class ParameterSet(object):
     
     #{ Initialisation    
     
-    def __init__(self,definitions='default',frame=None,context=None,add_constraints=True,**kwargs):
+    def __init__(self,context=None,frame=None,definitions='default',add_constraints=True,**kwargs):
         """
         Initialisation of the WD parameter set class.
         
