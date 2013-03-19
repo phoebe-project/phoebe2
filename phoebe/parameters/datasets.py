@@ -424,6 +424,9 @@ class SPDataSet(DataSet):
         if loaded:
             self.unload()
 
+class PLDataSet(SPDataSet):
+    pass
+
 
 class IFDataSet(DataSet):
     """

@@ -378,6 +378,7 @@ def _parse_pbdeps(body,pbdep):
     result_sets = dict(lcdep=datasets.LCDataSet,
                        rvdep=datasets.RVDataSet,
                        spdep=datasets.SPDataSet,
+                       pldep=datasets.PLDataSet,
                        ifdep=datasets.IFDataSet)
     #-- pbdep have to be given!
     if not pbdep:
@@ -440,6 +441,7 @@ def _parse_obs(body,data):
     result_sets = dict(lcobs=datasets.LCDataSet,
                        rvobs=datasets.RVDataSet,
                        spobs=datasets.SPDataSet,
+                       plobs=datasets.PLDataSet,
                        ifobs=datasets.IFDataSet)
     #-- data needs to be a list. If not, make it one
     if not isinstance(data,list):
@@ -3081,7 +3083,10 @@ class Star(PhysicalBody):
             r_ *= r
         m_ = np.array([np.sin(beta),0.,np.cos(beta)])
         dotprod = np.dot(m_,r_.T).reshape(-1,1)
-        B = Bpolar*(dotprod*r_/r**5 - m_/3./r**3)
+        B = (dotprod*r_/r**5 - m_/3./r**3)
+        nB = coordinates.norm(B,axis=1).max()
+        B = B/nB*Bpolar
+        nB = coordinates.norm(B,axis=1)
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
     

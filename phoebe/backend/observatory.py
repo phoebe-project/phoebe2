@@ -141,7 +141,7 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
         vmax_ = 1
     else:
         if select=='rv':
-            values = -mesh['velo___bol_'][:,2]
+            values = -mesh['velo___bol_'][:,2]*8.049861
         elif select=='intensity':
             values = mesh['ld_'+ref+'_'][:,-1]
         elif select=='proj2':
@@ -232,6 +232,7 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     ax.set_ylim(offset_y-margin-lim_max/2.0,offset_y+lim_max/2.0+margin)
     ax.set_xticks([])
     ax.set_yticks([])
+    pl.box(on=False)
     
     #-- compute Fourier transform of image
     if fourier:
@@ -461,7 +462,7 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
            angular_scale_out,angular_profile_out
 
             
-def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
+def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=True):
     """
     Compute the spectrum of a system.
     
@@ -617,8 +618,8 @@ def make_spectrum(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=T
         total_continum = total_continum[keep]
     return wavelengths,total_spectrum,total_continum
 
-def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
-    """
+def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_grav=True):
+    r"""
     Calculate the stokes profiles.
     
     What you need to do is to calculate the Zeeman effect, i.e. the shift
@@ -632,32 +633,58 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     the projected area) for each point on your star. That will allow you to
     calculate the local Stokes V profile, and then you integrate over the
     visible stellar hemisphere.
-
-    In practice, you loop over each grid point (l) and over each wavelength
-    point (i) and you calculate::
     
-          delta = a*g*b(l)*So(i,1,l)*So(i,1,l)
-          Sp(i,2,l) = (So(i,2,l)*(step-delta)+So(i+1,2,l)*delta)/step
-          Sm(i,2,l) = (So(i,2,l)*(step-delta)+So(i-1,2,l)*delta)/step
+    This is what I do in this simplest version (Gaussian profiles, no rotation):
     
-    where So is the I spectrum, Sp and Sm are the plus (right) and minus(left)
-    shifted profiles.
-
-    Then the local Stokes V is::
+    First, I compute the Zeeman splitting:
     
-          StV(i,2,l) = 0.5d0*(Sm(i,2,l) - Sp(i,2,l))*cos(gamma(l))
-
-    Then you integrate over the stellar disk::
+    .. math::
     
-        StVint(i,2) = StVint(i,2) + StV(i,2,l) * Aproj * clight / So(i,1,l) / So(i,1,l)
+        \Delta\nu_\mathrm{zeeman} = \frac{-g_lq_eB}{4\pi m_e}\quad \mathrm{[Hz]}
+        
+    with math:`g_l` the Lande factor, and :math:`q_e` and :math:`m_e` the fundamental electron charge and mass.
+    Next, I compute a simple Gaussian line profile for each surface element
+    :math:`i` (:math:`G^0_i(\lambda,0,\sigma)`), which contributes to the
+    Stokes I profile, and the two shifted profiles :math:`G^+_i(\lambda,+\Delta\lambda_\mathrm{zeeman},\sigma)`,
+    and :math:`G^-_i(\lambda,-\Delta\lambda_\mathrm{zeeman},\sigma)` for the
+    computation of the Stokes V profile.
+    
+    The Stokes I profile is simply the sum of all the :math:`G^0_i` contributions:
+    
+    .. math::
+    
+        I = \sum_i A_iI_{\mu,\lambda} G^0_i
+    
+    Here :math:`A_i` is the area of the ith surface element, and
+    :math:`I_{\mu,\lambda}` is the projected intensity of the ith surface element.
+    The Stokes V profile is computed as
+    
+    .. math::
+    
+        V = \sum_i A_iI_{\mu,\lambda} \cos\theta (G^-_i-G^+_i)
+    
+    with
+    
+    .. math::
+        
+        \cos\theta = \frac{\vec{B}\cdot\vec{s}}{Bs}
+        
+    and :math:`s` the line-of-sight vector (which is in the minus Z-direction).
+    Thus the latter is equivalent to
+    
+    .. math::
+        
+        \cos\theta = \frac{\vec{B}\cdot\vec{B_z}}{B B_z}
+    
     """
     
     mesh = the_system.mesh
     
     #-- information on dependable set
-    idep,ref = the_system.get_parset(ref=ref,context='spdep')
+    idep,ref = the_system.get_parset(ref=ref,context='pldep')
     ld_model = idep['ld_func']
     method = idep['method']
+    glande = idep['glande']
     keep = the_system.mesh['mu']<=0
     #-- create the wavelength array from the information of the spdep: we use
     #   central wavelength, velocity range and spectral resolving power.
@@ -666,7 +693,7 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     #   afterwards if needed. If you give wavelengths yourself, you need to
     #   take this into account yourself.
     clip_after = None
-    logger.info('Computing spectrum of {}'.format(ref))
+    logger.info('Computing spectropolarimetry of {}'.format(ref))
     if wavelengths is None:
         wc = idep.get_value('clambda','AA')
         vl = idep.get_value_with_unit('max_velo')
@@ -696,106 +723,90 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,rv_grav=True):
     the_system.projected_intensity(ref=ref,method='numerical')
     keep = the_system.mesh['proj_'+ref]>0
     if not np.sum(keep):
-        logger.info('no spectrum synthesized, zero flux received')
+        logger.info('no spectropolarimetry synthesized, zero flux received')
         return wavelengths,np.zeros(len(wavelengths)),0.
     
-    if method=='numerical':
+    #-- magnitude of magnetic field and angle towards the LOS
+    mesh['B_'] = mesh['B_']*1e-4 # convert to Tesla
+    B = coordinates.norm(mesh['B_'][keep],axis=1)
+    cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,+1]]),axis=1)
+    #-- Zeeman splitting in angstrom
+    delta_nu_zeemans = -glande*constants.qe*B/(4*np.pi*constants.me)
+    delta_v_zeemans = (wc*1e-10)*delta_nu_zeemans/1000. # from cy/s to km/s
+    #-- radial velocities
+    rad_velos = -the_system.mesh['velo___bol_'][keep,2]
+    rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
+        
+        
+    
+    if method=='numerical' and not idep['profile']=='gauss':
+        #-- get limb angles
+        mus = the_system.mesh['mu']
+        keep = (mus>0) & (the_system.mesh['partial'] | the_system.mesh['visible'])# & -np.isnan(self.mesh['size'])
+        mus = mus[keep]
+        #-- negating the next array gives the partially visible things, that is
+        #   the only reason for defining it.
+        visible = the_system.mesh['visible'][keep]
+        #-- compute normalised intensity using the already calculated limb darkening
+        #   coefficents. They are normalised so that center of disk equals 1. Then
+        #   these values are used to compute the weighted sum of the spectra.
+        logger.info('using limbdarkening law {} - spectropolarimetry interpolated from grid {}'.format(ld_model,idep['profile']))
+        Imu = getattr(limbdark,'ld_%s'%(ld_model))(mus,the_system.mesh['ld_'+ref][keep].T)
+        teff,logg = the_system.mesh['teff'][keep],the_system.mesh['logg'][keep]
+        #-- fitters can go outside of the grid
+        try:
+            spectra = modspectra.interp_spectable(idep['profile'],teff,logg,wavelengths)
+        except IndexError:
+            logger.error('no spectropolarimetry synthesized (outside of grid ({}<=teff<={}, {}<=logg<={}), zero flux received'.format(teff.min(),teff.max(),logg.min(),logg.max()))
+            return wavelengths,np.zeros(len(wavelengths)),0.
+    
+        proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
+        logger.info('synthesizing spectropolarimetry using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
+
+        total_continum = 0.
+        total_I = 0.
+        total_V = 0.
+        #-- gravitational redshift:
+        if rv_grav:
+            rv_grav = 0#generic.gravitational_redshift(the_system)
+        for i,rv in enumerate(rad_velos):
+            rvz = delta_v_zeemans[i]
+            total_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
+            total_continum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=proj_intens[:,i])
+            
+            specm = tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=spectra[0,:,i]*proj_intens[:,i])
+            specp = tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=spectra[0,:,i]*proj_intens[:,i])
+            stokes_I += spec
+            stokes_V += cos_theta[i]*(specm-specp)
+            
+    elif method=='numerical':
         #-- derive intrinsic width of the profile
         sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
-        rad_velos = the_system.mesh['velo___bol_'][keep,2]
-        rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
         sizes = the_system.mesh['size'][keep]
-        logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
+        logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
         stokes_I = 0.
         stokes_V = 0.
-        B = coordinates.norm(mesh['B_'][keep],axis=1)*1e-4
-        cos_theta = fgeometry.cos_theta(mesh['B_'][keep],[0,0,+1])
-        #cos_theta = np.abs(mesh['B_'][keep,2]*1e-4/B)
-        
-        glande = 1.
-        glande = 5.
         #-- gravitational redshift:
-        dzeemans = []
-        specM = 0.
-        specP = 0.
-        specmc = []
-        specpc = []
-        index = int(len(wavelengths)/2.)
-        print len(wavelengths)
         if rv_grav:
-            rv_grav = generic.gravitational_redshift(the_system)
-        mynu = np.linspace(-20,20,1000.)
-        index = int(len(mynu)/2.)
-        for pri,rv,sz,iB,costh in zip(proj_intens,rad_velos,sizes,B,cos_theta):
-            #-- Doppler shift spectral line
-            #delta_doppler = rv+rv_grav
-            #spec = pri*sz*utils.doppler_shift(wavelengths,delta_doppler,flux=template)
-            #-- Zeeman shift the spectral line to the right and to the left:
-            #delta_nu_zeeman = -glande*constants.qe*iB/(4*np.pi*constants.me)
-            #delta_zeeman = (wc*1e-10)*delta_nu_zeeman/1000. # from cy/s to km/s
-            #dzeemans.append(delta_zeeman)
-            #specm = pri*sz*utils.doppler_shift(wavelengths,delta_doppler+delta_zeeman,flux=template)
-            #specp = pri*sz*utils.doppler_shift(wavelengths,delta_doppler-delta_zeeman,flux=template)
-            
-            # second attempt
-            #delta_wl_zeemanp = conversions.convert('km/s','AA',+delta_zeeman,wave=(wc,'AA'))
-            #delta_wl_zeemanm = conversions.convert('km/s','AA',-delta_zeeman,wave=(wc,'AA'))
-            #spec = pri/1e6*sz*(1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2)))
-            #specm = pri/1e6*sz*(1.00 - depth*np.exp( -(wavelengths-delta_wl_zeemanm)**2/(2*sigma**2)))
-            #specp = pri/1e6*sz*(1.00 - depth*np.exp( -(wavelengths-delta_wl_zeemanp)**2/(2*sigma**2)))
-            
-            # third attempt
-            delta_nu_zeeman = -glande*constants.qe*iB/(4*np.pi*constants.me)
-            template = 1.00 - depth*np.exp( -(mynu+delta_nu_zeeman)**2/(2*sigma**2))
-            spec = pri*sz*(1.00 - depth*np.exp( -(mynu)**2/(2*sigma**2)))
-            specm = pri*sz*(1.00 - depth*np.exp( -(mynu-delta_nu_zeeman)**2/(2*sigma**2)))
-            specp = pri*sz*(1.00 - depth*np.exp( -(mynu+delta_nu_zeeman)**2/(2*sigma**2)))
-            
+            rv_grav = 0#generic.gravitational_redshift(the_system)
+        #rad_velos = conversions.convert('km/s','AA',rad_velos,wave=(wc,'AA'))-wc
+        for i,(pri,rv,sz,iB,costh) in enumerate(zip(proj_intens,rad_velos,sizes,B,cos_theta)):
+            rvz = delta_v_zeemans[i]
+            spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
+            specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
+            specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)            
             #-- angle between the light of sight and the magnetic field
             stokes_I += spec
             stokes_V += costh*(specm-specp)
-            specM += costh*specm
-            specP += costh*specp
             total_continum += pri*sz
-            specmc.append(costh*specm[index])
-            specpc.append(costh*specp[index])
-        print sum(np.array(specmc)-np.array(specpc))        
-        pl.figure()
-        pl.subplot(331,aspect='equal');pl.title('costheta')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=cos_theta,edgecolors='none')
-        pl.colorbar()
-        pl.subplot(332,aspect='equal');pl.title('proj_intens')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=proj_intens,edgecolors='none')
-        pl.colorbar()
-        pl.subplot(333,aspect='equal');pl.title('m-p')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=np.array(specmc)-np.array(specpc),edgecolors='none')
-        pl.colorbar()
-        pl.subplot(334,aspect='equal')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=sizes,edgecolors='none')
-        pl.colorbar()
-        pl.subplot(335,aspect='equal')
-        #pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=np.array(dzeemans),edgecolors='none')
-        #pl.colorbar()
-        pl.subplot(336)
-        pl.plot(mynu,specM,'b-')
-        pl.plot(mynu,specP,'r-')
-        pl.subplot(337,aspect='equal')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=np.array(specmc),edgecolors='none')
-        pl.colorbar()
-        pl.subplot(338,aspect='equal')
-        pl.scatter(mesh['center'][keep,0],mesh['center'][keep,1],c=np.array(specpc),edgecolors='none')
-        pl.colorbar()
-        pl.subplot(339)
-        pl.plot(mynu,stokes_V,'k-')
-        pl.show()
-        logger.info("Zeeman splitting: between {} and {} AA".format(min(dzeemans),max(dzeemans)))
+        logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
     else:
         raise NotImplementedError
-    if clip_after is not None:
+    #f clip_after is not None:
         keep = (clip_after[0]<=wavelengths) & (wavelengths<=clip_after[1])
         wavelengths = wavelengths[keep]
         stokes_I = stokes_I[keep]
