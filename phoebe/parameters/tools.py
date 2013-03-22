@@ -4,6 +4,7 @@ Tools to handle parameters and ParameterSets.
 .. autosummary::
     
     add_asini
+    add_vsini
     add_rotfreqcrit
     add_solarosc
     add_solarosc_Deltanu0
@@ -139,6 +140,60 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
    
+def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
+    r"""
+    Add the vsini to a Star.
+    
+    The rotation period will then be constrained by the vsini of the star
+    
+    .. math::
+    
+        \mathrm{rotperiod} = \frac{2\pi R}{v\sin i} \sin i
+    
+    or the inclination angle
+    
+    .. math::
+    
+        \mathrm{incl} = np.arcsin(\frac{P v\sin i}{2\pi R})
+    
+    or the stellar radius
+    
+    .. math::
+    
+        \mathrm{radius} = \frac{P v\sin i}{2\pi \sin i}
+    
+    
+    Extra C{kwargs} will be passed to the creation of the parameter if it does
+    not exist yet.
+   
+    Other contraints on rotation period will be removed.
+   
+    @param star: star parameterset
+    @type star: ParameterSet of context star
+    @param vsini: value for the projected equatorial rotation velocity
+    @type vsini: float
+    """
+    if not derive=='rotperiod':
+        raise NotImplementedError
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('description','Projected equatorial rotation velocity')
+    kwargs.setdefault('llim',0)
+    kwargs.setdefault('ulim',1000.)
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('frame','phoebe')
+    
+    star.pop_constraint('vsini',None)
+    star.pop_constraint('rotperiodcrit',None)
+    star.pop_constraint('rotperiod',None)
+    star.pop('rotperiodcrit',None)
+    if not 'vsini' in star:
+        star.add(parameters.Parameter(qualifier='vsini',
+                                      value=vsini,**kwargs))
+    else:
+        star['vsini'] = vsini
+    star.add_constraint('{rotperiod} = 2*np.pi*{radius}/{vsini}*np.sin({incl})')
+    logger.info("star '{}': 'rotperiod' constrained by 'vsini'".format(star['label']))
     
 def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     """

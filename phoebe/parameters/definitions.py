@@ -278,7 +278,7 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='sigma_vis', description='Error on visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='phase',   description='Phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='sigma_phase',   description='Error on phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis','phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis','sigma_vis','phase','sigma_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
         ]
 

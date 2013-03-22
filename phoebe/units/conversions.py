@@ -507,7 +507,6 @@ import logging
 import urllib
 import numpy as np
 from scipy.optimize import newton,brent
-import pytz
 import datetime
 
 #-- optional libraries: WARNING: when these modules are not installed, the

@@ -23,6 +23,7 @@ from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
 from phoebe.utils import coordinates
+from phoebe.utils import utils
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.parameters import parameters
@@ -232,7 +233,7 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     ax.set_ylim(offset_y-margin-lim_max/2.0,offset_y+lim_max/2.0+margin)
     ax.set_xticks([])
     ax.set_yticks([])
-    pl.box(on=False)
+    #pl.box(on=False)
     
     #-- compute Fourier transform of image
     if fourier:
@@ -356,8 +357,9 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     dpc = conversions.convert('Rsol','pc',d)
         
     for nr,(bl,pa) in enumerate(zip(baseline,posangle)):        
-        #pa = 90.-pa
+        
         if keepfig:
+            xlims,ylims,p = image(the_system,ref=ref,savefig='{}_{:05d}.fits'.format(keepfig,nr))
             xlims,ylims,p = image(the_system,ref=ref)
             pl.gca().set_autoscale_on(False)
             #-- add the baseline on the figure
@@ -372,11 +374,10 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
             resol = np.abs(xlims[0]-xlims[1])/d
             resol = conversions.convert('rad','mas',resol)/npix
             pl.annotate('PA={:.2f}$^\circ$\n$\lambda$={:.0f}$\AA$\nB={:.0f}m\nU,V=({:.1f},{:.1f}) m\n{:d} pix\n{:.3g} mas/pix'.format(pa,eff_wave,bl,uc,vc,npix,resol),(0.95,0.95),va='top',ha='right',xycoords='axes fraction',color='r',size=20)
-            
         #-- rotate counter clockwise by angle in degrees, and recalculate the
         #   values of the corners
         data_ = imrotate(data,-pa,reshape=True,cval=0.) # was -pa
-        if keepfig and keepfig is not True:
+        if keepfig and keepfig is not True: # then it's a string
             pl.figure()
             pl.subplot(111,aspect='equal')
             pl.imshow(data_,origin='image')
@@ -618,7 +619,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         total_continum = total_continum[keep]
     return wavelengths,total_spectrum,total_continum
 
-def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_grav=True):
+def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_grav=True):
     r"""
     Calculate the stokes profiles.
     
@@ -634,15 +635,15 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
     calculate the local Stokes V profile, and then you integrate over the
     visible stellar hemisphere.
     
-    This is what I do in this simplest version (Gaussian profiles, no rotation):
+    This is what I do, assuming Gaussian profiles:
     
-    First, I compute the Zeeman splitting:
+    First, I compute the Zeeman splitting for each surface element:
     
     .. math::
     
-        \Delta\nu_\mathrm{zeeman} = \frac{-g_lq_eB}{4\pi m_e}\quad \mathrm{[Hz]}
+        \Delta\nu_\mathrm{Zeeman,i} = \frac{-g_lq_eB_i}{4\pi m_e}\quad \mathrm{[Hz]}
         
-    with math:`g_l` the Lande factor, and :math:`q_e` and :math:`m_e` the fundamental electron charge and mass.
+    with :math:`g_l` the Lande factor, and :math:`q_e` and :math:`m_e` the fundamental electron charge and mass.
     Next, I compute a simple Gaussian line profile for each surface element
     :math:`i` (:math:`G^0_i(\lambda,0,\sigma)`), which contributes to the
     Stokes I profile, and the two shifted profiles :math:`G^+_i(\lambda,+\Delta\lambda_\mathrm{zeeman},\sigma)`,
@@ -661,7 +662,13 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
     
     .. math::
     
-        V = \sum_i A_iI_{\mu,\lambda} \cos\theta (G^-_i-G^+_i)
+        V = \sum_i \frac{1}{2} A_iI_{\mu,\lambda} \cos\theta_i (G^-_i-G^+_i)
+    
+    or
+    
+    .. math::
+    
+        V(\nu) = \sum_i -\cos\theta_i \Delta\nu_{Z,i}\frac{d G^0_i}{d\nu}
     
     with
     
@@ -676,6 +683,20 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
         
         \cos\theta = \frac{\vec{B}\cdot\vec{B_z}}{B B_z}
     
+    Similarly, the Stokes Q and U profiles are computed as
+    
+    .. math::
+    
+        Q(\nu) = -\sum_i\frac{1}{4}\sin^2\theta_i\cos^22\chi_i \Delta\nu^2_{Z,i}\frac{d^2 G^0_i}{d^2\nu}\\
+        U(\nu) = -\sum_i\frac{1}{4}\sin^2\theta_i\sin^22\chi_i \Delta\nu^2_{Z,i}\frac{d^2 G^0_i}{d^2\nu}
+        
+    
+    The method of computation is exactly the same when using spectral profiles
+    from a grid, except the wavelength-dependent intensity is now a function
+    of many more parameters:
+    
+    .. math::
+        I_{\mu,\lambda} \longrightarrow I_{\mu,\lambda,T_\mathrm{eff},\log g,z,v_\mathrm{rad},\ldots}
     """
     
     mesh = the_system.mesh
@@ -729,15 +750,21 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
     #-- magnitude of magnetic field and angle towards the LOS
     mesh['B_'] = mesh['B_']*1e-4 # convert to Tesla
     B = coordinates.norm(mesh['B_'][keep],axis=1)
-    cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,+1]]),axis=1)
+    cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,-1]]),axis=1)
+    sin2theta = 1 - cos_theta**2
+    cos_chi = coordinates.cos_angle(mesh['B_'][keep],np.array([[1.,0.,0]]),axis=1)
+    cos2chi = cos_chi**2
+    sin2chi = 1. - cos2chi
+    cos22chi = (cos2chi - sin2chi)**2
+    sin22chi = 1. - cos22chi
     #-- Zeeman splitting in angstrom
     delta_nu_zeemans = -glande*constants.qe*B/(4*np.pi*constants.me)
+    delta_nu_zeemans2 = delta_nu_zeemans**2
     delta_v_zeemans = (wc*1e-10)*delta_nu_zeemans/1000. # from cy/s to km/s
     #-- radial velocities
     rad_velos = -the_system.mesh['velo___bol_'][keep,2]
-    rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
-        
-        
+    rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)    
+    nus = conversions.convert('AA','Hz',wavelengths)    
     
     if method=='numerical' and not idep['profile']=='gauss':
         #-- get limb angles
@@ -764,20 +791,19 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
         logger.info('synthesizing spectropolarimetry using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
         total_continum = 0.
-        total_I = 0.
-        total_V = 0.
+        stokes_I = 0.
+        stokes_V = 0.
         #-- gravitational redshift:
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
         for i,rv in enumerate(rad_velos):
             rvz = delta_v_zeemans[i]
-            total_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
             total_continum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=proj_intens[:,i])
             
             specm = tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=spectra[0,:,i]*proj_intens[:,i])
             specp = tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=spectra[0,:,i]*proj_intens[:,i])
-            stokes_I += spec
-            stokes_V += cos_theta[i]*(specm-specp)
+            stokes_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
+            stokes_V += cos_theta[i]*(specm-specp)/2.
             
     elif method=='numerical':
         #-- derive intrinsic width of the profile
@@ -786,22 +812,35 @@ def stokes(the_system,wavelengths=None,sigma=5.,depth=0.4,ref=0,glande=None,rv_g
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
         sizes = the_system.mesh['size'][keep]
-        logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
+        logger.info('synthesizing Gaussian profile using %d faces (sig= %.2e AA,RV range = %.6g to %.6g km/s)'%(len(proj_intens),sigma,rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
         stokes_I = 0.
         stokes_V = 0.
+        stokes_Q = 0.
+        stokes_U = 0.
         #-- gravitational redshift:
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
-        #rad_velos = conversions.convert('km/s','AA',rad_velos,wave=(wc,'AA'))-wc
+        rad_velosw = conversions.convert('km/s','AA',rad_velos,wave=(wc,'AA'))-wc
         for i,(pri,rv,sz,iB,costh) in enumerate(zip(proj_intens,rad_velos,sizes,B,cos_theta)):
             rvz = delta_v_zeemans[i]
+            #-- first version
             spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
             specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
             specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)            
-            #-- angle between the light of sight and the magnetic field
+            stokes_V += costh*(specm-specp)/2.
+            #-- second version
+            #mytemplate = pri*sz*(1.00 - depth*np.exp( -(wavelengths-wc-rad_velosw[i])**2/(2*sigma**2)))
+            #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,mytemplate)
+            #- third version
+            #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
+            
+            #-- Stokes Q and U
+            sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
+            stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+            stokes_U -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+            
             stokes_I += spec
-            stokes_V += costh*(specm-specp)
             total_continum += pri*sz
         logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
     else:

@@ -2569,8 +2569,8 @@ class BodyBag(Body):
                 keep = np.abs(times-time)<1e-8
                 output = observatory.ifm(self,posangle=posangle[keep],
                                      baseline=baseline[keep],
-                                     ref=lbl,keepfig=False)
-                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                                     #ref=lbl,keepfig=False)
+                                     ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
                 ifsyn['time'] += [time]*len(output[0])
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
@@ -3074,19 +3074,23 @@ class Star(PhysicalBody):
         parset = self.params['magnetic_field']
         beta = parset.get_value('beta','rad')
         Bpolar = parset.get_value('Bpolar')
+        R = self.params.values()[0].get_value('radius')
         if True:
             r_ = self.mesh['_o_center']
             r = 1.#coordinates.norm(r_)
+            #print coordinates.norm(r_)
         else:
             r_ = self.mesh['_o_normal_']
             r = coordinates.norm(r_)
             r_ *= r
-        m_ = np.array([np.sin(beta),0.,np.cos(beta)])
+        m_ = np.array([np.sin(beta)*np.cos(np.pi/2),np.sin(np.pi/2),np.cos(beta)])
+        m_*= R**3*np.abs(Bpolar)/2.
+        
         dotprod = np.dot(m_,r_.T).reshape(-1,1)
-        B = (dotprod*r_/r**5 - m_/3./r**3)
+        B = (3*dotprod*r_/r**5 - m_/r**3)
         nB = coordinates.norm(B,axis=1).max()
+        print("Maximum B-field = {}, Bpolar should be = {}".format(nB,Bpolar))
         B = B/nB*Bpolar
-        nB = coordinates.norm(B,axis=1)
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
     

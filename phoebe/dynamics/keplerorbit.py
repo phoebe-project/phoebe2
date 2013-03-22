@@ -418,32 +418,34 @@ logger = logging.getLogger('BINARY.ORBIT')
 
 def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
            deccdt=0.,dperdt=0.,mass_conservation=True,component='primary'):
-    """
+    r"""
     Construct an orbit in observer coordinates.
         
-    Argument 'Parameters' contains:
+    Argument ``Parameters`` contains:
         1. period (s)
         2. eccentricity
-        3. component semi-major axis (not system!) (m)
-        4. time of periastron passage T0 (not x0!) (s)
+        3. component semi-major axis (not system semi-major axis!) (m)
+        4. time of periastron passage :math:`t_0` (not :math:`x_0`!) (s)
         
     Optional parameters for orientation in 3D:
-        5. argument of periastron (radians) (omega)
-        6. longitude of ascending node (radius) (Omega)
-        7. inclination (radians) (i)
+        5. argument of periastron (radians) (:math:`\omega`)
+        6. longitude of ascending node (radius) (:math:`\Omega`)
+        7. inclination (radians) (:math:`i`)
     
     Optional parameters for time evolution of period and argument of
     periastron:
     
-        8. dpdt: allow for a change of period (s/s). At t0, the period is
+        8. dpdt: allow for a change of period (s/s). At :math:`t_0`, the period (P) is
            C{period}. When C{mass_conservation=True}, mass will be conserved
-           which means that also the semi-major axis will change according
-           to::
+           which means that also the semi-major axis (a) will change according
+           to:
             
-            sma(t) = sma_0 / period_0**2 * period(t)
+           .. math::
+            
+              a(t) = \frac{a_0}{P_0^2} P^2(t)
         
         9. dperdt: allow for a change of argument of periastron (rad/s)
-        10.deccdt: allow for a change of eccentricity (/s)
+        10. deccdt: allow for a change of eccentricity (:math:`\mathrm{s}^{-1}`)
         
     By a freak-accident of nature, this function is purely geometrical and
     does not use any physical constants. This means that you are in principle
@@ -657,16 +659,19 @@ def get_hierarchical_orbits(times,system,barycentric=False):
     return output
 
 def rotate_into_orbit(obj,euler,loc=(0,0,0)):
-    """
+    r"""
     Rotate something to a position in an orbit.
     
     The rotation goes like:
     
-    ROTZ(Omega) * ROTX(-i) * ROTZ(theta+pi)
+    .. math::
     
-    where ROTX is a rotation around the x-axis, i is the inclination, Omega
-    the longitude of the ascending node and theta the position in the orbit
-    (theta equals omega at periastron where omega is argument of periastron).
+        R_Z(\Omega) \cdot R_X(-i) \cdot R_Z(\theta+\pi)
+    
+    where :math:`R_X` is a rotation around the x-axis, :math:`i` is the inclination,
+    :math:`\Omega` the longitude of the ascending node and :math:`\theta` the
+    position in the orbit (:math:`\theta` equals :math:`\omega` at periastron
+    where :math:`\omega` is argument of periastron).
     
     To rotate a set of coordinates, set C{loc} to match the Cartesian
     location of the point in the orbit.
@@ -697,7 +702,7 @@ def true_anomaly(M,ecc,itermax=8):
     """
     Calculation of true and eccentric anomaly in Kepler orbits.
     
-    M is the phase of the star, ecc is the eccentricity
+    ``M`` is the phase of the star, ``ecc`` is the eccentricity
     
     See p.39 of Hilditch, 'An Introduction To Close Binary Stars'
     
@@ -800,7 +805,7 @@ def from_supconj_to_perpass(t0,period,per0,phshift=0.):
     Convert the time convention where t0 is superior conjunction to periastron passage.
     
     Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
-    have T0 as superior conjunction.
+    have :math:`t_0` as superior conjunction.
     
     Inverse function is L{from_perpass_to_supconj}.
     
@@ -824,7 +829,7 @@ def from_supconj_to_perpass(t0,period,per0,phshift=0.):
 
 def from_perpass_to_supconj(t0,period,per0,phshift=0.):
     """
-    Convert the time convention where t0 is periastron passage to superior conjunction.
+    Convert the time convention where :math:`t_0` is periastron passage to superior conjunction.
     
     Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
     have T0 as superior conjunction.
@@ -852,7 +857,7 @@ def eclipse_separation(ecc,per0):
     """
     Calculate the eclipse separation between primary and secondary in a light curve.
     
-    Minimum separation at per0=pi
+    Minimum separation at per0=:math:`\pi`
     Maximum spearation at per0=0
     
     @parameter ecc: eccentricity
@@ -1028,17 +1033,21 @@ def get_incl_from_mass_function(mass_function,mass1,mass2):
     return np.arcsin(sin_incl)
     
 def get_incl_from_RV(a1sini,sma,q):
-    """
+    r"""
     Compute inclination angle from RV information and individual masses.
     
     You can compute C{sma} from L{third_law} and assuming a total mass and
     the binary period. From the individual mass (i.e. the mass ratio), and an
     estimate of the projected semi-major axis of the primary, you can compute
-    the inclination angle::
+    the inclination angle:
     
-        asini = (a1+a2)sini
-              = (a1+a1/q)sini
-         sini = (1+1/q)a1sini/a
+    .. math::
+    
+        a\sin i &= (a_1+a_2)\sin i
+        
+                &= \left(a_1+\frac{a_1}{q}\right)\sin i
+        
+        \sin i & = \left(1+\frac{1}{q}\right)\frac{a_1}{a}\sin i
     
     @param a1sini: projected semi-major axis of primary (m)
     @type a1sini: float

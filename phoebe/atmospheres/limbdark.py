@@ -646,7 +646,83 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     pars[-1] = 10**pars[-1]
     return pars
 
+def legendre(x):
+    pl = [1.0, x]
+    denom = 1.0
+    for i in range(2, 10):
+        fac1 = x*(2*denom+1)
+        fac2 = denom
+        denom += 1
+        pl.append((fac1*pl[-1]-fac2*pl[-2])/denom)
+    return pl
 
+def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
+    """
+    Interpolate an atmosphere table using the WD method.
+    
+    Example usage:
+    
+        >>> atm_kwargs = dict(teff=6000.,logg=4.0,z=0.)
+        >>> interp_ld_coeffs_wd('atmcof.dat','V',atm_kwargs=atm_kwargs)
+        
+    To do:
+        
+        - interpolation
+        - make it so that it works with arrays of C{atm_kwargs}
+        - convert passband names to Phoebe 2.0 passband names
+        
+    Remarks:
+    
+        - reddening (C{red_kwargs}) is not implemented
+        - doppler beaming (C{vgamma}) is not implemented
+    
+    @param atm: atmosphere table filename or alias
+    @type atm: string
+    @param atm_kwargs: dict with keys specifying the atmospheric parameters
+    @type atm_kwargs: dict
+    @param red_kwargs: dict with keys specifying the reddening parameters
+    @type red_kwargs: dict
+    @param vgamma: radial velocity
+    @type vgamma: float/array
+    @param passband: photometric passband
+    @type passband: str
+    """
+    m = atm_kwargs.get('z',0)
+    l = atm_kwargs.get('logg',4.5)
+    t = atm_kwargs.get('teff',10000)
+    p = passband
+    
+    #[M/H], log g, Teff, passband
+    M = [1.0, 0.5, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0]
+    L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+    P = ['u', 'v', 'b', 'y', 'U', 'B', 'V', 'R', 'I', 'J', 'K', 'L', 'M', 'N', 'Rc', 'Ic', '230', '250', '270', '290', '310', '330', 'bT', 'vT', 'Hp']
+
+    Tl, Th, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 = np.loadtxt(atm, unpack=True)
+
+    #print m, l, t, p
+    #print M.index(m), L.index(l), P.index(p)
+
+    idx = M.index(m)*len(P)*len(L)*4 + P.index(p)*len(L)*4 + L.index(l)*4
+
+    #print idx, len(Tl)
+
+    #for i in range(4):
+    #    print ("%1.1f %1.1f %f %f %f %f %f %f %f %f %f %f" % (Tl[idx+i], Th[idx+i], c0[idx+i], c1[idx+i], c2[idx+i], c3[idx+i], c4[idx+i], c5[idx+i], c6[idx+i], c7[idx+i], c8[idx+i], c9[idx+i]))
+
+    Cl1 = [c0[idx], c1[idx], c2[idx], c3[idx], c4[idx], c5[idx], c6[idx], c7[idx], c8[idx], c9[idx]]
+    Cl2 = [c0[idx+1], c1[idx+1], c2[idx+1], c3[idx+1], c4[idx+1], c5[idx+1], c6[idx+1], c7[idx+1], c8[idx+1], c9[idx+1]]
+    Cl3 = [c0[idx+2], c1[idx+2], c2[idx+2], c3[idx+2], c4[idx+2], c5[idx+2], c6[idx+2], c7[idx+2], c8[idx+2], c9[idx+2]]
+    Cl4 = [c0[idx+3], c1[idx+3], c2[idx+3], c3[idx+3], c4[idx+3], c5[idx+3], c6[idx+3], c7[idx+3], c8[idx+3], c9[idx+3]]
+
+    teff = (t-Tl[idx+1])/(Th[idx+1]-Tl[idx+1])
+    #print t, Tl[idx+1], Th[idx+1], teff
+
+    Pl = legendre(teff)
+
+    s = 0
+    for i in range(10):
+        s += Cl2[i]*Pl[i]
+    return 10**s
 
 @decorators.memoized
 def _prepare_grid(passband,atm):
@@ -713,6 +789,15 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                            filename=None,filetag='kurucz'):
     """
     Create an interpolatable grid of limb darkening coefficients.
+    
+    Example usage::
+        
+        >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
+        >>> limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
+              law='claret',passbands=['2MASS.J','JOHSON.V'],fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
+    
+    This will create a FITS file, and this filename can be used in the
+    C{atm} and C{ld_coeffs} parameters in Phoebe.
     """
     overwrite = None
     #-- OPEN.BOL must always be in there:

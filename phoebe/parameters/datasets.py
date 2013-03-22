@@ -33,6 +33,8 @@ import numpy as np
 from collections import OrderedDict
 from phoebe.parameters import parameters
 from phoebe.units import conversions
+from phoebe.io import oifits
+from phoebe.io import ascii
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger("PARS.DATA")
@@ -95,6 +97,23 @@ class DataSet(parameters.ParameterSet):
      columns ['date', 'flux']  --     test No description available
      
     """
+    def __init__(self,*args,**kwargs):
+        # if the user specified her/his own set of columns, we need to remove
+        # the ones that are not given
+        if 'columns' in kwargs:
+            columns = kwargs.pop('columns')
+        else:
+            columns = None
+        # normal init
+        super(DataSet,self).__init__(*args,**kwargs)
+        # now check the columns
+        if columns is not None:
+            default_columns = self['columns']
+            for col in default_columns:
+                if not col in columns:
+                    thrash = self.pop(col)
+            self['columns'] = columns
+    
     def load(self,force=True):
         """
         Load the contents of a data file.
@@ -616,6 +635,29 @@ def parse_header(filename):
         components = [components]*len(columns)
     #-- that's it!
     return (columns, components), (pb,ds)    
+
+def parse(file_pattern,full_output=False,**kwargs):
+    """
+    Parse a list of files.
+    """
+    if isinstance(file_pattern,str):
+        file_pattern = sorted(glob.glob(file_pattern))
+    
+    output = OrderedDict()
+    for ff in file_pattern:
+        ext = os.path.splitext(ff)[1][1:]
+        ioutput = globals()['parse_{}'.format(ext)](ff,full_output=True,**kwargs)
+        for label in ioutput:
+            if not label in output.keys():
+                output[label] = [[],[]]
+            output[label][0] += ioutput[label][0]
+            output[label][1] += ioutput[label][1]
+        
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
+    
 
 
 def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
@@ -1362,7 +1404,7 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
             
 
 def parse_lprof(filenames):
-    pass
+    raise NotImplementedError
 
 def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
     """
@@ -1634,4 +1676,47 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
         return output.values()[0]
     else:
         return output
+#}
+
+#{ High-end wrappers
+
+def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
+    """
+    Convert an OIFITS file to Phoebe's VIS format.
+    
+    @param filename: OIFITS file location
+    @type filename: str
+    @return: VIS file location
+    @rtype: str
+    """
+    #-- prepare output contexts
+    ref = os.path.splitext(filename)[0]
+    ifmdep = parameters.ParameterSet(context='ifdep',ref=ref)
+    ifmobs = IFDataSet(context='ifobs',ref=ref,columns=['ucoord','vcoord','vis','sigma_vis','time'])
+    for key in kwargs:
+        if key in ifmdep:
+            ifmdep[key] = kwargs[key]
+        if key in ifmobs:
+            ifmobs[key] = kwargs[key]
+    #-- read in the visibilities
+    templatedata = oifits.open(filename)
+    allvis2 = templatedata.allvis2 
+    vis = np.sqrt(allvis2['vis2data'])
+    vis_sigma = 0.5*allvis2['vis2err']/allvis2['vis2data']
+    ucoord = allvis2['ucoord']
+    vcoord = allvis2['vcoord']
+    time = allvis2['mjd']
+    
+    skip_columns = ifmobs['columns']
+    all_keys = list(set(list(ifmobs.keys())) | set(list(ifmdep.keys())))
+    all_keys = [key for key in all_keys if not key in skip_columns]
+    if 'filename' in all_keys:
+        all_keys.pop(all_keys.index('filename'))
+    comments = ['# {} = {}'.format(key,ifmdep[key]) if key in ifmdep else '# {} = {}'.format(key,ifmobs[key]) for key in all_keys]
+    comments+= ['# ucoord vcoord vis sigma_vis time']
+    comments+= ['#---------------------------------']
+    output_filename = os.path.splitext(filename)[0]+'.vis'
+    ascii.write_array(np.column_stack([ucoord,vcoord,vis,vis_sigma,time]),
+              output_filename,comments=comments)
+    return output_filename
 #}
