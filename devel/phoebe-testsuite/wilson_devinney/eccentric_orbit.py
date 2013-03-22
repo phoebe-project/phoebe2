@@ -25,7 +25,7 @@ Initialisation
 # First, import necessary modules
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import phoebe
 from phoebe import wd
 
@@ -174,10 +174,10 @@ plt.savefig('02_image_comparison')
 
 c4 = time.time()
 
-print "Finished!"
-print "Initialisation:             %10.3g sec"%(c1-c0)
-print "Wilson-Devinney:            %10.3g sec"%(c2-c1)
-print "Pyphoebe:                   %10.3g min"%((c3-c2)/60.)
-print "Analysis:                   %10.3g sec"%(c4-c3)
-print "-----------------------------------------"
-print "Total time:                 %10.3g min"%((c4-c0)/60.)
+print("Finished!")
+print("Initialisation:             %10.3g sec"%(c1-c0))
+print("Wilson-Devinney:            %10.3g sec"%(c2-c1))
+print("Pyphoebe:                   %10.3g min"%((c3-c2)/60.))
+print("Analysis:                   %10.3g sec"%(c4-c3))
+print("-----------------------------------------")
+print("Total time:                 %10.3g min"%((c4-c0)/60.))

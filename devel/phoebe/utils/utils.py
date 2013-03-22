@@ -231,5 +231,37 @@ def traverse_memory(o, memory=None, list_types=(list, tuple),dict_types=(dict,),
 
             
 
-
+    
+def deriv(x,y):
+    """
+    3 point Lagrangian differentiation.
+    
+    Returns z = dy/dx
+    
+    Example usage:
+    
+    >>> X = np.array([ 0.1, 0.3, 0.4, 0.7, 0.9])
+    >>> Y = np.array([ 1.2, 2.3, 3.2, 4.4, 6.6])
+    >>> deriv(X,Y)
+    array([  3.16666667,   7.83333333,   7.75      ,   8.2       ,  13.8       ])
+    """
+    #-- body derivation
+    x0_x1 = np.roll(x,1)-x
+    x1_x2 = x-np.roll(x,-1)
+    x0_x2 = np.roll(x,1)-np.roll(x,-1)
+    derivee = np.roll(y,1)*x1_x2/(x0_x1*x0_x2)
+    derivee = derivee + y*(1/x1_x2-1/x0_x1)
+    derivee = derivee - np.roll(y,-1)*x0_x1/(x0_x2*x1_x2)
+    #-- edges
+    derivee[0]=y[0]*(1./x0_x1[1]+1./x0_x2[1])
+    derivee[0]=derivee[0]-y[1]*x0_x2[1]/(x0_x1[1]*x1_x2[1])
+    derivee[0]=derivee[0]+y[2]*x0_x1[1]/(x0_x2[1]*x1_x2[1])
+    nm3=len(x)-3
+    nm2=len(x)-2
+    nm1=len(x)-1
+    derivee[nm1]=-y[nm3]*x1_x2[nm2]/(x0_x1[nm2]*x0_x2[nm2])
+    derivee[nm1]=derivee[nm1]+y[nm2]*x0_x2[nm2]/(x0_x1[nm2]*x1_x2[nm2])
+    derivee[nm1]=derivee[nm1]-y[nm1]*(1./x0_x2[nm2]+1./x1_x2[nm2])
+    
+    return derivee
 #}
