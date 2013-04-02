@@ -802,9 +802,9 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
             
             specm = tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=spectra[0,:,i]*proj_intens[:,i])
             specp = tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=spectra[0,:,i]*proj_intens[:,i])
+            
             stokes_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
             stokes_V += cos_theta[i]*(specm-specp)/2.
-            
     elif method=='numerical':
         #-- derive intrinsic width of the profile
         sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
