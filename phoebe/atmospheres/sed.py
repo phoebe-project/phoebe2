@@ -11,27 +11,67 @@ from phoebe.atmospheres import tools
 
 logger = logging.getLogger('ATM.SED')
 
-def blackbody(x,T,vrad=0):
-    """
+def blackbody(wl,T,vrad=0):
+    r"""
     Definition of black body curve.
     
-    vrad<0 means the spectrum will be shifted towards the blue (object coming towards us)
-    vrad>0 means the spectrum will be shifted towards the red (object going away)
+    The black body is generally defined as
+    
+    .. math::
+    
+        I(\lambda)_\mathrm{SI} = \frac{2 h c^2 }{\lambda^5\left(\exp{\frac{hc}{k_BT\lambda}}-1\right)}
+        
+    With :math:`\lambda` the wavelength in meter, :math:`h` Planck's constant,
+    :math:`c` the velocity of light, :math:`k_B` Boltzmann's constant, and
+    :math:`I` the flux density per sterradian :math:`\mathrm{W} \mathrm{m}^{-3}\mathrm{sr}^{-1}`.
+    
+    The output, however, is given in :math:`\mathrm{erg}\ \mathrm{s}^{-1} \mathrm{cm}^{-2}\mathrm{\AA}^{-1} \mathrm{sr}^{-1}`,
+    the unit commonly used in optical photometry. The conversion to SI is:
+    
+    .. math::
+    
+        I(\lambda)_\mathrm{SI} = I(\lambda)_\mathrm{output} \times 10^7
+    
+    and to CGS (:math:`\mathrm{erg}\ \mathrm{s}^{-1} \mathrm{cm}^{-3}\mathrm{sr}^{-1}`):
+    
+    .. math::
+    
+        I(\lambda)_\mathrm{CGS} = I(\lambda)_\mathrm{output} \times 10^8    
+    
     
     To get them into the same units as the Kurucz disc-integrated SEDs, multiply
-    by sqrt(2*pi).
+    by :math:`\sqrt{2\pi}`:
     
-    x in nm
-    T in K
+    .. math::
+    
+        I(\lambda)_\mathrm{Kurucz} =  I(\lambda)_\mathrm{output} \times\sqrt{2\pi}
+        
+    Doppler beaming can be taken into account by giving a radial velocity of 
+    star star. In that case:
+    
+    .. math::
+    
+        I(\lambda)_\mathrm{output,DB} = I(\lambda)_\mathrm{output} + 5 \frac{v_\mathrm{rad}}{c}I(\lambda)'_\mathrm{output}
+    
+    with :math:`I(\lambda)'_\mathrm{output}` the doppler shifted intensity.
+    
+    @param wl: wavelength (nm)
+    @type wl: array
+    @param T: temperature (K)
+    @type T: float
+    @param vrad: radial velocity (km/s), :math:`v_\mathrm{rad}<0` means the spectrum will be shifted towards the blue (object coming towards us)
+    @type vrad: float
+    @return: intensity per sterradian :math:`\mathrm{erg}\ \mathrm{s}^{-1} \mathrm{cm}^{-2}\mathrm{\AA}^{-1} \mathrm{sr}^{-1}`
+    @rtype: array
     """
-    x = x*1e-9
+    wl = wl*1e-9
     #-- now make the appropriate black body
     factor = 2.0 * constants.hh * constants.cc**2
     expont = constants.hh*constants.cc / (constants.kB*T)
-    I = factor / x**5. * 1. / (np.exp(expont/x) - 1.)
+    I = factor / wl**5. * 1. / (np.exp(expont/wl) - 1.)
     #from SI to erg/s/cm2/AA:
     if vrad!=0:
-        I_ = tools.doppler_shift(x,-vrad,flux=I,vrad_units='km/s')
+        I_ = tools.doppler_shift(wl,-vrad,flux=I,vrad_units='km/s')
         I = I_ + 5.*vrad/constants.cc*1000*I
     return I*1e-7
 
