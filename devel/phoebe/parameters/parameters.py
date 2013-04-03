@@ -355,11 +355,61 @@ class Parameter(object):
     The parameter can describe a binary system, observational data or
     computational specifications.
     
-    Section 1. Implementation details
-    =================================
+    B{Section 0. Overview}
     
-    Section 1.1 Casting
-    -------------------
+    Retrieve Parameter information
+    
+    .. autosummary::
+    
+       Parameter.get_value
+       Parameter.get_qualifier
+       Parameter.get_description
+       Parameter.get_unit
+       Parameter.get_adjust
+       Parameter.get_limits
+       Parameter.get_step
+       Parameter.get_choices
+       Parameter.get_cast_type
+       Parameter.get_context
+       Parameter.get_prior
+       Parameter.get_value_from_prior
+       Parameter.get_posterior
+       Parameter.get_unique_label
+       
+    .. autosummary::
+    
+        Parameter.has_unit
+        Parameter.has_prior
+        Parameter.has_limits
+        Parameter.is_lim
+        Parameter.list_available_units
+        
+    Set existing Parameter information
+    
+    .. autosummary::
+    
+        Parameter.set_value
+        Parameter.set_value_from_prior
+        Parameter.set_value_from_posterior
+        Parameter.set_unit
+        Parameter.set_adjust
+        Parameter.set_limits
+        Parameter.set_step
+        Parameter.set_prior
+        Parameter.set_posterior
+    
+    Add/remove Parameter information
+    
+    .. autosummary::
+    
+        Parameter.add_limits
+        Parameter.add_value_to_posterior
+        Parameter.add_choice
+        Parameter.remove_choice
+    
+    B{Section 1. Implementation details}
+    
+    B{Section 1.1 Casting}
     
     A Parameter accepts a (raw) value from a user and a user can ask the value
     back. In the process of asking the value of the Parameter, a B{casting}
@@ -382,8 +432,7 @@ class Parameter(object):
     In summary, C{cast_type} guarantees the value of parameter being of a
     specific type.
     
-    Section 1.2 Units
-    -----------------
+    B{Section 1.2 Units}
     
     Some parameters have units. When applicable, a Parameter instance has a
     default unit, and if the user gives a value, it is silently assumed that the
@@ -393,14 +442,12 @@ class Parameter(object):
     storing the value. Thus, it is impossible to retrieve afterwards in which
     unit the user has given the value of the parameter originally.
     
-    Section 1.3 Priors and posteriors
-    ---------------------------------
+    B{Section 1.3 Priors and posteriors}
     
     Some parameters have priors. Usually, also posteriors can be computed from
     them using MCMC algorithms.
     
-    Section 2. Example usage
-    ========================
+    B{Section 2. Example usage}
     
     We define one parameter but for two different frames. The C{filter} parameter
     needs to be cast to an integer in the WD code, but in general it is just

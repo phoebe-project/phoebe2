@@ -14,7 +14,7 @@ Limb darkening functions:
     limbdark.ld_uniform
     limbdark.ld_power
     
-Specific intensities and limbdarkening coefficients:
+Specific intensities, synthetic fluxes and limbdarkening coefficients:
 
 .. autosummary::
     
@@ -22,10 +22,38 @@ Specific intensities and limbdarkening coefficients:
     limbdark.get_limbdarkening
     limbdark.fit_law
     limbdark.interp_ld_coeffs
+    sed.blackbody
+    sed.synthetic_flux
     
 Compute grids of LD coefficients:
 
 .. autosummary::
 
     limbdark.compute_grid_ld_coeffs
+    
+Passband functionality:
+
+.. autosummary::
+
+    passbands.get_response
+    passbands.list_response
+    passbands.eff_wave
+    passbands.get_info
+    
+Reddening laws:
+
+.. autosummary::
+    
+    reddening.get_law
+    reddening.redden
+    reddening.deredden
+    
+Various tools:
+
+.. autosummary::
+
+   tools.gravitational_redshift
+   tools.dopller_shift
+   tools.rotational_broadening
+
 """

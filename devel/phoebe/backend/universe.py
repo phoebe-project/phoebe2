@@ -923,6 +923,10 @@ class Body(object):
                     model = np.array(model['flux'])
                     obser = np.array(observations['flux'])
                     sigma = np.array(observations['sigma'])
+                elif observations.context=='ifobs':
+                    model = np.array(model['vis'])
+                    obser = np.array(observations['vis'])
+                    sigma = np.array(observations['sigma_vis'])
                 else:
                     raise NotImplementedError('probability for {}'.format(observations.context))                
                 #-- take pblum and l3 into account:
@@ -962,7 +966,7 @@ class Body(object):
         sigma = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
-                modelset = self.get_synthetic(type=observations.context[:-3]+'syn',
+                modelset = self.get_synthetic(category=observations.context[:-3],
                                          ref=observations['ref'],
                                          cumulative=True)
                 #-- make sure to have loaded the observations from a file
@@ -975,6 +979,10 @@ class Body(object):
                     model_ = np.ravel(np.array(modelset['flux']))
                     obser_ = np.ravel(np.array(observations['flux']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
+                elif observations.context=='ifobs':
+                    model_ = np.ravel(np.array(modelset['vis']))
+                    obser_ = np.ravel(np.array(observations['vis']))
+                    sigma_ = np.ravel(np.array(observations['sigma_vis']))
                 else:
                     raise NotImplementedError('probability')  
                 #-- statistical weight:
@@ -2348,6 +2356,10 @@ class BodyBag(Body):
                 #new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
             b.mesh = new_mesh
     
+    def remove_mesh(self):
+        for body in self.bodies:
+            body.remove_mesh()
+    
     def add_obs(self,obs):
         _parse_obs(self,obs)
     
@@ -2526,10 +2538,10 @@ class BodyBag(Body):
         for body in self.bodies:
             body.clear_synthetic(*args,**kwargs)
     
-    def get_logp(self,mean=False):
-        logp = super(BodyBag,self).get_logp(mean=mean)
+    def get_logp(self):
+        logp = super(BodyBag,self).get_logp()
         for body in self.bodies:
-            logp = logp + body.get_logp(mean=mean)
+            logp = logp + body.get_logp()
         return logp
     
     def get_model(self):
@@ -2569,8 +2581,8 @@ class BodyBag(Body):
                 keep = np.abs(times-time)<1e-8
                 output = observatory.ifm(self,posangle=posangle[keep],
                                      baseline=baseline[keep],
-                                     #ref=lbl,keepfig=False)
-                                     ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                                     ref=lbl,keepfig=False)
+                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
                 ifsyn['time'] += [time]*len(output[0])
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
