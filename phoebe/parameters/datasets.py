@@ -455,7 +455,20 @@ class IFDataSet(DataSet):
         kwargs.setdefault('context','ifobs')
         super(IFDataSet,self).__init__(**kwargs)
     
-
+    
+    def save2oifits(self,filename,like):
+        """
+        Save contents of an IFDataSet to an OIFITS file.
+        """
+        self.load()
+        blank = np.zeros(len(self['time']))
+        newobj = oifits.open(like)
+        newobj.allvis2['mjd'] = self['time']
+        newobj.allvis2['ucoord'] = self['ucoord']
+        newobj.allvis2['vcoord'] = self['vcoord']
+        newobj.allvis2['vis2data'] = np.array(self['vis'])**2
+        #newobj.allvis2['vis2err'] = self['sigma_vis'] # wrong!
+        newobj.save(filename)
 #}
 
 #{ ASCII parsers

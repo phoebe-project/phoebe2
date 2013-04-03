@@ -76,20 +76,24 @@ def blackbody(wl,T,vrad=0):
     return I*1e-7
 
 def synthetic_flux(wave,flux,passbands,units=None):
-    """
+    r"""
     Extract flux measurements from a synthetic SED (Fnu or Flambda).
     
     The fluxes below 4micron are calculated assuming PHOTON-counting detectors
     (e.g. CCDs).
     
-    Flam = int(P_lam * f_lam * lam, dlam) / int(P_lam * lam, dlam)
+    .. math::
+    
+       F_\lambda = \frac{\int P_\lambda f_\lambda\lambda d\lambda}{\int P_\lambda \lambda d\lambda}
     
     When otherwise specified, we assume ENERGY-counting detectors (e.g. bolometers)
     
-    Flam = int(P_lam * f_lam, dlam) / int(P_lam, dlam)
+    .. math::
     
-    Where P_lam is the total system dimensionless sensitivity function, which
-    is normalised so that the maximum equals 1. Also, f_lam is the SED of the
+       F_\lambda = \frac{\int P_\lambda f_\lambda, d\lambda}{\int P_\lambda d\lambda}
+    
+    Where :math:`P_\lambda` is the total system dimensionless sensitivity function, which
+    is normalised so that the maximum equals 1. Also, :math:`f_\lambda` is the SED of the
     object, in units of energy per time per unit area per wavelength.
     
     The PHOTON-counting part of this routine has been thoroughly checked with
@@ -97,19 +101,23 @@ def synthetic_flux(wave,flux,passbands,units=None):
     with respect to the Kurucz integrated files (.geneva and stuff on his websites). These could be
     due to different normalisation.
     
-    You can also readily integrate in Fnu instead of Flambda by suppling a list
+    You can also readily integrate in :math:`F_\nu` instead of :math:`F_\lambda` by suppling a list
     of strings to 'units'. This should have equal length of passbands, and
-    should contain the strings 'flambda' and 'fnu' corresponding to each filter.
+    should contain the strings C{flambda} and ``fnu`` corresponding to each filter.
     In that case, the above formulas reduce to
     
-    Fnu = int(P_nu * f_nu / nu, dnu) / int(P_nu / nu, dnu)
+    .. math::
+        
+        F_\nu = \frac{\int P_\nu \frac{f_\nu}{\nu} d\nu}{\int \frac{P_\nu}{\nu} d\nu}
     
     and 
     
-    Fnu = int(P_nu * f_nu, dnu) / int(P_nu, dnu)
+    .. math::
     
-    Small note of caution: P_nu is not equal to P_lam according to
-    Maiz-Apellaniz, he states that P_lam = P_nu/lambda. But in the definition
+       F_\nu = \frac{\int P_\nu f_\nu d\nu}{\int P_\nu d\nu}
+    
+    Small note of caution: :math:`P_\nu` is not equal to :math:`P_\lambda` according to
+    Maiz-Apellaniz, he states that :math:`P_\lambda = \frac{P_\nu}{\lambda}. But in the definition
     we use above here, it *is* the same!
     
     The model fluxes should B{always} be given in Flambda (erg/s/cm2/AA). The
@@ -140,7 +148,7 @@ def synthetic_flux(wave,flux,passbands,units=None):
     right units. In the following example, we first generate a constant flux
     spectrum in micron and Jy. Then, we convert flux to erg/s/cm2/AA using the
     wavelengths (this is no approximation) and convert wavelength to angstrom.
-    Next, we compute the synthetic fluxes in the IRAS band in Fnu, and finally
+    Next, we compute the synthetic fluxes in the IRAS band in :math:`F_\nu`, and finally
     convert the outcome (in erg/s/cm2/Hz) to Jansky.
     
     >>> wave,flux = np.linspace(0.1,200,10000),np.ones(10000)
@@ -165,7 +173,7 @@ def synthetic_flux(wave,flux,passbands,units=None):
     Step (1): We construct a black body model.
     
     
-    WARNING: OPEN.BOL only works in Flambda for now.
+    WARNING: OPEN.BOL only works in :math:`F_\lambda` for now.
     
     See e.g. Maiz-Apellaniz, 2006.
     

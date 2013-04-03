@@ -173,8 +173,6 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     @param vsini: value for the projected equatorial rotation velocity
     @type vsini: float
     """
-    if not derive=='rotperiod':
-        raise NotImplementedError
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('description','Projected equatorial rotation velocity')
@@ -192,8 +190,13 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
                                       value=vsini,**kwargs))
     else:
         star['vsini'] = vsini
-    star.add_constraint('{rotperiod} = 2*np.pi*{radius}/{vsini}*np.sin({incl})')
-    logger.info("star '{}': 'rotperiod' constrained by 'vsini'".format(star['label']))
+    if derive=='rotperiod':
+        star.add_constraint('{rotperiod} = 2*np.pi*{radius}/{vsini}*np.sin({incl})')
+        logger.info("star '{}': 'rotperiod' constrained by 'vsini'".format(star['label']))
+    elif derive=='incl':
+        star.add_constraint('{incl} = np.arcsin({rotperiod}*{vsini}/(2*np.pi*{radius}))')
+        logger.info("star '{}': 'incl' constrained by 'vsini'".format(star['label']))
+    
     
 def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     """
