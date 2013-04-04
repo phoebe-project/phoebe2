@@ -357,7 +357,7 @@ class Parameter(object):
     
     B{Section 0. Overview}
     
-    Retrieve Parameter information
+    **Retrieve Parameter information**
     
     .. autosummary::
     
@@ -380,11 +380,12 @@ class Parameter(object):
     
         Parameter.has_unit
         Parameter.has_prior
+        Parameter.has_posterior
         Parameter.has_limits
         Parameter.is_lim
         Parameter.list_available_units
         
-    Set existing Parameter information
+    **Set existing Parameter information**
     
     .. autosummary::
     
@@ -398,7 +399,7 @@ class Parameter(object):
         Parameter.set_prior
         Parameter.set_posterior
     
-    Add/remove Parameter information
+    **Add/remove Parameter information**
     
     .. autosummary::
     
@@ -556,6 +557,7 @@ class Parameter(object):
         #-- remember what I am
         frame = props.pop('frame','main')
         context = props.pop('context',None)
+        prior = props.pop('prior',None)
         #-- if no qualifier is given, we don't know what to do...
         if qualifier is None:
             raise ValueError('Parameter instance needs at least a qualifier as an argument')
@@ -587,6 +589,8 @@ class Parameter(object):
         props.setdefault('repr','%s')
         props.setdefault('cast_type',return_self)
         props.setdefault('value',0)
+        if prior is not None:
+            self.set_prior(**prior)
         
         #-- set a unique label, if parameter is 'label' but no string is given
         if props['qualifier'][-5:]=='label' and not props['value']:
@@ -852,15 +856,20 @@ class Parameter(object):
         """
         if not hasattr(self,'prior'):
             raise ValueError("Parameter '{}' (context={}) has no prior".format(self.qualifier,self.get_context()))
-        if self.prior['distribution'].lower()=='uniform':
-            values = np.random.uniform(size=size,low=self.prior['lower'],
-                                     high=self.prior['upper'])
-        elif self.prior['distribution'].lower()=='normal':
-            values = np.random.normal(size=size,loc=self.prior['mu'],
-                                     scale=self.prior['sigma'])
-        else:
-            raise NotImplementedError
-        return values
+        return self.prior.draw(size=size)
+    
+    def get_value_from_posterior(self,size=1):
+        """
+        Get a random value from the prior.
+        
+        @param size: number of values to generate
+        @type size: int
+        @return: random value from the prior
+        @rtype: array[C{size}]
+        """
+        if not hasattr(self,'posterior'):
+            raise ValueError("Parameter '{}' (context={}) has no posterior".format(self.qualifier,self.get_context()))
+        return self.posterior.draw(size=size)
         
     
     def get_posterior(self,burn=0,thin=1):
@@ -945,18 +954,18 @@ class Parameter(object):
         self.set_value(value)
         logger.info("Set value of {} to {}".format(self.get_qualifier(),value))
     
-    def set_value_from_posterior(self):
-        """
-        Change a parameter value to the mean of the posterior distribution.
+    #def set_value_from_posterior(self):
+        #"""
+        #Change a parameter value to the mean of the posterior distribution.
         
-        Only done if the parameter has a posterior, otherwise the call to
-        this function is silently ignored.
-        """
-        trace = self.get_posterior()
-        if trace is not None:
-            new_value = trace.mean()
-            self.set_value(new_value)
-            logger.info("Set value for parameter '{}' to posterior mean {}".format(self.qualifier,self.get_value()))
+        #Only done if the parameter has a posterior, otherwise the call to
+        #this function is silently ignored.
+        #"""
+        #trace = self.get_posterior()
+        #if trace is not None:
+            #new_value = trace.mean()
+            #self.set_value(new_value)
+            #logger.info("Set value for parameter '{}' to posterior mean {}".format(self.qualifier,self.get_value()))
         
     
     def set_unit(self,unit):
@@ -1032,41 +1041,30 @@ class Parameter(object):
         >>> np.random.seed(100)
         >>> mypar = Parameter(qualifier='bla')
         >>> mypar.set_prior(distribution='uniform',lower=-1,upper=0.)
-        >>> prior = mypar.get_prior(name='I am uniform')
+        >>> prior = mypar.get_prior(distr_type='pymc',name='I am uniform')
         >>> print(prior)
         {'upper': 0.0, 'distribution': 'uniform', 'lower': -1}
         
         Or you can change the prior information later on:
         
-        >>> mypar.set_prior(distribution='normal',mu=5,tau=1./1**2)
+        >>> mypar.set_prior(name='normal',mu=5,sigma=1.)
         
         """
-        if not hasattr(self,'prior'):
-            self.prior = kwargs
+        if not hasattr(self,'prior') or 'name' in kwargs:
+            self.prior = Distribution(**kwargs)
         else:
-            #-- if the distribution is changed, reset the whole dictionary
-            if 'distribution' in kwargs and 'distribution' in self.prior and kwargs['distribution']!=self.prior['distribution']:
-                self.prior = kwargs
-            #-- otherwise just update
-            else:
-                for kwarg in kwargs:
-                    self.prior[kwarg] = kwargs[kwarg]
+            self.prior.update_distribution_parameters(**kwargs)
+            
     
-    def set_posterior(self,trace,update=True):
+    def set_posterior(self,**kwargs):
         """
-        Set the trace of the posterior.
+        Set the posterior distribution.
         
-        From the trace, the posterior distribution can be derived.
-        
-        @param trace: trace
-        @type trace: numpy array
         """
-        if not hasattr(self,'posterior'):
-            self.posterior = np.array([])
-        if update:
-            self.posterior = np.hstack([self.posterior,trace[:]])
+        if not hasattr(self,'posterior') or 'name' in kwargs:
+            self.posterior = Distribution(**kwargs)
         else:
-            self.posterior = trace[:]
+            self.posterior.update_distribution_parameters(**kwargs)
     #}
     
     #{ Add/remove parameter properties
@@ -1076,12 +1074,6 @@ class Parameter(object):
         """
         self.llim = llim
         self.ulim = ulim
-    
-    def add_value_to_posterior(self):
-        if not hasattr(self,'posterior'):
-            self.posterior = []
-        self.posterior.append(self.get_value())
-    
     
     def add_choice(self,choice):
         """
@@ -1140,6 +1132,18 @@ class Parameter(object):
         @rtype: bool
         """
         if hasattr(self,'prior'):
+            return True
+        else:
+            return False
+    
+    def has_posterior(self):
+        """
+        Return True if a parameter has a posterior.
+        
+        @return: C{True} if it has a posterior, otherwise C{False}
+        @rtype: bool
+        """
+        if hasattr(self,'posterior'):
             return True
         else:
             return False
@@ -1598,14 +1602,31 @@ class ParameterSet(object):
     
     def set_value_from_posterior(self,qualifier):
         """
-        Set the value of parameter from it's posterior.
+        Set the value of parameter from its posterior.
+        
+        If C{qualifier} is a list of qualifiers and the posterior is a trace
+        (i.e. an array), then a value is chosen from that trace, but at the
+        same index for all parameters. This guarentees proper correlations
+        between all the parameters.
         """
-        self.get_parameter(qualifier).set_value_from_posterior()
+        if isinstance(qualifier,list):
+            index = None
+            for qual in qualifier:
+                param = self.get_parameter(qual)
+                if not param.posterior.name=='sample':
+                    param.set_value_from_posterior()
+                    continue
+                sample = param.posterior.distr['sample']
+                if index is None:
+                    index = int(np.random.uniform(high=len(sample)))
+                param.set_value(sample[index])
+        else:
+            self.get_parameter(qualifier).set_value_from_posterior()
         self.run_constraints()
     
     def set_value_from_prior(self,qualifier):
         """
-        Set the value of parameter from it's prior.
+        Set the value of parameter from its prior.
         """
         self.get_parameter(qualifier).set_value_from_prior()
         self.run_constraints()
@@ -2327,6 +2348,125 @@ class ParameterSet(object):
                     
         
     #}        
+
+
+class Distribution(object):
+    """
+    Class representing a distribution.
+    
+    Attempts at providing a uniform interface to different codes or routines.
+    
+    Recognised distributions:
+    
+    >>> d = Distribution('normal',mu=0,sigma=1)
+    >>> d = Distribution('uniform',lower=0,upper=1)
+    >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=True)
+    >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=False)
+    >>> d = Distribution('sample',sample=array3,discrete=False)
+    
+    If C{name='histogram'} and C{discrete=False}, the bins are interpreted
+    as the edges of the bins, and so there is one more bin than probabilities.
+    
+    If C{name='histogram'} and C{discrete=True}, the bins are interpreted as
+    the set of discrete values, and so there are equally many bins as probabilities.
+    """
+    def __init__(self,name,**distribution_parameters):
+        self.name = name.lower()
+        self.distr = distribution_parameters
+        #-- check contents:
+        given_keys = set(list(distribution_parameters.keys()))
+        if   name=='histogram':
+            required_keys = set(['bins','prob','discrete'])
+        elif name=='uniform':
+            required_keys = set(['lower','upper'])
+        elif name=='normal':
+            required_keys = set(['mu','sigma'])
+        elif name=='sample':
+            required_keys = set(['sample','discrete'])
+        
+        if (given_keys - required_keys) or (required_keys - given_keys):
+            raise ValueError('Distribution {} needs keys {}'.format(name,", ".join(list(required_keys))))
+        
+        #-- make sure the histogram is properly normalised
+        if name=='histogram':
+            self.distr['prob'] = self.distr['prob']/float(np.sum(self.distr['prob']))
+    
+    def update_distribution_parameters(self,**distribution_parameters):
+        """
+        Update the distribution parameters.
+        
+        When a sample is updated, the values get appended to the previous ones
+        In all other cases, the keys are overwritten.
+        """
+        for key in distribution_parameters:
+            if not key in self.distr:
+                raise ValueError('Distribution {} does not accept key {}'.format(self.name,key))
+            elif self.name=='sample' and key=='sample':
+                self.distr[key] = np.hstack([self.distr[key],distribution_parameters[key]])
+            else:
+                self.distr[key] = distribution_parameters[key]
+                
+    
+    def get_distribution(self,distr_type=None,**kwargs):
+        """
+        Return the distribution in a specific form.
+        
+        When distr_type=='pymc', you need to supply the keyword C{name} in the
+        kwargs.
+        """
+        #-- plain
+        if distr_type is None:
+            return self.name,self.distr
+        #-- pymc
+        elif distr_type=='pymc':
+            if self.name=='normal':
+                kwargs['mu'] = self.distr['mu']
+                kwargs['tau'] = 1./self.distr['sigma']**2
+            return getattr(pymc,self.name.title())(**kwargs)
+    
+    def draw(self,size=1):
+        """
+        Draw a random value from the distribution.
+        
+        @param size: number of values to generate
+        @type size: int
+        @return: random value from the distribution
+        @rtype: array[C{size}]
+        """
+        if self.name=='uniform':
+            values = np.random.uniform(size=size,low=self.distr['lower'],
+                                 high=self.distr['upper'])
+        elif self.name=='normal':
+            values = np.random.normal(size=size,loc=self.distr['mu'],
+                                 scale=self.distr['sigma'])
+        elif self.name=='histogram' or self.name=='sample':
+            #-- when the Distribution is actually a sample, we need to make
+            #   the histogram first ourselves.
+            if self.name=='sample':
+                myhist = np.histogram(self.distr['sample'])
+                if self.distr['discrete']:
+                    bins = np.unique(self.distr['sample'])
+                else:
+                    bins = myhist[1]
+                prob = myhist[0]/float(np.sum(myhist[0]))
+            #-- else they are readily available
+            else:
+                bins,prob = self.distr['bins'],self.distr['prob']
+            #-- draw random uniform values from the cumulative distribution
+            cumul = np.hstack([0,np.cumsum(prob)])
+            indices = cumul.searchsorted(np.random.uniform(size=size))
+            #-- little different for discrete or continuous distributions
+            if self.distr['discrete']:
+                values = bins[indices-1]
+            else:
+                values = np.random.uniform(size=size,low=bins[indices-1],
+                                                     high=bins[indices])
+        else:
+            raise NotImplementedError
+            
+        return values
+    
+    
 
 #}
 

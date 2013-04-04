@@ -128,7 +128,7 @@ class DataSet(parameters.ParameterSet):
             columns = self.get_value('columns')
             #-- check if the data is already in here, and only reload when
             #   it is not, or when force is True
-            if not force and len(self[self['columns'][0]])>0:
+            if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
                 return False
             data_columns = np.loadtxt(filename).T
             for i,col in enumerate(data_columns):
@@ -303,7 +303,7 @@ class SPDataSet(DataSet):
             filename = self.get_value('filename')
             #-- check if the data is already in here, and only reload when
             #   it is not, or when force is True
-            if not force and len(self[self['columns'][0]])>0:
+            if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
                 return False
             #-- read the comments: they can contain other qualifiers
             with open(filename,'r') as ff:
@@ -329,9 +329,10 @@ class SPDataSet(DataSet):
                     self[col] = value
             #logger.info("Loaded contents of {} to spectrum".format(filename))
         elif self.has_qualifier('filename') and len(self[self['columns'][0]])==0:
-            raise IOError("File {} does not exist".format(self.get_value('filename')))
+            raise IOError("File {} does not exist or no calculations were performed".format(self.get_value('filename')))
         else:
             logger.info("No file to reload")
+            return False
         return True
                 
                 
@@ -364,7 +365,10 @@ class SPDataSet(DataSet):
         N = len(columns[2:])
         wavelength = np.array(self['wavelength'])[0] # we assume they're all the same
         line0 = np.column_stack(N*[wavelength]).ravel()
-        out_data = [[np.array(self[col])[:,i] for col in columns[2:]] for i in range(len(self['flux'][0]))]
+        cols_for_out_data = list(columns)
+        if 'time' in cols_for_out_data: cols_for_out_data.remove('time')
+        if 'wavelength' in cols_for_out_data: cols_for_out_data.remove('wavelength')
+        out_data = [[np.array(self[col])[:,i] for col in cols_for_out_data] for i in range(len(self['flux'][0]))]
         out_data = np.array(out_data).ravel().reshape((N*len(self['flux'][0]),-1)).T
         out_data = np.vstack([line0,out_data])        
         times = np.hstack([np.nan,self['time']])
@@ -1419,7 +1423,7 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
 def parse_lprof(filenames):
     raise NotImplementedError
 
-def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
+def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,components=None,full_output=False,**kwargs):
     """
     Parse a SPEC file as an LPROF file to an SPDataSet and a spdep.
     
@@ -1435,7 +1439,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
         3697.274  2.7707e-01
     
     An attempt will be made to interpret the comment lines as qualifier/value
-    for either the :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
+    for either the :ref:`spobs <parlabel-phoebe-spobs>` or :ref:`spdep <parlabel-phoebe-spdep>`.
     Failures are silently ignored, so you are allowed to put whatever comments
     in there (though with caution), or comment out data lines if you don't
     want to use them.
@@ -1456,50 +1460,117 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,**kwargs):
     
     @param filenames: list of filename or a filename glob pattern
     @type filenames: list or string
+    @param clambda: central wavelength of profile (AA)
+    @type clambda: float
+    @param wrange: entire wavelength range (AA)
+    @type wrange: float
     @return: list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`
     """
-    spectrum = np.loadtxt(filename).T
-    ds = SPDataSet(columns=['wavelength','flux','continuum'])
-    pb = parameters.ParameterSet(context='lcdep')
+    #-- parse the header
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+
+    if columns is None and columns_in_file is None:
+        columns_in_file = ['wavelength','flux']
+    elif columns is not None:
+        columns_in_file = columns
+    columns_required = ['wavelength','flux']
+    columns_specs = dict(time=float,wavelength=float,flux=float,sigma=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    output = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- collect all data
+    data = []
     #-- read the comments of the file
     with open(filename,'r') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line: continue
-            #-- coment lines can contain qualifiers from the LCOBS dataset:
-            if line[0]=='#':
-                split = line[1:].split("=")
-                # if they do, they consist of "qualifier = value"
-                if len(split)>1:
-                    qualifier = split[0].strip()
-                if qualifier in ds:
-                    ds[qualifier] = "=".join(split[1:]).strip()
-                if qualifier in pb:
-                    pb[qualifier] = "=".join(split[1:]).strip()
-            else:
-                break
-    #-- order spectrum and cut out the line profile
-    sa = np.argsort(spectrum[0])
-    spectrum = spectrum[:,sa]
-    start = np.searchsorted(spectrum[0],clambda-wrange/2.0)
-    end = np.searchsorted(spectrum[0],clambda+wrange/2.0)-1
-    spectrum = spectrum[:,start:end]
-    #-- save to the dataset
-    ref = "{}-{}".format(line_name,filename)
-    ds['continuum'] = np.ones(len(spectrum[0])).reshape((1,-1))
-    ds['wavelength'] = spectrum[0].reshape((1,-1))
-    ds['flux'] = spectrum[1].reshape((1,-1))
-    ds['ref'] = ref
-    ds['filename'] = ref+'.spobs'
-    ds.estimate_noise()
-    pb['ref'] = ref
-    #-- override with extra kwarg values
-    for key in kwargs:
-        if key in pb: pb[key] = kwargs[key]
-        if key in ds: ds[key] = kwargs[key]
-    ds.save()
-    ds.unload()
-    return [ds],[pb]
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__']*len(columns_in_file)
+    elif components is None and isinstance(components_in_file,str):
+        components = [components_in_file]*len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+    #-- make sure all the components are strings
+    components = [str(c) for c in components]
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
+    
+    #-- for each component, create two lists to contain the
+    #   SPDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+    
+    for label in output.keys():
+        for ds,pb in zip(*output[label]):
+            #-- cut out the line profile
+            start = np.searchsorted(ds['wavelength'],clambda-wrange/2.0)
+            end = np.searchsorted(ds['wavelength'],clambda+wrange/2.0)-1
+            if (end-start)>10000:
+                raise ValueError('Spectral window too big')
+            #-- save to the dataset
+            ref = "{}-{}".format(line_name,filename)
+            ds['continuum'] = np.ones(len(ds['wavelength'][start:end])).reshape((1,-1))
+            ds['wavelength'] = ds['wavelength'][start:end].reshape((1,-1))
+            ds['flux'] = ds['flux'][start:end].reshape((1,-1))
+            ds['ref'] = ref
+            ds['filename'] = ref+'.spobs'
+            ds.estimate_noise()
+            if not 'time' in columns_in_file:
+                ds['time'] = np.zeros(len(ds['flux']))
+                #ds['columns'].append('time')
+            pb['ref'] = ref
+            #-- override with extra kwarg values
+            for key in kwargs:
+                if key in pb: pb[key] = kwargs[key]
+                if key in ds: ds[key] = kwargs[key]
+            ds.save()
+            ds.unload()
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
     
 def parse_vis(filename,columns=None,full_output=False,**kwargs):
     """
