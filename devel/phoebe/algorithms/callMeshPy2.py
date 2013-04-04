@@ -12,31 +12,33 @@ except ImportError:
 
 
 SPHERE, BINARY_ROCHE, MISALIGNED_BINARY_ROCHE, ROTATE_ROCHE, TORUS = range(5)
+potentialType = BINARY_ROCHE
+maxNumberTriangles = 100000
 # for BINARY_ROCHE
-#numParams = 5
-#D = 0.75
-#q = 0.6
-#F = 1.5
-#Omega = 3.8
+numParams = 6
+D = 0.75
+q = 0.6
+F = 1.5
+Omega = 3.8
 
 #sphere
-#numParams = 2
+#numParams = 3
 #R = 4.0
 
 # Roateta Roche
-numParams = 3
-Omega = 0.9
-RPole = 1.0
+#numParams = 4
+#Omega = 0.9
+#RPole = 1.0
 
 
 # first works well roche, second sphere
-#delta = 0.02
+delta = 0.02
 #delta = 0.2
-delta = 0.05
+#delta = 0.05
 
-#tableA = getMesh(BINARY_ROCHE, numParams, D, q, F, Omega, delta)
-#tableA = getMesh(SPHERE, numParams, R, delta)
-tableA = getMesh(ROTATE_ROCHE, numParams, Omega, RPole, delta)
+tableA = getMesh(potentialType, maxNumberTriangles, numParams, D, q, F, Omega, delta)
+#tableA = getMesh(SPHERE, maxNumberTriangles, numParams, R, delta)
+#tableA = getMesh(ROTATE_ROCHE, maxNumberTriangles, numParams, Omega, RPole, delta)
 #print "N = ",len(table)
 #print "table = ",tableA
 #table = np.zeros((len(Ts), 16))

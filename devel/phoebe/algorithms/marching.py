@@ -474,7 +474,8 @@ def gridsize_to_delta(gridsize):
     @param gridsize: WD gridsize parameter
     @type gridsize: float
     """
-    return 10**(-0.9925473*np.log10(gridsize)+0.48526143)
+    #return 10**(-0.9925473*np.log10(gridsize)+0.48526143)
+    return 10**(-0.98359345*np.log10(gridsize)+0.4713824)
 
 def delta_to_gridsize(delta):
     """
@@ -569,14 +570,14 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     return table
 
 
-def cdiscretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
+def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
     """
     Discretize using c module
     """
     pot = ['Sphere','BinaryRoche','MisalignedBinaryRoche','RotateRoche'].index(potential)
     args = list(args)+[delta]
     numparams = len(args)
-    table = marching2FLib.getMesh(pot,numparams,*args)
+    table = marching2FLib.getMesh(pot,max_triangles,numparams,*args)
     return table[0]
 
 

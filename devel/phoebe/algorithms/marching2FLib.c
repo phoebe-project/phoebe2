@@ -3,8 +3,10 @@
  *		cc -g -fullwarn -o marching2F marching2F.c ./Meschach/meschach.a -lm 
  *  on linux/ubuntu 
  *		cc -g -shared -o marching2FLib.so marching2FLib.c -lm -lmeschach -lpython2.7
+ *		cc -g -o marchingStandAlone marchingStandAlone.c -lm -lmeschach -lpython2.7
  *		cc -g -ansi -shared -o marching2FLib.so marching2FLib.c -lm -lmeschach -lpython2.7
  */
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,7 +30,7 @@ typedef unsigned int u_int;
 #define	numDim	3
 #define	MAXITER	100
 #define	epsilon10	0.0000000001
-
+#define	TABLE_DIM	16
 
 enum error_numbers {NO_ERROR=0, LIST_EMPTY=10};
 
@@ -95,8 +97,8 @@ enum Potential_Type {SPHERE, BINARY_ROCHE, MISALIGNED_BINARY_ROCHE,
 	(listMeshVertex)->t2x = (meshVertex)->t2x;\
 	(listMeshVertex)->t2y = (meshVertex)->t2y;\
 	(listMeshVertex)->t2z = (meshVertex)->t2z;\
-	(listMeshVertex)->r = v_copy((meshVertex)->r, VNULL);\
-	(listMeshVertex)->n = v_copy((meshVertex)->n, VNULL);\
+	(listMeshVertex)->r = v_copy((meshVertex)->r, VNULL); /* VNULL at the end ==> matrix library */ \
+	(listMeshVertex)->n = v_copy((meshVertex)->n, VNULL); /*  is allocating memory */ \
 	(listMeshVertex)->t1 = v_copy((meshVertex)->t1, VNULL);\
 	(listMeshVertex)->t2 = v_copy((meshVertex)->t2, VNULL) /* No ";" at end...put that into actual code */
 
@@ -164,7 +166,8 @@ typedef struct PhTPotential {
 		RPole
 
 		Additional Torus parameters
-		rMinor
+		RTorus
+		RTube
 
 	*/
 	double	R,		/* Radius of the sphereical potential...its value */
@@ -176,6 +179,10 @@ typedef struct PhTPotential {
 
 		theta,  	/* misalignment coordinate */
 		phi,    	/* misalignment coordinate */
+
+		RTorus,    	/* Torus parameter */
+		RTube,    	/* Torus parameter */
+
 
 		RPole,
 
@@ -194,8 +201,8 @@ static PyObject* py_getMesh(PyObject* self, PyObject* py_args);
 
 void matInvert(MAT *M, MAT *MInverse);
 
-VEC *cart2local(PhTMeshVertex *meshVertex, VEC *r);
-VEC *local2cart(PhTMeshVertex *meshVertex, VEC *r);
+void cart2local(VEC **localVEC, PhTMeshVertex *meshVertex, VEC *r);
+void local2cart(VEC **cartVEC, PhTMeshVertex *meshVertex, VEC *r);
 
 
 void MeshVertexInit(PhTMeshVertex **meshVertex, VEC *r,
@@ -203,9 +210,13 @@ void MeshVertexInit(PhTMeshVertex **meshVertex, VEC *r,
 			double (*dpdy)(VEC *, void *),
 			double (*dpdz)(VEC *, void *),
 			void *args, int error);
+void MeshVertexFree(PhTMeshVertex **meshVertex, int error);
+
+void deleteListTriangles(PhTListTriangles **head, PhTListTriangles *ptr,
+							PhTListTriangles *end);
 
 
-PhTMeshVertex *projectOntoPotential(VEC *r, void *args);
+void projectOntoPotential(PhTMeshVertex *meshVertex, VEC *r, void *args);
 
 double Sphere(VEC *r, void *args);
 double dSpheredx(VEC *r, void *args);
@@ -225,6 +236,13 @@ double RotateRoche(VEC *r, void *args);
 double dRotateRochedx(VEC *r, void *args);
 double dRotateRochedy(VEC *r, void *args);
 double dRotateRochedz(VEC *r, void *args);
+
+
+
+double Torus(VEC *r, void *args);
+double dTorusdx(VEC *r, void *args);
+double dTorusdy(VEC *r, void *args);
+double dTorusdz(VEC *r, void *args);
 
 
 double **discretize(double delta,  int maxNumTriangles, int *totalNumTriangles, void *args);
@@ -261,6 +279,12 @@ void sigHandler(int sig);
 
 int	totalNumListMeshVertexV; /* diagnostics only */
 
+
+
+
+
+
+
 static PyObject* py_getMesh(PyObject* self, PyObject* py_args)
 {
 void *args;
@@ -274,6 +298,7 @@ int	i,
 	totalNumTriangles=0,
 	potentialType,
 	refCounter,
+	maxNumberTriangles,
 	numberParametersPassed;
 
 double	x,
@@ -319,12 +344,12 @@ PhTPotential	*potential;
 	} 
 	temp_p2 = PyNumber_Long(temp_p); 
 	potentialType = PyLong_AsUnsignedLong(temp_p2); 
-	printf("potentialType = %d\n", potentialType);
+	//printf("potentialType = %d\n", potentialType);
 
 
 
 
-	/* ******Get number of arguments being passed as a check Type******** */
+	/* ******Get maximum number of triangles ******** */
 	refCounter = 1;
 	temp_p = PyTuple_GetItem(py_args,refCounter); 
 	if(temp_p == NULL) {return NULL;} 
@@ -336,8 +361,26 @@ PhTPotential	*potential;
 		return NULL; 
 	} 
 	temp_p2 = PyNumber_Long(temp_p); 
+	maxNumberTriangles = PyLong_AsUnsignedLong(temp_p2); 
+	printf("maxNumberTriangles = %d\n", maxNumberTriangles);
+
+
+
+
+	/* ******Get number of arguments being passed as a check Type******** */
+	refCounter = 2;
+	temp_p = PyTuple_GetItem(py_args,refCounter); 
+	if(temp_p == NULL) {return NULL;} 
+ 
+        /* Check if temp_p is numeric */ 
+        if (PyNumber_Check(temp_p) != 1)
+	{ 
+		PyErr_SetString(PyExc_TypeError,"Non-numeric argument."); 
+		return NULL; 
+	} 
+	temp_p2 = PyNumber_Long(temp_p); 
 	numberParametersPassed = PyLong_AsUnsignedLong(temp_p2); 
-	printf("numberParametersPassed = %d\n", numberParametersPassed);
+	//printf("numberParametersPassed = %d\n", numberParametersPassed);
 
 
 	/* ** Get the parameters being passed ****** */
@@ -356,7 +399,7 @@ PhTPotential	*potential;
 		/* Convert number to python float and than C double */ 
 		temp_p2 = PyNumber_Float(temp_p); 
 		tempDouble[i-(refCounter+1)] = PyFloat_AsDouble(temp_p2); 
-		printf("i = %d  tempDouble[%d] = %f\n", i, i-(refCounter+1), tempDouble[i-(refCounter+1)]);
+		//printf("i = %d  tempDouble[%d] = %f\n", i, i-(refCounter+1), tempDouble[i-(refCounter+1)]);
 		Py_DECREF(temp_p2);
 	}
 
@@ -401,7 +444,13 @@ PhTPotential	*potential;
 			break;
 		case TORUS:
 			potential->potentialType = potentialType;
-			potential->R = tempDouble[0];
+			potential->RTorus = tempDouble[0];
+			potential->RTube = tempDouble[1];
+			potential->delta = tempDouble[2];
+			potential->pot = &Torus;
+			potential->dpdx = &dTorusdx;
+			potential->dpdy = &dTorusdy;
+			potential->dpdz = &dTorusdz;
 			break;
 		default:
 			printf("E  R  R  O  R:  Unknow option for potential type\n");
@@ -414,28 +463,29 @@ PhTPotential	*potential;
 
 	args = (void *)(potential);
 
-printf("potential->delta = %f\n",potential->delta);
+//printf("potential->delta = %f\n",potential->delta);
 	/*discretize(0.1,  15000, &totalNumTriangles, args);*/
-	table = discretize(potential->delta,  100000, &totalNumTriangles, args); /*This seems to work */
+	table = discretize(potential->delta,  maxNumberTriangles, &totalNumTriangles, args); /*This seems to work */
+/*	table = discretize(potential->delta,  50000, &totalNumTriangles, args);*/ /*This seems to work */
 	/*discretize(0.3,  8000, &totalNumTriangles, args); This seems to work */
 	/* discretize(0.5,  8000, &totalNumTriangles, args);  This seems to work...*/
 
 	N = totalNumTriangles; M = 16;
 	dims[0] = N; dims[1]=M;
-printf("totalNumTriangles = %d\n", totalNumTriangles);
+//printf("totalNumTriangles = %d\n", totalNumTriangles);
 
  	matout=(PyArrayObject *) PyArray_FromDims(2,dims,NPY_DOUBLE);
 	if (matout==(PyArrayObject *)NULL) printf("??? MEM ISSUE???\n");
 	if (matout->data==NULL) printf("??? MEM ISSUE???\n");
-printf("I'm at 4\n");
+//printf("I'm at 4\n");
 
 	/*matout->data = &(item[0]);*/
-printf("I'm at 5\n");
+//printf("I'm at 5\n");
 
 	a=(double *)matout->data;
-printf("I'm at 6\n");
+//printf("I'm at 6\n");
 	buffer = (double **)calloc(N, sizeof(double*));
-printf("I'm at 6B\n");
+//printf("I'm at 6B\n");
 	for ( i=0; i<N; i++)  {
           buffer[i]=a+i*M;  }
 	for(i = 0; i < N; i++)
@@ -446,14 +496,14 @@ printf("I'm at 6B\n");
 		}
 	}
 
-	for(i = 0; i < N; i++)
+	for(i = 0; i < totalNumTriangles; i++)
 	{
-		free(table[i]);
+		free(table[i]); table[i] = (double *)NULL;
 	}	
- 	free(table);
+ 	free(table); table = (double **)NULL;
 	free(buffer);
 	free(potential);
-printf("I'm at 7\n");
+//printf("I'm at 7\n");
 
 	/*return PyArray_Return(matout);*/
 return Py_BuildValue("Oi", matout, N*M);  
@@ -489,12 +539,11 @@ double	detM;
 
 
 /*  memory for the returned VECtor must be allocated here */
-VEC *cart2local(PhTMeshVertex *meshVertex, VEC *r)
+void cart2local(VEC **localVEC, PhTMeshVertex *meshVertex, VEC *r)
 {
 MAT	*M,
 	*MInverse;
 
-VEC	*localVEC;
 
 
 
@@ -506,7 +555,6 @@ VEC	*localVEC;
 	 * @param v: MeshVertex that defines the local coordinate system
 	 * @param r: VECtor in the cartesian coordinate system
 	 */
-	localVEC = v_get(numDim); /* Allocate the memory for the local system */
 	M = m_get(numDim,numDim);
 	MInverse = m_get(numDim,numDim);
 	M = set_col(M, 0, meshVertex->n);
@@ -514,12 +562,10 @@ VEC	*localVEC;
 	M = set_col(M, 2, meshVertex->t2);
 
 	matInvert(M, MInverse);
-	mv_mlt(MInverse, r, localVEC);
+	mv_mlt(MInverse, r, *localVEC);
 
 	m_free(M);
 	m_free(MInverse);
-
-	return (localVEC);
 
 }
 
@@ -527,11 +573,9 @@ VEC	*localVEC;
 
 
 /*  memory for the returned VECtor must be allocated here */
-VEC *local2cart(PhTMeshVertex *meshVertex, VEC *r)
+void local2cart(VEC **cartVEC, PhTMeshVertex *meshVertex, VEC *r)
 {
 MAT	*M;
-
-VEC	*cartVEC;
 
 
 
@@ -543,17 +587,14 @@ VEC	*cartVEC;
 	 * @param v: MeshVertex that defines the local coordinate system
 	 * @param r: VECtor in the local coordinate system
 	 */
-	cartVEC = v_get(numDim); /* Allocate the memory for the cartesian system */
 	M = m_get(numDim,numDim);
 	M = set_col(M, 0, meshVertex->n);
 	M = set_col(M, 1, meshVertex->t1);
 	M = set_col(M, 2, meshVertex->t2);
 
-	mv_mlt(M, r, cartVEC);
+	mv_mlt(M, r, *cartVEC);
 
 	m_free(M);
-
-	return (cartVEC);
 
 }
 
@@ -581,12 +622,6 @@ double	norm,	/* for local convienience define shorter names */
 	t2y,
 	t2z;
 
-	/* We allocate the memory here, must free it elsewhere */ 
-	(*meshVertex) =
-		(PhTMeshVertex *)calloc(1, sizeof(PhTMeshVertex));
-		
-		
-		
 
 	(*meshVertex)->nx = nx = dpdx(r, args);
 	(*meshVertex)->ny = ny = dpdy(r, args);
@@ -633,8 +668,24 @@ double	norm,	/* for local convienience define shorter names */
 
 
 
+void MeshVertexFree(PhTMeshVertex **meshVertex, int error)
+{
 
-PhTMeshVertex *projectOntoPotential(VEC *r, void *args)
+	v_free((*meshVertex)->r);
+	v_free((*meshVertex)->n);
+	v_free((*meshVertex)->t1);
+	v_free((*meshVertex)->t2);
+	free((*meshVertex));
+	(*meshVertex) = (PhTMeshVertex *)NULL;
+
+
+	error = 0; /* Will need some diagnostics at some point */
+}
+
+
+
+
+void projectOntoPotential(PhTMeshVertex *meshVertex, VEC *r, void *args)
 {
 	/*
 	 * Last term must be constant factor (i.e. the value of the potential)
@@ -648,8 +699,6 @@ double	(*pot)(VEC *, void *),
 	(*dpdx)(VEC *, void *),
 	(*dpdy)(VEC *, void *),
 	(*dpdz)(VEC *, void *);
-
-PhTMeshVertex *meshVertex; /* memory  allocated in call to MeshVertexInit*/
 
 PhTPotential *potential;
 
@@ -718,13 +767,18 @@ int	n_iter=0,
 		printf("warning: projection did not converge\n");
 	}
 	/*printf("n_iter = %d\n", n_iter);*/
-	MeshVertexInit( (&meshVertex), r, dpdx, dpdy, dpdz, args, error);
+	MeshVertexInit(&meshVertex, r, dpdx, dpdy, dpdz, args, error);
 
 /*	printf("After convergence .... meshVertex = \n");
 	dumpMeshVertex(meshVertex);
 	*/
 
-	return meshVertex;
+
+	v_free(ri);
+	v_free(g);
+	v_free(VECDifference);
+
+
 }
 
 
@@ -759,6 +813,120 @@ double dSpheredz(VEC *r, void *args)
 {
     return (2*r->ve[2]);
 }
+
+
+
+
+
+
+double Torus(VEC *r, void *args)
+{
+double	RTorus,
+	RTube,
+	x,
+	y,
+	z;
+
+PhTPotential *potential;
+
+/*
+def Torus(r,R,r_):
+    return r_**2-R**2+2*R*(r[0]**2+r[1]**2)**0.5-r[0]**2-r[1]**2-r[2]**2
+*/
+
+	potential = (PhTPotential *)args;
+	RTorus = potential->RTorus;
+	RTube = potential->RTube;
+	x = r->ve[0];
+	y = r->ve[1];
+	z = r->ve[2];
+
+    return ( RTube*RTube - RTorus*RTorus +
+    	2*RTorus*sqrt( pow(x,2) + pow(y, 2) ) -
+	pow(x, 2) - pow(y, 2) - pow(z, 2) );
+}
+
+
+
+double dTorusdx(VEC *r, void *args)
+{
+double	RTorus,
+	RTube,
+	x,
+	y,
+	z;
+
+PhTPotential *potential;
+
+/*
+def dTorusdx(r,R):
+    return 2*R*r[0]*(r[0]**2+r[1]**2)**-0.5-2*r[0]
+
+*/
+	potential = (PhTPotential *)args;
+	RTorus = potential->RTorus;
+	RTube = potential->RTube;
+	x = r->ve[0];
+	y = r->ve[1];
+	z = r->ve[2];
+
+    return ( 2*x*(RTorus/sqrt( pow(x, 2)+pow(y, 2) ) - 1) );
+}
+
+
+
+
+double dTorusdy(VEC *r, void *args)
+{
+double	RTorus,
+	RTube,
+	x,
+	y,
+	z;
+
+PhTPotential *potential;
+
+/*
+def dTorusdy(r,R):
+    return 2*R*r[1]*(r[0]**2+r[1]**2)**-0.5-2*r[1]
+
+*/
+	potential = (PhTPotential *)args;
+	RTorus = potential->RTorus;
+	RTube = potential->RTube;
+	x = r->ve[0];
+	y = r->ve[1];
+	z = r->ve[2];
+
+    return ( 2*y*(RTorus/sqrt( pow(x, 2)+pow(y, 2) ) - 1) );
+}
+
+
+
+double dTorusdz(VEC *r, void *args)
+{
+double	RTorus,
+	RTube,
+	x,
+	y,
+	z;
+
+PhTPotential *potential;
+
+/*
+def dTorusdz(r,R):
+    return -2*r[2]
+*/
+/*	potential = (PhTPotential *)args;
+	RTorus = potential->RTorus;
+	RTube = potential->RTube;
+	x = r->ve[0];
+	y = r->ve[1];*/
+	z = r->ve[2];
+
+    return ( -2*z );
+}
+
 
 
 
@@ -1134,14 +1302,14 @@ PhTPotential *potential;
 
 double **discretize(double delta,  int maxNumTriangles, int *totalNumTriangles, void *args)
 {
-PhTMeshVertex	p0, /* memory allocated in call to MeshVertexInit   */
-				pk,	/* via the call to projectOntoPotential         */
-				*PMeshVertex,
-				*P_iMinus1,
-				*P_iPlus1,
-				*p0m,
-				*v1,
-				*v2;
+PhTMeshVertex	p0, 
+		pk,
+		*PMeshVertex,
+		*P_iMinus1,
+		*P_iPlus1,
+		*p0m,
+		*v1,
+		*v2;
 
 PhTListMeshVertex	*V,
 					*P,
@@ -1217,6 +1385,7 @@ double	*omega,
 	V1 = v_get(numDim);
 	V2 = v_get(numDim);
 	V3 = v_get(numDim);
+	V3Cart = v_get(numDim);
 
 
 	r0 = v_get(numDim);
@@ -1224,7 +1393,7 @@ double	*omega,
 	/*PhMFillVECtor(r0, 0.0, 0.0, 8.0);*/
 	/*PhMFillVECtor(r0, 1.0, 1.0, 1.0);*/
 	PhMFillVECtor(r0, 0.2, 0.2, 0.2);
-	p0 = *(projectOntoPotential(r0, args));
+	projectOntoPotential(&p0, r0, args);
 	V = initListMeshVertexNode(&p0, numListMeshVertexV); numListMeshVertexV++; totalNumListMeshVertexV++;
 	LL_APPEND(headV, V);
 /*	V = [p0] # A list of all vertices
@@ -1236,8 +1405,8 @@ double	*omega,
 	printf("head = \n");
 	dumpMeshVertex((headV->meshVertex));*/
 
-	printf("\n\nFirst vertex .... meshVertex = \n");
-	dumpMeshVertex(&p0);
+	//printf("\n\nFirst vertex .... meshVertex = \n");
+	//dumpMeshVertex(&p0);
 
 	qk = v_get(numDim);
 	qkPart2 = v_get(numDim);
@@ -1255,10 +1424,10 @@ double	*omega,
 		v_add(p0.r, qkPart2, qk);
 		/*printf("qk(%d) = \n\n\n",i); v_output(qk); printf("\n");*/
 
-		pk = *(projectOntoPotential(qk, args));
-	printf("vertex #%d .... meshVertex = \n",i);
-	printf("r^2 = %f\n",v_norm2(pk.r));
-	dumpMeshVertex(&pk);
+		projectOntoPotential(&pk, qk, args);
+	//printf("vertex #%d .... meshVertex = \n",i);
+	//printf("r^2 = %f\n",v_norm2(pk.r));
+	//dumpMeshVertex(&pk);
 
 		V = initListMeshVertexNode(&pk, numListMeshVertexV); numListMeshVertexV++; totalNumListMeshVertexV++;
 		LL_APPEND(headV, V);
@@ -1275,9 +1444,11 @@ double	*omega,
 */
 		/*print P */
 
+v_free(pk.r);v_free(pk.n);v_free(pk.t1);v_free(pk.t2);
 
 	}
 
+v_free(p0.r);v_free(p0.n);v_free(p0.t1);v_free(p0.t2);
 
 
 
@@ -1321,7 +1492,7 @@ double	*omega,
 	printf("\n");
 */
 
-
+/*
 printf("List Triangel r's =     ");
 LL_FOREACH(headTs,listTriangles)
 	printf("(%f   %f  %f)  (%f   %f  %f)  (%f   %f  %f)\n||",
@@ -1329,7 +1500,7 @@ LL_FOREACH(headTs,listTriangles)
 	 listTriangles->meshVertex1.r->ve[0], listTriangles->meshVertex1.r->ve[1], listTriangles->meshVertex1.r->ve[2],
 	 listTriangles->meshVertex2.r->ve[0], listTriangles->meshVertex2.r->ve[1], listTriangles->meshVertex2.r->ve[2]); 
 printf("\n");
-
+*/
 
 
 	/*printf("\n\n\nBefore Loop...P = \n");
@@ -1359,16 +1530,16 @@ printf("\n");
 
 			iPlus1 = ((i+1) < numListMeshVertexP) ? i+1 : 0;
 
-		/*printf("i = %d   iMinus1 = %d   iPlus1 = %d\n",i, iMinus1, iPlus1);*/
+/*printf("i = %d   iMinus1 = %d   iPlus1 = %d\n",i, iMinus1, iPlus1);*/
 			PMeshVertex = returnNodeMeshVertexByIndex(headP, i);
 			P_iMinus1 = returnNodeMeshVertexByIndex(headP, iMinus1);
 			P_iPlus1 = returnNodeMeshVertexByIndex(headP, iPlus1);
 			v_sub(P_iMinus1->r, PMeshVertex->r, VECDifference);
-			V1 = cart2local(PMeshVertex, VECDifference);
+			cart2local(&V1 /*localVec*/, PMeshVertex, VECDifference);
 			xi1=V1->ve[0]; eta1=V1->ve[1]; zeta1=V1->ve[2];
 
 			v_sub(P_iPlus1->r, PMeshVertex->r, VECDifference);
-			V2 = cart2local(PMeshVertex, VECDifference);
+			cart2local(&V2 /*localVec*/, PMeshVertex, VECDifference);
 			xi2=V2->ve[0]; eta2=V2->ve[1]; zeta2=V2->ve[2];
 
 			/* Check this logic to see if it is what we want
@@ -1450,7 +1621,7 @@ minOmega*3/M_PI, trunc(minOmega*3/M_PI), trunc(minOmega*3/M_PI)+1);*/
 			double norm3; /* we only need it inside of this loop: restrict scope */
 
 			v_sub(v1->r, p0m->r, VECDifference);
-			V1 = cart2local(p0m, VECDifference);
+			cart2local(&V1 /*localVec*/, p0m, VECDifference);
 			xi1=V1->ve[0]; eta1=V1->ve[1]; zeta1=V1->ve[2];
 
 			xi3 = 0.0;
@@ -1460,12 +1631,12 @@ minOmega*3/M_PI, trunc(minOmega*3/M_PI), trunc(minOmega*3/M_PI)+1);*/
 			eta3 /= norm3/delta;
 			zeta3 /= norm3/delta;
 			V3->ve[0]= xi3; V3->ve[1]= eta3; V3->ve[2]= zeta3;
-			V3Cart = local2cart (p0m, V3);
+			local2cart(&V3Cart /*cartVec*/, p0m, V3);
 			v_add(p0m->r, V3Cart, qk);
 /*printf("xi1 = (%f  %f  %f)  xi2 = (%f  %f  %f)\n",xi1,eta1,zeta1,xi2,eta2,zeta2);
 printf("qk(%d) = \n\n\n",i); v_output(qk); printf("\n");
 */
-            pk = *(projectOntoPotential(qk, args));
+            projectOntoPotential(&pk, qk, args);
 /*printf("Inner v1.qk = %f ... theta = %f\n",in_prod(v1->r,qk),
 acos(in_prod(v1->r,qk)/(sqrt(in_prod(v1->r,v1->r))*sqrt(in_prod(qk,qk)))));*/
 
@@ -1544,6 +1715,7 @@ acos(in_prod(v1->r,qk)/(sqrt(in_prod(v1->r,v1->r))*sqrt(in_prod(qk,qk)))));*/
 				LL_APPEND(headTs, Ts);
 			}
 
+v_free(pk.r);v_free(pk.n);v_free(pk.t1);v_free(pk.t2);
 			i++;
 		}while (i < numTriangles2Create);
 
@@ -1626,7 +1798,7 @@ printf("\n");
 	/* We allocate the memory for the table here, must free it elsewhere */
 	table = (double **)calloc(numListTriangles, sizeof(double *));
 	for(i = 0; i < numListTriangles; i++)
-		table[i] = (double *)calloc(16, sizeof(double));
+		table[i] = (double *)calloc(TABLE_DIM, sizeof(double));
 
 	PhTriangleTableFill(table, headTs, numListTriangles, args, error);
 
@@ -1643,12 +1815,12 @@ printf("\n");
 	printf("\n");*/
 
 
-
+/*
 	printf("List Triangels =     ");
 	LL_FOREACH(headTs,listTriangles)
 		printf("%d ", listTriangles->index); 
 	printf("\n");
-
+*/
 	/*printf("List Triangel nx's =     ");
 	LL_FOREACH(headTs,listTriangles)
 		printf("%f   %f  %f||", listTriangles->meshVertex0.nx, listTriangles->meshVertex1.nx, listTriangles->meshVertex2.nx); 
@@ -1673,6 +1845,17 @@ printf("\n");
 	v_free(qk);
 	v_free(qkPart2);
 	v_free(qkPart3);
+	v_free(V1);
+	v_free(V2);
+	v_free(V3);
+	v_free(V3Cart);
+	v_free(VECDifference);
+
+	/* Delete the entire list */
+	deleteListMeshVertex((&headV), headV, (PhTListMeshVertex *)NULL);
+	deleteListTriangles((&headTs), headTs, (PhTListTriangles *)NULL);
+
+
 
 return(table);
 }
@@ -1732,6 +1915,10 @@ PhTListMeshVertex	*temp, /* node to be deleted */
 		(*head) = (*head)->next;                  /* moves head to next node     */
 		if( end == temp )                   /* is it end, only one node?   */
 			end = end->next;                 /* adjust end as well          */
+		v_free(temp->meshVertex->r);
+		v_free(temp->meshVertex->n);
+		v_free(temp->meshVertex->t1);
+		v_free(temp->meshVertex->t2);
 		free(temp->meshVertex);
 		free( temp );                       /* free space occupied by node */
 		temp = (PhTListMeshVertex *)NULL;
@@ -1824,7 +2011,7 @@ PhTListTriangles *ptr;
 	{
 		ptr->index = index;          /* fill in name details        */
 		/* Rememeber....for now at leat memory already allocated and this 
-		 * is NOT a pointer */
+		 * is NOT a pointer BUT PhMCopyMeshVertex allocates memory */
 		PhMCopyMeshVertex(&(ptr->meshVertex0), meshVertex0); 
 		PhMCopyMeshVertex(&(ptr->meshVertex1), meshVertex1); 
 		PhMCopyMeshVertex(&(ptr->meshVertex2), meshVertex2); 
@@ -1833,6 +2020,45 @@ PhTListTriangles *ptr;
 	}
 }
 
+
+
+
+void deleteListTriangles(PhTListTriangles **head, PhTListTriangles *ptr,
+							PhTListTriangles *end)
+{
+PhTListTriangles	*temp,
+			**phead=head;
+
+int error;
+
+	if( *phead == NULL ) return;   /* don't try to delete an empty list */
+
+	if( ptr == *phead )       /* if we are deleting the entire list */
+	{
+		*phead = (PhTListTriangles *)NULL;/* then reset head and end to signify empty   */
+		end = (PhTListTriangles *)NULL;   /* list                                       */
+	}
+	else 
+	{
+		temp = *phead;          /* if its not the entire list, readjust end  */
+		while( temp->next != ptr )   /* locate previous node to ptr  */
+			temp = temp->next;
+		end = temp;                  /* set end to node before ptr   */
+	}
+
+	while( ptr != NULL )    /* whilst there are still nodes to delete     */
+	{
+		temp = ptr->next;     /* record address of next node                */
+		/*MeshVertexFree(ptr->meshVertex0, error);
+		MeshVertexFree(ptr->meshVertex1, error);
+		MeshVertexFree(ptr->meshVertex2, error);*/
+v_free(ptr->meshVertex0.r);v_free(ptr->meshVertex0.n);v_free(ptr->meshVertex0.t1);v_free(ptr->meshVertex0.t2);
+v_free(ptr->meshVertex1.r);v_free(ptr->meshVertex1.n);v_free(ptr->meshVertex1.t1);v_free(ptr->meshVertex1.t2);
+v_free(ptr->meshVertex2.r);v_free(ptr->meshVertex2.n);v_free(ptr->meshVertex2.t1);v_free(ptr->meshVertex2.t2);
+		free( ptr );          /* free this node                             */
+		ptr = temp;           /* point to next node to be deleted           */
+	}
+}
 
 
 
@@ -1954,7 +2180,8 @@ PhTListTriangles	*temp;
 VEC		*centroid,
 		*vertex0,
 		*vertex1,
-		*vertex2;
+		*vertex2,
+		*subVector;
 
 int		index;
 
@@ -1981,6 +2208,7 @@ PhTMeshVertex	c;
 	vertex0 = v_get(numDim);
 	vertex1 = v_get(numDim);
 	vertex2 = v_get(numDim);
+	subVector = v_get(numDim);
 
 
 	index = 0;
@@ -1997,10 +2225,10 @@ PhTMeshVertex	c;
 
 		PhMFillVECtor(centroid, cx, cy, cz);
 
-		c = *(projectOntoPotential(centroid, args));
-		side1 = v_norm2(v_sub(vertex0, vertex1, VNULL));
-		side2 = v_norm2(v_sub(vertex0, vertex2, VNULL));
-		side3 = v_norm2(v_sub(vertex2, vertex1, VNULL));
+		projectOntoPotential(&c, centroid, args);
+		side1 = v_norm2(v_sub(vertex0, vertex1, subVector));
+		side2 = v_norm2(v_sub(vertex0, vertex2, subVector));
+		side3 = v_norm2(v_sub(vertex2, vertex1, subVector));
 		s = 0.5*(side1 + side2 + side3);
 
 		table[index][ 0] = c.r->ve[0];
@@ -2033,6 +2261,7 @@ vertex2->ve[0],
 vertex2->ve[1],
 vertex2->ve[2]);*/
 
+v_free(c.r);v_free(c.n);v_free(c.t1);v_free(c.t2);
 		temp = temp->next;		/* goto the next node in list */
 	}
 
@@ -2040,6 +2269,7 @@ vertex2->ve[2]);*/
 	v_free(vertex0);
 	v_free(vertex1);
 	v_free(vertex2);
+	v_free(subVector);
 
 
 
