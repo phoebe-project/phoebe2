@@ -1,5 +1,19 @@
 """
 Marching method for mesh generation
+
+**Some convenience functions**
+
+.. autosummary::
+
+   precision_to_delta
+   delta_to_precision
+   delta_to_nelements
+   delta_to_gridsize
+   nelements_to_precision
+   nelements_to_delta
+   nelements_to_gridsize
+   gridsize_to_delta
+
 """
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import numpy as np
@@ -486,6 +500,50 @@ def delta_to_gridsize(delta):
     """
     return gridsize_to_delta(delta)
 
+def delta_to_nelements(delta):
+    """
+    Estimate the number of surface elements from the marching delta parameter.
+    
+    @param delta: marching delta parameter
+    @type delta: float
+    @return n: number of surface elements
+    @rtype n: int
+    """
+    a = 0.50688733
+    b = 0.78603153
+    return 10**((b-np.log10(delta))/a)
+
+def delta_to_precision(delta):
+    """
+    Estimate the precision of computed fluxes from the marching delta.
+    
+    This delivers an estimate of the precision between analytically computed
+    and numerically computed fluxes, and is only strictly valid for spherical
+    surfaces. For deformed shapes, this is only a rough estimate.
+        
+    @param delta: marching delta
+    @type delta: int
+    @return: estimate of relative precision of computed fluxes
+    @rtype: float
+    """
+    n = delta_to_nelements(delta)
+    return 6.23/n
+
+def precision_to_delta(eps):
+    """
+    Estimate the delta from the required precision.
+    
+    Well applicable to spherical surfaces. For deformed shapes, this is only a rough estimate.
+    
+    @param eps: required precision
+    @type eps: float
+    @return: marching parameter delta
+    @rtype: float
+    """
+    n = 6.23/eps
+    return nelements_to_delta(n)
+    
+
 def nelements_to_delta(n):
     """
     Estimate the marching delta parameter from the number of surface elements.
@@ -505,6 +563,28 @@ def nelements_to_gridsize(n):
     @type n: int
     """
     return 10**(+0.51070499*np.log10(n)-0.30303537)
+
+def nelements_to_precision(n,alg='marching'):
+    """
+    Estimate the precision of computed fluxes from the number of surface elements.
+    
+    This delivers an estimate of the precision between analytically computed
+    and numerically computed fluxes, and is only strictly valid for spherical
+    surfaces. For deformed shapes, this is only a rough estimate.
+    
+    This is different for WD and the marching method.
+    
+    @param n: number of surface elements
+    @type n: int
+    @param alg: type of algorithm
+    @type alg: str, one of 'marching','wd'
+    @return: estimate of relative precision of computed fluxes
+    @rtype: float
+    """
+    if alg.lower()=='marching':
+        return 6.23/n
+    elif alg.lower()=='wd':
+        return 3.12*n**(-0.85)
     
 #}
 #{ Main interface
@@ -576,7 +656,7 @@ def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args)
     """
     pot = ['Sphere','BinaryRoche','MisalignedBinaryRoche','RotateRoche'].index(potential)
     args = list(args)+[delta]
-    numparams = len(args)
+    numparams = len(args)+1
     table = marching2FLib.getMesh(pot,max_triangles,numparams,*args)
     return table[0]
 

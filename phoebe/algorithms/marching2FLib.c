@@ -362,7 +362,7 @@ PhTPotential	*potential;
 	} 
 	temp_p2 = PyNumber_Long(temp_p); 
 	maxNumberTriangles = PyLong_AsUnsignedLong(temp_p2); 
-	printf("maxNumberTriangles = %d\n", maxNumberTriangles);
+	//printf("maxNumberTriangles = %d\n", maxNumberTriangles);
 
 
 
