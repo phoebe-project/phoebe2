@@ -1,10 +1,23 @@
 """
 Classes representing meshes and functions to handle them.
 
+**Base classes**
+
+.. autosummary::
+    
+   Body
+   PhysicalBody
+   BodyBag
+   BinaryBag
+
+**Specific Bodies**
+   
 .. autosummary::    
 
-   AccretionDisk
    Star
+   BinaryStar
+   BinaryRocheStar
+   AccretionDisk
     
 Section 1. Basic meshing
 ========================
@@ -181,14 +194,28 @@ def get_binary_orbit(self,time):
     return list(loc1)+list(velo1),list(loc2)+list(velo1),d
     
 def luminosity(body):
-    """
+    r"""
     Calculate the total luminosity of any object.
     
     This is a numerical general implementation of the intensity moments for
     spheres.
     
     It integrates the limbdarkening law over the solid angle on one hemisphere
-    of the triangle, for every triangle on the surface.
+    of the triangle, for every triangle on the surface:
+    
+    .. math::
+    
+       L = 2\pi\int_S \int_{0}^{\frac{\pi}{2}}I_\mathrm{bol}(\cos\theta)\cos\theta\sin\theta d\theta dA \quad\mathrm{[erg/s]}
+    
+    A dimensional analysis confirms the units: :math:`I_\mathrm{bol}` is the bolometric specific intensity,
+    so this is :math:`\mathrm{erg}/\mathrm{s}/\mathrm{cm}^2/\AA/\mathrm{sr}` integrated over wavelength, and thus
+    :math:`\mathrm{erg}/\mathrm{s}/\mathrm{cm}^2/\mathrm{sr}`.
+    Next, a solid angle integration is performed, removing
+    the sterradian (:math:`\mathrm{erg}/\mathrm{s}/\mathrm{cm}^2`). Finally, an integration over the surface
+    removes the last units and the result is erg/s.
+    
+    with :math:`\theta` the angle between the line of sight and the surface normal,
+    i.e. :math:`\theta=0` at the center of the disk.
     
     @return: luminosity of the object (erg/s)
     @rtype: float
@@ -332,6 +359,7 @@ def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
     elif pblum and l3:
         A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
         pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
+        
     return pblum,l3
                     
 def _parse_pbdeps(body,pbdep):
@@ -1553,6 +1581,87 @@ class Body(object):
 class PhysicalBody(Body):
     """
     Extends a Body with extra functions relevant to physical bodies.
+    
+    **Adding/remove parameters and data**
+    
+    .. autosummary::
+    
+       add_obs
+       add_pbdeps
+       remove_dependables
+    
+    **Resetting/clearing**
+    
+    .. autosummary::
+        
+       Body.clear_synthetic
+       Body.reset
+       clear_reflection
+       prepare_reflection
+       remove_mesh
+       reset_mesh
+       unsubdivide
+       
+    **Request (additional) information**
+    
+    .. autosummary::
+    
+       Body.get_parset
+       Body.get_refs
+       Body.get_synthetic
+       Body.get_coords
+       Body.get_label
+       Body.get_logp
+       Body.get_model
+       Body.list
+       get_parameters
+       as_point_source
+    
+    **Iterators**
+    
+    .. autosummary::
+    
+       Body.walk
+       Body.walk_type
+    
+    **Compute passband dependent quantities**
+    
+    .. autosummary::
+    
+        ifm
+        lc
+        ps
+        rv
+        sp
+        
+    **Body computations**
+     
+    .. autosummary::
+       
+       Body.compute_centers
+       Body.compute_normals
+       Body.compute_sizes
+       Body.compute_pblum_or_l3
+       Body.detect_eclipse_horizon
+       subdivide
+       update_mesh
+    
+    **Input/output**
+    
+    .. autosummary::
+    
+        Body.save
+        Body.to_string
+    
+    **Basic plotting** (see plotting module for more options)
+    
+    .. autosummary::
+        
+       Body.plot2D
+       Body.plot3D
+        
+       
+       
     """
     def correct_time(self):
         """
@@ -1591,12 +1700,12 @@ class PhysicalBody(Body):
                 dtypes.append(('_o_velo_{0}_'.format(ref),'f8',(3,)))
                 dtypes = np.dtype(dtypes)
                 new_cols = np.zeros(len(self.mesh),dtype=dtypes)
-                for field in new_cols.dtype.names:
-                    self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
-        logger.info('added dependables {0}'.format(parsed_refs))
+                for i,field in enumerate(new_cols.dtype.names):
+                    self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field],dtypes=dtypes[i])
+        logger.info('added pbdeps {0}'.format(parsed_refs))
         return parsed_refs
     
-    def remove_dependables(self,refs):
+    def remove_pbeps(self,refs):
         """
         Remove dependable ParameterSets from the Body.
         """
@@ -1613,7 +1722,7 @@ class PhysicalBody(Body):
                          'velo_{0}'.format(ref),\
                          '_o_velo_{0}'.format(ref)
                 self.mesh = pl.mlab.rec_drop_fields(self.mesh,fields)
-                logger.info('removed dependables {0}'.format(fields))
+                logger.info('removed pbdeps {0}'.format(fields))
     
     def add_obs(self,obs):
         """
@@ -2070,8 +2179,79 @@ class BodyBag(Body):
     """
     Body representing a group of bodies.
     
-    Section 1: Introduction
-    =======================
+        **Adding/remove parameters, data and bodies**
+    
+    .. autosummary::
+    
+       add_obs
+       append
+    
+    **Resetting/clearing**
+    
+    .. autosummary::
+        
+       Body.clear_synthetic
+       reset
+       remove_mesh
+       
+    **Request (additional) information**
+    
+    .. autosummary::
+    
+       Body.get_parset
+       Body.get_refs
+       Body.get_synthetic
+       Body.get_coords
+       Body.list
+       get_label
+       get_logp
+       get_component
+       get_model
+       get_obs
+       get_lc
+       get_bodies
+       
+    
+    **Iterators**
+    
+    .. autosummary::
+    
+       Body.walk
+       Body.walk_all
+       walk_type
+       get_bodies
+    
+    **Compute passband dependent quantities**
+    
+    .. autosummary::
+    
+        ifm
+        
+    **Body computations**
+     
+    .. autosummary::
+       
+       Body.compute_centers
+       Body.compute_normals
+       Body.compute_sizes
+       Body.compute_pblum_or_l3
+       Body.detect_eclipse_horizon
+    
+    **Input/output**
+    
+    .. autosummary::
+    
+        Body.save
+        to_string
+    
+    **Basic plotting** (see plotting module for more options)
+    
+    .. autosummary::
+        
+       Body.plot2D
+       Body.plot3D
+    
+    **Section 1: Introduction**
     
     A L{BodyBag} keeps a list of all Bodies in the bag separately, but basic
     Body operations such as rotation and translation are performed on a merged
@@ -2088,8 +2268,7 @@ class BodyBag(Body):
     of a BodyBag (C{len}), you can append other Bodies to it (C{append}) and
     add two BodyBags together to create a new (nested) BodyBag.
     
-    Section 2: Example usage
-    ========================
+    **Section 2: Example usage**
     
     Let's create a BodyBag consisting of three stars. For clarity, we first
     make a list of the stars:
@@ -2578,9 +2757,10 @@ class BodyBag(Body):
                 times = ifobs['time']
                 posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
                 baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
+                eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
                 keep = np.abs(times-time)<1e-8
                 output = observatory.ifm(self,posangle=posangle[keep],
-                                     baseline=baseline[keep],
+                                     baseline=baseline[keep],eff_wave=eff_wave,
                                      ref=lbl,keepfig=False)
                                      #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
@@ -3121,8 +3301,7 @@ class Star(PhysicalBody):
     @decorators.parse_ref
     def velocity(self,time=None,ref=None):
         """
-        Calculate the velocity of each surface as the sum of the orbital and
-        rotational velocity
+        Calculate the velocity of each surface via the rotational velocity
         """
         if time is None:
             time = self.time

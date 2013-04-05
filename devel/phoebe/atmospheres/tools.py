@@ -172,7 +172,7 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
         kernel = np.exp(- (wave_k)**2/(2*fwhm**2))
         kernel /= sum(kernel)
         flux_conv = fftconvolve(1-flux_,kernel,mode='same')
-        flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv,left=1,right=1)
+        flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
     if vrot>0:    
         #-- convert wavelength array into velocity space, this is easier
         #   we also need to make it equidistant!

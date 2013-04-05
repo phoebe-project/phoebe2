@@ -644,7 +644,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                 name = '{}_{}'.format(qual,myid).replace('-','_')
                 prior = parameter.get_prior()
                 if fitparams['bounded']:
-                    minimum,maximum = prior['lower'],prior['upper']
+                    minimum,maximum = prior.distr_pars['lower'],prior.distr_pars['upper']
                 else:
                     minimum,maximum = None,None
                 pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
@@ -659,7 +659,6 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
     else:
         algorithm = list(algorithm)[0]
         logger.info('Choosing back-end {}'.format(algorithm))
-    
     
     def model_eval(pars,system):
         #-- evaluate the system, get the results and return a probability
@@ -676,6 +675,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                     if myid in had: continue
                     parset[qual] = pars['{}_{}'.format(qual,myid)].value
                     had.append(myid)
+        
         system.reset()
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
@@ -685,7 +685,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
-        #logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
+        logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
         return retvalue
     
     #-- do the fit and report on the errors to the screen
@@ -994,6 +994,7 @@ def accept_fit(system,fitparams):
     Accept the fit.
     """
     feedback = fitparams['feedback']
+    fitmethod = fitparams.context.split(':')[1]
     #-- which parameters were fitted?
     fitted_param_labels = [par.get_unique_label() for par in feedback['parameters']]
     #-- walk through all the parameterSets available:
@@ -1008,11 +1009,16 @@ def accept_fit(system,fitparams):
                 myid = this_param.get_unique_label()
                 index = fitted_param_labels.index(myid)
                 #-- [iwalker,trace,iparam]
-                if fitparams.context.split(':') in ['pymc','emcee']:
+                if fitmethod in ['pymc','emcee']:
                     this_param.set_value(np.median(feedback['traces'][index]))
-                    logger.info("Set {} = {} from MCMC trace".format(qual,this_param.as_string()))
-                elif fitparams.context.split(':') in ['lmfit']:
+                    try:
+                        this_param.set_posterior(feedback['traces'][index],update=False)
+                    except:
+                        this_param.set_posterior(name='sample',sample=feedback['traces'][index],discrete=False)
+                    logger.info("Set {} = {} (and complete posterior) from MCMC trace".format(qual,this_param.as_string()))
+                elif fitmethod in ['lmfit']:
                     this_param.set_value(feedback['values'][index])
                     logger.info("Set {} = {} from {} fit".format(qual,this_param.as_string(),fitparams['method']))
-
+                else:
+                    logger.info("Did not recognise fitting method {}".format(fitmethod))
 
