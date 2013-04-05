@@ -1,6 +1,6 @@
 
 from marching2FLib import getMesh
-
+import marching
 
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import numpy as np
@@ -47,6 +47,9 @@ print "table[0] = ",tableA[0]
 #table1 = np.zeros((10, 2))
 #print "table1 = ",table1
 table = tableA[0]
+
+table = marching.cdiscretize(delta,maxNumberTriangles,'BinaryRoche',D,q,F,Omega)
+
 N = len(table)
 print "the number of triangles = ", N
 x = np.hstack([table[:,i+4] for i in range(0,9,3)])
