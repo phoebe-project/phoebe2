@@ -58,11 +58,11 @@ def temperature_zeipel(system):
     gp = body.request_value('g_pole')
     #-- consistency check for gravity brightening
     if Teff>=8000. and beta!=1.00:
-        logger.warning('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 is a better approx than gravb={:.2f}'.format(Teff,beta))
+        logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 is a better approx than gravb={:.2f}'.format(Teff,beta))
     elif Teff<=6600. and beta!=0.32:
-        logger.warning('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 is a better approx than gravb={:.2f}'.format(Teff,beta))
+        logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 is a better approx than gravb={:.2f}'.format(Teff,beta))
     elif beta<0.32 or beta>1.00:
-        logger.warning('Object has intermittent temperature, gravb should be between 0.32-1.00')
+        logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
     #-- compute G and Tpole
     Grav = abs(10**(system.mesh['logg']-2)/gp)**beta
     if type=='mean':

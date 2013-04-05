@@ -43,7 +43,26 @@ def _prepare_grid_spectrum(wrange,gridfile):
     
     return axis_values,pixelgrid        
             
-            
+def choose_spec_table(profile,atm_kwargs={},red_kwargs={}):
+    """
+    Derive the filename of grid of template spectra from the input parameters.
+   
+    """
+    #-- perhaps the user gave a filename: then return it
+    if os.path.isfile(profile):
+        return profile
+    #-- else we need to be a little bit more clever and derive the filename
+    else:
+        #-- get some basic info
+        abun = atm_kwargs['abun']
+        prefix = 'm' if abun<0 else 'p'
+        abun = abs(abun*10)
+        basename = '{}_{}{:02.0f}.fits'.format(profile,prefix,abun)        
+        ret_val = os.path.join(basedir_ld_coeffs,basename)
+        if os.path.isfile(ret_val):
+            return ret_val
+        else:
+            raise ValueError("Cannot interpret profile parameter {}: I think the file that I need is {}, but it doesn't exist. If in doubt, consult the installation section of the documentation on how to add spectrum tables.".format(profile,ret_val))            
 
 def interp_spectable(gridfile,teff,logg,wrange):
     """

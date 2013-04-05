@@ -115,8 +115,8 @@ mystar = phoebe.Star(star,mesh,pbdep=lcdeps,obs=lcdats)
 # in checking the parameters or the model.
 if True:
     fitparams = phoebe.run(mystar,fitparams=fitparams,accept=True)
-    mystar.save('vega_sed_{}.phoebe'.format(star['gravblaw']))
-    fitparams.save('fitparams_{}.phoebe'.format(star['gravblaw']))
+    #mystar.save('vega_sed_{}.phoebe'.format(star['gravblaw']))
+    #fitparams.save('fitparams_{}.phoebe'.format(star['gravblaw']))
 else:
     mystar = phoebe.load_body('vega_sed_{}.phoebe'.format(star['gravblaw']))
     fitparams = phoebe.load_ps('fitparams_{}.phoebe'.format(star['gravblaw']))
@@ -159,10 +159,10 @@ plt.xlabel("Wavelength [\AA]")
 plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
 plt.xlim(1000,25000)
 plt.ylim(2e-11,1e-8)
-plt.savefig('vega_sed_bestfit1_{}.png'.format(star['gravblaw']))
+#plt.savefig('vega_sed_bestfit1_{}.png'.format(star['gravblaw']))
 plt.xlim(1200,10000)
 plt.ylim(8e-10,8e-9)
-plt.savefig('vega_sed_bestfit2_{}.png'.format(star['gravblaw']))
+#plt.savefig('vega_sed_bestfit2_{}.png'.format(star['gravblaw']))
 
 """
 

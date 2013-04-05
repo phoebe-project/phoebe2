@@ -15,7 +15,7 @@ from parameters.parameters import ParameterSet as PS
 from parameters.parameters import load as load_ps
 from parameters import create
 from parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
-from parameters.datasets import parse_phot,parse_rv
+from parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof
 from parameters.tools import add_rotfreqcrit
 from backend.universe import Star,BinaryRocheStar,BinaryStar,BodyBag,BinaryBag
 from backend.universe import load as load_body

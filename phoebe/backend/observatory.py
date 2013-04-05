@@ -303,7 +303,7 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     return xlim,ylim,p
     
     
-def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
+def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,figname=None,keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
     
@@ -311,8 +311,6 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     """
     #-- information on what to compute
     data_pars,ref = the_system.get_parset(ref)
-    #posangle = [0.]#data_pars.request_value('posangle','deg')
-    #baseline = [100.]#data_pars.request_value('baseline','m')
     passband = data_pars.request_value('passband')
     
     #-- helper function
@@ -335,9 +333,11 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     angular_scale_out = []
     angular_profile_out = []
     
-    #-- set effective wavelength
-    eff_wave = passbands.get_info([passband])['eff_wave'][0]
-    logger.info("ifm: cyclic frequency to m at lambda=%.4g angstrom"%(eff_wave))
+    #-- set effective wavelength to the one from the passband if not given
+    #   otherwise
+    if eff_wave is None:
+        eff_wave = passbands.get_info([passband])['eff_wave'][0]*np.ones(len(posangle))
+    logger.info("ifm: cyclic frequency to m at lambda~%.4g angstrom"%(eff_wave.mean()))
     #-- make an image if necessary, but in any case retrieve it's
     #   dimensions
     if figname is None:
@@ -356,7 +356,7 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
     d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
     dpc = conversions.convert('Rsol','pc',d)
         
-    for nr,(bl,pa) in enumerate(zip(baseline,posangle)):        
+    for nr,(bl,pa,wl) in enumerate(zip(baseline,posangle,eff_wave)):        
         
         if keepfig:
             xlims,ylims,p = image(the_system,ref=ref,savefig='{}_{:05d}.fits'.format(keepfig,nr))
@@ -400,10 +400,10 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
             df = 0.01/x.ptp()
             logger.info('ifm: single baseline equal to 0m: computation of entire profile')
         else:
-            f0 = conversions.convert('m','cy/arcsec',bl,wave=(eff_wave,'angstrom'))*2*np.pi
+            f0 = conversions.convert('m','cy/arcsec',bl,wave=(wl,'angstrom'))*2*np.pi
             fn = f0
             df = 0
-            logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,eff_wave))
+            logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
             if keepfig and keepfig is not True:
                 pl.annotate('f={:.3g} cy/as\n d={:.3g} pc'.format(f0,dpc),(0.95,0.05),va='bottom',ha='right',xycoords='axes fraction',color='r',size=20)
                 pl.figure()
@@ -425,7 +425,7 @@ def ifm(the_system,posangle=0.0,baseline=0.0,ref=0,figname=None,keepfig=True):
         #-- correct cumulative phase
         s1_phs = s1_phs - x.ptp()*pi*f1
         s1_phs = (s1_phs % (2*pi))# -pi
-        b1 = conversions.convert('cy/arcsec','m',f1,wave=(eff_wave,'angstrom'))
+        b1 = conversions.convert('cy/arcsec','m',f1,wave=(wl,'angstrom'))
         b1/=(2*np.pi)
         if keepfig and keepfig is not True:
             pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
@@ -494,6 +494,9 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
             iobs.load()
         wavelengths = iobs['wavelength']
+        R = iobs['R']
+    else:
+        R = None
     #-- information on dependable set
     idep,ref = the_system.get_parset(ref=ref,context='spdep')
     ld_model = idep['ld_func']
@@ -526,8 +529,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     #-- else, we assume wavelengths is already an array, so we don't need to do
     #   anything, except for setting the central wavelength "wc".
     else:
-        wc = (wavelengths[0]+wavelengths[-1])/2.
-        
+        wc = (wavelengths[0]+wavelengths[-1])/2.    
     #-- if we're not seeing the star, we can easily compute the spectrum: it's
     #   zero!
     if not np.sum(keep):
@@ -563,6 +565,10 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
         rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
+        if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
+            vgamma = the_system.params.values()[0].get_value('vgamma','km/s')
+            rad_velos += vgamma
+            logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
         total_continum = 0.
@@ -581,6 +587,10 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         proj_intens = the_system.mesh['proj_'+ref][keep]
         rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
+        if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
+            vgamma = the_system.params.values()[0].get_value('vgamma','km/s')
+            rad_velos += vgamma
+            logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         sizes = the_system.mesh['size'][keep]
         logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
@@ -612,11 +622,25 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         wavelengths,total_spectrum = tools.rotational_broadening(wavelengths,template,vrot,stepr=-1,epsilon=epsilon)
         total_continum = np.ones_like(wavelengths)
    
+    #-- convolve with instrumental profile if desired
+    if R is not None:
+        instr_fwhm = wc/R
+        instr_sigm = instr_fwhm/2.38
+        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
+        wavelengths,total_spectrum = tools.rotational_broadening(wavelengths,
+                       total_spectrum/total_continum,vrot=0.,fwhm=instr_sigm)
+        total_spectrum *= total_continum
+   
     if clip_after is not None:
         keep = (clip_after[0]<=wavelengths) & (wavelengths<=clip_after[1])
         wavelengths = wavelengths[keep]
         total_spectrum = total_spectrum[keep]
         total_continum = total_continum[keep]
+        
+    
+    
+        
+        
     return wavelengths,total_spectrum,total_continum
 
 def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_grav=True):
@@ -964,6 +988,7 @@ def extract_times_and_refs(system,params,tol=1e-8):
     types = np.hstack(types)[sa]
     refs  = np.hstack(refs)[sa]
     times = times[sa]
+
     #-- for each time point, keep a list of stuff that needs to be computed
     labl_per_time = [] # observation ref (uuid..)
     type_per_time = [] # observation type (lcdep...)
@@ -980,13 +1005,14 @@ def extract_times_and_refs(system,params,tol=1e-8):
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
         else:
-            continue
+            #-- don't know what to do here: also append or continue?
+            #continue
+            labl_per_time[-1].append(refs[i])
+            type_per_time[-1].append(types[i])
     #-- and fill the parameterSet!
     params['time'] = time_per_time
     params['refs']= labl_per_time
     params['types'] = type_per_time
-    print params
-
 
 @decorators.mpirun
 def compute(system,params=None,**kwargs):
@@ -1007,7 +1033,7 @@ def compute(system,params=None,**kwargs):
     im = kwargs.pop('im',False)
     extra_func = kwargs.pop('extra_func',[])
     extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])
-    
+        
     if params is None:
         params = parameters.ParameterSet(context='compute',**kwargs)
     else:
@@ -1023,7 +1049,8 @@ def compute(system,params=None,**kwargs):
     extract_times_and_refs(system,params)
     time_per_time = params['time']
     labl_per_time = params['refs']
-    type_per_time = params['types']        
+    type_per_time = params['types'] 
+    
     #-- some simplifications: try to detect whether a system is circular is not
     if hasattr(system,'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
         circular = (system.bodies[0].params['orbit']['ecc']==0)
@@ -1048,6 +1075,7 @@ def compute(system,params=None,**kwargs):
     reflect = params['refl']
     nreflect = params['refl_num']
     ltt = params['ltt']
+    
     #   so what about heating then...
     if heating and circular:
         heating = 1

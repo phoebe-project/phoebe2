@@ -53,7 +53,7 @@ Various tools:
 .. autosummary::
 
    tools.gravitational_redshift
-   tools.dopller_shift
+   tools.doppler_shift
    tools.rotational_broadening
 
 """

@@ -184,8 +184,12 @@ basedir_ld_coeffs = os.path.join(basedir,'tables','ld_coeffs')
 #{ LD laws
 
 def ld_claret(mu,coeffs):
-    """
+    r"""
     Claret's limb darkening law.
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)} = 1 - a_0(1-\mu^{0.5})-a_1(1-\mu)-a_2(1-\mu^{1.5})-a_3(1-\mu^2)
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -687,7 +691,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     @param passband: photometric passband
     @type passband: str
     """
-    m = atm_kwargs.get('z',0)
+    m = atm_kwargs.get('abun',0)
     l = atm_kwargs.get('logg',4.5)
     t = atm_kwargs.get('teff',10000)
     p = passband
@@ -695,15 +699,25 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     #[M/H], log g, Teff, passband
     M = [1.0, 0.5, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0]
     L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-    P = ['u', 'v', 'b', 'y', 'U', 'B', 'V', 'R', 'I', 'J', 'K', 'L', 'M', 'N', 'Rc', 'Ic', '230', '250', '270', '290', '310', '330', 'bT', 'vT', 'Hp']
-
+    #P = ['u', 'v', 'b', 'y', 'U', 'B', 'V', 'R', 'I', 'J', 'K', 'L', 'M', 'N',
+    #     'Rc', 'Ic', '230', '250', '270', '290', '310', '330', 'bT', 'vT', 'Hp']
+    P = ['STROMGREN.U','STROMGREN.V','STROMGREN.B','STROMGREN.Y',
+         'JOHNSON.U','JOHNSON.B','JOHNSON.V','JOHNSON.R','JOHNSON.I',
+         'JOHNSON.J','JOHNSON.K','JOHNSON.L','JOHNSON.M','JOHNSON.N',
+         'COUSINS.R','COUSINS.I',None,None,None,None,None,None,
+         'TYCHO2.BT','TYCHO2.VT','HIPPARCOS.HP']
+    
+    if not os.path.isfile(atm):
+        atm = os.path.join(basedir_ld_coeffs,atm)
+    #atm = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"
     Tl, Th, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 = np.loadtxt(atm, unpack=True)
-
+    
     #print m, l, t, p
     #print M.index(m), L.index(l), P.index(p)
 
     idx = M.index(m)*len(P)*len(L)*4 + P.index(p)*len(L)*4 + L.index(l)*4
-
+    #idx = M.searchsorted(m)*len(P)*len(L)*4 + P.searchsorted(p)*len(L)*4 + L.searchsorted(l)*4
+    
     #print idx, len(Tl)
 
     #for i in range(4):
@@ -713,9 +727,9 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     Cl2 = [c0[idx+1], c1[idx+1], c2[idx+1], c3[idx+1], c4[idx+1], c5[idx+1], c6[idx+1], c7[idx+1], c8[idx+1], c9[idx+1]]
     Cl3 = [c0[idx+2], c1[idx+2], c2[idx+2], c3[idx+2], c4[idx+2], c5[idx+2], c6[idx+2], c7[idx+2], c8[idx+2], c9[idx+2]]
     Cl4 = [c0[idx+3], c1[idx+3], c2[idx+3], c3[idx+3], c4[idx+3], c5[idx+3], c6[idx+3], c7[idx+3], c8[idx+3], c9[idx+3]]
-
+    
     teff = (t-Tl[idx+1])/(Th[idx+1]-Tl[idx+1])
-    #print t, Tl[idx+1], Th[idx+1], teff
+    print t, Tl[idx+1], Th[idx+1], teff
 
     Pl = legendre(teff)
 
@@ -723,6 +737,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     for i in range(10):
         s += Cl2[i]*Pl[i]
     return 10**s
+
 
 @decorators.memoized
 def _prepare_grid(passband,atm):
@@ -946,8 +961,9 @@ def match_teff_logg(atm_files):
 
 
 def intensity_moment(coeffs,ll=0,full_output=False):
-    """
+    r"""
     Calculate the intensity moment (see Townsend 2003, eq. 39).
+    
     
     Test analytical versus numerical implementation:
     
@@ -1205,7 +1221,13 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
     #-- remember that if the ld_coeffs was a string, we already set the intensities
     elif not ld_coeffs_from_grid or atm!=ld_coeffs:
         log_msg += ', intens via table atm={:s}, '.format(os.path.basename(atm))
-        system.mesh[tag][:,-1] = interp_ld_coeffs(atm,passband,atm_kwargs=atm_kwargs,
+        #-- WD compatibility layer:
+        if os.path.splitext(atm)[1]=='.dat':
+            system.mesh[tag][:,-1] = interp_ld_coeffs_wd(atm,passband,atm_kwargs=atm_kwargs,
+                                            red_kwargs=red_kwargs,vgamma=vgamma)
+        #-- Phoebe layer
+        else:
+            system.mesh[tag][:,-1] = interp_ld_coeffs(atm,passband,atm_kwargs=atm_kwargs,
                                             red_kwargs=red_kwargs,vgamma=vgamma)[-1]
     #-- else, we did everything already in the "if ld_coeffs_from_grid" part
     logger.info(log_msg)

@@ -180,5 +180,5 @@ if __name__=="__main__":
         shutil.copy('_build/latex/phoebe.pdf','_build/html/phoebe.pdf')
     
     if 'copy' in sys.argv[1:]:
-         subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
-         #subprocess.call('scp -r _build/html/* clusty.ast.villanova.edu:srv/www/phoebe/docs',shell=True)
+         #subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
+         subprocess.call('scp -r _build/html/* clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)

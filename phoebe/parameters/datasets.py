@@ -110,7 +110,7 @@ class DataSet(parameters.ParameterSet):
         if columns is not None:
             default_columns = self['columns']
             for col in default_columns:
-                if not col in columns:
+                if not col in columns and col in self:
                     thrash = self.pop(col)
             self['columns'] = columns
     
@@ -1620,7 +1620,9 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
     
     In the latter case, you are allowed to omit any column except for ``ucoord``
     ``vcoord``, ``vis`` and ``sigma_vis``, which are required.
-    If not given, the default ``time`` is zero.
+    If not given, the default ``time`` is zero. An extra optional column ``eff_wave``
+    lists the effective wavelength of each observation. If not give, the
+    effective wavelength will be derived from the passband.
         
     
     .. warning::
@@ -1790,6 +1792,7 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     ucoord = allvis2['ucoord']
     vcoord = allvis2['vcoord']
     time = allvis2['mjd']
+    eff_wave = conversions.convert('m','AA',allvis2['wavelength'])
     
     skip_columns = ifmobs['columns']
     all_keys = list(set(list(ifmobs.keys())) | set(list(ifmdep.keys())))
@@ -1797,10 +1800,10 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     if 'filename' in all_keys:
         all_keys.pop(all_keys.index('filename'))
     comments = ['# {} = {}'.format(key,ifmdep[key]) if key in ifmdep else '# {} = {}'.format(key,ifmobs[key]) for key in all_keys]
-    comments+= ['# ucoord vcoord vis sigma_vis time']
-    comments+= ['#---------------------------------']
+    comments+= ['# ucoord vcoord vis sigma_vis time eff_wave']
+    comments+= ['#------------------------------------------']
     output_filename = os.path.splitext(filename)[0]+'.vis'
-    ascii.write_array(np.column_stack([ucoord,vcoord,vis,vis_sigma,time]),
+    ascii.write_array(np.column_stack([ucoord,vcoord,vis,vis_sigma,time,eff_wave]),
               output_filename,comments=comments)
     return output_filename
 #}

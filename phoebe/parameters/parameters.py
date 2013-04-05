@@ -372,8 +372,9 @@ class Parameter(object):
        Parameter.get_cast_type
        Parameter.get_context
        Parameter.get_prior
-       Parameter.get_value_from_prior
        Parameter.get_posterior
+       Parameter.get_value_from_prior
+       Parameter.get_value_from_posterior
        Parameter.get_unique_label
        
     .. autosummary::
@@ -404,7 +405,6 @@ class Parameter(object):
     .. autosummary::
     
         Parameter.add_limits
-        Parameter.add_value_to_posterior
         Parameter.add_choice
         Parameter.remove_choice
     
@@ -837,12 +837,8 @@ class Parameter(object):
         """
         if fitter is None:
             return self.prior
-        elif fitter=='pymc':
-            prior_info = dict(list(self.prior.items()) + list(kwargs.items()))
-            distribution = prior_info.pop('distribution').title()
-            prior = getattr(pymc,distribution)(**prior_info)
         else:
-            raise NotImplementedError
+            prior = self.prior.get_distribution(distr_type=fitter,**kwargs)
         return prior
     
     def get_value_from_prior(self,size=1):
@@ -954,18 +950,17 @@ class Parameter(object):
         self.set_value(value)
         logger.info("Set value of {} to {}".format(self.get_qualifier(),value))
     
-    #def set_value_from_posterior(self):
-        #"""
-        #Change a parameter value to the mean of the posterior distribution.
+    def set_value_from_posterior(self):
+        """
+        Change a parameter value to the mean of the posterior distribution.
         
-        #Only done if the parameter has a posterior, otherwise the call to
-        #this function is silently ignored.
-        #"""
-        #trace = self.get_posterior()
-        #if trace is not None:
-            #new_value = trace.mean()
-            #self.set_value(new_value)
-            #logger.info("Set value for parameter '{}' to posterior mean {}".format(self.qualifier,self.get_value()))
+        Only done if the parameter has a posterior, otherwise the call to
+        this function is silently ignored.
+        """
+        if hasattr(self,'posterior'):
+            new_value = self.posterior.draw()[0]
+            self.set_value(new_value)
+            logger.info("Set value from posterior")
         
     
     def set_unit(self,unit):
@@ -1047,10 +1042,10 @@ class Parameter(object):
         
         Or you can change the prior information later on:
         
-        >>> mypar.set_prior(name='normal',mu=5,sigma=1.)
+        >>> mypar.set_prior(distribution='normal',mu=5,sigma=1.)
         
         """
-        if not hasattr(self,'prior') or 'name' in kwargs:
+        if not hasattr(self,'prior') or 'distribution' in kwargs:
             self.prior = Distribution(**kwargs)
         else:
             self.prior.update_distribution_parameters(**kwargs)
@@ -1061,7 +1056,7 @@ class Parameter(object):
         Set the posterior distribution.
         
         """
-        if not hasattr(self,'posterior') or 'name' in kwargs:
+        if not hasattr(self,'posterior') or 'distribution' in kwargs:
             self.posterior = Distribution(**kwargs)
         else:
             self.posterior.update_distribution_parameters(**kwargs)
@@ -1613,10 +1608,10 @@ class ParameterSet(object):
             index = None
             for qual in qualifier:
                 param = self.get_parameter(qual)
-                if not param.posterior.name=='sample':
+                if not param.posterior.distribution=='sample':
                     param.set_value_from_posterior()
                     continue
-                sample = param.posterior.distr['sample']
+                sample = param.posterior.distr_pars['sample']
                 if index is None:
                     index = int(np.random.uniform(high=len(sample)))
                 param.set_value(sample[index])
@@ -2364,32 +2359,32 @@ class Distribution(object):
     >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=False)
     >>> d = Distribution('sample',sample=array3,discrete=False)
     
-    If C{name='histogram'} and C{discrete=False}, the bins are interpreted
+    If C{distribution='histogram'} and C{discrete=False}, the bins are interpreted
     as the edges of the bins, and so there is one more bin than probabilities.
     
-    If C{name='histogram'} and C{discrete=True}, the bins are interpreted as
+    If C{distribution='histogram'} and C{discrete=True}, the bins are interpreted as
     the set of discrete values, and so there are equally many bins as probabilities.
     """
-    def __init__(self,name,**distribution_parameters):
-        self.name = name.lower()
-        self.distr = distribution_parameters
+    def __init__(self,distribution,**distribution_parameters):
+        self.distribution = distribution.lower()
+        self.distr_pars = distribution_parameters
         #-- check contents:
         given_keys = set(list(distribution_parameters.keys()))
-        if   name=='histogram':
+        if   distribution=='histogram':
             required_keys = set(['bins','prob','discrete'])
-        elif name=='uniform':
+        elif distribution=='uniform':
             required_keys = set(['lower','upper'])
-        elif name=='normal':
+        elif distribution=='normal':
             required_keys = set(['mu','sigma'])
-        elif name=='sample':
+        elif distribution=='sample':
             required_keys = set(['sample','discrete'])
         
         if (given_keys - required_keys) or (required_keys - given_keys):
-            raise ValueError('Distribution {} needs keys {}'.format(name,", ".join(list(required_keys))))
+            raise ValueError('Distribution {} needs keys {}'.format(distribution,", ".join(list(required_keys))))
         
         #-- make sure the histogram is properly normalised
-        if name=='histogram':
-            self.distr['prob'] = self.distr['prob']/float(np.sum(self.distr['prob']))
+        if distribution=='histogram':
+            self.distr_pars['prob'] = self.distr_pars['prob']/float(np.sum(self.distr_pars['prob']))
     
     def update_distribution_parameters(self,**distribution_parameters):
         """
@@ -2399,12 +2394,12 @@ class Distribution(object):
         In all other cases, the keys are overwritten.
         """
         for key in distribution_parameters:
-            if not key in self.distr:
-                raise ValueError('Distribution {} does not accept key {}'.format(self.name,key))
-            elif self.name=='sample' and key=='sample':
-                self.distr[key] = np.hstack([self.distr[key],distribution_parameters[key]])
+            if not key in self.distr_pars:
+                raise ValueError('Distribution {} does not accept key {}'.format(self.distribution,key))
+            elif self.distribution=='sample' and key=='sample':
+                self.distr_pars[key] = np.hstack([self.distr_pars[key],distribution_parameters[key]])
             else:
-                self.distr[key] = distribution_parameters[key]
+                self.distr_pars[key] = distribution_parameters[key]
                 
     
     def get_distribution(self,distr_type=None,**kwargs):
@@ -2416,13 +2411,18 @@ class Distribution(object):
         """
         #-- plain
         if distr_type is None:
-            return self.name,self.distr
+            return self.distribution,self.distr_pars
         #-- pymc
         elif distr_type=='pymc':
-            if self.name=='normal':
-                kwargs['mu'] = self.distr['mu']
-                kwargs['tau'] = 1./self.distr['sigma']**2
-            return getattr(pymc,self.name.title())(**kwargs)
+            if self.distribution=='normal':
+                kwargs['mu'] = self.distr_pars['mu']
+                kwargs['tau'] = 1./self.distr_pars['sigma']**2
+            else:
+                for key in self.distr_pars:
+                    kwargs.setdefault(key,self.distr_pars[key])
+            return getattr(pymc,self.distribution.title())(**kwargs)
+        else:
+            raise NotImplementedError
     
     def draw(self,size=1):
         """
@@ -2433,30 +2433,30 @@ class Distribution(object):
         @return: random value from the distribution
         @rtype: array[C{size}]
         """
-        if self.name=='uniform':
-            values = np.random.uniform(size=size,low=self.distr['lower'],
-                                 high=self.distr['upper'])
-        elif self.name=='normal':
-            values = np.random.normal(size=size,loc=self.distr['mu'],
-                                 scale=self.distr['sigma'])
-        elif self.name=='histogram' or self.name=='sample':
+        if self.distribution=='uniform':
+            values = np.random.uniform(size=size,low=self.distr_pars['lower'],
+                                 high=self.distr_pars['upper'])
+        elif self.distribution=='normal':
+            values = np.random.normal(size=size,loc=self.distr_pars['mu'],
+                                 scale=self.distr_pars['sigma'])
+        elif self.distribution=='histogram' or self.distribution=='sample':
             #-- when the Distribution is actually a sample, we need to make
             #   the histogram first ourselves.
-            if self.name=='sample':
-                myhist = np.histogram(self.distr['sample'])
-                if self.distr['discrete']:
-                    bins = np.unique(self.distr['sample'])
+            if self.distribution=='sample':
+                myhist = np.histogram(self.distr_pars['sample'])
+                if self.distr_pars['discrete']:
+                    bins = np.unique(self.distr_pars['sample'])
                 else:
                     bins = myhist[1]
                 prob = myhist[0]/float(np.sum(myhist[0]))
             #-- else they are readily available
             else:
-                bins,prob = self.distr['bins'],self.distr['prob']
+                bins,prob = self.distr_pars['bins'],self.distr_pars['prob']
             #-- draw random uniform values from the cumulative distribution
             cumul = np.hstack([0,np.cumsum(prob)])
             indices = cumul.searchsorted(np.random.uniform(size=size))
             #-- little different for discrete or continuous distributions
-            if self.distr['discrete']:
+            if self.distr_pars['discrete']:
                 values = bins[indices-1]
             else:
                 values = np.random.uniform(size=size,low=bins[indices-1],
@@ -2465,6 +2465,14 @@ class Distribution(object):
             raise NotImplementedError
             
         return values
+    
+    def __str__(self):
+        """
+        String representation of class Distribution.
+        """
+        name = self.distribution.title()
+        pars = ", ".join(['{}={}'.format(key,self.distr_pars[key]) for key in sorted(list(self.distr_pars.keys()))])
+        return "{}({})".format(name,pars)
     
     
 
