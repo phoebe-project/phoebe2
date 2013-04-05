@@ -1014,7 +1014,7 @@ def accept_fit(system,fitparams):
                     try:
                         this_param.set_posterior(feedback['traces'][index],update=False)
                     except:
-                        this_param.set_posterior(name='sample',sample=feedback['traces'][index],discrete=False)
+                        this_param.set_posterior(distribution='sample',sample=feedback['traces'][index],discrete=False)
                     logger.info("Set {} = {} (and complete posterior) from MCMC trace".format(qual,this_param.as_string()))
                 elif fitmethod in ['lmfit']:
                     this_param.set_value(feedback['values'][index])
