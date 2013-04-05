@@ -2,6 +2,31 @@
 Fitting routines, minimization, optimization.
 
 The top level function you should use is L{run}.
+
+** Main functions **
+
+.. autosummary::
+
+   run
+   accept_fit
+   summarize_fit
+   
+**Individual fitting routines**
+
+.. autosummary::
+
+   run_pymc
+   run_emcee
+   run_lmfit
+   run_grid
+   
+** Wilson Devinney**
+
+.. autosummary::
+   
+   run_wd_emcee
+   
+
 """
 import os
 import time
@@ -916,11 +941,11 @@ def summarize_fit(system,fitparams,savefig=False):
                 if bins_thinned>0:
                     plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
             
-            if prior['distribution']=='uniform':
-                plt.axvspan(prior['lower'],prior['upper'],alpha=0.05,color='r')
-            elif prior['distribution']=='normal':
-                plt.axvspan(prior['mu']-1*prior['sigma'],prior['mu']+1*prior['sigma'],alpha=0.05,color='r')
-                plt.axvspan(prior['mu']-3*prior['sigma'],prior['mu']+3*prior['sigma'],alpha=0.05,color='r')
+            if prior.distribution=='uniform':
+                plt.axvspan(prior.distr_pars['lower'],prior.distr_pars['upper'],alpha=0.05,color='r')
+            elif prior.distribution=='normal':
+                plt.axvspan(prior.distr_pars['mu']-1*prior.distr_pars['sigma'],prior.distr_pars['mu']+1*prior.distr_pars['sigma'],alpha=0.05,color='r')
+                plt.axvspan(prior.distr_pars['mu']-3*prior.distr_pars['sigma'],prior.distr_pars['mu']+3*prior.distr_pars['sigma'],alpha=0.05,color='r')
             plt.xlabel("/".join(path)+' [{}]'.format(unit))
             plt.ylabel('Number of occurrences')
             plt.grid()
