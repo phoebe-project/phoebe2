@@ -12,6 +12,10 @@ Tools to handle parameters and ParameterSets.
     add_surfgrav
     add_teffpolar
     add_angdiam
+
+.. autosummary::
+
+    add_unbounded_from_bounded
     
 """
 import logging
@@ -437,4 +441,51 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
    
+
+def transform_bounded_to_unbounded(parset,qualifier,from_='limits'):
+    r"""
+    Transform a bounded parameter to an unbounded version.
+    
+    This can be helpful for inclusion in fitting algorithms that cannot handle
+    bounds.
+    
+    The original parameter will be kept, but a transformed one will be added.
+    The two versions of the parameters are linked through a constraint.
+    
+    The transformation of a parameter :math:`P` with upper limit :math:`U`
+    and :math:`L` to an unbounded parameter :math:`P'` is given by:
+    
+    .. math::
+    
+        P' = \left(\frac{\atan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
+        
+        P = \tan\left(\pi\left(\frac{P'-L}{U-L}-\frac{1}{2}\right)\right)
+    
+    We also need to transform the prior accordingly.
+    
+    @param parset: parameterSet containing the qualifier
+    @type parset: ParameterSet
+    @param qualifier: name of the parameter to transform
+    @type qualifier: str
+    """
+    #-- create a new parameter with the similar properties as the original one,
+    #   but without limits.
+    new_qualifier = qualifier+'__'
+    P = parset.get_parameter(qualifier)
+    
+    P_ = P.copy()
+    P_.set_qualifier(new_qualifier)
+    try:
+        low,high = P_.transform_to_unbounded(from_=from_)
+    except AttributeError:
+        raise AttributeError("You cannot unbound a parameter ({}) that has no prior".format(qualifier))
+    if P_.has_unit():
+        del(P_.unit)
+    #-- throw out a previous one if there is one before adding it again.
+    if new_qualifier in parset:
+        thrash = parset.pop(new_qualifier)
+    parset.add(P_)
+    #parset.add_constraint('{{{qualifier:s}}} = np.tan(np.pi*(({{{new_qualifier:s}}}-{low:.8e})/({high:.8e}-{low:.8e})-0.5))'.format(**locals()))
+    parset.add_constraint('{{{qualifier:s}}} = (np.arctan({{{new_qualifier:s}}})/np.pi + 0.5)*({high:.8e}-{low:.8e}) + {low:.8e}'.format(**locals()))
+    #return (np.arctan(par)/np.pi+0.5)*(high-low)+low
     

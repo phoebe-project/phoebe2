@@ -897,6 +897,15 @@ class Parameter(object):
     
     #}
     #{ Set parameter properties
+    def set_qualifier(self,new_qualifier):
+        """
+        Change the name of the parameter.
+        
+        @param new_qualifier: new name
+        @type new_qualifier: str
+        """
+        self.qualifier = new_qualifier
+        
     def set_value(self,value,*args):
         """
         Change a parameter value.
@@ -1107,7 +1116,14 @@ class Parameter(object):
             if choice in self.choices:
                 index = self.choices.index(choice)
                 return self.choices.pop(index)
-        
+    
+    def remove_limits(self):
+        """
+        Remove the limits from the parameter
+        """
+        if hasattr(self,'llim'): del self.llim
+        if hasattr(self,'ulim'): del self.ulim
+    
     #}
     #{ Check for parameter properties
     
@@ -1192,6 +1208,49 @@ class Parameter(object):
                 allowed.append(fac)
         return unit_type,allowed
     
+    def transform_to_unbounded(self,from_='limits'):
+        """
+        Transform a bounded parameter to an unbounded version.
+    
+        This can be helpful for inclusion in fitting algorithms that cannot handle
+        bounds.
+        
+        The original parameter will be kept, but a transformed one will be added.
+        The two versions of the parameters are linked through a constraint.
+        
+        The transformation of a parameter :math:`P` with upper limit :math:`U`
+        and :math:`L` to an unbounded parameter :math:`P'` is given by:
+        
+        .. math::
+        
+            P' = \left(\frac{\atan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
+            
+            P = \tan\left(\pi\left(\frac{P'-L}{U-L}-\frac{1}{2}\right)\right)
+        
+        We also need to transform the prior accordingly.
+            
+        """
+        if from_=='limits':
+            L,U = self.get_limits()
+        elif from_=='prior':
+            L,U = self.get_prior().get_limits()
+        else:
+            raise ValueError("do not understand {}".format(from_))
+        if self.has_unit():
+            L_SI = conversions.convert(self.get_unit(),'SI',L)
+            U_SI = conversions.convert(self.get_unit(),'SI',U)
+        else:
+            L_SI,U_SI = L,U
+        # set limits to be unbounded
+        self.set_limits(-np.inf,+np.inf)
+        # change the prior
+        self.get_prior().transform_to_unbounded(L_SI,U_SI)
+        if self.has_unit():
+            new_value = transform_to_unbounded(self.get_value('SI'),L_SI,U_SI)
+        else:
+            new_value = transform_to_unbounded(self.get_value(),L_SI,U_SI)
+        self.set_value(new_value)
+        return L_SI,U_SI
     
     def copy(self):
         """
@@ -2498,6 +2557,20 @@ class Distribution(object):
         else:
             raise NotImplementedError
     
+    def get_limits(self):
+        if self.distribution=='uniform':
+            lower = self.distr_pars['lower']
+            upper = self.distr_pars['upper']
+        elif self.distribution=='normal':
+            lower = self.distr_pars['mu']-3*self.distr_pars['sigma']
+            upper = self.distr_pars['mu']+3*self.distr_pars['sigma']
+        elif self.distribution=='sample' or self.distribution=='histogram':
+            lower = self.distr_pars['bins'].min()
+            upper = self.distr_pars['bins'].max()
+        else:
+            raise NotImplementedError
+        return lower,upper
+    
     def draw(self,size=1):
         """
         Draw a random value from the distribution.
@@ -2539,6 +2612,28 @@ class Distribution(object):
             raise NotImplementedError
             
         return values
+    
+    def transform_to_unbounded(self,low,high):
+        """
+        Transform the distribution to be bounded.
+        
+        - Uniform distribution set bounds between -100 and +100
+        - Normal distribution set mu=0.0, sigma=2.0
+        - Sample distribution transformed to unbounded
+        - Histogram distribution transformed to unbounded
+        """
+        if self.distribution=='uniform':
+            self.distr_pars['lower'] = -5
+            self.distr_pars['upper'] = +5
+        elif self.distribution=='normal':
+            self.distr_pars['mu'] = 0.
+            self.distr_pars['sigma'] = 2.
+        elif self.distribution=='sample' or self.distribution=='histogram':
+            self.distr_pars['bins'] = transform_to_unbounded(self.distr_pars['bins'],low,high)
+        else:
+            raise NotImplementedError
+            
+        
         
     def __str__(self):
         """
@@ -2553,6 +2648,12 @@ class Distribution(object):
 #}
 
 #{ Input/output
+
+def transform_to_unbounded(par,low,high):
+    return np.tan(np.pi*((par-low)/(high-low)-0.5))
+
+def transform_to_bounded(par,low,high):
+    return (np.arctan(par)/np.pi+0.5)*(high-low)+low
 
 def load(filename):
     """
