@@ -303,9 +303,14 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     return xlim,ylim,p
     
     
-def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,figname=None,keepfig=True):
+def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
+        figname=None,keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
+    
+    If you give a single positional angle as a float instead of an array,
+    the whole profile will be computed. Otherwise, only selected baselines
+    will be computed, to e.g. match observed data.
     
     xlims and ylims in Rsol.
     """
@@ -436,7 +441,7 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,figname=None,ke
         frequency_out.append(f1)
         baseline_out.append(b1)
         posangle_out.append(pa)
-        visibility_out.append(s1_vis)
+        visibility_out.append(s1_vis**2)
         phase_out.append(s1_phs)
         angular_scale_out.append(x)
         angular_profile_out.append(signal)

@@ -581,11 +581,11 @@ def parse_header(filename):
     contexts = dict(rv='rvdep',
                     phot='lcdep',lc='lcdep',
                     spec='spdep',lprof='spdep',
-                    vis='ifdep')
+                    vis2='ifdep')
     dataset_classes = dict(rv=RVDataSet,
                            phot=LCDataSet,lc=LCDataSet,
                            spec=SPDataSet,lprof=SPDataSet,
-                           vis=IFDataSet)
+                           vis2=IFDataSet)
     ext = filename.split('.')[-1]
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
@@ -1548,7 +1548,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
             if (end-start)>10000:
                 raise ValueError('Spectral window too big')
             #-- save to the dataset
-            ref = "{}-{}".format(line_name,filename)
+            ref = "{}-{}".format(filename,line_name)
             ds['continuum'] = np.ones(len(ds['wavelength'][start:end])).reshape((1,-1))
             ds['wavelength'] = ds['wavelength'][start:end].reshape((1,-1))
             ds['flux'] = ds['flux'][start:end].reshape((1,-1))
@@ -1572,9 +1572,9 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
     else:
         return output
     
-def parse_vis(filename,columns=None,full_output=False,**kwargs):
+def parse_vis2(filename,columns=None,full_output=False,**kwargs):
     """
-    Parse VIS files to IFDataSets and ifdeps.
+    Parse VIS2 files to IFDataSets and ifdeps.
     
     **File format description**
     
@@ -1589,7 +1589,7 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
         -21.314  -23.720  0.598 0.030   56295.0534
 
     
-    The columns represent respectively the **U-coordinate, V-coordinate, vis, sigma_vis, time**.
+    The columns represent respectively the **U-coordinate, V-coordinate, vis2, sigma_vis2, time**.
     An attempt will be made to interpret the comment lines (i.e. those lines
     where the first character equals '#') as qualifier/value for either the
     :ref:`ifobs <parlabel-phoebe-ifobs>` or :ref:`ifdep <parlabel-phoebe-ifdep>`.
@@ -1610,7 +1610,7 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
         # atm = kurucz
         # fittransfo = log
         # passband = 2MASS.KS
-        # ucoord  vcoord  vis  sigma_vis time
+        # ucoord  vcoord  vis2  sigma_vis2 time
         #---------------------------------------------
         -7.779     7.980  0.932 0.047 56295.0550
         -14.185    0.440  0.808 0.040 56295.0550
@@ -1619,7 +1619,7 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
         -21.314  -23.720  0.598 0.030 56295.0534
     
     In the latter case, you are allowed to omit any column except for ``ucoord``
-    ``vcoord``, ``vis`` and ``sigma_vis``, which are required.
+    ``vcoord``, ``vis2`` and ``sigma_vis2``, which are required.
     If not given, the default ``time`` is zero. An extra optional column ``eff_wave``
     lists the effective wavelength of each observation. If not give, the
     effective wavelength will be derived from the passband.
@@ -1655,14 +1655,14 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
     **Example usage**
     
     Assume that any of the first three examples is saved in 
-    file called ``myfile.vis``, you can do (the following lines are equivalent):
+    file called ``myfile.vis2``, you can do (the following lines are equivalent):
     
-    >>> obs,pbdeps = parse_vis('myfile.vis')
-    >>> obs,pbdeps = parse_vis('myfile.vis',columns=['ucoord','vcoord','vis','sigma_vis','time'])
+    >>> obs,pbdeps = parse_vis2('myfile.vis2')
+    >>> obs,pbdeps = parse_vis2('myfile.vis2',columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
     
     Which is in this case equivalent to:
     
-    >>> output = parse_vis('myfile.vis',full_output=True)
+    >>> output = parse_vis2('myfile.vis2',full_output=True)
     >>> obs,pbdeps = output['__nolabel__']
     
     or 
@@ -1689,18 +1689,24 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
     #   not in the LCDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
     (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
-    
-    if columns is None:
-        columns_in_file = ['ucoord','vcoord','vis','sigma_vis','time']
-    else:
+    if columns is None and columns_in_file is None:
+        columns_in_file = ['ucoord','vcoord','vis2','sigma_vis2','time']
+    elif columns is not None:
         columns_in_file = columns
-    columns_required = ['ucoord','vcoord','vis','sigma_vis']
-    columns_specs = dict(ucoord=float,vcoord=float,sigma_vis=float,
-                         time=float,unit=str,vis=float,phase=float,sigma_phase=float)
+    columns_required = ['ucoord','vcoord','vis2','sigma_vis2']
+    columns_specs = dict(ucoord=float,vcoord=float,sigma_vis2=float,
+                         time=float,unit=str,vis2=float,phase=float,
+                         sigma_phase=float,eff_wave=float)
     
     missing_columns = set(columns_required) - set(columns_in_file)
-    if len(missing_columns)>0:
-        raise ValueError("Missing columns in VIS file: {}".format(", ".join(missing_columns)))
+    #-- perhaps vis2 are given instead of vis
+    ampl_vis_given = False
+    if sorted(list(missing_columns))==['sigma_vis2','vis2'] and 'vis' in columns_in_file and 'sigma_vis' in columns_in_file:
+        ampl_vis_given = True
+        columns_in_file[columns_in_file.index('vis') ] = 'vis2'
+        columns_in_file[columns_in_file.index('sigma_vis') ] = 'sigma_vis2'
+    elif len(missing_columns)>0:
+        raise ValueError("Missing columns in VIS2 file: {}".format(", ".join(missing_columns)))
     
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
@@ -1736,6 +1742,11 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
     descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
     dtype = np.dtype(descr)
     data = np.array(data,dtype=dtype)
+    if ampl_vis_given:
+        logger.info('Squared visibility in datasets, converting to visibility')
+        vis = data['vis2']**2
+        data['sigma_vis2'] = 2*vis*data['sigma_vis2']/data['vis2']
+        data['vis2'] = vis
     
     #-- for each component, create two lists to contain the
     #   IFDataSets or pbdeps    
@@ -1749,6 +1760,8 @@ def parse_vis(filename,columns=None,full_output=False,**kwargs):
                 output[lbl][0][-1][col] = data[coldat]
             continue
         output[label][0][-1][col] = data[coldat]
+        output[label][0][-1]['ref'] = filename
+        output[label][1][-1]['ref'] = filename
         #-- override values already there with extra kwarg values
         for key in kwargs:
             if key in output[label][0][-1]:
@@ -1787,8 +1800,8 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     #-- read in the visibilities
     templatedata = oifits.open(filename)
     allvis2 = templatedata.allvis2 
-    vis = np.sqrt(allvis2['vis2data'])
-    vis_sigma = 0.5*allvis2['vis2err']/allvis2['vis2data']
+    vis = allvis2['vis2data']
+    vis_sigma = allvis2['vis2err']
     ucoord = allvis2['ucoord']
     vcoord = allvis2['vcoord']
     time = allvis2['mjd']
@@ -1800,9 +1813,9 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     if 'filename' in all_keys:
         all_keys.pop(all_keys.index('filename'))
     comments = ['# {} = {}'.format(key,ifmdep[key]) if key in ifmdep else '# {} = {}'.format(key,ifmobs[key]) for key in all_keys]
-    comments+= ['# ucoord vcoord vis sigma_vis time eff_wave']
+    comments+= ['# ucoord vcoord vis2 sigma_vis2 time eff_wave']
     comments+= ['#------------------------------------------']
-    output_filename = os.path.splitext(filename)[0]+'.vis'
+    output_filename = os.path.splitext(filename)[0]+'.vis2'
     ascii.write_array(np.column_stack([ucoord,vcoord,vis,vis_sigma,time,eff_wave]),
               output_filename,comments=comments)
     return output_filename

@@ -651,7 +651,7 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     return pars
 
 def legendre(x):
-    pl = [1.0, x]
+    pl = [np.ones_like(x), x]
     denom = 1.0
     for i in range(2, 10):
         fac1 = x*(2*denom+1)
@@ -669,12 +669,6 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         >>> atm_kwargs = dict(teff=6000.,logg=4.0,z=0.)
         >>> interp_ld_coeffs_wd('atmcof.dat','V',atm_kwargs=atm_kwargs)
         
-    To do:
-        
-        - interpolation
-        - make it so that it works with arrays of C{atm_kwargs}
-        - convert passband names to Phoebe 2.0 passband names
-        
     Remarks:
     
         - reddening (C{red_kwargs}) is not implemented
@@ -691,53 +685,48 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     @param passband: photometric passband
     @type passband: str
     """
+    #-- get atmospheric properties
     m = atm_kwargs.get('abun',0)
     l = atm_kwargs.get('logg',4.5)
     t = atm_kwargs.get('teff',10000)
     p = passband
     
-    #[M/H], log g, Teff, passband
-    M = [1.0, 0.5, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0]
+    #-- prepare lists for interpolation
+    M = [-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
+         -0.5,-0.3,-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
     L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-    #P = ['u', 'v', 'b', 'y', 'U', 'B', 'V', 'R', 'I', 'J', 'K', 'L', 'M', 'N',
-    #     'Rc', 'Ic', '230', '250', '270', '290', '310', '330', 'bT', 'vT', 'Hp']
     P = ['STROMGREN.U','STROMGREN.V','STROMGREN.B','STROMGREN.Y',
          'JOHNSON.U','JOHNSON.B','JOHNSON.V','JOHNSON.R','JOHNSON.I',
          'JOHNSON.J','JOHNSON.K','JOHNSON.L','JOHNSON.M','JOHNSON.N',
-         'COUSINS.R','COUSINS.I',None,None,None,None,None,None,
+         'COUSINS.R','COUSINS.I','OPEN.BOL',None,None,None,None,None,
          'TYCHO2.BT','TYCHO2.VT','HIPPARCOS.HP']
     
+    #-- get the atmosphere table's location and read it in.
     if not os.path.isfile(atm):
         atm = os.path.join(basedir_ld_coeffs,atm)
-    #atm = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"
-    Tl, Th, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 = np.loadtxt(atm, unpack=True)
+    table = _prepare_wd_grid(atm)
     
-    #print m, l, t, p
-    #print M.index(m), L.index(l), P.index(p)
-
-    idx = M.index(m)*len(P)*len(L)*4 + P.index(p)*len(L)*4 + L.index(l)*4
-    #idx = M.searchsorted(m)*len(P)*len(L)*4 + P.searchsorted(p)*len(L)*4 + L.searchsorted(l)*4
+    #-- find out where we need to be in the atmosphere table and extract that
+    #   row
+    index1 = 18-np.searchsorted(M,m)
+    index2 = np.searchsorted(L,l)
+    idx = index1*len(P)*len(L)*4 + P.index(p)*len(L)*4 + index2*4
+    Cl2 = table[idx+1,2:]
     
-    #print idx, len(Tl)
-
-    #for i in range(4):
-    #    print ("%1.1f %1.1f %f %f %f %f %f %f %f %f %f %f" % (Tl[idx+i], Th[idx+i], c0[idx+i], c1[idx+i], c2[idx+i], c3[idx+i], c4[idx+i], c5[idx+i], c6[idx+i], c7[idx+i], c8[idx+i], c9[idx+i]))
-
-    Cl1 = [c0[idx], c1[idx], c2[idx], c3[idx], c4[idx], c5[idx], c6[idx], c7[idx], c8[idx], c9[idx]]
-    Cl2 = [c0[idx+1], c1[idx+1], c2[idx+1], c3[idx+1], c4[idx+1], c5[idx+1], c6[idx+1], c7[idx+1], c8[idx+1], c9[idx+1]]
-    Cl3 = [c0[idx+2], c1[idx+2], c2[idx+2], c3[idx+2], c4[idx+2], c5[idx+2], c6[idx+2], c7[idx+2], c8[idx+2], c9[idx+2]]
-    Cl4 = [c0[idx+3], c1[idx+3], c2[idx+3], c3[idx+3], c4[idx+3], c5[idx+3], c6[idx+3], c7[idx+3], c8[idx+3], c9[idx+3]]
+    #-- calculate the Legendre temperature
+    teff = (t-table[idx+1,0])/(table[idx+1,1]-table[idx+1,0])
+    Pl = np.array(legendre(teff))
     
-    teff = (t-Tl[idx+1])/(Th[idx+1]-Tl[idx+1])
-    print t, Tl[idx+1], Th[idx+1], teff
+    #-- and compute the flux
+    s = np.sum(Cl2.reshape((-1,1))*Pl,axis=0)
+    
+    #-- that's it!
+    return 10**s * 1e-8
 
-    Pl = legendre(teff)
-
-    s = 0
-    for i in range(10):
-        s += Cl2[i]*Pl[i]
-    return 10**s
-
+@decorators.memoized
+def _prepare_wd_grid(atm):
+    logger.info("Prepared WD grid {}: interpolate in teff, logg, abun".format(os.path.basename(atm)))
+    return np.loadtxt(atm)
 
 @decorators.memoized
 def _prepare_grid(passband,atm):
@@ -1106,7 +1095,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     #   reference to a table. Otherwise, just use the coefficients.
     if isinstance(ld_coeffs,str):
         atm_kwargs = dict(atm=atm,ld_func=ld_func,teff=teff,logg=logg,abun=abun,ld_coeffs=ld_coeffs)
-        ld_coeffs = interp_ld_coeffs(atm,passband,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs)[:,0]
+        ld_coeffs = interp_ld_coeffs(ld_coeffs,passband,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs)[:,0]
     #-- we compute projected and total intensity. We have to correct for solid
     #-- angle, radius of the star and distance to the star.
     theta1 = 2*np.pi*radius**2*4*np.pi
