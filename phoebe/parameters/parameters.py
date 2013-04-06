@@ -1045,6 +1045,10 @@ class Parameter(object):
         >>> mypar.set_prior(distribution='normal',mu=5,sigma=1.)
         
         """
+        #-- if only sigma is set for normal priors, take the mu equal to the
+        #   current value of the parameter
+        if 'distribution' in kwargs and kwargs['distribution']=='normal' and not 'mu' in kwargs:
+            kwargs['mu'] = self.get_value()
         if not hasattr(self,'prior') or 'distribution' in kwargs:
             self.prior = Distribution(**kwargs)
         else:
@@ -1307,6 +1311,62 @@ class ParameterSet(object):
     """
     Class holding a list of parameters.
     
+    B{Section 0. Overview}
+    
+    **Retrieve Parameter information**
+    
+    .. autosummary::
+    
+       get_parameter
+       get_adjust
+       get_value
+       get_unit
+       get_value_with_unit
+       get_description
+       get_context
+       get_constraint
+       pop_constraint
+       request_value
+       has_prior
+       has_qualifier
+       has_unit
+       keys
+       items
+       values
+       pop
+       
+    **Set Parameter information**
+    
+    .. autosummary::   
+    
+       load_defaults
+       reset
+       set_adjust
+       set_value
+       set_value_from_prior
+       set_value_from_posterior
+       set_default_units
+       set_prior
+    
+    **Modify the ParameterSet**
+    
+    .. autosummary::
+    
+       add
+       add_constraint
+       remove
+       remove_constraint
+       run_constraints
+       set_convention
+       copy
+       save
+       save_ascii
+       to_string
+
+    
+    
+    B{Section 1. Description}
+    
     The parameters can be accessed and changed dictionary-wise via their
     qualifier or one of the aliases. When accessed, they will automatically be
     cast to the right type (e.g. for input in a code).
@@ -1509,7 +1569,7 @@ class ParameterSet(object):
     
     def reset(self,qualifier):
         """
-        Reset a qualifier.
+        Reset a Parameter.
         """
         self.get_parameter(qualifier).reset()
         
@@ -1626,6 +1686,11 @@ class ParameterSet(object):
         self.get_parameter(qualifier).set_value_from_prior()
         self.run_constraints()
     
+    def set_prior(self,qualifier,**kwargs):
+        """
+        Set or update prior information.
+        """
+        self.get_parameter(qualifier).set_prior(qualifier,**kwargs)
     
     def get_value(self,qualifier,*args):
         """
@@ -1870,7 +1935,9 @@ class ParameterSet(object):
     def request_value(self,qualifier,*args):
         """
         Request the value of a qualifier, regardless of whether it is a
-        constraint or a real parameter. When requesting a value, you should give
+        constraint or a real parameter.
+        
+        When requesting a value, you should give
         units wherever possible!.
         """
         try:
@@ -2358,6 +2425,7 @@ class Distribution(object):
     >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=True)
     >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=False)
     >>> d = Distribution('sample',sample=array3,discrete=False)
+    >>> d = Distribution('discrete',bins=array4)
     
     If C{distribution='histogram'} and C{discrete=False}, the bins are interpreted
     as the edges of the bins, and so there is one more bin than probabilities.
@@ -2370,6 +2438,12 @@ class Distribution(object):
         self.distr_pars = distribution_parameters
         #-- check contents:
         given_keys = set(list(distribution_parameters.keys()))
+        
+        #-- discrete can be equivalent to histogram
+        if distribution=='discrete':
+            distribution = 'histogram'
+            distribution_parameters['discrete'] = True
+            distribution_parameters['prob'] = np.ones(len(distribution_parameters['bins']))
         if   distribution=='histogram':
             required_keys = set(['bins','prob','discrete'])
         elif distribution=='uniform':
@@ -2465,7 +2539,7 @@ class Distribution(object):
             raise NotImplementedError
             
         return values
-    
+        
     def __str__(self):
         """
         String representation of class Distribution.

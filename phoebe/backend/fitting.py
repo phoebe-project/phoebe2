@@ -3,7 +3,7 @@ Fitting routines, minimization, optimization.
 
 The top level function you should use is L{run}.
 
-** Main functions **
+**Main functions**
 
 .. autosummary::
 
@@ -20,7 +20,7 @@ The top level function you should use is L{run}.
    run_lmfit
    run_grid
    
-** Wilson Devinney**
+**Wilson Devinney**
 
 .. autosummary::
    
@@ -807,7 +807,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 myid = parameter.get_unique_label()
                 if myid in ids: continue
                 #-- construct the range:
-                myrange = parameter.get_prior(fitter=None)['range']
+                myrange = parameter.get_prior().distr_pars['bins']
                 #-- and add the id
                 ids.append(myid)
                 names.append(qual)
@@ -881,7 +881,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 #this_param.set_posterior(trace.ravel())f
                 feedback['parameters'].append(this_param)
                 feedback['values'].append(grid_pars[:,index])
-                feedback['priors'].append(this_param.get_prior(fitter=None)['range'])
+                feedback['priors'].append(this_param.get_prior().distr_pars['bins'])
     feedback['logp'] = grid_logp
     fitparams['feedback'] = feedback
     return fitparams

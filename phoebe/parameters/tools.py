@@ -15,6 +15,8 @@ Tools to handle parameters and ParameterSets.
     
 """
 import logging
+import numpy as np
+from phoebe.units import constants
 from phoebe.parameters import parameters
 
 logger = logging.getLogger("PARS.TOOLS")
@@ -76,8 +78,8 @@ def add_angdiam(star,angdiam=None,derive='distance',unit='mas',**kwargs):
         raise ValueError("Cannot derive {} from angdiam".format(derive))
     
 
-def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
-    """
+def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
+    r"""
     Add surface gravity to a Star parameterSet.
     
     Only two parameters out of surface gravity, mass and radius are
@@ -86,9 +88,10 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     
     .. math::
     
-        g = G  M / R^2
+        g = \frac{GM}{R^2}
     
     This is a list of stuff that happens:
+    
     - A I{parameter} C{surfgrav} will be added if it does not exist yet
     - A I{constraint} to derive the parameter C{derive} will be added.
     - If C{surfgrav} already exists as a constraint, it will be removed
@@ -115,6 +118,10 @@ def add_surfgrav(star,surfgrav,derive='mass',unit='[cm/s2]',**kwargs):
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    
+    #-- default value
+    if surfgrav is None:
+        surfgrav = np.log10(constants.GG*star.get_value('mass','kg')/star.get_value('radius','m')**2) + 2.0
     
     #-- remove any constraints on surfgrav and add the parameter
     star.pop_constraint('surfgrav',None)
@@ -198,7 +205,7 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
         logger.info("star '{}': 'incl' constrained by 'vsini'".format(star['label']))
     
     
-def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
+def add_rotfreqcrit(star,rotfreqcrit=None,**kwargs):
     """
     Add the critical rotation frequency to a Star.
     
@@ -227,6 +234,13 @@ def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     star.pop_constraint('rotfreqcrit',None)
     star.pop_constraint('rotperiodcrit',None)
     star.pop('rotperiodcrit',None)
+    
+    if rotfreqcrit is None:
+        radius = star.get_value('radius','m')
+        mass = star.get_value('mass','kg')
+        rotperiod = star.get_value('rotperiod','s')
+        rotfreqcrit = 2*np.pi*np.sqrt(27*radius**3/(8*constants.GG*mass))/rotperiod
+    
     if not 'rotfreqcrit' in star:
         star.add(parameters.Parameter(qualifier='rotfreqcrit',
                                       value=rotfreqcrit,**kwargs))
@@ -236,7 +250,7 @@ def add_rotfreqcrit(star,rotfreqcrit,**kwargs):
     logger.info("star '{}': 'rotperiod' constrained by 'rotfreqcrit'".format(star['label']))
     
     
-def add_teffpolar(star,teffpolar,**kwargs):
+def add_teffpolar(star,teffpolar=None,**kwargs):
     """
     Add the polar effective temperature to a Star.
     
@@ -262,6 +276,11 @@ def add_teffpolar(star,teffpolar,**kwargs):
     kwargs.setdefault('frame','phoebe')
     
     star.pop_constraint('teffpolar',None)
+    
+    #-- set default value
+    if teffpolar is None:
+        teffpolar = star['teff']
+    
     if not 'teffpolar' in star:
         star.add(parameters.Parameter(qualifier='teffpolar',
                                       value=teffpolar,**kwargs))

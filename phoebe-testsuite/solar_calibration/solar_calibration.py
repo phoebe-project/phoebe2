@@ -60,7 +60,7 @@ c0 = time.time()
 sun = phoebe.ParameterSet(context='star',add_constraints=True)
 sun['shape'] = 'sphere'
 sun['distance'] = 1.,'au'
-sun['atm'] = 'kurucz'
+sun['atm'] = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"#'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
 tools.add_angdiam(sun)
@@ -82,7 +82,7 @@ sun_mesh['delta'] = 0.05
 lcdep1 = phoebe.ParameterSet(frame='phoebe',context='lcdep')
 lcdep1['ld_func'] = 'claret'
 lcdep1['ld_coeffs'] = 'kurucz'
-lcdep1['atm'] = 'kurucz'
+lcdep1['atm'] = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"#'kurucz'
 lcdep1['passband'] = 'OPEN.BOL'
 lcdep1['ref'] = 'Bolometric (numerical)'
 

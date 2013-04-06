@@ -1575,8 +1575,43 @@ class Body(object):
         pickle.dump(self,ff)
         ff.close()  
         logger.info('Saved model to file {} (pickle)'.format(filename))
-        
+    
+    @decorators.parse_ref
+    def ifm(self,ref='allifdep',time=None):
+        """
+        You can only do this if you have observations attached.
+        """
+        #-- don't bother if we cannot do anything...
+        if hasattr(self,'params') and 'obs' in self.params:
+            if not ('ifobs' in self.params['obs']): return None
+            for lbl in ref:
+                ifobs,lbl = self.get_parset(type='obs',ref=lbl)
+                times = ifobs['time']
+                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
+                baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2)
+                eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
+                if time is None:
+                    keep = np.ones(len(posangle),bool)
+                else:
+                    keep = np.abs(times-time)<1e-8
+                #-- if nothing needs to be computed, don't do it
+                if sum(keep)==0:
+                    continue
+                output = observatory.ifm(self,posangle=posangle[keep],
+                                     baseline=baseline[keep],eff_wave=eff_wave,
+                                     ref=lbl,keepfig=False)
+                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
+                ifsyn['time'] += [time]*len(output[0])
+                ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
+                ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
+                ifsyn['vis2'] += list(output[3])
+                ifsyn['phase'] += list(output[4])
+    
+    
     #}
+    
+    
 
 class PhysicalBody(Body):
     """
@@ -2159,18 +2194,6 @@ class PhysicalBody(Body):
                 base['flux'].append(specflux)
                 base['continuum'].append(cont)
         
-    def ifm(self):
-        """
-        You can only do this if you have observations attached.
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('ifdep' in self.params['pbdep']): return None
-            #-- compute the projected intensities for all ifdeps.
-            for nr,ref in enumerate(self.params['pbdep']['ifdep'].keys()):
-                pbdep = self.params['pbdep']['ifdep']
-                obs = self.get_parset(ref=ref,type='obs')
-                raise NotImplementedError
     
         
     
@@ -2744,31 +2767,31 @@ class BodyBag(Body):
         coords[2] += distance
         return dict(coordinates=coords)
     
-    @decorators.parse_ref
-    def ifm(self,ref='allifdep',time=None):
-        """
-        You can only do this if you have observations attached.
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'obs' in self.params:
-            if not ('ifobs' in self.params['obs']): return None
-            for lbl in ref:
-                ifobs,lbl = self.get_parset(type='obs',ref=lbl)
-                times = ifobs['time']
-                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
-                baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
-                eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
-                keep = np.abs(times-time)<1e-8
-                output = observatory.ifm(self,posangle=posangle[keep],
-                                     baseline=baseline[keep],eff_wave=eff_wave,
-                                     ref=lbl,keepfig=False)
-                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
-                ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
-                ifsyn['time'] += [time]*len(output[0])
-                ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
-                ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
-                ifsyn['vis'] += list(output[3])
-                ifsyn['phase'] += list(output[4])
+    #@decorators.parse_ref
+    #def ifm(self,ref='allifdep',time=None):
+        #"""
+        #You can only do this if you have observations attached.
+        #"""
+        ##-- don't bother if we cannot do anything...
+        #if hasattr(self,'params') and 'obs' in self.params:
+            #if not ('ifobs' in self.params['obs']): return None
+            #for lbl in ref:
+                #ifobs,lbl = self.get_parset(type='obs',ref=lbl)
+                #times = ifobs['time']
+                #posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
+                #baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
+                #eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
+                #keep = np.abs(times-time)<1e-8
+                #output = observatory.ifm(self,posangle=posangle[keep],
+                                     #baseline=baseline[keep],eff_wave=eff_wave,
+                                     #ref=lbl,keepfig=False)
+                                     ##ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
+                #ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
+                #ifsyn['time'] += [time]*len(output[0])
+                #ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
+                #ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
+                #ifsyn['vis'] += list(output[3])
+                #ifsyn['phase'] += list(output[4])
         
     
     mesh = property(get_mesh,set_mesh)
