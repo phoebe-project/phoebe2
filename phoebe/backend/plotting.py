@@ -135,6 +135,7 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
         plt.ylabel('Normalised flux')
     
     plt.xlabel("Wavelength [$\AA$]")
+    plt.title(ref)
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()

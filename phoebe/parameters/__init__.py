@@ -1,4 +1,6 @@
 """
+Create, transform and manage parameters
+
 Section 1 Introduction
 ======================
 

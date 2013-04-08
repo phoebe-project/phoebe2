@@ -952,9 +952,9 @@ class Body(object):
                     obser = np.array(observations['flux'])
                     sigma = np.array(observations['sigma'])
                 elif observations.context=='ifobs':
-                    model = np.array(model['vis'])
-                    obser = np.array(observations['vis'])
-                    sigma = np.array(observations['sigma_vis'])
+                    model = np.array(model['vis2'])
+                    obser = np.array(observations['vis2'])
+                    sigma = np.array(observations['sigma_vis2'])
                 else:
                     raise NotImplementedError('probability for {}'.format(observations.context))                
                 #-- take pblum and l3 into account:
@@ -1008,9 +1008,9 @@ class Body(object):
                     obser_ = np.ravel(np.array(observations['flux']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
                 elif observations.context=='ifobs':
-                    model_ = np.ravel(np.array(modelset['vis']))
-                    obser_ = np.ravel(np.array(observations['vis']))
-                    sigma_ = np.ravel(np.array(observations['sigma_vis']))
+                    model_ = np.ravel(np.array(modelset['vis2']))
+                    obser_ = np.ravel(np.array(observations['vis2']))
+                    sigma_ = np.ravel(np.array(observations['sigma_vis2']))
                 else:
                     raise NotImplementedError('probability')  
                 #-- statistical weight:

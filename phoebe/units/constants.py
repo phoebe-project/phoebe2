@@ -28,6 +28,9 @@ be in a script, is via explicitly converting them to the right convention, e.g.
 >>> Msol = conversions.convert(constants.Msol_units,'g',constants.Msol)
 
 This is independent of the way the conventions are set.
+
+
+
 """
 _current_convention = 'SI'
 _current_values = 'standard'

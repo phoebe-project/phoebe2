@@ -1663,7 +1663,28 @@ def unit2texlabel(unit,full=False):
     return label        
     
 
-
+def list_sphinx():
+    """
+    Return a string with a list and explanation of all defined units.
+    
+    @rtype: str
+    """
+    help_text = {}
+    for fac in sorted(_factors.keys()):
+        if _factors[fac][2] not in help_text:
+            help_text[_factors[fac][2]] = []
+        help_text[_factors[fac][2]].append('%-15s | %-42s|'%(fac,_factors[fac][3]))
+    
+    out = ''
+    bar = '+'+'-'*16+'+'+'-'*43+'+'
+    for i,key in enumerate(sorted(help_text.keys())):
+        out += bar+'\n'
+        out += '\n**%s**\n\n'%("Units of %s"%(key))
+        out += bar+'\n|'
+        out += ("\n"+bar+'\n|').join(help_text[key])
+        out += "\n"
+    out += bar
+    return out
 
 
 def get_help():
@@ -3384,11 +3405,11 @@ _factors = collections.OrderedDict([
            ('Gy',    (1.,            'm2 s-2','absorbed dose','gray')), # absobred dose, specific energy (imparted) or kerma
            ('Sv',    (1.,            'm2 s-2','dose equivalent','sievert')),
            ('kat',   (1.,            'mol s-1','catalytic activity','katal')),
-           ('rem',   (1e-2,          'm2 s-2','dose equivalent','rem')),
+           ('rem',   (1e-2,          'm2 s-2','dose equivalent','Roentgen equivelant in man')),
 # VELOCITY
            ('cc',  (constants.cc, constants.cc_units,'m/s','Speed of light')),
 # ACCELERATION
-           ('Gal', (1.,              'm s-2','acceleration','Gal')),
+           ('Gal', (1.,              'm s-2','acceleration','Galileo')),
 # PRESSURE
            ('Pa',    (  1e+00,       'kg m-1 s-2','pressure','Pascal')), # Pascal
            ('bar',   (  1e+05,       'kg m-1 s-2','pressure','baros')), # baros
@@ -3403,7 +3424,7 @@ _factors = collections.OrderedDict([
 # MAGNETISM & Electricity
            ('A',     (      1.,      'A',   'electric current','Ampere')),
            ('Gi',    (      0.7957747,      'A',   'electric current','Ampere')), # (approximate)
-           ('Bi',    (      10.,     'A',   'electric current','biot')),
+           ('Bi',    (      10.,     'A',   'electric current','Biot')),
            ('C',     (      1.,      'A s', 'electric charge','Coulomb')),
            ('T',     (      1.,      'kg s-2 A-1','magnetic field strength','Tesla')),
            ('G',     (      1e-4,    'kg s-2 A-1','magnetic field strength','Gauss')),

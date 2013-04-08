@@ -89,8 +89,20 @@ def beaming():
 
 
 def vmacro_kernel(dlam,Ar,At,Zr,Zt):
-    """
-    Macroturbulent velocity.
+    r"""
+    Macroturbulent velocity kernel.
+    
+    It is defined as in _[Gray2005]:
+    
+    .. math::
+    
+        M(\Delta\lambda) = \frac{2A_R\Delta\lambda}{\sqrt{\pi}\zeta_R^2}\int_0^{\zeta_R/\Delta\lambda}e^{-1/u^2}du 
+        
+         & + \frac{2A_T\Delta\lambda}{\sqrt{\pi}\zeta_T^2}\int_0^{\zeta_T/\Delta\lambda}e^{-1/u^2}du 
+        
+        
+    But only applies to spherical stars with linear limbdarkening.
+    
     """
     dlam[dlam==0] = 1e-8
     if Zr!=Zt:
@@ -161,7 +173,7 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
             either the original (SYNSPEC) one if vrot=0,
             or the one used in rotational convolution (vrot > 0)
 
-    **Parameters for macroturbulent convolution
+    **Parameters for macroturbulent convolution**
     
     C{vmac}: macroturbulent velocity.
     
