@@ -35,7 +35,9 @@ import functools
 import itertools
 import copy
 import numpy as np
+import scipy
 from matplotlib import pyplot as plt
+from matplotlib.collections import LineCollection
 from phoebe.utils import utils
 from phoebe.backend import universe
 from phoebe.backend import observatory
@@ -123,7 +125,10 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         accept_fit(system,fitparams)
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=params,mpi=mpi)
+        try:
+            observatory.compute(system,params=params,mpi=mpi)
+        except Exception,msg:
+            logger.info("Could not accept for some reason (original message: {})".format(msg))
     
     return fitparams
 
@@ -397,7 +402,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
         pars = np.array(fitparams['feedback']['traces'])
         pars = pars.reshape(pars.shape[0],-1,nwalkers)
         pars = pars[:,-1,:].T
-        start_iter = len(fitparams['feedback']['traces'][0])
+        start_iter = len(fitparams['feedback']['traces'][0])/nwalkers
         logger.info("Starting from previous EMCEE chain from feedback")
     #-- run the sampler
     sampler = emcee.EnsembleSampler(nwalkers,pars.shape[1],lnprob,args=[ids,system],threads=fitparams['threads'])
@@ -424,7 +429,8 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
     logger.info("Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction)))
     
     #-- store the info in a feedback dictionary
-    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],accfrac=np.mean(sampler.acceptance_fraction))
+    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],accfrac=np.mean(sampler.acceptance_fraction),
+                    lnprobability=[])
     
     #-- add the posteriors to the parameters
     had = []
@@ -447,8 +453,10 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
                 feedback['parameters'].append(this_param)
                 feedback['traces'].append(trace)
                 feedback['priors'].append(this_param.get_prior(fitter=None))
+                feedback['lnprobability'].append(sampler.flatlnprobability[:,index])
     if fitparams['feedback'] and fitparams['incremental']:
         feedback['traces'] = np.hstack([fitparams['feedback']['traces'],feedback['traces']])
+        feedback['lnprobability'] = np.hstack([fitparams['feedback']['lnprobability'],feedback['lnprobability']])
     fitparams['feedback'] = feedback
     return fitparams
 
@@ -700,6 +708,10 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         algorithm = list(algorithm)[0]
         logger.info('Choosing back-end {}'.format(algorithm))
     
+    traces = []
+    redchis = []
+    Nmodel = dict()
+    
     def model_eval(pars,system):
         #-- evaluate the system, get the results and return a probability
         had = []
@@ -726,6 +738,11 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
         logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
+        #-- keep track of trace
+        traces.append(vals)
+        redchis.append(np.array(retvalue**2).sum()/(len(model)-len(pars)))
+        Nmodel['Nd'] = len(model)
+        Nmodel['Np'] = len(pars)
         return retvalue
     
     #-- do the fit and report on the errors to the screen
@@ -765,7 +782,9 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         except Exception,msg:
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
     feedback = dict(parameters=ppars,values=values,sigmas=sigmas,correls=correl,\
-                    redchi=result.redchi,success=result.success)
+                    redchi=result.redchi,success=result.success,
+                    traces=np.array(traces).T,redchis=redchis,
+                    Ndata=Nmodel['Nd'],Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback
     return fitparams
 
@@ -905,7 +924,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
 
 #{ Verifiers
 
-def summarize_fit(system,fitparams,savefig=False):
+def summarize_fit(system,fitparams,correlations=None,savefig=False):
     """
     Summarize a fit.
     
@@ -914,27 +933,52 @@ def summarize_fit(system,fitparams,savefig=False):
     @param fitparams: the fit parameters (containing feedback)
     @type fitparams: ParameterSet
     """
+    #-- it might be useful to know what context we are plotting
+    context = fitparams.get_context().split(':')[1]
+    #-- correlations can be plotted as hexbin histograms or as walks. For
+    #   MCMC fitters it makes more sense to use hexbin as a default, and for
+    #   LMFIT it makes more sense to use a walk.
+    if correlations is None:
+        if context=='lmfit':
+            correlations = 'walk'
+        else:
+            correlations = 'hexbin'
     #-- which parameters were fitted?
     fitted_param_labels = [par.get_unique_label() for par in fitparams['feedback']['parameters']]
+    #-- remember that we could also have defined constraints to derive other
+    #   parameters. We need to build traces for these so that we can report
+    #   on them.
+    constrained_parameters = dict()
+    
     #-- walk through all parameterSets until you encounter a parameter that
     #   was used in the fit
     had = []
     indices = []
     paths = []
     units = []
-    table = []
+    table = [] # table from trace
+    table_from_fitter = [] # table from fitter
     for path,param in system.walk_all(path_as_string=True):
         if not isinstance(param,parameters.Parameter):
             continue
+        #-- get the parameter's unique identification string
         this_label = param.get_unique_label()
+        #-- now, we found a parameter that was fitted and not seen before, if
+        #   the following statement is true
         if this_label in fitted_param_labels and not this_label in had:
             if 'orbit' in path:
                 orb_index = path.index('orbit')
                 path = path[:orb_index-1]+path[orb_index:]
+            #-- where is this parameter located in the feedback?
             index = fitted_param_labels.index(this_label)
+            #-- recover its trace and prior if present
             trace = fitparams['feedback']['traces'][index]
-            prior = fitparams['feedback']['priors'][index]
-            # Raftery-Lewis diagnostics
+            if 'priors' in fitparams['feedback']:
+                prior = fitparams['feedback']['priors'][index]
+            else:
+                prior = None
+            # compute the Raftery-Lewis diagnostics (this only makes sense for
+            # MCMC walks but anyway)
             req_iters,thin_,burn_in,further_iters,thin = pymc.raftery_lewis(trace,q=0.025,r=0.1,verbose=0)
             thinned_trace = trace[burn_in::thin]
             indtrace = np.arange(len(trace))
@@ -943,7 +987,11 @@ def summarize_fit(system,fitparams,savefig=False):
                 unit = param.get_unit()
             else:
                 unit=''
+                
+            #-- now, create the figure    
             plt.figure(figsize=(14,8))
+            
+            #-- first subplot contains the marginalised distribution
             plt.subplot(221)
             plt.title("Marginalised distribution")
             #-- bins according to Scott's normal reference rule
@@ -955,24 +1003,41 @@ def summarize_fit(system,fitparams,savefig=False):
                 bins_thinned = int(thinned_trace.ptp()/(3.5*np.std(thinned_trace)/len(thinned_trace)**0.333))
                 if bins_thinned>0:
                     plt.hist(thinned_trace,bins=bins_thinned,alpha=0.5,normed=True)
-            
-            if prior.distribution=='uniform':
-                plt.axvspan(prior.distr_pars['lower'],prior.distr_pars['upper'],alpha=0.05,color='r')
-            elif prior.distribution=='normal':
-                plt.axvspan(prior.distr_pars['mu']-1*prior.distr_pars['sigma'],prior.distr_pars['mu']+1*prior.distr_pars['sigma'],alpha=0.05,color='r')
-                plt.axvspan(prior.distr_pars['mu']-3*prior.distr_pars['sigma'],prior.distr_pars['mu']+3*prior.distr_pars['sigma'],alpha=0.05,color='r')
+            #-- if a prior was defined, mark it in the plot
+            if prior is not None:
+                if prior.distribution=='uniform':
+                    plt.axvspan(prior.distr_pars['lower'],prior.distr_pars['upper'],alpha=0.05,color='r')
+                elif prior.distribution=='normal':
+                    plt.axvspan(prior.distr_pars['mu']-1*prior.distr_pars['sigma'],prior.distr_pars['mu']+1*prior.distr_pars['sigma'],alpha=0.05,color='r')
+                    plt.axvspan(prior.distr_pars['mu']-3*prior.distr_pars['sigma'],prior.distr_pars['mu']+3*prior.distr_pars['sigma'],alpha=0.05,color='r')
             plt.xlabel("/".join(path)+' [{}]'.format(unit))
             plt.ylabel('Number of occurrences')
             plt.grid()
+            
+            #-- second subplot is the Geweke plot
             plt.subplot(243)
-            plt.title("Geweke plot")
-            scores = np.array(pymc.geweke(trace)).T
-            plt.plot(scores[0],scores[1],'o')
-            plt.axhline(-2,color='g',linewidth=2,linestyle='--')
-            plt.axhline(+2,color='b',linewidth=2,linestyle='--')
-            plt.grid()
-            plt.xlabel("Iteration")
-            plt.ylabel("Score")
+            if context=='lmfit':
+                redchis = fitparams['feedback']['redchis']
+                k = max(fitparams['feedback']['Ndata'] - fitparams['feedback']['Npars'],1)
+                ci = scipy.stats.distributions.chi2.cdf(redchis,k)
+                plt.plot(trace,redchis,'ko')
+                plt.axhline(scipy.stats.distributions.chi2.isf(0.1,k),lw=2,color='r',linestyle='-')
+                plt.axhline(scipy.stats.distributions.chi2.isf(0.5,k),lw=2,color='r',linestyle='--')
+                plt.gca().set_yscale('log')
+                plt.xlabel("/".join(path)+' [{}]'.format(unit))
+                plt.ylabel("log10 ($\chi^2$)")
+                plt.grid()
+            else:
+                plt.title("Geweke plot")
+                scores = np.array(pymc.geweke(trace)).T
+                plt.plot(scores[0],scores[1],'o')
+                plt.axhline(-2,color='g',linewidth=2,linestyle='--')
+                plt.axhline(+2,color='b',linewidth=2,linestyle='--')
+                plt.grid()
+                plt.xlabel("Iteration")
+                plt.ylabel("Score")
+            
+            #-- third subplot is the Box-and-whiskers plot
             plt.subplot(244)
             plt.title("Box and whisper plot")
             plt.boxplot(trace)
@@ -981,6 +1046,8 @@ def summarize_fit(system,fitparams,savefig=False):
             plt.xlabel(txtval)#,xy=(0.05,0.05),ha='left',va='top',xycoords='axes fraction')
             plt.xticks([])
             plt.grid()
+            
+            #-- and finally the trace
             plt.subplot(212)
             plt.plot(indtrace,thinned_trace,'b-',lw=2,alpha=0.5)
             plt.plot(trace,'g-')
@@ -1000,6 +1067,16 @@ def summarize_fit(system,fitparams,savefig=False):
             table.append(["/".join(path),'{:.3g}'.format(trace.mean()),
                                          '{:.3g}'.format(trace.std()),
                                          '{:.3g}'.format(np.median(trace)),unit])
+            
+            if context=='lmfit':
+                table_from_fitter.append(["/".join(path),
+                                         '{:.3g}'.format(fitparams['feedback']['values'][index]),
+                                         '{:.3g}'.format(fitparams['feedback']['sigmas'][index]),
+                                         'nan',unit])
+        #-- perhaps the parameter was a constraint?
+        #elif not this_label in had:
+            #if param.get_qualifier()=='mass':
+                #print param.get_qualifier()
     
     #-- print a summary table
     #-- what is the width of the columns?
@@ -1009,22 +1086,51 @@ def summarize_fit(system,fitparams,savefig=False):
             col_widths[c] = max(col_widths[c],len(col))
     template = '{{:{:d}s}} = ({{:{:d}s}} +/- {{:{:d}s}}) {{:{:d}s}} {{}}'.format(*[c+1 for c in col_widths])
     header = template.format('Qualifier','Mean','Std','50%','Unit')
+    print("SUMMARY TABLE FROM MARGINALISED TRACES")
     print('='*len(header))
     print(header)
     print('='*len(header))
     for line in table:
         print(template.format(*line))
     print('='*len(header))
+    
+    if context=='lmfit':
+        print("\nSUMMARY TABLE FROM FITTER")
+        print('='*len(header))
+        print(header)
+        print('='*len(header))
+        for line in table_from_fitter:
+            print(template.format(*line))
+        print('='*len(header))
+    
+    #-- now for the correlations
     for i,(ipar,iind,ipath) in enumerate(zip(had,indices,paths)):
         for j,(jpar,jind,jpath) in enumerate(zip(had,indices,paths)):
             if j<=i: continue
             plt.figure()
             plt.xlabel("/".join(ipath)+' [{}]'.format(units[i]))
             plt.ylabel("/".join(jpath)+' [{}]'.format(units[j]))
-            plt.hexbin(fitparams['feedback']['traces'][iind],
-                       fitparams['feedback']['traces'][jind],bins='log',gridsize=50)
-            cbar = plt.colorbar()
-            cbar.set_label("Number of occurrences")
+            if correlations=='hexbin':
+                plt.hexbin(fitparams['feedback']['traces'][iind],
+                           fitparams['feedback']['traces'][jind],bins='log',gridsize=50)
+                cbar = plt.colorbar()
+                cbar.set_label("Number of occurrences")
+            elif correlations=='walk':
+                points = np.array([fitparams['feedback']['traces'][iind],
+                           fitparams['feedback']['traces'][jind]]).T.reshape(-1, 1, 2)
+                segments = np.concatenate([points[:-1], points[1:]], axis=1)
+                N = float(len(points))
+                lc = LineCollection(segments, cmap=plt.get_cmap('Greys'),
+                    norm=plt.Normalize(-0.1*N, N))
+                lc.set_array(np.arange(len(points)))
+                lc.set_linewidth(2)
+                plt.gca().add_collection(lc)
+                plt.grid()
+                plt.xlim(points[:,0,0].min(),points[:,0,0].max())
+                plt.ylim(points[:,0,1].min(),points[:,0,1].max())
+                cbar = plt.colorbar(lc)
+                cbar.set_label("Iteration number")
+                
     print("MCMC path length = {}".format(len(fitparams['feedback']['traces'][iind])))
     return None
 

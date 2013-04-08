@@ -500,8 +500,11 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
             iobs.load()
         wavelengths = iobs['wavelength']
         R = iobs['R']
+        if 'vmacro' in iobs:
+            vmacro = iobs['vmacro']
     else:
         R = None
+        vmacro = 0.
     #-- information on dependable set
     idep,ref = the_system.get_parset(ref=ref,context='spdep')
     ld_model = idep['ld_func']
@@ -633,7 +636,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         instr_sigm = instr_fwhm/2.38
         logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
         wavelengths,total_spectrum = tools.rotational_broadening(wavelengths,
-                       total_spectrum/total_continum,vrot=0.,fwhm=instr_sigm)
+                       total_spectrum/total_continum,vrot=0.,vmac=vmacro,fwhm=instr_sigm)
         total_spectrum *= total_continum
    
     if clip_after is not None:
