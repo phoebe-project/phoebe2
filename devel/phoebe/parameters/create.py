@@ -17,15 +17,22 @@ systems), and some functions can create Binaries from the information provided
 by single stars, plus extra information (e.g. spectroscopic observables in
 L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
 
+**General functions**
+
 .. autosummary::
 
     from_library
     star_from_spectral_type
     binary_from_stars
     binary_from_spectroscopy
+    dep_from_object
+    
+**Specific targets**    
+    
+.. autosummary::    
     T_CrB
     KOI126
-    dep_from_object
+
     
 
 **Example usage:**
@@ -966,6 +973,89 @@ def KOI126_alternate(create_body=True,**kwargs):
     
     return systemA_BC
 
+@make_body
+def vega_aufdenberg2006():
+    """
+    Vega model from Aufdenberg (2006).
+    """
+    #-- basic parameterSet
+    star = from_library('vega2006')
+    tools.add_teffpolar(star,10150.)
+    tools.add_rotfreqcrit(star,0.91)
+    tools.add_parallax(star,128.93,unit='mas')
+    #-- add priors
+    star.get_parameter('rotfreqcrit').set_prior(sigma=0.03)
+    star.get_parameter('parallax').set_prior(sigma=0.55)
+    star.get_parameter('radius').set_prior(sigma=0.07)
+    star.get_parameter('teffpolar').set_prior(sigma=100.)
+    star.get_parameter('mass').set_prior(sigma=0.2)
+    star.get_parameter('incl').set_prior(sigma=0.3)
+    star.get_parameter('rotperiod').set_prior(sigma=0.03)
+    
+    return star
+
+@make_body
+def vega_hill2010():
+    """
+    Vega model from Hill (2010).
+    """
+    #-- basic parameterSet
+    star = from_library('vega2010')
+    tools.add_teffpolar(star,10000)
+    tools.add_rotfreqcrit(star,0.81)
+    tools.add_parallax(star,130.23,unit='mas')
+    #-- add priors
+    star.get_parameter('rotfreqcrit').set_prior(sigma=0.02)
+    star.get_parameter('parallax').set_prior(sigma=0.36)
+    star.get_parameter('radius').set_prior(sigma=0.01)
+    star.get_parameter('teffpolar').set_prior(sigma=30.)
+    star.get_parameter('mass').set_prior(sigma=0.2)
+    star.get_parameter('incl').set_prior(sigma=0.1)
+    star.get_parameter('rotperiod').set_prior(sigma=0.01)
+    
+    return star
+
+@make_body
+def vega_yoon2010():
+    """
+    Vega model from Yoon (2010).
+    """
+    #-- basic parameterSet
+    star = from_library('vega2010')
+    tools.add_teffpolar(star,10059.)
+    tools.add_rotfreqcrit(star,0.8760)
+    tools.add_parallax(star,130.23,unit='mas')
+    #-- add priors
+    star.get_parameter('rotfreqcrit').set_prior(sigma=0.0057)
+    star.get_parameter('parallax').set_prior(sigma=0.36)
+    star.get_parameter('radius').set_prior(sigma=0.012)
+    star.get_parameter('teffpolar').set_prior(sigma=13.)
+    star.get_parameter('mass').set_prior(sigma=0.074)
+    star.get_parameter('incl').set_prior(sigma=0.081)
+    star.get_parameter('rotperiod').set_prior(sigma=0.0084)
+    
+    return star
+
+@make_body
+def vega_monnier2012():
+    """
+    Vega model from Monnier (2012).
+    """
+    #-- basic parameterSet
+    star = from_library('vega2012')
+    tools.add_teffpolar(star,10070.)
+    tools.add_rotfreqcrit(star,0.774)
+    tools.add_parallax(star,130.23,unit='mas')
+    #-- add priors
+    star.get_parameter('rotfreqcrit').set_prior(sigma=0.012)
+    star.get_parameter('parallax').set_prior(sigma=0.36)
+    star.get_parameter('radius').set_prior(sigma=0.012)
+    star.get_parameter('teffpolar').set_prior(sigma=90.)
+    star.get_parameter('mass').set_prior(sigma=0.13)
+    star.get_parameter('incl').set_prior(sigma=0.4)
+    star.get_parameter('rotperiod').set_prior(sigma=0.02)
+    
+    return star
 #}
 
 if __name__=="__main__":
