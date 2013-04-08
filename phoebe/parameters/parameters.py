@@ -259,6 +259,7 @@ from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
 import numpy as np
+from scipy.stats import distributions
 try:
     import matplotlib.pyplot as plt
 except ImportError:
@@ -605,6 +606,8 @@ class Parameter(object):
         #self.opaque = False
         #-- attach all keys to the class instance
         self.reset()    
+        #-- what is the default behaviour for when limits our outside of bounds?
+        self._force_inside_limits = True
     
     def reset(self):
         """
@@ -938,15 +941,18 @@ class Parameter(object):
                     loau.remove(default_unit)
                 raise ValueError("Given unit type '{0}' is {1}: {2} must be '{3}' (default) or one of {4} or equivalent. Or perpaps there was not enough information.".format(args[0],given_type,utype,default_unit,loau))
         self.value = value
-        if hasattr(self,'llim'):
-            value = self.get_value()
-            if not (self.llim<=value<=self.ulim):
-                if self.value<self.llim:
-                    self.value = self.llim
-                elif self.value> self.ulim:
-                    self.value = self.ulim
-                #self.value = old_value
-                logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
+        #-- check for inside limits
+        has_limits = self.has_limits()
+        inside_limits = self.is_inside_limits()
+        if has_limits and not inside_limits and self._force_inside_limits:
+            if self.value<self.llim:
+                self.value = self.llim
+            elif self.value> self.ulim:
+                self.value = self.ulim
+            #self.value = old_value
+            logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
+        elif has_limits and not inside_limits:
+            logger.error('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
     
     def set_value_from_prior(self):
         """
@@ -976,17 +982,21 @@ class Parameter(object):
         """
         Change the unit of a parameter.
         
-        The values, lower and upper limits, and step sizes are also changed
-        accordingly.
+        The values, lower and upper limits, step sizes and priors are also
+        changed accordingly.
         
         @parameter unit: a physical unit
         @type unit: str, interpretable by L{conversions.convert}
         """
         #-- are we lazy? Possibly, somebody just set 'SI' or some other convention
         #   as a unit... in this case we have to derive the convention's version
-        #   of the current unit:
+        #   of the current unit... bastard!:
         if unit in conversions._conventions:
             unit = conversions.change_convention(unit,self.unit)
+        logger.info("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
+        #-- the prior
+        if hasattr(self,'prior'):
+            self.prior.convert(self.unit,unit)
         #-- the value
         new_value = conversions.convert(self.unit,unit,self.get_value())
         if hasattr(self,'llim'):
@@ -1000,6 +1010,7 @@ class Parameter(object):
             self.step = new_step
         self.unit = unit
         self.value = new_value
+        
     
     def set_adjust(self,adjust):
         """
@@ -1014,7 +1025,7 @@ class Parameter(object):
         #else:
         #    raise AttributeError,"Parameter '%s' cannot be %s"%(self.qualifier,(adjust and 'released (adjustable)' or 'locked (not adjustable)'))
     
-    def set_limits(self,llim=None,ulim=None):
+    def set_limits(self,llim=None,ulim=None,force=True):
         """
         Set lower and upper bounds on this variable.
         """
@@ -1022,6 +1033,7 @@ class Parameter(object):
             self.llim = llim
         if hasattr(self,'ulim') and ulim is not None:
             self.ulim = ulim
+        self._force_inside_limits = force
 
     def set_step(self,step):
         """
@@ -1186,6 +1198,20 @@ class Parameter(object):
             return True
         else:
             return False
+    
+    def is_inside_limits(self):
+        """
+        Return True if value is inside of limits.
+        
+        @return: C{True} if inside of limits
+        @rtype: bool
+        """
+        if hasattr(self,'llim'):
+            value = self.get_value()
+            if not (self.llim<=value<=self.ulim):
+                return False
+        return True
+        
     #}
     
     #{ Other convenience functions
@@ -1209,48 +1235,42 @@ class Parameter(object):
         return unit_type,allowed
     
     def transform_to_unbounded(self,from_='limits'):
-        """
+        r"""
         Transform a bounded parameter to an unbounded version.
     
         This can be helpful for inclusion in fitting algorithms that cannot handle
         bounds.
-        
-        The original parameter will be kept, but a transformed one will be added.
-        The two versions of the parameters are linked through a constraint.
         
         The transformation of a parameter :math:`P` with upper limit :math:`U`
         and :math:`L` to an unbounded parameter :math:`P'` is given by:
         
         .. math::
         
-            P' = \left(\frac{\atan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
+            P' = \left(\frac{\arctan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
             
             P = \tan\left(\pi\left(\frac{P'-L}{U-L}-\frac{1}{2}\right)\right)
         
+        For constraints reasons, we only unbound parameters in SI units.
+        
         We also need to transform the prior accordingly.
-            
+        
+        The upper and lower limits can be chosen from the limits on the
+        parameter, or from the prior.
         """
+        self.set_unit('SI')
         if from_=='limits':
             L,U = self.get_limits()
         elif from_=='prior':
             L,U = self.get_prior().get_limits()
         else:
             raise ValueError("do not understand {}".format(from_))
-        if self.has_unit():
-            L_SI = conversions.convert(self.get_unit(),'SI',L)
-            U_SI = conversions.convert(self.get_unit(),'SI',U)
-        else:
-            L_SI,U_SI = L,U
         # set limits to be unbounded
         self.set_limits(-np.inf,+np.inf)
         # change the prior
-        self.get_prior().transform_to_unbounded(L_SI,U_SI)
-        if self.has_unit():
-            new_value = transform_to_unbounded(self.get_value('SI'),L_SI,U_SI)
-        else:
-            new_value = transform_to_unbounded(self.get_value(),L_SI,U_SI)
+        self.get_prior().transform_to_unbounded(L,U)
+        new_value = transform_to_unbounded(self.get_value(),L,U)
         self.set_value(new_value)
-        return L_SI,U_SI
+        return L,U
     
     def copy(self):
         """
@@ -2555,7 +2575,70 @@ class Distribution(object):
                     kwargs.setdefault(key,self.distr_pars[key])
             return getattr(pymc,self.distribution.title())(**kwargs)
         else:
-            raise NotImplementedError
+            L,U = self.get_limits()
+            if self.distribution=='normal':
+                x = kwargs.get('x',np.linspace(L,U,1000))
+                return x,getattr(distributions.norm(loc=self.distr_pars['mu'],scale=self.distr_pars['sigma']),distr_type)(x)
+            elif self.distribution=='uniform':
+                x = kwargs.get('x',np.linspace(L,U,1000))
+                return x,getattr(distributions.uniform(loc=self.distr_pars['lower'],scale=self.distr_pars['upper']),distr_type)(x)
+            elif self.distribution=='histogram':
+                bins = self.distr_pars['bins']
+                bins = bins[:-1] + np.diff(bins)
+                return bins,self.distr_pars['prob']
+            elif self.distribution=='sample' or self.distribution=='histogram':
+                return self.distr_pars['bins'],self.distr_pars['prob']
+            
+    def convert(self,from_,to_,*args):
+        """
+        Convert a distribution to different units.
+        
+        We cannot `simply` convert a distribution, because the conversion can
+        be nonlinear (e.g. from linear to log scale). Therefore, we first get
+        the PDF, and convert that one. Unfortunately, this also means that
+        you can only convert continuous distributions. Extension to discrete
+        ones should be fairly straightforward though (just an
+        ``if==distr_pars['discrete']``) thingy. But I don't feel like it
+        today.
+        """
+        logger.info('Converting {} distr. in {} to histogram distr. in {}'.format(self.distribution,from_,to_))
+        old_x,old_y = self.pdf()
+        old_dx = np.diff(old_x)
+        x_shifted = np.hstack([old_x[:-1] - np.diff(old_x)/2.,old_x[-2:] + np.diff(old_x)[-1]/2.])
+        #-- we definitely cannot go over the limits!
+        x_shifted[0] = old_x[0]
+        x_shifted[-1] = old_x[-1]
+        old_dx = np.diff(x_shifted)
+        
+        if from_=='bounded':
+            #old_x[old_x<args[0]] = args[0]
+            #old_x[old_x>args[1]] = args[1]
+            #x_shifted[x_shifted<args[0]] = args[0]
+            #x_shifted[x_shifted>args[1]] = args[1]
+            new_x = transform_to_unbounded(old_x,*args)
+            new_x_shifted = transform_to_unbounded(x_shifted,*args)
+        else:
+            new_x = conversions.convert(from_,to_,old_x)
+            new_x_shifted = conversions.convert(from_,to_,x_shifted)
+        new_dx = np.diff(new_x_shifted)
+        new_y = old_dx/new_dx*old_y
+        norm = np.trapz(new_y,x=new_x)
+        new_y = new_y/norm
+        self.distribution = 'histogram'
+        self.distr_pars = dict(discrete=False,bins=new_x_shifted,prob=new_y)
+    
+    
+    def pdf(self,**kwargs):
+        """
+        Return the probability density function.
+        """
+        return self.get_distribution(distr_type='pdf',**kwargs)
+    
+    def cdf(self,**kwargs):
+        """
+        Return the cumulative density function.
+        """
+        return self.get_distribution(distr_type='cdf',**kwargs)
     
     def get_limits(self):
         if self.distribution=='uniform':
@@ -2573,7 +2656,7 @@ class Distribution(object):
     
     def draw(self,size=1):
         """
-        Draw a random value from the distribution.
+        Draw a (set of) random value(s) from the distribution.
         
         @param size: number of values to generate
         @type size: int
@@ -2590,24 +2673,30 @@ class Distribution(object):
             #-- when the Distribution is actually a sample, we need to make
             #   the histogram first ourselves.
             if self.distribution=='sample':
-                myhist = np.histogram(self.distr_pars['sample'])
+                myhist = np.histogram(self.distr_pars['sample'],normed=True)
                 if self.distr_pars['discrete']:
                     bins = np.unique(self.distr_pars['sample'])
                 else:
                     bins = myhist[1]
-                prob = myhist[0]/float(np.sum(myhist[0]))
+                prob = myhist[0]
             #-- else they are readily available
             else:
                 bins,prob = self.distr_pars['bins'],self.distr_pars['prob']
             #-- draw random uniform values from the cumulative distribution
-            cumul = np.hstack([0,np.cumsum(prob)])
-            indices = cumul.searchsorted(np.random.uniform(size=size))
+            cumul = np.cumsum(prob*np.diff(bins))#*np.diff(bins)
+            cumul /= cumul.max()
+            locs = np.random.uniform(size=size)
+            
+            #plt.figure()
+            #plt.plot(bins[:-1],cumul,'ko-')
+            #plt.show()
+            
             #-- little different for discrete or continuous distributions
             if self.distr_pars['discrete']:
                 values = bins[indices-1]
             else:
-                values = np.random.uniform(size=size,low=bins[indices-1],
-                                                     high=bins[indices])
+                values = np.interp(locs,cumul,bins[1:])
+
         else:
             raise NotImplementedError
             
@@ -2622,6 +2711,12 @@ class Distribution(object):
         - Sample distribution transformed to unbounded
         - Histogram distribution transformed to unbounded
         """
+        #-- problems with conversions to SI
+        #sample = self.draw(size=1000)
+        #transf_sample = transform_to_unbounded(sample,low,high)
+        #self.distribution = 'sample'
+        #self.distr_pars = dict(sample=transf_sample,discrete=False)
+        
         if self.distribution=='uniform':
             self.distr_pars['lower'] = -5
             self.distr_pars['upper'] = +5
@@ -2629,7 +2724,8 @@ class Distribution(object):
             self.distr_pars['mu'] = 0.
             self.distr_pars['sigma'] = 2.
         elif self.distribution=='sample' or self.distribution=='histogram':
-            self.distr_pars['bins'] = transform_to_unbounded(self.distr_pars['bins'],low,high)
+            self.convert('bounded','unbounded',low,high)
+            #self.distr_pars['bins'] = transform_to_unbounded(self.distr_pars['bins'],low-1e-3*low,high+1e-3*high)
         else:
             raise NotImplementedError
             

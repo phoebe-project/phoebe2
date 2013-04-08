@@ -995,6 +995,16 @@ def change_convention(to_,units,origin=None):
     @return: units in new convention
     @rtype: str
     """
+    #-- (un)logarithmicize (denoted by '[]')
+    m_in = re.search(r'\[(.*)\]',units)
+    m_out = re.search(r'\[(.*)\]',to_)
+    
+    if m_in is not None:
+        units = m_in.group(1)
+    if m_out is not None:
+        to_ = m_out.group(1)
+        
+        
     if origin is None:
         origin = constants._current_convention
     #-- break down units in base units, and breakdown that string in

@@ -165,7 +165,7 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     
     .. math::
     
-        \mathrm{incl} = np.arcsin(\frac{P v\sin i}{2\pi R})
+        \mathrm{incl} = \arcsin(\frac{P v\sin i}{2\pi R})
     
     or the stellar radius
     
@@ -440,29 +440,169 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
     else:
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
-   
 
-def transform_bounded_to_unbounded(parset,qualifier,from_='limits'):
+#}
+
+#{ Other constraints
+
+def add_parallax(star,parallax=None,unit='mas',**kwargs):
+    """
+    Add parallax to a parameterSet.
+    """
+    if kwargs and 'parallax' in star:
+        raise ValueError("You cannot give extra kwargs to add_parallax if parallax already exist")
+    
+    kwargs.setdefault('description','Parallax')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on angdiam and add the parameter
+    star.pop_constraint('parallax',None)
+    if not 'parallax' in star:
+        star.add(parameters.Parameter(qualifier='parallax',
+                                value=parallax if parallax is not None else 0.,
+                                **kwargs))
+    else:
+        star['parallax'] = parallax
+        
+    #-- specify the dependent parameter
+    if parallax is None:
+        star.pop_constraint('parallax',None)
+        star.add_constraint('{parallax} = constants.au/{distance}')
+        logger.info("star '{}': 'parallax' constrained by 'distance'".format(star['label'],derive))
+    else:
+        star.add_constraint('{distance} = constants.au/{parallax}')
+        logger.info("star '{}': '{}' constrained by 'parallax'".format(star['label'],derive))
+
+def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
     r"""
-    Transform a bounded parameter to an unbounded version.
+    Add an unbounded version of a bounded parameter to a parameterset.
     
     This can be helpful for inclusion in fitting algorithms that cannot handle
-    bounds.
-    
-    The original parameter will be kept, but a transformed one will be added.
-    The two versions of the parameters are linked through a constraint.
+    bounds. The original parameter will be kept, but a transformed one will be
+    added. The two versions of the parameters are linked through a constraint.
     
     The transformation of a parameter :math:`P` with upper limit :math:`U`
     and :math:`L` to an unbounded parameter :math:`P'` is given by:
     
     .. math::
     
-        P' = \left(\frac{\atan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
-        
+        P' = \left(\frac{\arctan(P)}{\pi} + \frac{1}{2}\right) (U-L) + L
+    
         P = \tan\left(\pi\left(\frac{P'-L}{U-L}-\frac{1}{2}\right)\right)
     
-    We also need to transform the prior accordingly.
+    Basically, the parameter that you wish to unbound is first converted to
+    SI, and then unbounded as described above. The bounds can be taken from
+    the prior or from the limits of the parameter.
     
+    Let's take a complicated example of the surface gravity parameter, since
+    this parameter is not originally available in the parameters, it gets
+    nonlinearly transformed when converted to SI, *and* nonlinearly
+    transformed through the unbounding transformation.
+    
+    First create a parameterset (set inclination to 60 degrees for fun), add
+    the surface gravity as a parameter and set the prior.
+    
+    >>> star = create.star_from_spectral_type('B9V',incl=60.)
+    >>> tools.add_surfgrav(star,4.0,derive='mass')
+    >>> star.get_parameter('surfgrav').set_prior(distribution='uniform',lower=3.5,upper=5.0)
+    >>> print(star)
+          teff 10715.193052                                   K - phoebe Effective temperature
+        radius 3.579247                                    Rsol - phoebe Radius
+          mass 4.66955987072                               Msol - phoebe Stellar mass
+           atm kurucz                                        --   phoebe Bolometric Atmosphere model
+     rotperiod 0.90517                                        d - phoebe Polar rotation period
+       diffrot 0.0                                            d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+         gravb 1.0                                           -- - phoebe Bolometric gravity brightening
+      gravblaw zeipel                                        --   phoebe Gravity brightening law
+          incl 60.0                                         deg - phoebe Inclination angle
+          long 0.0                                          deg - phoebe Orientation on the sky (East of North)
+      distance 10.0                                          pc - phoebe Distance to the star
+         shape equipot                                       --   phoebe Shape of surface
+        vgamma 0.0                                         km/s - phoebe Systemic velocity
+           alb 1.0                                           -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+        redist 0.0                                           -- - phoebe Global redist par (1-redist) local heating, redist global heating
+    irradiator False                                         --   phoebe Treat body as irradiator of other objects
+          abun 0.0                                           --   phoebe Metallicity
+         label B9V_2f7ccdfd-d8c9-43ac-ad6d-5b2d2f0a4d72      --   phoebe Name of the body
+       ld_func claret                                        --   phoebe Bolometric limb darkening model
+     ld_coeffs kurucz                                        --   phoebe Bolometric limb darkening coefficients
+      surfgrav 4.0                                      [cm/s2] - phoebe Surface gravity
+          mass 9.28563927225e+30                            n/a   constr {surfgrav}/constants.GG*{radius}**2
+    
+    Then, unbound the surface gravity from the information from the prior. You
+    can see in the print-out that there is an extra parameter ``surfgrav__``
+    and an extra constraint on ``surfgrav``, that takes care of the inverse
+    transformation from the unbounded to the bounded parameter. From now on,
+    it's probably the ``surfgrav__`` parameter that the fitting program wants
+    to work with. Setting a value to ``surfgrav`` will be ignored, since it
+    is fully constrained by its unbounded version.
+    
+    >>> tools.add_unbounded_from_bounded(star,'surfgrav',from_='prior')
+    >>> print(star)
+          teff 10715.193052                                   K - phoebe Effective temperature
+        radius 3.579247                                    Rsol - phoebe Radius
+          mass 4.66955987072                               Msol - phoebe Stellar mass
+           atm kurucz                                        --   phoebe Bolometric Atmosphere model
+     rotperiod 0.90517                                        d - phoebe Polar rotation period
+       diffrot 0.0                                            d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+         gravb 1.0                                           -- - phoebe Bolometric gravity brightening
+      gravblaw zeipel                                        --   phoebe Gravity brightening law
+          incl 60.0                                         deg - phoebe Inclination angle
+          long 0.0                                          deg - phoebe Orientation on the sky (East of North)
+      distance 10.0                                          pc - phoebe Distance to the star
+         shape equipot                                       --   phoebe Shape of surface
+        vgamma 0.0                                         km/s - phoebe Systemic velocity
+           alb 1.0                                           -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+        redist 0.0                                           -- - phoebe Global redist par (1-redist) local heating, redist global heating
+    irradiator False                                         --   phoebe Treat body as irradiator of other objects
+          abun 0.0                                           --   phoebe Metallicity
+         label B9V_2f7ccdfd-d8c9-43ac-ad6d-5b2d2f0a4d72      --   phoebe Name of the body
+       ld_func claret                                        --   phoebe Bolometric limb darkening model
+     ld_coeffs kurucz                                        --   phoebe Bolometric limb darkening coefficients
+      surfgrav 3.99999999999                            [cm/s2] - phoebe Surface gravity
+    surfgrav__ -4.4338065418                             m1 s-2 - phoebe Surface gravity
+          mass 9.2856392721e+30                             n/a   constr {surfgrav}/constants.GG*{radius}**2
+      surfgrav 99.9999999984                                n/a   constr (np.arctan({surfgrav__})/np.pi + 0.5)*(1.00000000e+03-3.16227766e+01) + 3.16227766e+01
+    
+    Now, we'll set the value for the newly introduced unbounded surface gravity 
+    parameter ``surfgrav__`` from it's prior collect that value, and then
+    check whether the surface gravity itself is the uniform distribution.
+
+    >>> values = np.zeros((2,1000))
+    >>> for i in range(1000):
+    ...     star.set_value_from_prior('surfgrav__')
+    ...     values[:,i] = star['surfgrav__'],star['surfgrav']
+
+    Make a plot of the histograms. You can see that, although we were taking
+    random values from the prior of the unbounded parameter (left panel, it has
+    a pretty weird distribution), the original surface gravity has exactly the
+    distribution that we wanted from the start! So the fitting programs can go
+    nuts on the values without being restricted, the parameter that matters
+    will have the required behaviour.
+    
+    >>> plt.figure()
+    >>> plt.subplot(121)
+    >>> plt.xlabel('Unbounded surface gravity [weird units]')
+    >>> plt.hist(values[0],normed=True,bins=100)
+    >>> plt.subplot(122)
+    >>> plt.xlabel('log(Surface gravity [cm/s2]) [dex]')
+    >>> plt.hist(values[1],normed=True,bins=20)
+
+    .. image:: images/surface_gravity_bounds.png
+
+    Finally, we check whether the unbounded surface gravity parameter is truly
+    unbounded:
+    
+    >>> star['surfgrav__'] = -1e10
+    >>> print(star['surfgrav'])
+    3.5000000004
+    >>> star['surfgrav__'] = +1e10
+    >>> print(star['surfgrav'])
+    4.99999999999
+        
     @param parset: parameterSet containing the qualifier
     @type parset: ParameterSet
     @param qualifier: name of the parameter to transform
@@ -472,15 +612,13 @@ def transform_bounded_to_unbounded(parset,qualifier,from_='limits'):
     #   but without limits.
     new_qualifier = qualifier+'__'
     P = parset.get_parameter(qualifier)
-    
     P_ = P.copy()
     P_.set_qualifier(new_qualifier)
+    
     try:
         low,high = P_.transform_to_unbounded(from_=from_)
     except AttributeError:
         raise AttributeError("You cannot unbound a parameter ({}) that has no prior".format(qualifier))
-    if P_.has_unit():
-        del(P_.unit)
     #-- throw out a previous one if there is one before adding it again.
     if new_qualifier in parset:
         thrash = parset.pop(new_qualifier)

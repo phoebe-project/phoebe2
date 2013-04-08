@@ -339,19 +339,34 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
     def lnprob(pars,ids,system):
         #-- evaluate the system, get the results and return a probability
         had = []
+        any_outside_limits = False
         #-- walk through all the parameterSets available:
         walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-        for parset in walk:
-            #-- for each parameterSet, walk to all the parameters
-            for qual in parset:
-                #-- extract those which need to be fitted
-                if parset.get_adjust(qual) and parset.has_prior(qual):
-                    #-- ask a unique ID and update the value of the parameter
-                    myid = parset.get_parameter(qual).get_unique_label()
-                    if myid in had: continue
-                    index = ids.index(myid)
-                    parset[qual] = pars[index]
-                    had.append(myid)
+        
+        try:
+            for parset in walk:
+                #-- for each parameterSet, walk to all the parameters
+                for qual in parset:
+                    #-- extract those which need to be fitted
+                    if parset.get_adjust(qual) and parset.has_prior(qual):
+                        #-- ask a unique ID and update the value of the parameter
+                        this_param = parset.get_parameter(qual)
+                        myid = this_param.get_unique_label()
+                        if myid in had: continue
+                        index = ids.index(myid)
+                        parset[qual] = pars[index]
+                        had.append(myid)
+                        #-- if this parameter is outside the limits, we know
+                        #   the model is crap and forget about it immediately
+                        if not this_param.is_inside_limits():
+                            any_outside_limits = True
+                            raise StopIteration
+        #-- if any of the parameters is outside the bounds, we don't really
+        #   compute the model
+        except StopIteration:
+            logger.warning("At least one of the parameters was outside bounds")
+            return -np.inf
+        
         system.reset()
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
