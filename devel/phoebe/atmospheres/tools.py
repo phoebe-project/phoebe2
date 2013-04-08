@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from numpy import pi,sin,cos,sqrt
 from scipy.signal import fftconvolve
+from scipy.integrate import quad
 from phoebe.units import constants
 from phoebe.units import conversions
 
@@ -87,10 +88,22 @@ def beaming():
     pass
 
 
+def vmacro_kernel(dlam,Ar,At,Zr,Zt):
+    """
+    Macroturbulent velocity.
+    """
+    dlam[dlam==0] = 1e-8
+    if Zr!=Zt:
+        return np.array([(2*Ar*idlam/(np.sqrt(np.pi)*Zr**2) * quad(lambda u: np.exp(-1/u**2),0,Zr/idlam)[0] + \
+                          2*At*idlam/(np.sqrt(np.pi)*Zt**2) * quad(lambda u: np.exp(-1/u**2),0,Zt/idlam)[0]) 
+                             for idlam in dlam])
+    else:
+        return np.array([(2*Ar*idlam/(np.sqrt(np.pi)*Zr**2) + 2*At*idlam/(np.sqrt(np.pi)*Zt**2))\
+                           * quad(lambda u: np.exp(-1/u**2),0,Zr/idlam)[0]\
+                             for idlam in dlam])
 
 
-
-def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
+def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6,
                          chard=None,stepr=0,stepi=0,alam0=None,alam1=None,
                          irel=0,cont=None,method='fortran'):
     """
@@ -148,9 +161,12 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
             either the original (SYNSPEC) one if vrot=0,
             or the one used in rotational convolution (vrot > 0)
 
-
+    **Parameters for macroturbulent convolution
+    
+    C{vmac}: macroturbulent velocity.
+    
     **Wavelength interval and normalization of spectra**
-
+    
     C{ALAM0}: initial wavelength
     C{ALAM1}: final wavelength
     C{IREL}: for =1 relative spectrum, =0 absolute spectrum
@@ -172,7 +188,31 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
         kernel = np.exp(- (wave_k)**2/(2*fwhm**2))
         kernel /= sum(kernel)
         flux_conv = fftconvolve(1-flux_,kernel,mode='same')
-        flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
+        #-- this little tweak is necessary to keep the profiles at the right
+        #   location
+        if n%2==1:
+            flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+        else:
+            print("warning test offset of profile")
+            flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
+    #-- macroturbulent profile
+    if vmac>0:
+        vmac = vmac/(constants.cc*1e-3)*(wave_spec[0]+wave_spec[-1])/2.0
+        #-- make sure it's equidistant
+        wave_ = np.linspace(wave_spec[0],wave_spec[-1],len(wave_spec))
+        flux_ = np.interp(wave_,wave_spec,flux_spec)
+        dwave = wave_[1]-wave_[0]
+        n = int(6*vmac/dwave/5)
+        wave_k = np.arange(n)*dwave
+        wave_k-= wave_k[-1]/2.
+        kernel = vmacro_kernel(wave_k,1.,1.,vmac,vmac)
+        kernel /= sum(kernel)
+        flux_conv = fftconvolve(1-flux_,kernel,mode='same')
+        if n%2==1:
+            flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+        else:
+            print("warning test offset of profile")
+            flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
     if vrot>0:    
         #-- convert wavelength array into velocity space, this is easier
         #   we also need to make it equidistant!
@@ -190,7 +230,12 @@ def rotational_broadening(wave_spec,flux_spec,vrot,fwhm=0.25,epsilon=0.6,
         G /= G.sum()
         #-- convolve the flux with the kernel
         flux_conv = fftconvolve(1-flux_,G,mode='same')
-        velo_ = np.arange(len(flux_conv))*dvelo+velo_[0]
+        if n%2==1:
+            velo_ = np.arange(len(flux_conv))*dvelo+velo_[0]
+        else:
+            velo_ = np.arange(len(flux_conv))*dvelo+velo_[0]-dvelo/2.
         wave_conv = np.exp(velo_)
         return wave_conv,1-flux_conv
+        
+    
     return wave_spec,flux_spec
