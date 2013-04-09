@@ -1,6 +1,12 @@
 """
 Core interface of Phoebe
 
+**Template class**: lists all the stuff you can do with a Body.
+
+.. autosummary::
+
+    universe.PhysicalBody
+
 **Creating Bodies**
 
 .. autosummary::

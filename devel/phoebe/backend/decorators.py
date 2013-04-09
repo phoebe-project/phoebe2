@@ -184,3 +184,59 @@ def mpirun(fctn):
                     os.unlink(kwargs_file.name)
     return do_run
     
+#def mpirun_emcee(fctn):
+    #"""
+    #Use MPIRUN to execute a emcee on different nodes.
+    #"""
+    #@functools.wraps(fctn)
+    #def do_run(system,params,mpi,fitparams,pool=None):
+        #mpirun = mpi
+        ##mpirun = True
+        #if mpirun is None:
+            #return fctn(system,params,mpi,fitparams,pool=pool)
+        #else:
+            #if mpirun is True:
+                #mpirun = parameters.ParameterSet(context='mpi')
+            #try:
+                ##-- pickle parameters in NamedTemporaryFiles, which we will
+                ##   delete afterwards
+                #direc = os.getcwd()
+                #sys_file = tempfile.NamedTemporaryFile(delete=False,dir=direc)
+                #cPickle.dump(system,sys_file)
+                #sys_file.close()
+                #params_file = tempfile.NamedTemporaryFile(delete=False,dir=direc)
+                #cPickle.dump(params,params_file)
+                #params_file.close()
+                #mpi_file = tempfile.NamedTemporaryFile(delete=False,dir=direc)
+                #cPickle.dump(mpi,mpi_file)
+                #mpi_file.close()
+                #fitparams_file = tempfile.NamedTemporaryFile(delete=False,dir=direc)
+                #cPickle.dump(params,fitparams_file)
+                #fitparams_file.close()
+                ##-- construct mpirun command
+                #np = mpirun['np']
+                #byslot = ''#' --byslot' if mpirun['byslot'] else ''
+                #python = mpirun['python']
+                #hostfile = ' --hostfile {}'.format(mpirun['hostfile']) if mpirun['hostfile'] else ''
+                #mpirun_loc = os.path.abspath(__file__)
+                #mpirun_loc = os.path.split(os.path.split(mpirun_loc)[0])[0]
+                #mpirun_loc = os.path.join(mpirun_loc,'backend','fitting.py')
+                ##-- run mpi
+                #cmd = 'mpirun -np {np}{hostfile}{byslot} {python} {mpirun_loc} {fctn.__name__} {sys_file.name} {params_file.name} {mpi_file.name} {fitparams_file.name}'.format(**locals())
+                #print cmd
+                #flag = subprocess.check_call(cmd,shell=True)
+                ## Load the results from the function from the pickle file
+                #with open(fitparams_file.name,'r') as ff:
+                    #fitparams = cPickle.load(ff)
+            #finally:
+                ## Clean up pickle files that are lying around
+                #if os.path.isfile(sys_file.name):
+                    #os.unlink(sys_file.name)
+                #if os.path.isfile(params_file.name):
+                    #os.unlink(params_file.name)
+                #if os.path.isfile(mpi_file.name):
+                    #os.unlink(mpi_file.name)
+                #if os.path.isfile(fitparams_file.name):
+                    #os.unlink(fitparams_file.name)
+            #return fitparams
+    #return do_run

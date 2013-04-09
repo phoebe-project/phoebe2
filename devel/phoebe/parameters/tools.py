@@ -471,10 +471,10 @@ def add_parallax(star,parallax=None,unit='mas',**kwargs):
     if parallax is None:
         star.pop_constraint('parallax',None)
         star.add_constraint('{parallax} = constants.au/{distance}')
-        logger.info("star '{}': 'parallax' constrained by 'distance'".format(star['label'],derive))
+        logger.info("star '{}': 'parallax' constrained by 'distance'".format(star['label']))
     else:
         star.add_constraint('{distance} = constants.au/{parallax}')
-        logger.info("star '{}': '{}' constrained by 'parallax'".format(star['label'],derive))
+        logger.info("star '{}': 'distance' constrained by 'parallax'".format(star['label']))
 
 def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
     r"""

@@ -119,6 +119,7 @@ from collections import OrderedDict
 import numpy as np
 from numpy import sin,cos,pi,sqrt,pi
 from scipy.integrate import quad
+import scipy
 try:
     import pylab as pl
     from matplotlib.patches import Polygon
@@ -740,6 +741,10 @@ class Body(object):
         """
         self.time = None
     
+    def reset_and_clear(self):
+        self.reset()
+        self.clear_synthetic()
+    
     def walk(self):
         """
         Return iterable to walk through all the parameters of a (nested) Body.
@@ -921,7 +926,7 @@ class Body(object):
                             
     
     def get_logp(self):
-        """
+        r"""
         Retrieve probability.
         
         If the datasets have passband luminosities C{pblum} and/or third
@@ -930,10 +935,63 @@ class Body(object):
         Every data set has a statistical weight, which is used to weigh them
         in the computation of the total probability.
         
-        @return: log probability
-        @rtype: float
+        If ``statweight==0``, then:
+        
+        .. math::
+        
+            p = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2_{yi}}}\exp\left(-\frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}\right)
+            
+            \log p = \sum_{i=1}^N -\frac{1}{2}\log(2\pi) - \log(\sigma_{yi}) - \frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}
+            
+        Where :math:`p` gives the expected frequency of getting a value
+        in an infinitesimal range around :math:`y_i` per unit :math:`dy`.
+        To retrieve the :math:`\chi_2`, one can observe that the above is
+        equivalent to
+        
+        .. math::
+        
+            \log p = K -\frac{1}{2}\chi^2
+            
+        or
+        
+        .. math::
+        
+            K = \log p + \frac{1}{2}\chi^2
+            
+            \chi^2 = 2 (K - \log p )
+            
+        
+        If ``statweight>1`` each :math:`\log p` value will actually be the mean
+        of all :math:`\log p` within one dataset, weighted with the value of
+        ``statweight``. This an ugly hack to make some datasets more or less
+        important, but is generally not a good approach because it involves
+        a subjective determination of the ``statweight`` parameter.
+        
+        .. warning::
+        
+            The :math:`\log p` returned by this function is an **expected frequency**
+            and not a true probability. That is, the :math:`p` comes from the
+            probability density function, not the probability. To get the
+            probability itself, you can use scipy on the :math:`\chi^2`:
+                
+            >>> k = Ndata - Npars
+            >>> prob = scipy.stats.distributions.chi2.cdf(chi2,k)
+            
+            If ``prob`` is close to 1 then your model is implausible, if it is
+            close to zero it is very plausible.
+        
+        .. note:: See also
+            
+            :py:func:`get_chi2 <PhysicalBody.get_chi2>` to compute the :math:`\chi^2` statistic and probability
+        
+        References: [Hogg2009]_.
+        
+        @return: log probability, chi square, Ndata
+        @rtype: float, float, float
         """
         logp = 0.
+        chi2 = 0.
+        N = 0.
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 #-- get the model corresponding to this observation
@@ -962,7 +1020,7 @@ class Body(object):
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
                 #-- compute the log probability
                 term1 = - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
-                term2 = - (obser*pblum+l3-model)**2/(2.*(sigma*pblum)**2)
+                term2 = - (obser-model*pblum-l3)**2/(2.*(sigma*pblum)**2)
                 #-- statistical weight:
                 statweight = observations['statweight']
                 #   if stat_weight is negative, we try to determine the
@@ -972,15 +1030,38 @@ class Body(object):
                 #   weight:
                 if statweight>0:
                     this_logp = (term1 + term2).mean()*statweight
+                    this_chi2 = -(2*term2).mean()*statweight
                 #   if statistical weight is zero, we don't do anything:
                 else:
                     this_logp = (term1 + term2).sum()
+                    this_chi2 = -2*term2.sum()
                 logger.info("Statist weight of {} = {}".format(observations['ref'],statweight))
                 logger.info("pblum = {:.3g}, l3 = {:.3g}".format(pblum,l3))
+                logger.info("Chi2 of {}".format(observations['ref'],term2*2))
                 logp += this_logp
+                chi2 += this_chi2
+                N += len(obser)
                 if loaded:
                     observations.unload()
-        return logp
+        return logp, chi2, N
+    
+    def get_chi2(self):
+        """
+        Return the :math:`\chi^2` and resulting probability of the model.
+        
+        If ``prob`` is close to unity, the model is implausible, if it is
+        close to zero, it is very plausible.
+        """
+        #-- get the necessary info
+        logp, chi2, Ndata = self.get_logp()
+        adj = self.get_adjustable_parameters()
+        Npar = len(adj)
+        #-- compute the chi2 probability
+        k = Ndata - Npar
+        prob = scipy.stats.distributions.chi2.cdf(chi2,k)
+        #-- that's it!
+        return prob, chi2, Ndata, Npar
+        
     
     def get_model(self):
         """
@@ -1029,6 +1110,13 @@ class Body(object):
                     observations.unload()
         return np.hstack(mu),np.hstack(sigma),np.hstack(model)
     
+    def get_adjustable_parameters(self):
+        mylist = []
+        for path,val in self.walk_all():
+            path = list(path)
+            if isinstance(val,parameters.Parameter) and val.get_adjust():
+                mylist.append(val)
+        return mylist
     
     def get_label(self):
         """
@@ -1646,11 +1734,17 @@ class PhysicalBody(Body):
        Body.get_synthetic
        Body.get_coords
        Body.get_label
-       Body.get_logp
-       Body.get_model
        Body.list
        get_parameters
        as_point_source
+    
+    **Statistics**
+    
+    .. autosummary::
+    
+       Body.get_logp
+       Body.get_chi2
+       Body.get_model
     
     **Iterators**
     
@@ -2741,10 +2835,13 @@ class BodyBag(Body):
             body.clear_synthetic(*args,**kwargs)
     
     def get_logp(self):
-        logp = super(BodyBag,self).get_logp()
+        logp,chi2,N = super(BodyBag,self).get_logp()
         for body in self.bodies:
-            logp = logp + body.get_logp()
-        return logp
+            this_logp,this_chi2,this_N = body.get_logp()
+            logp = logp + this_logp
+            chi2 = chi2 + this_chi2
+            N = N + this_N
+        return logp, chi2, N
     
     def get_model(self):
         mu,sigma,model = super(BodyBag,self).get_model()
