@@ -19,19 +19,28 @@
    phoebe.utils
    
 """
-#-- make some functions available in the root
+#-- make some important classes available in the root:
 from parameters.parameters import ParameterSet,Parameter
 from parameters.parameters import ParameterSet as PS
-from parameters.parameters import load as load_ps
-from parameters import create
 from parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
-from parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
-from parameters.tools import add_rotfreqcrit
 from backend.universe import Star,BinaryRocheStar,BinaryStar,BodyBag,BinaryBag
+
+#-- common input and output
+from parameters.parameters import load as load_ps
 from backend.universe import load as load_body
+from parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
+from parameters import create
+from utils.utils import get_basic_logger
+
+#-- common tasks
+from parameters.tools import add_rotfreqcrit
 from backend.observatory import compute,observe,add_bitmap,image,ifm
 from backend.fitting import run
-from utils.utils import get_basic_logger
+
+#-- common modules
+from backend import observatory,universe,plotting,fitting
+from wd import wd
+
+#-- common extras
 from units import constants
 from units.conversions import convert,Unit
-from wd import wd

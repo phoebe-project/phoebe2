@@ -41,6 +41,7 @@ from matplotlib.collections import LineCollection
 from phoebe.utils import utils
 from phoebe.backend import universe
 from phoebe.backend import observatory
+from phoebe.backend import decorators
 from phoebe.wd import wd
 from phoebe.parameters import parameters
 try:
@@ -49,6 +50,7 @@ except ImportError:
     print("Unable to load mcmc fitting routines from pymc: restricted fitting facilities")
 try:
     import emcee
+    from emcee.utils import MPIPool
 except ImportError:
     print("Unable to load mcmc fitting routines from emcee: restricted fitting facilities")
 try:
@@ -105,6 +107,9 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     if fitparams.context=='fitting:pymc':
         solver = run_pymc
     elif fitparams.context=='fitting:emcee':
+        #-- we'll set a default fitparams here because of the MPIRUN
+        if fitparams is None:
+            fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=20,iters=10)
         solver = run_emcee
     elif fitparams.context=='fitting:lmfit':
         solver = run_lmfit
@@ -128,6 +133,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         try:
             observatory.compute(system,params=params,mpi=mpi)
         except Exception,msg:
+            print system.params.values()[0]
             logger.info("Could not accept for some reason (original message: {})".format(msg))
     
     return fitparams
@@ -273,13 +279,30 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     fitparams['feedback'] = feedback
     return fitparams
 
-
-def run_emcee(system,params=None,mpi=None,fitparams=None):
+#@decorators.mpirun_emcee
+def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     """
     Perform MCMC sampling of the parameter space of a system using emcee.
     
     Be sure to set the parameters to fit to be adjustable in the system.
     Be sure to set the priors of the parameters to fit in the system.
+    
+    **Tips**
+    
+    * Have a look at the C{acortime}, it is good practice to let the sampler
+      run at least 10 times the C{acortime}. If ``acortime = np.nan``, you
+      probably need to take more iterations!
+    * Use as many walkers as possible (hundreds for such a handful of
+      parameters)
+    * Beware of a burn in period. The most conservative you can get is making
+      a histogram of only the final states of all walkers.
+    * To get the original chains per walker back, and make a histogram of the
+      final states, do
+    
+    >>> chains = fitparams['feedback']['traces'][0].reshape((-1,nwalkers))
+    >>> freqs,bins = np.hist(chains[:,-1])
+    
+    Reference: [Foreman-Mackey2012]_
     
     @param system: the system to fit
     @type system: Body
@@ -293,7 +316,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
     @rtype: ParameterSet
     """
     if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee')
+        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=20,iters=10)
     nwalkers = fitparams['walkers']
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
@@ -375,8 +398,8 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
         system.reset()
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
-        logp = system.get_logp()
-        mu,sigma,model = system.get_model()
+        logp,chi2,N = system.get_logp()
+        #mu,sigma,model = system.get_model()
         return logp
     
     #-- if we need to do incremental stuff, we'll need to open a chain file
@@ -405,7 +428,9 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
         start_iter = len(fitparams['feedback']['traces'][0])/nwalkers
         logger.info("Starting from previous EMCEE chain from feedback")
     #-- run the sampler
-    sampler = emcee.EnsembleSampler(nwalkers,pars.shape[1],lnprob,args=[ids,system],threads=fitparams['threads'])
+    sampler = emcee.EnsembleSampler(nwalkers,pars.shape[1],lnprob,
+                                    args=[ids,system],
+                                    threads=fitparams['threads'],pool=pool)
     num_iterations = fitparams['iters']-start_iter
     if num_iterations<=0:
         logger.info('EMCEE contains {} iterations already (iter={})'.format(start_iter,fitparams['iters']))
@@ -429,8 +454,14 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
     logger.info("Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction)))
     
     #-- store the info in a feedback dictionary
+    try:
+        acortime = sampler.acor
+    #RuntimeError: The autocorrelation time is too long relative to the variance in dimension 
+    except RuntimeError:
+        acortime = np.nan
+        logger.warning('Probably not enough iterations for emcee')
     feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],accfrac=np.mean(sampler.acceptance_fraction),
-                    lnprobability=[])
+                    lnprobability=sampler.flatlnprobability,acortime=acortime)
     
     #-- add the posteriors to the parameters
     had = []
@@ -453,7 +484,6 @@ def run_emcee(system,params=None,mpi=None,fitparams=None):
                 feedback['parameters'].append(this_param)
                 feedback['traces'].append(trace)
                 feedback['priors'].append(this_param.get_prior(fitter=None))
-                feedback['lnprobability'].append(sampler.flatlnprobability[:,index])
     if fitparams['feedback'] and fitparams['incremental']:
         feedback['traces'] = np.hstack([fitparams['feedback']['traces'],feedback['traces']])
         feedback['lnprobability'] = np.hstack([fitparams['feedback']['lnprobability'],feedback['lnprobability']])
@@ -875,7 +905,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
         system.reset()
         system.clear_synthetic()
         observatory.compute(system,params=params,mpi=mpi)
-        logp = system.get_logp()
+        logp, chi2, N = system.get_logp()
         return logp
     
     #-- now run over the whole grid
@@ -1156,7 +1186,8 @@ def accept_fit(system,fitparams):
                 index = fitted_param_labels.index(myid)
                 #-- [iwalker,trace,iparam]
                 if fitmethod in ['pymc','emcee']:
-                    this_param.set_value(np.median(feedback['traces'][index]))
+                    best_index = np.argmax(np.array(feedback['lnprobability']))
+                    this_param.set_value(feedback['traces'][index][best_index])
                     try:
                         this_param.set_posterior(feedback['traces'][index],update=False)
                     except:
@@ -1168,3 +1199,36 @@ def accept_fit(system,fitparams):
                 else:
                     logger.info("Did not recognise fitting method {}".format(fitmethod))
 
+
+
+#if __name__=="__main__":
+    #import sys
+    ## retrieve info and pickles
+    #fitter,system_file,params_file,mpi_file,fitparams_file = sys.argv[1:]
+    
+    #if fitter=='run_emcee':
+        #pool = MPIPool()
+    
+        #if not pool.is_master():
+            #pool.wait()
+            #sys.exit(0)
+    
+        #system = universe.load(system_file)
+        #if os.path.isfile(params_file):
+            #params = parameters.load(params_file)
+        #else:
+            #params = None
+        #if os.path.isfile(mpi_file):
+            #mpi = parameters.load(mpi_file)
+        #else:
+            #mpi = None
+        #if os.path.isfile(fitparams_file):
+            #fitparams = parameters.load(fitparams_file)
+        #else:
+            #fitparams = None
+        
+        #fitparams = run_emcee(system,params,mpi,fitparams,pool=pool)
+        
+        #pool.close()
+    
+        #fitparams.save('testiewestie')

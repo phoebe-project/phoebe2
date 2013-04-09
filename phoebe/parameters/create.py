@@ -983,6 +983,7 @@ def vega_aufdenberg2006():
     tools.add_teffpolar(star,10150.)
     tools.add_rotfreqcrit(star,0.91)
     tools.add_parallax(star,128.93,unit='mas')
+    tools.add_surfgrav(star,derive='mass')
     #-- add priors
     star.get_parameter('rotfreqcrit').set_prior(sigma=0.03)
     star.get_parameter('parallax').set_prior(sigma=0.55)
@@ -1004,6 +1005,7 @@ def vega_hill2010():
     tools.add_teffpolar(star,10000)
     tools.add_rotfreqcrit(star,0.81)
     tools.add_parallax(star,130.23,unit='mas')
+    tools.add_surfgrav(star,derive='mass')
     #-- add priors
     star.get_parameter('rotfreqcrit').set_prior(sigma=0.02)
     star.get_parameter('parallax').set_prior(sigma=0.36)
@@ -1025,14 +1027,15 @@ def vega_yoon2010():
     tools.add_teffpolar(star,10059.)
     tools.add_rotfreqcrit(star,0.8760)
     tools.add_parallax(star,130.23,unit='mas')
+    tools.add_surfgrav(star,derive='mass')
     #-- add priors
-    star.get_parameter('rotfreqcrit').set_prior(sigma=0.0057)
-    star.get_parameter('parallax').set_prior(sigma=0.36)
-    star.get_parameter('radius').set_prior(sigma=0.012)
-    star.get_parameter('teffpolar').set_prior(sigma=13.)
-    star.get_parameter('mass').set_prior(sigma=0.074)
-    star.get_parameter('incl').set_prior(sigma=0.081)
-    star.get_parameter('rotperiod').set_prior(sigma=0.0084)
+    star.get_parameter('rotfreqcrit').set_prior(distribution='normal',sigma=0.0057)
+    star.get_parameter('parallax').set_prior(distribution='normal',sigma=0.36)
+    star.get_parameter('radius').set_prior(distribution='normal',sigma=0.012)
+    star.get_parameter('teffpolar').set_prior(distribution='normal',sigma=13.)
+    star.get_parameter('mass').set_prior(distribution='normal',sigma=0.074)
+    star.get_parameter('incl').set_prior(distribution='normal',sigma=0.081)
+    star.get_parameter('rotperiod').set_prior(distribution='normal',sigma=0.0084)
     
     return star
 
@@ -1046,14 +1049,15 @@ def vega_monnier2012():
     tools.add_teffpolar(star,10070.)
     tools.add_rotfreqcrit(star,0.774)
     tools.add_parallax(star,130.23,unit='mas')
+    tools.add_surfgrav(star,derive='mass')
     #-- add priors
-    star.get_parameter('rotfreqcrit').set_prior(sigma=0.012)
-    star.get_parameter('parallax').set_prior(sigma=0.36)
-    star.get_parameter('radius').set_prior(sigma=0.012)
-    star.get_parameter('teffpolar').set_prior(sigma=90.)
-    star.get_parameter('mass').set_prior(sigma=0.13)
-    star.get_parameter('incl').set_prior(sigma=0.4)
-    star.get_parameter('rotperiod').set_prior(sigma=0.02)
+    star.get_parameter('rotfreqcrit').set_prior(distribution='normal',sigma=0.012)
+    star.get_parameter('parallax').set_prior(distribution='normal',sigma=0.36)
+    star.get_parameter('radius').set_prior(distribution='normal',sigma=0.012)
+    star.get_parameter('teffpolar').set_prior(distribution='normal',sigma=90.)
+    star.get_parameter('mass').set_prior(distribution='normal',sigma=0.13)
+    star.get_parameter('incl').set_prior(distribution='normal',sigma=0.4)
+    star.get_parameter('rotperiod').set_prior(distribution='normal',sigma=0.02)
     
     return star
 #}
