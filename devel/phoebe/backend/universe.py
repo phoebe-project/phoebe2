@@ -1060,8 +1060,36 @@ class Body(object):
         k = Ndata - Npar
         prob = scipy.stats.distributions.chi2.cdf(chi2,k)
         #-- that's it!
-        return prob, chi2, Ndata, Npar
+        return chi2, prob, Ndata, Npar
         
+    
+    def get_data(self):
+        """
+        Return all data in one long chain of data.
+        """
+        mu = []
+        sigma = []
+        for idata in self.params['obs'].values():
+            for observations in idata.values():
+                #-- make sure to have loaded the observations from a file
+                loaded = observations.load(force=False)
+                if observations.context=='spobs':
+                    obser_ = np.ravel(np.array(observations['flux'])/np.array(observations['continuum']))
+                    sigma_ = np.ravel(np.array(observations['sigma']))
+                elif observations.context=='lcobs':
+                    obser_ = np.ravel(np.array(observations['flux']))
+                    sigma_ = np.ravel(np.array(observations['sigma']))
+                elif observations.context=='ifobs':
+                    obser_ = np.ravel(np.array(observations['vis2']))
+                    sigma_ = np.ravel(np.array(observations['sigma_vis2']))
+                else:
+                    raise NotImplementedError('probability')  
+                #-- append to the "whole" model.
+                mu.append(obser_)
+                sigma.append(sigma_)
+                if loaded:
+                    observations.unload()
+        return np.hstack(mu),np.hstack(sigma)
     
     def get_model(self):
         """
@@ -2274,12 +2302,12 @@ class PhysicalBody(Body):
     @decorators.parse_ref
     def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4,time=None):
         """
-        Compute projected intensity and add results to the pbdep ParameterSet.
+        Compute spectrum and add results to the pbdep ParameterSet.
         """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'pbdep' in self.params:
             if not ('spdep' in self.params['pbdep']): return None
-            #-- compute the projected intensities for all light curves.
+            #-- compute the spectrum for all references
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
                 wavelengths_,specflux,cont = observatory.make_spectrum(self,ref=lbl,wavelengths=wavelengths,sigma=sigma,depth=depth)
@@ -2288,6 +2316,26 @@ class PhysicalBody(Body):
                 base['flux'].append(specflux)
                 base['continuum'].append(cont)
         
+    @decorators.parse_ref
+    def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
+        """
+        Compute Stokes profiles and add results to the pbdep ParameterSet.
+        """
+        #-- don't bother if we cannot do anything...
+        if hasattr(self,'params') and 'pbdep' in self.params:
+            if not ('pldep' in self.params['pbdep']): return None
+            #-- compute the Stokes profiles for all references
+            for lbl in ref:
+                base,lbl = self.get_parset(ref=lbl,type='syn')
+                wavelengths_,I,V,Q,U,cont = observatory.stokes(self,ref=lbl,
+                         wavelengths=wavelengths,sigma=sigma,depth=depth)
+                base['time'].append(self.time)
+                base['wavelength'].append(wavelengths_)
+                base['I'].append(I)
+                base['V'].append(V)
+                base['Q'].append(Q)
+                base['U'].append(U)
+                base['continuum'].append(cont)
     
         
     
@@ -3378,7 +3426,7 @@ class Star(PhysicalBody):
         """
         self.mesh['abun'] = self.params.values()[0]['abun']
     
-    def magnetic_field(self):
+    def magnetic_field_best(self):
         """
         Calculate the magnetic field.
         """
@@ -3396,15 +3444,54 @@ class Star(PhysicalBody):
             r = coordinates.norm(r_)
             r_ *= r
         m_ = np.array([np.sin(beta)*np.cos(np.pi/2),np.sin(np.pi/2),np.cos(beta)])
-        m_*= R**3*np.abs(Bpolar)/2.
+        m_*= R**3*np.abs(Bpolar)/2. #---> use this for agreement with first test run of Evelyne
         
         dotprod = np.dot(m_,r_.T).reshape(-1,1)
         B = (3*dotprod*r_/r**5 - m_/r**3)
         nB = coordinates.norm(B,axis=1).max()
         print("Maximum B-field = {}, Bpolar should be = {}".format(nB,Bpolar))
         B = B/nB*Bpolar
+        
+        #-- polar value:
+        #r_polar = np.array([[0.,0.,R]])
+        #dotprod = np.dot(m_,r_polar.T).reshape(-1,1)
+        #B_polar = (3*dotprod*r_polar/r**5 - m_/r**3)
+        #B_polar = coordinates.norm(B_polar,axis=1).max()
+        #print("Bpolar field {}".format(B_polar))
+        #B = B/B_polar*Bpolar
+        
+        
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
+    
+    def magnetic_field(self):
+        """
+        Calculate the magnetic field.
+        
+        Problem: when the surface is deformed, I need to know the value of
+        the radius at the magnetic pole! Or we could just interpret the
+        polar magnetic field as the magnetic field strength in the direction
+        of the magnetic axes but at a distance of 1 polar radius....
+        """
+        #-- dipolar:
+        parset = self.params['magnetic_field']
+        beta = parset.get_value('beta','rad')
+        Bpolar = parset.get_value('Bpolar')
+        R = self.params.values()[0].get_value('radius')
+        r_ = self.mesh['_o_center']/R
+        trans = np.pi/2.
+        
+        #m_ = np.array([np.sin(beta),0.,np.cos(beta)])
+        m_ = np.array([np.sin(beta)*np.cos(trans)-0*np.sin(trans),
+                       np.sin(beta)*np.sin(trans)+0.*np.cos(trans),
+                       np.cos(beta)])
+        dotprod = np.dot(m_,r_.T).reshape(-1,1)
+        B =     (3*dotprod    *r_ - m_)
+        B = B/2.0*Bpolar
+        self.mesh['_o_B_'] = B
+        self.mesh['B_'] = self.mesh['_o_B_']
+        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar,beta/np.pi*180))
+        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B,axis=1).max()))
     
     @decorators.parse_ref
     def intensity(self,ref='all'):

@@ -1,6 +1,9 @@
 """
 Fitting routines, minimization, optimization.
 
+Section 1. Summary
+==================
+
 The top level function you should use is L{run}.
 
 **Main functions**
@@ -19,6 +22,7 @@ The top level function you should use is L{run}.
    run_emcee
    run_lmfit
    run_grid
+   run_minuit
    
 **Wilson Devinney**
 
@@ -26,6 +30,31 @@ The top level function you should use is L{run}.
    
    run_wd_emcee
    
+Section 2. Details
+==================
+
+The basic idea behind fitting Phoebe is the following chain of events, once
+you defined a model and attached observations:
+
+1. Given a set of parameters, compute a model.
+2. Compute observables to mimic the observations attached to that model.
+3. **Evaluate the goodness-of-fit**.
+4. If **some criterion** is satisfied, then ``STOP``
+5. **Change the values** of the adjustable parameters and return to step 1.
+
+Three remarks are in place to explain the statements in bold:
+
+* **some criterion** generally means that you can either stop computing if you
+  found a (what you think) optimal set of parameters, or if you computed enough
+  models to satisfactory sample the posterior distributions of the adjustable
+  parameters.
+* **evaluate the goodness-of-fit** means...
+* **change the values** means you have to pick a certain algorithm. You can
+  use algorithms that try to descent into a minimum of the parameter space,
+  algorithms that just try out a whole predefined set of parameters, or
+  algorithms that try to walk through the parameter space to sample the
+  posterior distributions, rather than finding an optimal value.
+
 
 """
 import os
@@ -57,6 +86,11 @@ try:
     import lmfit
 except ImportError:
     print("Unable to load nonlinear fitting routines from lmfit: restricted fitting facilities")
+try:
+    import iminuit
+except ImportError:
+    print("Unable to load MINUIT fitting routines from iminuit: restricted fitting facilities")
+
     
 logger = logging.getLogger("FITTING")
 
@@ -71,6 +105,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         1. :ref:`fitting:pymc <parlabel-phoebe-fitting:pymc>`: Metropolis-Hastings MCMC via pymc
         2. :ref:`fitting:emcee <parlabel-phoebe-fitting:emcee>`: Affine Invariant MCMC via emcee
         3. :ref:`fitting:lmfit <parlabel-phoebe-fitting:lmfit>`: nonlinear optimizers via lmfit
+        3. :ref:`fitting:minuit <parlabel-phoebe-fitting:minuit>`: nonlinear optimizers via MINUIT
     
     The parameters determining how the system is computed are defined by the
     ParameterSet :ref:`params <parlabel-phoebe-compute>`.
@@ -113,6 +148,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         solver = run_emcee
     elif fitparams.context=='fitting:lmfit':
         solver = run_lmfit
+    elif fitparams.context=='fitting:minuit':
+        solver = run_minuit
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
     fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
@@ -299,8 +336,15 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     * To get the original chains per walker back, and make a histogram of the
       final states, do
     
-    >>> chains = fitparams['feedback']['traces'][0].reshape((-1,nwalkers))
-    >>> freqs,bins = np.hist(chains[:,-1])
+    >>> chains = fitparams['feedback']['traces'][0].reshape((walkers,-1))
+    
+    Then you should be able to recover a sampling of the prior via
+    
+    >>> freqs,bins = np.hist(chains[0])
+    
+    And (hopefully) of the posterior via
+    
+    >>> freqs,bins = np.hist(chains[-1])
     
     Reference: [Foreman-Mackey2012]_
     
@@ -817,6 +861,130 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                     Ndata=Nmodel['Nd'],Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback
     return fitparams
+
+
+class MinuitMinimizer(object):
+    def __init__(self,system,params=None,mpi=None):
+        self.system = system
+        self.params = params # computational parameters
+        self.mpi = mpi
+        
+        #-- evaluate the system, get the results and return a probability
+        had = []
+        #-- walk through all the parameterSets available:
+        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        self.param_names = []
+        for parset in walk:
+            #-- for each parameterSet, walk to all the parameters
+            for qual in parset:
+                #-- extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):
+                    #-- ask a unique ID and update the value of the parameter
+                    this_param = parset.get_parameter(qual)
+                    myid = this_param.get_unique_label().replace('-','_')
+                    if myid in had: continue
+                    id_for_minuit = '{}_{}'.format(qual,myid)
+                    setattr(self,id_for_minuit,this_param.get_value())
+                    had.append(myid)
+                    self.param_names.append(id_for_minuit)
+                    
+        self.func_code = iminuit.util.make_func_code(self.param_names)
+        self.func_defaults = None
+        #-- construct the iminuit Minimizer
+    
+    def __call__(self,*pars):
+        """
+        Define the chi square.
+        """
+        system = self.system
+        had = []
+        #-- walk through all the parameterSets available:
+        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        for parset in walk:
+            #-- for each parameterSet, walk to all the parameters
+            for qual in parset:
+                #-- extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):
+                    #-- ask a unique ID and update the value of the parameter
+                    myid = parset.get_parameter(qual).get_unique_label().replace('-','_')
+                    if myid in had: continue
+                    id_for_minuit = '{}_{}'.format(qual,myid)
+                    index = self.param_names.index(id_for_minuit)
+                    parset[qual] = pars[index]
+                    had.append(myid)
+        #-- evaluate the system, get the results and return a probability
+        system.reset()
+        system.clear_synthetic()
+        observatory.compute(system,params=self.params,mpi=self.mpi)
+        mu,sigma,model = system.get_model()
+        retvalue = (model-mu)/sigma
+        
+        print(", ".join(["{}={}".format(name,pars[i]) for i,name in enumerate(self.param_names)]))
+        print("Current value",sum(retvalue**2))
+        return sum(retvalue**2)
+
+
+def run_minuit(system,params=None,mpi=None,fitparams=None):
+    """
+    Use MINUIT.
+    
+    MINUIT2, is a numerical minimization computer program originally written
+    in the FORTRAN programming language[1] by CERN staff physicist Fred James
+    in the 1970s (from wikipedia).
+    
+    Best to call Minos to check if the parameters are reasonably independent.
+    The tool is MnHesse.
+    """
+    mimi = MinuitMinimizer(system)
+    had = []
+    ppars = [] # Phoebe parameters
+    pars = {}  # Minuit parameters
+    #-- walk through all the parameterSets available:
+    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in walk:
+        #-- for each parameterSet, walk to all the parameters
+        for qual in parset:
+            #-- extract those which need to be fitted
+            if parset.get_adjust(qual) and parset.has_prior(qual):
+                #-- ask a unique ID and update the value of the parameter
+                this_param = parset.get_parameter(qual)
+                myid = this_param.get_unique_label().replace('-','_')
+                if myid in had: continue
+                id_for_minuit = '{}_{}'.format(qual,myid)
+                pars[id_for_minuit] = this_param.get_value()
+                if this_param.has_step():
+                    pars['error_{}'.format(id_for_minuit)] = this_param.get_step()
+                else:
+                    #-- this is MINUIT's default, we'll set it otherwise we get a warning
+                    pars['error_{}'.format(id_for_minuit)] = 1.
+                if fitparams['bounded']:
+                    lower,upper = this_param.get_prior().get_limits()
+                    pars['limit_{}'.format(id_for_minuit)] = (lower,upper)
+                had.append(myid)
+                ppars.append(this_param)
+    if fitparams['bounded']:
+        logger.warning("MINUIT: parameters are bounded, this can affect the error estimations")
+    #-- a change of this value should be interpreted as 1 sigma for iminuit:
+    # (in order to calculate it we need to now the number of observations)
+    data,sigma = system.get_data()
+    N = len(data)-len(ppars)
+    errordef = np.sqrt(2.0*(N-2.0))
+    logger.warning("MINUIT's 1sigma = {}".format(errordef))
+    #-- initialize the fit
+    m = iminuit.Minuit(mimi,errordef=errordef,**pars)
+    #-- run the fit
+    m.migrad()
+    #-- collect the feedback:
+    values = [m.values[x] for x in m.parameters]
+    sigmas = [m.error[x] for x in m.parameters]
+    #-- note: m.covariance is also available, as well as m.matrix(correlation=True)
+    #   there is also stuff for contours etc... google for it! But we probably
+    #   want to add the info to the feedback
+    feedback = dict(parameters=ppars,values=values,sigmas=sigmas,redchi=m.fval,
+                    message=m.get_fmin(),success=m.get_fmin().is_valid)
+    fitparams['feedback'] = feedback
+    return fitparams
+
 
 
 #}

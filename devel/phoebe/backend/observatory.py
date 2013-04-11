@@ -651,7 +651,8 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         
     return wavelengths,total_spectrum,total_continum
 
-def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_grav=True):
+def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
+           rv_grav=True,do_V=True,do_Q=False,do_U=False):
     r"""
     Calculate the stokes profiles.
     
@@ -729,10 +730,23 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
     
     .. math::
         I_{\mu,\lambda} \longrightarrow I_{\mu,\lambda,T_\mathrm{eff},\log g,z,v_\mathrm{rad},\ldots}
+    
     """
     
     mesh = the_system.mesh
-    
+    #-- is there data available? then we can steal the wavelength array
+    #   from there
+    iobs,ref_ = the_system.get_parset(ref=ref,context='plobs')
+    if ref_ is not None:
+        if not 'wavelength' in iobs or not len(iobs['wavelength']):
+            iobs.load()
+        wavelengths = iobs['wavelength']
+        R = iobs['R']
+        if 'vmacro' in iobs:
+            vmacro = iobs['vmacro']
+    else:
+        R = None
+        vmacro = 0.
     #-- information on dependable set
     idep,ref = the_system.get_parset(ref=ref,context='pldep')
     ld_model = idep['ld_func']
@@ -780,8 +794,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
         return wavelengths,np.zeros(len(wavelengths)),0.
     
     #-- magnitude of magnetic field and angle towards the LOS
-    mesh['B_'] = mesh['B_']*1e-4 # convert to Tesla
-    B = coordinates.norm(mesh['B_'][keep],axis=1)
+    #mesh['B_'] = mesh['B_']*1e-4 # convert to Tesla
+    B = coordinates.norm(mesh['B_'][keep],axis=1)*1e-4 # and convert to Tesla 
     cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,-1]]),axis=1)
     sin2theta = 1 - cos_theta**2
     cos_chi = coordinates.cos_angle(mesh['B_'][keep],np.array([[1.,0.,0]]),axis=1)
@@ -790,7 +804,9 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
     cos22chi = (cos2chi - sin2chi)**2
     sin22chi = 1. - cos22chi
     #-- Zeeman splitting in angstrom
-    delta_nu_zeemans = -glande*constants.qe*B/(4*np.pi*constants.me)
+    #bohr_magneton = 9.27400968e-24
+    #delta_nu_zeemans = -glande*bohr_magneton*B
+    delta_nu_zeemans = -glande*constants.qe*B/(4*np.pi*constants.me) # (qe is negative but somewhere my B field has wrong sign?)
     delta_nu_zeemans2 = delta_nu_zeemans**2
     delta_v_zeemans = (wc*1e-10)*delta_nu_zeemans/1000. # from cy/s to km/s
     #-- radial velocities
@@ -860,7 +876,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
             spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
             specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
             specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)            
-            stokes_V += costh*(specm-specp)/2.
+            if do_V:
+                stokes_V += costh*(specm-specp)/2.
             #-- second version
             #mytemplate = pri*sz*(1.00 - depth*np.exp( -(wavelengths-wc-rad_velosw[i])**2/(2*sigma**2)))
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,mytemplate)
@@ -869,11 +886,15 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
             
             #-- Stokes Q and U
             sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
-            stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
-            stokes_U -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+            if do_Q:
+                stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+            if do_U:
+                stokes_U -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
             
             stokes_I += spec
             total_continum += pri*sz
+        logger.info("Zeeman splitting: between {} and {} AA".format(min(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA'))),max(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA')))))
+        logger.info("Zeeman splitting: between {} and {} Hz".format(min(delta_nu_zeemans/1e6),max(delta_nu_zeemans/1e6)))
         logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
     else:
         raise NotImplementedError
@@ -883,7 +904,7 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,glande=None,rv_g
         stokes_I = stokes_I[keep]
         stokes_V = stokes_V[keep]
         total_continum = total_continum[keep]
-    return wavelengths,stokes_I,stokes_V,total_continum
+    return wavelengths,stokes_I,stokes_V,stokes_Q,stokes_U,total_continum
     
 
 #}
