@@ -6,6 +6,8 @@ Plotting facilities for observations and synthetic computations.
    plot_lcdeps_as_sed
    plot_spdep_as_profile
    plot_ifdep
+   
+   
 """
 
 import logging
@@ -199,6 +201,75 @@ def plot_ifdep(system,ref=0,residual=False,select='vis2',
     
     plt.xlabel("Baseline [m]")
     plt.grid()
+    
+    if loaded_obs: obs.unload()
+    if loaded_syn: syn.unload()
+    
+    
+def plot_pldep_as_profile(system,index=0,ref=0,residual=False,
+                          kwargs_obs=None,kwargs_syn=None,
+                          kwargs_residual=None):
+    """
+    Plot an entry in an pldep as a Stokes profile.
+    
+    This function will draw to the current active axes, and will set the
+    axis labels.
+    
+    @param system: system to plot
+    @type system: Body
+    @param index: for spdeps that are time dependent, take the index-th spectrum
+    @type index: int
+    @param ref: reference of the spectrum to be plotted
+    @type ref: str
+    @param residual: plot residuals or computed model and observations
+    @type residual: bool
+    @param kwargs_obs: extra matplotlib kwargs for plotting observations (errorbar)
+    @type kwargs_obs: dict
+    @param kwargs_syn: extra matplotlib kwargs for plotting synthetics (plot)
+    @type kwargs_syn: dict
+    @param kwargs_residual: extra matplotlib kwargs for plotting residuals (plot)
+    @type kwargs_residual: dict
+    """
+    raise NotImplementedError
+    #-- get plotting options
+    if kwargs_obs is None:
+        kwargs_obs = dict(fmt='ko-',ecolor='0.5')
+    if kwargs_syn is None:
+        kwargs_syn = dict(color='r',linestyle='-',lw=2)
+    if kwargs_residual is None:
+        kwargs_residual = dict(fmt='ko',ecolor='0.5')
+    #-- get parameterSets
+    dep,ref = system.get_parset(category='sp',type='pbdep',ref=ref)
+    syn,ref = system.get_parset(category='sp',type='syn',ref=ref)
+    obs,ref = system.get_parset(category='sp',type='obs',ref=ref)
+    
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    #-- correct synthetic flux for corrections of third light and passband
+    #   luminosity
+    obs_flux = obs['flux'][index]
+    if 'sigma' in obs:
+        obs_sigm = obs['sigma'][index]
+    else:
+        obs_sigm = np.zeros(len(obs_flux))
+    
+    #-- normalise the spectrum and take third light and passband luminosity
+    #   contributions into account
+    syn_flux = np.array(syn['flux'][index])/np.array(syn['continuum'][index])
+    syn_flux = syn_flux*obs['pblum'] + obs['l3']
+    
+    #-- plot residuals or data + model
+    if residual:
+        plt.errorbar(obs['wavelength'],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
+        plt.ylabel('$\Delta$ normalised flux')
+    else:
+        plt.errorbar(obs['wavelength'],obs_flux,yerr=obs_sigm,**kwargs_obs)
+        plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
+        plt.ylabel('Normalised flux')
+    
+    plt.xlabel("Wavelength [$\AA$]")
+    plt.title(ref)
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
