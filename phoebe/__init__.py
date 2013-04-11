@@ -1,5 +1,8 @@
 """
 
+Section 1. Package structure
+============================
+
 **Main packages**: these are most commonly used to compute models and fit parameters.
 
 .. autosummary::    
@@ -17,6 +20,34 @@
    phoebe.io
    phoebe.units
    phoebe.utils
+   
+   
+Section 2. Wonder how things are done?
+======================================
+
+Section 2.1 Model computations
+-------------------------------
+
+* How are surface deformations done?
+    - bla
+* How is gravity darkening taken into account?
+    - bla
+* How is limb darkening treated?
+
+
+Section 2.2 Generating observables
+-------------------------------------   
+
+* How is interferometry computed?
+* How are spectra computed?
+* How are Stokes profiles computed?
+
+
+Section 2.3 Fitting and statistics
+-----------------------------------
+
+* How is the goodness-of-fit of a model computed?   
+   
    
 """
 #-- make some important classes available in the root:

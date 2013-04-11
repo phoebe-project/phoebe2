@@ -12,6 +12,7 @@ Bibliography
 .. [Espinosa2011] Espinosa Lara, F.; Rieutord, M., 2011, A&A,
    Gravity darkening in rotating stars, 
    `ADS <http://adsabs.harvard.edu/abs/2011A&A...533A..43E>`_
+.. [Hogg2009] Fitting a straight line to data, arxiv.
 .. [Kervella2003] Kervella, A&A, 2003
 .. [Kurtz2012] Kurtz et al. 2012
 .. [Lucy1967] Lucy, L.B, 1967, Zeitschrift für Astrophysik,

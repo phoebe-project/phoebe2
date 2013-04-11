@@ -170,6 +170,7 @@ from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.units import conversions
 from phoebe.units import constants
+from phoebe.io import ascii
 
 
 logger = logging.getLogger('PARS.CREATE')
@@ -495,6 +496,40 @@ def star_from_spectral_type(spectype,create_body=False,**kwargs):
     return star    
     
 
+@make_body
+def binary_from_deb2011(name,create_body=False,**kwargs):
+    """
+    Create a binary from the catalog [deb2011]_
+    """
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'catalogs','deb2011.dat')
+    data = ascii.read2recarray(filename,delimiter='\t')
+    star_names = [iname.strip() for iname in data['Name']]
+    star_types = [iname.strip() for iname in data['Type']]
+    index = star_names.index(name)
+    
+    star1 = parameters.ParameterSet(context='star')
+    star2 = parameters.ParameterSet(context='star')
+    
+    star1['mass'] = data['M1'][index],'Msol'
+    star2['mass'] = data['M2'][index],'Msol'
+    star1['radius'] = data['R1'][index],'Rsol'
+    star2['radius'] = data['M2'][index],'Rsol'
+    star1['teff'] = data['T1'][index],'K'
+    star2['teff'] = data['T2'][index],'K'
+    
+    period = data['PME'][index]
+    ecc = 0.
+    K1 = data['K1'][index]
+    K2 = data['K2'][index]
+    mybinary = binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=K2)
+    mybinary[2]['c1label'] = star1['label']
+    mybinary[2]['c2label'] = star2['label']
+    if star_types[index] == ['ED']:
+        validate_orbit(mybinary[2])
+    else:
+        mybinary = [mybinary[0],mybinary[2]]
+    return mybinary
+
 
 def dep_from_object(myobject,context,**kwargs):
     """
@@ -618,8 +653,18 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
     
     The parameters that you want to derive, need to be adjustable!
     
+    @param star1: parameterSet representing primary
+    @type star1: parameterSet
+    @param star2: parameterSet representing secondary
+    @type star2: parameterSet
     @param period: period in days
+    @type period: float
+    @param ecc: eccentricity
+    @type ecc: float
     @param K1: semi-amplitude in km/s
+    @type K1: float
+    @param K2: semi-amplitude in km/s (optional)
+    @type K2: float
     """
     logger.info("Creating binary from spectroscopy")
     #-- take care of logg parameters

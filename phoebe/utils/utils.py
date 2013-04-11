@@ -2,6 +2,7 @@
 Various tools and utilities.
 """
 import logging
+import numpy as np
 
 #{ Loggers
 
