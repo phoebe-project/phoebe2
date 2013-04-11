@@ -2,6 +2,39 @@
 Derive parameters in the Roche approximation.
 
 Most of these parameters are local atmospheric parameters.
+
+**Binaries**
+
+.. autosummary::
+
+    approximate_lagrangian_points
+    calculate_critical_potentials
+    calculate_critical_radius
+    potential2radius
+    radius2potential
+    change_component
+    binary_surface_gravity
+    binary_potential
+    binary_potential_gradient
+    improve_potential
+
+**Single stars**
+
+.. autosummary::
+
+    critical_angular_frequency
+    critical_velocity
+    fast_rotation_radius
+    diffrotlaw_to_internal
+    
+
+**Phoebe specific:**
+
+.. autosummary::
+
+    temperature_zeipel
+    temperature_espinosa
+
 """
 import logging
 import numpy as np
@@ -145,11 +178,13 @@ def approximate_lagrangian_points(q,d=1.,sma=1.):
     (0.990028699155567, 1.010038030137821, -0.9999982474945123)
     
     The Sun/Earth L1 is located about 1.5 million km from Earth:
+    
     >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mearth/constants.Msol,sma=constants.au)
     >>> (constants.au-L1)/1000.
     1491685.3744362793
     
     The Earth/Moon L1 is located about 60.000 km from the Moon:
+    
     >>> dlun = 384499. # km
     >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mlun/constants.Mearth,sma=dlun)
     >>> (dlun-L1)
@@ -440,17 +475,19 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
         return g_pole
 
 def binary_potential(r,theta,phi,Phi,q,d,F,component=1):
-    """
+    r"""
     Unitless eccentric asynchronous Roche potential in spherical coordinates.
     
-    See Wilson, 1979.
+    See [Wilson1979]_.
     
     The  synchronicity parameter F is 1 for synchronised circular orbits. For
-    pseudo-synchronous eccentrical orbits, it is equal to (Hut, 1981)
+    pseudo-synchronous eccentrical orbits, it is equal to [Hut1981]_
     
-    F = sqrt( (1+e)/ (1-e)^3)
+    .. math::
     
-    Periastron is reached when d = 1-e.
+        F = \sqrt{ \frac{(1+e)}{(1-e)^3}}
+    
+    Periastron is reached when :math:`d = 1-e`.
         
     @param r: radius of Roche volume at potential Phi (in units of semi-major axis)
     @type r: float
@@ -524,28 +561,36 @@ def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
         return dOmega
 
 def improve_potential(V,V0,pot0,rpole0,d,q,F,sma=1.):
-    """
+    r"""
     Return an approximate value for the potential in eccentric orbit.
     
-    Given the volume V0 at a reference time t0, this function returns
-    the approximate value for a new potential at another time at t1, to
-    conserve the volume. At t1, the volume at the potential V(pot=pot(t0))
-    equals V.
+    Given the volume :math:`V_0` at a reference time :math:`t_0`, this
+    function returns the approximate value for a new potential :math:`P(t_1)`
+    at another time at :math:`t_1`, to conserve the volume. At :math:`t_1`,
+    the volume at the potential :math:`V(P=P(t_0))` equals :math:`V_0`.
     
-    The value is calculated as follows::
+    The value is calculated as follows:
     
-        Pot(t) = DeltaPot + Pot(t0)
-        Pot(t) = DeltaPot/DeltaR * DeltaR + Pot(t0)
+    .. math::
     
-    We know that::
-    
-        DeltaV/DeltaR = 4*pi*R**2
-        DeltaR = DeltaV/4*pi*R**2
+        P(t) & = \Delta P + P(t_0)
         
-    We compute DeltaPot/DeltaR (the gradient of the potential) at the
-    pole with L{marching.dBinaryRochedz}. Thus::
+        P(t) & = \left(\frac{\Delta P}{\Delta R}\right) \Delta R + P(t_0)
     
-        Pot(t) = DeltaPot/DeltaR * DeltaR + Pot(t0)
+    We know that:
+    
+    .. math::
+    
+        \frac{\Delta V}{\Delta R} & = 4\pi R^2
+        
+        \Delta R & = \frac{\Delta V}{4\pi R^2}
+        
+    We compute :math:`\Delta P / \Delta R` (the gradient of the potential) at the
+    pole with L{marching.dBinaryRochedz}. Thus:
+    
+    .. math::
+    
+        P(t) = \left(\frac{\Delta P}{\Delta R}\right) \Delta R + P(t_0)
     
     If you give all values (V,V0,rpole0 and d) in Rsol, you need to give
     sma in Rsol also.
@@ -578,12 +623,16 @@ def improve_potential(V,V0,pot0,rpole0,d,q,F,sma=1.):
 #{ Rotating stars
 
 def critical_angular_frequency(M,R_pole):
-    """
+    r"""
     Compute the critical angular frequency (rad/s).
     
-    Definition taken from Cranmer and Owocki, 1995 and equal to
+    Definition taken from [Cranmer1995]_ and equal to
     
-    Omega_crit = sqrt( 8GM / 27Rp**3 )
+    .. math::
+    
+        \Omega_\mathrm{crit} = \sqrt{\frac{8GM}{27R_p^3}}
+    
+    with :math:`R_p` the polar radius of the star.
     
     Example usage (includes conversion to period in days):
     
@@ -605,16 +654,20 @@ def critical_angular_frequency(M,R_pole):
     return omega_crit
 
 def critical_velocity(M,R_pole):
-    """
+    r"""
     Compute the critical velocity (km/s)
     
-    Definition 1 from Cranmer and Owocki, 1995:
+    Definition 1 from [Cranmer1995]_:
     
-    v_c = 2 pi R_eq(omega_c) * omega_c
+    .. math::
     
-    Definition 2 from Townsend 2004:
+        v_c = 2 \pi R_\mathrm{eq}(\omega_c) \omega_c
     
-    v_c = sqrt ( 2GM/3Rp )
+    Definition 2 from [Townsend2004]_:
+    
+    .. math::
+    
+        v_c = \sqrt{\frac{2GM}{3R_p}}
     
     which both amount to the same value.
     
@@ -632,6 +685,9 @@ def critical_velocity(M,R_pole):
     return veq
 
 def fast_rotation_radius(colat,r_pole,omega):
+    """
+    Compute the radius of a fast rotating star.
+    """
     Rstar = 3*r_pole/(omega*sin(colat)) * cos((np.pi + np.arccos(omega*sin(colat)))/3.)
     #-- solve singularities
     if np.isinf(Rstar) or sin(colat)<1e-10:
@@ -644,7 +700,9 @@ def diffrotlaw_to_internal(omega_pole,omega_eq):
     
     Assuming a differential rotation law of the form
     
-    oemga = b1 + b2*s**2
+    .. math::
+    
+        \omega = b_1 + b_2 s^2
     
     with s the distance to the rotational axis, compute the value of b2 given
     the polar and equatorial rotation period in units of critical angular

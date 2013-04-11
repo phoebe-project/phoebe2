@@ -110,3 +110,131 @@ def write_array(data, filename, **kwargs):
         for row in data:
             ff.write(sep.join(['%s'%(col) for col in row])+'\n')
     ff.close()
+    
+def read2list(filename,**kwargs):
+    """
+    Load an ASCII file to list of lists.
+    
+    The comments and data go to two different lists.
+    
+    Also opens gzipped files.
+    
+    @param filename: name of file with the data
+    @type filename: string
+    @keyword comments: character(s) denoting comment rules
+    @type comments: list of str
+    @keyword delimiter: character seperating entries in a row (default: whitespace)
+    @type delimiter: str or None
+    @keyword skipempty: skip empty lines
+    @type skipempty: bool
+    @keyword skiprows: skip nr of lines (including comment and empty lines)
+    @type skiprows: integer
+    @return: list of lists (data rows)
+             list of lists (comments lines without commentchar),
+    @rtype: (list,list)
+    """
+    commentchar = kwargs.get('comments',['#'])
+    splitchar = kwargs.get('delimiter',None)
+    skip_empty = kwargs.get('skipempty',True)
+    skip_lines = kwargs.get('skiprows',0)
+    
+    if isinstance(commentchar,str):
+        commentchar = [commentchar]
+    
+    if os.path.splitext(filename)[1] == '.gz':
+        ff = gzip.open(filename)
+    else:
+        ff = open(filename)
+        
+    data = []  # data
+    comm = []  # comments
+    
+    line_nr = -1
+    while 1:  # might call read several times for a file
+        line = ff.readline()
+        if not line: break  # end of file
+        line_nr += 1
+        if line_nr<skip_lines:        
+            continue
+        
+        #-- strip return character from line
+        if skip_empty and line.isspace():
+            continue # empty line
+        
+        #-- remove return characters
+        line = line.replace('\n','')
+        #-- when reading a comment line
+        if line[0] in commentchar:
+            comm.append(line[1:])
+            continue # treat next line
+        
+        #-- when reading data, split the line
+        data.append(line.split(splitchar))
+    ff.close()
+    
+    #-- report that the file has been read
+    #logger.debug('Data file %s read'%(filename))
+    
+    #-- and return the contents
+    return data,comm    
+    
+def read2recarray(filename,**kwargs):
+    """
+    Load ASCII file to a numpy record array.
+    
+    For a list of extra keyword arguments, see C{<read2list>}.
+    
+    FI dtypes is None, we have some room to automatically detect the contents
+    of the columns. This is not implemented yet.
+    
+    the keyword 'dtype' should be equal to a list of tuples, e.g.
+    
+    C{dtype = [('col1','a10'),('col2','>f4'),..]}
+    
+    @param filename: name of file with the data
+    @type filename: string
+    @keyword dtype: dtypes of record array 
+    @type dtype: list of tuples
+    @keyword return_comments: flag to return comments (default: False)
+    @type return_comments: bool
+    @return: data array (, list of comments)
+    @rtype: ndarray (, list)
+    """
+    dtype = kwargs.get('dtype',None)
+    return_comments = kwargs.get('return_comments',False)
+    splitchar = kwargs.get('delimiter',None)
+    
+    #-- first read in as a normal array
+    data,comm = read2list(filename,**kwargs)
+    
+    #-- if dtypes is None, we have some room to automatically detect the contents
+    #   of the columns. This is not fully implemented yet, and works only
+    #   if the second-to-last and last columns of the comments denote the
+    #   name and dtype, respectively
+    if dtype is None:
+        data = np.array(data,dtype=str).T
+        header = comm[-2].replace('|',' ').split()
+        types = comm[-1].replace('|','').split()
+        dtype = [(head,typ) for head,typ in zip(header,types)]
+        dtype = np.dtype(dtype)
+    elif isinstance(dtype,list):
+        data = np.array(data,dtype=str).T
+        dtype = np.dtype(dtype)
+    #-- if dtype is a list, assume it is a list of fixed width stuff.
+    elif isinstance(splitchar,list):
+        types,lengths = fws2info(splitchar)
+        dtype = []
+        names = range(300)
+        for i,(fmt,lng) in enumerate(zip(types,lengths)):
+            if fmt.__name__=='str':
+                dtype.append((str(names[i]),(fmt,lng)))
+            else:
+                dtype.append((str(names[i]),fmt))
+        dtype = np.dtype(dtype)
+    
+    #-- cast all columns to the specified type
+    data = [np.cast[dtype[i]](data[i]) for i in range(len(data))]
+        
+    #-- and build the record array
+    data = np.rec.array(data, dtype=dtype)
+    return return_comments and (data,comm) or data

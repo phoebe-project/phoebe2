@@ -232,18 +232,30 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='rv',   description='Radial velocities',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context='rvobs'),
          dict(qualifier='rv',   description='Radial velocities',repr='%s',value=[],unit='Rsol/d',frame=["phoebe"],context='rvsyn'),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv'],frame=["phoebe"],context=['rvsyn']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','continuum'],unit='nm',cast_type='return_list_of_strings',frame=["phoebe"],context=['spobs','spsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['spobs','spsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','I','V','Q','U','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['plobs','plsyn']),
         ]
 
 defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context='spobs'),
          dict(qualifier='continuum',  description='Continuum intensity of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='flux',  description='Flux of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='sigma',  description='Noise in the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
-         dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs']),
-         dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs']),
-         dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs']),
+         dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
          ]        
 
+defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context='plobs'),
+         dict(qualifier='continuum',  description='Continuum intensity of the spectrum',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='I',  description='Stokes I profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='sigma_I',  description='Noise in the Stokes I profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='V',  description='Stokes V profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='sigma_V',  description='Noise in the Stokes V profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='Q',  description='Stokes Q profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='sigma_Q',  description='Noise in the Stokes Q profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='U',  description='Stokes U profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         dict(qualifier='sigma_U',  description='Noise in the Stokes U profile',repr='%s',value=[],frame=["phoebe"],context='plobs'),
+         ]
         
 defs += [dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='rvdep'),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context='rvdep'),
@@ -258,7 +270,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='glande',   description='Lande factor',repr='%f',cast_type=float,value=1.2,frame=["phoebe"],context=['pldep']),
          dict(qualifier='clambda',   description='Central wavelength',repr='%s',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
-         dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%s',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs']),
+         dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%s',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
          dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%s',unit='km/s',cast_type=float,value=0.,frame=["phoebe"],context=['spobs']),
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
@@ -361,6 +373,11 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
          dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
+        ]
+
+defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:minuit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:minuit'),
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),

@@ -1151,6 +1151,19 @@ class Parameter(object):
         else:
             return False
     
+    def has_step(self):
+        """
+        Return True if this parameter has a step
+        
+        @return: C{True} if it has a step, otherwise C{False}
+        @rtype: bool
+        """
+        if hasattr(self,'step'):
+            return True
+        else:
+            return False
+        
+    
     def has_prior(self):
         """
         Return True if a parameter has a prior.
