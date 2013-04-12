@@ -1348,7 +1348,17 @@ class Body(object):
     def area(self):
         return self.mesh['size'].sum()
     
-    def get_coords(self,type='spherical'):
+    def get_coords(self,type='spherical',loc='center'):
+        """
+        Return the coordinates of the star in a convenient coordinate system.
+        
+        Phi is longitude
+        theta is colatitude
+        
+        Can be useful for surface maps or so.
+        
+        Nees some work...
+        """
         index = np.array([1,0,2])
         r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
         r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
@@ -1357,7 +1367,11 @@ class Body(object):
         #r = np.hstack([r1,r2,r3,r4])
         #phi = np.hstack([phi1,phi2,phi3,phi4])
         #theta = np.hstack([theta1,theta2,theta3,theta4])
-        return r4,phi4,theta4
+        if loc=='center':
+            return r4,phi4,theta4
+        else:
+            table = np.column_stack([phi1,theta1,r1,phi2,theta2,r2,phi3,theta3,r3])
+            return table
     
     def get_refs(self,category=None):
         """
@@ -1501,7 +1515,8 @@ class Body(object):
         result_sets = dict(lcsyn=datasets.LCDataSet,
                        rvsyn=datasets.RVDataSet,
                        spsyn=datasets.SPDataSet,
-                       ifsyn=datasets.IFDataSet)
+                       ifsyn=datasets.IFDataSet,
+                       plsyn=datasets.PLDataSet)
         if hasattr(self,'params') and 'syn' in self.params:
             for pbdeptype in self.params['syn']:
                 for ref in self.params['syn'][pbdeptype]:
@@ -2331,7 +2346,7 @@ class PhysicalBody(Body):
                          wavelengths=wavelengths,sigma=sigma,depth=depth)
                 base['time'].append(self.time)
                 base['wavelength'].append(wavelengths_)
-                base['I'].append(I)
+                base['flux'].append(I)
                 base['V'].append(V)
                 base['Q'].append(Q)
                 base['U'].append(U)
@@ -3558,10 +3573,10 @@ class Star(PhysicalBody):
             method = 'method' in idep and idep['method'] or 'numerical'
         ld_func = idep['ld_func']
         l3 = idep.get('l3',0.)
-        pblum = idep.get('pblum',4*np.pi)
+        pblum = idep.get('pblum',1.0)
         proj_int = limbdark.projected_intensity(self,method=method,
                 ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
-        return proj_int*pblum/(4*np.pi) + l3
+        return proj_int*pblum + l3
         
     
     def projected_velocity(self,los=[0,0,+1],ref=0,method=None):
@@ -4306,8 +4321,8 @@ class BinaryRocheStar(PhysicalBody):
         distance = self.params['orbit'].request_value('distance','Rsol')
         proj_intens = proj_intens.sum()/distance**2
         l3 = lcdep.get('l3',0.)
-        pblum = lcdep.get('pblum',4*np.pi)
-        return proj_intens*pblum/(4*np.pi) + l3
+        pblum = lcdep.get('pblum',1.0)
+        return proj_intens*pblum + l3
     
     
     
@@ -4479,7 +4494,7 @@ class BinaryStar(Star):
                 proj_intens = transit.occultquad(np.array([z]),p,cn)[0]
             l3 = idep['l3']
             pblum = idep['pblum']
-            return proj_intens*pblum/(4*np.pi) + l3
+            return proj_intens*pblum + l3
 
 
 def serialize(body,description=True,color=True,only_adjust=False,filename=None):

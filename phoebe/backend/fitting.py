@@ -975,8 +975,9 @@ def run_minuit(system,params=None,mpi=None,fitparams=None):
     #-- run the fit
     m.migrad()
     #-- collect the feedback:
+    print dir(m)
     values = [m.values[x] for x in m.parameters]
-    sigmas = [m.error[x] for x in m.parameters]
+    sigmas = [m.errors[x] for x in m.parameters]
     #-- note: m.covariance is also available, as well as m.matrix(correlation=True)
     #   there is also stuff for contours etc... google for it! But we probably
     #   want to add the info to the feedback
