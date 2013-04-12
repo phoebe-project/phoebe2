@@ -12,6 +12,7 @@ The following datasets are defined:
     RVDataSet
     SPDataSet
     IFDataSet
+    PLDataSet
 
 The following ASCII parsers translate ASCII files to lists of DataSets. The
 string following ``parse_`` in the name of the function refers to the extension
@@ -21,8 +22,9 @@ the file should have.
 
     parse_rv
     parse_phot
-    parse_vis
+    parse_vis2
     parse_spec_as_lprof
+    parse_plprof
 
 """
 
@@ -33,6 +35,7 @@ import numpy as np
 from collections import OrderedDict
 from phoebe.parameters import parameters
 from phoebe.units import conversions
+from phoebe.units import constants
 from phoebe.io import oifits
 from phoebe.io import ascii
 import matplotlib.pyplot as plt
@@ -315,13 +318,15 @@ class SPDataSet(DataSet):
             columns = self.get_value('columns')
             data = np.loadtxt(filename)
             N = len(columns)-2
+            columns_without_time = columns[:]
+            columns_without_time.pop(columns.index('time'))
             for i,col in enumerate(columns):
                 if col=='time':
                     value = data[1:,0]
                 elif col=='wavelength':
                     value = data[0,1::N]
                 else:
-                    index = columns.index(col)-1
+                    index = columns_without_time.index(col)#-1
                     value = data[1:,index::N]
                 if not col in self:
                     self.add(dict(qualifier=col,value=value,description='<loaded from file {}>'.format(filename)))
@@ -362,7 +367,7 @@ class SPDataSet(DataSet):
         #-- if no continuum is give, assume the spectrum is normalised
         if not len(self['continuum']):
             self['continuum'] = np.ones_like(self['flux'])
-        N = len(columns[2:])
+        N = len(columns)-2
         wavelength = np.array(self['wavelength'])[0] # we assume they're all the same
         line0 = np.column_stack(N*[wavelength]).ravel()
         cols_for_out_data = list(columns)
@@ -448,8 +453,81 @@ class SPDataSet(DataSet):
             self.unload()
 
 class PLDataSet(SPDataSet):
-    pass
-
+    """
+    DataSet representing spectropolarimetry
+    """
+    def __init__(self,**kwargs):
+        kwargs.setdefault('context','plobs')
+        super(SPDataSet,self).__init__(**kwargs)
+    
+    def longitudinal_field(self):
+        r"""
+        Compute the longitudinal component of the magnetic field for each profile in the DataSet.
+        
+        See, e.g., [Donati1997]_:
+        
+        .. math::
+            
+            B_\ell = -\frac{1}{C\lambda_c^2 g_L c} \frac{\int \lambda V(\lambda)d\lambda}{\int (1-I(\lambda))d\lambda}
+        
+        with :math:`g_L` the average Lande factor and C the Lorentz unit, i.e.
+        
+        .. math::
+        
+            C = \frac{e}{4\pi m c^2} = 4.67 \times 10^{-13} \AA^{-1}
+        
+        The latter is really annoying because it is in Gaussian CGS units, and
+        who uses that? Also, we actually need C in nm, and can then plug in
+        the speed of light in cgs units. That seems to work out, but it's a
+        little fuzzy to me... Anyway, we're only interested in the final value of
+        :math:`B_\ell`.
+        
+        You can check the value of :math:`B_\ell` that you get by computing
+        the flux-weighted line-of-sight component (:math:`B_z`) of the
+        magnetic field:
+        
+        >>> Bz = star.mesh['B_'][:,2]
+        >>> weights = star.mesh['proj_ref'] * star.mesh['size']
+        >>> B_ell = np.average(Bz,weights=weights)
+        
+        @return: longitudinal component of the magnetic field
+        @rtype: array        
+        """
+        lams = np.array(self['wavelength'])
+        cont = np.array(self['continuum'])
+        flux = (np.array(self['flux'])/cont)
+        V = (np.array(self['V'])/cont)
+        glande = self.get('glande',1.2)
+        clambda = lams.ptp()/2.
+        C = 4.67e-13
+        factor = 1./(C*glande*clambda**2)/constants.cc*10
+        #-- two ways to compute the longitudinal field: with and without
+        #   error
+        Bl = np.zeros(len(flux))
+        e_Bl = np.zeros(len(flux))
+        
+        if len(lams.shape)==2:
+            lams = lams[0]
+        
+        if not "sigma_V" in self['columns']:
+            for i,(iflux,iV) in enumerate(zip(flux,V)):
+                numerator = np.trapz(iV*lams,x=lams)
+                denominator = np.trapz((1-iflux),x=lams)
+                Bl[i] = factor * numerator/denominator
+        #-- else integrate with errors
+        else:
+            sigma_V = np.array(self['sigma_V'])
+            sigma = np.array(self['sigma'])
+            for i,(iflux,iV,sig,sigV) in enumerate(zip(flux,V,sigma,sigma_V)):
+                integrand1 = iV*lams
+                integrand2 = (1-iflux)
+                numerator = np.trapz(integrand1,x=lams)
+                e_numerator = np.sqrt(np.sum((np.diff(lams)*sigV[1:]*lams[1:])**2))
+                denominator = np.trapz(integrand2,x=lams) 
+                e_denominator = np.sqrt(np.sum((np.diff(lams)*sig[1:])**2))
+                Bl[i] = factor * numerator/denominator
+                e_Bl[i] = Bl[i]*np.sqrt( (e_numerator/numerator)**2 + (e_denominator/denominator)**2)
+        return -Bl,e_Bl
 
 class IFDataSet(DataSet):
     """
@@ -581,11 +659,11 @@ def parse_header(filename):
     contexts = dict(rv='rvdep',
                     phot='lcdep',lc='lcdep',
                     spec='spdep',lprof='spdep',
-                    vis2='ifdep')
+                    vis2='ifdep',plprof='pldep')
     dataset_classes = dict(rv=RVDataSet,
                            phot=LCDataSet,lc=LCDataSet,
                            spec=SPDataSet,lprof=SPDataSet,
-                           vis2=IFDataSet)
+                           vis2=IFDataSet,plprof=PLDataSet)
     ext = filename.split('.')[-1]
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
@@ -1478,7 +1556,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
     
     missing_columns = set(columns_required) - set(columns_in_file)
     if len(missing_columns)>0:
-        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+        raise ValueError("Missing columns in SPEC file: {}".format(", ".join(missing_columns)))
     
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
@@ -1571,6 +1649,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
         return output.values()[0]
     else:
         return output
+
     
 def parse_vis2(filename,columns=None,full_output=False,**kwargs):
     """
@@ -1775,13 +1854,166 @@ def parse_vis2(filename,columns=None,full_output=False,**kwargs):
         return output.values()[0]
     else:
         return output
+
+
+def parse_plprof(filename,clambda,columns=None,components=None,full_output=False,**kwargs):
+    """
+    Parse a PLPROF file to an PLDataSet and a pldep.
+    
+    The structure of a PLPROF file is::
+    
+        # atm = kurucz
+        # ld_func = claret
+        3697.204  5.3284e-01  xxxx
+        3697.227  2.8641e-01  xxxx
+        3697.251  2.1201e-01  xxxx
+        3697.274  2.7707e-01  xxxx
+    
+    An attempt will be made to interpret the comment lines as qualifier/value
+    for either the :ref:`plobs <parlabel-phoebe-plobs>` or :ref:`pldep <parlabel-phoebe-pldep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them.
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output PLDataSets or pldeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file.
+    
+    Example usage:
+    
+    >>> obs,pbdeps = parse_plprof('myfile.plprof')
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    @param filenames: list of filename or a filename glob pattern
+    @type filenames: list or string
+    @param clambda: central wavelength of profile (AA)
+    @type clambda: float
+    @return: list of :ref:`plobs <parlabel-phoebe-plobs>`, list of :ref:`pldep <parlabel-phoebe-pldep>`
+    """
+    #-- parse the header
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+
+    if columns is None and columns_in_file is None:
+        columns_in_file = ['wavelength','flux']
+    elif columns is not None:
+        columns_in_file = columns
+    columns_required = ['wavelength','flux']
+    columns_specs = dict(time=float,wavelength=float,flux=float,sigma=float,
+                                                     V=float,sigma_V=float,
+                                                     Q=float,sigma_Q=float,
+                                                     U=float,sigma_U=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in PLPROF file: {}".format(", ".join(missing_columns)))
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    output = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- collect all data
+    data = []
+    #-- read the comments of the file
+    with open(filename,'r') as ff:
+        for line in ff.readlines():
+            line = line.strip()
+            if not line: continue
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__']*len(columns_in_file)
+    elif components is None and isinstance(components_in_file,str):
+        components = [components_in_file]*len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+    #-- make sure all the components are strings
+    components = [str(c) for c in components]
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
+    
+    #-- for each component, create two lists to contain the
+    #   SPDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+    
+    for label in output.keys():
+        for ds,pb in zip(*output[label]):
+            #-- save to the dataset
+            ref = kwargs.get('ref',"{}".format(filename))
+            ds['continuum'] = np.ones(len(ds['wavelength'])).reshape((1,-1))
+            ds['wavelength'] = ds['wavelength'].reshape((1,-1))
+            ds['flux'] = ds['flux'].reshape((1,-1))
+            ds['sigma'] = ds['sigma'].reshape((1,-1))
+            ds['ref'] = ref
+            #ds.estimate_noise()
+            ds['filename'] = ref+'.plobs'
+            if not 'time' in columns_in_file:
+                ds['time'] = np.zeros(len(ds['flux']))
+            if not 'time' in ds['columns']:
+                ds['columns'] = ds['columns'] + ['time']
+            for stokes_type in ['V','Q','U']:
+                if 'sigma_{}'.format(stokes_type) in columns_in_file:
+                    ds['sigma_{}'.format(stokes_type)] = ds['sigma_{}'.format(stokes_type)].reshape((1,-1))
+                if stokes_type in columns_in_file:
+                    ds[stokes_type] = ds[stokes_type].reshape((1,-1))
+            pb['ref'] = ref
+            #-- override with extra kwarg values
+            for key in kwargs:
+                if key in pb: pb[key] = kwargs[key]
+                if key in ds: ds[key] = kwargs[key]
+            ds.save()
+            ds.unload()
+            
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
+
 #}
 
 #{ High-end wrappers
 
-def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
+def oifits2vis2(filename,wtol=1.,ttol=1e-6,**kwargs):
     """
-    Convert an OIFITS file to Phoebe's VIS format.
+    Convert an OIFITS file to Phoebe's VIS2 format.
     
     @param filename: OIFITS file location
     @type filename: str
@@ -1791,7 +2023,7 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     #-- prepare output contexts
     ref = os.path.splitext(filename)[0]
     ifmdep = parameters.ParameterSet(context='ifdep',ref=ref)
-    ifmobs = IFDataSet(context='ifobs',ref=ref,columns=['ucoord','vcoord','vis','sigma_vis','time'])
+    ifmobs = IFDataSet(context='ifobs',ref=ref,columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
     for key in kwargs:
         if key in ifmdep:
             ifmdep[key] = kwargs[key]
@@ -1805,7 +2037,7 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     ucoord = allvis2['ucoord']
     vcoord = allvis2['vcoord']
     time = allvis2['mjd']
-    eff_wave = conversions.convert('m','AA',allvis2['wavelength'])
+    eff_wave = conversions.convert('m','AA',allvis2['eff_wave'])
     
     skip_columns = ifmobs['columns']
     all_keys = list(set(list(ifmobs.keys())) | set(list(ifmdep.keys())))
@@ -1819,4 +2051,47 @@ def oifits2vis(filename,wtol=1.,ttol=1e-6,**kwargs):
     ascii.write_array(np.column_stack([ucoord,vcoord,vis,vis_sigma,time,eff_wave]),
               output_filename,comments=comments)
     return output_filename
+
+
+def esprit2plprof(filename,**kwargs):
+    """
+    Convert an ESPRIT file to Phoebe's LPROF format.
+    
+    @param fileanem: ESPRIT file location
+    @type filename: str
+    """
+    clambda = kwargs.get('clambda',5000.)
+    if not hasattr(clambda,'__iter__'):
+        clambda = (clambda,'AA')
+    #-- prepare output contexts
+    ref = os.path.splitext(filename)[0]
+    pldep = parameters.ParameterSet(context='pldep',ref=ref)
+    plobs = PLDataSet(context='plobs',ref=ref,columns=['wavelength','flux','sigma','V','sigma_V','continuum'])
+    for key in kwargs:
+        if key in pldep:
+            pldep[key] = kwargs[key]
+        if key in plobs:
+            plobs[key] = kwargs[key]
+    #-- read in the Stokes profiles
+    data = np.loadtxt(filename,skiprows=2).T
+    wavelength = conversions.convert('km/s','AA',data[0],wave=clambda)
+    
+    skip_columns = plobs['columns']
+    all_keys = list(set(list(plobs.keys())) | set(list(pldep.keys())))
+    all_keys = [key for key in all_keys if not key in skip_columns]
+    if 'filename' in all_keys:
+        all_keys.pop(all_keys.index('filename'))
+    comments = ['# {} = {}'.format(key,pldep[key]) if key in pldep else '# {} = {}'.format(key,plobs[key]) for key in all_keys]
+    comments+= ['# wavelength flux sigma V sigma_V']
+    comments+= ['#-------------------------------']
+    output_filename = os.path.splitext(filename)[0]+'.plprof'
+    ascii.write_array(np.column_stack([wavelength,data[1],data[2],data[3],data[4]]),
+              output_filename,comments=comments)
+    return output_filename
+    
+    
+    
+    
+
+
 #}

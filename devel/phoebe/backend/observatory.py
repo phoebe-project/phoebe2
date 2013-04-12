@@ -1,5 +1,19 @@
 """
 Convert a Body to an observable quantity.
+
+.. autosummary::
+
+    image
+    ifm
+    make_spectrum
+    stokes
+    
+.. autosummary::
+    
+    compute
+    observe
+    
+    
 """
 import logging
 import os
@@ -127,9 +141,11 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
         #-- make sure the background and outer edge of the image are black
         fig.set_facecolor(background)
         fig.set_edgecolor(background)
+        axis_created = True
     else:
         ax.set_axis_bgcolor(background)
         ax.set_aspect('equal')
+        axis_created = False
     #-- set the colors of the triangles
     cmap_ = None
     if select=='proj':
@@ -225,15 +241,17 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     #pl.xlim(lim_min,lim_max)
     #pl.ylim(lim_min,lim_max)
     # new style:
+    #-- dont be smart when axis where given
     offset_x = (x.min()+x.max())/2.0
     offset_y = (y.min()+y.max())/2.0
     margin = 0.01*x.ptp()
     lim_max = max(x.max()-x.min(),y.max()-y.min())
     ax.set_xlim(offset_x-margin-lim_max/2.0,offset_x+lim_max/2.0+margin)
     ax.set_ylim(offset_y-margin-lim_max/2.0,offset_y+lim_max/2.0+margin)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    #pl.box(on=False)
+    if axis_created:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        #pl.box(on=False)
     
     #-- compute Fourier transform of image
     if fourier:
@@ -697,7 +715,7 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     
         V = \sum_i \frac{1}{2} A_iI_{\mu,\lambda} \cos\theta_i (G^-_i-G^+_i)
     
-    or
+    or, when ``weak_field=True`` we'll use the weak-field approximation
     
     .. math::
     
@@ -735,23 +753,40 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     
     mesh = the_system.mesh
     #-- is there data available? then we can steal the wavelength array
-    #   from there
+    #   from there. We also collect information on the resolution and on the
+    #   macro turbulent velocity. It might seem strange to derive vmacro from
+    #   the observation set, but that's because in this approximation it isn't
+    #   real part of the model, but is rather done after computing the whole
+    #   spectrum.
+    #   Finally, if data is found, we check what to compute from the
+    #   observation set.
     iobs,ref_ = the_system.get_parset(ref=ref,context='plobs')
     if ref_ is not None:
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
             iobs.load()
         wavelengths = iobs['wavelength']
+        #-- instrumental info
         R = iobs['R']
         if 'vmacro' in iobs:
             vmacro = iobs['vmacro']
+        #-- profiles to compute, and method to use
+        if 'V' in iobs['columns']:
+            do_V = True
+        if 'Q' in iobs['columns']:
+            do_Q = True
+        if 'U' in iobs['columns']:
+            do_U = True
+        
     else:
         R = None
         vmacro = 0.
-    #-- information on dependable set
+    #-- information on dependable set: we need the limb darkening function,
+    #   the method, the glande factor and the weak field approximation boolean
     idep,ref = the_system.get_parset(ref=ref,context='pldep')
     ld_model = idep['ld_func']
     method = idep['method']
     glande = idep['glande']
+    weak_field = idep['weak_field']
     keep = the_system.mesh['mu']<=0
     #-- create the wavelength array from the information of the spdep: we use
     #   central wavelength, velocity range and spectral resolving power.
@@ -781,9 +816,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     #   anything, except for setting the central wavelength "wc".
     else:
         wc = (wavelengths[0]+wavelengths[-1])/2.
-        
     #-- if we're not seeing the star, we can easily compute the spectrum: it's
-    #   zero!
+    #   zero! Muhuhahaha!
     if not np.sum(keep):
         logger.info('Still need to compute (projected) intensity')
         the_system.intensity(ref=ref)
@@ -794,7 +828,6 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
         return wavelengths,np.zeros(len(wavelengths)),0.
     
     #-- magnitude of magnetic field and angle towards the LOS
-    #mesh['B_'] = mesh['B_']*1e-4 # convert to Tesla
     B = coordinates.norm(mesh['B_'][keep],axis=1)*1e-4 # and convert to Tesla 
     cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,-1]]),axis=1)
     sin2theta = 1 - cos_theta**2
@@ -813,7 +846,7 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     rad_velos = -the_system.mesh['velo___bol_'][keep,2]
     rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)    
     nus = conversions.convert('AA','Hz',wavelengths)    
-    
+    logger.info('{} approximation'.format(weak_field and 'Weak-field' or 'No weak-field'))
     if method=='numerical' and not idep['profile']=='gauss':
         #-- get limb angles
         mus = the_system.mesh['mu']
@@ -852,7 +885,12 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             specp = tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=spectra[0,:,i]*proj_intens[:,i])
             
             stokes_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
-            stokes_V += cos_theta[i]*(specm-specp)/2.
+            
+            #-- Stokes V in weak field approximation or not
+            if do_V and weak_field:
+                stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
+            elif do_V:
+                stokes_V += cos_theta[i]*(specm-specp)/2.
     elif method=='numerical':
         #-- derive intrinsic width of the profile
         sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
@@ -875,16 +913,21 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             #-- first version
             spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
             specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
-            specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)            
-            if do_V:
+            specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
+            
+            #-- we can compute Stokes V in weak field approximation or not
+            if do_V and weak_field:
+                stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
+            elif do_V:
                 stokes_V += costh*(specm-specp)/2.
-            #-- second version
+                
+            #-- second version: weak field approximation
             #mytemplate = pri*sz*(1.00 - depth*np.exp( -(wavelengths-wc-rad_velosw[i])**2/(2*sigma**2)))
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,mytemplate)
-            #- third version
+            #- third version: weak field approximation
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
             
-            #-- Stokes Q and U
+            #-- Stokes Q and U: this must be in weak field approximation for now
             sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
             if do_Q:
                 stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
@@ -893,8 +936,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             
             stokes_I += spec
             total_continum += pri*sz
-        logger.info("Zeeman splitting: between {} and {} AA".format(min(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA'))),max(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA')))))
-        logger.info("Zeeman splitting: between {} and {} Hz".format(min(delta_nu_zeemans/1e6),max(delta_nu_zeemans/1e6)))
+        #logger.info("Zeeman splitting: between {} and {} AA".format(min(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA'))),max(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA')))))
+        #logger.info("Zeeman splitting: between {} and {} Hz".format(min(delta_nu_zeemans/1e6),max(delta_nu_zeemans/1e6)))
         logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
     else:
         raise NotImplementedError

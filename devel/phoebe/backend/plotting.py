@@ -206,7 +206,7 @@ def plot_ifdep(system,ref=0,residual=False,select='vis2',
     if loaded_syn: syn.unload()
     
     
-def plot_pldep_as_profile(system,index=0,ref=0,residual=False,
+def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
                           kwargs_obs=None,kwargs_syn=None,
                           kwargs_residual=None):
     """
@@ -230,7 +230,6 @@ def plot_pldep_as_profile(system,index=0,ref=0,residual=False,
     @param kwargs_residual: extra matplotlib kwargs for plotting residuals (plot)
     @type kwargs_residual: dict
     """
-    raise NotImplementedError
     #-- get plotting options
     if kwargs_obs is None:
         kwargs_obs = dict(fmt='ko-',ecolor='0.5')
@@ -239,34 +238,39 @@ def plot_pldep_as_profile(system,index=0,ref=0,residual=False,
     if kwargs_residual is None:
         kwargs_residual = dict(fmt='ko',ecolor='0.5')
     #-- get parameterSets
-    dep,ref = system.get_parset(category='sp',type='pbdep',ref=ref)
-    syn,ref = system.get_parset(category='sp',type='syn',ref=ref)
-    obs,ref = system.get_parset(category='sp',type='obs',ref=ref)
+    dep,ref = system.get_parset(category='pl',type='pbdep',ref=ref)
+    syn,ref = system.get_parset(category='pl',type='syn',ref=ref)
+    obs,ref = system.get_parset(category='pl',type='obs',ref=ref)
     
     loaded_obs = obs.load(force=False)
     loaded_syn = syn.load(force=False)
     
     #-- correct synthetic flux for corrections of third light and passband
     #   luminosity
-    obs_flux = obs['flux'][index]
-    if 'sigma' in obs:
-        obs_sigm = obs['sigma'][index]
+    if stokes=='I':
+        y,yerr = 'flux','sigma'
+    else:
+        y,yerr = stokes,'sigma_'+stokes
+        
+    obs_flux = obs[y][index]
+    if yerr in obs:
+        obs_sigm = obs[yerr][index]
     else:
         obs_sigm = np.zeros(len(obs_flux))
     
     #-- normalise the spectrum and take third light and passband luminosity
     #   contributions into account
-    syn_flux = np.array(syn['flux'][index])/np.array(syn['continuum'][index])
+    syn_flux = np.array(syn[y][index])/np.array(syn['continuum'][index])
     syn_flux = syn_flux*obs['pblum'] + obs['l3']
     
     #-- plot residuals or data + model
     if residual:
         plt.errorbar(obs['wavelength'],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
-        plt.ylabel('$\Delta$ normalised flux')
+        plt.ylabel('$\Delta$ normalised Stokes {}'.format(stokes))
     else:
         plt.errorbar(obs['wavelength'],obs_flux,yerr=obs_sigm,**kwargs_obs)
         plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
-        plt.ylabel('Normalised flux')
+        plt.ylabel('Normalised Stokes {}'.format(stokes))
     
     plt.xlabel("Wavelength [$\AA$]")
     plt.title(ref)
