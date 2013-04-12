@@ -65,34 +65,104 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     Compute images of a system or make a 2D plot.
     
     All the default parameters are set to make a true flux image of the system,
-    in linear grayscale such that white=maximum flux and black=zero flux.
+    in linear grayscale such that white=maximum flux and black=zero flux:
     
-    You can set C{select} to plot effective temperature (C{select='teff'}, logg
-    (C{select='logg'}) etc instead of
-    projected flux, and you can adjust the colormap via the C{cmap} keyword.
+    >>> vega = phoebe.create.from_library('vega',create_body=True)
+    >>> vega.set_time(0.)
+    >>> image(vega)
     
-    Set the color of the background via C{background}.
+    .. image:: images/backend_observatory_image01.png 
+       :scale: 20 %                                   
+       :align: center                                 
+    
+    You can set C{select} to plot effective temperature (C{select='teff'},
+    logg (C{select='logg'}) etc instead of projected flux. The colormap is
+    adjustable via the C{cmap} keyword, and the background color via keyword
+    ``background``. For some selections, there are
+    smart default colormaps. E.g. for the effective temperature, the following
+    two expressions give the same result:
+    
+    >>> image(vega,select='teff')
+    >>> image(vega,select='teff',cmap=plt.cm.hot,background='0.7')
+    
+    .. image:: images/backend_observatory_image02.png 
+       :scale: 20 %                                   
+       :align: center                                 
     
     Setting C{select='rv'} will plot the radial velocity of the system, and then
-    the colormap will automatically be changed to RdBu, which means blue for
+    the colormap will automatically be changed to ``RdBu``, which means blue for
     velocities towards the observer, white for velocities in the plane of the
-    sky, and red for velocities away from the observer. **If you set the limits,
-    beware that the units of RV are Rsol/d!**
+    sky, and red for velocities away from the observer. You can adjust the settings
+    for the colorscale via ``vmin`` and ``vmax`` (if you set the limits, beware
+    that the units of RV are Rsol/d!):
     
-    Setting C{select='teff'} gives you the option to color the map according to
-    black body colors, via C{cmap='blackbody'}. Otherwise a heat map will
-    be used. You cannot adjust the colorbar
-    yourself when using blackbody colors, it will be scaled automatically between 2000K and 20000K. Hot
+    >>> image(vega,select='rv')
+    >>> image(vega,select='rv',vmin=-10,vmax=10)
+    
+    +---------------------------------------------------+---------------------------------------------------+
+    | .. image:: images/backend_observatory_image03.png | .. image:: images/backend_observatory_image04.png |
+    |   :scale: 20 %                                    |   :scale: 20 %                                    |
+    |   :align: center                                  |   :align: center                                  |
+    +---------------------------------------------------+---------------------------------------------------+  
+    
+    More options for the ``select`` keyword are
+    
+    * ``proj``: projected flux (default)
+    * ``teff``: effective temperature (K)
+    * ``logg``: surface gravity (cm/s2 dex)
+    * ``rv``: radial velocity (Rsol/d)
+    * ``B``: strength of the magnetic field (G)
+    * ``Bx``, ``By`` and ``Bz`` : magnetic field components (G)
+    
+    Setting C{select='teff'} gives you the option to color the map according
+    to blackbody colors, via C{cmap='blackbody'}. Otherwise a heat map will
+    be used. You cannot adjust the colorbar yourself when using blackbody
+    colors, it will be scaled automatically between 2000K and 20000K. Hot
     objects will appear blue, cool objects will appear red, intermediate
     objects will appear white. Other scaling schemes with blackbodies are
     C{cmap='blackbody_proj'} and C{cmap='eye'}.
     
-    If you want to add a colorbar yourself later, you can do so by giving the
-    returned patch collection as an argument to matplotlib's C{colorbar} function.
+    >>> phoebe.image(vega,select='teff',cmap='blackbody')
+    >>> phoebe.image(vega,select='teff',cmap='blackbody_proj')
+    >>> phoebe.image(vega,select='teff',cmap='blackbody_eye')
     
-    Size in pixels.
+    +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+
+    | .. image:: images/backend_observatory_image05.png | .. image:: images/backend_observatory_image06.png | .. image:: images/backend_observatory_image07.png |
+    |   :scale: 20 %                                    |   :scale: 20 %                                    |   :scale: 20 %                                    |
+    |   :align: center                                  |   :align: center                                  |   :align: center                                  |
+    +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+    
     
-    >>> #image(time,the_system,savefig=True)
+    By default, a new figure is created, for which axes fill the whole canvas
+    and the x and y-axis are completely removed. If you want to add an image
+    to an existing axis, that is possible by giving that axis as an argument.
+    In this case, the limits are not automatically set, so you need to set
+    them manually. Luckily, this function returns a recommendation for the
+    limits, as well as the collection of triangels themselves. The latter can
+    be helpful if you want to add a colorbar. These options provide with you
+    with the utmost flexibility to incorporate the image of your Body in
+    whatever customized plot or subplot you want.
+    
+    >>> xlim,ylim,patch = phoebe.image(vega,ax=ax,background='white')
+    >>> plt.xlim(xlim)
+    >>> plt.ylim(ylim)
+    >>> plt.xlabel("X-Distance [$R_\odot$]")
+    >>> plt.ylabel("Y-Distance [$R_\odot$]")
+    
+    >>> cbar = plt.colorbar(patch)
+    >>> cbar.set_label('Relative flux')
+    
+    +---------------------------------------------------+---------------------------------------------------+
+    | .. image:: images/backend_observatory_image08.png | .. image:: images/backend_observatory_image09.png |
+    |   :scale: 30 %                                    |   :scale: 30 %                                    |
+    |   :align: center                                  |   :align: center                                  |
+    +---------------------------------------------------+---------------------------------------------------+
+    
+    If you want to increase the number of pixels in an image, you need to set
+    the keyword ``size``, which represent the number of pixels in the X or Y
+    direction. Finally, for convenience, there is keyword ``savefig``. If you
+    supply it will a string, it will save the figure to that file and close
+    time image. This allows you to create and save an image of a Body with one
+    single command.
     
     @return: x limits, y limits, patch collection
     @rtype: tuple, tuple, patch collection

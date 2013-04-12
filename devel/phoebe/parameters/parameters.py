@@ -2517,25 +2517,32 @@ class Distribution(object):
     >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=True)
     >>> d = Distribution('histogram',bins=array1,prob=array2,discrete=False)
     >>> d = Distribution('sample',sample=array3,discrete=False)
-    >>> d = Distribution('discrete',bins=array4)
+    >>> d = Distribution('discrete',values=array4)
     
     If C{distribution='histogram'} and C{discrete=False}, the bins are interpreted
     as the edges of the bins, and so there is one more bin than probabilities.
     
-    If C{distribution='histogram'} and C{discrete=True}, the bins are interpreted as
-    the set of discrete values, and so there are equally many bins as probabilities.
+    If C{distribution='histogram'} and C{discrete=True}, the bins are
+    interpreted as the set of discrete values, and so there are equally many
+    bins as probabilities. It is possible to use ``valuess`` as an alias for
+    bins here, then internally that parameter will be converted to ``bins``. 
+    
     """
     def __init__(self,distribution,**distribution_parameters):
         self.distribution = distribution.lower()
         self.distr_pars = distribution_parameters
-        #-- check contents:
-        given_keys = set(list(distribution_parameters.keys()))
         
         #-- discrete can be equivalent to histogram
         if distribution=='discrete':
             distribution = 'histogram'
             distribution_parameters['discrete'] = True
-            distribution_parameters['prob'] = np.ones(len(distribution_parameters['bins']))
+            distribution_parameters['prob'] = np.ones(len(distribution_parameters['values']))
+            if 'values' in distribution_parameters:
+                distribution_parameters['bins'] = distribution_parameters.pop('values')
+        
+        #-- check contents:
+        given_keys = set(list(distribution_parameters.keys()))
+        
         if   distribution=='histogram':
             required_keys = set(['bins','prob','discrete'])
         elif distribution=='uniform':
