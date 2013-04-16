@@ -348,6 +348,10 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     
     Reference: [Foreman-Mackey2012]_
     
+    .. note::
+    
+        Thanks to G. Matijevic.
+    
     @param system: the system to fit
     @type system: Body
     @param params: computation parameters
@@ -934,6 +938,12 @@ def run_minuit(system,params=None,mpi=None,fitparams=None):
     
     Best to call Minos to check if the parameters are reasonably independent.
     The tool is MnHesse.
+    
+    .. note::
+        
+        Thanks to B. Leroy for detailed explanations. He is not responsible
+        for any bugs or errors.
+        
     """
     mimi = MinuitMinimizer(system)
     had = []

@@ -1,9 +1,10 @@
 """
 Tools to handle parameters and ParameterSets.
 
+**Constraints for the star/component context**
+
 .. autosummary::
     
-    add_asini
     add_vsini
     add_rotfreqcrit
     add_solarosc
@@ -12,6 +13,12 @@ Tools to handle parameters and ParameterSets.
     add_surfgrav
     add_teffpolar
     add_angdiam
+
+**Constraints for orbit context**
+
+.. autosummary::
+    
+    add_asini
 
 .. autosummary::
 
@@ -440,6 +447,33 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
     else:
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
+
+
+def add_conserve(orbit,conserve='volume',**kwargs):
+    """
+    Add a parameter to conserve volume or equipotential value along an eccentric orbit.
+    
+    @param orbit: orbital parameterSet
+    @type orbit: parameterSet of context orbit
+    @param conserve: what to conserve, volume or equipotential
+    @type conserve: str, one of `volume' or `equipot'
+    """
+    if kwargs and 'conserve' in orbit:   
+        raise ValueError("You cannot give extra kwargs to add_conserve if it already exist")
+    
+    kwargs.setdefault('description','Sets the quantity to be conserved along an eccentric orbit')
+    kwargs.setdefault('choices',['volume','equipot'])
+    kwargs.setdefault('context',orbit.context)
+    kwargs.setdefault('frame','phoebe')
+    
+    if not 'conserve' in orbit:
+        orbit.add(parameters.Parameter(qualifier='conserve',value=conserve,
+                                      **kwargs))
+    else:
+        orbit['conserve'] = conserve
+        
+    logger.info("orbit '{}': added and set 'conserve' to '{}'".format(orbit['label'],conserve))
+
 
 #}
 

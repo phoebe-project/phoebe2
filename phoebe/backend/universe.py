@@ -114,6 +114,7 @@ import pickle
 import uuid
 import logging
 import inspect
+import copy
 from collections import OrderedDict
 #-- load 3rd party modules
 import numpy as np
@@ -1706,6 +1707,13 @@ class Body(object):
         pickle.dump(self,ff)
         ff.close()  
         logger.info('Saved model to file {} (pickle)'.format(filename))
+    
+    def copy(self):
+        """
+        Copy this instance.
+        """
+        return copy.deepcopy(self)
+    
     
     @decorators.parse_ref
     def ifm(self,ref='allifdep',time=None):
@@ -4358,6 +4366,11 @@ class BinaryRocheStar(PhysicalBody):
         #   local quantities
         e = self.params['orbit'].get_value('ecc')
         sma = self.params['orbit'].get_value('sma','Rsol')
+        #-- there is a possibility to set to conserve volume or equipot
+        conserve_volume = e>0
+        if conserve_volume and 'conserve' in self.params['orbit']:
+            if self.params['orbit']['conserve']=='equipot':
+                conserve_volume = False
         #-- we do not need to calculate bolometric luminosities if we don't include
         #   the reflection effect
         do_reflection = False
@@ -4365,10 +4378,11 @@ class BinaryRocheStar(PhysicalBody):
         #   if the eccentricity is nonzero
         if self.time is None or e>0:
             if self.time is None:
-                self.compute_mesh(time,conserve_volume=e>0)
+                self.compute_mesh(time,conserve_volume=conserve_volume)
             else:
                 self.reset_mesh()
-                self.conserve_volume(time)
+                if conserve_volume:
+                    self.conserve_volume(time)
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)
             #-- compute polar radius and logg!
