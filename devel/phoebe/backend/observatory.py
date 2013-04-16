@@ -58,11 +58,22 @@ logger.addHandler(logging.NullHandler())
 
 #{ Computing observational quantities
     
-def image(the_system,ref='__bol',context='lcdep',fourier=False,
+def image(the_system,ref='__bol',context='lcdep',
             cmap=None,select='proj',background=None,vmin=None,vmax=None,
-            size=800,ax=None,savefig=False,nr=0,with_partial_as_half=True):
+            size=800,ax=None,savefig=False,nr=0,
+            fourier=False,
+            with_partial_as_half=True):
     """
     Compute images of a system or make a 2D plot.
+    
+    You can make an image from basically any defined observable that has
+    fluxes computed. An image is nothing more than a representation of the
+    system, using the locally projected flux. To compute a light curve, you
+    need this, but also to compute radial velocities, spectra etc... by
+    default, however, none of these are used, and the *bolometric* fluxes are
+    used. This allows you to make an image of something for which no pbdeps
+    are defined. To choose something else, e.g. to make an image in a certain
+    passband, you need to specify ``ref`` and ``context``.
     
     All the default parameters are set to make a true flux image of the system,
     in linear grayscale such that white=maximum flux and black=zero flux:
@@ -163,6 +174,15 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
     supply it will a string, it will save the figure to that file and close
     time image. This allows you to create and save an image of a Body with one
     single command.
+    
+    Finally, an experimental option is to compute the Fourier transform of
+    an image instead of the normal image:
+    
+    >>> image(vega,fourier=True)
+    
+    .. image:: images/backend_observatory_image10.png 
+       :scale: 20 %                                   
+       :align: center                                 
     
     @return: x limits, y limits, patch collection
     @rtype: tuple, tuple, patch collection
@@ -331,20 +351,20 @@ def image(the_system,ref='__bol',context='lcdep',fourier=False,
         data = pl.imread('__temp.png')[:,:,0]
         data /= data.max()
         os.unlink('__temp.png')
-        fsize = 2500
+        fsize = 4000
         FT = np.fft.fftn(data,s=[fsize,fsize])
         mag = np.abs(np.fft.fftshift(FT))
         freqs = np.fft.fftfreq(data.shape[0])
         freqs = np.fft.fftshift(freqs)
         #-- make image
         fig = pl.figure(figsize=(size/100.,size/100.))
-        pl.axes([0,0,1,1],axisbg=(0.0,0.0,0.0),aspect='equal')
-        pl.imshow(np.log10(mag),vmin=0,vmax=np.log10(mag.max()),cmap=pl.cm.gray)
+        pl.axes([0,0,1,1],axisbg=background,aspect='equal')
+        pl.imshow(np.log10(mag),vmin=0,vmax=np.log10(mag.max()),cmap=cmap)
         pl.xlim(fsize/2-50,fsize/2+50)
         pl.ylim(fsize/2-50,fsize/2+50)
         pl.xticks([]);pl.yticks([])
-        fig.set_facecolor('k')
-        fig.set_edgecolor('k')
+        fig.set_facecolor(background)
+        fig.set_edgecolor(background)
     
     xlim,ylim = ax.get_xlim(),ax.get_ylim()
     if savefig==True:
@@ -401,6 +421,10 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     will be computed, to e.g. match observed data.
     
     xlims and ylims in Rsol.
+    
+    .. note::
+    
+        Thanks to M. Hillen. He is not responsible for bugs or errors.
     """
     #-- information on what to compute
     data_pars,ref = the_system.get_parset(ref)
@@ -819,6 +843,10 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     .. math::
         I_{\mu,\lambda} \longrightarrow I_{\mu,\lambda,T_\mathrm{eff},\log g,z,v_\mathrm{rad},\ldots}
     
+    .. note::
+        
+        Thanks to C. Neiner and E. Alecian. They are not responsible for any bugs or errors.
+    
     """
     
     mesh = the_system.mesh
@@ -1159,15 +1187,53 @@ def extract_times_and_refs(system,params,tol=1e-8):
 @decorators.mpirun
 def compute(system,params=None,**kwargs):
     """
-    Automatically compute dependables of a system, given the times in the data.
+    Automatically compute dependables of a system to match the observations.
     
-    If C{time} is C{auto}, the times, references and types will be derived
-    from the observations (if they are not given you'll probably get an
-    error).
+    This is typically want you want to do if you have some data and want to
+    compute a model generating those data. The times, references and types at
+    which to compute anything, will be derived from the observations attached
+    to the ``system``.
     
-    You can give an C{mpi} parameterSet!
+    Detailed configuration of the computations is provided via the optional
+    parameterSet :ref:`compute <parlabel-phoebe-compute>`: ::
     
-    @keyword mpi: parameters describing MPI
+            time auto   --   phoebe Compute observables of system at these times
+            refs auto   --   phoebe Compute observables of system at these times
+           types auto   --   phoebe Compute observables of system at these times
+         heating False  --   phoebe Allow irradiators to heat other Bodies
+            refl False  --   phoebe Allow irradiated Bodies to reflect light
+        refl_num 1      --   phoebe Number of reflections
+             ltt False  --   phoebe Correct for light time travel effects
+      subdiv_alg edge   --   phoebe Subdivision algorithm
+      subdiv_num 3      --   phoebe Number of subdivisions
+     eclipse_alg auto   --   phoebe Type of eclipse algorithm
+
+    But for convenience, all parameters in this parameterSet can also be
+    given as kwargs.
+        
+    You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
+    
+    **Example usage**:
+    
+    First we quickly create a Star like Vega and add multicolour photometry:
+    
+    >>> vega = phoebe.create.from_library('vega')
+    >>> mesh = phoebe.ParameterSet(context='mesh:marching')
+    >>> lcdeps, lcobs = phoebe.parse_phot('vega.phot')
+    >>> vega = phoebe.Star(vega,mesh,pbdep=lcdeps,obs=lcobs)
+    
+    Then we can easily compute the photometry to match the observations:
+    
+    >>> compute(vega)
+    >>> compute(vega,subdiv_num=2)
+    
+    
+    
+    @param system: the system to compute
+    @type system: Body
+    @param params: computational parameterset
+    @type params: ParameterSet of context ``compute``.
+    @param mpi: parameters describing MPI
     @type mpi: ParameterSet of context 'mpi'
     """
     #-- gather the parameters that give us more details on how to compute
@@ -1299,6 +1365,31 @@ def compute(system,params=None,**kwargs):
 
 def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
             extra_func=[],extra_func_kwargs=[{}],**kwargs):
+    """
+    Customized computation of dependables of a system.
+    
+    This is similar as :py:func:`compute`. The difference
+    is that this function is more flexible. You have to provide your own times,
+    but also what type of observations you want to compute. This is probably
+    required when you want to do simulations of a system, without comparing
+    the observations.
+    
+    Parameters to tweak the calculations are given as keyword arguments, and
+    can be any of::
+    
+            time auto   --   phoebe Compute observables of system at these times
+            refs auto   --   phoebe Compute observables of system at these times
+           types auto   --   phoebe Compute observables of system at these times
+         heating False  --   phoebe Allow irradiators to heat other Bodies
+            refl False  --   phoebe Allow irradiated Bodies to reflect light
+        refl_num 1      --   phoebe Number of reflections
+             ltt False  --   phoebe Correct for light time travel effects
+      subdiv_alg edge   --   phoebe Subdivision algorithm
+      subdiv_num 3      --   phoebe Number of subdivisions
+     eclipse_alg auto   --   phoebe Type of eclipse algorithm
+
+    You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
+    """
     #-- gather the parameters that give us more details on how to compute
     #   the system: subdivisions, eclipse detection, optimization flags...
     params = parameters.ParameterSet(context='compute',**kwargs)

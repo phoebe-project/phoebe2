@@ -1,18 +1,14 @@
 """
 Definitions of classes representing parameters.
 
-Table of contents
-=================
+Summary
+=======
 
-    1. Parameter preparation
-        1. Basic usage
-            1. Constructs
-            2. Constraints
-            3. Input and output
-            4. Units
-        2. Fitting
-            1. Setting parameters to be fitted
-            2. Setting limits and priors
+.. autosummary::
+
+    Parameter
+    ParameterSet
+    Distribution
 
 Section 1. Parameter preparation
 ================================
