@@ -33,4 +33,10 @@ Functions governing the motion of objects in the Universe
     keplerorbit.calculate_mass
     keplerorbit.calculate_total_radius_from_eclipse_duration
     
+**Phoebe interface**
+
+.. autosummary::
+    
+    keplerorbit.get_binary_orbit
+    
 """

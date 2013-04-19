@@ -19,6 +19,9 @@ Tools to handle parameters and ParameterSets.
 .. autosummary::
     
     add_asini
+    add_conserve
+    from_perpass_to_supconj
+    from_supconj_to_perpass
 
 .. autosummary::
 
@@ -208,12 +211,16 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
                                       value=vsini,**kwargs))
     else:
         star['vsini'] = vsini
+        
     if derive=='rotperiod':
         star.add_constraint('{rotperiod} = 2*np.pi*{radius}/{vsini}*np.sin({incl})')
-        logger.info("star '{}': 'rotperiod' constrained by 'vsini'".format(star['label']))
+        logger.info("star '{}': 'rotperiod' constrained by 'vsini' and 'radius' and 'incl'".format(star['label']))
     elif derive=='incl':
         star.add_constraint('{incl} = np.arcsin({rotperiod}*{vsini}/(2*np.pi*{radius}))')
-        logger.info("star '{}': 'incl' constrained by 'vsini'".format(star['label']))
+        logger.info("star '{}': 'incl' constrained by 'vsini' and 'radius' and 'rotperiod'".format(star['label']))
+    else:
+        star.add_constraint('{vsini} = (2*np.pi*{radius})/{rotperiod}*np.sin({incl})')
+        logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
     
     
 def add_rotfreqcrit(star,rotfreqcrit=None,**kwargs):
@@ -456,13 +463,13 @@ def add_conserve(orbit,conserve='volume',**kwargs):
     @param orbit: orbital parameterSet
     @type orbit: parameterSet of context orbit
     @param conserve: what to conserve, volume or equipotential
-    @type conserve: str, one of `volume' or `equipot'
+    @type conserve: str, one of `periastron' or `equipot'
     """
     if kwargs and 'conserve' in orbit:   
         raise ValueError("You cannot give extra kwargs to add_conserve if it already exist")
     
     kwargs.setdefault('description','Sets the quantity to be conserved along an eccentric orbit')
-    kwargs.setdefault('choices',['volume','equipot'])
+    kwargs.setdefault('choices',['periastron','sup_conj','inf_conj','asc_node','desc_node','equipot'])
     kwargs.setdefault('context',orbit.context)
     kwargs.setdefault('frame','phoebe')
     
@@ -474,6 +481,48 @@ def add_conserve(orbit,conserve='volume',**kwargs):
         
     logger.info("orbit '{}': added and set 'conserve' to '{}'".format(orbit['label'],conserve))
 
+
+def from_supconj_to_perpass(orbit):
+    """
+    Convert an orbital set where t0 is superior conjunction to periastron passage.
+    
+    Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
+    have T0 as superior conjunction.
+    
+    Inverse function is L{from_perpass_to_supconj}.
+    
+    See Phoebe Scientific reference Eqs. (3.30) and (3.35).
+    
+    @param orbit: parameterset of frame C{phoebe} and context C{orbit}
+    @type orbit: parameterset of frame C{phoebe} and context C{orbit}
+    """
+    t_supconj = orbit['t0']
+    phshift = orbit['phshift']
+    P = orbit['period']
+    per0 = orbit.get_value('per0','rad')
+    t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
+    orbit['t0'] = t0
+
+def from_perpass_to_supconj(orbit):
+    """
+    Convert an orbital set where t0 is periastron passage to superior conjunction.
+    
+    Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
+    have T0 as superior conjunction.
+    
+    Inverse function is L{from_supconj_to_perpass}.
+    
+    See Phoebe Scientific reference Eqs. (3.30) and (3.35).
+    
+    @param orbit: parameterset of frame C{phoebe} and context C{orbit}
+    @type orbit: parameterset of frame C{phoebe} and context C{orbit}
+    """
+    t_perpass = orbit['t0']
+    phshift = orbit['phshift']
+    P = orbit['period']
+    per0 = orbit.get_value('per0','rad')
+    t0 = t_perpass - (phshift - 0.25 + per0/(2*np.pi))*P
+    orbit['t0'] = t0
 
 #}
 

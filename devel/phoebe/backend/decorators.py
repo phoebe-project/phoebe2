@@ -182,6 +182,7 @@ def mpirun(fctn):
                     os.unlink(args_file.name)
                 if os.path.isfile(kwargs_file.name):
                     os.unlink(kwargs_file.name)
+            system.compute_pblum_or_l3()
     return do_run
     
 #def mpirun_emcee(fctn):

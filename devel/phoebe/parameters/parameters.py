@@ -1062,6 +1062,11 @@ class Parameter(object):
         >>> mypar.set_prior(distribution='normal',mu=5,sigma=1.)
         
         """
+        #-- do unit conversions if necessary:
+        for key in kwargs:
+            if isinstance(kwargs[key],tuple):
+                value,unit = kwargs[key]
+                kwargs[key] = conversions.convert(unit,self.unit,value)
         #-- if only sigma is set for normal priors, take the mu equal to the
         #   current value of the parameter
         if 'distribution' in kwargs and kwargs['distribution']=='normal' and not 'mu' in kwargs:
@@ -2252,6 +2257,11 @@ class ParameterSet(object):
             return self.get_constraint(qualifier_in_)
         elif not qualifier in self.container:
             raise KeyError("parameter '{}' not available in context '{}')".format(qualifier_in_,self.context))
+            #possibilities = list(self.keys())
+            #print possibilities
+            #close = difflib.get_close_matches(qualifier,possibilities)
+            #suggestions = ("Did you mean "+' or '.join(close)+'? ') if close else ''
+            #raise KeyError('"{}" not in ParameterSet ({}, {}). {}It is not any of {}'.format(qualifier_in_,self.frame,self.context,suggestions,", ".join(list(self.keys()))) )
         #-- method 2
         #if not qualifier in self.container:
         #    raise KeyError,'%s'%(qualifier_in_)
