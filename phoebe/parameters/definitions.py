@@ -275,7 +275,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='clambda',   description='Central wavelength',repr='%s',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%s',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
-         dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%s',unit='km/s',cast_type=float,value=0.,frame=["phoebe"],context=['spobs']),
+         dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%s',unit='km/s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
          dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context=['spsyn','plsyn']),
@@ -323,14 +323,16 @@ defs += [dict(qualifier='coordinates',description="Location of the body's geomet
 
 #    PULSATION contexts
 defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',cast_type=float,value=1.,unit='cy/d',frame=["phoebe"],context='puls'),
-         dict(qualifier='phase',    description='Pulsation phase',repr='%f',cast_type=float,value=0.,unit='cy',frame=["phoebe"],context='puls'),
-         dict(qualifier='ampl',     description='Pulsation amplitude (fractional radius)',repr='%f',cast_type=float,value=0.01,frame=["phoebe"],context='puls'),
+         dict(qualifier='phase',    description='Pulsation phase',repr='%f',cast_type=float,value=0.,unit='cy',adjust=False,frame=["phoebe"],context='puls'),
+         dict(qualifier='ampl',     description='Pulsation amplitude (fractional radius)',repr='%f',cast_type=float,adjust=False,value=0.01,frame=["phoebe"],context='puls'),
          dict(qualifier='l',        description='Degree of the mode',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='puls'),
          dict(qualifier='m',        description='Azimuthal order of the mode',repr='%d',cast_type=int,value=2,frame=["phoebe"],context='puls'),
          dict(qualifier='k',        description='Horizontal/vertical displacement',repr='%f',cast_type=float,value=0.001,frame=["phoebe"],context='puls'),
          dict(qualifier='ledoux_coeff',description='Ledoux Cln',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context='puls'),
-         dict(qualifier='deltateff',description='Temperature perturbation',repr='%s',cast_type=complex,value=0.025+0j,frame=["phoebe"],context='puls'),
-         dict(qualifier='deltagrav',description='Gravity perturbation',repr='%s',cast_type=complex,value=0.00001+0j,frame=["phoebe"],context='puls'),
+         dict(qualifier='amplteff',description='Amplitude of temperature perturbation',repr='%s',cast_type=float,value=0.025,frame=["phoebe"],context='puls'),
+         dict(qualifier='phaseteff',description='Phase of temperature perturbation',repr='%s',cast_type=float,value=0.,frame=["phoebe"],context='puls'),
+         dict(qualifier='amplgrav',description='Amplitude of gravity perturbation',repr='%s',cast_type=float,value=0.00001,frame=["phoebe"],context='puls'),
+         dict(qualifier='phasegrav',description='Phase of gravity perturbation',repr='%s',cast_type=float,value=0.0,frame=["phoebe"],context='puls'),
          dict(qualifier='incl',     description='Angle between rotation and pulsation axis',unit='deg',repr='%f',llim=0,ulim=360,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='puls'),
          dict(qualifier='trad_coeffs',  description='B vector for traditional approximation',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context='puls'),
          dict(qualifier='scheme',   description='Type of approximation for description of pulsations',repr='%s',cast_type='choose',choices=['nonrotating','coriolis','traditional approximation'],value='nonrotating',frame=["phoebe"],context='puls'),
@@ -338,8 +340,9 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
 
 #    MAGNETIC FIELD contexts
 
-defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,value=1.,unit='G',frame=["phoebe"],context='magnetic_field'),
-         dict(qualifier='beta',       description='Magnetic field angle wrt rotation axis',repr='%f',cast_type=float,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field'),
+defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,adjust=False,value=1.,unit='G',frame=["phoebe"],context='magnetic_field'),
+         dict(qualifier='beta',       description='Magnetic field angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field'),
+         dict(qualifier='trans',      description='Magnetic field angle perp. to beta',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field'),
         ]
 
 #    Accretion disk contexts        
@@ -374,7 +377,7 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=False,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
@@ -413,7 +416,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
          dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
-         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
+         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
         ]        
 
         

@@ -137,15 +137,15 @@ def norm_atlm1(l,m,Omega,k):
 
 #{ Displacement fields
 
-def radial(theta,phi,l,m,freq,t):
+def radial(theta,phi,l,m,freq,phase,t):
     """
     Radial displacement, see Zima 2006.
     
     t in period units (t=1/freq equals 2pi radians, end of one cycle)
     """
-    return sph_harm(theta,phi,l,m) * exp(1j*2*pi*freq*t)
+    return sph_harm(theta,phi,l,m) * exp(1j*2*pi*(freq*t+phase))
 
-def colatitudinal(theta,phi,l,m,freq,t,Omega,k):
+def colatitudinal(theta,phi,l,m,freq,phase,t,Omega,k):
     """
     Colatitudinal displacement.
     
@@ -156,12 +156,12 @@ def colatitudinal(theta,phi,l,m,freq,t,Omega,k):
             +   (a_{tl-1} /sin(theta)* dY^m_{l-1}/dphi)   * exp(2pi i t-pi/2) 
             
     """
-    term1 = k * dsph_harm_dtheta(theta,phi,l,m) * exp(1j*2*pi*freq*t)
-    term2 = norm_atlp1(l,m,Omega,k) / sin(theta) * dsph_harm_dphi(theta,phi,l+1,m)  * exp(1j*2*pi*freq*t + pi/2)
-    term3 = norm_atlm1(l,m,Omega,k) / sin(theta) * dsph_harm_dphi(theta,phi,l-1,m)  * exp(1j*2*pi*freq*t - pi/2)
+    term1 = k * dsph_harm_dtheta(theta,phi,l,m) * exp(1j*2*pi*(freq*t+phase))
+    term2 = norm_atlp1(l,m,Omega,k) / sin(theta) * dsph_harm_dphi(theta,phi,l+1,m)  * exp(1j*2*pi*(freq*t+phase) + pi/2)
+    term3 = norm_atlm1(l,m,Omega,k) / sin(theta) * dsph_harm_dphi(theta,phi,l-1,m)  * exp(1j*2*pi*(freq*t+phase) - pi/2)
     return term1 + term2 + term3
 
-def longitudinal(theta,phi,l,m,freq,t,Omega,k):
+def longitudinal(theta,phi,l,m,freq,phase,t,Omega,k):
     """
     Longitudinal displacement.
     
@@ -169,12 +169,12 @@ def longitudinal(theta,phi,l,m,freq,t,Omega,k):
           -   (a_{tl+1}            * dY^m_{l+1}/dtheta) * exp(2pi i t+pi/2) 
           -   (a_{tl-1}            * dY^m_{l-1}/dtheta) * exp(2pi i t-pi/2) 
     """
-    term1 = k /sin(theta) * dsph_harm_dphi(theta,phi,l,m)*exp(1j*2*pi*freq*t)
-    term2 = -norm_atlp1(l,m,Omega,k) * dsph_harm_dtheta(theta,phi,l+1,m)*exp(1j*2*pi*freq*t+pi/2)
-    term3 = -norm_atlm1(l,m,Omega,k) * dsph_harm_dtheta(theta,phi,l-1,m)*exp(1j*2*pi*freq*t-pi/2)
+    term1 = k /sin(theta) * dsph_harm_dphi(theta,phi,l,m)*exp(1j*2*pi*(freq*t+phase))
+    term2 = -norm_atlp1(l,m,Omega,k) * dsph_harm_dtheta(theta,phi,l+1,m)*exp(1j*2*pi*(freq*t+phase)+pi/2)
+    term3 = -norm_atlm1(l,m,Omega,k) * dsph_harm_dtheta(theta,phi,l-1,m)*exp(1j*2*pi*(freq*t+phase)-pi/2)
     return term1 + term2 + term3
 
-def surface(radius,theta,phi,t,l,m,freq,Omega,k,asl):
+def surface(radius,theta,phi,t,l,m,freq,phases,Omega,k,asl):
     ksi_r = 0.
     ksi_theta = 0.
     ksi_phi = 0.
@@ -183,17 +183,17 @@ def surface(radius,theta,phi,t,l,m,freq,Omega,k,asl):
     velo_phi = 0.
     zero = np.zeros_like(theta)
     
-    for il,im,ifreq,iOmega,ik,iasl in zip(l,m,freq,Omega,k,asl):
+    for il,im,ifreq,iphase,iOmega,ik,iasl in zip(l,m,freq,phases,Omega,k,asl):
         #-- radial perturbation
-        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta,phi,il,im,ifreq,t)
+        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta,phi,il,im,ifreq,iphase,t)
         #-- add to the total perturbation of the radius and velocity
         ksi_r += ksi_r_
         velo_r += 1j*2*pi*ifreq*ksi_r_
         #-- colatitudinal and longitudonal perturbation when l>0
         norm = sqrt(4*pi)
         if il>0:
-            ksi_theta_ = iasl*norm*colatitudinal(theta,phi,il,im,ifreq,t,iOmega,ik)
-            ksi_phi_   = iasl*norm* longitudinal(theta,phi,il,im,ifreq,t,iOmega,ik)
+            ksi_theta_ = iasl*norm*colatitudinal(theta,phi,il,im,ifreq,iphase,t,iOmega,ik)
+            ksi_phi_   = iasl*norm* longitudinal(theta,phi,il,im,ifreq,iphase,t,iOmega,ik)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
@@ -209,7 +209,7 @@ def surface(radius,theta,phi,t,l,m,freq,Omega,k,asl):
            (phi + ksi_phi.real),\
            velo_r.real,velo_theta.real,velo_phi.real
 
-def observables(radius,theta,phi,teff,logg,t,l,m,freq,Omega,k,asl,delta_T,delta_g):
+def observables(radius,theta,phi,teff,logg,t,l,m,freq,phases,Omega,k,asl,delta_T,delta_g):
     """
     Good defaults:
     
@@ -231,15 +231,15 @@ def observables(radius,theta,phi,teff,logg,t,l,m,freq,Omega,k,asl,delta_T,delta_
     ksi_teff = 0.
     zero = np.zeros_like(phi)
     
-    for il,im,ifreq,iOmega,ik,iasl,idelta_T,idelta_g in \
-       zip(l,m,freq,Omega,k,asl,delta_T,delta_g):
-        rad_part = radial(theta,phi,il,im,ifreq,t)
+    for il,im,ifreq,iphase,iOmega,ik,iasl,idelta_T,idelta_g in \
+       zip(l,m,freq,phases,Omega,k,asl,delta_T,delta_g):
+        rad_part = radial(theta,phi,il,im,ifreq,iphase,t)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
         ksi_r += ksi_r_*radius
         velo_r += 1j*2*pi*ifreq*ksi_r_*radius
         if il>0:
-            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta,phi,il,im,ifreq,t,iOmega,ik)
-            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta,phi,il,im,ifreq,t,iOmega,ik)
+            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta,phi,il,im,ifreq,iphase,t,iOmega,ik)
+            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta,phi,il,im,ifreq,iphase,t,iOmega,ik)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_

@@ -113,6 +113,8 @@ def image(the_system,ref='__bol',context='lcdep',
     +---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image03.png | .. image:: images/backend_observatory_image04.png |
     |   :scale: 20 %                                    |   :scale: 20 %                                    |
+    |   :width: 150px                                   |   :width: 150px                                   |
+    |   :height: 150px                                  |   :height: 150px                                  |
     |   :align: center                                  |   :align: center                                  |
     +---------------------------------------------------+---------------------------------------------------+  
     
@@ -862,7 +864,7 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     if ref_ is not None:
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
             iobs.load()
-        wavelengths = iobs['wavelength']
+        wavelengths = iobs.request_value('wavelength','AA')
         #-- instrumental info
         R = iobs['R']
         if 'vmacro' in iobs:
@@ -923,7 +925,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     keep = the_system.mesh['proj_'+ref]>0
     if not np.sum(keep):
         logger.info('no spectropolarimetry synthesized, zero flux received')
-        return wavelengths,np.zeros(len(wavelengths)),0.
+        return wavelengths,np.zeros(len(wavelengths)),np.zeros(len(wavelengths)),\
+               np.zeros(len(wavelengths)),np.zeros(len(wavelengths)),np.ones(len(wavelengths))
     
     #-- magnitude of magnetic field and angle towards the LOS
     B = coordinates.norm(mesh['B_'][keep],axis=1)*1e-4 # and convert to Tesla 
@@ -1039,7 +1042,20 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
         logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
     else:
         raise NotImplementedError
-    #f clip_after is not None:
+    
+    #-- convolve with instrumental profile if desired
+    if R is not None:
+        instr_fwhm = wc/R
+        instr_sigm = instr_fwhm/2.38
+        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
+        wavelengths,stokes_I = tools.rotational_broadening(wavelengths,
+                       stokes_I/total_continum,vrot=0.,vmac=vmacro,fwhm=instr_sigm)
+        stokes_I *= total_continum
+        wavelengths,stokes_V = tools.rotational_broadening(wavelengths,
+                       1-stokes_V/total_continum,vrot=0.,vmac=0.,fwhm=instr_sigm)
+        stokes_V = (1-stokes_V)*total_continum
+    
+    if clip_after is not None:
         keep = (clip_after[0]<=wavelengths) & (wavelengths<=clip_after[1])
         wavelengths = wavelengths[keep]
         stokes_I = stokes_I[keep]
@@ -1153,7 +1169,10 @@ def extract_times_and_refs(system,params,tol=1e-8):
     try:
         times = np.hstack(times)
     except ValueError,msg:
-        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps the lcobs are not DataSets? (original message: {})".format(str(msg)))
+        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps the obs are not DataSets? (original message: {})".format(str(msg)))
+    except IndexError,msg:
+        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps there are no obs attached? (original message: {})".format(str(msg)))
+    
     sa    = np.argsort(times)
     types = np.hstack(types)[sa]
     refs  = np.hstack(refs)[sa]
@@ -1238,6 +1257,7 @@ def compute(system,params=None,**kwargs):
     """
     #-- gather the parameters that give us more details on how to compute
     #   the system: subdivisions, eclipse detection, optimization flags...
+    #inside_mpi = kwargs.pop('mpi',None)
     im = kwargs.pop('im',False)
     extra_func = kwargs.pop('extra_func',[])
     extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])
@@ -1316,6 +1336,9 @@ def compute(system,params=None,**kwargs):
             system.clear_reflection()
         #-- set the time of the system
         system.set_time(time,ref=ref)
+        #-- fix the mesh if needed:
+        if i==0 and hasattr(system,'bodies'):
+            system.fix_mesh()
         #-- compute intensities
         if i==0 or not circular:
             system.intensity(ref=ref)
@@ -1343,8 +1366,12 @@ def compute(system,params=None,**kwargs):
         if ltt:
             system.correct_time()
         #-- compute stuff
+        had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
         for itype,iref in zip(type,ref):
-            if itype[:-3]=='if': itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
+            if itype[:-3]=='if':
+                itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
+                if iref in had_refs: continue
+                had_refs.append(iref)
             logger.info('Calling {} for ref {}'.format(itype[:-3],iref))
             getattr(system,itype[:-3])(ref=iref,time=time)
         #-- make an image if necessary
@@ -1360,7 +1387,11 @@ def compute(system,params=None,**kwargs):
         #-- unsubdivide to prepare for next step
         if params['subdiv_num']:  
             system.unsubdivide()
-    system.compute_pblum_or_l3()
+    #if inside_mpi is None:
+    try:
+        system.compute_pblum_or_l3()
+    except:
+        logger.warning("Cannot compute pblum or l3, perhaps you're inside MPI?")
 
 
 def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,

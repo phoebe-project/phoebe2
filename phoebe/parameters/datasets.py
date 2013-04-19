@@ -376,7 +376,7 @@ class SPDataSet(DataSet):
         out_data = [[np.array(self[col])[:,i] for col in cols_for_out_data] for i in range(len(self['flux'][0]))]
         out_data = np.array(out_data).ravel().reshape((N*len(self['flux'][0]),-1)).T
         out_data = np.vstack([line0,out_data])        
-        times = np.hstack([np.nan,self['time']])
+        times = np.hstack([np.nan,self['time'].ravel()])
         out_data = np.column_stack([times,out_data])
         #-- before numpy version 1.7, we need to do some tricks:
         header = ''
@@ -391,6 +391,31 @@ class SPDataSet(DataSet):
                 ff.write("".join(gg.readlines()))
         os.unlink(filename+'temp')
         logger.info('Wrote file {} as spectrum ({}:{})'.format(filename,self.context,self['ref']))
+    
+    def join(self,other_list):
+        """
+        Join with a list of other SPDataSets.
+        
+        Assumes wavelengths are the same.
+        """
+        self_loaded = self.load(force=False)
+        for iother in other_list:
+            loaded = iother.load(force=False)
+            if not np.all(iother['wavelength']==self['wavelength']):
+                raise ValueError("DataSets with different wavelength arrays cannot be joinded")
+            for col in self['columns']:
+                if col=='wavelength': continue
+                if len(self[col].shape)==2:
+                    self[col] = np.vstack([self[col],iother[col]])
+                else:
+                    self[col] = np.hstack([self[col],iother[col]])
+            if loaded:
+                iother.unload()
+        self.save()
+        if not self_loaded:
+            self.unload()        
+                    
+                
     
     def estimate_noise(self,from_col='flux',to_col='sigma'):
         """
@@ -460,7 +485,7 @@ class PLDataSet(SPDataSet):
         kwargs.setdefault('context','plobs')
         super(SPDataSet,self).__init__(**kwargs)
     
-    def longitudinal_field(self):
+    def longitudinal_field(self,vmin=-500,vmax=500):
         r"""
         Compute the longitudinal component of the magnetic field for each profile in the DataSet.
         
@@ -476,31 +501,40 @@ class PLDataSet(SPDataSet):
         
             C = \frac{e}{4\pi m c^2} = 4.67 \times 10^{-13} \AA^{-1}
         
+        
         The latter is really annoying because it is in Gaussian CGS units, and
         who uses that? Also, we actually need C in nm, and can then plug in
         the speed of light in cgs units. That seems to work out, but it's a
         little fuzzy to me... Anyway, we're only interested in the final value of
         :math:`B_\ell`.
         
+        In velocity units (we'll use that):
+        
+        .. math::
+        
+            B_\ell = \frac{2.14\times 10^{11}}{\lambda_c g_L c} \frac{\int v V(v)dv}{\int (1-I(v))dv}
+        
+        with :math:`\lambda_c` in nm and c in km/s, then you'll get
+        :math:`B_\ell` in Gauss.
+        
         You can check the value of :math:`B_\ell` that you get by computing
         the flux-weighted line-of-sight component (:math:`B_z`) of the
         magnetic field:
         
-        >>> Bz = star.mesh['B_'][:,2]
+        >>> Bz = -star.mesh['B_'][:,2]
         >>> weights = star.mesh['proj_ref'] * star.mesh['size']
         >>> B_ell = np.average(Bz,weights=weights)
         
         @return: longitudinal component of the magnetic field
         @rtype: array        
         """
+        loaded = self.load(force=False)
         lams = np.array(self['wavelength'])
         cont = np.array(self['continuum'])
         flux = (np.array(self['flux'])/cont)
         V = (np.array(self['V'])/cont)
         glande = self.get('glande',1.2)
-        clambda = lams.ptp()/2.
-        C = 4.67e-13
-        factor = 1./(C*glande*clambda**2)/constants.cc*10
+        clambda = lams.mean()
         #-- two ways to compute the longitudinal field: with and without
         #   error
         Bl = np.zeros(len(flux))
@@ -509,25 +543,41 @@ class PLDataSet(SPDataSet):
         if len(lams.shape)==2:
             lams = lams[0]
         
+        #-- convert to velocity
+        v = conversions.convert('nm','km/s',lams,wave=(clambda,'nm'))
+        factor = 2.14e11/(clambda*glande*constants.cc/1000.)
+        
+        #-- and cut arrays
+        keep = (vmin<=v) & (v<=vmax)
+        v = v[keep]
+        
         if not "sigma_V" in self['columns']:
             for i,(iflux,iV) in enumerate(zip(flux,V)):
-                numerator = np.trapz(iV*lams,x=lams)
-                denominator = np.trapz((1-iflux),x=lams)
+                iflux = iflux[keep]
+                iV = iV[keep]
+                numerator = np.trapz(iV*v,x=v)
+                denominator = np.trapz((1-iflux),x=v)
                 Bl[i] = factor * numerator/denominator
         #-- else integrate with errors
         else:
             sigma_V = np.array(self['sigma_V'])
             sigma = np.array(self['sigma'])
             for i,(iflux,iV,sig,sigV) in enumerate(zip(flux,V,sigma,sigma_V)):
-                integrand1 = iV*lams
+                iV = iV[keep]
+                sig = sig[keep]
+                iflux = iflux[keep]
+                sigV = sigV[keep]
+                integrand1 = iV*v
                 integrand2 = (1-iflux)
-                numerator = np.trapz(integrand1,x=lams)
-                e_numerator = np.sqrt(np.sum((np.diff(lams)*sigV[1:]*lams[1:])**2))
-                denominator = np.trapz(integrand2,x=lams) 
-                e_denominator = np.sqrt(np.sum((np.diff(lams)*sig[1:])**2))
+                numerator = np.trapz(integrand1,x=v)
+                e_numerator = np.sqrt(np.sum((np.diff(v)*sigV[1:]*v[1:])**2))
+                denominator = np.trapz(integrand2,x=v) 
+                e_denominator = np.sqrt(np.sum((np.diff(v)*sig[1:])**2))
                 Bl[i] = factor * numerator/denominator
                 e_Bl[i] = Bl[i]*np.sqrt( (e_numerator/numerator)**2 + (e_denominator/denominator)**2)
-        return -Bl,e_Bl
+        if loaded:
+            self.unload()
+        return Bl,e_Bl
 
 class IFDataSet(DataSet):
     """
@@ -555,7 +605,7 @@ class IFDataSet(DataSet):
 
 #{ ASCII parsers
 
-def parse_header(filename):
+def parse_header(filename,ext=None):
     """
     Parse only the header of an ASCII file.
     
@@ -664,7 +714,7 @@ def parse_header(filename):
                            phot=LCDataSet,lc=LCDataSet,
                            spec=SPDataSet,lprof=SPDataSet,
                            vis2=IFDataSet,plprof=PLDataSet)
-    ext = filename.split('.')[-1]
+    ext = filename.split('.')[-1] if ext is None else ext
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
     #-- they belong together, so they should have the same reference
@@ -1545,7 +1595,7 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
     @return: list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`
     """
     #-- parse the header
-    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename,ext='spec')
 
     if columns is None and columns_in_file is None:
         columns_in_file = ['wavelength','flux']
@@ -2006,6 +2056,163 @@ def parse_plprof(filename,clambda,columns=None,components=None,full_output=False
         return output.values()[0]
     else:
         return output
+
+def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,skiprows=0,**kwargs):
+    """
+    Parse an LSD file to an PLDataSet and a pldep.
+    
+    The structure of an LSD file is::
+    
+        # atm = kurucz
+        # ld_func = claret
+        -141.9  0.995078    0.000767859 2.591441e-05    6.5304e-05  1.295886e-05    6.5304e-05
+        -140.1  0.995345    0.000767691 1.547061e-05    6.52591e-05 6.91076e-06 6.52591e-05
+        -138.3  0.995209    0.000767578 2.679006e-05    6.5256e-05  7.54846e-06 6.52559e-05
+    
+    An attempt will be made to interpret the comment lines as qualifier/value
+    for either the :ref:`plobs <parlabel-phoebe-plobs>` or :ref:`pldep <parlabel-phoebe-pldep>`.
+    Failures are silently ignored, so you are allowed to put whatever comments
+    in there (though with caution), or comment out data lines if you don't
+    want to use them.
+    
+    The output can be readily appended to the C{obs} and C{pbdep} keywords in
+    upon initialization of a ``Body``.
+    
+    Extra keyword arguments are passed to output PLDataSets or pldeps,
+    wherever they exist and override the contents of the comment lines in the
+    phot file.
+    
+    Example usage:
+    
+    >>> obs,pbdeps = parse_plprof('myfile.plprof')
+    >>> starpars = parameters.ParameterSet(context='star')
+    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
+    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    
+    @param filenames: list of filename or a filename glob pattern
+    @type filenames: list or string
+    @param clambda: central wavelength of profile (AA)
+    @type clambda: float
+    @return: list of :ref:`plobs <parlabel-phoebe-plobs>`, list of :ref:`pldep <parlabel-phoebe-pldep>`
+    """
+    #-- parse the header
+    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename,ext='plprof')
+
+    if columns is None and columns_in_file is None:
+        columns_in_file = ['velocity','flux']
+    elif columns is not None:
+        columns_in_file = columns
+    columns_required = ['velocity','flux']
+    columns_specs = dict(time=float,wavelength=float,flux=float,sigma=float,
+                                                     V=float,sigma_V=float,
+                                                     Q=float,sigma_Q=float,
+                                                     U=float,sigma_U=float)
+    
+    missing_columns = set(columns_required) - set(columns_in_file)
+    if len(missing_columns)>0:
+        raise ValueError("Missing columns in PLPROF file: {}".format(", ".join(missing_columns)))
+    
+    if 'velocity' in columns_in_file:
+        index = columns_in_file.index('velocity')
+        columns_in_file[index] = 'wavelength'
+    
+    #-- prepare output dictionaries. The first level will be the label key
+    #   of the Body. The second level will be, for each Body, the pbdeps or
+    #   datasets.
+    output = OrderedDict()
+    Ncol = len(columns_in_file)
+    
+    #-- collect all data
+    data = []
+    #-- read the comments of the file
+    with open(filename,'r') as ff:
+        for linenr,line in enumerate(ff.readlines()):
+            if linenr<skiprows: continue
+            line = line.strip()
+            if not line: continue
+            if line[0]=='#': continue
+            data.append(tuple(line.split()[:Ncol]))
+    #-- we have the information from header now, but only use that
+    #   if it is not overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__']*len(columns_in_file)
+    elif components is None and isinstance(components_in_file,str):
+        components = [components_in_file]*len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+    #-- make sure all the components are strings
+    components = [str(c) for c in components]
+    #-- we need unique names for the columns in the record array
+    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
+    #-- add these to an existing dataset, or a new one.
+    #   also create pbdep to go with it!
+    #-- numpy records to allow for arrays of mixed types. We do some
+    #   numpy magic here because we cannot efficiently predefine the
+    #   length of the strings in the file: therefore, we let numpy
+    #   first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    #-- and then say that it can keep those string arrays, but it needs
+    #   to cast everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data,dtype=dtype)
+    
+    #-- for each component, create two lists to contain the
+    #   SPDataSets or pbdeps    
+    for label in set(components):
+        if label.lower()=='none':
+            continue
+        output[label] = [[ds.copy()],[pb.copy()]]
+    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
+        if label.lower()=='none':
+            for lbl in output:
+                output[lbl][0][-1][col] = data[coldat]
+            continue
+        output[label][0][-1][col] = data[coldat]
+        #-- override values already there with extra kwarg values
+        for key in kwargs:
+            if key in output[label][0][-1]:
+                output[label][0][-1][key] = kwargs[key]
+            if key in output[label][1][-1]:
+                output[label][1][-1][key] = kwargs[key]
+    
+    for label in output.keys():
+        for ds,pb in zip(*output[label]):
+            #-- save to the dataset
+            ref = kwargs.get('ref',"{}".format(filename))
+            ds['continuum'] = np.ones(len(ds['wavelength'])).reshape((1,-1))
+            ds['wavelength'] = conversions.convert('km/s','nm',ds['wavelength'],wave=(4000.,'AA')).reshape((1,-1))
+            ds['flux'] = ds['flux'].reshape((1,-1))
+            ds['sigma'] = ds['sigma'].reshape((1,-1))
+            ds['ref'] = ref
+            #ds.estimate_noise()
+            ds['filename'] = ref+'.plobs'
+            ds['columns'] = columns_in_file + ['continuum']
+            if not 'time' in columns_in_file:
+                ds['time'] = np.zeros(len(ds['flux']))
+            if not 'time' in ds['columns']:
+                ds['columns'] = ds['columns'] + ['time']
+            for stokes_type in ['V','Q','U']:
+                if 'sigma_{}'.format(stokes_type) in columns_in_file:
+                    ds['sigma_{}'.format(stokes_type)] = ds['sigma_{}'.format(stokes_type)].reshape((1,-1))
+                if stokes_type in columns_in_file:
+                    ds[stokes_type] = ds[stokes_type].reshape((1,-1))
+            pb['ref'] = ref
+            #-- override with extra kwarg values
+            for key in kwargs:
+                if key in pb: pb[key] = kwargs[key]
+                if key in ds: ds[key] = kwargs[key]
+            ds.save()
+            ds.unload()
+            
+    #-- If the user didn't provide any labels (either as an argument or in the
+    #   file), we don't bother the user with it:
+    if '__nolabel__' in output and not full_output:
+        return output.values()[0]
+    else:
+        return output
+    
 
 #}
 

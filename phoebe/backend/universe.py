@@ -360,8 +360,7 @@ def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
     #   scaling factor and offset
     elif pblum and l3:
         A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
-        pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
-        
+        pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0] 
     return pblum,l3
                     
 def _parse_pbdeps(body,pbdep):
@@ -845,7 +844,7 @@ class Body(object):
                 #-- make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
                 #-- get the "model" and "observations" and their error.
-                if observations.context=='spobs':
+                if observations.context in ['spobs','plobs']:
                     model = np.array(model['flux'])/np.array(model['continuum'])
                     obser = np.array(observations['flux'])/np.array(observations['continuum'])
                     sigma = np.array(observations['sigma'])
@@ -996,22 +995,22 @@ class Body(object):
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 #-- get the model corresponding to this observation
-                model = self.get_synthetic(category=observations.context[:-3],
-                                           ref=observations['ref'],
-                                           cumulative=True)
+                modelset = self.get_synthetic(category=observations.context[:-3],
+                                              ref=observations['ref'],
+                                              cumulative=True)
                 #-- make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
                 #-- get the "model" and "observations" and their error.
-                if observations.context=='spobs':
-                    model = np.array(model['flux'])/np.array(model['continuum'])
+                if observations.context=='spobs' or observations.context=='plobs':
+                    model = np.array(modelset['flux'])/np.array(modelset['continuum'])
                     obser = np.array(observations['flux'])/np.array(observations['continuum'])
                     sigma = np.array(observations['sigma'])
                 elif observations.context=='lcobs':
-                    model = np.array(model['flux'])
+                    model = np.array(modelset['flux'])
                     obser = np.array(observations['flux'])
                     sigma = np.array(observations['sigma'])
                 elif observations.context=='ifobs':
-                    model = np.array(model['vis2'])
+                    model = np.array(modelset['vis2'])
                     obser = np.array(observations['vis2'])
                     sigma = np.array(observations['sigma_vis2'])
                 else:
@@ -1022,6 +1021,16 @@ class Body(object):
                 #-- compute the log probability
                 term1 = - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
                 term2 = - (obser-model*pblum-l3)**2/(2.*(sigma*pblum)**2)
+                #-- do also the Stokes V profiles. Becuase they contain the
+                #   derivative of the intensity profile, the l3 factor disappears
+                if observations.context=='plobs':
+                    if 'V' in observations['columns']:
+                        model = np.array(modelset['V'])/np.array(modelset['continuum'])
+                        obser = np.array(observations['V'])/np.array(observations['continuum'])
+                        sigma = np.array(observations['sigma_V'])
+                        term1 += - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
+                        term2 += - (obser-model*pblum)**2/(2.*(sigma*pblum)**2)
+                
                 #-- statistical weight:
                 statweight = observations['statweight']
                 #   if stat_weight is negative, we try to determine the
@@ -1109,7 +1118,7 @@ class Body(object):
                                          cumulative=True)
                 #-- make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
-                if observations.context=='spobs':
+                if observations.context=='spobs' or observations.context=='plobs':
                     model_ = np.ravel(np.array(modelset['flux'])/np.array(modelset['continuum']))
                     obser_ = np.ravel(np.array(observations['flux'])/np.array(observations['continuum']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
@@ -1122,7 +1131,12 @@ class Body(object):
                     obser_ = np.ravel(np.array(observations['vis2']))
                     sigma_ = np.ravel(np.array(observations['sigma_vis2']))
                 else:
-                    raise NotImplementedError('probability')  
+                    raise NotImplementedError('probability')
+                if observations.context=='plobs':
+                    if 'V' in observations['columns']:
+                        model_ = np.hstack([model_,np.ravel(np.array(modelset['V'])/np.array(modelset['continuum']))])
+                        obser_ = np.hstack([obser_,np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
+                        sigma_ = np.hstack([sigma_,np.ravel(np.array(observations['sigma_V']))])
                 #-- statistical weight:
                 statweight = observations['statweight']
                 #-- transform to log if necessary:
@@ -1723,7 +1737,7 @@ class Body(object):
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'obs' in self.params:
             if not ('ifobs' in self.params['obs']): return None
-            for lbl in ref:
+            for lbl in set(ref):
                 ifobs,lbl = self.get_parset(type='obs',ref=lbl)
                 times = ifobs['time']
                 posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
@@ -2353,7 +2367,7 @@ class PhysicalBody(Body):
                 wavelengths_,I,V,Q,U,cont = observatory.stokes(self,ref=lbl,
                          wavelengths=wavelengths,sigma=sigma,depth=depth)
                 base['time'].append(self.time)
-                base['wavelength'].append(wavelengths_)
+                base['wavelength'].append(wavelengths_/10.)
                 base['flux'].append(I)
                 base['V'].append(V)
                 base['Q'].append(Q)
@@ -2704,6 +2718,7 @@ class BodyBag(Body):
         #-- here, we check which columns are missing from each Body's
         #   mesh. If they are missing, we simply add them and copy
         #   the contents from the original mesh.
+        logger.info("Fixing mesh")
         names = list(self.bodies[0].mesh.dtype.names)
         descrs = self.bodies[0].mesh.dtype.descr
         for b in self.bodies[1:]:
@@ -2935,6 +2950,15 @@ class BodyBag(Body):
         coords[2] += distance
         return dict(coordinates=coords)
     
+    #@decorators.parse_ref
+    #def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
+        #for lbl in ref:
+            #if 'obs' in self.params and 'plobs' in self.params['obs'] and ref in self.params['obs']['plobs']:
+                #wavelengths = 
+            #else:
+                #for body in self.bodies:
+                    #body.pl(wavelengths=wavelengths,ref=lbl,sigma=sigma,depth=depth,time=time)
+        
     #@decorators.parse_ref
     #def ifm(self,ref='allifdep',time=None):
         #"""
@@ -3449,43 +3473,6 @@ class Star(PhysicalBody):
         """
         self.mesh['abun'] = self.params.values()[0]['abun']
     
-    def magnetic_field_best(self):
-        """
-        Calculate the magnetic field.
-        """
-        #-- dipolar:
-        parset = self.params['magnetic_field']
-        beta = parset.get_value('beta','rad')
-        Bpolar = parset.get_value('Bpolar')
-        R = self.params.values()[0].get_value('radius')
-        if True:
-            r_ = self.mesh['_o_center']
-            r = 1.#coordinates.norm(r_)
-            #print coordinates.norm(r_)
-        else:
-            r_ = self.mesh['_o_normal_']
-            r = coordinates.norm(r_)
-            r_ *= r
-        m_ = np.array([np.sin(beta)*np.cos(np.pi/2),np.sin(np.pi/2),np.cos(beta)])
-        m_*= R**3*np.abs(Bpolar)/2. #---> use this for agreement with first test run of Evelyne
-        
-        dotprod = np.dot(m_,r_.T).reshape(-1,1)
-        B = (3*dotprod*r_/r**5 - m_/r**3)
-        nB = coordinates.norm(B,axis=1).max()
-        print("Maximum B-field = {}, Bpolar should be = {}".format(nB,Bpolar))
-        B = B/nB*Bpolar
-        
-        #-- polar value:
-        #r_polar = np.array([[0.,0.,R]])
-        #dotprod = np.dot(m_,r_polar.T).reshape(-1,1)
-        #B_polar = (3*dotprod*r_polar/r**5 - m_/r**3)
-        #B_polar = coordinates.norm(B_polar,axis=1).max()
-        #print("Bpolar field {}".format(B_polar))
-        #B = B/B_polar*Bpolar
-        
-        
-        self.mesh['_o_B_'] = B
-        self.mesh['B_'] = self.mesh['_o_B_']
     
     def magnetic_field(self):
         """
@@ -3499,10 +3486,10 @@ class Star(PhysicalBody):
         #-- dipolar:
         parset = self.params['magnetic_field']
         beta = parset.get_value('beta','rad')
+        trans = parset.get_value('trans','rad')
         Bpolar = parset.get_value('Bpolar')
         R = self.params.values()[0].get_value('radius')
         r_ = self.mesh['_o_center']/R
-        trans = np.pi/2.
         
         #m_ = np.array([np.sin(beta),0.,np.cos(beta)])
         m_ = np.array([np.sin(beta)*np.cos(trans)-0*np.sin(trans),
@@ -3591,7 +3578,7 @@ class Star(PhysicalBody):
         rvdep,ref = self.get_parset(ref=ref,type='pbdep')
         ld_func = rvdep.request_value('ld_func')
         method = 'numerical'
-        return generic.projected_velocity(self,method=method,ld_func=ld_func,ref=ref)
+        return limbdark.projected_velocity(self,method=method,ld_func=ld_func,ref=ref)
     
     
     def vsini(self,unit='km/s'):
@@ -3603,7 +3590,7 @@ class Star(PhysicalBody):
         diffrot = self.params['star'].request_value('diffrot','s')
         incl = self.params['star'].request_value('incl','rad')
         period_eq = period_pl + diffrot
-        if self.params['star']['shape']=='roche':
+        if self.params['star']['shape']=='equipot':
             mass = self.params['star'].request_value('mass','Msol')
             rpole = self.params['star'].request_value('radius','Rsol')
             omega_crit = roche.critical_angular_frequency(mass,rpole)
@@ -3667,6 +3654,7 @@ class Star(PhysicalBody):
         #-- prepare extraction of pulsation parameters
         freqs = []
         freqs_Hz = []
+        phases = []
         ampls = []
         ls = []
         ms = []
@@ -3685,8 +3673,9 @@ class Star(PhysicalBody):
             freq = pls.get_value('freq','cy/d')
             freq_Hz = freq / (24.*3600.)
             ampl = pls.get_value('ampl')
-            deltaT = pls.get_value('deltateff')
-            deltag = pls.get_value('deltagrav')
+            deltaT = pls.get_value('amplteff')*np.exp(1j*2*np.pi*pls.get_value('phaseteff'))
+            deltag = pls.get_value('amplgrav')*np.exp(1j*2*np.pi*pls.get_value('phasegrav'))
+            phase = pls.get_value('phase')
             omega = 2*pi*freq_Hz
             k0 = constants.GG*M/omega**2/R**3    
             #-- if the pulsations are defined in the scheme of the traditional
@@ -3704,6 +3693,7 @@ class Star(PhysicalBody):
                     freqs.append(freq)
                     freqs_Hz.append(freq_Hz)
                     ampls.append(Bjk*ampl)
+                    phases.append(phase)
                     ls.append(lj)
                     ms.append(m)
                     deltaTs.append(Bjk*deltaT)
@@ -3723,6 +3713,7 @@ class Star(PhysicalBody):
                 freqs.append(freq)
                 freqs_Hz.append(freq_Hz)
                 ampls.append(ampl)
+                phases.append(phase)
                 ls.append(l)
                 ms.append(m)
                 deltaTs.append(deltaT)
@@ -3743,11 +3734,11 @@ class Star(PhysicalBody):
         r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
         r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
         r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-        r1,theta1,phi1,vr1,vth1,vphi1 = pulsations.surface(r1,theta1,phi1,time,ls,ms,freqs,spinpars,ks,ampls)        
-        r2,theta2,phi2,vr2,vth2,vphi2 = pulsations.surface(r2,theta2,phi2,time,ls,ms,freqs,spinpars,ks,ampls)
-        r3,theta3,phi3,vr3,vth3,vphi3 = pulsations.surface(r3,theta3,phi3,time,ls,ms,freqs,spinpars,ks,ampls)
+        r1,theta1,phi1,vr1,vth1,vphi1 = pulsations.surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls)        
+        r2,theta2,phi2,vr2,vth2,vphi2 = pulsations.surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls)
+        r3,theta3,phi3,vr3,vth3,vphi3 = pulsations.surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls)
         r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = pulsations.observables(r4,theta4,phi4,
-                     self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,
+                     self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
                      spinpars,ks,ampls,deltaTs,deltags)
         self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
         self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
@@ -4032,7 +4023,11 @@ class BinaryRocheStar(PhysicalBody):
     
     def compute_mesh(self,time=None,conserve_volume=True):
         """
-        Compute the mesh
+        Compute the mesh.
+        
+        The ``conserve_volume`` parameter doesn't really conserve the volume,
+        it only computes the volume so that :py:func:`conserve_volume` can
+        do its magic.
         """
         #-- 'derivable' orbital information
         component = self.get_component()+1
@@ -4138,9 +4133,10 @@ class BinaryRocheStar(PhysicalBody):
         #   before, and of course if volume needs to be conserved.
         #   This is not correct: we need to adapt Omega, not just scale the
         #   mesh. See Wilson 1979
-        if not self.params['component'].has_qualifier('volume'):
-            self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
-            logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
+        if conserve_volume:
+            if not self.params['component'].has_qualifier('volume'):
+                self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
+                logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
         
     def conserve_volume(self,time,max_iter=10,tol=1e-6):
         """
@@ -4152,6 +4148,9 @@ class BinaryRocheStar(PhysicalBody):
         Roche potential at the pole. In the next steps, numerical derivatives
         are used.
         
+        If ``max_iter==1``, we only reproject the surface, but do not compute
+        a new potential value (and thus do not conserve volume)
+        
         @param time: time at which to change the volume
         @type time: float
         @param max_iter: maximum number of iterations
@@ -4160,7 +4159,6 @@ class BinaryRocheStar(PhysicalBody):
         @type tol: float
         """
         #-- necessary values
-        V1 = self.params['component'].request_value('volume')
         R = self.params['component'].request_value('r_pole','Rsol')
         sma = self.params['orbit'].request_value('sma','Rsol')
         e = self.params['orbit'].get_value('ecc')
@@ -4191,7 +4189,12 @@ class BinaryRocheStar(PhysicalBody):
             critpot = roche.calculate_critical_potentials(q,F,d)[0]
         else:
             critpot = 0.
-                    
+        
+        if max_iter>1:
+            V1 = self.params['component'].request_value('volume')
+        else:
+            V1 = 1.
+        
         for n_iter in range(max_iter):
             
             #-- compute polar radius
@@ -4232,10 +4235,13 @@ class BinaryRocheStar(PhysicalBody):
         
         #-- perhaps this was the secondary
         if component==2:
-            q,oldpot = roche.change_component(q,oldpot)  
-        logger.info("volume conservation (V=%.6f<-->Vref=%.6f): changed potential Pot_ref=%.6f-->Pot_new%.6f)"%(V2,V1,self.params['component']['pot'],oldpot))
-        #-- remember the new potential value
-        self.params['component']['pot'] = oldpot
+            q,oldpot = roche.change_component(q,oldpot)
+        if max_iter>1:
+            logger.info("volume conservation (V=%.6f<-->Vref=%.6f): changed potential Pot_ref=%.6f-->Pot_new%.6f)"%(V2,V1,self.params['component']['pot'],oldpot))
+            #-- remember the new potential value
+            self.params['component']['pot'] = oldpot
+        else:
+            logger.info("no volume conservation, reprojected onto instantaneous potential")
         
     def volume(self):
         """
@@ -4367,10 +4373,14 @@ class BinaryRocheStar(PhysicalBody):
         e = self.params['orbit'].get_value('ecc')
         sma = self.params['orbit'].get_value('sma','Rsol')
         #-- there is a possibility to set to conserve volume or equipot
+        #   IF eccentricity is zero, we never need to conserve volume, that
+        #   is done automatically
+        conserve_phase = self.params['orbit'].get('conserve','periastron')
         conserve_volume = e>0
         if conserve_volume and 'conserve' in self.params['orbit']:
             if self.params['orbit']['conserve']=='equipot':
                 conserve_volume = False
+        max_iter_volume = 10 if conserve_volume else 1 # number of iterations for conservation of volume (max)
         #-- we do not need to calculate bolometric luminosities if we don't include
         #   the reflection effect
         do_reflection = False
@@ -4378,11 +4388,31 @@ class BinaryRocheStar(PhysicalBody):
         #   if the eccentricity is nonzero
         if self.time is None or e>0:
             if self.time is None:
-                self.compute_mesh(time,conserve_volume=conserve_volume)
+                #-- if we need to conserve volume, we need to know at which
+                #   time. Then we compute the mesh at that time and remember
+                #   the value
+                if conserve_volume:
+                    cvol_index = ['periastron','sup_conj','inf_conj','asc_node','desc_node'].index(conserve_phase)
+                    per0 = self.params['orbit'].request_value('per0','rad')
+                    P = self.params['orbit']['period']
+                    t0 = self.params['orbit']['t0']
+                    crit_times = keplerorbit.calculate_critical_phases(per0,e)*P + t0
+                    self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
+                #-- else we still need to compute the mesh at *this* time!
+                else:
+                    self.compute_mesh(time,conserve_volume=True)
+                #-- the following function both reprojects the surface to the
+                #   value of the instantaneous potential and recomputes the
+                #   value of the potential to conserve volume (if max_iter>1)
+                if e>0:
+                    self.conserve_volume(time,max_iter=max_iter_volume)
+            #-- else, we have already computed the mesh once, and all we need
+            #   to do is either just reset it, or conserve the volume at this
+            #   new time point
             else:
                 self.reset_mesh()
-                if conserve_volume:
-                    self.conserve_volume(time)
+                if e>0:
+                    self.conserve_volume(time,max_iter=max_iter_volume)
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)
             #-- compute polar radius and logg!

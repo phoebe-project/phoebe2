@@ -8,6 +8,8 @@ from scipy.signal import fftconvolve
 from scipy.integrate import quad
 from phoebe.units import constants
 from phoebe.units import conversions
+from phoebe.utils import pergrams
+
 
 logger = logging.getLogger('ATMO.TOOLS')
 
@@ -195,18 +197,20 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
         flux_ = np.interp(wave_,wave_spec,flux_spec)
         dwave = wave_[1]-wave_[0]
         n = int(2*4*fwhm/dwave)
-        wave_k = np.arange(n)*dwave
-        wave_k-= wave_k[-1]/2.
-        kernel = np.exp(- (wave_k)**2/(2*fwhm**2))
-        kernel /= sum(kernel)
-        flux_conv = fftconvolve(1-flux_,kernel,mode='same')
-        #-- this little tweak is necessary to keep the profiles at the right
-        #   location
-        if n%2==1:
-            flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+        if n==0:
+            logger.error("Resolution too large, cannot broaden with instrumental profile")
         else:
-            print("warning test offset of profile")
-            flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
+            wave_k = np.arange(n)*dwave
+            wave_k-= wave_k[-1]/2.
+            kernel = np.exp(- (wave_k)**2/(2*fwhm**2))
+            kernel /= sum(kernel)
+            flux_conv = fftconvolve(1-flux_,kernel,mode='same')
+            #-- this little tweak is necessary to keep the profiles at the right
+            #   location
+            if n%2==1:
+                flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+            else:
+                flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
     #-- macroturbulent profile
     if vmac>0:
         vmac = vmac/(constants.cc*1e-3)*(wave_spec[0]+wave_spec[-1])/2.0
@@ -215,16 +219,18 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
         flux_ = np.interp(wave_,wave_spec,flux_spec)
         dwave = wave_[1]-wave_[0]
         n = int(6*vmac/dwave/5)
-        wave_k = np.arange(n)*dwave
-        wave_k-= wave_k[-1]/2.
-        kernel = vmacro_kernel(wave_k,1.,1.,vmac,vmac)
-        kernel /= sum(kernel)
-        flux_conv = fftconvolve(1-flux_,kernel,mode='same')
-        if n%2==1:
-            flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+        if n==0:
+            logger.error("Resolution too large, cannot broaden with instrumental profile")
         else:
-            print("warning test offset of profile")
-            flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
+            wave_k = np.arange(n)*dwave
+            wave_k-= wave_k[-1]/2.
+            kernel = vmacro_kernel(wave_k,1.,1.,vmac,vmac)
+            kernel /= sum(kernel)
+            flux_conv = fftconvolve(1-flux_,kernel,mode='same')
+            if n%2==1:
+                flux_spec = np.interp(wave_spec,wave_,1-flux_conv)
+            else:
+                flux_spec = np.interp(wave_spec+dwave/2,wave_,1-flux_conv)
     if vrot>0:    
         #-- convert wavelength array into velocity space, this is easier
         #   we also need to make it equidistant!
@@ -251,3 +257,147 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
         
     
     return wave_spec,flux_spec
+
+
+
+
+def vsini(wave,flux,epsilon=0.6,clam=None,window=None,**kwargs):
+    """
+    Deterimine vsini of an observed spectrum via the Fourier transform method.
+    
+    According to Simon-Diaz (2006) and Carroll (1933):
+    
+    vsini = 0.660 * c/ (lambda * f1)
+    
+    But more general (see Reiners 2001, Dravins 1990)
+    
+    vsini = q1 * c/ (lambda*f1)
+    
+    where f1 is the first minimum of the Fourier transform.
+    
+    The error is estimated as the Rayleigh limit of the Fourier Transform
+    
+    Example usage and tests: Generate some data. We need a central wavelength (A),
+    the speed of light in angstrom/s, limb darkening coefficients and test
+    vsinis:
+    
+    >>> clam = 4480.
+    >>> c = conversions.convert('m/s','A/s',constants.cc)
+    >>> epsilons = np.linspace(0.,1.0,10)
+    >>> vsinis = np.linspace(50,300,10)
+    
+    We analytically compute the shape of the Fourier transform in the following
+    domain (and need the C{scipy.special.j1} for this)
+    
+    >>> x = np.linspace(0,30,1000)[1:]
+    >>> from scipy.special import j1
+    
+    Keep track of the calculated and predicted q1 values:
+    
+    >>> q1s = np.zeros((len(epsilons),len(vsinis)))
+    >>> q1s_pred = np.zeros((len(epsilons),len(vsinis)))
+    
+    Start a figure and set the color cycle
+    
+    >>> p= pl.figure()
+    >>> p=pl.subplot(131)
+    >>> color_cycle = [pl.cm.spectral(j) for j in np.linspace(0, 1.0, len(epsilons))]
+    >>> p = pl.gca().set_color_cycle(color_cycle)
+    >>> p=pl.subplot(133);p=pl.title('Broadening kernel')
+    >>> p = pl.gca().set_color_cycle(color_cycle)
+    
+    Now run over all epsilons and vsinis and determine the q1 constant:
+    
+    >>> for j,epsilon in enumerate(epsilons):
+    ...    for i,vsini in enumerate(vsinis):
+    ...       vsini = conversions.convert('km/s','A/s',vsini)
+    ...       delta = clam*vsini/c
+    ...       lambdas = np.linspace(-5.,+5.,20000)
+    ...       #-- analytical rotational broadening kernel
+    ...       y = 1-(lambdas/delta)**2
+    ...       G = (2*(1-epsilon)*np.sqrt(y)+pi*epsilon/2.*y)/(pi*delta*(1-epsilon/3))
+    ...       lambdas = lambdas[-np.isnan(G)]
+    ...       G = G[-np.isnan(G)]
+    ...       G /= max(G)
+    ...       #-- analytical FT of rotational broadening kernel
+    ...       g = 2. / (x*(1-epsilon/3.)) * ( (1-epsilon)*j1(x) +  epsilon* (sin(x)/x**2 - cos(x)/x))
+    ...       #-- numerical FT of rotational broadening kernel
+    ...       sigma,g_ = pergrams.deeming(lambdas-lambdas[0],G,fn=2e0,df=1e-3,norm='power')
+    ...       myx = 2*pi*delta*sigma
+    ...       #-- get the minima
+    ...       rise = np.diff(g_[1:])>=0
+    ...       fall = np.diff(g_[:-1])<=0
+    ...       minima = sigma[1:-1][rise & fall]
+    ...       minvals = g_[1:-1][rise & fall]
+    ...       q1s[j,i] =  vsini / (c/clam/minima[0])
+    ...       q1s_pred[j,i] = 0.610 + 0.062*epsilon + 0.027*epsilon**2 + 0.012*epsilon**3 + 0.004*epsilon**4
+    ...    p= pl.subplot(131)
+    ...    p= pl.plot(vsinis,q1s[j],'o',label='$\epsilon$=%.2f'%(epsilon));pl.gca()._get_lines.count -= 1
+    ...    p= pl.plot(vsinis,q1s_pred[j],'-')
+    ...    p= pl.subplot(133)
+    ...    p= pl.plot(lambdas,G,'-')
+    
+    And plot the results:
+    
+    >>> p= pl.subplot(131)
+    >>> p= pl.xlabel('v sini [km/s]');p = pl.ylabel('q1')
+    >>> p= pl.legend(prop=dict(size='small'))
+    
+    
+    >>> p= pl.subplot(132);p=pl.title('Fourier transform')
+    >>> p= pl.plot(x,g**2,'k-',label='Analytical FT')
+    >>> p= pl.plot(myx,g_/max(g_),'r-',label='Computed FT')
+    >>> p= pl.plot(minima*2*pi*delta,minvals/max(g_),'bo',label='Minima')
+    >>> p= pl.legend(prop=dict(size='small'))
+    >>> p= pl.gca().set_yscale('log')
+    
+    ]include figure]]images/atmospheres_tools_vsini_kernel.png]
+    
+    Extra keyword arguments are passed to L{pergrams.deeming}
+    
+    @param wave: wavelength array in Angstrom
+    @type wave: ndarray
+    @param flux: normalised flux of the profile
+    @type flux: ndarray
+    @rtype: (array,array),(array,array),array,float
+    @return: periodogram (freqs in s/km), extrema (weird units), vsini values (km/s), error (km/s)
+    """
+    cc = conversions.convert('m/s','AA/s',constants.cc)
+    #-- clip the wavelength and flux region if needed:
+    if window is not None:
+        keep = (window[0]<=wave) & (wave<=window[1])
+        wave,flux = wave[keep],flux[keep]
+    #-- what is the central wavelength? If not given, it's the middle of the
+    #   wavelength range
+    if clam is None: clam = ((wave[0]+wave[-1])/2)
+    #-- take care of the limb darkening
+    q1 = 0.610 + 0.062*epsilon + 0.027*epsilon**2 + 0.012*epsilon**3 + 0.004*epsilon**4
+    #-- do the Fourier transform and normalise
+    #flux = flux / (np.median(np.sort(flux)[-5:]))
+    v0 = kwargs.pop('v0',1.)
+    vn = kwargs.pop('vn',500.)
+    dv = kwargs.pop('dv',1.)
+    fn = 1./conversions.convert('km/s','AA/s',v0)*q1*cc/clam
+    f0 = 1./conversions.convert('km/s','AA/s',vn)*q1*cc/clam
+    df = kwargs.setdefault('df',(fn-f0) / ((vn-v0)/dv))
+    kwargs.setdefault('fn',fn)
+    kwargs.setdefault('f0',f0)
+    kwargs.setdefault('df',df)
+    freqs,ampls = pergrams.DFTpower(wave,(1-flux),**kwargs)
+    
+    ampls = ampls/max(ampls)
+    error = 1./wave.ptp()
+    #-- get all the peaks
+    rise = np.diff(ampls[1:])>=0
+    fall = np.diff(ampls[:-1])<=0
+    minima = freqs[1:-1][rise & fall]
+    minvals = ampls[1:-1][rise & fall]
+    #-- compute the vsini and convert to km/s
+    freqs = freqs*clam/q1/cc
+    freqs = conversions.convert('s/AA','s/km',freqs,wave=(clam,'AA'))
+    vsini_values = cc/clam*q1/minima
+    vsini_values = conversions.convert('AA/s','km/s',vsini_values)#,wave=(clam,'AA'))
+    #-- determine the error as the rayleigh limit
+    error = error*clam/q1/cc
+    error = conversions.convert('s/AA','s/km',error,wave=(clam,'AA'))
+    return (freqs,ampls),(minima,minvals),vsini_values,error

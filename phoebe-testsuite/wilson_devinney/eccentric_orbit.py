@@ -25,7 +25,7 @@ Initialisation
 # First, import necessary modules
 import time
 import numpy as np
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import phoebe
 from phoebe import wd
 
@@ -74,8 +74,8 @@ star2,lcdep2,rvdep2 = comp2
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
-mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
-mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
+mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='python')
+mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='python')
 
 # Body setup
 # ----------

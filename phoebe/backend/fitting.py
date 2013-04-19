@@ -150,6 +150,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         solver = run_lmfit
     elif fitparams.context=='fitting:minuit':
         solver = run_minuit
+    elif fitparams.context=='fitting:grid':
+        solver = run_grid
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
     fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
@@ -770,7 +772,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                 name = '{}_{}'.format(qual,myid).replace('-','_')
                 prior = parameter.get_prior()
                 if fitparams['bounded']:
-                    minimum,maximum = prior.distr_pars['lower'],prior.distr_pars['upper']
+                    minimum,maximum = prior.get_limits()
                 else:
                     minimum,maximum = None,None
                 pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
@@ -1091,6 +1093,8 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     grid_pars = []
     grid_logp = []
     for i,pars in enumerate(itertools.product(*ranges)):
+        msg = ', '.join(['{}={}'.format(j,k) for j,k in zip(names,pars)])
+        logger.warning('GRID: step {} - parameters: {}'.format(i,msg))
         mylogp = lnprob(pars,ids,system)
         this_system = copy.deepcopy(system)
         this_system.remove_mesh()
@@ -1377,6 +1381,53 @@ def accept_fit(system,fitparams):
                     logger.info("Set {} = {} from {} fit".format(qual,this_param.as_string(),fitparams['method']))
                 else:
                     logger.info("Did not recognise fitting method {}".format(fitmethod))
+
+
+
+def longitudinal_field(times,Bl,rotperiod=1.,
+                  Bpolar=100.,ld_coeff=0.3,beta=90.,incl=90.,phi0=0.,
+                  fix=('rotperiod','ld_coeff')):
+    """
+    Trial function to derive parameters from Stokes V profiels.
+    
+    See e.g. [Preston1967]_ or [Donati2001]_.
+    """
+    
+    def residual(pars,times,Bl):
+        rotperiod = pars['rotperiod'].value
+        Bp = pars['Bpolar'].value
+        u = pars['ld_coeff'].value
+        beta = pars['beta'].value/180.*np.pi
+        incl = pars['incl'].value/180.*np.pi
+        phi0 = pars['phi0'].value
+        phases = (times%rotperiod)/rotperiod
+    
+        model = Bp*(15.+u)/(20.*(3.-u)) * (np.cos(beta)*np.cos(incl) + np.sin(beta)*np.sin(incl)*np.cos(2*np.pi*(phases-phi0)))
+        
+        return (Bl-model)
+    
+    params = lmfit.Parameters()
+    params.add('rotperiod',value=rotperiod,vary=('rotperiod' not in fix))
+    params.add('Bpolar',value=Bpolar,vary=('Bpolar' not in fix))
+    params.add('ld_coeff',value=ld_coeff,vary=('ld_coeff' not in fix),min=0,max=1)
+    params.add('beta',value=beta,vary=('beta' not in fix),min=-180,max=180)
+    params.add('incl',value=incl,vary=('incl' not in fix),min=-180,max=180)
+    params.add('phi0',value=phi0,vary=('phi0' not in fix),min=0,max=1)
+    
+    
+    out = lmfit.minimize(residual,params,args=(times,Bl))
+    lmfit.report_errors(params)
+    for par in params:
+        params[par].min = None
+        params[par].max = None
+    out = lmfit.minimize(residual,params,args=(times,Bl))
+    
+    lmfit.report_errors(params)
+    
+    return params
+    
+    
+    
 
 
 

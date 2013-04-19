@@ -1391,6 +1391,11 @@ def walk_hierarchical(o,orbits=None,components=None):
 
 
 def get_binary_orbit(time,orbit,component):
+    """
+    Get the binary orbit.
+    
+    Careful, everything is in Phoebe units (Rsol, Rsol/d)
+    """
     #-- get some information
     P = orbit.get_value('period','d')
     e = orbit.get_value('ecc')

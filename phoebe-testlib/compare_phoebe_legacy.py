@@ -168,9 +168,9 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
         phoebe.observe(system,time,lc=True,mpi=mpi,subdiv_num=0,refl=False,heating=True)
         #-- retrieve the results: for each component and for the whole system
         lcref = system[0].params['pbdep']['lcdep'].values()[0]['ref']
-        lc = system.get_synthetic(type='lcsyn',ref=lcref)
-        lc1 = system[0].get_synthetic(type='lcsyn',ref=lcref)
-        lc2 = system[1].get_synthetic(type='lcsyn',ref=lcref)
+        lc = system.get_synthetic(category='lc',ref=lcref)
+        lc1 = system[0].get_synthetic(category='lc',ref=lcref)
+        lc2 = system[1].get_synthetic(category='lc',ref=lcref)
         
         lc.save(phoebe_lc_file)
         lc1.save(phoebe_lc1_file)

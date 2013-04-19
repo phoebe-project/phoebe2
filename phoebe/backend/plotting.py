@@ -112,7 +112,10 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     obs,ref = system.get_parset(category='sp',type='obs',ref=ref)
     
     loaded_obs = obs.load(force=False)
-    loaded_syn = syn.load(force=False)
+    try:
+        loaded_syn = syn.load(force=False)
+    except IOError:
+        loaded_syn = None
     
     #-- correct synthetic flux for corrections of third light and passband
     #   luminosity
@@ -124,8 +127,9 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     
     #-- normalise the spectrum and take third light and passband luminosity
     #   contributions into account
-    syn_flux = np.array(syn['flux'][index])/np.array(syn['continuum'][index])
-    syn_flux = syn_flux*obs['pblum'] + obs['l3']
+    if loaded_syn is not None:
+        syn_flux = np.array(syn['flux'][index])/np.array(syn['continuum'][index])
+        syn_flux = syn_flux*obs['pblum'] + obs['l3']
     
     #-- plot residuals or data + model
     if residual:
@@ -133,7 +137,8 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
         plt.ylabel('$\Delta$ normalised flux')
     else:
         plt.errorbar(obs['wavelength'],obs_flux,yerr=obs_sigm,**kwargs_obs)
-        plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
+        if loaded_syn is not None:
+            plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
         plt.ylabel('Normalised flux')
     
     plt.xlabel("Wavelength [$\AA$]")
@@ -261,7 +266,10 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     #-- normalise the spectrum and take third light and passband luminosity
     #   contributions into account
     syn_flux = np.array(syn[y][index])/np.array(syn['continuum'][index])
-    syn_flux = syn_flux*obs['pblum'] + obs['l3']
+    if stokes=='I':
+        syn_flux = syn_flux*obs['pblum'] + obs['l3']
+    else:
+        syn_flux = syn_flux*obs['pblum']
     
     #-- plot residuals or data + model
     if residual:

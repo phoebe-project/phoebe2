@@ -202,8 +202,18 @@ def ld_claret(mu,coeffs):
     return Imu
 
 def ld_linear(mu,coeffs):
-    """
+    r"""
     Linear or linear cosine law
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - \epsilon + \epsilon\mu
+        
+    .. image:: images/atmospheres_limbdark_linearld.png 
+       :width: 266px
+       :height: 266px
+       :align: center                                 
+    
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
