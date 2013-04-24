@@ -116,6 +116,7 @@ class DataSet(parameters.ParameterSet):
                 if not col in columns and col in self:
                     thrash = self.pop(col)
             self['columns'] = columns
+        
     
     def load(self,force=True):
         """

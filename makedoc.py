@@ -4,6 +4,7 @@ Automatically generate full source documentation and tutorial web pages.
 Optionally, also copy the generated pages to the dedicated website.
 """
 import os
+import re
 import shutil
 import glob
 import sys
@@ -12,6 +13,7 @@ import time
 import datetime
 from phoebe.parameters import definitions
 from phoebe.parameters import parameters
+
 
 def python_to_sphinx(pythonfile,latex=False,type='testsuite.'):
     """
@@ -135,8 +137,122 @@ ParameterSets
 
 
 
+#{ For bibliography
+
+def collect_refs_from_rst():
+    re_ref = re.compile('\[(.*?)\]_')
+    all_refs = []
+    for root,dirs,files in os.walk('phoebe'):
+        files = [os.path.join(root,ff) for ff in files if os.path.splitext(ff)[1]=='.py']
+        if not files: continue
+        for rstfile in files:
+            with open(rstfile,'r') as ff:
+                for line in ff.readlines():
+                    all_refs += re.findall(re_ref,line)
+    return sorted(set(all_refs))
+
+def make_html_friendly(text):
+    remove = ['{','}']
+    insert_space = ['~']
+    for char in remove:
+        text = text.replace(char,'')
+    if not 'http' in text:
+        for char in insert_space:
+            text = text.replace(char,' ')
+    return text
+    
+
+
+
+def write_bib(refs):
+    
+    names = dict()
+    names[r'{\mnras}'] = 'MNRAS'
+    names[r'{\aap}'] = 'A&A'
+    names[r'{\apjl}'] = 'ApJ Letters'
+    names[r'{\apj}'] = 'ApJ'
+    names[r'{Communications in Asteroseismology}'] = 'Communications in Asteroseismology'
+    names[r'{Astronomische Nachrichten}'] = 'Astronomische Nachrichten'
+    names[r'{\nat}'] = 'Nature'
+    names[r'{\apss}'] = 'APSS'
+    names[r'{ArXiv e-prints}'] = 'ArXiv'
+    names[r'{\pasp}'] = 'PASP'
+    names[r'{\zap}'] = 'Zeitschrift fur Astrophysik'
+
+
+    
+    __refs = [ref.lower() for ref in refs]
+    
+    with open('/home/pieterd/articles/templates/complete.bib','r') as bib:
+        whole_bib = bib.readlines()
+        
+    with open('phoebe-doc/bibliography.rst','w') as ff:
+        
+        ff.write(".. _bibliography:\n\n")
+        ff.write("Bibliography\n")
+        ff.write("============\n\n")
+        
+        linenr = 0
+        
+        while linenr<len(whole_bib):
+            line = whole_bib[linenr]
+            if not line:
+                linenr += 1
+                continue
+            if line[0]=='@':
+                thisref = line.split('{')[1].split(',')[0].strip().lower()
+                if thisref in __refs:
+                    info = dict(refname=refs[__refs.index(thisref)],
+                                author='NA',year='NA',journal='NA',
+                                title='NA',adsurl='NA')
+                    __refs.remove(thisref)
+                    refs.remove(info['refname'])
+                    linenr += 1
+                    if linenr>=len(whole_bib): break
+                    while whole_bib[linenr][0]!='}' and linenr<len(whole_bib):
+                        thisline = whole_bib[linenr].strip()
+                        if not '=' in thisline:
+                            linenr += 1
+                            continue
+                        key,value = thisline.split('=')
+                        key = key.strip()
+                        value = value.strip().rstrip(',')
+                        if key=='author':
+                            info['author'] = make_html_friendly(value)
+                        elif key=='year':
+                            info['year'] = value
+                        elif key=='journal':
+                            info['journal'] = names[value]
+                        elif key=='title':
+                            info['title'] = make_html_friendly(value)
+                        elif key=='adsurl':
+                            info['adsurl'] = make_html_friendly(value)
+                            
+                        linenr += 1
+                    ff.write('.. [{refname}] {author}, {year}, {journal}, {title} (`ADS <{adsurl}>`_)\n'.format(**info))
+            linenr += 1
+    return __refs
+
+def make_bib():
+    refs = collect_refs_from_rst()
+    nrefs = write_bib(refs)
+    print("Bibliography")
+    print("============") 
+    print("Did not find refs")
+    print(nrefs)
+
+#}
+
+
+
+
+
+
+
+
 if __name__=="__main__":
     
+    make_bib()
     generate_parameterlist_sphinx()
     giffiles = sorted(glob.glob('phoebe-doc/images_tut/*.gif'))
     for giffile in giffiles:

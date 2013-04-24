@@ -53,7 +53,7 @@ def temperature_zeipel(system):
     r"""
     Calculate local temperature according to von Zeipel's law.
     
-    See e.g. [Zeipel1924]_ and [Lucy1967]_.
+    See e.g. [VonZeipel1924]_ and [Lucy1967]_.
     
     beta is gravity darkening parameter.
     
@@ -685,8 +685,21 @@ def critical_velocity(M,R_pole):
     return veq
 
 def fast_rotation_radius(colat,r_pole,omega):
-    """
+    r"""
     Compute the radius of a fast rotating star.
+    
+    E.g. [Cranmer1995]_:
+    
+    .. math::
+    
+        R_*(\omega,\theta) = \frac{3R_p}{\omega\sin\theta}\cos\left[\frac{\pi+\arccos(\omega\sin\theta)}{3}\right]
+    
+    @param colat: colatitude (radians)
+    @type colat: float
+    @param r_pole: polar radius (whatever units)
+    @type r_pole: float
+    @param omega: angular rotation frequency as a fraction of the critical rotation frequency
+    @type omega: float
     """
     Rstar = 3*r_pole/(omega*sin(colat)) * cos((np.pi + np.arccos(omega*sin(colat)))/3.)
     #-- solve singularities

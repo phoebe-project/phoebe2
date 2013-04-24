@@ -3486,14 +3486,14 @@ class Star(PhysicalBody):
         #-- dipolar:
         parset = self.params['magnetic_field']
         beta = parset.get_value('beta','rad')
-        trans = parset.get_value('trans','rad')
+        phi0 = parset.get_value('phi0','rad')
         Bpolar = parset.get_value('Bpolar')
         R = self.params.values()[0].get_value('radius')
         r_ = self.mesh['_o_center']/R
         
         #m_ = np.array([np.sin(beta),0.,np.cos(beta)])
-        m_ = np.array([np.sin(beta)*np.cos(trans)-0*np.sin(trans),
-                       np.sin(beta)*np.sin(trans)+0.*np.cos(trans),
+        m_ = np.array([np.sin(beta)*np.cos(phi0)-0*np.sin(phi0),
+                       np.sin(beta)*np.sin(phi0)+0.*np.cos(phi0),
                        np.cos(beta)])
         dotprod = np.dot(m_,r_.T).reshape(-1,1)
         B =     (3*dotprod    *r_ - m_)
@@ -3553,6 +3553,8 @@ class Star(PhysicalBody):
             ps,iref = self.get_parset(iref)
             self.mesh['_o_velo_'+iref+'_'] = velo_rot
             self.mesh['velo_'+iref+'_'] = velo_rot#_
+        #-- and we need the systemic velocity too...
+        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] + self.params['star'].request_value('vgamma','Rsol/d')
         v = np.sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
         
     

@@ -2025,6 +2025,16 @@ class ParameterSet(object):
         """
         return self.get_parameter(qualifier).has_unit()
     
+    def is_constrained(self,qualifier):
+        """
+        Check if a parameter is constrained.
+        """
+        qualifier = self.alias2qualifier(qualifier)
+        if qualifier in self.constraints:
+            return True
+        else:
+            return None
+    
     def request_value(self,qualifier,*args):
         """
         Request the value of a qualifier, regardless of whether it is a

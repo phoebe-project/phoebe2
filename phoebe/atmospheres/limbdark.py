@@ -60,7 +60,7 @@ necessary, or otherwise be fixed. Therefore, creating these kind of grids
 can be quite complicated. Hopefully, the following examples help in clarifying
 the methods.
 
-Suppose you have a list of atmosphere files C{atm_files}, and you want to
+Suppose you have a list of atmosphere tables C{atm_files}, and you want to
 create a grid that can be interpolated in effective temperature, surface
 gravity and abundance,
 
@@ -191,6 +191,11 @@ def ld_claret(mu,coeffs):
     
         \frac{I(\mu)}{I(0)} = 1 - a_0(1-\mu^{0.5})-a_1(1-\mu)-a_2(1-\mu^{1.5})-a_3(1-\mu^2)
     
+    .. image:: images/atmospheres_limbdark_law_claret.png 
+       :height: 266px
+       :align: center
+    
+    
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
     @param coeffs: limb darkening coefficients
@@ -209,10 +214,12 @@ def ld_linear(mu,coeffs):
     
         \frac{I(\mu)}{I(0)}  = 1 - \epsilon + \epsilon\mu
         
-    .. image:: images/atmospheres_limbdark_linearld.png 
-       :width: 266px
-       :height: 266px
-       :align: center                                 
+    +------------------------------------------------------+-------------------------------------------------------+
+    | .. image:: images/atmospheres_limbdark_linearld.png  | .. image:: images/atmospheres_limbdark_law_linear.png |
+    |    :height: 266px                                    |    :height: 266px                                     |
+    |    :align: center                                    |    :align: center                                     |
+    +------------------------------------------------------+-------------------------------------------------------+
+    
     
     
     @param mu: limb angles mu=cos(theta)
@@ -225,8 +232,17 @@ def ld_linear(mu,coeffs):
     return 1-coeffs[0]*(1-mu)
     
 def ld_nonlinear(mu,coeffs):
-    """
+    r"""
     Nonlinear or logarithmic law
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - c_1 (1-\mu) - c_2\mu\ln\mu
+    
+    .. image:: images/atmospheres_limbdark_law_nonlinear.png 
+       :height: 266px
+       :align: center
+    
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -242,8 +258,17 @@ def ld_nonlinear(mu,coeffs):
     return 1-coeffs[0]*(1-mu)-coeffs[1]*mu*np.log(mu)
 
 def ld_logarithmic(mu,coeffs):
-    """
+    r"""
     Nonlinear or logarithmic law
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - c_1 (1-\mu) - c_2\mu\ln\mu
+    
+    .. image:: images/atmospheres_limbdark_law_nonlinear.png 
+       :height: 266px
+       :align: center
+    
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -255,8 +280,17 @@ def ld_logarithmic(mu,coeffs):
     return ld_nonlinear(mu,coeffs)
 
 def ld_quadratic(mu,coeffs):
-    """
+    r"""
     Quadratic law
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - c_1 (1-\mu) - c_2(1-\mu)^2
+
+    .. image:: images/atmospheres_limbdark_law_quadratic.png 
+       :height: 266px
+       :align: center
+    
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -268,8 +302,13 @@ def ld_quadratic(mu,coeffs):
     return 1-coeffs[0]*(1-mu)-coeffs[1]*(1-mu)**2.0
 
 def ld_uniform(mu,coeffs):
-    """
+    r"""
     Uniform law.
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1
+
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -281,8 +320,17 @@ def ld_uniform(mu,coeffs):
     return 1.
 
 def ld_power(mu,coeffs):
-    """
+    r"""
     Power law
+
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = \mu^\alpha
+
+    .. image:: images/atmospheres_limbdark_law_power.png 
+       :height: 266px
+       :align: center
+    
     
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
@@ -294,8 +342,12 @@ def ld_power(mu,coeffs):
     return mu**coeffs[0]
 
 def _r(mu):
-    """
+    r"""
     Convert mu to r coordinates
+    
+    .. math::
+    
+        r = \sqrt(1-\mu^2)
     
     @param mu: angle coordinates mu=cos(theta) with theta the limb angle
     @type mu: array
@@ -305,8 +357,13 @@ def _r(mu):
     return np.sqrt(1.-mu**2.)
     
 def _mu(r_):
-    """
+    r"""
     Convert r to mu coordinates
+    
+    .. math::
+    
+        \mu = \sqrt(1-r^2)
+
     
     @param r_: disk coordinates r
     @type r_: array

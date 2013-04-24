@@ -38,7 +38,7 @@ lac['shape'] = 'sphere'
 lac['atm'] = 'kurucz'
 lac['ld_coeffs'] = 'kurucz'
 lac['ld_func'] = 'claret'
-mesh = phoebe.ParameterSet(context='mesh:marching')
+mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
 mesh['delta'] = 0.08
 lac.add(phoebe.Parameter(qualifier='veq',unit='km/s',value=200.))
 lac.add_constraint('{rotperiod} = 2*np.pi*{radius}/{veq}')
@@ -51,7 +51,7 @@ freq_pars1['ampl'] = 0.01
 freq_pars1['l'] = sys.argv[1] # 4
 freq_pars1['m'] = sys.argv[2] # 4
 freq_pars1['ledoux_coeff'] = 0.1585
-freq_pars1['deltateff'] = 0.01
+freq_pars1['amplteff'] = 0.01
 freq_pars1['scheme'] = 'coriolis'
 
 # Create a ParameterSet with parameters for the light curve
@@ -172,8 +172,8 @@ Comparison between Gaussian and *real* templates:
 # Analysis of results
 # -------------------
 # Collect the times of observations and calculated flux.
-times = star.get_synthetic(type='lcsyn',ref=0)['time']
-flux = np.array(star.get_synthetic(type='lcsyn',ref=0)['flux'])
+times = star.get_synthetic(category='lc',ref=0)['time']
+flux = np.array(star.get_synthetic(category='lc',ref=0)['flux'])
 
 # Plot light curve
 plt.figure()
@@ -208,7 +208,7 @@ plt.close()
 
 """
 
-spectra = star.get_synthetic(type='spsyn',ref=0)
+spectra = star.get_synthetic(category='sp',ref=0)
 clambda = spdep1.get_value('clambda','AA')
 
 # Plot spectra of stars separately.
