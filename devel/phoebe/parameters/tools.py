@@ -1,5 +1,5 @@
 """
-Tools to handle parameters and ParameterSets.
+Tools to handle parameters and ParameterSets, and add nonstandard derivative parameters.
 
 **Constraints for the star/component context**
 
@@ -23,6 +23,14 @@ Tools to handle parameters and ParameterSets.
     from_perpass_to_supconj
     from_supconj_to_perpass
 
+**Constraints for oscillations**
+
+.. autosummary::
+
+    add_amplvelo
+
+**Helper functions**
+
 .. autosummary::
 
     add_unbounded_from_bounded
@@ -37,7 +45,7 @@ logger = logging.getLogger("PARS.TOOLS")
 
 #{ Common constraints for the star class
 def add_angdiam(star,angdiam=None,derive='distance',unit='mas',**kwargs):
-    """
+    r"""
     Add angular diameter to a Star parameterSet.
     
     The photometry is scaled such that
@@ -151,11 +159,11 @@ def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
         star.add_constraint('{surfgrav} = constants.GG*{mass}/{radius}**2')
         logger.info("star '{}': 'surfgrav' constrained by 'mass' and 'radius'".format(star['label']))
     elif derive=='mass':
-        star.pop_constraint('radius',None)
+        star.pop_constraint('mass',None)
         star.add_constraint('{mass} = {surfgrav}/constants.GG*{radius}**2')
         logger.info("star '{}': '{}' constrained by 'surfgrav' and 'radius'".format(star['label'],derive))
     elif derive=='radius':
-        star.pop_constraint('mass',None)
+        star.pop_constraint('radius',None)
         star.add_constraint('{radius} = np.sqrt((constants.GG*{mass})/{surfgrav})')
         logger.info("star '{}': '{}' constrained by 'surfgrav' and 'mass'".format(star['label'],derive))
     else:
@@ -223,8 +231,8 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
         logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
     
     
-def add_rotfreqcrit(star,rotfreqcrit=None,**kwargs):
-    """
+def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
+    r"""
     Add the critical rotation frequency to a Star.
     
     The rotation period will then be constrained by the critical rotation
@@ -233,6 +241,10 @@ def add_rotfreqcrit(star,rotfreqcrit=None,**kwargs):
     .. math::
     
         \mathrm{rotperiod} = 2\pi \sqrt{27 R^3 / (8GM)} / \mathrm{rotfreqcrit}
+    
+    .. math::
+    
+        M = \frac{27}{2}\frac{\pi^2 R^3}{G P^2 f^2}
     
     Extra C{kwargs} will be passed to the creation of the parameter if it does
     not exist yet.
@@ -257,16 +269,60 @@ def add_rotfreqcrit(star,rotfreqcrit=None,**kwargs):
         radius = star.get_value('radius','m')
         mass = star.get_value('mass','kg')
         rotperiod = star.get_value('rotperiod','s')
-        rotfreqcrit = 2*np.pi*np.sqrt(27*radius**3/(8*constants.GG*mass))/rotperiod
+        rotfreqcrit = 2*np.pi/rotperiod*np.sqrt(27*radius**3/(8*constants.GG*mass))
     
     if not 'rotfreqcrit' in star:
         star.add(parameters.Parameter(qualifier='rotfreqcrit',
                                       value=rotfreqcrit,**kwargs))
     else:
         star['rotfreqcrit'] = rotfreqcrit
-    star.add_constraint('{rotperiod} = 2*np.pi*np.sqrt(27*{radius}**3/(8*constants.GG*{mass}))/{rotfreqcrit}')
-    logger.info("star '{}': 'rotperiod' constrained by 'rotfreqcrit'".format(star['label']))
     
+    #if derive=='mass' and star.is_constrained('radius'):
+    #    star.pop_constraint('mass',None)
+    #    star.add_constraint('{mass} = 27./2.*{radius}**3*np.pi**2/(constants.GG*{rotperiod}**2*{rotfreqcrit}**2)')
+    #    logger.info("star '{}': 'mass' constrained by 'rotfreqcrit' and 'rotperiod' and 'radius'".format(star['label']))
+    if derive=='mass':
+        star.pop_constraint('mass',None)
+        star.add_constraint('{mass} = 27./2.*{radius}**3*np.pi**2/(constants.GG*{rotperiod}**2*{rotfreqcrit}**2)')
+        logger.info("star '{}': 'mass' constrained by 'rotfreqcrit' and 'rotperiod' and 'radius'".format(star['label']))
+    elif derive=='radius':
+        star.pop_constraint('radius',None)
+        star.add_constraint('{radius} = 2*{surfgrav}*{rotperiod}**2*{rotfreqcrit}**2/(27.*np.pi**2)')
+        logger.info("star '{}': 'radius' constrained by 'rotfreqcrit' and 'rotperiod' and 'surfgrav'".format(star['label']))
+    elif derive=='rotperiod':
+        star.pop_constraint('rotperiod',None)
+        star.add_constraint('{rotperiod} = 2*np.pi*np.sqrt(27*{radius}**3/(8*constants.GG*{mass}))/{rotfreqcrit}')
+        logger.info("star '{}': 'rotperiod' constrained by 'rotfreqcrit'".format(star['label']))
+    else:
+        logger.info("star '{}': 'rotperiod' not necessarily consistent with 'rotfreqcrit'".format(star['label']))
+    #-- we didn't explicitly set a value here!
+    star.run_constraints()
+    
+
+def add_radius_eq(star,radius_eq=None,derive=None,unit='Rsol',**kwargs):
+    """
+    Equatorial radius for a fast, uniform rotating star.
+    """
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('description','Equatorial radius')
+    kwargs.setdefault('llim',0)
+    kwargs.setdefault('ulim',1000.)
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('frame','phoebe')
+    
+    if not 'radius_eq' in star:
+        star.add(parameters.Parameter(qualifier='radius_eq',value=radius_eq,**kwargs))
+    else:
+        star['radius_eq'] = radius_eq
+    
+    if derive=='radius':
+        rotfreqcrit = star['rotfreqcrit']
+        star.add_constraint('{radius} = {rotfreqcrit}*{radius_eq}/(3.*np.cos((np.pi+np.arccos({rotfreqcrit}))/3.))')
+    else:
+        star.add_constraint('{radius_eq} = 3*{radius}/{rotfreqcrit}*np.cos((np.pi+np.arccos({rotfreqcrit}))/3.))')
+    star.run_constraints()
+
     
 def add_teffpolar(star,teffpolar=None,**kwargs):
     """
@@ -523,6 +579,70 @@ def from_perpass_to_supconj(orbit):
     per0 = orbit.get_value('per0','rad')
     t0 = t_perpass - (phshift - 0.25 + per0/(2*np.pi))*P
     orbit['t0'] = t0
+
+#}
+
+#{ Pulsation constraints
+
+def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
+    """
+    Add velocity amplitude to a Puls parameterSet.
+    
+    The relation between the radial amplitude :math:`A(x)` and the velocity
+    amplitude :math:`A(v)` is defined via the frequency :math:`f` as
+    
+    .. math::
+    
+        A(v) = 2\pi f A(x)
+    
+    The units of the velocity amplitude are in fractional radius per second.
+    In other words, if you have it in km/s, you need to divide it by the
+    radius of the star. Else, you need to implement a global constraint (i.e.
+    a preprocessor).
+    
+    If ``derive=None``, then the velocity amplitude will be constrained by
+    the radial amplitude and frequency.
+    
+    @param puls: pulsational parameterSet
+    @type puls: ParameterSet of context ``puls``
+    @param amplvelo: velocity amplitude
+    @type amplvelo: float
+    @param derive: type of parameter to derive
+    @type derive: None or 'ampl'.
+    @param unit: unit of the velocity amplitude
+    @type unit: str
+    """
+    if kwargs and 'amplvelo' in puls:
+        raise ValueError("You cannot give extra kwargs to add_amplvelo if amplvelo already exist")
+    
+    kwargs.setdefault('description','Velocity amplitude of the pulsation')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',puls.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on amplvelo and add the parameter
+    star.pop_constraint('amplvelo',None)
+    if not 'amplvelo' in puls:
+        puls.add(parameters.Parameter(qualifier='amplvelo',
+                                value=amplvelo if amplvelo is not None else 0.,
+                                **kwargs))
+    else:
+        star['amplvelo'] = amplvelo
+        
+    #-- specify the dependent parameter
+    if amplvelo is None:
+        puls.add_constraint('{amplvelo} = 2.0*np.pi*{freq}*{ampl}')
+        logger.info("puls '{}': 'amplvelo' constrained by 'freq' and 'ampl'".format(puls['label']))
+    elif derive=='ampl':
+        star.pop_constraint('ampl',None)
+        star.add_constraint('{ampl} = {amplvelo}/(2*np.pi*{freq})')
+        logger.info("puls '{}': '{}' constrained by 'amplvelo' and 'freq'".format(puls['label'],derive))
+    else:
+        raise ValueError("Cannot derive {} from amplvelo".format(derive))
+    
+
+
 
 #}
 

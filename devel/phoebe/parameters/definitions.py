@@ -276,6 +276,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%s',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
          dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%s',unit='km/s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['spobs','plobs']),
+         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
          dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context=['spsyn','plsyn']),
@@ -342,7 +343,7 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
 
 defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,adjust=False,value=1.,unit='G',frame=["phoebe"],context='magnetic_field'),
          dict(qualifier='beta',       description='Magnetic field angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field'),
-         dict(qualifier='trans',      description='Magnetic field angle perp. to beta',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field'),
+         dict(qualifier='phi0',      description='Phase angle of magnetic field',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field'),
         ]
 
 #    Accretion disk contexts        

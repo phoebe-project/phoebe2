@@ -112,9 +112,8 @@ def image(the_system,ref='__bol',context='lcdep',
     
     +---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image03.png | .. image:: images/backend_observatory_image04.png |
-    |   :scale: 20 %                                    |   :scale: 20 %                                    |
-    |   :width: 150px                                   |   :width: 150px                                   |
-    |   :height: 150px                                  |   :height: 150px                                  |
+    |   :width: 233px                                   |   :width: 233px                                   |
+    |   :height: 233px                                  |   :height: 233px                                  |
     |   :align: center                                  |   :align: center                                  |
     +---------------------------------------------------+---------------------------------------------------+  
     
@@ -141,7 +140,7 @@ def image(the_system,ref='__bol',context='lcdep',
     
     +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image05.png | .. image:: images/backend_observatory_image06.png | .. image:: images/backend_observatory_image07.png |
-    |   :scale: 20 %                                    |   :scale: 20 %                                    |   :scale: 20 %                                    |
+    |   :width: 233px                                   |   :width: 233px                                   |   :width: 233px                                   |
     |   :align: center                                  |   :align: center                                  |   :align: center                                  |
     +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+    
     
@@ -166,7 +165,7 @@ def image(the_system,ref='__bol',context='lcdep',
     
     +---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image08.png | .. image:: images/backend_observatory_image09.png |
-    |   :scale: 30 %                                    |   :scale: 30 %                                    |
+    |   :width: 233px                                   |   :width: 233px                                   |
     |   :align: center                                  |   :align: center                                  |
     +---------------------------------------------------+---------------------------------------------------+
     
@@ -183,7 +182,7 @@ def image(the_system,ref='__bol',context='lcdep',
     >>> image(vega,fourier=True)
     
     .. image:: images/backend_observatory_image10.png 
-       :scale: 20 %                                   
+       :width: 233px                                   
        :align: center                                 
     
     @return: x limits, y limits, patch collection
@@ -587,7 +586,11 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     Compute the spectrum of a system.
     
     Method: weighted sum of synthesized spectra in a limited wavelength range
-    #corresponding to the local effective temperature and gravity.
+    corresponding to the local effective temperature and gravity:
+    
+    .. math::
+    
+        S(\lambda) = \sum_{i=1}^N A_i F_i S_i(\lambda,T_\mathrm{eff},\log g, v_\mathrm{rad}[, z])
     
     The spectra themselves are not normalised: in fact, they are small pieces
     of high-resolution spectral energy distributions. The local temperature
@@ -595,27 +598,50 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     the continuum. Limb-darkening is taken into account by taking limb
     darkening coefficients in a photometric passband in the vicinity of the
     wavelength range (in fact the user is responsible for this). Limb darkening
-    coefficients are thus not wavelength dependent in the current implementation.
+    coefficients are thus not wavelength dependent within one spectrum or
+    spectral line profile, in the current implementation.
     
     Returns: wavelength ranges, total (unnormalized) spectrum, total continuum.
     
-    You can get the normalised spectrum by dividing the spectrum with the
+    You can get the normalised spectrum by dividing the flux with the
     continuum.
     
     @param wavelengths: predefined array or list with 3 elements (central wavelength (angstrom), range in km/s and number of wavelength points.
     @param sigma: intrinsic width of the Gaussian profile in km/s
     @type sigma: float
     """
+    #-- we need some information on how to compute the spectrum that is not
+    #   available in the pbdep parameterSet: we need to know which wavelength
+    #   range, and how to sample that wavelength range. We seek this
+    #   information first in the observations parameterSet, if there is one.
+    #   if there are none, we look for it in the synthetic parameterSet.
+    #   The same holds for information on a posteriori inclusion of
+    #   macroturbulence, and instrumental broadening
     #-- is there data available? then we can steal the wavelength array
-    #   from there
-    iobs,ref_ = the_system.get_parset(ref=ref,context='spobs')
-    if ref_ is not None:
+    #   from there. Otherwise we turn to the synthetic parameterSet.
+    clip_after = None
+    iobs,refo_ = the_system.get_parset(ref=ref,context='spobs')
+    isyn,refs_ = the_system.get_parset(ref=ref,context='spsyn')
+    wc = None
+    if refo_ is not None:
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
             iobs.load()
         wavelengths = iobs['wavelength']
         R = iobs['R']
+        if 'vgamma' in iobs:
+            vgamma = iobs.get_value('vgamma','km/s')
+            wavelengths = tools.doppler_shift(wavelengths,vgamma)
         if 'vmacro' in iobs:
             vmacro = iobs['vmacro']
+        if 'clambda' in iobs:
+            wc = iobs.get_value('clambda','AA')
+        #-- make wavelength range a little bit broader and clip afterwards
+        #   we do this to take into account neighbouring lines
+        clip_after = wavelengths[0],wavelengths[-1]
+        dw = wavelengths[1]-wavelengths[0]
+        wavelengths = np.hstack([np.arange(wavelengths[0]-10.,wavelengths[0],dw),
+                                 wavelengths,
+                                 np.arange(wavelengths[-1],wavelengths[-1]+10,dw)+dw])
     else:
         R = None
         vmacro = 0.
@@ -630,7 +656,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     #   also neighbouring lines are taken into account. We clip the spectrum
     #   afterwards if needed. If you give wavelengths yourself, you need to
     #   take this into account yourself.
-    clip_after = None
+
     logger.info('Computing spectrum of {}'.format(ref))
     if wavelengths is None:
         wc = idep.get_value('clambda','AA')
@@ -650,7 +676,7 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         wavelengths = np.linspace(w0,wn,wavelengths[2])
     #-- else, we assume wavelengths is already an array, so we don't need to do
     #   anything, except for setting the central wavelength "wc".
-    else:
+    elif wc is None:
         wc = (wavelengths[0]+wavelengths[-1])/2.    
     #-- if we're not seeing the star, we can easily compute the spectrum: it's
     #   zero!

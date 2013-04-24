@@ -14,6 +14,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from phoebe.atmospheres import passbands
+from phoebe.atmospheres import tools
 
 logger = logging.getLogger("BE.PLOT")
 
@@ -119,11 +120,16 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     
     #-- correct synthetic flux for corrections of third light and passband
     #   luminosity
+    obs_wave = obs['wavelength'].ravel()
     obs_flux = obs['flux'][index]
     if 'sigma' in obs:
         obs_sigm = obs['sigma'][index]
     else:
         obs_sigm = np.zeros(len(obs_flux))
+    
+    #-- shift the observed wavelengths if necessary
+    if 'vgamma' in obs and obs['vgamma']!=0:
+        obs_wave = tools.doppler_shift(obs_wave,obs.get_value('vgamma','km/s'))
     
     #-- normalise the spectrum and take third light and passband luminosity
     #   contributions into account
@@ -133,10 +139,10 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     
     #-- plot residuals or data + model
     if residual:
-        plt.errorbar(obs['wavelength'],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
+        plt.errorbar(obs_wave,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
         plt.ylabel('$\Delta$ normalised flux')
     else:
-        plt.errorbar(obs['wavelength'],obs_flux,yerr=obs_sigm,**kwargs_obs)
+        plt.errorbar(obs_wave,obs_flux,yerr=obs_sigm,**kwargs_obs)
         if loaded_syn is not None:
             plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
         plt.ylabel('Normalised flux')

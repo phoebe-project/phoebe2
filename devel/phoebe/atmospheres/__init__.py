@@ -1,6 +1,21 @@
 """
 Functionality  regarding stellar atmospheres or local intensities
 
+**Modules**
+
+.. autosummary::
+
+    phoebe.atmospheres.limbdark
+    phoebe.atmospheres.passbands
+    phoebe.atmospheres.pulsations
+    phoebe.atmospheres.reddening
+    phoebe.atmospheres.roche
+    phoebe.atmospheres.sed
+    phoebe.atmospheres.spectra
+    phoebe.atmospheres.spots
+    phoebe.atmospheres.tools
+
+**Quick reference**
 
 Limb darkening functions:
 

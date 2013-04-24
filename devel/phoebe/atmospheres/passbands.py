@@ -75,107 +75,59 @@ Short list of available systems:
 
 Plots of all passbands of all systems:
 
-]include figure]]images/atmospheres_passbands_2MASS.png]
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_2MASS.png           | .. image:: images/atmospheres_passbands_ACSHRC.png          | .. image:: images/atmospheres_passbands_ACSSBC.png          |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_ACSWFC.png          | .. image:: images/atmospheres_passbands_AKARI.png           | .. image:: images/atmospheres_passbands_ANS.png             |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_ARGUE.png           | .. image:: images/atmospheres_passbands_BESSEL.png          | .. image:: images/atmospheres_passbands_COROT.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_COUSINS.png         | .. image:: images/atmospheres_passbands_DENIS.png           | .. image:: images/atmospheres_passbands_DIRBE.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_ESOIR.png           | .. image:: images/atmospheres_passbands_GAIA.png            | .. image:: images/atmospheres_passbands_GALEX.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_GENEVA.png          | .. image:: images/atmospheres_passbands_HIPPARCOS.png       | .. image:: images/atmospheres_passbands_IPHAS.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_IRAC.png            | .. image:: images/atmospheres_passbands_IRAS.png            | .. image:: images/atmospheres_passbands_ISOCAM.png          |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_JOHNSON.png         | .. image:: images/atmospheres_passbands_KEPLER.png          | .. image:: images/atmospheres_passbands_KRON.png            |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_LANDOLT.png         | .. image:: images/atmospheres_passbands_MIPS.png            | .. image:: images/atmospheres_passbands_MOST.png            |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_MSX.png             | .. image:: images/atmospheres_passbands_NARROW.png          | .. image:: images/atmospheres_passbands_NICMOS.png          |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_PACS.png            | .. image:: images/atmospheres_passbands_SAAO.png            | .. image:: images/atmospheres_passbands_SCUBA.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_SDSS.png            | .. image:: images/atmospheres_passbands_SLOAN.png           | .. image:: images/atmospheres_passbands_SPIRE.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_STISCCD.png         | .. image:: images/atmospheres_passbands_STISFUV.png         | .. image:: images/atmospheres_passbands_STISNUV.png         |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_STROMGREN.png       | .. image:: images/atmospheres_passbands_TD1.png             | .. image:: images/atmospheres_passbands_TYCHO.png           |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_TYCHO2.png          | .. image:: images/atmospheres_passbands_ULTRACAM.png        | .. image:: images/atmospheres_passbands_USNOB1.png          |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_VILNIUS.png         | .. image:: images/atmospheres_passbands_VISIR.png           | .. image:: images/atmospheres_passbands_WALRAVEN.png        |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+| .. image:: images/atmospheres_passbands_WFPC2.png           | .. image:: images/atmospheres_passbands_WISE.png            | .. image:: images/atmospheres_passbands_WOOD.png            |
+|    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 
-]include figure]]images/atmospheres_passbands_ACSHRC.png]
-
-]include figure]]images/atmospheres_passbands_ACSSBC.png]
-
-]include figure]]images/atmospheres_passbands_ACSWFC.png]
-
-]include figure]]images/atmospheres_passbands_AKARI.png]
-
-]include figure]]images/atmospheres_passbands_ANS.png]
-
-]include figure]]images/atmospheres_passbands_ARGUE.png]
-
-]include figure]]images/atmospheres_passbands_BESSEL.png]
-
-]include figure]]images/atmospheres_passbands_COROT.png]
-
-]include figure]]images/atmospheres_passbands_COUSINS.png]
-
-]include figure]]images/atmospheres_passbands_DENIS.png]
-
-]include figure]]images/atmospheres_passbands_DIRBE.png]
-
-]include figure]]images/atmospheres_passbands_ESOIR.png]
-
-]include figure]]images/atmospheres_passbands_GAIA.png]
-
-]include figure]]images/atmospheres_passbands_GALEX.png]
-
-]include figure]]images/atmospheres_passbands_GENEVA.png]
-
-]include figure]]images/atmospheres_passbands_HIPPARCOS.png]
-
-]include figure]]images/atmospheres_passbands_IPHAS.png]
-
-]include figure]]images/atmospheres_passbands_IRAC.png]
-
-]include figure]]images/atmospheres_passbands_IRAS.png]
-
-]include figure]]images/atmospheres_passbands_ISOCAM.png]
-
-]include figure]]images/atmospheres_passbands_JOHNSON.png]
-
-]include figure]]images/atmospheres_passbands_KEPLER.png]
-
-]include figure]]images/atmospheres_passbands_KRON.png]
-
-]include figure]]images/atmospheres_passbands_LANDOLT.png]
-
-]include figure]]images/atmospheres_passbands_MIPS.png]
-
-]include figure]]images/atmospheres_passbands_MOST.png]
-
-]include figure]]images/atmospheres_passbands_MSX.png]
-
-]include figure]]images/atmospheres_passbands_NARROW.png]
-
-]include figure]]images/atmospheres_passbands_NICMOS.png]
-
-]include figure]]images/atmospheres_passbands_PACS.png]
-
-]include figure]]images/atmospheres_passbands_SAAO.png]
-
-]include figure]]images/atmospheres_passbands_SCUBA.png]
-
-]include figure]]images/atmospheres_passbands_SDSS.png]
-
-]include figure]]images/atmospheres_passbands_SLOAN.png]
-
-]include figure]]images/atmospheres_passbands_SPIRE.png]
-
-]include figure]]images/atmospheres_passbands_STISCCD.png]
-
-]include figure]]images/atmospheres_passbands_STISFUV.png]
-
-]include figure]]images/atmospheres_passbands_STISNUV.png]
-
-]include figure]]images/atmospheres_passbands_STROMGREN.png]
-
-]include figure]]images/atmospheres_passbands_TD1.png]
-
-]include figure]]images/atmospheres_passbands_TYCHO.png]
-
-]include figure]]images/atmospheres_passbands_TYCHO2.png]
-
-]include figure]]images/atmospheres_passbands_ULTRACAM.png]
-
-]include figure]]images/atmospheres_passbands_USNOB1.png]
-
-]include figure]]images/atmospheres_passbands_VILNIUS.png]
-
-]include figure]]images/atmospheres_passbands_VISIR.png]
-
-]include figure]]images/atmospheres_passbands_WALRAVEN.png]
-
-]include figure]]images/atmospheres_passbands_WFPC2.png]
-
-]include figure]]images/atmospheres_passbands_WISE.png]
-
-]include figure]]images/atmospheres_passbands_WOOD.png]
 """
 import numpy as np
 import os

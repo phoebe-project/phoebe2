@@ -188,7 +188,7 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
     @return: wavelength,flux
     @rtype: array, array
     """
-    logger.info("Rot.broad with vrot=%.3f (epsilon=%.2f)"%(vrot,epsilon))
+    logger.info("Rot.broad with vrot={:.3f}km/s (epsilon={:.2f}), sigma={:.2f}AA, vmacro={:.3f}km/s".format(vrot,epsilon,fwhm,vmac))
     #-- first a wavelength Gaussian convolution:
     if fwhm>0:
         fwhm /= 2.3548
@@ -265,11 +265,11 @@ def vsini(wave,flux,epsilon=0.6,clam=None,window=None,**kwargs):
     """
     Deterimine vsini of an observed spectrum via the Fourier transform method.
     
-    According to Simon-Diaz (2006) and Carroll (1933):
+    According to [SimonDiaz2007]_ and [Carroll1933_:
     
     vsini = 0.660 * c/ (lambda * f1)
     
-    But more general (see Reiners 2001, Dravins 1990)
+    But more general (see [Reiners2002]_, [Dravins1990]_)
     
     vsini = q1 * c/ (lambda*f1)
     
