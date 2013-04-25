@@ -322,7 +322,6 @@ class GenericBody(object):
             #-- merge given keyword arguments with derived keyword arguments
             return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         elif len(match)>1:
-            match = match[-1:]
             logger.warning("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
             return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         else:
@@ -628,7 +627,7 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     for key in ['teff']:
         comp1[key] = star1.get_value_with_unit(key)
         comp2[key] = star2.get_value_with_unit(key)
-    for key in ['atm','label','ld_func','ld_coeffs']:
+    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb']:
         comp1[key] = star1[key]
         comp2[key] = star2[key]
     orbit['c1label'] = comp1['label']

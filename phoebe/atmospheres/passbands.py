@@ -91,6 +91,8 @@ Plots of all passbands of all systems:
 | .. image:: images/atmospheres_passbands_ESOIR.png           | .. image:: images/atmospheres_passbands_GAIA.png            | .. image:: images/atmospheres_passbands_GALEX.png           |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 | .. image:: images/atmospheres_passbands_GENEVA.png          | .. image:: images/atmospheres_passbands_HIPPARCOS.png       | .. image:: images/atmospheres_passbands_IPHAS.png           |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
@@ -106,6 +108,8 @@ Plots of all passbands of all systems:
 | .. image:: images/atmospheres_passbands_MSX.png             | .. image:: images/atmospheres_passbands_NARROW.png          | .. image:: images/atmospheres_passbands_NICMOS.png          |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 | .. image:: images/atmospheres_passbands_PACS.png            | .. image:: images/atmospheres_passbands_SAAO.png            | .. image:: images/atmospheres_passbands_SCUBA.png           |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
@@ -120,6 +124,8 @@ Plots of all passbands of all systems:
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 | .. image:: images/atmospheres_passbands_TYCHO2.png          | .. image:: images/atmospheres_passbands_ULTRACAM.png        | .. image:: images/atmospheres_passbands_USNOB1.png          |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
++-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 | .. image:: images/atmospheres_passbands_VILNIUS.png         | .. image:: images/atmospheres_passbands_VISIR.png           | .. image:: images/atmospheres_passbands_WALRAVEN.png        |
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |

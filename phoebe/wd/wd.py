@@ -159,12 +159,15 @@ ld_rvy2 0.5   --       wd Secondary RV passband LD coefficient y
 #-- standard library
 import os
 import logging
+import pickle
+import copy
 #-- third party modules
 import pylab as pl
 import numpy as np
 #-- own modules
 from phoebe.parameters import parameters as pars
 from phoebe.parameters import definitions as defs
+from phoebe.parameters import datasets
 try:
     from phoebe.wd import fwd
 except ImportError:
@@ -258,7 +261,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
             rv_curve = pars.ParameterSet(definitions=defs.defs,frame='wd',context='rv')
         #-- if not converted to wd, do it now
         if not 'wd' in bps.frame:
-            bps.propagate('wd')
+            bps.propagate('wd') #--> probably obsolete
     #-- the user can give a filename of a lcin file.
     elif isinstance(binary_parameter_set,str):
         bps,light_curve,rv_curve = pars.lcin_to_ps(binary_parameter_set)
@@ -282,7 +285,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
         light_curve.add(dict(qualifier='phstrt',description='Start Phase'          ,repr='%8.6f',cast_type=float,value=0,frame='wd',context='lc'))
         light_curve.add(dict(qualifier='phend', description='End phase',            repr='%8.6f',cast_type=float,value=1,frame='wd',context='lc'))
         light_curve.add(dict(qualifier='phinc', description='Increment phase',      repr='%8.6f',cast_type=float,value=0.01,frame='wd',context='lc'))
-    
+        
     indeps = light_curve['indep']
     lc  = np.zeros_like(indeps)
     rv1 = np.zeros_like(indeps)
@@ -642,9 +645,100 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     return comp1,comp2,orbit
 
 
-
-
+class BodyEmulator(object):
+    def __init__(self,pset,lcset=None,rvset=None,obs=None):
+        self.params = OrderedDict()
+        self.params['pbdep'] = OrderedDict()
+        self.params['obs'] = OrderedDict()
+        self.params['syn'] = OrderedDict()
         
+        self.params['root'] = pset
+        if lcset is not None:
+            ref = lcset['label']
+            self.params['pbdep']['lcdep'] = OrderedDict()
+            self.params['pbdep']['lcdep'][ref] = lcset
+            self.params['syn']['lcsyn'] = OrderedDict()
+            self.params['syn']['lcsyn'][ref] = datasets.DataSet(context='lcsyn',ref=ref)
+        if rvset is not None:
+            ref = rvset['label']
+            self.params['pbdep']['rvdep'] = OrderedDict()
+            self.params['pbdep']['rvdep'][ref] = rvset
+            self.params['syn']['rvsyn'] = OrderedDict()
+            self.params['syn']['rvsyn'][ref] = datasets.DataSet(context='rvsyn',ref=ref)
+        if obs is not None:
+            for iobs in obs:
+                if iobs.context[:2]=='lc':
+                    if not 'lcobs' in self.params['obs']:
+                        pass
+            
+            
+    
+    def reset(self):
+        """
+        Resetting doesn't do anything.
+        """
+        pass
+    
+    def clear_synthetic(self):
+        """
+        Clear the body from all calculated results.
+        """
+        result_sets = dict(lcsyn=datasets.LCDataSet,
+                       rvsyn=datasets.RVDataSet)
+        if hasattr(self,'params') and 'syn' in self.params:
+            for pbdeptype in self.params['syn']:
+                for ref in self.params['syn'][pbdeptype]:
+                    old = self.params['syn'][pbdeptype][ref]
+                    new = result_sets[pbdeptype](context=old.context,ref=old['ref'])
+                    self.params['syn'][pbdeptype][ref] = new
+    
+    def walk_all(self):
+        raise NotImplementedError
+    
+    def walk(self):
+        raise NotImplementedError
+    
+    def compute(self,*args,**kwargs):
+        if 'lcdep' in self.params['pbdep']:
+            for ref in self.params['pbdep']['lcdep'].keys():
+                lcset = self.params['pbdep']['lcdep'][ref]
+                curve,params = lc(self.params['pset'],request='lc',light_curve=lcset)
+                self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
+                self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']
+        system.compute_pblum_or_l3()
+    def get_model(self):
+        raise NotImplementedError
+        return mu,sigma,model
+    
+    def get_data(self):
+        raise NotImplementedError
+        return data,sigma
+    
+    def get_logp(self):
+        raise NotImplementedError
+        return logp,chi2,N
+    
+    def set_values_from_priors(self):
+        raise NotImplementedError
+    
+    def remove_mesh(self):
+        """
+        Removing the mesh also doesn't do anything.
+        """
+        pass
+    
+    def save(self):
+        """
+        Save this Body to a pickle.
+        """
+        ff = open(filename,'w')
+        pickle.dump(self,ff)
+        ff.close()  
+        logger.info('Saved model to file {} (pickle)'.format(filename))
+    
+    def copy(self):
+        return copy.deepcopy(self)
+    
 if __name__=="__main__":
     import doctest
     doctest.testmod()

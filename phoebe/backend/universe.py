@@ -810,6 +810,12 @@ class Body(object):
                 
             yield path,val
     
+    def compute(self,*args,**kwargs):
+        """
+        Call observatory.compute.
+        """
+        observatory.compute(self,*args,**kwargs)
+    
     def compute_pblum_or_l3(self,link=None):
         """
         Compute and set passband luminosity and third light if required.
@@ -1018,7 +1024,7 @@ class Body(object):
                 #-- take pblum and l3 into account:
                 pblum = observations['pblum'] if ('pblum' in observations) else 1.0
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
-                #-- compute the log probability
+                #-- compute the log probability ---> not sure that I need to do sigma*pblum, I'm not toucing the observations!
                 term1 = - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
                 term2 = - (obser-model*pblum-l3)**2/(2.*(sigma*pblum)**2)
                 #-- do also the Stokes V profiles. Becuase they contain the
@@ -1113,6 +1119,7 @@ class Body(object):
         sigma = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
+                print observations['ref']
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                          ref=observations['ref'],
                                          cumulative=True)
@@ -1139,6 +1146,11 @@ class Body(object):
                         sigma_ = np.hstack([sigma_,np.ravel(np.array(observations['sigma_V']))])
                 #-- statistical weight:
                 statweight = observations['statweight']
+                #-- take pblum and l3 into account:
+                pblum = observations['pblum'] if ('pblum' in observations) else 1.0
+                l3 = observations['l3'] if ('l3' in observations) else 0.0
+                model_ = pblum*model_ + l3
+                
                 #-- transform to log if necessary:
                 if 'fittransfo' in observations and observations['fittransfo']=='log10':
                     sigma_ = sigma_/(obser_*np.log(10))
@@ -1151,7 +1163,13 @@ class Body(object):
                 sigma.append(sigma_/statweight**2)
                 if loaded:
                     observations.unload()
-        return np.hstack(mu),np.hstack(sigma),np.hstack(model)
+        if not len(mu):
+            mu = np.array([])
+            sigma = np.array([])
+            model = np.array([])
+            return mu,sigma,model
+        else:
+            return np.hstack(mu),np.hstack(sigma),np.hstack(model)
     
     def get_adjustable_parameters(self):
         mylist = []
@@ -1557,8 +1575,8 @@ class Body(object):
         @return: the ParameterSet containing the synthetic calculations
         @rtype: ParameterSet
         """
-        if type is None:
-            logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
+        #if category is None:
+        #    logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
         base,ref = self.get_parset(ref=ref,type='syn',category=category)
         return base
     
@@ -2882,12 +2900,13 @@ class BodyBag(Body):
         #   of being built from the ones in the bodies list. E.g. interferometry
         #   can only be computed of the whole system, since the total Fourier
         #   transform is not the sum of the component Fourier transforms.
-        try:
+        #   .... euhh... it kind of is! Anyway...
+        if kwargs.get('category','lc')=='ifm':
             total_results = super(BodyBag,self).get_synthetic(*args,**kwargs)
             if total_results:
                 return total_results
-        except ValueError:
-            pass
+        #except ValueError:
+        #    pass
         total_results = []
         
         for i,body in enumerate(self.bodies):
@@ -3686,7 +3705,7 @@ class Star(PhysicalBody):
             #   linear combination of modes with different degrees.        
             if scheme=='traditional approximation':
                 #-- extract some info on the B-vector
-                bvector = pls.get_value('bvector')
+                bvector = pls.get_value('trad_coeffs')
                 N = len(bvector)
                 ljs = np.arange(N)
                 for lj,Bjk in zip(ljs,bvector):
@@ -4080,6 +4099,7 @@ class BinaryRocheStar(PhysicalBody):
             max_triangles = self.params['mesh'].request_value('maxpoints')
             algorithm = self.params['mesh'].request_value('alg')
             logger.info('marching {0} {1} {2} {3} (scale={4}, delta={5})'.format(d,q,F,Phi,scale,delta))
+            
             if algorithm=='python':
                 the_grid = marching.discretize(delta,max_triangles,'BinaryRoche',d,q,F,Phi)
             else:
@@ -4209,7 +4229,7 @@ class BinaryRocheStar(PhysicalBody):
             #-- these are the arguments to compute the new mesh:
             if oldpot<critpot:
                 logger.warning('subceeded critical potential, %.6f--->%.6f'%(oldpot,1.01*critpot))
-                oldpot = max(oldpot,1.01*critpot)
+            #    oldpot = max(oldpot,1.01*critpot)
             self.subdivision['mesh_args'] = ('BinaryRoche',d,q,F,oldpot,sma)
             
             #-- and update the mesh
@@ -4429,6 +4449,307 @@ class BinaryRocheStar(PhysicalBody):
             keplerorbit.place_in_binary_orbit(self,time)
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
+
+class MisalignedBinaryRocheStar(BinaryRocheStar):
+    def compute_mesh(self,time=None,conserve_volume=True):
+        """
+        Compute the mesh.
+        
+        The ``conserve_volume`` parameter doesn't really conserve the volume,
+        it only computes the volume so that :py:func:`conserve_volume` can
+        do its magic.
+        """
+        #-- 'derivable' orbital information
+        component = self.get_component()+1
+        e = self.params['orbit'].get_value('ecc')
+        a1 = self.params['orbit'].get_constraint('sma1','m')   # semi major axis of primary orbit
+        a2 = self.params['orbit'].get_constraint('sma2','m')   # semi major axis of secondary orbit   
+        M  = self.params['orbit'].get_constraint('totalmass','Msol')
+        M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
+        M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
+        q = self.params['orbit'].get_value('q')
+        a = self.params['orbit'].get_value('sma','m')
+        P = self.params['orbit'].get_value('period','s')
+        F = self.params['component'].get_value('syncpar')
+        Phi = self.params['component'].get_value('pot')
+        com = self.params['orbit'].get_constraint('com','au') / a
+        pivot = np.array([com,0,0]) # center-of-mass (should be multiplied by a!)
+        T0 = self.params['orbit'].get_value('t0')
+        scale = self.params['orbit'].get_value('sma','Rsol')
+        theta = self.params['orbit'].get_value('theta','rad')
+        phi0 = self.params['orbit'].get_value('phi0','rad')
+        Pprec = self.params['orbit'].get_value('precperiod','s')
+        phi = phi0 - 2*np.pi*(time/(P/3600./24.) + time/(Pprec/3600./24.))
+        
+        #-- where in the orbit are we? We need everything in cartesian Rsol units
+        #-- dimensionless "D" in Roche potential is ratio of real seperation over
+        #   semi major axis.
+        pos1,pos2,d = get_binary_orbit(self,time)
+
+        #-- marching method
+        if component==2:
+            q,Phi = roche.change_component(q,Phi)   
+            M1,M2 = M2,M1 # we need to switch the masses!
+        #-- is this correct to calculate the polar surface gravity??
+        #   I would imagine that we only need the omega_rot due to the binary
+        #   period, since it is the angular momentum around the COM that is
+        #   important: the polar surface gravity of a rotating star is equal
+        #   to that of a nonrotating star!
+        omega_rot = F * 2*pi/P # rotation frequency
+        r_pole = marching.projectOntoPotential((0,0,1e-5),'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
+        r_pole_= np.linalg.norm(r_pole)
+        r_pole = r_pole_*a
+        g_pole = roche.binary_surface_gravity(0,0,r_pole,d*a,omega_rot/F,M1,M2,normalize=True)
+        self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(r_pole))
+        self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
+        self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d*a))
+                
+        gridstyle = self.params['mesh'].context
+        if gridstyle=='mesh:marching':
+            #-- marching method. Remember the arguments so that we can reproject
+            #   subidivded triangles later on.
+            delta = self.params['mesh'].request_value('delta')*r_pole_
+            max_triangles = self.params['mesh'].request_value('maxpoints')
+            algorithm = self.params['mesh'].request_value('alg')
+            logger.info('marching {0} {1} {2} {3} {4} {5} (scale={6})'.format(d,q,F,Phi,theta,phi,scale))
+            
+            if algorithm=='python':
+                the_grid = marching.discretize(delta,max_triangles,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi)
+            else:
+                the_grid = marching.cdiscretize(delta,max_triangles,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi)
+            logger.info("---> {} triangles".format(len(the_grid)))
+        elif gridstyle=='mesh:wd':
+            #-- WD style.
+            N = self.params['mesh'].request_value('gridsize')
+            logger.info('WD grid {0} {1} {2} {3} {4} {5} (scale={6})'.format(d,q,F,Phi,theta,phi,scale))
+            the_grid = marching.discretize_wd_style(N,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi)
+        self.subdivision['mesh_args'] = ('MisalignedBinaryRoche',d,q,F,theta,phi,Phi,scale)
+        
+        #-- wrap everything up in one array
+        N = len(the_grid)
+        ld_law = 5
+        ldbol_law = 5
+        new_dtypes = []
+        old_dtypes = self.mesh.dtype.names
+        #-- check if the following required labels are in the mesh, if they
+        #   are not, we'll have to add them
+        required = [('ld___bol','f8',(5,)),('proj___bol','f8'),
+                    ('logg','f8'),('teff','f8'),('abun','f8')]
+        for req in required:
+            if not req[0] in old_dtypes:
+                new_dtypes.append(req)
+        if 'pbdep' in self.params:
+            for pbdeptype in self.params['pbdep']:
+                for ipbdep in self.params['pbdep'][pbdeptype]:
+                    ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
+                    if not 'ld_{0}'.format(ipbdep['ref']) in old_dtypes:
+                        new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
+                        new_dtypes.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
+                        new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                        new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+        if new_dtypes:    
+            dtypes = np.dtype(self.mesh.dtype.descr + new_dtypes)
+        else:
+            dtypes = self.mesh.dtype
+        #-- the mesh is calculated in units of sma. We need Rsol
+        self.mesh = np.zeros(N,dtype=dtypes)
+        self.mesh['_o_center'] = the_grid[:,0:3]*scale
+        self.mesh['center'] = the_grid[:,0:3]*scale
+        self.mesh['_o_size'] = the_grid[:,3]*scale**2
+        self.mesh['size'] = the_grid[:,3]*scale**2
+        self.mesh['_o_triangle'] = the_grid[:,4:13]*scale
+        self.mesh['triangle'] = the_grid[:,4:13]*scale
+        self.mesh['_o_normal_'] = -the_grid[:,13:16]
+        self.mesh['normal_'] = -the_grid[:,13:16]
+        self.mesh['visible'] = True
+        
+        
+        #-- volume calculations: conserve volume if it is already calculated
+        #   before, and of course if volume needs to be conserved.
+        #   This is not correct: we need to adapt Omega, not just scale the
+        #   mesh. See Wilson 1979
+        if conserve_volume:
+            if not self.params['component'].has_qualifier('volume'):
+                self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
+                logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
+
+    def conserve_volume(self,time,max_iter=10,tol=1e-6):
+        """
+        Update the mesh to conserve volume.
+        
+        The value of the potential at which volume is conserved is computed
+        iteratively. In the first step, we assume the shape of the star is
+        spherical, and compute the volume-change rate via the derivative of the
+        Roche potential at the pole. In the next steps, numerical derivatives
+        are used.
+        
+        If ``max_iter==1``, we only reproject the surface, but do not compute
+        a new potential value (and thus do not conserve volume)
+        
+        @param time: time at which to change the volume
+        @type time: float
+        @param max_iter: maximum number of iterations
+        @type max_iter: int
+        @param tol: tolerance cutoff
+        @type tol: float
+        """
+        #-- necessary values
+        R = self.params['component'].request_value('r_pole','Rsol')
+        sma = self.params['orbit'].request_value('sma','Rsol')
+        e = self.params['orbit'].get_value('ecc')
+        P = self.params['orbit'].get_value('period','s')
+        q = self.params['orbit'].request_value('q')
+        F = self.params['component'].request_value('syncpar')
+        oldpot = self.params['component'].request_value('pot')
+        M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
+        M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
+        component = self.get_component()+1
+        theta = self.params['orbit'].get_value('theta','rad')
+        phi0 = self.params['orbit'].get_value('phi0','rad')
+        Pprec = self.params['orbit'].get_value('precperiod','s')
+        phi = phi0 - 2*np.pi*(time/(P/3600./24.) + time/(Pprec/3600./24.))
+        
+        #-- possibly we need to conserve the volume of the secondary component
+        if component==2:
+            q,oldpot = roche.change_component(q,oldpot)  
+            M1,M2 = M2,M1
+        
+        pos1,pos2,d = get_binary_orbit(self,time)
+        d_ = d*sma
+        omega_rot = F * 2*pi/P # rotation frequency
+        
+        #-- keep track of the potential vs volume function to compute
+        #   derivatives numerically
+        potentials = []
+        volumes = []
+                
+        if max_iter>1:
+            V1 = self.params['component'].request_value('volume')
+        else:
+            V1 = 1.
+        
+        for n_iter in range(max_iter):
+            
+            #-- compute polar radius
+            R = marching.projectOntoPotential((0,0,1e-5),'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+            R = np.linalg.norm(R)*sma
+            g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
+            self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol))
+            self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
+            
+            #-- these are the arguments to compute the new mesh:
+            self.subdivision['mesh_args'] = ('MisalignedBinaryRoche',d,q,F,theta,phi,oldpot,sma)
+            
+            #-- and update the mesh
+            self.update_mesh()
+            self.compute_sizes(prefix='_o_')
+            self.compute_sizes(prefix='')
+            
+            #-- compute the volume and keep track of it
+            V2 = self.volume()
+            potentials.append(oldpot)
+            volumes.append(V2)
+            
+            #-- if we conserved the volume, we're done
+            if abs((V2-V1)/V1)<tol:
+                break
+            
+            #-- in the first step, we can only estimate the gradient dPot/dV
+            if len(potentials)<2:
+                oldpot = roche.improve_potential(V2,V1,oldpot,R,d_,q,F,sma=sma)
+            #   else, we can approximate in numerically (linear)
+            else:
+                grad = (potentials[-1]-potentials[-2])/(volumes[-1]-volumes[-2])
+                oldpot = grad*(V1-volumes[-2])+potentials[-2]
+                
+        
+        #-- perhaps this was the secondary
+        if component==2:
+            q,oldpot = roche.change_component(q,oldpot)
+        if max_iter>1:
+            logger.info("volume conservation (V=%.6f<-->Vref=%.6f): changed potential Pot_ref=%.6f-->Pot_new%.6f)"%(V2,V1,self.params['component']['pot'],oldpot))
+            #-- remember the new potential value
+            self.params['component']['pot'] = oldpot
+        else:
+            logger.info("no volume conservation, reprojected onto instantaneous potential")
+    
+    def set_time(self,time,ref='all'):
+        """
+        Set the time of a BinaryRocheStar.
+        
+        The following steps are done:
+        
+            1. Compute the mesh if it hasn't been computed before
+            2. Conserve volume of the mesh if required
+            3. Place the mesh in its appropriate location in the orbit
+            4. Compute the local surface gravity and temperature
+            5. Compute the local intensities
+            6. Perform a simple horizon detection.
+                
+        @param time: time to be set (d)
+        @type time: float
+        @param ref: pbdeps to consider for computation of intensities. If
+        set to ``all``, all pbdeps are considered.
+        @type ref: string (ref) or list of strings
+        """
+        logger.info('===== SET TIME TO %.3f ====='%(time))
+        #-- rotate in 3D in orbital plane
+        #   for zero-eccentricity, we don't have to recompute local quantities, and not
+        #   even projected quantities (this should be taken care of on a higher level
+        #   because other meshes can be in front of it
+        #   For non-zero eccentricity, we need to recalculate the grid and recalculate
+        #   local quantities
+        sma = self.params['orbit'].get_value('sma','Rsol')
+        e = self.params['orbit'].get_value('ecc')
+        #-- there is a possibility to set to conserve volume or equipot
+        #   IF eccentricity is zero, we never need to conserve volume, that
+        #   is done automatically
+        conserve_phase = self.params['orbit'].get('conserve','periastron')
+        conserve_volume = True
+        if conserve_volume and 'conserve' in self.params['orbit']:
+            if self.params['orbit']['conserve']=='equipot':
+                conserve_volume = False
+        max_iter_volume = 10 if conserve_volume else 1 # number of iterations for conservation of volume (max)
+        #-- we do not need to calculate bolometric luminosities if we don't include
+        #   the reflection effect
+        do_reflection = False
+        #-- compute new mesh if this is the first time set_time is called, or
+        #   if the eccentricity is nonzero
+        if self.time is None:
+            #-- if we need to conserve volume, we need to know at which
+            #   time. Then we compute the mesh at that time and remember
+            #   the value
+            if conserve_volume:
+                cvol_index = ['periastron','sup_conj','inf_conj','asc_node','desc_node'].index(conserve_phase)
+                per0 = self.params['orbit'].request_value('per0','rad')
+                P = self.params['orbit']['period']
+                t0 = self.params['orbit']['t0']
+                crit_times = keplerorbit.calculate_critical_phases(per0,e)*P + t0
+                self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
+            #-- else we still need to compute the mesh at *this* time!
+            else:
+                self.compute_mesh(time,conserve_volume=True)
+            #-- the following function both reprojects the surface to the
+            #   value of the instantaneous potential and recomputes the
+            #   value of the potential to conserve volume (if max_iter>1)
+            self.conserve_volume(time,max_iter=max_iter_volume)
+        #-- else, we have already computed the mesh once, and all we need
+        #   to do is either just reset it, or conserve the volume at this
+        #   new time point
+        else:
+            self.reset_mesh()
+            self.conserve_volume(time,max_iter=max_iter_volume)
+        #-- once we have the mesh, we need to place it into orbit
+        keplerorbit.place_in_binary_orbit(self,time)
+        #-- compute polar radius and logg!
+        self.surface_gravity()
+        self.temperature()
+        self.intensity(ref=ref)
+        if do_reflection:
+            self.intensity(photband='OPEN.BOL')
+        self.detect_eclipse_horizon(eclipse_detection='simple')
+        self.time = time
+    
         
 
 class BinaryStar(Star):

@@ -4,6 +4,7 @@ Bibliography
 ============
 
 .. [Aerts1993] Aerts, C. and Waelkens, C., 1993, A&A, "Line Profile Variations of Rotating Pulsating Stars" (`ADS <http://adsabs.harvard.edu/abs/1993A%26A...273..135A>`_)
+.. [Avni1982] Avni, Y. and Schiller, N., 1982, ApJ, "Generalized Roche potential for misaligned binary systems - Properties of the critical lobe" (`ADS <http://adsabs.harvard.edu/abs/1982ApJ...257..703A>`_)
 .. [Cranmer1995] Cranmer, S. R. and Owocki, S. P., 1995, ApJ, "The effect of oblateness and gravity darkening on the radiation driving in winds from rapidly rotating B stars" (`ADS <http://adsabs.harvard.edu/abs/1995ApJ...440..308C>`_)
 .. [deb2011] Deb, S. and Singh, H. P., 2011, MNRAS, "Physical parameters of 62 eclipsing binary stars using the All Sky Automated Survey-3 data - I" (`ADS <http://adsabs.harvard.edu/abs/2011MNRAS.412.1787D>`_)
 .. [Donati1997] Donati, J.-F. and Semel, M. and Carter, B. D. and Rees, D. E. and, 1997, MNRAS, "Spectropolarimetric observations of active stars" (`ADS <http://adsabs.harvard.edu/abs/1997MNRAS.291..658D>`_)

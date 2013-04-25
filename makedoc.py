@@ -274,6 +274,7 @@ if __name__=="__main__":
                   'phoebe-testsuite/pulsating_binary/pulsating_binary.py',
                   'phoebe-testsuite/pulsating_binary/pulsating_binary2.py',
                   'phoebe-testsuite/pulsating_rotating/pulsating_rotating.py',
+                  'phoebe-testsuite/traditional_approximation/traditional_approximation.py',
                   'phoebe-testsuite/beaming/KPD1946+4340.py',
                   'phoebe-testsuite/example_systems/example_systems.py',
                   'phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py',
