@@ -541,159 +541,6 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
 
 
 
-def run_wd_emcee(system,data,fitparams=None):
-    """
-    Perform MCMC sampling of the WD parameter space of a system using emcee.
-    
-    Be sure to set the parameters to fit to be adjustable in the system.
-    Be sure to set the priors of the parameters to fit in the system.
-    
-    @param system: the system to fit
-    @type system: 3xtuple (ps,lc,rv)
-    @param data: the data to fit
-    @type data: 2xtuple (lcobs,rvobs)
-    @param fitparams: fit algorithm parameters
-    @type fitparams: ParameterSet
-    @return: the MCMC sampling history
-    """
-    from phoebe.wd import wd
-    if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:mcmc')
-    nwalkers = fitparams['walkers']
-    # We need unique names for the parameters that need to be fitted, we need
-    # initial values and identifiers to distinguish parameters with the same
-    # name (we'll also use the identifier in the parameter name to make sure
-    # they are unique). While we are iterating over all the parameterSets,
-    # we'll also have a look at what context they are in. From this, we decide
-    # which fitting algorithm to use.
-    ids = []
-    pars = []
-    #-- walk through all the parameterSets available. This needs to be via
-    #   this utility function because we need to iteratively walk down through
-    #   all BodyBags too.
-    frames = []
-    for parset in system:
-        #-- for each parameterSet, walk through all the parameters
-        for qual in parset:
-            #-- extract those which need to be fitted
-            if parset.get_adjust(qual):
-                #-- ask a unique ID and check if this parameter has already
-                #   been treated. If so, continue to the next one.
-                parameter = parset.get_parameter(qual)
-                myid = parameter.get_unique_label()
-                if myid in ids: continue
-                #-- and add the id
-                ids.append(myid)
-                pars.append(parameter.get_value_from_prior(size=nwalkers))
-    pars = np.array(pars).T
-    #-- now, if the number of walkers is smaller then twice the number of
-    #   parameters, adjust that number to the required minimum and raise a
-    #   warning
-    if (2*pars.shape[1])<nwalkers:
-        logger.warning("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
-        nwalkers = 2*pars.shape[1]
-        fitparams['walkers'] = nwalkers
-    def lnprob(pars,ids,system):
-        #-- evaluate the system, get the results and return a probability
-        had = []
-        #-- walk through all the parameterSets available:
-        for parset in system:
-            #-- for each parameterSet, walk to all the parameters
-            for qual in parset:
-                #-- extract those which need to be fitted
-                if parset.get_adjust(qual):
-                    #-- ask a unique ID and update the value of the parameter
-                    myid = parset.get_parameter(qual).get_unique_label()
-                    if myid in had: continue
-                    index = ids.index(myid)
-                    parset[qual] = pars[index]
-                    had.append(myid)
-        output,params = wd.lc(system[0],light_curve=system[1],rv_curve=system[2])
-        logp = 0
-        for dtype in ['lc','rv']:
-            term1 = - 0.5*np.log(2*np.pi*sigma**2)
-            term2 = - (data['lc']-output['lc'])**2/(2.*sigma**2)
-            logp = logp + (term1 + term2).mean()
-            logp = logp + (term1 + term2).sum()
-        return logp
-    
-    #-- if we need to do incremental stuff, we'll need to open a chain file
-    #   if we don't have feedback already
-    start_iter = 0
-    if fitparams['incremental'] and not fitparams['feedback']:
-        chain_file = 'emcee_chain.{}'.format(fitparams['label'])
-        #-- if the file already exists, choose the starting position to be
-        #   the last position from the file
-        if os.path.isfile(chain_file):
-            f = open(chain_file,'r')
-            last_lines = [line.strip().split() for line in f.readlines()[-nwalkers:]]
-            start_iter = int(np.array(last_lines[-1])[0])+1
-            pars = np.array(last_lines,float)[:,2:]         
-            f.close()
-            logger.info("Starting from previous EMCEE chain from file")
-        else:
-            logger.info("Starting new EMCEE chain")
-        f = open(chain_file,'a')
-    #-- if we do have feedback already we can simply load the final state
-    #   from the feedback
-    elif fitparams['incremental']:
-        pars = np.array(fitparams['feedback']['traces'])
-        pars = pars.reshape(pars.shape[0],-1,nwalkers)
-        pars = pars[:,-1,:].T
-        start_iter = len(fitparams['feedback']['traces'][0])
-        logger.info("Starting from previous EMCEE chain from feedback")
-    #-- run the sampler
-    sampler = emcee.EnsembleSampler(nwalkers,pars.shape[1],lnprob,args=[ids,system])
-    num_iterations = fitparams['iters']-start_iter
-    if num_iterations<=0:
-        logger.info('EMCEE contains {} iterations already (iter={})'.format(start_iter,fitparams['iter']))
-        num_iterations=0
-    for i,result in enumerate(sampler.sample(pars,iterations=num_iterations,storechain=True)):
-        niter = i+start_iter
-        logger.info("EMCEE: Iteration {} of {} ({:.3f}% complete)".format(niter,fitparams['iter'],float(niter)/fitparams['iter']*100.))
-        #-- if we want to keep track of incremental stuff, write each iteratiion
-        #   to a file
-        if fitparams['incremental'] and not fitparams['feedback']:
-            position = result[0]
-            for k in range(position.shape[0]):
-                values = " ".join(["{:.16e}".format(l) for l in position[k]])
-                f.write("{0:9d} {1:9d} {2:s}\n".format(niter,k,values))
-            f.flush()
-    if fitparams['incremental'] and not fitparams['feedback']:
-        f.close()
-    
-    #-- acceptance fraction should be between 0.2 and 0.5 (rule of thumb)
-    logger.info("Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction)))
-    
-    #-- store the info in a feedback dictionary
-    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],accfrac=np.mean(sampler.acceptance_fraction))
-    
-    #-- add the posteriors to the parameters
-    had = []
-    #-- walk through all the parameterSets available:
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    for parset in walk:
-        #-- fore ach parameterSet, walk to all the parameters
-        for qual in parset:
-            #-- extract those which need to be fitted
-            if parset.get_adjust(qual):
-                #-- ask a unique ID and update the value of the parameter
-                myid = parset.get_parameter(qual).get_unique_label()
-                if myid in had: continue
-                had.append(myid)
-                index = ids.index(myid)
-                #-- [iwalker,trace,iparam]
-                trace = sampler.flatchain[:,index]
-                this_param = parset.get_parameter(qual)
-                #this_param.set_posterior(trace.ravel())
-                feedback['parameters'].append(this_param)
-                feedback['traces'].append(trace)
-                feedback['priors'].append(this_param.get_prior(fitter=None))
-    if fitparams['feedback'] and fitparams['incremental']:
-        feedback['traces'] = np.hstack([fitparams['feedback']['traces'],feedback['traces']])
-    fitparams['feedback'] = feedback
-    return fitparams
-
 #}
 
 #{ Nonlinear optimizers
@@ -753,9 +600,9 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
     frames = []
-    for parset in walk:
+    for parset in system.walk():#walk:
         frames.append(parset.frame)
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
@@ -780,12 +627,12 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                 ppars.append(parameter)
     #-- derive which algorithm to use for fitting. If all the contexts are the
     #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
-    algorithm = set(frames)
-    if len(algorithm)>1:
-        raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
-    else:
-        algorithm = list(algorithm)[0]
-        logger.info('Choosing back-end {}'.format(algorithm))
+    #algorithm = set(frames)
+    #if len(algorithm)>1:
+        #raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
+    #else:
+        #algorithm = list(algorithm)[0]
+        #logger.info('Choosing back-end {}'.format(algorithm))
     
     traces = []
     redchis = []
@@ -795,8 +642,8 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         #-- evaluate the system, get the results and return a probability
         had = []
         #-- walk through all the parameterSets available:
-        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-        for parset in walk:
+        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
                 #-- extract those which need to be fitted

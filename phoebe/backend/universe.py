@@ -1024,9 +1024,9 @@ class Body(object):
                 #-- take pblum and l3 into account:
                 pblum = observations['pblum'] if ('pblum' in observations) else 1.0
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
-                #-- compute the log probability ---> not sure that I need to do sigma*pblum, I'm not toucing the observations!
-                term1 = - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
-                term2 = - (obser-model*pblum-l3)**2/(2.*(sigma*pblum)**2)
+                #-- compute the log probability ---> not sure that I need to do sigma*pblum, I'm not touching the observations!
+                term1 = - 0.5*np.log(2*np.pi*(sigma)**2)
+                term2 = - (obser-model*pblum-l3)**2/(2.*(sigma)**2)
                 #-- do also the Stokes V profiles. Becuase they contain the
                 #   derivative of the intensity profile, the l3 factor disappears
                 if observations.context=='plobs':
@@ -1034,8 +1034,8 @@ class Body(object):
                         model = np.array(modelset['V'])/np.array(modelset['continuum'])
                         obser = np.array(observations['V'])/np.array(observations['continuum'])
                         sigma = np.array(observations['sigma_V'])
-                        term1 += - 0.5*np.log(2*np.pi*(sigma*pblum)**2)
-                        term2 += - (obser-model*pblum)**2/(2.*(sigma*pblum)**2)
+                        term1 += - 0.5*np.log(2*np.pi*(sigma)**2)
+                        term2 += - (obser-model*pblum)**2/(2.*(sigma)**2)
                 
                 #-- statistical weight:
                 statweight = observations['statweight']
