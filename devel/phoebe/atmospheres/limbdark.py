@@ -174,6 +174,7 @@ from phoebe.io import fits
 from phoebe.algorithms import interp_nDgrid
 from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
+from phoebe.atmospheres import tools
 
 logger = logging.getLogger('ATMO.LD')
 
@@ -493,9 +494,8 @@ def get_specific_intensities(atm,atm_kwargs={},red_kwargs={},vgamma=0):
     if vgamma is not None and vgamma!=0:
         cc = constants.cc/1000. #speed of light in km/s
         for i in range(len(mu)):
-            raise NotImplementedError
-            flux_shift = tools.doppler_shift(wave,vgamma,flux=table[:,i])
-            table[:,i] = flux_shift - 5.*vgamma/cc*table[:,i]
+            flux_shift = tools.doppler_shift(wave,-vgamma,flux=table[:,i])
+            table[:,i] = flux_shift + 5.*vgamma/cc*table[:,i]
     
     #-- redden if necessary
     if red_kwargs:
@@ -881,6 +881,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
             filename += '_' + '_'.join(sorted(list(red_pars_iter.keys())))
         for key in red_pars_fixed:
             filename += '_{}{}'.format(key,red_pars_fixed[key])
+        if vgamma is not None:
+            filename += '_vgamma'
         filename += '.fits'
     #-- if the file already exists, we'll append to it; so don't do any work
     #   twice (but first backup it!)

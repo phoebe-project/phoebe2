@@ -161,6 +161,7 @@ import os
 import logging
 import pickle
 import copy
+from collections import OrderedDict
 #-- third party modules
 import pylab as pl
 import numpy as np
@@ -168,6 +169,7 @@ import numpy as np
 from phoebe.parameters import parameters as pars
 from phoebe.parameters import definitions as defs
 from phoebe.parameters import datasets
+from phoebe.utils import utils
 try:
     from phoebe.wd import fwd
 except ImportError:
@@ -253,11 +255,11 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
         #-- select the name of the light curve. If the light curve doesn't
         #   exist, warn the user and make a default one.
         if light_curve is None:
-            logger.warning("no light curve defined, adding default settings")
+            #logger.warning("no light curve defined, adding default settings")
             light_curve = pars.ParameterSet(definitions=defs.defs,frame='wd',context='lc')
         #-- do the same for the radial velocities
         if rv_curve is None:
-            logger.warning("no rv curve defined, adding default settings")
+            #logger.warning("no rv curve defined, adding default settings")
             rv_curve = pars.ParameterSet(definitions=defs.defs,frame='wd',context='rv')
         #-- if not converted to wd, do it now
         if not 'wd' in bps.frame:
@@ -669,7 +671,8 @@ class BodyEmulator(object):
             for iobs in obs:
                 if iobs.context[:2]=='lc':
                     if not 'lcobs' in self.params['obs']:
-                        pass
+                        self.params['obs']['lcobs'] = OrderedDict()
+                    self.params['obs']['lcobs'][iobs['ref']] = iobs
             
             
     
@@ -693,29 +696,80 @@ class BodyEmulator(object):
                     self.params['syn'][pbdeptype][ref] = new
     
     def walk_all(self):
-        raise NotImplementedError
+        for level1 in self.params.values():
+            for level2 in level1.values():
+                yield level2
     
     def walk(self):
-        raise NotImplementedError
+        walk = utils.traverse(self.params,list_types=(list,tuple),dict_types=(dict,))
+        for parset in walk:
+            yield parset
     
     def compute(self,*args,**kwargs):
         if 'lcdep' in self.params['pbdep']:
             for ref in self.params['pbdep']['lcdep'].keys():
                 lcset = self.params['pbdep']['lcdep'][ref]
-                curve,params = lc(self.params['pset'],request='lc',light_curve=lcset)
+                curve,params = lc(self.params['root'],request='lc',light_curve=lcset)
                 self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
                 self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']
-        system.compute_pblum_or_l3()
+        
+        #-- passband luminosity and third light:
+        pblum_par = self.params['obs']['lcobs'].values()[0].get_parameter('pblum')
+        l3_par = self.params['obs']['lcobs'].values()[0].get_parameter('l3')
+        
+        pblum = pblum_par.get_adjust() and not pblum_par.has_prior()
+        l3 = l3_par.get_adjust() and not l3_par.has_prior()
+        
+        model = np.array(self.params['syn']['lcsyn'].values()[0]['flux'])
+        obs = self.params['obs']['lcobs'].values()[0]['flux']
+        sigma = self.params['obs']['lcobs'].values()[0]['sigma']
+        
+        if pblum and not l3:
+            pblum = np.average(obs/model,weights=1./sigma**2)
+            l3 = 0.
+        #   only offset
+        elif not pblum and l3:
+            pblum = 1.
+            l3 = np.average(obs-model,weights=1./sigma**2)
+        #   scaling factor and offset
+        elif pblum and l3:
+            A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
+            pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
+        
+        if pblum is False:
+            pblum = 1.0
+        if l3 is False:
+            l3 = 0.0
+            
+        logger.info("pblum = {}, l3 = {}".format(pblum,l3))
+        pblum_par.set_value(pblum)
+        l3_par.set_value(l3)
+        
     def get_model(self):
-        raise NotImplementedError
-        return mu,sigma,model
+        model = np.array(self.params['syn']['lcsyn'].values()[0]['flux'])
+        mu = self.params['obs']['lcobs'].values()[0]['flux']
+        sigma = self.params['obs']['lcobs'].values()[0]['sigma']
+        
+        observations = self.params['obs']['lcobs'].values()[0]
+        pblum = observations['pblum'] if ('pblum' in observations) else 1.0
+        l3 = observations['l3'] if ('l3' in observations) else 0.0
+        
+        logger.info("pblum = {}, l3 = {}".format(pblum,l3))
+        
+        return mu,sigma,model*pblum+l3
     
     def get_data(self):
-        raise NotImplementedError
-        return data,sigma
+        mu = self.params['obs']['lcobs'].values()[0]['flux']
+        sigma = self.params['obs']['lcobs'].values()[0]['sigma']
+        return mu,sigma
     
     def get_logp(self):
-        raise NotImplementedError
+        mu,sigma,model = self.get_model()
+        term1 = - 0.5*np.log(2*np.pi*sigma**2)
+        term2 = - (mu-model)**2/(2.*sigma**2)
+        logp = (term1 + term2).sum()
+        chi2 = -2*term2.sum()
+        N = len(mu)
         return logp,chi2,N
     
     def set_values_from_priors(self):

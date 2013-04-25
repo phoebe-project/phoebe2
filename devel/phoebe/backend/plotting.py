@@ -76,64 +76,6 @@ def plot_lcdeps_as_sed(system,residual=False,
         plt.xlabel("Wavelength [$\AA$]")
         plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
 
-def plot_lcdeps_as_sed(system,residual=False,
-                       kwargs_obs=None,kwargs_syn=None,
-                       kwargs_residual=None):
-    """
-    Plot lcdeps as a spectral energy distribution.
-    
-    This function will draw to the current active axes, and will set the
-    axis labels. If C{residual=False}, both axis will be logscaled.
-    
-    @param system: system to plot
-    @type system: Body
-    @param residual: plot residuals or computed model and observations
-    @type residual: bool
-    @param kwargs_obs: extra matplotlib kwargs for plotting observations (errorbar)
-    @type kwargs_obs: dict
-    @param kwargs_syn: extra matplotlib kwargs for plotting synthetics (plot)
-    @type kwargs_syn: dict
-    @param kwargs_residual: extra matplotlib kwargs for plotting residuals (plot)
-    @type kwargs_residual: dict
-    """
-    #-- get plotting options
-    if kwargs_obs is None:
-        kwargs_obs = dict(fmt='ko',ecolor='0.5',capsize=7)
-    if kwargs_syn is None:
-        kwargs_syn = dict(color='r',mew=2,marker='x',linestyle='',ms=10)
-    if kwargs_residual is None:
-        kwargs_residual = dict(fmt='ko',capsize=7)
-    #-- we'll need to plot all the observations/synthetics of the lc category
-    all_lc_refs = system.get_refs(category='lc')
-    for j,ref in enumerate(all_lc_refs):
-        #-- get the pbdep (for info), the synthetics and the observations
-        dep,ref = system.get_parset(type='pbdep',ref=ref)
-        syn,ref = system.get_parset(type='syn',ref=ref)
-        obs,ref = system.get_parset(type='obs',ref=ref)
-        #-- an SED means we need the effective wavelength of the passbands
-        wave = passbands.get_info([dep['passband']])['eff_wave']
-        wave = list(wave)*len(obs['flux'])
-        #-- don't clutter the plot with labels
-        label1 = 'Observed' if j==0 else '__nolegend__'
-        label2 = 'Computed' if j==0 else '__nolegend__'
-        #-- plot residuals or data
-        if residual:
-            plt.errorbar(wave,(obs['flux']-syn['flux'])/obs['sigma'],yerr=np.ones(len(wave)),label=label1,**kwargs_residual)
-        else:    
-            plt.errorbar(wave,obs['flux'],yerr=obs['sigma'],label=label1,**kwargs_obs)
-            plt.plot(wave,syn['flux'],label=label2,**kwargs_syn)
-            plt.legend(loc='best',numpoints=1).get_frame().set_alpha(0.5)
-        plt.grid()
-    if residual:
-        plt.gca().set_xscale('log',nonposx='clip')
-        plt.xlabel("Wavelength [$\AA$]")
-        plt.ylabel("$\Delta$ Flux/$\sigma$")
-    else:
-        plt.gca().set_yscale('log',nonposy='clip')
-        plt.gca().set_xscale('log',nonposx='clip')
-        plt.xlabel("Wavelength [$\AA$]")
-        plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
-    
 def plot_lcdep_as_lc(system,ref=0,residual=False,
                        kwargs_obs=None,kwargs_syn=None,
                        kwargs_residual=None,repeat=False):
@@ -162,7 +104,7 @@ def plot_lcdep_as_lc(system,ref=0,residual=False,
     if kwargs_syn is None:
         kwargs_syn = dict(color='r',linestyle='-',lw=2)
     if kwargs_residual is None:
-        kwargs_residual = dict(fmt='ko',ecolor='0.5')
+        kwargs_residual = dict(fmt='ko-',ecolor='0.5')
     #-- get parameterSets
     dep,ref = system.get_parset(category='lc',type='pbdep',ref=ref)
     syn = system.get_synthetic(category='lc',ref=ref)
@@ -190,9 +132,9 @@ def plot_lcdep_as_lc(system,ref=0,residual=False,
     
     #-- plot residuals or data + model
     if residual:
-        plt.errorbar(obs_time,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
+        plt.errorbar(obs_time,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_residual)
         if repeat:
-            plt.errorbar(obs_time+obs_time[-1],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
+            plt.errorbar(obs_time+obs_time[-1],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_residual)
         plt.ylabel(r'$\Delta$ Flux/$\sigma$')
     else:
         plt.errorbar(obs_time,obs_flux,yerr=obs_sigm,**kwargs_obs)

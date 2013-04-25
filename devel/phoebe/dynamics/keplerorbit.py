@@ -1078,12 +1078,15 @@ def calculate_mass(component,sma,period,q):
     return mass
 
 def calculate_total_radius_from_eclipse_duration(eclipse_duration,incl,sma=1):
-    """
+    r"""
     Calculate the total radius from the eclipse duration, i and sma.
     
-    Delta_t = P/pi * arcsin( sqrt( Rtot**2/sma**2 - cosi**2 ) )
+    .. math::
     
-    You can also use this function to compute the frequency difference, and
+        \Delta t = \frac{P}{\pi} \arcsin\left(\sqrt{ \frac{R_\mathrm{tot}^2}{a^2} - \cos^2i}\right)
+        
+    
+    You can also use this function to compute the radius difference, and
     from both the individual radii: calling it with the same signature but
     replacing the C{eclipse_duration} with the duration of the total eclipse,
     you get the radius difference instead of radius sum::
