@@ -537,6 +537,24 @@ def add_conserve(orbit,conserve='volume',**kwargs):
         
     logger.info("orbit '{}': added and set 'conserve' to '{}'".format(orbit['label'],conserve))
 
+def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
+    """
+    Extend the parameters of an orbit to make it misaligned.
+    
+    The definition of the parameters is as follows:
+    - ``theta``: misalignment inclination. If  the orbital plane is edge-on,
+    then ``theta=90`` means the star is viewed pole-on. ``theta=0`` means
+    no misalignment.
+    - ``phi0``: phase angle, orients the misalignment at some reference time.
+    - ``precperiod``: period of precession. If ``precperiod=np.inf``, then
+    there is no precession and the body will have the same orientation in
+    space at all times.
+    
+    """
+    orbit.add(parameters.Parameter(qualifier='theta',value=theta,unit='deg',cast_type=float,description='Misalignment inclination'))
+    orbit.add(parameters.Parameter(qualifier='phi0',value=phi0,unit='deg',cast_type=float,description='Misalignment phase'))
+    orbit.add(parameters.Parameter(qualifier='precperiod',value=precperiod,unit='d',cast_type=float,description='Period of precession'))
+    
 
 def from_supconj_to_perpass(orbit):
     """

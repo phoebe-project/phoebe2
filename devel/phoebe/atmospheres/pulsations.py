@@ -1,6 +1,15 @@
 """
 Calculate the stellar surface displacements due to pulsations.
 
+Main conventions:
+
+    - :math:`\theta` is the colatitude, and runs between 0 (north pole) over
+    :math:`\pi/2` (equator) to :math:`\pi` (south pole).
+    - :math:`\phi` is the longitude, and runs between 0 and :math:`2\pi`.
+    - :math:`m` is the azimuthal order of the mode. A positive :math:`m` means
+    the mode is prograde (in the direction of the rotation) (????), a negative
+    value means the mode is retrograde (against the direction of rotation).
+
 **Basic quantities:**
 
 .. autosummary::
@@ -28,7 +37,7 @@ Main references: [Aerts1993]_, [Zima2006]_, [Townsend2003]_.
 The surface displacements and perturbations of observables are computable in the
 nonrotating case, slow rotation with first order Coriolis effects taken into
 account (and slow rotation in the traditional approximation, as these are
-just a linear combination of the nonrotating case).
+just linear combinations of the nonrotating case).
 """
 import numpy as np
 from numpy import sqrt,pi,sin,cos,exp
@@ -174,7 +183,7 @@ def dsph_harm_dtheta(theta,phi,l=2,m=1):
     
     .. math::
         
-        \sin\theta\frac{dY}{d\theta} = (\ell J_{\ell+1}^m Y_{\ell+1}^m - (\ell+1) J_\ell^m  Y_{\ell-1,m})
+        \sin\theta\frac{dY}{d\theta} = \ell J_{\ell+1}^m Y_{\ell+1}^m - (\ell+1) J_\ell^m  Y_{\ell-1,m}
         
     E.g.: Phd thesis of Joris De Ridder
     

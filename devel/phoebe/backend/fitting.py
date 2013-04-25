@@ -69,7 +69,6 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from phoebe.utils import utils
 from phoebe.backend import universe
-from phoebe.backend import observatory
 from phoebe.backend import decorators
 from phoebe.wd import wd
 from phoebe.parameters import parameters
@@ -170,7 +169,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         system.reset()
         system.clear_synthetic()
         try:
-            observatory.compute(system,params=params,mpi=mpi)
+            system.compute(params=params,mpi=mpi)
         except Exception,msg:
             print system.params.values()[0]
             logger.info("Could not accept for some reason (original message: {})".format(msg))
@@ -265,7 +264,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
                     had.append(myid)
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=params,mpi=mpi)
+        system.compute(params=params,mpi=mpi)
         mu,sigma,model = system.get_model()
         return model
    
@@ -447,7 +446,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
         
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=params,mpi=mpi)
+        system.compute(params=params,mpi=mpi)
         logp,chi2,N = system.get_logp()
         #mu,sigma,model = system.get_model()
         return logp
@@ -810,7 +809,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=params,mpi=mpi)
+        system.compute(params=params,mpi=mpi)
         mu,sigma,model = system.get_model()
         retvalue = (model-mu)/sigma
         
@@ -921,7 +920,7 @@ class MinuitMinimizer(object):
         #-- evaluate the system, get the results and return a probability
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=self.params,mpi=self.mpi)
+        system.compute(params=self.params,mpi=self.mpi)
         mu,sigma,model = system.get_model()
         retvalue = (model-mu)/sigma
         
@@ -1085,7 +1084,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                     had.append(myid)
         system.reset()
         system.clear_synthetic()
-        observatory.compute(system,params=params,mpi=mpi)
+        system.compute(params=params,mpi=mpi)
         logp, chi2, N = system.get_logp()
         return logp
     

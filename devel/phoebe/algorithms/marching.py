@@ -133,16 +133,26 @@ def dBinaryRochedz (r, D, q, F):
 #{ Misaligned binary
 
 def MisalignedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
-    """
+    r"""
     Computes a value of the potential. If @Omega is passed, it computes
     the difference.
+    
+    See [Avni1982]_.
+    
+    The parameter :math:`\theta` is similar to the inclination, and
+    is an invariant of the system. The parameter :math:`\phi`, however,
+    is phase dependent, and given by:
+    
+    .. math::
+    
+        \phi = \phi_0 - 2\pi \frac{t}{T}
     
     @param r:      relative radius vector (3 components)
     @param D:      instantaneous separation
     @param q:      mass ratio
     @param F:      synchronicity parameter
-    @param theta:  misalignment coordinate
-    @param phi:    misalignment coordinate
+    @param theta:  misalignment coordinate (kind of like inclination)
+    @param phi:    misalignment coordinate (phase dependent)
     @param Omega:  value of the potential
     """
     delta = (1-np.cos(phi)**2*np.sin(theta)**2)*r[0]*r[0] +\

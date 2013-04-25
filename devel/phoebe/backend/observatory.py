@@ -1345,6 +1345,12 @@ def compute(system,params=None,**kwargs):
     elif reflect and not heating:
         for labl in labl_per_time:
             labl.append('__bol')
+    #   and don't forget beaming!
+    beaming = False
+    for parset in system.walk():
+        if 'beaming' in parset and parset['beaming']:
+            beaming = True
+            logger.info("Figured out that the system requires beaming")
     #-- if we include reflection, we need to reserve space in the mesh
     #   for the reflected light. We need to fix the mesh afterwards because
     #   each body can have different fields appended in the mesh.
@@ -1357,7 +1363,7 @@ def compute(system,params=None,**kwargs):
             system.fix_mesh()
     #-- now we're ready to do the real stuff
     for i,(time,ref,type) in enumerate(zip(time_per_time,labl_per_time,type_per_time)):
-        #-- clear previous reflection effects if necessary
+        #-- clear previous reflection effects if necessary (not if reflect==1!)
         if reflect is True:
             system.clear_reflection()
         #-- set the time of the system
@@ -1366,7 +1372,7 @@ def compute(system,params=None,**kwargs):
         if i==0 and hasattr(system,'bodies'):
             system.fix_mesh()
         #-- compute intensities
-        if i==0 or not circular:
+        if i==0 or not circular or beaming:
             system.intensity(ref=ref)
         #-- update intensity should be set to True when we're doing beaming.
         #   Perhaps we need to detect which refs have "beaming=True", collect
@@ -1417,7 +1423,7 @@ def compute(system,params=None,**kwargs):
     try:
         system.compute_pblum_or_l3()
     except:
-        logger.warning("Cannot compute pblum or l3, perhaps you're inside MPI?")
+        logger.warning("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
 
 
 def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
@@ -1564,6 +1570,8 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     # and make the figure
     pl.figure(figsize=(8,abs(ymin-ymax)/abs(xmin-xmax)*8))
     ax = pl.axes([0,0,1,1],aspect='equal',axisbg='k')
+    ax.xaxis.set_ticks([])
+    ax.yaxis.set_ticks([])
     image(system,ax=ax,**kwargs)
     #pl.plot(orbit1[0],orbit1[1],'r-',lw=2)
     #pl.plot(orbit2[0],orbit2[1],'b-',lw=2)

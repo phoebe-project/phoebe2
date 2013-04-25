@@ -52,8 +52,8 @@ phoebe.observe(system2,times,lc=True,heating=False,refl=False)
 
 # Analysis of results
 # -------------------
-lc1 = system1.get_synthetic(type='lcsyn',cumulative=True)
-lc2 = system2.get_synthetic(type='lcsyn',cumulative=True)
+lc1 = system1.get_synthetic(category='lc',cumulative=True)
+lc2 = system2.get_synthetic(category='lc',cumulative=True)
 
 times1 = np.array(lc1['time'])
 times2 = np.array(lc2['time'])
