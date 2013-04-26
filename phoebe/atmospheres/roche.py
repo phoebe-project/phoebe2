@@ -436,8 +436,28 @@ def change_component(q,Phi):
     return q,Phi
 
 def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
-    """
+    r"""
     Calculate surface gravity in an eccentric asynchronous binary roche potential.
+    
+    If ``x=0``, ``y=0`` and ``z=Rpole``, this compute the polar surface gravity:
+    
+    .. math::
+    
+        \mathbf{g}_p = -\frac{GM_1}{r^2_p} \frac{\mathbf{r_p}}{r_p} - \frac{GM_2}{h^2}\frac{\mathbf{h}}{h} - \omega^2(t) d_\mathrm{cf}\frac{\mathbf{d_\mathrm{cf}}}{d_\mathrm{cf}}
+    
+    with,
+    
+    .. math::
+        
+        h = \sqrt{r_p^2 + d^2}
+    
+    and :math:`d_\mathrm{cf}` is the perpendicular distance from the star's pole
+    to the axis of rotation of the binary. For misaligned binaries, we neglect
+    the influence of the precession on the surface gravity for now. This should
+    be very small anyway.
+        
+    
+    Reference: Phoebe Scientific reference.
     
     Give everything in SI units please...
     
@@ -559,6 +579,65 @@ def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
         return np.linalg.norm(dOmega)
     else:
         return dOmega
+
+def misaligned_binary_potential_gradient(x,y,z,q,d,F,theta,phi,component=1,normalize=False):
+    """
+    Gradient of misaligned cicular Roche potential in cartesian coordinates.
+    
+    x,y,z,d in real units! (otherwise you have to scale it yourself)
+    
+    I'm including d here, but you better set d==1! Perhaps we can change add
+    eccentric misaligned orbits later.
+    
+    @param x: x-axis
+    @type x: float'
+    @param y: y-axis
+    @type y: float'
+    @param z: z-axis
+    @type z: float'
+    @param q: mass ratio
+    @type q: float
+    @param d: separation (in units of semi-major axis)
+    @type d: float
+    @param F: synchronicity parameter
+    @type F: float
+    @param theta: inclination misalignment parameter
+    @type theta: float
+    @param phi: phase misalignment parameter
+    @type phi: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
+    @param normalize: flag to return magnitude (True) or vector form (False)
+    @type normalize: boolean
+    @return: Roche potential gradient
+    @rtype: ndarray or float
+    """
+    #-- transform into system of component (defaults to primary)
+    if component==2:
+        q = 1.0/q
+    r = np.sqrt(x**2 + y**2 + z**2)
+    r_= np.sqrt((d-x)**2 + y**2 + z**2)
+    deltax = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*x +\
+                np.sin(theta)**2*np.sin(2*phi)*y -\
+                np.sin(2*theta)*np.cos(phi)*z
+    deltay = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*y +\
+                np.sin(theta)**2*np.sin(2*phi)*x -\
+                np.sin(2*theta)*np.sin(phi)*z
+    deltaz = 2*np.sin(theta)**2*z -\
+            np.sin(2*theta)*np.cos(phi)*x -\
+            np.sin(2*theta)*np.sin(phi)*y
+    dOmega_dx = - x / r**3 + q * (d-x) / r_**3 + 0.5*F**2 * (1+q)*deltax - q/d**2
+    dOmega_dy = - y / r**3 - q *   y   / r_**3 + 0.5*F**2 * (1+q)*deltay
+    dOmega_dz = - z / r**3 - q *   z   / r_**3 + 0.5*F**2 * (1+q)*deltaz
+    
+    dOmega = np.array([dOmega_dx,dOmega_dy,dOmega_dz])
+    
+    if normalize:
+        return np.linalg.norm(dOmega)
+    else:
+        return dOmega
+
+
 
 def improve_potential(V,V0,pot0,rpole0,d,q,F,sma=1.):
     r"""

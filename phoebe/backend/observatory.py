@@ -4,6 +4,7 @@ Convert a Body to an observable quantity.
 .. autosummary::
 
     image
+    surfmap
     ifm
     make_spectrum
     stokes
@@ -410,6 +411,216 @@ def image(the_system,ref='__bol',context='lcdep',
         hdulist.close()
     
     return xlim,ylim,p
+
+
+def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
+            cmap=None,select='proj',background=None,vmin=None,vmax=None,
+            size=800,ax=None,savefig=False,nr=0,with_partial_as_half=True):
+    """
+    Compute images of a system or make a 2D plot.
+    
+    All the default parameters are set to make a true flux image of the system,
+    in linear grayscale such that white=maximum flux and black=zero flux.
+    
+    You can set C{select} to plot effective temperature (C{select='teff'}, logg
+    (C{select='logg'}) etc instead of
+    projected flux, and you can adjust the colormap via the C{cmap} keyword.
+    
+    Set the color of the background via C{background}.
+    
+    Setting C{select='rv'} will plot the radial velocity of the system, and then
+    the colormap will automatically be changed to RdBu, which means blue for
+    velocities towards the observer, white for velocities in the plane of the
+    sky, and red for velocities away from the observer. **If you set the limits,
+    beware that the units of RV are Rsol/d!**
+    
+    Setting C{select='teff'} gives you the option to color the map according to
+    black body colors, via C{cmap='blackbody'}. Otherwise a heat map will
+    be used. You cannot adjust the colorbar
+    yourself when using blackbody colors, it will be scaled automatically between 2000K and 20000K. Hot
+    objects will appear blue, cool objects will appear red, intermediate
+    objects will appear white. Other scaling schemes with blackbodies are
+    C{cmap='blackbody_proj'} and C{cmap='eye'}.
+    
+    If you want to add a colorbar yourself later, you can do so by giving the
+    returned patch collection as an argument to matplotlib's C{colorbar} function.
+    
+    Size in pixels.
+    
+    >>> #image(time,the_system,savefig=True)
+    
+    @return: x limits, y limits, patch collection
+    @rtype: tuple, tuple, patch collection
+    """
+    #-- default color maps and background depend on the type of dependables:
+    if cmap is None and select=='rv':
+        cmap = pl.cm.RdBu_r
+    elif cmap is None and select=='teff':
+        cmap = pl.cm.hot
+        if background is None:
+            background = '0.7'
+    elif cmap is None and select[0]=='B':
+        cmap = pl.cm.jet
+    elif cmap is None:
+        cmap = pl.cm.gray
+    #-- default color for the background
+    if background is None:
+        background = 'k'
+    #-- default lower and upper limits for colors:
+    vmin_ = vmin
+    vmax_ = vmax
+        
+    if isinstance(ref,int):
+        ps,ref = the_system.get_parset(ref=ref,context=context)
+    #-- to make an image, we need some info and we need to order it from
+    #   back to front
+    logger.info('Making image of dependable set {}: plotting {}'.format(ref,select))    
+    try:
+        the_system.projected_intensity(ref=ref,with_partial_as_half=with_partial_as_half)
+    except ValueError,msg:
+        raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
+    except AttributeError,msg:
+        logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
+    mesh = the_system.mesh
+    mesh = mesh[np.argsort(mesh['center'][:,2])]
+    x,y = mesh['center'][:,0],mesh['center'][:,1]
+    #-- initiate the figure
+    if ax is None:
+        fig = pl.figure(figsize=(size/100.,size/200.))
+    if ax is None:
+        #-- the axes should be as big as the figure, so that there are no margins
+        ax = pl.axes([0,0,1,1],axisbg=background,aspect='equal')
+        fig = pl.gcf()
+        #-- make sure the background and outer edge of the image are black
+        fig.set_facecolor(background)
+        fig.set_edgecolor(background)
+    else:
+        ax.set_axis_bgcolor(background)
+        ax.set_aspect('equal')
+    #-- set the colors of the triangles
+    cmap_ = None
+    if select=='proj':
+        colors = mesh['proj_'+ref]/mesh['mu']
+        if 'refl_'+ref in mesh.dtype.names:
+            colors += mesh['refl_'+ref]#/mesh['mu']
+        colors /= colors.max()
+        values = colors
+        vmin_ = 0
+        vmax_ = 1
+    else:
+        if select=='rv':
+            values = -mesh['velo___bol_'][:,2]*8.049861
+        elif select=='intensity':
+            values = mesh['ld_'+ref+'_'][:,-1]
+        elif select=='proj2':
+            values = mesh['proj_'+ref]/mesh['mu']
+            if 'refl_'+ref in mesh.dtype.names:
+                values += mesh['refl_'+ref]#/mesh['mu']
+        elif select=='Bx':
+            values = mesh['B_'][:,0]
+        elif select=='By':
+            values = mesh['B_'][:,1]
+        elif select=='Bz':
+            values = mesh['B_'][:,2]    
+        elif select=='B':
+            values = np.sqrt(mesh['B_'][:,0]**2+mesh['B_'][:,1]**2+mesh['B_'][:,2]**2)
+        else:
+            values = mesh[select]
+        if vmin is None: vmin_ = values[mesh['mu']>0].min()
+        if vmax is None: vmax_ = values[mesh['mu']>0].max()
+        colors = (values-vmin_)/(vmax_-vmin_)
+        if cmap=='blackbody' or cmap=='blackbody_proj' or cmap=='eye':
+            cmap_ = cmap
+            cmap = plotlib.blackbody_cmap()
+            vmin_ = 2000
+            vmax_ = 20000
+            colors = (values-vmin_)/(vmax_-vmin_)  
+    #-- collect the triangle objects for plotting
+    patches = []
+    triangles = the_system.get_coords(type='spherical',loc='vertices')
+    if not cmap_ in ['blackbody_proj','eye']:
+        values_ = []
+        colors_ = []
+        sizes = np.ones(len(triangles))*np.inf
+        coords = triangles.reshape((-1,3,3))[:,:,:2]
+        side1 = coords[:,0]-coords[:,1]
+        side2 = coords[:,1]-coords[:,0]
+        side3 = coords[:,2]-coords[:,0]
+        a = np.sqrt(np.sum(side1**2,axis=1))
+        b = np.sqrt(np.sum(side2**2,axis=1))
+        c = np.sqrt(np.sum(side3**2,axis=1))
+        s = 0.5*(a+b+c)
+        size = np.sqrt(abs( s*(s-a)*(s-b)*(s-c)))
+        size = size*np.sin(coords[:,:,1].max()) #s[i] = size*np.sin(coords[:,1].max())
+        
+        decider = np.sort(size)[int(cut*len(size))]
+        
+        keep = size<decider
+        for i,icoords in zip(np.arange(len(coords))[keep],coords[keep]):
+            patches.append(Polygon(icoords,closed=True,edgecolor=cmap(colors[i])))
+            values_.append(values[i])
+            colors_.append(colors[i])
+            
+        p = PatchCollection(patches,cmap=cmap)
+        #-- set the face colors of the triangle plot objects, and make sure
+        #   the edges have the same color
+        p.set_array(np.array(values_))
+        p.set_edgecolor([cmap(c) for c in colors_])
+        p.set_facecolor([cmap(c) for c in colors_])
+    elif cmap_=='blackbody_proj':
+        values = np.abs(mesh['proj_'+ref]/mesh['mu'])
+        if 'refl_'+ref in mesh.dtype.names:
+            values += mesh['refl_'+ref]
+        values = (values/values.max()).reshape((-1,1))*np.ones((len(values),4))
+        values[:,-1] = 1.
+        colors = np.array([cmap(c) for c in colors])*values 
+        
+        for i,triangle in enumerate(triangles):
+            patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
+        p = PatchCollection(patches,cmap=cmap)
+        #-- set the face colors of the triangle plot objects, and make sure
+        #   the edges have the same color
+        p.set_edgecolor([tuple(c) for c in colors])
+        p.set_facecolor([tuple(c) for c in colors])
+    elif cmap_=='eye':
+        values = np.abs(mesh['proj_'+ref]/mesh['mu'])
+        if 'refl_'+ref in mesh.dtype.names:
+            values += mesh['refl_'+ref]
+        keep = values>(0.5*values.max())
+        values = values/values[keep].min()
+        values = values.reshape((-1,1))*np.ones((len(values),4))
+        values[:,-1] = 1.
+        colors = np.array([cmap(c) for c in colors])*values
+        colors[colors>1] = 1.
+        for i,triangle in enumerate(triangles):
+            patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
+        p = PatchCollection(patches,cmap=cmap)
+        #-- set the face colors of the triangle plot objects, and make sure
+        #   the edges have the same color
+        p.set_edgecolor([tuple(c) for c in colors])
+        p.set_facecolor([tuple(c) for c in colors])
+    #-- set the color scale limits
+    if vmin is not None: vmin_ = vmin
+    if vmax is not None: vmax_ = vmax
+    p.set_clim(vmin=vmin_,vmax=vmax_)
+    #-- add the triangle plot objects to the axis, and set the axis limits to
+    #   be a tiny bit larger than the object we want to plot.
+    ax.add_collection(p)
+    #-- derive the limits for the axis
+    # new style:
+    ax.set_xlim(-np.pi,np.pi)
+    ax.set_ylim(0,np.pi)
+        
+    xlim,ylim = ax.get_xlim(),ax.get_ylim()
+    if savefig==True:
+        pl.savefig('image%06d.png'%(nr),facecolor='k',edgecolor='k')
+        pl.close()
+    elif savefig:
+        pl.savefig(savefig,facecolor='k',edgecolor='k')
+        pl.close()
+    return xlim,ylim,p
+
+
     
     
 def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
@@ -1315,6 +1526,10 @@ def compute(system,params=None,**kwargs):
                 circular = False
                 logger.info("... but at least one of the components has spots or pulsations: set circular=False")
                 break
+            elif 'orbit' in body.params and 'theta' in body.params['orbit']: # it is misaligned
+                circular = False
+                logger.info("... but at least one of the components is misaligned")
+                break
             
         
     else:
@@ -1371,6 +1586,9 @@ def compute(system,params=None,**kwargs):
         #-- fix the mesh if needed:
         if i==0 and hasattr(system,'bodies'):
             system.fix_mesh()
+        #-- for heating an eccentric system, we first need to reset the temperature!
+        if heating is True:
+            system.temperature()
         #-- compute intensities
         if i==0 or not circular or beaming:
             system.intensity(ref=ref)
@@ -1579,6 +1797,24 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     pl.ylim(ymin,ymax)
     pl.savefig('{}_{:04d}'.format(name,i))
     pl.close()
+
+
+def ef_image(system,time,i,name='ef_image',comp=0,**kwargs):
+    """
+    Make an image of a binary system.
+    
+    But setting the x and y limits to sensible values, so that
+    we can always see the entire orbit. This eliminates the zoom effect in the
+    default behaviour, but of course we need to know the maximum size of the system
+    without computing through it. For binary systems, this is of course fairly
+    easy.
+    """
+    # Get the thing to plot
+    if hasattr(system,'__len__'):
+        system = system[comp]
+    # and make the figure
+    kwargs['savefig'] = '{}_comp_{:02d}_{:04d}'.format(name,comp,i)
+    image(system,**kwargs)
 
 
 

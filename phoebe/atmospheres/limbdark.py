@@ -693,15 +693,25 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     #   and just give you the z=0.0 interpolation results!
     N = 1
     for i,label in enumerate(labels):
-        if hasattr(atm_kwargs[label],'__len__'):
+        if label in atm_kwargs and hasattr(atm_kwargs[label],'__len__'):
             N = max(N,len(atm_kwargs[label]))
+        elif label in red_kwargs and hasattr(red_kwargs[label],'__len__'):
+            N = max(N,len(red_kwargs[label]))
+        elif label=='vgamma' and hasattr(vgamma,'__len__'):
+            N = max(N,len(vgamma))
+        else:
+            raise ValueError("Somethin' wrong with the atmo table")
     values = np.zeros((len(labels),N))
     for i,label in enumerate(labels):
         #-- get the value from the atm_kwargs or red_kwargs
-        try:
+        if label in atm_kwargs:
             values[i] = atm_kwargs[label]
-        except KeyError:
+        elif label in red_kwargs:
             values[i] = red_kwargs[label]
+        elif label=='vgamma':
+            values[i] = vgamma
+        else:
+            raise ValueError("Somethin' wrong with the atmo table")
     #-- try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values,axis_values,pixelgrid)
@@ -959,15 +969,16 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                     output[pb].append(list(val) + [0.0,0.0] + [Imu[i]])
                     print output[pb][-1]
     #-- write to a FITS file
-    col_names = atm_par_names + red_par_names + ['res','dflux'] + ['a{:d}'.format(i+1) for i in range(len(csol))] + ['Imu1']
+    col_names = atm_par_names + red_par_names
+    if vgamma is not None and 'vgamma' not in col_names:
+            col_names.append('vgamma')
+    col_names = col_names + ['res','dflux'] + ['a{:d}'.format(i+1) for i in range(len(csol))] + ['Imu1']
     #-- if the file already exists, append to it
     if os.path.isfile(filename):
         filename = pyfits.open(filename,mode='update')
     #-- append all the tables
     for pb in sorted(list(output.keys())):
         grid = np.array(output[pb]).T
-        if vgamma is not None:
-            col_names.append('vgamma')
         header = dict(extname=pb)
         filename = fits.write_array(grid,filename,col_names,header_dict=header,ext='new',close=False)
     filename[0].header.update('HIERARCH FITMETHOD',fitmethod,'method used to fit the LD coefficients')

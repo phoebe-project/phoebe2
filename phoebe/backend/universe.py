@@ -1974,7 +1974,7 @@ class PhysicalBody(Body):
             logger.info('added reflection column for pbdep {}'.format(iref))
     
     @decorators.parse_ref
-    def clear_reflection(self,ref=None):
+    def clear_reflection(self,ref='all'):
         """
         Reset the reflection columns to zero.
         """
@@ -1982,7 +1982,7 @@ class PhysicalBody(Body):
             field = 'refl_{}'.format(iref)
             if field in self.mesh.dtype.names:
                 self.mesh[field] = 0.0
-        logger.info('Emptied reflection columns')
+                logger.info('Emptied reflection column {}'.format(iref))
                 
     
     #def get_parset(self,ref=None,context=None,type='pbdep',category=None):
@@ -4451,6 +4451,62 @@ class BinaryRocheStar(PhysicalBody):
         self.time = time
 
 class MisalignedBinaryRocheStar(BinaryRocheStar):
+    
+    def get_phase(self,time=None):
+        if time is None:
+            time = self.__time
+        T0 = self.params['orbit'].get_value('t0')
+        theta = self.params['orbit'].get_value('theta','rad')
+        phi0 = self.params['orbit'].get_value('phi0','rad')
+        P = self.params['orbit'].get_value('period','s')
+        Pprec = self.params['orbit'].get_value('precperiod','s')
+        phi = phi0 - 2*np.pi*((time-T0)/(P/3600./24.) - (time-T0)/(Pprec/3600./24.))
+        return phi
+   
+    def get_polar_direction(self,time=None,norm=False):
+        if time is None:
+            time = self.__time
+        phi = self.get_phase(time=time)
+        theta = self.params['orbit'].get_value('theta','rad')
+        coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])
+        if not norm:
+            coord = coord*1e-5
+        return coord
+        
+    def surface_gravity(self):
+        """
+        Calculate local surface gravity
+        """
+        #-- compute gradients and local gravity
+        component = self.get_component()+1
+        q  = self.params['orbit'].get_constraint('q%d'%(component))
+        a  = self.params['orbit'].get_value('sma','au')
+        asol = self.params['orbit'].get_value('sma','Rsol')
+        d  = self.params['orbit'].get_constraint('d','au')/a
+        rp = self.params['component'].get_constraint('r_pole','au')/a
+        gp = self.params['component'].get_constraint('g_pole')
+        F  = self.params['component'].get_value('f')
+        T0 = self.params['orbit'].get_value('t0')
+        Phi = self.params['component'].get_value('pot')
+        scale = self.params['orbit'].get_value('sma','Rsol')
+        theta = self.params['orbit'].get_value('theta','rad')
+        phi = self.get_phase()        
+        
+        coord = self.get_polar_direction()
+        rp = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
+        
+        dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
+                                                  self.mesh['_o_center'][:,1]/asol,
+                                                  self.mesh['_o_center'][:,2]/asol,
+                                                  q,d,F,theta,phi,normalize=False) # component is not necessary as q is already from component
+        Gamma_pole = roche.misaligned_binary_potential_gradient(rp[0],rp[1],rp[2],q,d,F,theta,phi,normalize=True)        
+        zeta = gp / Gamma_pole
+        grav_local_ = dOmega_*zeta
+        grav_local = coordinates.norm(grav_local_)
+        
+        self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
+        logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
+    
     def compute_mesh(self,time=None,conserve_volume=True):
         """
         Compute the mesh.
@@ -4477,9 +4533,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         T0 = self.params['orbit'].get_value('t0')
         scale = self.params['orbit'].get_value('sma','Rsol')
         theta = self.params['orbit'].get_value('theta','rad')
-        phi0 = self.params['orbit'].get_value('phi0','rad')
-        Pprec = self.params['orbit'].get_value('precperiod','s')
-        phi = phi0 - 2*np.pi*(time/(P/3600./24.) + time/(Pprec/3600./24.))
+        self.__time = time
+        phi = self.get_phase(time)
         
         #-- where in the orbit are we? We need everything in cartesian Rsol units
         #-- dimensionless "D" in Roche potential is ratio of real seperation over
@@ -4496,14 +4551,18 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         #   important: the polar surface gravity of a rotating star is equal
         #   to that of a nonrotating star!
         omega_rot = F * 2*pi/P # rotation frequency
-        r_pole = marching.projectOntoPotential((0,0,1e-5),'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
-        r_pole_= np.linalg.norm(r_pole)
+        #-- compute polar radius by projection on the potenial: we need to
+        #   make sure we are projecting in the direction of the pole!
+        coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])*1e-5
+        r_pole__ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
+        r_pole_= np.linalg.norm(r_pole__)
         r_pole = r_pole_*a
-        g_pole = roche.binary_surface_gravity(0,0,r_pole,d*a,omega_rot/F,M1,M2,normalize=True)
+        g_pole = roche.binary_surface_gravity(r_pole__[0]*a,r_pole__[1]*a,r_pole__[2]*a,
+                                              d*a,omega_rot/F,M1,M2,normalize=True)
         self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(r_pole))
         self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
         self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d*a))
-                
+        
         gridstyle = self.params['mesh'].context
         if gridstyle=='mesh:marching':
             #-- marching method. Remember the arguments so that we can reproject
@@ -4593,6 +4652,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         @param tol: tolerance cutoff
         @type tol: float
         """
+        self.__time = time
         #-- necessary values
         R = self.params['component'].request_value('r_pole','Rsol')
         sma = self.params['orbit'].request_value('sma','Rsol')
@@ -4605,9 +4665,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
         component = self.get_component()+1
         theta = self.params['orbit'].get_value('theta','rad')
-        phi0 = self.params['orbit'].get_value('phi0','rad')
-        Pprec = self.params['orbit'].get_value('precperiod','s')
-        phi = phi0 - 2*np.pi*(time/(P/3600./24.) + time/(Pprec/3600./24.))
+        T0 = self.params['orbit'].get_value('t0')
+        phi = self.get_phase(time)
         
         #-- possibly we need to conserve the volume of the secondary component
         if component==2:
@@ -4628,15 +4687,17 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         else:
             V1 = 1.
         
+        coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])*1e-5
+        
         for n_iter in range(max_iter):
             
             #-- compute polar radius
-            R = marching.projectOntoPotential((0,0,1e-5),'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
-            R = np.linalg.norm(R)*sma
-            g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
+            R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+            R_ = R_*sma
+            R = np.linalg.norm(R)
+            g_pole = roche.binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
             self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol))
             self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
-            
             #-- these are the arguments to compute the new mesh:
             self.subdivision['mesh_args'] = ('MisalignedBinaryRoche',d,q,F,theta,phi,oldpot,sma)
             

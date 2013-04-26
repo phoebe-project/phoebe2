@@ -712,6 +712,7 @@ class BodyEmulator(object):
                 curve,params = lc(self.params['root'],request='lc',light_curve=lcset)
                 self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
                 self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']
+                self.out = params
         
         #-- passband luminosity and third light:
         pblum_par = self.params['obs']['lcobs'].values()[0].get_parameter('pblum')
