@@ -152,7 +152,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
 defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='%f',llim=-10,ulim=10,step=1e-5,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
          dict(qualifier='dperdt', description='Periastron change',unit='deg/yr',repr='%f',llim=-10,ulim=10,step=1e-5,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
          dict(qualifier='ecc',    description='Eccentricity',repr='%f',llim=0,ulim=1.,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='orbit'),
-         dict(qualifier='t0',     description='Zeropoint date',unit='JD',repr='%f',llim=0,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='orbit'),
+         dict(qualifier='t0',     description='Zeropoint date',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='orbit'),
          dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=0,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
          dict(qualifier='label',  description='Name of the system',repr='%s',cast_type=str,value='',frame=["phoebe","wd"],context=['orbit','root']),
          dict(qualifier='period', description='Period of the system',repr='%f',unit='d',llim=0,ulim=1e6,step=0.01,adjust=False,cast_type=float,value=10.,frame=["phoebe"],context='orbit'),

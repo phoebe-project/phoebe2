@@ -51,10 +51,10 @@ Section 2.3 Fitting and statistics
    
 """
 #-- make some important classes available in the root:
-from parameters.parameters import ParameterSet,Parameter
-from parameters.parameters import ParameterSet as PS
-from parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
-from backend.universe import Star,BinaryRocheStar,BinaryStar,BodyBag,BinaryBag
+from .parameters.parameters import ParameterSet,Parameter
+from .parameters.parameters import ParameterSet as PS
+from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
+from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,BinaryStar,BodyBag,BinaryBag
 
 #-- common input and output
 from parameters.parameters import load as load_ps

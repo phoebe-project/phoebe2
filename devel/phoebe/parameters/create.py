@@ -241,7 +241,6 @@ class GenericBody(object):
         #-- check which contexts are given
         pbdep = kwargs.pop('pbdep',[])
         if kwargs:
-            print kwargs
             raise NotImplementedError("GenericBody cannot handle given keyword arguments yet")
         contexts = []
         contexts_args = []
@@ -323,7 +322,14 @@ class GenericBody(object):
             return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         elif len(match)>1:
             logger.warning("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
-            return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
+            if 'Star' in match:
+                mymatch = 'Star'
+            elif 'BinaryRocheStar' in match:
+                mymatch = 'BinaryRocheStar'
+            else:
+                mymatch = match[0]
+            logger.warning("Decided to take {}".format(mymatch))
+            return getattr(universe,mymatch)(*info[mymatch]['required'],**info[mymatch]['optional'])
         else:
             best_match = '<no close match found>'
             nr_match = 0

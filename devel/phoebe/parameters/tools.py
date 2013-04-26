@@ -19,7 +19,9 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 .. autosummary::
     
     add_asini
+    add_ecosw
     add_conserve
+    make_misaligned
     from_perpass_to_supconj
     from_supconj_to_perpass
 
@@ -511,6 +513,64 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
 
+def add_ecosw(orbit,ecosw,derive='per0',**kwargs):
+    """
+    Add ecosw to an orbit parameterSet.
+    
+    Only two parameters out of C{ecosw}, C{ecc} and C{per0} are
+    independent. If you add C{ecosw}, you have to choose to derive
+    either C{per0} or C{ecc} from the other two:
+    
+    .. math::
+    
+        \mathrm{acosw} = \mathrm{ecc} \sin(\mathrm{per0})
+    
+    This is a list of stuff that happens:
+    - A I{parameter} C{ecosw} will be added if it does not exist yet
+    - A I{constraint} to derive the parameter C{derive} will be added.
+    - If C{asini} already exists as a constraint, it will be removed
+    - If there are any other constraints on the parameter C{derive}, they
+      will be removed
+    
+    Extra C{kwargs} will be passed to the creation of C{asini} if it does
+    not exist yet.
+   
+    @param orbit: orbit parameterset
+    @type orbit: ParameterSet of context star
+    @param ecosw: the parameter
+    @type ecosw: float
+    @param derive: qualifier of the dependent parameter
+    @type derive: str, one of C{ecc}, C{per0}
+    @param unit: units of semi-major axis
+    @type unit: str
+    """
+    if kwargs and 'ecosw' in orbit:
+        raise ValueError("You cannot give extra kwargs to add_ecosw if it already exist")
+    
+    kwargs.setdefault('description','Projected system semi-major axis')
+    kwargs.setdefault('context',orbit.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    
+    #-- remove any constraints on surfgrav and add the parameter
+    orbit.pop_constraint('ecosw',None)
+    if not 'ecosw' in orbit:
+        orbit.add(parameters.Parameter(qualifier='ecosw',value=ecosw,
+                                      **kwargs))
+    else:
+        orbit['ecosw'] = ecosw
+        
+    #-- specify the dependent parameter
+    if derive=='ecc':
+        orbit.pop_constraint('ecc',None)
+        orbit.add_constraint('{ecc} = {ecosw}/np.cos({per0})')
+    elif derive=='per0':
+        orbit.pop_constraint('per0',None)
+        orbit.add_constraint('{per0} = np.arccos({ecosw}/{ecc})')
+    else:
+        raise ValueError("Cannot derive {} from ecosw".format(derive))
+    logger.info("orbit '{}': '{}' constrained by 'ecosw'".format(orbit['label'],derive))
+
 
 def add_conserve(orbit,conserve='volume',**kwargs):
     """
@@ -546,6 +606,8 @@ def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
     then ``theta=90`` means the star is viewed pole-on. ``theta=0`` means
     no misalignment.
     - ``phi0``: phase angle, orients the misalignment at some reference time.
+    the reference time is given by ``t0`` in the ``orbit`` parameterSet. ``phi0``
+    is such that if ``phi0=90``, the star is viewed edge on at ``t0``.
     - ``precperiod``: period of precession. If ``precperiod=np.inf``, then
     there is no precession and the body will have the same orientation in
     space at all times.

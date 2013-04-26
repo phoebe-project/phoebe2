@@ -854,11 +854,14 @@ def from_perpass_to_supconj(t0,period,per0,phshift=0.):
     
 
 def eclipse_separation(ecc,per0):
-    """
+    r"""
     Calculate the eclipse separation between primary and secondary in a light curve.
     
-    Minimum separation at per0=:math:`\pi`
-    Maximum spearation at per0=0
+    Minimum separation at ``per0`` = :math:`\pi`
+    
+    Maximum spearation at ``per0`` = 0
+    
+    .. math:: \Delta = \pi + 2\arctan\left(\frac{e\cos\omega}{\sqrt{1-e^2}}\right) + 2\frac{e\cos\omega\sqrt{1-e^2}}{1-e^2\sin^2\omega}
     
     @parameter ecc: eccentricity
     @type ecc: float
@@ -1459,7 +1462,13 @@ def place_in_binary_orbit(self,time):
         logmsg = 'could not find "syncpar"; assuming synchronisation'    
     omega_rot = F * 2*pi/P # rad/d
     logger.info('{} for in-orbit-rotation (Omega={:.3f} rad/d,P={:.3f},e={:.3f})'.format(logmsg,omega_rot,P,e))
-    velo_rot = np.cross(mesh['_o_center'],np.array([0.,0.,-omega_rot])) #NX3 array
+    #-- if we can't get the polar direction, assume it's in the negative Z-direction
+    try:
+        polar_dir = self.get_polar_direction(norm=True)
+    except:
+        polar_dir = np.array([0,0,-1.0])
+        
+    velo_rot = np.cross(mesh['_o_center'],polar_dir*omega_rot) #NX3 array
     velo_rot = np.array(rotate_into_orbit(velo_rot.T,euler)).T
     for label in mesh.dtype.names:
         if label[:4]=='velo':
