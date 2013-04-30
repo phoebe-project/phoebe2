@@ -518,15 +518,17 @@ def binary_from_deb2011(name,create_body=False,**kwargs):
     star1['mass'] = data['M1'][index],'Msol'
     star2['mass'] = data['M2'][index],'Msol'
     star1['radius'] = data['R1'][index],'Rsol'
-    star2['radius'] = data['M2'][index],'Rsol'
+    star2['radius'] = data['R2'][index],'Rsol'
     star1['teff'] = data['T1'][index],'K'
     star2['teff'] = data['T2'][index],'K'
     
     period = data['PME'][index]
     ecc = 0.
-    K1 = data['K1'][index]
-    K2 = data['K2'][index]
+    K2 = data['K1'][index]
+    K1 = data['K2'][index]
+    sma = data['a'][index]
     mybinary = binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=K2)
+    mybinary[2]['sma'] = sma
     mybinary[2]['c1label'] = star1['label']
     mybinary[2]['c2label'] = star2['label']
     if star_types[index] == ['ED']:
@@ -683,7 +685,6 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
     orbit = parameters.ParameterSet(context='orbit',c1label=comp1['label'],c2label=comp2['label'],add_constraints=True)
     orbit['period'] = period,'d'
     orbit['ecc'] = ecc
-    
     #-- take over some values
     for key in ['teff','ld_func','ld_coeffs','label','atm','irradiator','gravb']:
         comp1[key] = star1[key]
@@ -722,6 +723,7 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
             star2['mass'] = q*star1['mass']
         else:
             break
+         
     
     logger.info("Total mass of the system = {} Msol".format(star1['mass']+star2['mass']))
     logger.info("Inclination of the system = {} deg".format(orbit['incl']))
@@ -754,8 +756,7 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
     
     R1 = star1.get_value('radius','au')
     R2 = star2.get_value('radius','au')
-    
-    sma = orbit.get_value_with_unit('sma')
+    sma = orbit.get_value('sma','au'),'au'
     #-- we can also derive something on the radii from the eclipse duration, but
     #   only in the case for cicular orbits
     if eclipse_duration is not None and ecc==0.:
@@ -795,7 +796,6 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
         raise ValueError("Primary exceeds its Roche lobe")
     if R2crit<R2:
         raise ValueError("Secondary exceeds its Roche lobe")
-    
     try:
         comp1['pot'] = roche.radius2potential(R1/sma[0],orbit['q'],component=1)
         comp2['pot'] = roche.radius2potential(R2/sma[0],orbit['q'],component=2)

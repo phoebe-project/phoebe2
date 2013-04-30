@@ -3088,7 +3088,7 @@ class AccretionDisk(PhysicalBody):
     There is no limb-darkening included yet.
     
     """
-    def __init__(self,accretion_disk,pbdep=None,**kwargs):
+    def __init__(self,accretion_disk,pbdep=None,reddening=None,**kwargs):
         """
         Initialize a flaring accretion disk.
         
@@ -3098,6 +3098,11 @@ class AccretionDisk(PhysicalBody):
         super(AccretionDisk,self).__init__(dim=3,**kwargs)
         self.params['disk'] = accretion_disk
         self.params['pbdep'] = OrderedDict()
+        #-- add interstellar reddening (if none is given, set to the default,
+        #   this means no reddening
+        if reddening is None:
+            reddening = parameters.ParameterSet(context='reddening:interstellar')
+        self.params['reddening'] = reddening
         #-- add the parameters to compute dependables
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
@@ -3227,7 +3232,8 @@ class AccretionDisk(PhysicalBody):
         self.compute_sizes()
         self.compute_normals()
         #self.rotate(incl=45.,Omega=1.)
-        self.rotate()
+        #self.rotate()
+        self.rotate_and_translate()
         self.detect_eclipse_horizon(eclipse_detection='hierarchical')        
     
     def surface_gravity(self):
@@ -3259,7 +3265,7 @@ class AccretionDisk(PhysicalBody):
         with :math:`\beta=-0.75` and :math:`W=1.0` for the standard model.
         """
         r = coordinates.norm(self.mesh['_o_center'],axis=1)*constants.Rsol
-        Mdot = self.params['disk'].get_value('mdot','kg/s')
+        Mdot = self.params['disk'].get_value('dmdt','kg/s')
         M_wd = self.params['disk'].get_value('mass','kg')
         Rin = self.params['disk'].get_value('rin','m')
         b = self.params['disk']['b']
@@ -3273,10 +3279,11 @@ class AccretionDisk(PhysicalBody):
         Calculate local intensity and limb darkening coefficients.
         """
         ref = kwargs.pop('ref',['all'])
+        parset_isr = self.params['reddening']
         #-- now run over all labels and compute the intensities
         for iref in ref:
-            kwargs['ref'] = iref
-            generic.intensity(self,*args,**kwargs)
+            parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
+            limbdark.local_intensity(self,parset_pbdep,parset_isr)
             
     def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None):
         """
@@ -4557,7 +4564,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         r_pole__ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
         r_pole_= np.linalg.norm(r_pole__)
         r_pole = r_pole_*a
-        g_pole = roche.binary_surface_gravity(r_pole__[0]*a,r_pole__[1]*a,r_pole__[2]*a,
+        g_pole = roche.misaligned_binary_surface_gravity(r_pole__[0]*a,r_pole__[1]*a,r_pole__[2]*a,
                                               d*a,omega_rot/F,M1,M2,normalize=True)
         self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(r_pole))
         self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
@@ -4695,7 +4702,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
             R_ = R_*sma
             R = np.linalg.norm(R)
-            g_pole = roche.binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
+            g_pole = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
             self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol))
             self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
             #-- these are the arguments to compute the new mesh:

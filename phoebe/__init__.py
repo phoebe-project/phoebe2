@@ -54,7 +54,7 @@ Section 2.3 Fitting and statistics
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
-from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,BinaryStar,BodyBag,BinaryBag
+from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,BinaryStar,BodyBag,BinaryBag,AccretionDisk
 
 #-- common input and output
 from parameters.parameters import load as load_ps

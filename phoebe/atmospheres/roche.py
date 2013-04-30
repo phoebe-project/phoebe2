@@ -494,6 +494,67 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
     else:
         return g_pole
 
+def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
+    r"""
+    Calculate surface gravity in a misaligned binary roche potential.
+    
+    If ``x=0``, ``y=0`` and ``z=Rpole``, this compute the polar surface gravity:
+    
+    .. math::
+    
+        \mathbf{g}_p = -\frac{GM_1}{r^2_p} \frac{\mathbf{r_p}}{r_p} - \frac{GM_2}{h^2}\frac{\mathbf{h}}{h} - \omega^2(t) d_\mathrm{cf}\frac{\mathbf{d_\mathrm{cf}}}{d_\mathrm{cf}}
+    
+    with,
+    
+    .. math::
+        
+        h = \sqrt{r_p^2 + d^2}
+    
+    and :math:`d_\mathrm{cf}` is the perpendicular distance from the star's pole
+    to the axis of rotation of the binary. For misaligned binaries, we neglect
+    the influence of the precession on the surface gravity for now. This should
+    be very small anyway. But we also neglect any orbitally induces term of
+    the surface gravity, which is probably not a good idea.
+        
+    
+    Reference: Phoebe Scientific reference.
+    
+    Give everything in SI units please...
+    
+    @param x: cartesian x coordinate
+    @type x: float
+    @param y: cartesian y coordinate
+    @type y: float
+    @param z: cartesian z coordinate
+    @type z: float
+    @param d: separation between the two components
+    @type d: float
+    @param omega: rotation vector
+    @type omega: float
+    @param mass1: primary mass
+    @type mass1: float
+    @param mass2: secondary mass
+    @type mass2: float
+    """
+    q = mass2/mass1
+    x_com = q*d/(1+q)
+    
+    r = np.array([x,y,z])
+    d_cf = np.array([d-x_com,0,0])
+    d = np.array([d,0,0])
+    h = d - r
+
+    term1 = - constants.GG*mass1/np.linalg.norm(r)**3*r
+    term2 = - constants.GG*mass2/np.linalg.norm(h)**3*h
+    term3 = 0.#- omega**2 * d_cf
+    
+    g_pole = term1 + term2 + term3
+    print 'misbinsurfgrav',term1,term2,term3
+    if normalize:
+        return np.linalg.norm(g_pole)
+    else:
+        return g_pole
+
 def binary_potential(r,theta,phi,Phi,q,d,F,component=1):
     r"""
     Unitless eccentric asynchronous Roche potential in spherical coordinates.
