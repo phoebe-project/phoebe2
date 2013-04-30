@@ -147,6 +147,14 @@ def MisalignedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     
         \phi = \phi_0 - 2\pi \frac{t}{T}
     
+    The potential is given by:
+    
+    .. math::
+        
+        \delta = &  (1-\cos^2\phi\sin^2\theta) x^2 +(1-\sin^2\phi\sin^2\theta) y^2 + \sin^2\theta z^2\\
+               &  - \sin^2\theta\sin 2\phi xy - \sin 2\theta \cos\phi xz - \sin 2\theta \sin\phi yz \\
+        \Omega  = & \frac{1}{r} + \frac{q}{\sqrt{(x-d)^2 + y^2 + z^2}} - \frac{qx}{d^2} + \frac{F^2}{2}(1+q)\delta
+    
     @param r:      relative radius vector (3 components)
     @param D:      instantaneous separation
     @param q:      mass ratio
@@ -164,8 +172,14 @@ def MisalignedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + q*(1.0/sqrt((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])-r[0]/D/D) + 0.5*F*F*(1+q)*delta - Omega
 
 def dMisalignedBinaryRochedx (r, D, q, F, theta, phi):
-    """
+    r"""
     Computes a derivative of the potential with respect to x.
+    
+    .. math::
+    
+        \delta = & 2 (1-\cos^2\phi\sin^2\theta)x - \sin^2\theta\sin 2\phi y - \sin 2\theta\cos\phi z\\
+        
+        \frac{d\Omega}{dx}  = &  -\frac{x}{r^{3/2}} - \frac{q (x-d)}{ ((x-d)^2 + y^2 + z^2)^{3/2}} - \frac{q}{d^2} + \frac{F^2}{2}(1+q)\delta
     
     @param r:      relative radius vector (3 components)
     @param D:      instantaneous separation
@@ -174,7 +188,7 @@ def dMisalignedBinaryRochedx (r, D, q, F, theta, phi):
     @param theta:  misalignment coordinate
     @param phi:    misalignment coordinate
     """
-    delta = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*r[0] +\
+    delta = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*r[0] -\
             np.sin(theta)**2*np.sin(2*phi)*r[1] -\
             np.sin(2*theta)*np.cos(phi)*r[2]
     return -r[0]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*(r[0]-D)*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 -q/D/D + 0.5*F*F*(1+q)*delta
@@ -190,7 +204,7 @@ def dMisalignedBinaryRochedy (r, D, q, F, theta, phi):
     @param theta:  misalignment coordinate
     @param phi:    misalignment coordinate
     """
-    delta = 2*(1-np.sin(phi)**2*np.sin(theta)**2)*r[1] +\
+    delta = 2*(1-np.sin(phi)**2*np.sin(theta)**2)*r[1] -\
             np.sin(theta)**2*np.sin(2*phi)*r[0] -\
             np.sin(2*theta)*np.sin(phi)*r[2]
     return -r[1]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[1]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 + 0.5*F*F*(1+q)*delta

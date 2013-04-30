@@ -3580,7 +3580,7 @@ class Star(PhysicalBody):
             self.mesh['_o_velo_'+iref+'_'] = velo_rot
             self.mesh['velo_'+iref+'_'] = velo_rot#_
         #-- and we need the systemic velocity too...
-        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] + self.params['star'].request_value('vgamma','Rsol/d')
+        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] #+ self.params['star'].request_value('vgamma','Rsol/d')
         v = np.sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
         
     
@@ -3960,8 +3960,8 @@ class Star(PhysicalBody):
                 self.magnetic_field()
             #-- compute intensity, rotate to the right position and set default
             #   visible/hidden stuff (i.e. assuming convex shape)
-            self.intensity(ref=ref)
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=True)
+            
             if has_freq:
                 self.detect_eclipse_horizon(eclipse_detection='hierarchical')
             else:
@@ -3970,6 +3970,9 @@ class Star(PhysicalBody):
             self.velocity(ref=ref)
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=False)
             self.detect_eclipse_horizon(eclipse_detection='simple')
+        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
+        if self.time is None or has_freq or has_spot:
+            self.intensity(ref=ref)
         #-- remember the time... 
         self.time = time
         self.postprocess()
@@ -4499,18 +4502,25 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         theta = self.params['orbit'].get_value('theta','rad')
         phi = self.get_phase()        
         
+        M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
+        M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
+        P = self.params['orbit'].get_value('period','s')
+        omega_rot = F * 2*pi/P # rotation frequency
+        
         coord = self.get_polar_direction()
         rp = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
         
-        dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
-                                                  self.mesh['_o_center'][:,1]/asol,
-                                                  self.mesh['_o_center'][:,2]/asol,
-                                                  q,d,F,theta,phi,normalize=False) # component is not necessary as q is already from component
-        Gamma_pole = roche.misaligned_binary_potential_gradient(rp[0],rp[1],rp[2],q,d,F,theta,phi,normalize=True)        
-        zeta = gp / Gamma_pole
-        grav_local_ = dOmega_*zeta
-        grav_local = coordinates.norm(grav_local_)
-        
+        #dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
+        #                                          self.mesh['_o_center'][:,1]/asol,
+        #                                          self.mesh['_o_center'][:,2]/asol,
+        #                                          q,d,F,theta,phi,normalize=False) # component is not necessary as q is already from component
+        #Gamma_pole = roche.misaligned_binary_potential_gradient(rp[0],rp[1],rp[2],q,d,F,theta,phi,normalize=True)        
+        #zeta = gp / Gamma_pole
+        #grav_local_ = dOmega_*zeta
+        grav_local = roche.misaligned_binary_surface_gravity(self.mesh['_o_center'][:,0]*constants.Rsol,
+                                                               self.mesh['_o_center'][:,1]*constants.Rsol,
+                                                               self.mesh['_o_center'][:,2]*constants.Rsol,asol*constants.Rsol,
+                                                               omega_rot/F,M1,M2,normalize=True,F=F,Rpole=coord*1e5)
         self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
     
@@ -4638,7 +4648,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             if not self.params['component'].has_qualifier('volume'):
                 self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
                 logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
-
+        
+        
     def conserve_volume(self,time,max_iter=10,tol=1e-6):
         """
         Update the mesh to conserve volume.
@@ -4740,7 +4751,17 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             self.params['component']['pot'] = oldpot
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
-    
+        
+        R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+        R_ = R_*sma
+        R = np.linalg.norm(R)
+        x1 = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=None)
+        R_ = marching.projectOntoPotential(-coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+        R_ = R_*sma
+        R = np.linalg.norm(R)
+        x2 = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=None)
+        return list(x1)+list(x2)
+        
     def set_time(self,time,ref='all'):
         """
         Set the time of a BinaryRocheStar.
