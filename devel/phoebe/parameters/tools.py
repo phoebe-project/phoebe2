@@ -582,7 +582,7 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
         raise ValueError("Cannot derive {} from ecosw".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'ecosw'".format(orbit['label'],derive))
 
-9
+
 def add_conserve(orbit,conserve='volume',**kwargs):
     """
     Add a parameter to conserve volume or equipotential value along an eccentric orbit.
@@ -614,8 +614,8 @@ def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
     
     The definition of the parameters is as follows:
     - ``theta``: misalignment inclination. If  the orbital plane is edge-on,
-    then ``theta=90`` means the star is viewed pole-on. ``theta=0`` means
-    no misalignment.
+    then ``theta=90`` means the star is viewed pole-on. ``theta=180`` means
+    no misalignment, ``theta=0`` means no misalignment but retrograde spinning.
     - ``phi0``: phase angle, orients the misalignment at some reference time.
     the reference time is given by ``t0`` in the ``orbit`` parameterSet. ``phi0``
     is such that if ``phi0=90``, the star is viewed edge on at ``t0``.
@@ -627,7 +627,30 @@ def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
     orbit.add(parameters.Parameter(qualifier='theta',value=theta,unit='deg',cast_type=float,description='Misalignment inclination'))
     orbit.add(parameters.Parameter(qualifier='phi0',value=phi0,unit='deg',cast_type=float,description='Misalignment phase'))
     orbit.add(parameters.Parameter(qualifier='precperiod',value=precperiod,unit='d',cast_type=float,description='Period of precession'))
+
+def add_theta_eff(orbit,theta_eff=None):
+    r"""
+    Add an effective misalignment parameter [Avni1982]_.
     
+    .. math::
+    
+        \theta_\mathrm{eff} = \arccos\left(\cos\theta\sqrt{1+\sin^2\phi\tan^2\phi}\right)
+    
+    We assume then that :math:`\theta` is fixed and :math:`\phi` will be derived.
+    Note that :math:`\theta\geq\theta_\mathrm{eff}` must hold.
+    
+    In other words, for each set value of :math:`\theta`, :math:`\phi` will be
+    set such that the angle between the pole and line-of-sight is constant. This
+    keeps the vsini constant.
+    """
+    theta = orbit.request_value('theta','rad')
+    phi = orbit.request_value('phi0','rad')
+    if theta_eff is None:
+        theta_eff = np.arccos(np.cos(theta)*np.sqrt(1+np.sin(phi)**2*np.tan(theta)**2))
+        theta_eff = theta_eff/np.pi*180.
+    orbit.add(parameters.Parameter(qualifier='theta_eff',value=theta_eff,unit='deg',cast_type=float,description='Effective misalignment parameter'))
+    orbit.add_constraint('{phi0} = np.arcsin(1.0/np.tan({theta}) * np.sqrt(np.cos({theta_eff})**2/np.cos({theta})**2 -1.0)) if {theta}!=np.pi/2 else np.pi/2.0-{phi0}')
+    orbit.run_constraints()
 
 def from_supconj_to_perpass(orbit):
     """

@@ -476,7 +476,8 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
     @param mass2: secondary mass
     @type mass2: float
     """
-    q = mass2/mass1
+    #q = mass2/mass1
+    q = mass1/mass2
     x_com = q*d/(1+q)
     
     r = np.array([x,y,z])
@@ -494,7 +495,7 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
     else:
         return g_pole
 
-def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
+def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,F=1.,Rpole=None):
     r"""
     Calculate surface gravity in a misaligned binary roche potential.
     
@@ -536,22 +537,79 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False)
     @param mass2: secondary mass
     @type mass2: float
     """
-    q = mass2/mass1
-    x_com = q*d/(1+q)
+    q = mass1/mass2
+    shapearr1 = np.ones_like(x)
+    shapearr2 = np.zeros_like(x)
+    x_com = np.array([q*d/(1+q)*shapearr1,shapearr2,shapearr2])
+    
+    if Rpole is None:
+        Rpole = np.array([shapearr2,shapearr2,shapearr1])
+    
     
     r = np.array([x,y,z])
-    d_cf = np.array([d-x_com,0,0])
-    d = np.array([d,0,0])
+    d = np.array([d*shapearr1,shapearr2,shapearr2])
+    d_cf = r-x_com
+    d_cf[1:3] = 0.
     h = d - r
+    
+    rn = coordinates.norm(r)
+    r_cf = rn*np.sin(np.arccos((r[0]*Rpole[0]+r[1]*Rpole[1]+r[2]*Rpole[2])/rn))
 
-    term1 = - constants.GG*mass1/np.linalg.norm(r)**3*r
-    term2 = - constants.GG*mass2/np.linalg.norm(h)**3*h
-    term3 = 0.#- omega**2 * d_cf
+
+    #import matplotlib.pyplot as plt
+    #plt.plot(x/constants.Rsol,y/constants.Rsol,'ro')
+    #from mayavi import mlab
+    #mlab.figure(1)
+    #mlab.points3d(*np.array([x,y,z]).reshape((3,-1))/constants.Rsol,color=(0,1,0))
+    #mlab.points3d(*d_cf.reshape((3,-1))/constants.Rsol,color=(0,1,1))
+    #mlab.points3d(*d.reshape((3,-1))/constants.Rsol,color=(0,0,1))
+    #mlab.plot3d(np.array([0,d[0]])/constants.Rsol,np.array([0,d[1]]),np.array([0,d[2]]))
+    #mlab.plot3d(2*np.array([0,x])/constants.Rsol,2*np.array([0,y])/constants.Rsol,2*np.array([0,z])/constants.Rsol)
+    #mlab.plot3d(np.array([x,d[0]])/constants.Rsol,
+                #np.array([y,d[1]])/constants.Rsol,
+                #np.array([z,d[2]])/constants.Rsol)
+    term1 = - constants.GG*mass1/coordinates.norm(r)**3*r
+    term2 = - constants.GG*mass2/coordinates.norm(h)**3*h
+    term3 = - (omega)**2 * d_cf
+    term4 = - (omega*F)**2 *r_cf
+    #print '=========='
+    #print term1.min(),term1.max()
+    #print term2.min(),term2.max()
+    #print term3.min(),term3.max()
+    #print '=========='
+    
+    #import matplotlib.pyplot as plt
+    #try:
+        #if len(r_cf)>1:
+            #g = np.log10(coordinates.norm(term1+term2+term3)+term4)+2
+            #print g.min(),g.max()
+            #plt.figure()
+            #plt.plot(r_cf,g,'ko-')
+            
+            #plt.figure()
+            #plt.subplot(221,aspect='equal')
+            #plt.scatter(x,y,c=r_cf,edgecolors='none')
+            #plt.colorbar()
+            #plt.subplot(222,aspect='equal')
+            #plt.scatter(x,z,c=r_cf,edgecolors='none')
+            #plt.colorbar()
+            #plt.subplot(223,aspect='equal')
+            #plt.scatter(y,z,c=r_cf,edgecolors='none')
+            #plt.colorbar()
+            #plt.subplot(224,aspect='equal')
+            #plt.scatter(x,z,c=g,edgecolors='none')
+            #plt.colorbar()
+            #plt.show()
+            
+    #except Exception, msg:
+        #print msg
+        #pass
     
     g_pole = term1 + term2 + term3
-    print 'misbinsurfgrav',term1,term2,term3
     if normalize:
-        return np.linalg.norm(g_pole)
+        return coordinates.norm(g_pole)
+    elif normalize is None:
+        return coordinates.norm(term1),coordinates.norm(term2),coordinates.norm(term3),coordinates.norm(g_pole)
     else:
         return g_pole
 
@@ -676,12 +734,16 @@ def misaligned_binary_potential_gradient(x,y,z,q,d,F,theta,phi,component=1,norma
     #-- transform into system of component (defaults to primary)
     if component==2:
         q = 1.0/q
+    x = x/d
+    y = y/d
+    z = z/d
+    d = 1.0
     r = np.sqrt(x**2 + y**2 + z**2)
     r_= np.sqrt((d-x)**2 + y**2 + z**2)
-    deltax = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*x +\
+    deltax = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*x -\
                 np.sin(theta)**2*np.sin(2*phi)*y -\
                 np.sin(2*theta)*np.cos(phi)*z
-    deltay = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*y +\
+    deltay = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*y -\
                 np.sin(theta)**2*np.sin(2*phi)*x -\
                 np.sin(2*theta)*np.sin(phi)*z
     deltaz = 2*np.sin(theta)**2*z -\

@@ -495,7 +495,7 @@ def get_specific_intensities(atm,atm_kwargs={},red_kwargs={},vgamma=0):
         cc = constants.cc/1000. #speed of light in km/s
         for i in range(len(mu)):
             flux_shift = tools.doppler_shift(wave,-vgamma,flux=table[:,i])
-            table[:,i] = flux_shift + 5.*vgamma/cc*table[:,i]
+            table[:,i] = flux_shift + 5.*vgamma/cc*flux_shift
     
     #-- redden if necessary
     if red_kwargs:
