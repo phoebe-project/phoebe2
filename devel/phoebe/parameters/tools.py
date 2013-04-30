@@ -41,6 +41,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 import logging
 import numpy as np
 from phoebe.units import constants
+from phoebe.units import conversions
 from phoebe.parameters import parameters
 
 logger = logging.getLogger("PARS.TOOLS")
@@ -454,7 +455,7 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
 
 #{ Common constraints for the BinaryRocheStar or Orbit
 
-def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
+def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
     """
     Add asini to an orbit parameterSet.
     
@@ -494,6 +495,10 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
     
+    if asini is None:
+        asini = orbit.request_value('sma','m')*np.sin(orbit.request_value('incl','rad'))
+        asini = conversions.convert('m',unit,asini)
+    
     #-- remove any constraints on surfgrav and add the parameter
     orbit.pop_constraint('asini',None)
     if not 'asini' in orbit:
@@ -513,7 +518,7 @@ def add_asini(orbit,asini,derive='sma',unit='Rsol',**kwargs):
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
 
-def add_ecosw(orbit,ecosw,derive='per0',**kwargs):
+def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     """
     Add ecosw to an orbit parameterSet.
     
@@ -544,6 +549,10 @@ def add_ecosw(orbit,ecosw,derive='per0',**kwargs):
     @param unit: units of semi-major axis
     @type unit: str
     """
+    if orbit.frame=='phoebe':
+        peri = 'per0'
+    else:
+        peri = 'omega'
     if kwargs and 'ecosw' in orbit:
         raise ValueError("You cannot give extra kwargs to add_ecosw if it already exist")
     
@@ -554,6 +563,8 @@ def add_ecosw(orbit,ecosw,derive='per0',**kwargs):
     
     #-- remove any constraints on surfgrav and add the parameter
     orbit.pop_constraint('ecosw',None)
+    if ecosw is None:
+        ecosw = orbit['ecc']*np.cos(orbit.request_value(peri,'rad'))
     if not 'ecosw' in orbit:
         orbit.add(parameters.Parameter(qualifier='ecosw',value=ecosw,
                                       **kwargs))
@@ -564,14 +575,14 @@ def add_ecosw(orbit,ecosw,derive='per0',**kwargs):
     if derive=='ecc':
         orbit.pop_constraint('ecc',None)
         orbit.add_constraint('{ecc} = {ecosw}/np.cos({per0})')
-    elif derive=='per0':
-        orbit.pop_constraint('per0',None)
-        orbit.add_constraint('{per0} = np.arccos({ecosw}/{ecc})')
+    elif derive==peri:
+        orbit.pop_constraint(peri,None)
+        orbit.add_constraint('{{{peri}}} = np.arccos({{ecosw}}/{{ecc}})'.format(peri=peri))
     else:
         raise ValueError("Cannot derive {} from ecosw".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'ecosw'".format(orbit['label'],derive))
 
-
+9
 def add_conserve(orbit,conserve='volume',**kwargs):
     """
     Add a parameter to conserve volume or equipotential value along an eccentric orbit.

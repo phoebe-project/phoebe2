@@ -277,6 +277,7 @@ if __name__=="__main__":
                   'phoebe-testsuite/traditional_approximation/traditional_approximation.py',
                   'phoebe-testsuite/beaming/KPD1946+4340.py',
                   'phoebe-testsuite/example_systems/example_systems.py',
+                  'phoebe-testsuite/contact_binary/contact_binary.py',
                   'phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py',
                   'phoebe-testsuite/occulting_dark_sphere/transit_colors.py']
     

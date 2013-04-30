@@ -45,15 +45,82 @@ def blackbody(wl,T,vrad=0):
     .. math::
     
         I(\lambda)_\mathrm{Kurucz} =  I(\lambda)_\mathrm{output} \times\sqrt{2\pi}
-        
+    
+    >>> wl = np.linspace(100,10000,10000)
+    >>> f0 = blackbody(wl,1000.)
+    >>> f1 = blackbody(wl,3000.)
+    >>> f2 = blackbody(wl,5000.)
+    >>> f3 = blackbody(wl,7000.)
+    >>> f4 = blackbody(wl,9000.)
+    >>> f5 = blackbody(wl,11000.)
+    
+    >>> p = plt.figure()
+    >>> p = plt.plot(wl,f0,'-',lw=2,color=plt.cm.RdBu(0.0),label='T=1000K')
+    >>> p = plt.plot(wl,f1,'-',lw=2,color=plt.cm.RdBu(0.2),label='T=3000K')
+    >>> p = plt.plot(wl,f2,'-',lw=2,color=plt.cm.RdBu(0.4),label='T=5000K')
+    >>> p = plt.plot(wl,f3,'-',lw=2,color=plt.cm.RdBu(0.6),label='T=7000K')
+    >>> p = plt.plot(wl,f4,'-',lw=2,color=plt.cm.RdBu(0.8),label='T=9000K')
+    >>> p = plt.plot(wl,f5,'-',lw=2,color=plt.cm.RdBu(1.0),label='T=11000K')
+    >>> p = plt.gca().set_yscale('log')
+    >>> p = plt.ylim(1e1,0.7e8)
+    >>> p = plt.legend(loc='best').get_frame().set_alpha(0.5)
+    >>> p = plt.xlabel("Wavelength [nm]")
+    >>> p = plt.ylabel('Flux [erg/s/cm2/AA]')
+    
+    .. image:: images/atmospheres_sed_blackbody.png
+       :scale: 75 %
+       :align: center
+
     Doppler beaming can be taken into account by giving a radial velocity of 
     star star. In that case:
     
     .. math::
     
-        I(\lambda)_\mathrm{output,DB} = I(\lambda)_\mathrm{output} + 5 \frac{v_\mathrm{rad}}{c}I(\lambda)'_\mathrm{output}
+        I(\lambda)_\mathrm{output,DB} = I(\lambda)'_\mathrm{output} - 5 \frac{v_\mathrm{rad}}{c}I(\lambda)'_\mathrm{output}
     
     with :math:`I(\lambda)'_\mathrm{output}` the doppler shifted intensity.
+    
+    >>> wl = np.linspace(300,2000,10000)
+    >>> T = 5000.
+    >>> vrad = 10000.
+    >>> f0 = blackbody(wl,T,vrad=0.)
+    >>> f1 = blackbody(wl,T,vrad=vrad)
+    >>> f2 = blackbody(wl,T,vrad=-vrad)
+    
+    >>> p = plt.figure()
+    >>> p = plt.title('Doppler beaming')
+    >>> p = plt.plot(wl,f0,'k-')
+    >>> p = plt.plot(wl,f1,'r-')
+    >>> p = plt.plot(wl,f2,'b-')
+    
+    >>> p = plt.figure()
+    >>> p = plt.title('Doppler beaming (normalised to maximum flux)')
+    >>> p = plt.plot(wl,f0/f0.max(),'k-')
+    >>> p = plt.plot(wl,f1/f1.max(),'r-')
+    >>> p = plt.plot(wl,f2/f2.max(),'b-')
+    
+    >>> g1 = tools.doppler_shift(wl,vrad,flux=f0,vrad_units='km/s')
+    >>> g2 = tools.doppler_shift(wl,-vrad,flux=f0,vrad_units='km/s')
+    
+    >>> p = plt.figure()
+    >>> p = plt.title('Doppler shift')
+    >>> p = plt.plot(wl,f0,'k-')
+    >>> p = plt.plot(wl,g1,'r-')
+    >>> p = plt.plot(wl,g2,'b-')
+    
+    +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+    | Doppler beaming                                             | Doppler beaming (normalised)                                | Doppler shift                                               |
+    +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+    | .. image:: images/atmospheres_sed_blackbody_beaming01.png   | .. image:: images/atmospheres_sed_blackbody_beaming02.png   | .. image:: images/atmospheres_sed_blackbody_beaming03.png   |
+    |    :align: center                                           |    :align: center                                           |    :align: center                                           |
+    |    :width: 233px                                            |    :width: 233px                                            |    :width: 233px                                            |
+    |    :target: _images/atmospheres_sed_blackbody_beaming01.png |    :target: _images/atmospheres_sed_blackbody_beaming02.png |    :target: _images/atmospheres_sed_blackbody_beaming03.png |
+    +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
+    
+    
+    
+    
+    
     
     @param wl: wavelength (nm)
     @type wl: array
@@ -71,8 +138,8 @@ def blackbody(wl,T,vrad=0):
     I = factor / wl**5. * 1. / (np.exp(expont/wl) - 1.)
     #from SI to erg/s/cm2/AA:
     if vrad!=0:
-        I_ = tools.doppler_shift(wl,-vrad,flux=I,vrad_units='km/s')
-        I = I_ + 5.*vrad/constants.cc*1000*I
+        I_ = tools.doppler_shift(wl,vrad,flux=I,vrad_units='km/s')
+        I = I_ - 5.*vrad/constants.cc*1000*I_
     return I*1e-7
 
 def synthetic_flux(wave,flux,passbands,units=None):
@@ -256,3 +323,8 @@ def synthetic_flux(wave,flux,passbands,units=None):
     #-- that's it!
     return energys
 
+if __name__=="__main__":
+    import doctest
+    from matplotlib import pyplot as plt
+    doctest.testmod()
+    plt.show()

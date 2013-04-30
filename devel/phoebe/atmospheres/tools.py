@@ -57,7 +57,7 @@ def doppler_shift(wave,vrad,vrad_units='km/s',flux=None):
     If you want to apply a barycentric correction, you'd probably want to
     reverse the sign!
     
-    Example usage: shift a spectrum to the blue ('left') with 20 km/s.
+    Example usage: shift a spectrum to the red ('right') with 20 km/s.
     
     >>> wave = np.linspace(3000,8000,1000)
     >>> wave_shift1 = doppler_shift(wave,20.)
@@ -66,6 +66,27 @@ def doppler_shift(wave,vrad,vrad_units='km/s',flux=None):
     (3000.200138457119, 8000.5337025523177)
     >>> print(wave_shift2[0],wave_shift2[-1])
     (3000.200138457119, 8000.5337025523177)
+    
+    Or with a complete line profile:
+    
+    >>> wave = np.linspace(3000,8000,20)
+    >>> flux = 1.0 - 0.5*np.exp( - (wave-5500)**2/(2*500**2))
+    >>> wave0 = doppler_shift(wave,5000.,)
+    >>> flux1 = doppler_shift(wave,5000.,flux=flux)
+    
+    Notice how, with the second ('red') version, the original wavelength
+    array can be re-used, while with the first ('blue') version, the original flux
+    array can be re-used. Keep in mind that when the fluxes are shifted, they
+    are linearly interpolated onto the shifted wavelength array, so the shift
+    is not exact.
+    
+    >>> p = plt.figure()
+    >>> p = plt.plot(wave,flux,'ko-')
+    >>> p = plt.plot(wave0,flux,'bx-',lw=2,mew=2,ms=10)
+    >>> p = plt.plot(wave,flux1,'r+--',lw=2,mew=2,ms=10)
+    
+    .. image:: images/atmospheres_tools_doppler_shift.png
+       :scale: 75 %
     
     @param wave: wavelength array
     @type wave: ndarray
@@ -401,3 +422,11 @@ def vsini(wave,flux,epsilon=0.6,clam=None,window=None,**kwargs):
     error = error*clam/q1/cc
     error = conversions.convert('s/AA','s/km',error,wave=(clam,'AA'))
     return (freqs,ampls),(minima,minvals),vsini_values,error
+
+
+if __name__=="__main__":
+    import doctest
+    from matplotlib import pyplot as plt
+    from matplotlib import pyplot as pl
+    doctest.testmod()
+    plt.show()
