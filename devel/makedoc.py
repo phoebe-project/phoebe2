@@ -178,6 +178,7 @@ def write_bib(refs):
     names[r'{ArXiv e-prints}'] = 'ArXiv'
     names[r'{\pasp}'] = 'PASP'
     names[r'{\zap}'] = 'Zeitschrift fur Astrophysik'
+    names[r'{\aj}'] = 'Astrophysical Journal'
 
 
     

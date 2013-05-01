@@ -5,6 +5,7 @@ Bibliography
 
 .. [Aerts1993] Aerts, C. and Waelkens, C., 1993, A&A, "Line Profile Variations of Rotating Pulsating Stars" (`ADS <http://adsabs.harvard.edu/abs/1993A%26A...273..135A>`_)
 .. [Avni1982] Avni, Y. and Schiller, N., 1982, ApJ, "Generalized Roche potential for misaligned binary systems - Properties of the critical lobe" (`ADS <http://adsabs.harvard.edu/abs/1982ApJ...257..703A>`_)
+.. [Budaj2011] Budaj, J., 2011, Astrophysical Journal, "The Reflection Effect in Interacting Binaries or in Planet-Star Systems" (`ADS <http://adsabs.harvard.edu/abs/2011AJ....141...59B>`_)
 .. [Cranmer1995] Cranmer, S. R. and Owocki, S. P., 1995, ApJ, "The effect of oblateness and gravity darkening on the radiation driving in winds from rapidly rotating B stars" (`ADS <http://adsabs.harvard.edu/abs/1995ApJ...440..308C>`_)
 .. [deb2011] Deb, S. and Singh, H. P., 2011, MNRAS, "Physical parameters of 62 eclipsing binary stars using the All Sky Automated Survey-3 data - I" (`ADS <http://adsabs.harvard.edu/abs/2011MNRAS.412.1787D>`_)
 .. [Donati1997] Donati, J.-F. and Semel, M. and Carter, B. D. and Rees, D. E. and, 1997, MNRAS, "Spectropolarimetric observations of active stars" (`ADS <http://adsabs.harvard.edu/abs/1997MNRAS.291..658D>`_)
@@ -24,5 +25,6 @@ Bibliography
 .. [VanDerBliek1996] van der Bliek, N. S. and Gustafsson, B. and Eriksson, K., 1996, A&A, "Stellar far-IR fluxes: how accurate are model predictions?" (`ADS <http://adsabs.harvard.edu/abs/1996A%26A...309..849V>`_)
 .. [VonZeipel1924] von Zeipel, H., 1924, MNRAS, "The radiative equilibrium of a rotating system of gaseous masses" (`ADS <http://adsabs.harvard.edu/abs/1924MNRAS..84..665V>`_)
 .. [Wilson1979] Wilson, R. E., 1979, ApJ, "Eccentric orbit generalization and simultaneous solution of binary star light and velocity curves" (`ADS <http://adsabs.harvard.edu/abs/1979ApJ...234.1054W>`_)
+.. [Wilson1990] Wilson, R. E., 1990, ApJ, "Accuracy and efficiency in the binary star reflection effect" (`ADS <http://adsabs.harvard.edu/abs/1990ApJ...356..613W>`_)
 .. [Wood1992] Wood, J. H. and Horne, K. and Vennes, S., 1992, ApJ, "Eclipse studies of the dwarf nova HT Cassiopeiae. II - White dwarf and accretion disk" (`ADS <http://adsabs.harvard.edu/abs/1992ApJ...385..294W>`_)
 .. [Zima2006] Zima, W., 2006, A&A, "A new method for the spectroscopic identification of stellar non-radial pulsation modes. I. The method and numerical tests" (`ADS <http://adsabs.harvard.edu/abs/2006A%26A...455..227Z>`_)
