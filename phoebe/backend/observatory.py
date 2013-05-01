@@ -1588,7 +1588,7 @@ def compute(system,params=None,**kwargs):
             system.fix_mesh()
         #-- for heating an eccentric system, we first need to reset the temperature!
         if heating is True:
-            system.temperature()
+            system.temperature(time)
         #-- compute intensities
         if i==0 or not circular or beaming:
             system.intensity(ref=ref)

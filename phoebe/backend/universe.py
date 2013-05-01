@@ -1119,7 +1119,6 @@ class Body(object):
         sigma = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
-                print observations['ref']
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                          ref=observations['ref'],
                                          cumulative=True)
@@ -3249,7 +3248,7 @@ class AccretionDisk(PhysicalBody):
         self.mesh['logg'] = np.log10(g*100) # logg in cgs
         
     
-    def temperature(self):
+    def temperature(self,time=None):
         r"""
         Temperature is calculated according to [Wood1992]_
         
@@ -4321,7 +4320,7 @@ class BinaryRocheStar(PhysicalBody):
         self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
 
-    def temperature(self):
+    def temperature(self,time=None):
         """
         Calculate local temperature.
         """
@@ -4510,17 +4509,36 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         coord = self.get_polar_direction()
         rp = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
         
-        #dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
-        #                                          self.mesh['_o_center'][:,1]/asol,
-        #                                          self.mesh['_o_center'][:,2]/asol,
-        #                                          q,d,F,theta,phi,normalize=False) # component is not necessary as q is already from component
-        #Gamma_pole = roche.misaligned_binary_potential_gradient(rp[0],rp[1],rp[2],q,d,F,theta,phi,normalize=True)        
-        #zeta = gp / Gamma_pole
-        #grav_local_ = dOmega_*zeta
-        grav_local = roche.misaligned_binary_surface_gravity(self.mesh['_o_center'][:,0]*constants.Rsol,
-                                                               self.mesh['_o_center'][:,1]*constants.Rsol,
-                                                               self.mesh['_o_center'][:,2]*constants.Rsol,asol*constants.Rsol,
-                                                               omega_rot/F,M1,M2,normalize=True,F=F,Rpole=coord*1e5)
+        dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
+                                                 self.mesh['_o_center'][:,1]/asol,
+                                                 self.mesh['_o_center'][:,2]/asol,
+                                                 q,d,F,theta,phi,normalize=False) # component is not necessary as q is already from component
+        #import matplotlib.pyplot as plt
+        #plt.figure()
+        #plt.subplot(221,aspect='equal')
+        #plt.scatter(self.mesh['_o_center'][:,0],self.mesh['_o_center'][:,1],c=dOmega_[0],edgecolors='none')
+        #plt.colorbar()
+        #plt.subplot(222,aspect='equal')
+        #plt.scatter(self.mesh['_o_center'][:,0],self.mesh['_o_center'][:,1],c=dOmega_[1],edgecolors='none')
+        #plt.colorbar()
+        #plt.subplot(223,aspect='equal')
+        #plt.scatter(self.mesh['_o_center'][:,0],self.mesh['_o_center'][:,2],c=dOmega_[2],edgecolors='none')
+        #plt.colorbar()
+        Gamma_pole = roche.misaligned_binary_potential_gradient(rp[0],rp[1],rp[2],q,d,F,theta,phi,normalize=True)        
+        zeta = gp / Gamma_pole
+        grav_local_ = dOmega_*zeta
+        grav_local = coordinates.norm(grav_local_)
+        
+        #plt.subplot(224,aspect='equal')
+        #plt.scatter(self.mesh['_o_center'][:,0],self.mesh['_o_center'][:,1],c=grav_local,edgecolors='none')
+        #plt.colorbar()
+        #plt.show()
+        
+        
+        #grav_local = roche.misaligned_binary_surface_gravity(self.mesh['_o_center'][:,0]*constants.Rsol,
+                                                               #self.mesh['_o_center'][:,1]*constants.Rsol,
+                                                               #self.mesh['_o_center'][:,2]*constants.Rsol,asol*constants.Rsol,
+                                                               #omega_rot/F,M1,M2,normalize=True,F=F,Rpole=coord*1e5)
         self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
     

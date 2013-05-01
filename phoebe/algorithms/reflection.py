@@ -34,8 +34,8 @@ Section 3. Reflection
 References
 ==========
 
-    - Wilson's canonical paper
-    - Budaj et al. (2011)
+    - Wilson's canonical paper, [Wilson1990]_
+    - [Budaj2011]_
     
 """
 import pylab as pl
@@ -95,8 +95,8 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     ld_models = [ps[0]['ld_func'] for ps in ps_irradiator if not ps[1] is None]
     A_irradiateds = [ps[0]['alb'] for ps in ps_irradiated if not ps[1] is None]
     P_redistrs = [(ps[0]['redist'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
-    if '__bol' in ref:
-        total_surface = irradiated.mesh['size'].sum()
+    #if '__bol' in ref:
+        #total_surface = irradiated.mesh['size'].sum()
     for i in range(N):
         #-- maybe some lines of sights are obstructed: skip those
         if third_bodies is not None and not (irradiated.label==third_bodies.label)\
@@ -179,7 +179,7 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #   heat this particular triangle, the rest is used to heat up the whole
             #   object
             R1[i] = 1.0 + (1-P_redistrs[j])*A_irradiateds[j]*proj_Ibolmu/emer_Ibolmu
-            R2 += P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer_Ibolmu/total_surface
+            R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer_Ibolmu*irradiated.mesh['size'][i]/total_surface
             emer[i] = emer_Ibolmu
             
     return R1,R2,inco,emer,ref,A_irradiateds
@@ -201,14 +201,16 @@ def single_heating_reflection(irradiated,irradiator,update_temperature=True,\
         # mesh to be able to handle body bags too.
         irradiated_mesh = irradiated.mesh.copy()
         teff_old = irradiated_mesh['teff'].copy()        
-        irradiated_mesh['teff'] *= R1**0.25
+        irradiated_mesh['teff'] *= (R1+R2-1)**0.25
         irradiated.mesh = irradiated_mesh
         limbdark.local_intensity(irradiated,irradiated.get_parset(ref='__bol')[0])
-        logger.info("single heating effect: updated luminosity%s according to max Teff increase of %.3f%%"%((update_temperature and ' and teff' or '(no teff)'),((R1**0.25).max()-1)*100))
+        #logger.info("single heating effect: updated luminosity%s according to max Teff increase of %.3f%%"%((update_temperature and ' and teff' or '(no teff)'),(((R1+R2-1)**0.25).max()-1)*100))
+        #-- still not sure if I should include the following
+        #   If I do, I don't seem to converge... --- uh yes it does!
         if not update_temperature:
-            irradiated_mesh = irradiated.mesh.copy()
-            irradiated_mesh['teff'] = teff_old
-            irradiated.mesh = irradiated_mesh
+           irradiated_mesh = irradiated.mesh.copy()
+           irradiated_mesh['teff'] = teff_old
+           irradiated.mesh = irradiated_mesh
     #-- reflection part:
     if reflection:
         # whatever is not used for heating can be reflected, we assume isotropic

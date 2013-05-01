@@ -476,8 +476,8 @@ def binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False):
     @param mass2: secondary mass
     @type mass2: float
     """
-    #q = mass2/mass1
-    q = mass1/mass2
+    q = mass2/mass1
+    #q = mass1/mass2
     x_com = q*d/(1+q)
     
     r = np.array([x,y,z])
@@ -537,7 +537,7 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,
     @param mass2: secondary mass
     @type mass2: float
     """
-    q = mass1/mass2
+    q = mass2/mass1
     shapearr1 = np.ones_like(x)
     shapearr2 = np.zeros_like(x)
     x_com = np.array([q*d/(1+q)*shapearr1,shapearr2,shapearr2])
@@ -545,17 +545,14 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,
     if Rpole is None:
         Rpole = np.array([shapearr2,shapearr2,shapearr1])
     
-    
     r = np.array([x,y,z])
     d = np.array([d*shapearr1,shapearr2,shapearr2])
     d_cf = r-x_com
-    d_cf[1:3] = 0.
+    d_cf[2] = 0
     h = d - r
     
-    rn = coordinates.norm(r)
-    r_cf = rn*np.sin(np.arccos((r[0]*Rpole[0]+r[1]*Rpole[1]+r[2]*Rpole[2])/rn))
-
-
+    r_cf = np.cross(r.T,Rpole.T).T
+    
     #import matplotlib.pyplot as plt
     #plt.plot(x/constants.Rsol,y/constants.Rsol,'ro')
     #from mayavi import mlab
@@ -571,8 +568,13 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,
     term1 = - constants.GG*mass1/coordinates.norm(r)**3*r
     term2 = - constants.GG*mass2/coordinates.norm(h)**3*h
     term3 = - (omega)**2 * d_cf
-    term4 = - (omega*F)**2 *r_cf
-    #print '=========='
+    term4 = - (omega*F)**2 * r_cf
+    
+    #print (np.log10(coordinates.norm(term1+term2+term3+term4))+2).min()
+    #print (np.log10(coordinates.norm(term1+term2-term3+term4))+2).min()
+    #print (np.log10(coordinates.norm(term1+term2-term3-term4))+2).min()
+    #print (np.log10(coordinates.norm(term1+term2+term3-term4))+2).min()
+    ##print '=========='
     #print term1.min(),term1.max()
     #print term2.min(),term2.max()
     #print term3.min(),term3.max()
@@ -580,24 +582,43 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,
     
     #import matplotlib.pyplot as plt
     #try:
-        #if len(r_cf)>1:
-            #g = np.log10(coordinates.norm(term1+term2+term3)+term4)+2
+        #if len(r_cf[0])>1:
+            #g = np.log10(coordinates.norm(term1+term2+term3+term4))+2
             #print g.min(),g.max()
             #plt.figure()
-            #plt.plot(r_cf,g,'ko-')
+            #plt.plot(r[2],g,'ko-')
+            
+            #plt.figure()
+            #plt.subplot(111,aspect='equal')
+            #n = coordinates.norm(r).max()
+            #plt.scatter(x/n,y/n,c=coordinates.norm(r)/n,edgecolors='none')
+            #plt.colorbar()
+            
+            
+            #plt.figure()
+            #plt.subplot(131,aspect='equal')
+            #plt.plot(x,y,'ko')
+            #plt.xlabel('x');plt.ylabel('y')
+            #plt.subplot(132,aspect='equal')
+            #plt.plot(x,z,'ko')
+            #plt.xlabel('x');plt.ylabel('z')
+            #plt.subplot(133,aspect='equal')
+            #plt.plot(y,z,'ko')
+            #plt.xlabel('y');plt.ylabel('z')
             
             #plt.figure()
             #plt.subplot(221,aspect='equal')
-            #plt.scatter(x,y,c=r_cf,edgecolors='none')
+            #plt.scatter(x,y,c=np.log10(coordinates.norm(term1))+2,edgecolors='none')
             #plt.colorbar()
             #plt.subplot(222,aspect='equal')
-            #plt.scatter(x,z,c=r_cf,edgecolors='none')
+            #r_cfn = coordinates.norm(r_cf)
+            #plt.scatter(x,y,c=r_cfn/r_cfn.max(),edgecolors='none')
             #plt.colorbar()
             #plt.subplot(223,aspect='equal')
-            #plt.scatter(y,z,c=r_cf,edgecolors='none')
+            #plt.scatter(x,y,c=np.log10(coordinates.norm(term2))+2,edgecolors='none')
             #plt.colorbar()
             #plt.subplot(224,aspect='equal')
-            #plt.scatter(x,z,c=g,edgecolors='none')
+            #plt.scatter(x,y,c=np.log10(coordinates.norm(term3))+2,edgecolors='none')
             #plt.colorbar()
             #plt.show()
             
@@ -605,7 +626,7 @@ def misaligned_binary_surface_gravity(x,y,z,d,omega,mass1,mass2,normalize=False,
         #print msg
         #pass
     
-    g_pole = term1 + term2 + term3
+    g_pole = term1 + term2 + term3 + term4
     if normalize:
         return coordinates.norm(g_pole)
     elif normalize is None:
@@ -743,7 +764,7 @@ def misaligned_binary_potential_gradient(x,y,z,q,d,F,theta,phi,component=1,norma
     deltax = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*x -\
                 np.sin(theta)**2*np.sin(2*phi)*y -\
                 np.sin(2*theta)*np.cos(phi)*z
-    deltay = 2*(1-np.cos(phi)**2*np.sin(theta)**2)*y -\
+    deltay = 2*(1-np.sin(phi)**2*np.sin(theta)**2)*y -\
                 np.sin(theta)**2*np.sin(2*phi)*x -\
                 np.sin(2*theta)*np.sin(phi)*z
     deltaz = 2*np.sin(theta)**2*z -\

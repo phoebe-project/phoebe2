@@ -75,12 +75,12 @@ def detect_circular_spot(the_system,time,spot_pars):
     
     mesh = the_system.mesh.copy()
     
-    if True:
+    if False:
         x = cspots.detect_circular_spot(np.array(mesh['_o_triangle'].T,float),(spot_long,spot_colat,spot_radius))
         triangles_on_spotradius,triangles_in_spotradius = np.array(x.reshape((2,-1)),bool)
         mesh['partial'] = mesh['partial'] | triangles_on_spotradius
         the_system.mesh = mesh
-        #logger.info('marked circular spot (on:{0:d}, in:{1:d})'.format(sum(triangles_on_spotradius),sum(triangles_in_spotradius)))
+        logger.info('marked circular spot (on:{0:d}, in:{1:d})'.format(sum(triangles_on_spotradius),sum(triangles_in_spotradius)))
         logger.info('marked circular spot')
         return triangles_in_spotradius,triangles_on_spotradius
     else:
