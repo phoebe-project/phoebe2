@@ -399,7 +399,8 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
         ]
         
 #    Plotting context
-defs += [dict(qualifier='ref',          description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plot'),
+defs += [dict(qualifier='dataref',          description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plot'),
+         dict(qualifier='objref',          description='Name of the object containing the data',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plot'),
          dict(qualifier='type',         description='Whether plotting syn or obs dataset',repr='%s',cast_type=str,value='lcobs',frame=["phoebe"],context='plot'),
          dict(qualifier='color',        description='',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plot'),
          dict(qualifier='marker',       description='',repr='%s',cast_type=str,value='.',frame=["phoebe"],context='plot'),
