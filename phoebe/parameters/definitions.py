@@ -399,15 +399,19 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
         ]
         
 #    Plotting context
-defs += [dict(qualifier='dataref',          description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plot'),
-         dict(qualifier='objref',          description='Name of the object containing the data',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plot'),
-         dict(qualifier='active',          description='Whether to plot',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plot'),
-         dict(qualifier='type',         description='Whether plotting syn or obs dataset',repr='%s',cast_type=str,value='lcobs',frame=["phoebe"],context='plot'),
-         dict(qualifier='color',        description='',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plot'),
-         dict(qualifier='marker',       description='',repr='%s',cast_type=str,value='.',frame=["phoebe"],context='plot'),
-         dict(qualifier='markersize',   description='',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='plot'),
-         dict(qualifier='linestyle',    description='',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plot'),
-         dict(qualifier='linewidth',    description='',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plot'),
+defs += [dict(qualifier="xaxis",        description="quantity to plot on the xaxis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:fig'),
+         dict(qualifier="yaxis",        description="quantity to plot on the yaxis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:fig'),
+        ]
+
+defs += [dict(qualifier='dataref',          description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='objref',          description='Name of the object containing the data',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='active',          description='Whether to plot',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='type',         description='Whether plotting syn or obs dataset',repr='%s',cast_type=str,value='lcobs',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='color',        description='',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='marker',       description='',repr='%s',cast_type=str,value='.',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='markersize',   description='',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='linestyle',    description='',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='linewidth',    description='',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
         ]
         
 defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),

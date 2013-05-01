@@ -20,7 +20,7 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     """
-    def __init__(self,system=None,mpi=None,fitting=None,plots=None,compute=None):
+    def __init__(self,system=None,mpi=None,fitting=None,figs=None,compute=None):
         """
         Initialize a Bundle.
         
@@ -32,16 +32,16 @@ class Bundle(object):
         self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
-        self.plots = OrderedDict()
+        self.figs = OrderedDict()
         
         self.pool = OrderedDict()
         self.attached_signals = []
         
         self.add_fitting(fitting)
-        if isinstance(plots, list):
-            self.add_plot(plots)
-        if isinstance(plots, dict):
-            self.plots = plots
+        if isinstance(figs, list):
+            self.add_fig(figs)
+        if isinstance(figs, dict):
+            self.figs = figs
         self.add_compute(compute)
         
     #{ System        
@@ -353,109 +353,69 @@ class Bundle(object):
                 break
     #}
 
-    #{ Plotting
-    def get_plot(self,label=None,index=None):
+    #{ Figures
+    def get_fig(self,label=None,index=None):
         """
-        Return plotoptions for a given plot
+        Return a figure
         
-        @param label: the name for the desired plot
+        @param label: the name for the desired figure
         @type label: str
-        @return: list of plotoptions for the given plot
-        @rtype: list
+        @return: figure
+        @rtype:
         """
         if label is None:
-            return self.plots
+            return self.figs
         else:
             if index is None:
-                return self.plots[label]
+                return self.figs[label]
             else:
-                return self.plots[label][index]
+                return self.figs[label][index]
         
         
-    def add_plot(self,plotlist=None,label='default'):
+    def add_fig(self,fig,label='default'):
         """
-        Add a new set of plotoptions
+        Add a new figure with a set of plotoptions
         
-        @param plotlist: a list of plotoptions to be plotted on a single axes
-        @type plotlist: list
+        @param fig: a figure to be plotted on a single axis
+        @type fig:
         @param label: name for the current plot
         @type label: str
         """
-        if plotlist is None: return None
-        if not isinstance(plotlist, list):
-            plotlist = [plotlist]
-        if label in self.plots.keys():
-            logger.error("cannot add new plot: \'{}\' already in plots".format(label))
+        if label in self.figs.keys():
+            logger.error("cannot add new figure: \'{}\' alreadly in figs".format(label))
             return None
-        self.plots[label] = plotlist
+        self.figs[label]=fig
         
-    def remove_plot(self,label):
+    def remove_fig(self,label):
         """
-        Remove a given plot
+        Remove a given fig
         
-        @param label: name of plot
+        @param label: name of fig
         @type label: str
         """
-        self.plots.pop(label)
+        self.figs.pop(label)
         
-    def rename_plot(self,oldlabel,newlabel):
+    def rename_fig(self,oldlabel,newlabel):
         """
-        Rename a given plot
+        Rename a given fig
         
-        @param oldlabel: previous label of plot
+        @param oldlabel: previous label of fig
         @type oldlabel: str
-        @param newlabel: new label of plot
+        @param newlabel: new label of fig
         @type newlabel: str
         """
-        self.plots[newlabel] = self.plots.pop(oldlabel)
+        self.figs[newlabel] = self.figs.pop(oldlabel)
                                 
-    def plot(self,label='default',axes=None,*args,**kwargs):
+    def plot_fig(self,label='default',mplaxes=None,*args,**kwargs):
         """
-        Create a defined plot
+        Create a defined figure
         
-        @param label: label of the plot
+        @param label: label of the figure
         @type label: str
-        @param axes: 
+        @param axes: matplotlib axes to use for plotting
         @type axes
         """
-        # get the list of plotoptions
-        plotoptions_set = self.plots[label]
-        
-        # iterate through each plotting command for this figure
-        for plotoptions in plotoptions_set:
-            if not plotoptions['active']:
-                continue
-            obj = self.get_object(plotoptions['objref']) if plotoptions['objref'] != 'auto' else self.system
-            dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
-                
-            loaded = dataset.load(force=False) 
-                
-            po = {}
-            for key in plotoptions.keys():
-                if key not in ['dataref', 'objref', 'type', 'active']:
-                    po[key] = plotoptions.get_value(key)
-                    
-            #if linestyle has not been set, make decision based on type
-            if po['linestyle'] == 'auto':
-                po['linestyle'] = 'None' if plotoptions['type'][-3:] == 'obs' else '-'
-            #if color has not been set, make decision based on type
-            if po['color'] == 'auto':
-                po['color'] = 'k' if plotoptions['type'][-3:] == 'obs' else 'r'
-            for key in kwargs:
-                po[key]=kwargs[key]
-                
-            if axes is None:
-                axes = plt.gca()
-            if dataset is None:
-                return
-            if dataset.context[:2] == 'lc':
-                axes.plot(dataset['time'],dataset['flux'],**po)
-            if dataset.context[:2] == 'rv':
-                axes.plot(dataset['time'],dataset['rv'],**po)
-                
-            if loaded: dataset.unload() 
-
-        
+        self.get_fig(label).plot(self.get_system(),mplaxes,args,kwargs)
         
     #}
         
