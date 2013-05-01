@@ -1448,7 +1448,7 @@ class Body(object):
                 
                 
     
-    def get_parset(self,ref=None,context=None,type='pbdep',category=None,quiet=False):
+    def get_parset(self,ref=None,context=None,type='pbdep',category=None):
         """
         Return the parameter set with the given reference from the C{params}
         dictionary attached to the Body.
@@ -1497,7 +1497,7 @@ class Body(object):
                 else:
                     logger.info("Requested parset ref={}, context={} but it does not seem to exist".format(ref,context))
                     return None,None
-                if not quiet: logger.info("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
+                logger.info("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
                 return ps,ps['ref']
             elif hasattr(self,'bodies'):
                 return self[0].get_parset(ref=ref,type=type,context=context,category=category)
@@ -1520,7 +1520,7 @@ class Body(object):
                     is_ref = ('ref' in ps) and (ps['ref']==ref)
                     is_number = counter==ref
                     if is_ref or is_number:
-                        if not quiet: logger.info("Requested parset ref={}, type={}, category={} and found ref={}, context={}".format(ref,type,category,ps['ref'],ps.get_context()))
+                        logger.info("Requested parset ref={}, type={}, category={} and found ref={}, context={}".format(ref,type,category,ps['ref'],ps.get_context()))
                         return ps,ps['ref']
                     counter += 1
             return None,None
