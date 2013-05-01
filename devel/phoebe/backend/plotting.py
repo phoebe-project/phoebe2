@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import tools
+from phoebe.parameters import parameters
 
 logger = logging.getLogger("BE.PLOT")
 
@@ -379,3 +380,86 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
+    
+class Figure(object):
+    """
+    Class representing a collection of plot commands for a single axis
+    """
+    def __init__(self,figoptions,plotoptions=[]):
+        """
+        Initialize an axis
+        
+        You don't have to give anything, but you can. Afterwards, you can
+        always add more.
+        """
+        
+        self.figoptions = figoptions
+        self.plots = plotoptions if isinstance(plotoptions, list) else [plotoptions]
+        
+    def add_plot(self,plotoptions=None):
+        if plotoptions is None:
+            plotoptions = parameters.ParameterSet(context="plotting:plot")
+        self.plots.append(plotoptions)
+        
+    def remove_plot(self):
+        print "not implemented yet!!!"
+        
+    def get_plot(self,i):
+        return self.plots[i]
+            
+    def plot(self,system,mplaxes=None,*args,**kwargs):
+        for plotoptions in self.plots:
+            if not plotoptions['active']:
+                continue
+            if plotoptions['objref']=='auto':
+                obj = system
+            else:
+                # copied functionality from bundle.get_object
+                for path,item in system.walk_all():
+                    if path[-1] == plotoptions['objref']:
+                        obj = item
+                
+            dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
+            
+            if dataset is None:
+                logger.error("dataset {} failed to load".format(plotoptions['dataref']))
+                return
+                
+            loaded = dataset.load(force=False) 
+                
+            po = {}
+            for key in plotoptions.keys():
+                if key not in ['dataref', 'objref', 'type', 'active']:
+                    po[key] = plotoptions.get_value(key)
+                    
+            #if linestyle has not been set, make decision based on type
+            if po['linestyle'] == 'auto':
+                po['linestyle'] = 'None' if plotoptions['type'][-3:] == 'obs' else '-'
+            #if color has not been set, make decision based on type
+            if po['color'] == 'auto':
+                po['color'] = 'k' if plotoptions['type'][-3:] == 'obs' else 'r'
+            for key in kwargs:
+                po[key]=kwargs[key]
+                
+            axes = mplaxes if mplaxes is not None else plt.gca()
+            
+            if dataset is None:
+                return
+
+            # get options for figure
+            xaxis, yaxis = self.figoptions['xaxis'], self.figoptions['yaxis']
+            
+            # if set to auto, set axis type based on defaults for this type of data
+            if xaxis == 'auto':
+                xaxis = 'time'
+            if yaxis == 'auto':
+                if dataset.context[:2] == 'lc':
+                    yaxis = 'flux'
+                if dataset.context[:2] == 'rv':
+                    yaxis = 'rv'
+            
+            # call mpl plot command
+            axes.plot(dataset[xaxis],dataset[yaxis],**po)
+                
+            # return data to its original loaded/unloaded state
+            if loaded: dataset.unload() 
