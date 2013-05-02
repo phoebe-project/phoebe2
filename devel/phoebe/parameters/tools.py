@@ -624,9 +624,9 @@ def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
     space at all times.
     
     """
-    orbit.add(parameters.Parameter(qualifier='theta',value=theta,unit='deg',cast_type=float,description='Misalignment inclination'))
-    orbit.add(parameters.Parameter(qualifier='phi0',value=phi0,unit='deg',cast_type=float,description='Misalignment phase'))
-    orbit.add(parameters.Parameter(qualifier='precperiod',value=precperiod,unit='d',cast_type=float,description='Period of precession'))
+    orbit.add(parameters.Parameter(qualifier='theta',value=theta,unit='deg',cast_type=float,description='Misalignment inclination',adjust=False))
+    orbit.add(parameters.Parameter(qualifier='phi0',value=phi0,unit='deg',cast_type=float,description='Misalignment phase',adjust=False))
+    orbit.add(parameters.Parameter(qualifier='precperiod',value=precperiod,unit='d',cast_type=float,description='Period of precession',adjust=False))
 
 def add_theta_eff(orbit,theta_eff=None):
     r"""
@@ -648,7 +648,7 @@ def add_theta_eff(orbit,theta_eff=None):
     if theta_eff is None:
         theta_eff = np.arccos(np.cos(theta)*np.sqrt(1+np.sin(phi)**2*np.tan(theta)**2))
         theta_eff = theta_eff/np.pi*180.
-    orbit.add(parameters.Parameter(qualifier='theta_eff',value=theta_eff,unit='deg',cast_type=float,description='Effective misalignment parameter'))
+    orbit.add(parameters.Parameter(qualifier='theta_eff',value=theta_eff,unit='deg',cast_type=float,description='Effective misalignment parameter',adjust=False))
     orbit.add_constraint('{phi0} = np.arcsin(1.0/np.tan({theta}) * np.sqrt(np.cos({theta_eff})**2/np.cos({theta})**2 -1.0)) if {theta}!=np.pi/2 else np.pi/2.0-{phi0}')
     orbit.run_constraints()
 
