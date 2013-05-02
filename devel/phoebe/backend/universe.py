@@ -1019,6 +1019,10 @@ class Body(object):
                     model = np.array(modelset['vis2'])
                     obser = np.array(observations['vis2'])
                     sigma = np.array(observations['sigma_vis2'])
+                elif observations.context=='rvobs':
+                    model = np.array(modelset['rv'])
+                    obser = np.array(observations['rv'])
+                    sigma = np.array(observations['sigma'])
                 else:
                     raise NotImplementedError('probability for {}'.format(observations.context))                
                 #-- take pblum and l3 into account:
@@ -1098,6 +1102,9 @@ class Body(object):
                 elif observations.context=='ifobs':
                     obser_ = np.ravel(np.array(observations['vis2']))
                     sigma_ = np.ravel(np.array(observations['sigma_vis2']))
+                elif observations.context=='rvobs':
+                    obser_ = np.ravel(np.array(observations['rv']))
+                    sigma_ = np.ravel(np.array(observations['sigma']))
                 else:
                     raise NotImplementedError('probability')  
                 #-- append to the "whole" model.
@@ -3487,7 +3494,10 @@ class Star(PhysicalBody):
         Calculate local temperature.
         """
         #-- if the gravity brightening law is not specified, use 'Zeipel's
-        gravblaw = self.params['star'].get('gravblaw','zeipel')
+        if 'gravblaw' in self.params['star']:
+            gravblaw = self.params['star']['gravblaw']
+        else:
+            gravblaw = 'zeipel'
         getattr(roche,'temperature_{}'.format(gravblaw))(self)
         #-- perhaps we want to add spots.
         self.add_spots(time)
