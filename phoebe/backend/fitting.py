@@ -104,7 +104,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         1. :ref:`fitting:pymc <parlabel-phoebe-fitting:pymc>`: Metropolis-Hastings MCMC via pymc
         2. :ref:`fitting:emcee <parlabel-phoebe-fitting:emcee>`: Affine Invariant MCMC via emcee
         3. :ref:`fitting:lmfit <parlabel-phoebe-fitting:lmfit>`: nonlinear optimizers via lmfit
-        3. :ref:`fitting:minuit <parlabel-phoebe-fitting:minuit>`: nonlinear optimizers via MINUIT
+        4. :ref:`fitting:minuit <parlabel-phoebe-fitting:minuit>`: nonlinear optimizers via MINUIT
+        5. :ref:`fitting:grid <parlabel-phoebe-fitting:grid>`: grid computations
     
     The parameters determining how the system is computed are defined by the
     ParameterSet :ref:`params <parlabel-phoebe-compute>`.
@@ -856,7 +857,14 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     Compute a grid in the adjustable parameter space.
     
     Be sure to set the parameters to grid to be adjustable in the system.
-    Be sure to set the limits and step of the parameters to grid in the system.
+    Be sure to set the priors to have the ``discrete`` distribution, with the
+    ``values`` the points in the grid. If you want a real grid, you need to set
+    the ``iterate`` parameter in the fitting context to ``product``. If you just
+    want to compute the system in a set of parameter combinations, set it to
+    ``list``. In the latter case, all ``values`` from the priors need to have
+    the same length and that is equal to the number of models that will be
+    computed. In the ``product`` case, the number of models equals the product
+    of all lengths of ``values``. This can explore rapidly!
     
     @param system: the system to fit
     @type system: Body
@@ -871,7 +879,6 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     """
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:grid')
-    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -902,8 +909,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 #-- and add the id
                 ids.append(myid)
                 names.append(qual)
-                ranges.append(myrange)
-                
+                ranges.append(myrange) 
     #-- derive which algorithm to use for fitting. If all the contexts are the
     #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
     algorithm = set(frames)
@@ -938,7 +944,17 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     #-- now run over the whole grid
     grid_pars = []
     grid_logp = []
-    for i,pars in enumerate(itertools.product(*ranges)):
+    
+    #-- well, that is, it can be defined as a product or a list:
+    #   product of [1,2], [10,11] is [1,10],[1,11],[2,10],[2,11]
+    #   list of    [1,2], [10,11] is [1,10],[2,11]
+    if fitparams['iterate']=='product':
+        the_iterator = itertools.product(*ranges)
+    elif fitparams['iterate']=='list':
+        the_iterator = zip(*ranges)
+    
+    #-- now run over the whole grid
+    for i,pars in enumerate(the_iterator):
         msg = ', '.join(['{}={}'.format(j,k) for j,k in zip(names,pars)])
         logger.warning('GRID: step {} - parameters: {}'.format(i,msg))
         mylogp = lnprob(pars,ids,system)

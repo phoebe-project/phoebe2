@@ -59,6 +59,7 @@ if __name__=="__main__":
         if params['refl']:
             system.prepare_reflection(ref='all')
             system.fix_mesh()
+        print("MPIrun: calculating at first time point")
         system.set_time(params['time'][0])
         
         

@@ -3,9 +3,12 @@ Plotting facilities for observations and synthetic computations.
 
 .. autosummary::
     
-   plot_lcdeps_as_sed
-   plot_spdep_as_profile
-   plot_ifdep
+   plot_lcsyn
+   plot_lcobs
+   plot_lcres
+   plot_rvsyn
+   plot_rvobs
+   plot_rvres
    
    
 """
@@ -15,9 +18,373 @@ import matplotlib.pyplot as plt
 import numpy as np
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import tools
-from phoebe.parameters import parameters
+from phoebe.units import conversions
 
 logger = logging.getLogger("BE.PLOT")
+
+#{ Atomic plotting functions
+
+def plot_lcsyn(system,*args,**kwargs):
+    """
+    Plot lcsyn as a light curve.
+    
+    All args and kwargs are passed on to matplotlib's `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
+          the observations
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+          
+    **Example usage:**
+    
+    >>> artists, syn, pblum, l3 = plot_lcsyn(system,'r-',lw=2)
+        
+    Returns the matplotlib objects, the synthetic parameterSet and the used ``pblum``
+    and ``l3`` values
+    """
+    ref = kwargs.pop('ref',0)
+    scale = kwargs.pop('scale','obs')
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    #-- get parameterSets
+    syn = system.get_synthetic(category='lc',ref=ref)
+    
+    #-- load synthetics: they need to be here
+    loaded = syn.load(force=False)
+    
+    #-- try to get the observations. They don't need to be loaded, we just need
+    #   the pblum and l3 values.
+    if scale=='obs':
+        try:
+            obs = system.get_obs(category='lc',ref=ref)
+        except:
+            raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
+        pblum = obs['pblum']
+        l3 = obs['l3']
+    elif scale=='syn':
+        pblum = syn['pblum']
+        l3 = syn['l3']
+    else:
+        pblum = 1.
+        l3 = 0.
+    
+    #-- take third light and passband luminosity contributions into account
+    time = np.array(syn['time'])
+    flux = np.array(syn['flux'])
+    flux = flux*pblum + l3
+    
+    #-- get the period to repeat the LC with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    for n in range(repeat+1):
+        p, = plt.plot(time+n*period, flux, *args, **kwargs)
+        artists.append(p)
+
+    if loaded: syn.unload()
+    
+    return artists,syn,pblum,l3
+
+
+def plot_lcobs(system,**kwargs):
+    """
+    Plot lcobs as a light curve.
+    
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+    
+    **Example usage:**
+    
+    >>> artists, obs = plot_lcobs(system,fmt='ko-')
+    
+    Returns the matplotlib objects and the observed parameterSet
+    """
+    ref = kwargs.pop('ref',0)
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    #-- get parameterSets
+    obs = system.get_obs(category='lc',ref=ref)
+    
+    #-- load observations: they need to be here
+    loaded = obs.load(force=False)
+    
+    time = obs['time']
+    flux = obs['flux']
+    sigm = obs['sigma']
+    
+    #-- get the period to repeat the LC with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    for n in range(repeat+1):
+        p = plt.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
+        artists.append(p)
+
+    if loaded: obs.unload()
+    
+    return artists,obs
+
+def plot_lcres(system,*args,**kwargs):
+    """
+    Plot lcsyn and lcobs as a residual light curve.
+    
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
+          the observations
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+    
+    **Example usage:**
+    
+    >>> artists, obs, syn, pblum, l3 = plot_lcres(system,fmt='ko-')
+    
+        
+    Returns the matplotlib objects, the observed and synthetic parameterSet, and the used ``pblum`` and ``l3``
+    """
+    ref = kwargs.pop('ref',0)
+    scale = kwargs.pop('scale','obs')
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    
+    #-- get parameterSets
+    obs = system.get_obs(category='lc',ref=ref)
+    syn = system.get_synthetic(category='lc',ref=ref)
+    
+    #-- load observations: they need to be here
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    #-- try to get the observations. They don't need to be loaded, we just need
+    #   the pblum and l3 values.
+    if scale=='obs':
+        pblum = obs['pblum']
+        l3 = obs['l3']
+    elif scale=='syn':
+        pblum = syn['pblum']
+        l3 = syn['l3']
+    else:
+        pblum = 1.
+        l3 = 0.
+    
+    #-- take third light and passband luminosity contributions into account
+    syn_time = np.array(syn['time'])
+    syn_flux = np.array(syn['flux'])
+    syn_flux = syn_flux*pblum + l3
+    
+    obs_time = obs['time']
+    obs_flux = obs['flux']
+    obs_sigm = obs['sigma']
+    
+    #-- get the period to repeat the LC with
+    if period is None:
+        period = max(obs_time)
+    
+    #-- plot model
+    artists = []
+    for n in range(repeat+1):
+        p = plt.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+        artists.append(p)
+
+    if loaded_obs: obs.unload()
+    if loaded_syn: syn.unload()
+    
+    return artists, obs, syn, pblum, l3
+    
+    
+
+
+def plot_rvsyn(system,*args,**kwargs):
+    """
+    Plot rvsyn as a radial velocity curve.
+    
+    All args and kwargs are passed on to matplotlib's `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
+        the observations
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+        want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+        will be used
+    
+    **Example usage:**
+    
+    >>> artists, syn, pblum, l3 = plot_rvsyn(system,'r-',lw=2)
+        
+    Returns the matplotlib objects, the plotted data and the ``pblum`` and
+    ``l3`` values
+    """
+    ref = kwargs.pop('ref',0)
+    scale = kwargs.pop('scale','obs')
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    #-- get parameterSets
+    syn = system.get_synthetic(category='rv',ref=ref)
+    
+    #-- load synthetics: they need to be here
+    loaded = syn.load(force=False)
+    
+    #-- try to get the observations. They don't need to be loaded, we just need
+    #   the pblum and l3 values.
+    if scale=='obs':
+        obs = system.get_obs(category='rv',ref=ref)
+        l3 = obs['l3']
+    elif scale=='syn':
+        l3 = syn['l3']
+    else:
+        l3 = 0.
+    
+    #-- take third light and passband luminosity contributions into account
+    time = np.array(syn['time'])
+    rv = np.array(syn['rv'])
+    rv = rv + l3
+    
+    #-- get the period to repeat the RV with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    for n in range(repeat+1):
+        p, = plt.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+        artists.append(p)
+
+    if loaded: syn.unload()
+    
+    return artists,syn,l3
+
+
+def plot_rvobs(system,**kwargs):
+    """
+    Plot rvobs as a radial velocity curve.
+    
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+    
+    **Example usage:**
+    
+    >>> artists, obs = plot_rvobs(system,fmt='ko-')
+    
+    Returns the matplotlib objects and the observed parameterSet
+    """
+    ref = kwargs.pop('ref',0)
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    #-- get parameterSets
+    obs = system.get_obs(category='rv',ref=ref)
+    
+    #-- load observations: they need to be here
+    loaded = obs.load(force=False)
+    
+    time = obs['time']
+    rv = obs['rv']
+    sigm = obs['sigma']
+    
+    #-- get the period to repeat the RV with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    for n in range(repeat+1):
+        p = plt.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
+        artists.append(p)
+
+    if loaded: obs.unload()
+    
+    return artists,obs
+
+
+def plot_rvres(system,*args,**kwargs):
+    """
+    Plot rvsyn and rvobs as a residual radial velocity curve.
+    
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``scale='obs'``: correct synthetics for ``l3`` from the observations
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+    
+    **Example usage:**
+    
+    >>> artists, obs, syn, l3 = plot_rvres(system,fmt='ko-')
+    
+        
+    Returns the matplotlib objects, the observed and synthetic parameterSet, and the used ``l3``
+    """
+    ref = kwargs.pop('ref',0)
+    scale = kwargs.pop('scale','obs')
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    
+    #-- get parameterSets
+    obs = system.get_obs(category='rv',ref=ref)
+    syn = system.get_synthetic(category='rv',ref=ref)
+    
+    #-- load observations: they need to be here
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    #-- try to get the observations. They don't need to be loaded, we just need
+    #   the l3 values.
+    if scale=='obs':
+        l3 = obs['l3']
+    elif scale=='syn':
+        l3 = syn['l3']
+    else:
+        l3 = 0.
+    
+    #-- take third light and passband luminosity contributions into account
+    syn_time = np.array(syn['time'])
+    syn_rv = np.array(syn['rv'])
+    syn_rv = syn_rv + l3
+    
+    obs_time = obs['time']
+    obs_rv = obs['rv']
+    obs_sigm = obs['sigma']
+    
+    #-- get the period to repeat the LC with
+    if period is None:
+        period = max(obs_time)
+    
+    #-- plot model
+    artists = []
+    syn_rv = conversions.convert('Rsol/d','km/s',syn_rv)
+    for n in range(repeat+1):
+        p = plt.errorbar(syn_time+n*period,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+        artists.append(p)
+
+    if loaded_obs: obs.unload()
+    if loaded_syn: syn.unload()
+    
+    return artists, obs, syn, l3
+
+#}
+
 
 def plot_lcdeps_as_sed(system,residual=False,
                        kwargs_obs=None,kwargs_syn=None,
