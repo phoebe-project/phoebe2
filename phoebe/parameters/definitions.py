@@ -242,7 +242,7 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spec
          dict(qualifier='sigma',  description='Noise in the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
          dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
-         dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs','rvobs']),
          ]        
 
 defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context='plobs'),
@@ -389,6 +389,7 @@ defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s'
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
+         dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',choices=['product','list'],value='product',frame=['phoebe'],context='fitting:grid'),
         ]
 
 #    MPI and computation context

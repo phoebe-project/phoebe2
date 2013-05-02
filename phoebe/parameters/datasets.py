@@ -1552,7 +1552,7 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
 def parse_lprof(filenames):
     raise NotImplementedError
 
-def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,components=None,full_output=False,**kwargs):
+def parse_spec_as_lprof(filename,line_name,clambda=4000.,wrange=1e300,columns=None,components=None,full_output=False,**kwargs):
     """
     Parse a SPEC file as an LPROF file to an SPDataSet and a spdep.
     
@@ -1683,7 +1683,10 @@ def parse_spec_as_lprof(filename,line_name,clambda,wrange,columns=None,component
             ds['flux'] = ds['flux'][start:end].reshape((1,-1))
             ds['ref'] = ref
             ds['filename'] = ref+'.spobs'
-            ds.estimate_noise()
+            if not 'sigma' in columns_in_file:
+                ds.estimate_noise()
+            if not 'sigma' in ds['columns']:
+                ds['columns'].append('sigma')
             if not 'time' in columns_in_file:
                 ds['time'] = np.zeros(len(ds['flux']))
                 #ds['columns'].append('time')
