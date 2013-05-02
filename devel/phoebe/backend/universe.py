@@ -1020,7 +1020,7 @@ class Body(object):
                     obser = np.array(observations['vis2'])
                     sigma = np.array(observations['sigma_vis2'])
                 elif observations.context=='rvobs':
-                    model = np.array(modelset['rv'])
+                    model = conversions.convert('Rsol/d','km/s',np.array(modelset['rv']))
                     obser = np.array(observations['rv'])
                     sigma = np.array(observations['sigma'])
                 else:
@@ -1094,17 +1094,17 @@ class Body(object):
                 #-- make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
                 if observations.context=='spobs':
-                    obser_ = np.ravel(np.array(observations['flux'])/np.array(observations['continuum']))
-                    sigma_ = np.ravel(np.array(observations['sigma']))
+                    obser_ = np.ravel(observations['flux']/observations['continuum'])
+                    sigma_ = np.ravel(observations['sigma'])
                 elif observations.context=='lcobs':
-                    obser_ = np.ravel(np.array(observations['flux']))
-                    sigma_ = np.ravel(np.array(observations['sigma']))
+                    obser_ = np.ravel(observations['flux'])
+                    sigma_ = np.ravel(observations['sigma'])
                 elif observations.context=='ifobs':
-                    obser_ = np.ravel(np.array(observations['vis2']))
-                    sigma_ = np.ravel(np.array(observations['sigma_vis2']))
+                    obser_ = np.ravel(observations['vis2'])
+                    sigma_ = np.ravel(observations['sigma_vis2'])
                 elif observations.context=='rvobs':
-                    obser_ = np.ravel(np.array(observations['rv']))
-                    sigma_ = np.ravel(np.array(observations['sigma']))
+                    obser_ = np.ravel(observations['rv'])
+                    sigma_ = np.ravel(observations['sigma'])
                 else:
                     raise NotImplementedError('probability')  
                 #-- append to the "whole" model.
@@ -1143,6 +1143,10 @@ class Body(object):
                     model_ = np.ravel(np.array(modelset['vis2']))
                     obser_ = np.ravel(np.array(observations['vis2']))
                     sigma_ = np.ravel(np.array(observations['sigma_vis2']))
+                elif observations.context=='rvobs':
+                    model_ = conversions.convert('Rsol/d','km/s',np.ravel(np.array(modelset['rv'])))
+                    obser_ = np.ravel(np.array(observations['rv']))
+                    sigma_ = np.ravel(np.array(observations['sigma']))
                 else:
                     raise NotImplementedError('probability')
                 if observations.context=='plobs':
