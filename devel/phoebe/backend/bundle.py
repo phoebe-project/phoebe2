@@ -20,7 +20,7 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     """
-    def __init__(self,system=None,mpi=None,fitting=None,figs=None,compute=None):
+    def __init__(self,system=None,mpi=None,fitting=None,axes=None,compute=None):
         """
         Initialize a Bundle.
         
@@ -38,10 +38,11 @@ class Bundle(object):
         self.attached_signals = []
         
         self.add_fitting(fitting)
-        if isinstance(figs, list):
-            self.add_fig(figs)
-        if isinstance(figs, dict):
-            self.figs = figs
+        self.axes = {}
+        if isinstance(axes, list):
+            self.add_axes(axes)
+        if isinstance(axes, dict):
+            self.axes = axes
         self.add_compute(compute)
         
     #{ System        
@@ -354,68 +355,68 @@ class Bundle(object):
     #}
 
     #{ Figures
-    def get_fig(self,label=None,index=None):
+    def get_axes(self,label=None,index=None):
         """
-        Return a figure
+        Return an axes
         
-        @param label: the name for the desired figure
+        @param label: the name for the desired axes
         @type label: str
-        @return: figure
+        @return: axes
         @rtype:
         """
         if label is None:
-            return self.figs
+            return self.axes
         else:
             if index is None:
-                return self.figs[label]
+                return self.axes[label]
             else:
-                return self.figs[label][index]
+                return self.axes[label][index]
         
         
-    def add_fig(self,fig,label='default'):
+    def add_axes(self,axes,label='default'):
         """
-        Add a new figure with a set of plotoptions
+        Add a new axes with a set of plotoptions
         
-        @param fig: a figure to be plotted on a single axis
-        @type fig:
+        @param axes: a axes to be plotted on a single axis
+        @type axes:
         @param label: name for the current plot
         @type label: str
         """
-        if label in self.figs.keys():
-            logger.error("cannot add new figure: \'{}\' alreadly in figs".format(label))
+        if label in self.axes.keys():
+            logger.error("cannot add new axes: \'{}\' alreadly in axes".format(label))
             return None
-        self.figs[label]=fig
+        self.axes[label]=axes
         
-    def remove_fig(self,label):
+    def remove_axes(self,label):
         """
-        Remove a given fig
+        Remove a given axes
         
-        @param label: name of fig
+        @param label: name of axes
         @type label: str
         """
-        self.figs.pop(label)
+        self.axes.pop(label)
         
-    def rename_fig(self,oldlabel,newlabel):
+    def rename_axes(self,oldlabel,newlabel):
         """
-        Rename a given fig
+        Rename a given axes
         
-        @param oldlabel: previous label of fig
+        @param oldlabel: previous label of axes
         @type oldlabel: str
-        @param newlabel: new label of fig
+        @param newlabel: new label of axes
         @type newlabel: str
         """
-        self.figs[newlabel] = self.figs.pop(oldlabel)
+        self.axes[newlabel] = self.axes.pop(oldlabel)
                                 
-    def plot_fig(self,label='default',mplaxes=None,*args,**kwargs):
+    def plot_axes(self,label='default',mplaxes=None,*args,**kwargs):
         """
-        Create a defined figure
+        Create a defined axes
         
-        @param label: label of the figure
+        @param label: label of the axes
         @type label: str
         @param axes: matplotlib axes to use for plotting
         @type axes
         """
-        self.get_fig(label).plot(self.get_system(),mplaxes,args,kwargs)
+        self.get_axes(label).plot(self.get_system(),mplaxes,args,kwargs)
         
     #}
         
