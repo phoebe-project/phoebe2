@@ -400,7 +400,7 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
         ]
         
 #    Plotting context
-defs += [dict(qualifier='location',     description="location in the figure for this axis", repr='%s',cast_type=str,value='111',frame=["phoebe"],context='plotting:axes'),
+defs += [dict(qualifier='location',     description="location in the figure for this axis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='active',        description="whether to draw this axes", repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='category',     description='what type of plot is this',choices=['lc','rv'],cast_type='choose',value='lc',frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='title',        description="title of the plot", repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:axes'),

@@ -19,6 +19,7 @@ import numpy as np
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import tools
 from phoebe.units import conversions
+from phoebe.parameters import parameters
 
 logger = logging.getLogger("BE.PLOT")
 
@@ -748,34 +749,41 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
     
-class Axes(object):
+class Axes(parameters.ParameterSet):
     """
     Class representing a collection of plot commands for a single axes
     """
-    def __init__(self,axesoptions,plotoptions=[]):
+    def __init__(self,plotoptions=[],**kwargs):
         """
         Initialize an axes
         
         You don't have to give anything, but you can. Afterwards, you can
         always add more.
-        
-        @param axesoptions: options for this axes
-        @type axesoptions: ParameterSet with context=plotting:axes
+
+        all kwargs will be added to the plotting:axes ParameterSet
+
         @param plotoptions: plotoptions or list of plotoptions which are ParameterSets with context=plotting:plt
         @type plotoptions: ParameterSet or list of ParameterSets
         """
-        self.axesoptions = axesoptions
+        self.axesoptions = parameters.ParameterSet(context="plotting:axes")
         self.plots = plotoptions if isinstance(plotoptions, list) else [plotoptions]
         
-    def add_plot(self,plotoptions=None):
+        for key in kwargs.keys():
+            self.set_value(key, kwargs[key])
+        
+    def add_plot(self,plotoptions=None,**kwargs):
         """
         Add a new plot command to this axes
+        
+        kwargs will be applied to plotoptions ParameterSet
         
         @param plotoptions: options for the new plot
         @type plotoptions: ParameterSet
         """
         if plotoptions is None:
             plotoptions = parameters.ParameterSet(context="plotting:plot")
+        for key in kwargs.keys():
+            plotoptions.set_value(key, kwargs[key])
         self.plots.append(plotoptions)
         
     def remove_plot(self,i):
@@ -790,16 +798,19 @@ class Axes(object):
         """
         return self.plots.pop(i)
         
-    def get_plot(self,i):
+    def get_plot(self,i=None):
         """
         Return a given plot by index
         
-        @param i: index of plot
+        @param i: index of plot, will return list if None given
         @type i: int
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        return self.plots[i]
+        if i is None:
+            return self.plots
+        else:
+            return self.plots[i]
         
     def get_value(self,key):
         """
@@ -823,7 +834,7 @@ class Axes(object):
         """
         self.axesoptions.set_value(key,value)
             
-    def plot(self,system,mplfig=None,location=None,*args,**kwargs):
+    def plot(self,system,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
         """
         Plot all the children plots on a single axes
         
@@ -831,6 +842,8 @@ class Axes(object):
         @type system: System
         @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
         @type mplfig: plt.Figure()
+        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig)
+        @type mplaxes: plt.axes.Axes()
         @parameter location: the location on the figure to add the axes
         @type location: str or tuple        
         """
@@ -845,12 +858,6 @@ class Axes(object):
         for key in kwargs:
             ao[key]=kwargs[key]
 
-        # add the axes to the figure
-        if mplfig is None:
-            mplfig = plt.Figure()
-            
-        if location is None:
-            location = self.axesoptions['location'] # location not added in ao
             
         # control auto options
         xaxis, yaxis = self.axesoptions['xaxis'], self.axesoptions['yaxis']
@@ -878,10 +885,24 @@ class Axes(object):
         if ao['yticklabels'] == ['auto']:
             ao.pop('yticklabels')
             
-        if isinstance(location, str):
-            axes = mplfig.add_subplot(location,**ao)
-        else:
-            axes = mplfig.add_subplot(location[0],location[1],location[2],*ao)
+        # add the axes to the figure
+        if location is None:
+            location = self.axesoptions['location'] # location not added in ao
+        
+        if mplfig is None:
+            if location == 'auto':  # then just plot to an axes
+                if mplaxes is None: # no axes provided
+                    axes = plt.axes()
+                else: # use provided axes
+                    axes = mplaxes
+            else:
+                mplfig = plt.Figure()
+            
+        if location != 'auto':
+            if isinstance(location, str):
+                axes = mplfig.add_subplot(location,**ao)
+            else:
+                axes = mplfig.add_subplot(location[0],location[1],location[2],*ao)
             
         # now loop through individual plot commands
         for plotoptions in self.plots:
@@ -898,7 +919,7 @@ class Axes(object):
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
             if dataset is None:
-                logger.error("dataset {} failed to load from object {}".format(plotoptions['dataref'],obj))
+                logger.error("dataset {} failed to load from object {}".format(plotoptions['dataref'],obj['label']))
                 return
                 
             loaded = dataset.load(force=False) 
@@ -919,11 +940,9 @@ class Axes(object):
             for key in po.keys():
                 if po[key]=='auto':
                     po.pop(key)
-            
-            if dataset is None:
-                return
 
             # call mpl plot command
+            print "plotting", len(dataset[xaxis])
             axes.plot(dataset[xaxis],dataset[yaxis],**po)
                 
             # return data to its original loaded/unloaded state
