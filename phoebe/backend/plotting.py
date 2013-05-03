@@ -748,33 +748,142 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
     
-class Figure(object):
+class Axes(object):
     """
-    Class representing a collection of plot commands for a single axis
+    Class representing a collection of plot commands for a single axes
     """
-    def __init__(self,figoptions,plotoptions=[]):
+    def __init__(self,axesoptions,plotoptions=[]):
         """
-        Initialize an axis
+        Initialize an axes
         
         You don't have to give anything, but you can. Afterwards, you can
         always add more.
-        """
         
-        self.figoptions = figoptions
+        @param axesoptions: options for this axes
+        @type axesoptions: ParameterSet with context=plotting:axes
+        @param plotoptions: plotoptions or list of plotoptions which are ParameterSets with context=plotting:plt
+        @type plotoptions: ParameterSet or list of ParameterSets
+        """
+        self.axesoptions = axesoptions
         self.plots = plotoptions if isinstance(plotoptions, list) else [plotoptions]
         
     def add_plot(self,plotoptions=None):
+        """
+        Add a new plot command to this axes
+        
+        @param plotoptions: options for the new plot
+        @type plotoptions: ParameterSet
+        """
         if plotoptions is None:
             plotoptions = parameters.ParameterSet(context="plotting:plot")
         self.plots.append(plotoptions)
         
-    def remove_plot(self):
-        print "not implemented yet!!!"
+    def remove_plot(self,i):
+        """
+        Remove (permanently) the plot at the given index from the axes
+        To deactivate the plot but keep the settings use get_plot(i).set_value('active',False)
+        
+        @param i: index of plot
+        @type i: int
+        @return: the remove plotoptions
+        @rtype: ParameterSet
+        """
+        return self.plots.pop(i)
         
     def get_plot(self,i):
+        """
+        Return a given plot by index
+        
+        @param i: index of plot
+        @type i: int
+        @return: the desired plotoptions
+        @rtype: ParameterSet        
+        """
         return self.plots[i]
+        
+    def get_value(self,key):
+        """
+        Get a value from the axesoptions
+        Same as axes.axesoptions.get_value()
+        
+        @param key: the name of the parameter
+        @type key: str
+        @return: the parameter
+        """
+        return self.axesoptions.get_value(key)
+    
+    def set_value(self,key,value):
+        """
+        Set a value in the axesoptions
+        Same as axes.axesoptions.set_value()
+        
+        @param key: the name of the parameter
+        @type key: str
+        @param value: the new value
+        """
+        self.axesoptions.set_value(key,value)
             
-    def plot(self,system,mplaxes=None,*args,**kwargs):
+    def plot(self,system,mplfig=None,location=None,*args,**kwargs):
+        """
+        Plot all the children plots on a single axes
+        
+        @parameter system: the phoebe system
+        @type system: System
+        @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
+        @type mplfig: plt.Figure()
+        @parameter location: the location on the figure to add the axes
+        @type location: str or tuple        
+        """
+        
+        # get options for axes
+        ao = {}
+        for key in self.axesoptions.keys():
+            if key not in ['location', 'active', 'category', 'xaxis', 'yaxis']:
+                ao[key] = self.axesoptions.get_value(key)
+                
+        # override anything set from kwargs
+        for key in kwargs:
+            ao[key]=kwargs[key]
+
+        # add the axes to the figure
+        if mplfig is None:
+            mplfig = plt.Figure()
+            
+        if location is None:
+            location = self.axesoptions['location'] # location not added in ao
+            
+        # control auto options
+        xaxis, yaxis = self.axesoptions['xaxis'], self.axesoptions['yaxis']
+        if xaxis == 'auto':
+            xaxis = 'time'
+        if yaxis == 'auto':
+            if self.axesoptions['category'] == 'lc':
+                yaxis = 'flux'
+            if self.axesoptions['category'] == 'rv':
+                yaxis = 'rv'
+        if ao['xlabel'] == 'auto':
+            ao['xlabel'] = xaxis
+        if ao['ylabel'] == 'auto':
+            ao['ylabel'] = yaxis
+        if ao['xlim'] == (None, None):
+            ao.pop('xlim')
+        if ao['ylim'] == (None, None):
+            ao.pop('ylim')
+        if ao['xticks'] == ['auto']:
+            ao.pop('xticks')
+        if ao['yticks'] == ['auto']:
+            ao.pop('yticks')
+        if ao['xticklabels'] == ['auto']:
+            ao.pop('xticklabels')
+        if ao['yticklabels'] == ['auto']:
+            ao.pop('yticklabels')
+            
+        if isinstance(location, str):
+            axes = mplfig.add_subplot(location,**ao)
+        else:
+            axes = mplfig.add_subplot(location[0],location[1],location[2],*ao)
+            
+        # now loop through individual plot commands
         for plotoptions in self.plots:
             if not plotoptions['active']:
                 continue
@@ -789,7 +898,7 @@ class Figure(object):
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
             if dataset is None:
-                logger.error("dataset {} failed to load".format(plotoptions['dataref']))
+                logger.error("dataset {} failed to load from object {}".format(plotoptions['dataref'],obj))
                 return
                 
             loaded = dataset.load(force=False) 
@@ -804,29 +913,18 @@ class Figure(object):
                 po['linestyle'] = 'None' if plotoptions['type'][-3:] == 'obs' else '-'
             #if color has not been set, make decision based on type
             if po['color'] == 'auto':
-                po['color'] = 'k' if plotoptions['type'][-3:] == 'obs' else 'r'
-            for key in kwargs:
-                po[key]=kwargs[key]
+                po['color'] = 'k' if plotoptions['type'][-3:] == 'obs' else 'r' 
                 
-            axes = mplaxes if mplaxes is not None else plt.gca()
+            # remove other autos
+            for key in po.keys():
+                if po[key]=='auto':
+                    po.pop(key)
             
             if dataset is None:
                 return
 
-            # get options for figure
-            xaxis, yaxis = self.figoptions['xaxis'], self.figoptions['yaxis']
-            
-            # if set to auto, set axis type based on defaults for this type of data
-            if xaxis == 'auto':
-                xaxis = 'time'
-            if yaxis == 'auto':
-                if dataset.context[:2] == 'lc':
-                    yaxis = 'flux'
-                if dataset.context[:2] == 'rv':
-                    yaxis = 'rv'
-            
             # call mpl plot command
             axes.plot(dataset[xaxis],dataset[yaxis],**po)
                 
             # return data to its original loaded/unloaded state
-            if loaded: dataset.unload() 
+            if loaded: dataset.unload()
