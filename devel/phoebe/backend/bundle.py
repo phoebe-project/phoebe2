@@ -364,8 +364,10 @@ class Bundle(object):
         """
         Return an axes
         
-        @param label: the name for the desired axes
+        @param label: the name for the desired axes (overrides index)
         @type label: str
+        @param index: index of the desired axes
+        @type index: int
         @return: axes
         @rtype:
         """
@@ -412,16 +414,22 @@ class Bundle(object):
         """
         self.axes[newlabel] = self.axes.pop(oldlabel)
                                 
-    def plot_axes(self,label='default',mplaxes=None,*args,**kwargs):
+    def plot_axes(self,label='default',mplfig=None,mplaxes=None,location=None):
         """
         Create a defined axes
         
+        essentially a shortcut to bundle.get_axes(label).plot(...)
+        
         @param label: label of the axes
         @type label: str
-        @param axes: matplotlib axes to use for plotting
-        @type axes
+        @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
+        @type mplfig: plt.Figure()
+        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig)
+        @type mplaxes: plt.axes.Axes()
+        @parameter location: the location on the figure to add the axes
+        @type location: str or tuple  
         """
-        self.get_axes(label).plot(self.get_system(),mplaxes,args,kwargs)
+        self.get_axes(label).plot(self.get_system(),mplfig=mplfig,mplaxes=mplaxes,location=location)
         
     #}
         
