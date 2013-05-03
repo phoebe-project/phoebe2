@@ -7,7 +7,7 @@ Main conventions:
     :math:`\pi/2` (equator) to :math:`\pi` (south pole).
     - :math:`\phi` is the longitude, and runs between 0 and :math:`2\pi`.
     - :math:`m` is the azimuthal order of the mode. A positive :math:`m` means
-    the mode is prograde (in the direction of the rotation) (????), a negative
+    the mode is prograde (in the direction of the rotation), a negative
     value means the mode is retrograde (against the direction of rotation).
 
 **Basic quantities:**

@@ -280,7 +280,8 @@ if __name__=="__main__":
                   'phoebe-testsuite/example_systems/example_systems.py',
                   'phoebe-testsuite/contact_binary/contact_binary.py',
                   'phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py',
-                  'phoebe-testsuite/occulting_dark_sphere/transit_colors.py']
+                  'phoebe-testsuite/occulting_dark_sphere/transit_colors.py',
+                  'phoebe-testsuite/misaligned_binary/misaligned_binary.py']
     
     for pythonfile in test_suite:
         python_to_sphinx(pythonfile,type='testsuite.',latex=False)
