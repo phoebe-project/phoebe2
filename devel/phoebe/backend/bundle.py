@@ -114,7 +114,11 @@ class Bundle(object):
         @return: the ParameterSet of the orbit
         @rtype: ParameterSet
         """
-        return self.get_object(objectname=objectname).params['orbit']
+        # for orbits we have to be more clever
+        for path,item in self.system.walk_all():
+            if path[-1] == 'orbit' and item['label']==objectname:
+                return item
+        return None
         
     def get_mesh(self,objectname):
         """
@@ -126,6 +130,7 @@ class Bundle(object):
         @rtype: ParameterSet
         """
         return self.get_object(objectname=objectname).params['mesh']
+
         
     def get_parent(self,objectname):
         """
