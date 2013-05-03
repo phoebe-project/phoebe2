@@ -942,7 +942,6 @@ class Axes(parameters.ParameterSet):
                     po.pop(key)
 
             # call mpl plot command
-            print "plotting", len(dataset[xaxis])
             axes.plot(dataset[xaxis],dataset[yaxis],**po)
                 
             # return data to its original loaded/unloaded state
