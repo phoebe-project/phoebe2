@@ -1,18 +1,24 @@
 How to set up Phoebe 2.x
 ========================
 
+.. contents::
+   :depth: 2
+
 Prerequisites
 -------------
 
 Use Linux, though Mac OSX should work too. You should have installed the
-following packages:
+following software:
 
     * svn (to download the repository)
-    * Python 2.7 with packages matplotlib, numpy and scipy (see :ref:`label-requirements` for recommended dependencies)
+    * Python 2.7 with packages matplotlib, numpy and scipy (see :ref:`label-requirements` for recommended dependencies)      
 
 To generate the documentation, you need sphinxdoc.
 
-Installation
+    
+
+
+Downloading
 ------------
 
 Download the `Phoebe SVN repository <http://phoebe.fmf.uni-lj.si/?q=node/12>`_.
@@ -32,6 +38,14 @@ Developers might want read and write access, and can download Phoebe via::
 
 If you want to use atmospheres different from blackbodies, see the section on
 :ref:`Additional files <label-additional_files>` before going any further.
+
+If you don't have root access or don't know what that means, continue to
+:ref:`Installing with virtualenv <label-virtualenv>`.
+Else, read on!
+
+
+Installing as root
+-------------------
 
 If you have ``pip``, you can do::
     
@@ -53,6 +67,57 @@ Python shell and try to import the main Phoebe namespace::
 If nothing happens: great! If something fails, check the :ref:`label-requirements`
 or send a detailed (!) bug report.
 
+.. _label-virtualenv:
+
+Installing with virtualenv
+----------------------------
+
+If you don't have root or administrator priviliges, you can still install Phoebe
+in what is known as a *virtual environment*. If you don't know what that means,
+don't worry, neither do I. But it is still the solution to your problems. Everything
+below is based on `this blog <http://dubroy.com/blog/so-you-want-to-install-a-python-package/>`_.
+
+    * Download `the latest version version of virtualenv.py <https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py>`_
+      to some location (it really doesn't matter where).
+
+    * Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use another too)::
+    
+        $:> python virtualenv.py ~/venv/base
+        
+    * Make sure your system finds the new Python executable, by either typing the following line
+      each time you want to use Phoebe, or add it to your ``~/.profile`` or ``~/.bash_profile``::
+        
+        $:> source ~/venv/base/bin/activate
+        
+    * You now have access to pip, so you can install the required dependencies.
+      If they are already installed, but you want a newer version, add the
+      option ``--upgrade`` after ``install``. There can be :ref:`label-issues`
+      with ``matplotlib`` and ``mpi4py``::
+        
+        $:> pip install numpy
+        $:> pip install scipy
+        $:> pip install matplotlib
+        $:> pip install pyfits
+        $:> pip install pymc
+        $:> pip install lmfit
+        $:> pip install mayavi
+        
+    * Then go the directory where you downloaded Phoebe to, ``cd`` to the directory
+      of the ``setup.py`` script, and type in a terminal::
+          
+        $:> python setup.py sdist
+        $:> pip install dist/phoebe-2.0.tar.gz
+        
+    * Finally, download the additional atmosphere files::
+        
+        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables
+        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/ldcoeffs
+        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/spectra
+        $:> wget * ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/ld_coeffs
+    
+        
+                                                               
+
 Uninstalling
 ------------
 
@@ -61,6 +126,9 @@ If you installed Phoebe via ``pip``, you can simply do::
     $:> sudo pip uninstall phoebe
     
 Otherwise, you need to manually remove the installation directory.
+
+
+
 
 Specifications
 ==============
@@ -135,6 +203,17 @@ Atmosphere files:
 These limb darkening tables belong in ``phoebe/atmospheres/tables/ld_coeffs``. If you keep the filename as it is, it get's
 automatically detected via the shortcut ``atm=kurucz`` or ``ld_coeffs=kurucz``, otherwise
 you will have to replace ``kurucz`` with the actual filename.
+
+
+.. _label-issues:
+
+Known issues
+-------------
+
+It is possible that matplotlib fails to install. If so, make sure you have
+the packages ``libpng-devel``, ``libjpeg8-dev``, ``libfreetype6-devand`` installed.
+See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
+
 
 Coding styles
 -------------

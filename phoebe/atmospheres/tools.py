@@ -219,7 +219,7 @@ def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6
         dwave = wave_[1]-wave_[0]
         n = int(2*4*fwhm/dwave)
         if n==0:
-            logger.error("Resolution too large, cannot broaden with instrumental profile")
+            logger.info("Resolution too large, cannot broaden with instrumental profile")
         else:
             wave_k = np.arange(n)*dwave
             wave_k-= wave_k[-1]/2.

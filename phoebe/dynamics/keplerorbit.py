@@ -1464,7 +1464,7 @@ def place_in_binary_orbit(self,time):
     logger.info('{} for in-orbit-rotation (Omega={:.3f} rad/d,P={:.3f},e={:.3f})'.format(logmsg,omega_rot,P,e))
     #-- if we can't get the polar direction, assume it's in the negative Z-direction
     try:
-        polar_dir = self.get_polar_direction(norm=True)
+        polar_dir = -self.get_polar_direction(norm=True)
     except:
         polar_dir = np.array([0,0,-1.0])
         
