@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 from phoebe.utils import callbacks
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
-from phoebe.backend import fitting
-from phoebe.backend import observatory
+from phoebe.backend import fitting, observatory, plotting
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
@@ -38,11 +37,12 @@ class Bundle(object):
         self.attached_signals = []
         
         self.add_fitting(fitting)
-        self.axes = {}
+        self.axes = []
         if isinstance(axes, list):
-            self.add_axes(axes)
-        if isinstance(axes, dict):
             self.axes = axes
+        if isinstance(axes, dict):
+            for key in axes.keys():
+                self.add_axes(axes[key], key)
         self.add_compute(compute)
         
     #{ System        
@@ -149,8 +149,7 @@ class Bundle(object):
             obj = objectname
             
         # walk through all items, when we find a match return the item one above
-        walk = list(self.system.walk_all())
-        for i,(path,item) in enumerate(walk):
+        for i,(path,item) in enumerate(list(self.system.walk_all())):
             if item == obj:
                 if len(path) <=2: # then we won't be able to access system so just return it
                     return self.system
@@ -360,68 +359,68 @@ class Bundle(object):
     #}
 
     #{ Figures
-    def get_axes(self,label=None,index=None):
+    def get_axes(self,ident=None):
         """
-        Return an axes
+        Return an axes or list of axes that matches index OR title
         
-        @param label: the name for the desired axes (overrides index)
-        @type label: str
-        @param index: index of the desired axes
-        @type index: int
+        @param ident: index or title of the desired axes
+        @type i: int or str
         @return: axes
-        @rtype:
+        @rtype: plotting.Axes
         """
-        if label is None:
+        if ident is None:
             return self.axes
-        else:
-            if index is None:
-                return self.axes[label]
-            else:
-                return self.axes[label][index]
+
+        if isinstance(ident, int):
+            return self.axes[ident]
+        elif isinstance(ident, str):
+            for ax in self.axes:
+                if ax.get_value('title')==ident:
+                    return ax
         
-        
-    def add_axes(self,axes,label='default'):
+    def add_axes(self,axes=None,**kwargs):
         """
         Add a new axes with a set of plotoptions
         
+        kwargs will be applied to axesoptions ParameterSet
+        it is suggested to at least intialize with kwargs for category and title
+        
         @param axes: a axes to be plotted on a single axis
         @type axes:
-        @param label: name for the current plot
-        @type label: str
+        @param title: (kwarg) name for the current plot - used to reference axes and as physical title
+        @type title: str
+        @param category: (kwarg) type of plot (lc,rv,etc)
+        @type title: str
         """
-        if label in self.axes.keys():
-            logger.error("cannot add new axes: \'{}\' alreadly in axes".format(label))
-            return None
-        self.axes[label]=axes
+        if axes is None:
+            axes = plotting.Axes()
+        for key in kwargs.keys():
+            axes.set_value(key, kwargs[key])
+        self.axes.append(axes)
         
-    def remove_axes(self,label):
+    def remove_axes(self,ident):
         """
-        Remove a given axes
+        Removes all axes with a given index or title
         
-        @param label: name of axes
-        @type label: str
+        @param ident: index or title of the axes to be removed
+        @type ident: int or str
         """
-        self.axes.pop(label)
+        if isinstance(ident, int):
+            return self.axes.pop(i)
+        elif isinstance(ident, str):
+            for i,ax in reversed(self.axes):
+                if ax.get_value('title')==ident:
+                    self.axes.pop(i)
         
-    def rename_axes(self,oldlabel,newlabel):
-        """
-        Rename a given axes
-        
-        @param oldlabel: previous label of axes
-        @type oldlabel: str
-        @param newlabel: new label of axes
-        @type newlabel: str
-        """
-        self.axes[newlabel] = self.axes.pop(oldlabel)
                                 
-    def plot_axes(self,label='default',mplfig=None,mplaxes=None,location=None):
+    def plot_axes(self,ident,mplfig=None,mplaxes=None,location=None):
         """
         Create a defined axes
         
         essentially a shortcut to bundle.get_axes(label).plot(...)
         
-        @param label: label of the axes
-        @type label: str
+        @param ident: index or title of the axes
+        @type ident: int or str
         @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
         @type mplfig: plt.Figure()
         @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig)
@@ -429,7 +428,7 @@ class Bundle(object):
         @parameter location: the location on the figure to add the axes
         @type location: str or tuple  
         """
-        self.get_axes(label).plot(self.get_system(),mplfig=mplfig,mplaxes=mplaxes,location=location)
+        self.get_axes(ident).plot(self.get_system(),mplfig=mplfig,mplaxes=mplaxes,location=location)
         
     #}
         

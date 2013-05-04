@@ -756,11 +756,9 @@ class Axes(parameters.ParameterSet):
     def __init__(self,plotoptions=[],**kwargs):
         """
         Initialize an axes
-        
-        You don't have to give anything, but you can. Afterwards, you can
-        always add more.
 
         all kwargs will be added to the plotting:axes ParameterSet
+        it is suggested to at least initialize with a category (lc,rv,etc) and title
 
         @param plotoptions: plotoptions or list of plotoptions which are ParameterSets with context=plotting:plt
         @type plotoptions: ParameterSet or list of ParameterSets
@@ -842,7 +840,7 @@ class Axes(parameters.ParameterSet):
         @type system: System
         @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
         @type mplfig: plt.Figure()
-        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig)
+        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig, axesoptions will not apply)
         @type mplaxes: plt.axes.Axes()
         @parameter location: the location on the figure to add the axes
         @type location: str or tuple        
@@ -892,7 +890,7 @@ class Axes(parameters.ParameterSet):
         if mplfig is None:
             if location == 'auto':  # then just plot to an axes
                 if mplaxes is None: # no axes provided
-                    axes = plt.axes()
+                    axes = plt.axes(**ao)
                 else: # use provided axes
                     axes = mplaxes
             else:
@@ -902,8 +900,11 @@ class Axes(parameters.ParameterSet):
             if isinstance(location, str):
                 axes = mplfig.add_subplot(location,**ao)
             else:
-                axes = mplfig.add_subplot(location[0],location[1],location[2],*ao)
-            
+                axes = mplfig.add_subplot(location[0],location[1],location[2],**ao)
+        else:
+            if mplfig is not None:
+                axes = mplfig.add_subplot(111,**ao)
+                
         # now loop through individual plot commands
         for plotoptions in self.plots:
             if not plotoptions['active']:
@@ -919,7 +920,7 @@ class Axes(parameters.ParameterSet):
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
             if dataset is None:
-                logger.error("dataset {} failed to load from object {}".format(plotoptions['dataref'],obj['label']))
+                logger.error("dataset {} failed to load for objects {}".format(plotoptions['dataref'],plotoptions['objref']))
                 return
                 
             loaded = dataset.load(force=False) 
