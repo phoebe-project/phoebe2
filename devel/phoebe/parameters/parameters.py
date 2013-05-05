@@ -1688,11 +1688,20 @@ class ParameterSet(object):
             qual1,pnt,qual2 = qualifier.partition('.')
             return self[qual1].get_parameter(qual2)
     
-    def set_adjust(self,value,*qualifiers):
+    def set_adjust(self,qualifiers,value):
         """
         Adjust the value of the parameter
+        
+        @param qualifiers: qualifiers of which to change the ``adjust`` property
+        @type qualifiers: str (for one) or tuple of lists (for multiple)
+        @param value: adjustment flag
+        @type value: bool
         """
         #clear_memoization(self)
+        #-- allow for confusing calling signatures
+        if isinstance(qualifiers,str):
+            qualifier = (qualifiers,)
+        #-- set adjusts    
         if not qualifiers:
             qualifiers = self.container
         for qualifier in qualifiers:
