@@ -1961,7 +1961,7 @@ class PhysicalBody(Body):
         return parsed_refs
     
     def remove_mesh(self):
-        self.mesh = None
+        self.mesh = np.zeros(0,dtype=self.mesh.dtype)
     
     @decorators.parse_ref
     def prepare_reflection(self,ref=None):

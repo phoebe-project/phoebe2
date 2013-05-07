@@ -2,14 +2,14 @@ import sys
 import os
 
 #-- these are the packages that need to be tested
-version_IPython = '0.11'
+version_IPython = '0.11.0'
 version_numpy = '1.6.0'
 version_matplotlib = '1.2.0'
 version_scipy = '0.9.0'
-version_pyfits = '3.1'
-version_emcee = '1.2'
-version_pymc = '2.2'
-version_lmfit = '0.7'
+version_pyfits = '3.1.0'
+version_emcee = '1.2.0'
+version_pymc = '2.2.0'
+version_lmfit = '0.7.0'
 version_mayavi = '4.1.0'
 version_iminuit = '1.0.6'
 

@@ -830,7 +830,7 @@ class BodyEmulator(object):
         """
         pass
     
-    def save(self):
+    def save(self,filename):
         """
         Save this Body to a pickle.
         """
