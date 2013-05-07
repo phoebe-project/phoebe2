@@ -34,6 +34,8 @@ except ImportError:
 
 #{ Sphere
 
+
+
 def Sphere(r, R):
     """
     Implicit surface of a sphere.
@@ -695,7 +697,7 @@ def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args
     output = subprocess.check_output('./mrch',shell=True)
     table = output.split('\n')[:-1]
     table = np.array([line.split() for line in table],float)
-    logger.critical("USING TEST VERSION OF MARCHING")
+    print("USING TEST VERSION OF MARCHING")
     return table
 
 
