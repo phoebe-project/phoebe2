@@ -75,20 +75,24 @@ from phoebe.parameters import parameters
 try:
     import pymc
 except ImportError:
-    print("Unable to load mcmc fitting routines from pymc: restricted fitting facilities")
+    pass
+    #print("Unable to load mcmc fitting routines from pymc: restricted fitting facilities")
 try:
     import emcee
     from emcee.utils import MPIPool
 except ImportError:
-    print("Unable to load mcmc fitting routines from emcee: restricted fitting facilities")
+    pass
+    #print("Unable to load mcmc fitting routines from emcee: restricted fitting facilities")
 try:
     import lmfit
 except ImportError:
-    print("Unable to load nonlinear fitting routines from lmfit: restricted fitting facilities")
+    pass
+    #print("Unable to load nonlinear fitting routines from lmfit: restricted fitting facilities")
 try:
     import iminuit
 except ImportError:
-    print("Unable to load MINUIT fitting routines from iminuit: restricted fitting facilities")
+    pass
+    #print("Unable to load MINUIT fitting routines from iminuit: restricted fitting facilities")
 
     
 logger = logging.getLogger("FITTING")

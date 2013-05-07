@@ -174,7 +174,8 @@ from phoebe.utils import utils
 try:
     from phoebe.wd import fwd
 except ImportError:
-    print('fwd not compiled, please install')
+    pass
+    #print('fwd not compiled, please install')
 
 logger = logging.getLogger('WD')
 

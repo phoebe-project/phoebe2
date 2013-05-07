@@ -4,6 +4,22 @@ How to set up Phoebe 2.x
 .. contents::
    :depth: 2
 
+Yeah yeah I don't have time for this and I don't want to mess with my system
+-----------------------------------------------------------------------------
+
+Then do::
+    
+    $:> cd ~/
+    $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/install_phoebe.sh
+    $:> ./install_phoebe.sh
+
+Sit back and relax, or get a cup of coffee. It can take a while.
+
+This will create a folder ``~/venv/`` in which Phoebe and all the dependencies
+are installed. Deleting it undoes the whole installation.
+
+If you encounter any errors, read on.
+
 Prerequisites
 -------------
 
@@ -11,15 +27,18 @@ Use Linux, though Mac OSX should work too. You should have installed the
 following software:
 
     * svn (to download the repository)
-    * Python 2.7 with packages matplotlib, numpy and scipy (see :ref:`label-requirements` for recommended dependencies)      
+    * Python 2.7
+
+If you're doing a :ref:`system-wide installation <label-systemwide>`
+(as opposed to in a :ref:`virtual environment <label-virtualenv>`),
+you need to meet the :ref:`label-requirements`.      
 
 To generate the documentation, you need sphinxdoc.
 
-    
+.. _label-systemwide:
 
-
-Downloading
-------------
+System-wide installation (requires root)
+-----------------------------------------
 
 Download the `Phoebe SVN repository <http://phoebe.fmf.uni-lj.si/?q=node/12>`_.
 You don't need the entire Phoebe repository (but it doesn't hurt) and you
@@ -38,14 +57,6 @@ Developers might want read and write access, and can download Phoebe via::
 
 If you want to use atmospheres different from blackbodies, see the section on
 :ref:`Additional files <label-additional_files>` before going any further.
-
-If you don't have root access or don't know what that means, continue to
-:ref:`Installing with virtualenv <label-virtualenv>`.
-Else, read on!
-
-
-Installing as root
--------------------
 
 If you have ``pip``, you can do::
     
@@ -69,55 +80,70 @@ or send a detailed (!) bug report.
 
 .. _label-virtualenv:
 
-Installing with virtualenv
-----------------------------
+Installing with virtualenv (non-root)
+--------------------------------------
 
 If you don't have root or administrator priviliges, you can still install Phoebe
 in what is known as a *virtual environment*. If you don't know what that means,
-don't worry, neither do I. But it is still the solution to your problems. Everything
-below is based on `this blog <http://dubroy.com/blog/so-you-want-to-install-a-python-package/>`_.
+don't worry, neither do I. But it is still the solution to your problems. Most
+of the things below are based on `this blog <http://dubroy.com/blog/so-you-want-to-install-a-python-package/>`_.
 
-    * Download `the latest version version of virtualenv.py <https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py>`_
-      to some location (it really doesn't matter where).
+If all goes well, you should be able to download the :download:`installation script <install_phoebe.sh>`
+and execute it in a terminal. It will download a lot of data (Phoebe and all its dependencies and extra data) to a newly created directory
+``~/venv/``. This is your virtual environment. If the script finishes successfully,
+you'll have a working Phoebe installation. If you change your mind or want to
+start over, you can just remove this directory. No harm done. If anything goes wrong,
+try to execute the following steps one-by-one, to see what goes wrong.
 
-    * Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use another too)::
-    
-        $:> python virtualenv.py ~/venv/base
-        
-    * Make sure your system finds the new Python executable, by either typing the following line
-      each time you want to use Phoebe, or add it to your ``~/.profile`` or ``~/.bash_profile``::
-        
-        $:> source ~/venv/base/bin/activate
-        
-    * You now have access to pip, so you can install the required dependencies.
-      If they are already installed, but you want a newer version, add the
-      option ``--upgrade`` after ``install``. There can be :ref:`label-issues`
-      with ``matplotlib`` and ``mpi4py``::
-        
-        $:> pip install numpy
-        $:> pip install scipy
-        $:> pip install matplotlib
-        $:> pip install pyfits
-        $:> pip install pymc
-        $:> pip install lmfit
-        $:> pip install mayavi
-        
-    * Then go the directory where you downloaded Phoebe to, ``cd`` to the directory
-      of the ``setup.py`` script, and type in a terminal::
+Either way, after installation, don't forget to execute step 3. If you choose
+to add the the line to your bash profile, you're fine forever. Otherwise, you
+need to source the virtual environment each time.
+
+    1. Download `the latest version version of virtualenv.py <https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py>`_
+       to some location (it really doesn't matter where)::
           
-        $:> python setup.py sdist
-        $:> pip install dist/phoebe-2.0.tar.gz
-        
-    * Finally, download the additional atmosphere files::
-        
-        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables
-        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/ldcoeffs
-        $:> mkdir ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/spectra
-        $:> wget * ~/venv/base/lib/python2.7/site-packages/phoebe/atmospheres/tables/ld_coeffs
-    
-        
-                                                               
+         $:> wget https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py .
 
+    2. Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use another too)::
+    
+         $:> python virtualenv.py --no-site-packages ~/venv/base
+        
+    3. Make sure your system finds the new Python executable, by either typing the following line
+       each time you want to use Phoebe, or add it to your ``~/.profile`` or ``~/.bash_profile``::
+        
+         $:> source ~/venv/base/bin/activate
+    
+    4. Download the three requirements files :download:`numpy-basic <numpy-basic.txt>`,
+       :download:`phoebe-basic <phoebe-basic.txt>`, :download:`phoebe-full <phoebe-full.txt>`::
+      
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/numpy-basic.txt . 
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/phoebe-basic.txt . 
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/phoebe-full.txt . 
+        
+    5. First install numpy::
+        
+         $:> pip install -r numpy-basic.txt
+    
+    6. Next run the minimal Phoebe installation::
+          
+         $:> pip install -r phoebe-basic.txt
+      
+       If you want a full Phoebe installation, run::
+          
+         $:> pip install -r phoebe-full.txt
+                             
+    7. Finally, download the additional atmosphere files::
+        
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits ~/venv/base/src/phoebe-dev-r2113/phoebe/atmospheres/tables/ld_coeffs/
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/blackbody_uniform_none_teff.fits ~/venv/base/src/phoebe-dev-r2113/phoebe/atmospheres/tables/ld_coeffs/        
+
+Now you're ready to run Phoebe!::
+    
+    >>> import phoebe
+
+Happy modelling!
+
+                                                               
 Uninstalling
 ------------
 
@@ -210,9 +236,15 @@ you will have to replace ``kurucz`` with the actual filename.
 Known issues
 -------------
 
-It is possible that matplotlib fails to install. If so, make sure you have
-the packages ``libpng-devel``, ``libjpeg8-dev``, ``libfreetype6-devand`` installed.
-See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
+1. It is possible that matplotlib fails to install. If so, make sure you have
+   the packages ``libpng-devel``, ``libjpeg8-dev``, ``libfreetype6-devand`` installed.
+   See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
+   
+2. It is possible that mpi4py fails to install. Go to their website or your
+   package manager and try to install it separately.
+
+3. It is possible that mayavi fails to install. Go to their website or your
+   package manager and try to install it separately.
 
 
 Coding styles

@@ -126,7 +126,8 @@ try:
     from matplotlib.patches import Polygon
     from matplotlib.collections import PatchCollection
 except ImportError:
-    print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+    pass
+    #print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
 if enable_mayavi:
     try:
         from enthought.mayavi import mlab
@@ -134,7 +135,7 @@ if enable_mayavi:
         try:
             from mayavi import mlab
         except:
-            print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
+            #print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
             enable_mayavi = False
 from phoebe.units import conversions
 from phoebe.units import constants
@@ -157,7 +158,8 @@ from phoebe.dynamics import keplerorbit
 try:
     from phoebe.utils import transit
 except ImportError:
-    print("Soft warning: Analytical transit computations from Mandel & Agol 2002 are not available")
+    pass
+    #print("Soft warning: Analytical transit computations from Mandel & Agol 2002 are not available")
 
 #-- we are not interested in messages from numpy, but we are in messages
 #   from our own code: that's why we create a logger.

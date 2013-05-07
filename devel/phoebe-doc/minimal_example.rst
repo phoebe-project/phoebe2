@@ -62,6 +62,11 @@ Space-time in the universe is measured in **solar radii**
 Introductory examples
 =====================
 
+If you are in a hurry you can download this page
+
+- as a fully commented :download:`Python script <minimal_example.py>`
+- a :download:`Python script <minimal_example_bare.py>`  without comments
+
 Minimal example: my first binary image in 5 lines of code
 ---------------------------------------------------------
 
@@ -206,7 +211,9 @@ but with the B star's radius equal 3.6 solar radii, and explain stuff on the
 way.
 
 First, we'll need to unleash the full power of Phoebe to access the most
-common functions and modules::
+common functions and modules
+
+::
     
     import phoebe
     

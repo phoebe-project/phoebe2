@@ -29,11 +29,13 @@ try:
     from matplotlib.collections import PatchCollection
     import matplotlib as mpl
 except ImportError:
-    print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+    pass
+    #print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
 try:
     import pyfits
 except ImportError:
-    print("Unable to load pyfits, you cannot use FITS files")
+    pass
+    #print("Unable to load pyfits, you cannot use FITS files")
 from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
