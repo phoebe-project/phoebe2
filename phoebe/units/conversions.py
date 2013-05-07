@@ -2895,8 +2895,6 @@ def set_exchange_rates():
             
             
 #}
-
-#{ Computations with units
 class Unit(object):
     """
     Class to calculate with numbers (and uncertainties) containing units.
@@ -2921,7 +2919,7 @@ class Unit(object):
     >>> print a+b
     4002.0 m
     
-    B{Example 1:} You want to calculated the equatorial velocity of the Sun:
+    B{Example 1:} You want to calculate the equatorial velocity of the Sun:
     
     >>> distance = Unit(2*np.pi,'Rsol')
     >>> time = Unit(22.,'d')
@@ -3108,11 +3106,18 @@ class Unit(object):
         self.unit = compress(self.unit)
         return self
     
+    def as_tuple(self):
+        return self[0],self[1]
+    
     def get_value(self):
         """
         Returns (value,error) in case of uncertainties.
         """
-        return unumpy.nominal_values(self.value),unumpy.std_devs(self.value)
+        val = unumpy.nominal_values(self.value)
+        err = unumpy.std_devs(self.value)
+        if not val.shape: val = float(val)
+        if not err.shape: err = float(err)
+        return val,err
     
     def __getitem__(self,key):
         """
@@ -3129,27 +3134,39 @@ class Unit(object):
         """
         return self.convert('SI')[0]<other.convert('SI')[0]
     
+    def __radd__(self,other):
+        return self.__add__(other)
+    
     def __add__(self,other):
         """
         Add a Unit to a Unit.
+        
+        You can add a non-Unit to a Unit only if the Unit has an empty unit string.
         """
         unit1 = breakdown(self.unit)[1]
-        unit2 = breakdown(other.unit)[1]
+        if not hasattr(other,'unit'):
+            unit2 = ''
+        else:
+            unit2 = breakdown(other.unit)[1]
         if unit1!=unit2:
             raise ValueError('unequal units %s and %s'%(unit1,unit2))
-        other_value = convert(other.unit,self.unit,other.value,unpack=False)
-        return Unit(self.value+other_value,self.unit)
-        
+        elif unit2=='':
+            return Unit(self.value+other,'')
+        else:
+            other_value = convert(other.unit,self.unit,other.value,unpack=False)
+            return Unit(self.value+other_value,self.unit)
+    
     def __sub__(self,other):
         """
         Subtract a Unit from a Unit.
         """
-        unit1 = breakdown(self.unit)[1]
-        unit2 = breakdown(other.unit)[1]
-        if unit1!=unit2:
-            raise ValueError('unequal units %s and %s'%(unit1,unit2))
-        other_value = convert(other.unit,self.unit,other.value,unpack=False)
-        return Unit(self.value-other_value,self.unit)
+        return self.__add__(-1*other)
+    
+    def __rsub__(self,other):
+        """
+        Subtract a Unit from a Unit.
+        """
+        return (self*-1).__radd__(other)
     
     def __mul__(self,other):
         """
@@ -3284,6 +3301,7 @@ class Unit(object):
     def log(self): return Unit(log(self.value),'')
     def exp(self): return Unit(exp(self.value),'')
     def sqrt(self): return self**0.5
+    def __abs__(self): return self if self.value>0 else Unit(-self.value,self.unit)
             
     def __str__(self):
         return '{0} {1}'.format(self.value,self.unit)
@@ -3292,6 +3310,7 @@ class Unit(object):
         return "Unit('{value}','{unit}')".format(value=repr(self.value),unit=self.unit)
         
         
+
 
 #}
 

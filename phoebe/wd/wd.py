@@ -166,6 +166,7 @@ from collections import OrderedDict
 import pylab as pl
 import numpy as np
 #-- own modules
+import phoebe
 from phoebe.parameters import parameters as pars
 from phoebe.parameters import definitions as defs
 from phoebe.parameters import datasets
@@ -656,23 +657,30 @@ class BodyEmulator(object):
         
         self.params['root'] = pset
         if lcset is not None:
-            ref = lcset['label']
+            ref = lcset['ref']
             self.params['pbdep']['lcdep'] = OrderedDict()
             self.params['pbdep']['lcdep'][ref] = lcset
             self.params['syn']['lcsyn'] = OrderedDict()
             self.params['syn']['lcsyn'][ref] = datasets.DataSet(context='lcsyn',ref=ref)
         if rvset is not None:
-            ref = rvset['label']
+            ref = rvset['ref']
             self.params['pbdep']['rvdep'] = OrderedDict()
-            self.params['pbdep']['rvdep'][ref] = rvset
+            self.params['pbdep']['rvdep'][ref+'1'] = rvset
+            self.params['pbdep']['rvdep'][ref+'2'] = rvset
             self.params['syn']['rvsyn'] = OrderedDict()
-            self.params['syn']['rvsyn'][ref] = datasets.DataSet(context='rvsyn',ref=ref)
+            self.params['syn']['rvsyn'][ref+'1'] = datasets.DataSet(context='rvsyn',ref=ref)
+            self.params['syn']['rvsyn'][ref+'2'] = datasets.DataSet(context='rvsyn',ref=ref)
+            
         if obs is not None:
             for iobs in obs:
                 if iobs.context[:2]=='lc':
                     if not 'lcobs' in self.params['obs']:
                         self.params['obs']['lcobs'] = OrderedDict()
                     self.params['obs']['lcobs'][iobs['ref']] = iobs
+                elif iobs.context[:2]=='rv':
+                    if not 'rvobs' in self.params['obs']:
+                        self.params['obs']['rvobs'] = OrderedDict()
+                    self.params['obs']['rvobs'][iobs['ref']] = iobs
             
             
     
@@ -709,10 +717,25 @@ class BodyEmulator(object):
         if 'lcdep' in self.params['pbdep']:
             for ref in self.params['pbdep']['lcdep'].keys():
                 lcset = self.params['pbdep']['lcdep'][ref]
-                curve,params = lc(self.params['root'],request='lc',light_curve=lcset)
+                curve,params = lc(self.params['root'],request='curve',light_curve=lcset)
                 self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
                 self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']
                 self.out = params
+                
+        if 'rvdep' in self.params['pbdep']:
+            refs = list(set([key[:-1] for key in self.params['pbdep']['rvdep'].keys()]))
+            for ref in refs:
+                rvset = self.params['pbdep']['rvdep'][ref+'1']
+                lcset = pars.ParameterSet(frame='wd',context='lc',
+                                                indep=rvset['indep'],
+                                                indep_type=rvset['indep_type'])
+                curve,params = lc(self.params['root'],request='curve',rv_curve=rvset,light_curve=lcset)
+                self.params['syn']['rvsyn'][ref+'1']['time'] = curve['indeps']
+                self.params['syn']['rvsyn'][ref+'1']['rv'] = phoebe.convert('km/s','Rsol/d',curve['rv1'])
+                self.params['syn']['rvsyn'][ref+'2']['time'] = curve['indeps']
+                self.params['syn']['rvsyn'][ref+'2']['rv'] = phoebe.convert('km/s','Rsol/d',curve['rv2'])
+        
+        
         
         #-- passband luminosity and third light:
         pblum_par = self.params['obs']['lcobs'].values()[0].get_parameter('pblum')
@@ -772,6 +795,30 @@ class BodyEmulator(object):
         chi2 = -2*term2.sum()
         N = len(mu)
         return logp,chi2,N
+    
+    def get_synthetic(self,category='lc',ref=0):
+        if category=='lc':
+            if isinstance(ref,str):
+                return self.params['syn']['lcsyn'][ref]
+            else:
+                return self.params['syn']['lcsyn'].values()[ref]
+        elif category=='rv':
+            if isinstance(ref,str):
+                return self.params['syn']['rvsyn'][ref]
+            else:
+                return self.params['syn']['rvsyn'].values()[ref]
+    
+    def get_obs(self,category='lc',ref=0):
+        if category=='lc':
+            if isinstance(ref,str):
+                return self.params['obs']['lcobs'][ref]
+            else:
+                return self.params['obs']['lcobs'].values()[ref]
+        elif category=='rv':
+            if isinstance(ref,str):
+                return self.params['obs']['rvobs'][ref]
+            else:
+                return self.params['obs']['rvobs'].values()[ref]
     
     def set_values_from_priors(self):
         raise NotImplementedError

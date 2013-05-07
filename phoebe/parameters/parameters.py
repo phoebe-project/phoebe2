@@ -1693,7 +1693,7 @@ class ParameterSet(object):
         Adjust the value of the parameter
         
         @param qualifiers: qualifiers of which to change the ``adjust`` property
-        @type qualifiers: str (for one) or tuple of lists (for multiple)
+        @type qualifiers: str (for one) or tuple of strings (for multiple)
         @param value: adjustment flag
         @type value: bool
         """
