@@ -684,6 +684,20 @@ def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args)
     table = marching2FLib.getMesh(pot,max_triangles,numparams,*args)
     return table[0]
 
+def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
+    """
+    Discretize using c module
+    """
+    import subprocess
+    pot = ['Sphere','BinaryRoche','MisalignedBinaryRoche','RotateRoche'].index(potential)
+    args = list(args)+[delta]
+    numparams = len(args)+1
+    output = subprocess.check_output('./mrch',shell=True)
+    table = output.split('\n')[:-1]
+    table = np.array([line.split() for line in table],float)
+    logger.critical("USING TEST VERSION OF MARCHING")
+    return table
+
 
 def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
     """

@@ -407,7 +407,7 @@ import inspect
 import logging
 import numpy as np
 from numpy import pi,sqrt,cos,sin,tan,arctan
-from scipy.optimize import newton
+from scipy.optimize import newton,bisect
 from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.utils import cgeometry
@@ -895,7 +895,7 @@ def per0_from_eclipse_separation(separation,ecc):
         logger.warning('Phase separation must be between %.3g and %.3g when ecc=%.3g'%(minsep,maxsep,ecc))
         return np.nan
     else:
-        per0 = optimize.bisect(lambda x:separation-eclipse_separation(ecc,x),maxsep_per0,minsep_per0)
+        per0 = bisect(lambda x:separation-eclipse_separation(ecc,x),maxsep_per0,minsep_per0)
         return per0
     
 #}
@@ -985,7 +985,7 @@ def calculate_asini(period,ecc,K1=0,K2=0):
     @return: semi-major axis (m)
     @rtype: float
     """
-    factor = period*sqrt((1-ecc**2))/2.0/pi
+    factor = period*np.sqrt((1.0-ecc**2))/2.0/pi
     asini = np.abs(K1)*factor
     asini+= np.abs(K2)*factor
     return asini
