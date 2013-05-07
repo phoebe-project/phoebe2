@@ -120,6 +120,7 @@ from collections import OrderedDict
 import numpy as np
 from numpy import sin,cos,pi,sqrt,pi
 from scipy.integrate import quad
+from scipy.optimize import nnls
 import scipy
 try:
     import pylab as pl
@@ -362,7 +363,8 @@ def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
     #   scaling factor and offset
     elif pblum and l3:
         A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
-        pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0] 
+        #pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
+        pblum,l3 = nnls(A,obs.ravel())[0]
     return pblum,l3
                     
 def _parse_pbdeps(body,pbdep):

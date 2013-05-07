@@ -165,6 +165,7 @@ from collections import OrderedDict
 #-- third party modules
 import pylab as pl
 import numpy as np
+from scipy.optimize import nnls
 #-- own modules
 import phoebe
 from phoebe.parameters import parameters as pars
@@ -759,7 +760,7 @@ class BodyEmulator(object):
         #   scaling factor and offset
         elif pblum and l3:
             A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
-            pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
+            pblum,l3 = nnls(A,obs.ravel())[0]
         
         if pblum is False:
             pblum = 1.0
