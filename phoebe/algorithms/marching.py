@@ -25,12 +25,13 @@ if enable_mayavi:
         try:
             from mayavi import mlab
         except:
-            print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
+            #print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
             enable_mayavi = False
 try:
     import marching2FLib        
 except ImportError:
-    print("Cannot import C methods for grid computations")
+    pass
+    #print("Cannot import C methods for grid computations")
 
 #{ Sphere
 
