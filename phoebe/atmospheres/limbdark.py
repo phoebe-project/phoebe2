@@ -177,6 +177,7 @@ from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
 
 logger = logging.getLogger('ATMO.LD')
+logger.addHandler(logging.NullHandler())
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 basedir_spec_intens = os.path.join(basedir,'tables','spec_intens')

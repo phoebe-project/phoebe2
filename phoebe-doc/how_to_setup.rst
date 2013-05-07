@@ -241,11 +241,16 @@ Known issues
    See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
    
 2. It is possible that mpi4py fails to install. Go to their website or your
-   package manager and try to install it separately.
+   package manager and try to install it separately. Try perhaps first to see if ``libopenmpi-dev`` is installed.
 
 3. It is possible that mayavi fails to install. Go to their website or your
    package manager and try to install it separately.
 
+4. If you get a OSError, that seems to traceback to a module that cannot be find
+   when running the virtualenv python script, then do:: 
+    
+    $:> cd /usr/lib/python2.7
+    $:> sudo ln -s plat-x86_64-linux-gnu/_sysconfigdata_nd.py .
 
 Coding styles
 -------------

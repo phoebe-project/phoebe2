@@ -868,7 +868,23 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     ``list``. In the latter case, all ``values`` from the priors need to have
     the same length and that is equal to the number of models that will be
     computed. In the ``product`` case, the number of models equals the product
-    of all lengths of ``values``. This can explore rapidly!
+    of all lengths of ``values``. This can explode rapidly!
+    
+    **Examples setup:**
+    
+    Specify the parameters to iterate over, as well as their priors:
+    
+    >>> star.set_adjust(('mass','radius'),True)
+    >>> star.get_parameter('mass').set_prior(distribution='discrete',values=[1.0,1.1,1.3])
+    >>> star.get_parameter('radius').set_prior(distribution='discrete',values=[0.7,0.8,1.0])
+    
+    Specify the gridding parameters:
+    
+    >>> fitparams = phoebe.ParameterSet('fitting:grid',iterate='product')
+    
+    And run the fit:
+    
+    >>> feedback = run(system,fitparams=fitparams)
     
     @param system: the system to fit
     @type system: Body
@@ -895,10 +911,8 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    frames = []
-    for parset in walk:
-        frames.append(parset.frame)
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
             #-- extract those which need to be fitted
@@ -914,21 +928,13 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 ids.append(myid)
                 names.append(qual)
                 ranges.append(myrange) 
-    #-- derive which algorithm to use for fitting. If all the contexts are the
-    #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
-    algorithm = set(frames)
-    if len(algorithm)>1:
-        raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
-    else:
-        algorithm = list(algorithm)[0]
-        logger.info('Choosing back-end {}'.format(algorithm))
     
     def lnprob(pars,ids,system):
         #-- evaluate the system, get the results and return a probability
         had = []
         #-- walk through all the parameterSets available:
         walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-        for parset in walk:
+        for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
                 #-- extract those which need to be fitted
@@ -948,6 +954,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     #-- now run over the whole grid
     grid_pars = []
     grid_logp = []
+    save_files= []
     
     #-- well, that is, it can be defined as a product or a list:
     #   product of [1,2], [10,11] is [1,10],[1,11],[2,10],[2,11]
@@ -968,19 +975,20 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
         del this_system
         grid_pars.append(pars)
         grid_logp.append(mylogp)
+        save_files.append('gridding_{:05d}.phoebe'.format(i))
     
     #-- convert to arrays
     grid_pars = np.array(grid_pars)
     grid_logp = np.array(grid_logp)
     
     #-- store the info in a feedback dictionary
-    feedback = dict(parameters=[],values=[],priors=[])
+    feedback = dict(parameters=[],values=[],priors=[],save_files=[])
     
     #-- add the posteriors to the parameters
     had = []
     #-- walk through all the parameterSets available:
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    for parset in walk:
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
         #-- fore ach parameterSet, walk to all the parameters
         for qual in parset:
             #-- extract those which need to be fitted
@@ -996,6 +1004,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 feedback['values'].append(grid_pars[:,index])
                 feedback['priors'].append(this_param.get_prior().distr_pars['bins'])
     feedback['logp'] = grid_logp
+    feedback['save_files'] = save_files
     fitparams['feedback'] = feedback
     return fitparams
 
