@@ -1211,7 +1211,7 @@ class Body(object):
         """
         self.label = label
     
-    def add_preprocess(self,func):
+    def add_preprocess(self,func,*args,**kwargs):
         """
         Add a preprocess to the Body.
         
@@ -1221,34 +1221,34 @@ class Body(object):
         @param func: name of a processing function in backend.processes
         @type func: str
         """
-        self._preprocessing.append(func)
+        self._preprocessing.append((func,args,kwargs))
 
-    def add_postprocess(self,func):
+    def add_postprocess(self,func,*args,**kwargs):
         """
         Add a postprocess to the Body.
         
         @param func: name of a processing function in backend.processes
         @type func: str
         """
-        self._postprocessing.append(func)
+        self._postprocessing.append((func,args,kwargs))
     
         
-    def preprocess(self,time=None):
+    def preprocess(self,time):
         """
         Run the preprocessors.
         
         @param time: time to which the Body will be set
         @type time: float or None
         """
-        for func in self._preprocessing:
-            getattr(processes,func)(self,time)
+        for func,arg,kwargs in self._preprocessing:
+            getattr(processing,func)(self,time,*arg,**kwargs)
     
-    def postprocess(self):
+    def postprocess(self,time):
         """
         Run the postprocessors.
         """
-        for func in self._postprocessing:
-            getattr(processes,func)(self)
+        for func,arg,kwargs in self._postprocessing:
+            getattr(processing,func)(self,time,*args,**kwargs)
     
     def set_values_from_priors(self):
         """
@@ -3940,7 +3940,7 @@ class Star(PhysicalBody):
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))
         #-- first execute any external constraints:
-        self.preprocess()
+        self.preprocess(time)
         #-- this mesh is mostly independent of time! We collect some values
         #   that could be handy later on: inclination and rotation frequency
         rotperiod = self.params['star'].request_value('rotperiod','d')
@@ -3992,7 +3992,7 @@ class Star(PhysicalBody):
             self.intensity(ref=ref)
         #-- remember the time... 
         self.time = time
-        self.postprocess()
+        self.postprocess(time)
     
     
 class BinaryRocheStar(PhysicalBody):    

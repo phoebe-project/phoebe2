@@ -481,10 +481,10 @@ def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
     @param dperdt: linear periastron shift (rad/s)
     @type dperdt: float
     @param mass_conservation: if C{True}, the semi-major axis will change if
-    the period changes
+                              the period changes
     @type mass_conservation: bool
     @param component: component to calculate the orbit of. If it's the secondary,
-    the angles will be shifted by 180 degrees
+                      the angles will be shifted by 180 degrees
     @type component: string, one of 'primary' or 'secondary'
     @return: position vector, velocity vector, Euler angles
     @rtype: 3-tuple, 3-tuple, 3-tuple
@@ -875,10 +875,20 @@ def eclipse_separation(ecc,per0):
 
 
 def per0_from_eclipse_separation(separation,ecc):
-    """
+    r"""
     Caculate the argument of periastron from the eclipse separation and eccentricity.
     
     separation in phase units.
+    
+    Separation :math:`\Delta` is defined as:
+    
+    .. math::
+    
+        \Delta = \frac{T_\mathrm{prim} - T_\mathrm{sec}}{P},\qquad T_\mathrm{prim} < T_\mathrm{sec}
+        
+        \Delta = 1.0 - \frac{T_\mathrm{prim} - T_\mathrm{sec}}{P},\qquad T_\mathrm{prim} > T_\mathrm{sec}
+    
+    Though for WD it seems to be the reverse
     
     @parameter separation: separation in phase units (0.5 is half)
     @type separation: float
