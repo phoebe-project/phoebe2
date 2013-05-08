@@ -658,7 +658,6 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                     if myid in had: continue
                     parset[qual] = pars['{}_{}'.format(qual,myid)].value
                     had.append(myid)
-        
         system.reset()
         system.clear_synthetic()
         system.compute(params=params,mpi=mpi)

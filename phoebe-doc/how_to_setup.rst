@@ -2,7 +2,7 @@ How to set up Phoebe 2.x
 ========================
 
 .. contents::
-   :depth: 2
+   :depth: 3
 
 Yeah yeah I don't have time for this and I don't want to mess with my system
 -----------------------------------------------------------------------------
@@ -10,13 +10,27 @@ Yeah yeah I don't have time for this and I don't want to mess with my system
 Then do::
     
     $:> cd ~/
-    $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/install_phoebe.sh
-    $:> ./install_phoebe.sh
+    $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/install.py
+    $:> python install.py
 
 Sit back and relax, or get a cup of coffee. It can take a while.
 
-This will create a folder ``~/venv/`` in which Phoebe and all the dependencies
-are installed. Deleting it undoes the whole installation.
+This will create a folder ``phoebe`` (make sure it doesn't exist yet) in which
+Phoebe and all the dependencies are installed. Deleting it undoes the whole installation.
+
+A minimal demo::
+    
+    $:> source ~/phoebe/bin/activate
+    $:> ipython --pylab
+    
+    In [1]: import phoebe
+    
+    In [2]: mystar = phoebe.create.from_library('Sun',create_body=True)
+    
+    In [3]: mystar.set_time(0.)
+    
+    In [4]: mystar.plot2D()
+    
 
 If you encounter any errors, read on.
 
@@ -28,6 +42,7 @@ following software:
 
     * svn (to download the repository)
     * Python 2.7
+    * 700MB of disk space.
 
 If you're doing a :ref:`system-wide installation <label-systemwide>`
 (as opposed to in a :ref:`virtual environment <label-virtualenv>`),
@@ -39,6 +54,9 @@ To generate the documentation, you need sphinxdoc.
 
 System-wide installation (requires root)
 -----------------------------------------
+
+Download the SVN
+~~~~~~~~~~~~~~~~~~~~
 
 Download the `Phoebe SVN repository <http://phoebe.fmf.uni-lj.si/?q=node/12>`_.
 You don't need the entire Phoebe repository (but it doesn't hurt) and you
@@ -57,6 +75,9 @@ Developers might want read and write access, and can download Phoebe via::
 
 If you want to use atmospheres different from blackbodies, see the section on
 :ref:`Additional files <label-additional_files>` before going any further.
+
+Installation
+~~~~~~~~~~~~~~~~~~~~~
 
 If you have ``pip``, you can do::
     
@@ -78,24 +99,59 @@ Python shell and try to import the main Phoebe namespace::
 If nothing happens: great! If something fails, check the :ref:`label-requirements`
 or send a detailed (!) bug report.
 
+Updating
+~~~~~~~~~~~~~~
+
+Update the SVN directory with::
+    
+    $:> svn update
+    
+and repeat the installation procedure.
+
+Uninstalling
+~~~~~~~~~~~~~
+
+
+If you installed Phoebe via ``pip``, you can simply do::
+    
+    $:> sudo pip uninstall phoebe
+    
+Otherwise, you need to manually remove the installation directory.
+
+
+
 .. _label-virtualenv:
 
 Installing with virtualenv (non-root)
 --------------------------------------
 
+Installation
+~~~~~~~~~~~~~~~
+
 If you don't have root or administrator priviliges, you can still install Phoebe
 in what is known as a *virtual environment*. If you don't know what that means,
-don't worry, neither do I. But it is still the solution to your problems. Most
-of the things below are based on `this blog <http://dubroy.com/blog/so-you-want-to-install-a-python-package/>`_.
+don't worry, neither do I. But it is still the solution to your problems.
 
-If all goes well, you should be able to download the :download:`installation script <install_phoebe.sh>`
-and execute it in a terminal. It will download a lot of data (Phoebe and all its dependencies and extra data) to a newly created directory
-``~/venv/``. This is your virtual environment. If the script finishes successfully,
-you'll have a working Phoebe installation. If you change your mind or want to
-start over, you can just remove this directory. No harm done. If anything goes wrong,
-try to execute the following steps one-by-one, to see what goes wrong.
+In short, download the :download:`installation script <../install.py>` and run it::
+    
+    $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/install.py
+    $:> python install.py MYDIR
+    $:> source MYDIR/bin/activate
+    
+Make sure that ``MYDIR`` does not exist.    
+The script will download and install a lot (Phoebe, all its dependencies and extra data) to a newly created directory
+``MYDIR``. This is your virtual environment. If the script finishes successfully,
+you'll have a working Phoebe installation. Don't forget the execute the third
+statement **always** before using Phoebe, or add it to your bash profile.
+If anything goes wrong, try to execute the following steps one-by-one, to see what goes wrong.
 
-Either way, after installation, don't forget to execute step 3. If you choose
+Most of the things below are based on `this blog <http://dubroy.com/blog/so-you-want-to-install-a-python-package/>`_.
+
+..
+   If all goes well, you should be able to download the :download:`installation script <install_phoebe.sh>`
+   and execute it in a terminal. 
+
+Don't forget to execute step 3. If you choose
 to add the the line to your bash profile, you're fine forever. Otherwise, you
 need to source the virtual environment each time.
 
@@ -134,8 +190,8 @@ need to source the virtual environment each time.
                              
     7. Finally, download the additional atmosphere files::
         
-         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits ~/venv/base/src/phoebe-dev-r2113/phoebe/atmospheres/tables/ld_coeffs/
-         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/blackbody_uniform_none_teff.fits ~/venv/base/src/phoebe-dev-r2113/phoebe/atmospheres/tables/ld_coeffs/        
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits ~/venv/base/src/phoebe/phoebe/atmospheres/tables/ld_coeffs/
+         $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/blackbody_uniform_none_teff.fits ~/venv/base/src/phoebe/phoebe/atmospheres/tables/ld_coeffs/        
 
 Now you're ready to run Phoebe!::
     
@@ -143,17 +199,23 @@ Now you're ready to run Phoebe!::
 
 Happy modelling!
 
+Updating
+~~~~~~~~~~~~~~~~~~
+
+Updating is as easy as::
+    
+    $:> python install.py MYDIR
+    
+If the directory ``MYDIR`` already exists, only the things that need to be
+updated, be it third-party requirements or Phoebe itself, will be updated.
+
                                                                
 Uninstalling
-------------
+~~~~~~~~~~~~~~~~
 
-If you installed Phoebe via ``pip``, you can simply do::
+Remove the directory where you installed Phoebe in::
     
-    $:> sudo pip uninstall phoebe
-    
-Otherwise, you need to manually remove the installation directory.
-
-
+    $:> rm -rf MYDIR
 
 
 Specifications
@@ -241,12 +303,13 @@ Known issues
    See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
    
 2. It is possible that mpi4py fails to install. Go to their website or your
-   package manager and try to install it separately. Try perhaps first to see if ``libopenmpi-dev`` is installed.
+   package manager and try to install it separately. Try perhaps first to see if
+   ``libopenmpi-dev`` is installed.
 
 3. It is possible that mayavi fails to install. Go to their website or your
    package manager and try to install it separately.
 
-4. If you get a OSError, that seems to traceback to a module that cannot be find
+4. If you get a OSError, that seems to traceback to a module that cannot be found
    when running the virtualenv python script, then do:: 
     
     $:> cd /usr/lib/python2.7

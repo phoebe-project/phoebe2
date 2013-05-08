@@ -172,6 +172,7 @@ from phoebe.parameters import parameters as pars
 from phoebe.parameters import definitions as defs
 from phoebe.parameters import datasets
 from phoebe.utils import utils
+from phoebe.backend import processing
 try:
     from phoebe.wd import fwd
 except ImportError:
@@ -683,7 +684,10 @@ class BodyEmulator(object):
                     if not 'rvobs' in self.params['obs']:
                         self.params['obs']['rvobs'] = OrderedDict()
                     self.params['obs']['rvobs'][iobs['ref']] = iobs
-            
+        
+        self._preprocessing = []
+        self._postprocessing = []
+        
             
     
     def reset(self):
@@ -715,7 +719,46 @@ class BodyEmulator(object):
         for parset in walk:
             yield parset
     
+    def add_preprocess(self,func,*args,**kwargs):
+        """
+        Add a preprocess to the Body.
+        
+        The list of preprocessing functions are executed before set_time is
+        called.
+        
+        @param func: name of a processing function in backend.processes
+        @type func: str
+        """
+        self._preprocessing.append((func,args,kwargs))
+
+    def add_postprocess(self,func,*args,**kwargs):
+        """
+        Add a postprocess to the Body.
+        
+        @param func: name of a processing function in backend.processes
+        @type func: str
+        """
+        self._postprocessing.append((func,args,kwargs))
+    
+    def preprocess(self,time):
+        """
+        Run the preprocessors.
+        
+        @param time: time to which the Body will be set
+        @type time: float or None
+        """
+        for func,arg,kwargs in self._preprocessing:
+            getattr(processing,func)(self,time,*arg,**kwargs)
+    
+    def postprocess(self,time):
+        """
+        Run the postprocessors.
+        """
+        for func,arg,kwargs in self._postprocessing:
+            getattr(processing,func)(self,time,*args,**kwargs)
+            
     def compute(self,*args,**kwargs):
+        #self.preprocess(0.)
         if 'lcdep' in self.params['pbdep']:
             for ref in self.params['pbdep']['lcdep'].keys():
                 lcset = self.params['pbdep']['lcdep'][ref]
@@ -770,6 +813,8 @@ class BodyEmulator(object):
         logger.info("pblum = {}, l3 = {}".format(pblum,l3))
         pblum_par.set_value(pblum)
         l3_par.set_value(l3)
+        
+        #self.postprocess(0.)
         
     def get_model(self):
         model = np.array(self.params['syn']['lcsyn'].values()[0]['flux'])
