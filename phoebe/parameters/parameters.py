@@ -210,7 +210,7 @@ not be adjusted in the fit. Otherwise it will be.
 
 is equivalent to
 
->>> bps.set_adjust(True,'period')
+>>> bps.set_adjust('period',True)
 
 
 Section 2.2.2 Setting limits and priors
@@ -1700,7 +1700,7 @@ class ParameterSet(object):
         #clear_memoization(self)
         #-- allow for confusing calling signatures
         if isinstance(qualifiers,str):
-            qualifier = (qualifiers,)
+            qualifiers = (qualifiers,)
         #-- set adjusts    
         if not qualifiers:
             qualifiers = self.container
