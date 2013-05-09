@@ -222,9 +222,12 @@ class Bundle(object):
         
         if context=='rvobs':
             output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
+        elif context=='lcobs':
+            print "lc not currently working"
+            # problem is we're trying to attach the datasets to the wrong objects
+            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
         else:
-            print "only RV is currently supported"
-            return
+            print "only lc and rv currently implemented"
         
         for objectlabel in output.keys():      
             # get the correct component (body)
@@ -406,7 +409,7 @@ class Bundle(object):
         @type ident: int or str
         """
         if isinstance(ident, int):
-            return self.axes.pop(i)
+            return self.axes.pop(ident)
         elif isinstance(ident, str):
             for i,ax in reversed(self.axes):
                 if ax.get_value('title')==ident:

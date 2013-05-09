@@ -943,6 +943,9 @@ class Axes(parameters.ParameterSet):
                     po.pop(key)
 
             # call mpl plot command
+            
+            # include an option to draw error bars, and if type is obs and errorbar on call axes.errorbar()?
+            
             axes.plot(dataset[xaxis],dataset[yaxis],**po)
                 
             # return data to its original loaded/unloaded state
