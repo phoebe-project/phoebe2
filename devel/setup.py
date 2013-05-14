@@ -55,6 +55,9 @@ ext_modules = [
         Extension('phoebe.wd.fwd',
                   include_dirs=['phoebe/wd'],
                   sources = glob.glob('phoebe/wd/*.f')),
+        Extension('phoebe.algorithms.cmarching',
+                  sources=['phoebe/algorithms/mrch.c'],
+                  libraries = ['m']),
         ]
 setup(
     

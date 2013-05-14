@@ -3155,45 +3155,45 @@ class AccretionDisk(PhysicalBody):
         rs,thetas = np.linspace(Rin,Rout,radial),np.linspace(0,2*np.pi,angular)
         for i,r in enumerate(rs[:-1]):
             for j,th in enumerate(thetas[:-1]):
-                self.mesh['_o_triangle'][c,3] = rs[i]*np.cos(thetas[j])
-                self.mesh['_o_triangle'][c,4] = rs[i]*np.sin(thetas[j])
-                self.mesh['_o_triangle'][c,5] = -height*rs[i]**1.5
                 self.mesh['_o_triangle'][c,0] = rs[i+1]*np.cos(thetas[j])
                 self.mesh['_o_triangle'][c,1] = rs[i+1]*np.sin(thetas[j])
                 self.mesh['_o_triangle'][c,2] = -height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c,3] = rs[i]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c,4] = rs[i]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c,5] = -height*rs[i]**1.5
                 self.mesh['_o_triangle'][c,6] = rs[i]*np.cos(thetas[j+1])
                 self.mesh['_o_triangle'][c,7] = rs[i]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c,8] = -height*rs[i]**1.5
+                self.mesh['_o_triangle'][c,8] = self.mesh['_o_triangle'][c,5]#-height*rs[i]**1.5
                 
-                self.mesh['_o_triangle'][c+1,0] = rs[i]*np.cos(thetas[j])
-                self.mesh['_o_triangle'][c+1,1] = rs[i]*np.sin(thetas[j])
-                self.mesh['_o_triangle'][c+1,2] = height*rs[i]**1.5
-                self.mesh['_o_triangle'][c+1,3] = rs[i+1]*np.cos(thetas[j])
-                self.mesh['_o_triangle'][c+1,4] = rs[i+1]*np.sin(thetas[j])
-                self.mesh['_o_triangle'][c+1,5] = height*rs[i+1]**1.5
-                self.mesh['_o_triangle'][c+1,6] = rs[i]*np.cos(thetas[j+1])
-                self.mesh['_o_triangle'][c+1,7] = rs[i]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c+1,8] = height*rs[i]**1.5
+                self.mesh['_o_triangle'][c+1,0] = self.mesh['_o_triangle'][c,3]#rs[i]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+1,1] = self.mesh['_o_triangle'][c,4]#rs[i]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+1,2] = -self.mesh['_o_triangle'][c,5]#height*rs[i]**1.5
+                self.mesh['_o_triangle'][c+1,3] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+1,4] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+1,5] = -self.mesh['_o_triangle'][c,2]#height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+1,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+1,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+1,8] = -self.mesh['_o_triangle'][c,8]#height*rs[i]**1.5
                 
+                self.mesh['_o_triangle'][c+2,0] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+2,1] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+2,2] = self.mesh['_o_triangle'][c+1,5]# height*rs[i+1]**1.5
                 self.mesh['_o_triangle'][c+2,3] = rs[i+1]*np.cos(thetas[j+1])
                 self.mesh['_o_triangle'][c+2,4] = rs[i+1]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c+2,5] = height*rs[i+1]**1.5
-                self.mesh['_o_triangle'][c+2,0] = rs[i+1]*np.cos(thetas[j])
-                self.mesh['_o_triangle'][c+2,1] = rs[i+1]*np.sin(thetas[j])
-                self.mesh['_o_triangle'][c+2,2] = height*rs[i+1]**1.5
-                self.mesh['_o_triangle'][c+2,6] = rs[i]*np.cos(thetas[j+1])
-                self.mesh['_o_triangle'][c+2,7] = rs[i]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c+2,8] = height*rs[i]**1.5
+                self.mesh['_o_triangle'][c+2,5] = self.mesh['_o_triangle'][c+1,5]#height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+2,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,8] = -self.mesh['_o_triangle'][c,8]#height*rs[i]**1.5
                 
-                self.mesh['_o_triangle'][c+3,0] = rs[i+1]*np.cos(thetas[j+1])
-                self.mesh['_o_triangle'][c+3,1] = rs[i+1]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c+3,2] = -height*rs[i+1]**1.5
-                self.mesh['_o_triangle'][c+3,3] = rs[i+1]*np.cos(thetas[j])
-                self.mesh['_o_triangle'][c+3,4] = rs[i+1]*np.sin(thetas[j])
-                self.mesh['_o_triangle'][c+3,5] = -height*rs[i+1]**1.5
-                self.mesh['_o_triangle'][c+3,6] = rs[i]*np.cos(thetas[j+1])
-                self.mesh['_o_triangle'][c+3,7] = rs[i]*np.sin(thetas[j+1])
-                self.mesh['_o_triangle'][c+3,8] = -height*rs[i]**1.5
+                self.mesh['_o_triangle'][c+3,0] = self.mesh['_o_triangle'][c+2,3]#rs[i+1]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,1] = self.mesh['_o_triangle'][c+2,4]#rs[i+1]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,2] = self.mesh['_o_triangle'][c,2]#-height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+3,3] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+3,4] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+3,5] = self.mesh['_o_triangle'][c,2]#-height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+3,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,8] = self.mesh['_o_triangle'][c,5]#-height*rs[i]**1.5
                 c+=4
         for i,th in enumerate(thetas[:-1]):
             R = Rin
@@ -3202,20 +3202,20 @@ class AccretionDisk(PhysicalBody):
             self.mesh['_o_triangle'][c,2] = height*Rin**1.5
             self.mesh['_o_triangle'][c,3] = R*np.cos(thetas[i+1])
             self.mesh['_o_triangle'][c,4] = R*np.sin(thetas[i+1])
-            self.mesh['_o_triangle'][c,5] = height*Rin**1.5
-            self.mesh['_o_triangle'][c,6] = R*np.cos(thetas[i])
-            self.mesh['_o_triangle'][c,7] = R*np.sin(thetas[i])
-            self.mesh['_o_triangle'][c,8] = -height*R**1.5
+            self.mesh['_o_triangle'][c,5] = self.mesh['_o_triangle'][c,2]#height*Rin**1.5
+            self.mesh['_o_triangle'][c,6] = self.mesh['_o_triangle'][c,0]#R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c,7] = self.mesh['_o_triangle'][c,1]#R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c,8] = -self.mesh['_o_triangle'][c,2]#-height*R**1.5
             
-            self.mesh['_o_triangle'][c+1,3] = R*np.cos(thetas[i])
-            self.mesh['_o_triangle'][c+1,4] = R*np.sin(thetas[i])
-            self.mesh['_o_triangle'][c+1,5] = -height*R**1.5
-            self.mesh['_o_triangle'][c+1,0] = R*np.cos(thetas[i+1])
-            self.mesh['_o_triangle'][c+1,1] = R*np.sin(thetas[i+1])
-            self.mesh['_o_triangle'][c+1,2] = -height*R**1.5
-            self.mesh['_o_triangle'][c+1,6] = R*np.cos(thetas[i+1])
-            self.mesh['_o_triangle'][c+1,7] = R*np.sin(thetas[i+1])
-            self.mesh['_o_triangle'][c+1,8] = +height*R**1.5
+            self.mesh['_o_triangle'][c+1,0] = self.mesh['_o_triangle'][c,3]#R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,1] = self.mesh['_o_triangle'][c,4]#R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,2] = self.mesh['_o_triangle'][c,8]#-height*R**1.5
+            self.mesh['_o_triangle'][c+1,3] = self.mesh['_o_triangle'][c,0]#R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c+1,4] = self.mesh['_o_triangle'][c,1]#R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c+1,5] = self.mesh['_o_triangle'][c,8]#-height*R**1.5
+            self.mesh['_o_triangle'][c+1,6] = self.mesh['_o_triangle'][c,3]#R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,7] = self.mesh['_o_triangle'][c,4]#R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,8] = self.mesh['_o_triangle'][c,2]#+height*R**1.5
                 
             c+=2
             R = Rout
@@ -3299,14 +3299,17 @@ class AccretionDisk(PhysicalBody):
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
             limbdark.local_intensity(self,parset_pbdep,parset_isr)
             
-    def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None):
+    def projected_intensity(self,los=[0.,0.,+1],ref=0,method='numerical',with_partial_as_half=True):
         """
         Calculate local intensity.
         """
+        if method!='numerical':
+            raise ValueError("Only numerical computation of projected intensity of AccretionDisk available")
         idep,ref = self.get_parset(ref=ref,type='pbdep')
-        visible = self.mesh['visible'] | self.mesh['partial']
-        self.mesh['proj_'+ref][visible] = self.mesh['ld_'+ref][visible,4]
-        return self.mesh['proj_'+ref][visible].sum()
+        ld_func = idep['ld_func']
+        proj_int = limbdark.projected_intensity(self,method=method,
+                ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
+        return proj_int
     
     def set_time(self,time):
         if self.time is None:

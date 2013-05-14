@@ -119,6 +119,7 @@ c      one = 0.999999
         hiding_partial_vertices(i,2) = -1
         hiding_partial_vertices(i,3) = -1
 C       forget about angles really facing backwards (used to be thresh.LT.)
+C        if (thresh.GT.3.1416d0) then
         if (thresh.GT.3.1416d0) then
         alpha = acos(-nors(i,3)/sqrt(nors(i,1)**2+nors(i,2)**2+
      +         nors(i,3)**2))

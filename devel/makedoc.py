@@ -26,7 +26,9 @@ def python_to_sphinx(pythonfile,latex=False,type='testsuite.'):
 
     start_doc = False
     inside_code = False
-
+    
+    tt.write(":download:`Download this page as a python script <../{}>`\n\n".format(pythonfile))
+    
     for line in ff.readlines():
         if 'time.time(' in line: continue
         if 'import time' in line: continue
@@ -281,7 +283,9 @@ if __name__=="__main__":
                   'phoebe-testsuite/contact_binary/contact_binary.py',
                   'phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py',
                   'phoebe-testsuite/occulting_dark_sphere/transit_colors.py',
-                  'phoebe-testsuite/misaligned_binary/misaligned_binary.py']
+                  'phoebe-testsuite/misaligned_binary/misaligned_binary.py',
+                  'phoebe-testsuite/accretion_disk/accretion_disk.py',
+                  'phoebe-testsuite/accretion_disk/T_CrB.py']
     
     for pythonfile in test_suite:
         python_to_sphinx(pythonfile,type='testsuite.',latex=False)

@@ -1001,7 +1001,7 @@ def calculate_asini(period,ecc,K1=0,K2=0):
     return asini
     
 def calculate_mass_function(period,ecc,K):
-    """
+    r"""
     Calculate mass function f(m).
     
     .. math::
