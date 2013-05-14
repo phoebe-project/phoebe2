@@ -68,7 +68,8 @@ if os.path.isdir(base_dir):
     print("Virtual environment already exists")
 else:
     #-- download the virtualenv.py script
-    urllib.urlretrieve('https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py', "virtualenv.py")
+    urllib.urlretrieve('https://raw.github.com/pypa/virtualenv/master/virtualenv.py', "virtualenv.py")
+    #urllib.urlretrieve('https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py', "virtualenv.py")
 
     #-- install the virtualenv    
     import virtualenv

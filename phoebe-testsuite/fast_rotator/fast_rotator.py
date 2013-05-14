@@ -47,7 +47,7 @@ star['shape'] = 'sphere'
 star['teff'] = 10000.
 star['radius'] = 1.0,'Rsol'
 
-mesh = phoebe.ParameterSet(context='mesh:marching')
+mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
 mesh['delta'] = 0.05
 
 # These are the parameters for the calculation of the :ref:`spectrum <parlabel-phoebe-spdep>`. We assume the
@@ -96,8 +96,8 @@ mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
 # Analysis of the results
 # -----------------------
 
-result1 = mesh1.get_synthetic(type='spsyn',ref=0)
-result2 = mesh1.get_synthetic(type='spsyn',ref=1)
+result1 = mesh1.get_synthetic(category='sp',ref=0)
+result2 = mesh1.get_synthetic(category='sp',ref=1)
 
 plt.figure()
 plt.plot(result1['wavelength'][0],

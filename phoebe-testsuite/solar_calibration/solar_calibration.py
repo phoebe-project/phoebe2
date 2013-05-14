@@ -60,7 +60,7 @@ c0 = time.time()
 sun = phoebe.ParameterSet(context='star',add_constraints=True)
 sun['shape'] = 'sphere'
 sun['distance'] = 1.,'au'
-sun['atm'] = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"#'kurucz'
+sun['atm'] = 'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
 tools.add_angdiam(sun)
@@ -68,7 +68,7 @@ print("The Sun has an angular diameter of {:.3f}'".format(sun.get_value('angdiam
 
 # Aside from physical parameters, we also need numerical ones. We wish to use
 # the marching method to generate the grid, with a reasonably fine marching step.
-sun_mesh = phoebe.ParameterSet(context='mesh:marching',alg='python')
+sun_mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
 sun_mesh['delta'] = 0.05
 
 # We don't only need parameters for the Star body itself, but also information
@@ -82,7 +82,7 @@ sun_mesh['delta'] = 0.05
 lcdep1 = phoebe.ParameterSet(frame='phoebe',context='lcdep')
 lcdep1['ld_func'] = 'claret'
 lcdep1['ld_coeffs'] = 'kurucz'
-lcdep1['atm'] = "/home/pieterd/workspace/phoebe/wd_atmospheres/atmcof.dat"#'kurucz'
+lcdep1['atm'] = 'kurucz'
 lcdep1['passband'] = 'OPEN.BOL'
 lcdep1['ref'] = 'Bolometric (numerical)'
 

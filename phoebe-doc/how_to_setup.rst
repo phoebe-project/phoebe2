@@ -4,8 +4,10 @@ How to set up Phoebe 2.x
 .. contents::
    :depth: 3
 
-Yeah yeah I don't have time for this and I don't want to mess with my system
------------------------------------------------------------------------------
+.. _label-easystart:
+
+Easy start (I don't have time for this and I don't want to mess with my system)
+------------------------------------------------------------------------------------------
 
 Then do::
     
@@ -18,7 +20,13 @@ Sit back and relax, or get a cup of coffee. It can take a while.
 This will create a folder ``phoebe`` (make sure it doesn't exist yet) in which
 Phoebe and all the dependencies are installed. Deleting it undoes the whole installation.
 
-A minimal demo::
+A minimal scripting demo::
+    
+    $:> source ~/phoebe/bin/activate
+    $:> wget file:///home/pieterd/software/phoebe-code/devel/phoebe-doc/_build/html/_downloads/solar_calibration.py
+    $:> python solar_calibration.py
+
+A minimal interactive demo::
     
     $:> source ~/phoebe/bin/activate
     $:> ipython --pylab
@@ -30,7 +38,6 @@ A minimal demo::
     In [3]: mystar.set_time(0.)
     
     In [4]: mystar.plot2D()
-    
 
 If you encounter any errors, read on.
 

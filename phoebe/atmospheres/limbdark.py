@@ -700,8 +700,8 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
             N = max(N,len(red_kwargs[label]))
         elif label=='vgamma' and hasattr(vgamma,'__len__'):
             N = max(N,len(vgamma))
-        else:
-            raise ValueError("Somethin' wrong with the atmo table")
+        #else:
+        #    raise ValueError("Somethin' wrong with the atmo table: ")
     values = np.zeros((len(labels),N))
     for i,label in enumerate(labels):
         #-- get the value from the atm_kwargs or red_kwargs
@@ -712,7 +712,7 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         elif label=='vgamma':
             values[i] = vgamma
         else:
-            raise ValueError("Somethin' wrong with the atmo table")
+            raise ValueError("Somethin' wrong with the atmo table: cannot interpret label {}".format(label))
     #-- try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values,axis_values,pixelgrid)

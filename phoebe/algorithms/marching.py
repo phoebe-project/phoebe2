@@ -27,6 +27,7 @@ if enable_mayavi:
         except:
             #print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
             enable_mayavi = False
+import cmarching
 try:
     import marching2FLib        
 except ImportError:
@@ -677,9 +678,9 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     return table
 
 
-def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
+def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
     """
-    Discretize using c module
+    Discretize using c module written by Joe Giammarco.
     """
     pot = ['Sphere','BinaryRoche','MisalignedBinaryRoche','RotateRoche'].index(potential)
     args = list(args)+[delta]
@@ -687,18 +688,14 @@ def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args)
     table = marching2FLib.getMesh(pot,max_triangles,numparams,*args)
     return table[0]
 
-def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
+def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
     """
-    Discretize using c module
+    Discretize using c module written by Gal Matijevic.
     """
-    import subprocess
-    pot = ['Sphere','BinaryRoche','MisalignedBinaryRoche','RotateRoche'].index(potential)
-    args = list(args)+[delta]
-    numparams = len(args)+1
-    output = subprocess.check_output('./mrch',shell=True)
-    table = output.split('\n')[:-1]
-    table = np.array([line.split() for line in table],float)
-    print("USING TEST VERSION OF MARCHING")
+    if max_triangles is None:
+        max_triangles = 0
+    #print delta,max_triangles,potential,args
+    table = cmarching.discretize(delta,max_triangles,potential,*args)
     return table
 
 
