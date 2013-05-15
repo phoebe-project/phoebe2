@@ -1692,6 +1692,11 @@ class ParameterSet(object):
         """
         Adjust the value of the parameter
         
+        **Example usage**
+        
+        >>> ps.set_adjust('sma',True)
+        >>> ps.set_adjust(('sma','incl'),True)
+        
         @param qualifiers: qualifiers of which to change the ``adjust`` property
         @type qualifiers: str (for one) or tuple of strings (for multiple)
         @param value: adjustment flag

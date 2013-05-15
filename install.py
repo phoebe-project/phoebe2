@@ -69,8 +69,7 @@ if os.path.isdir(base_dir):
 else:
     #-- download the virtualenv.py script
     urllib.urlretrieve('https://raw.github.com/pypa/virtualenv/master/virtualenv.py', "virtualenv.py")
-    #urllib.urlretrieve('https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py', "virtualenv.py")
-
+   
     #-- install the virtualenv    
     import virtualenv
     virtualenv.main()
@@ -95,21 +94,28 @@ last_char_was_dot = False
 with open('install.log','w') as log:
     for thing_to_do in things_to_do:
         cmd = ' '.join([activate]+['&&']+thing_to_do)
+        #-- do the things we need to do
         p1 = subprocess.Popen(cmd,stdout=subprocess.PIPE,shell=True)
         print("Running {}".format(cmd))
         for line in line_at_a_time(p1.stdout):
+            #-- in Python3, stdout from terminal is byte code, not a str
+            line = line.decode('utf-8')
+            #-- keep track of the output
             log.write(line)
+            #-- CASE 1:  Requirement already satisfied
             if 'Requirement already satisfied' in line:
                 if last_char_was_dot:
                     print('')
                     last_char_was_dot = False
                 print(line.strip())
+            #-- CASE 2: Successfully installed
             elif 'Successfully installed' in line:
                 new_package = False
                 sys.stdout.write('done.\n')
                 sys.stdout.flush()
                 print(line.strip())
                 last_char_was_dot = False
+            #-- CASE 3: Downloading package
             elif "Downloading/unpacking" in line or 'Obtaining' in line:
                 new_package = True
                 line = line.split()
@@ -118,16 +124,24 @@ with open('install.log','w') as log:
                     last_char_was_dot = False
                 sys.stdout.write(' '.join(line[:1]+['/installing']+line[1:]))
                 sys.stdout.flush()
+            #-- CASE 4: During installation, report progress
             elif new_package:
                 nr += 1
                 if nr%100==0:
                     sys.stdout.write('.')
                     sys.stdout.flush()
                     last_char_was_dot = True
+        #-- wait until completion
+        p1.wait()
+        #-- check if completion succeeds
+        if p1.returncode!=0:
+            print("\nError during execution of '{}'".format(thing_to_do))
+            raise SystemExit
+        #-- clean up output
         if last_char_was_dot:
             print('')
             last_char_was_dot = False
-                
+        #-- flush out changes to the log file        
         log.flush()
 
 #-- finally download the atmosphere files:
