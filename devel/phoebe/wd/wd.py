@@ -652,7 +652,18 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
 
 
 class BodyEmulator(object):
+    """
+    Wrap parameterSets for WD in a Body type class.
+    
+    This enables the fitters to use the WD code to do the actual fitting.
+    """
     def __init__(self,pset,lcset=None,rvset=None,obs=None):
+        """
+        Initialize a Body.
+        
+        Only thing you need to do is pass the root parameterset, those
+        for a light curve and/or radial velocity set, and the observations.
+        """
         self.params = OrderedDict()
         self.params['pbdep'] = OrderedDict()
         self.params['obs'] = OrderedDict()

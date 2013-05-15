@@ -23,7 +23,7 @@ Phoebe and all the dependencies are installed. Deleting it undoes the whole inst
 A minimal scripting demo::
     
     $:> source ~/phoebe/bin/activate
-    $:> wget file:///home/pieterd/software/phoebe-code/devel/phoebe-doc/_build/html/_downloads/solar_calibration.py
+    $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/solar_calibration.py
     $:> python solar_calibration.py
 
 A minimal interactive demo::
@@ -162,10 +162,10 @@ Don't forget to execute step 3. If you choose
 to add the the line to your bash profile, you're fine forever. Otherwise, you
 need to source the virtual environment each time.
 
-    1. Download `the latest version version of virtualenv.py <https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py>`_
+    1. Download `the latest version version of virtualenv.py <https://raw.github.com/pypa/virtualenv/master/virtualenv.py>`_
        to some location (it really doesn't matter where)::
           
-         $:> wget https://bitbucket.org/ianb/virtualenv/raw/tip/virtualenv.py .
+         $:> wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
 
     2. Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use another too)::
     

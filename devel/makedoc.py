@@ -99,7 +99,7 @@ ParameterSets
         frames = {}
         for par in definitions.defs:
             for frame in par['frame']:
-                if not frame in ['phoebe','pywd']: continue
+                if not frame in ['phoebe','wd']: continue
                 if frame not in frames:
                     if isinstance(par['context'],list):
                         frames[frame]+= par['context']
@@ -268,6 +268,7 @@ if __name__=="__main__":
                   'phoebe-testsuite/wilson_devinney/wd_vs_phoebe.py',
                   'phoebe-testsuite/wilson_devinney/eccentric_orbit.py',
                   'phoebe-testsuite/wilson_devinney/reflection_effect.py',
+                  'phoebe-testsuite/wilson_devinney/body_emul.py',
                   'phoebe-testsuite/venus/venus.py',
                   'phoebe-testsuite/differential_rotation/differential_rotation.py',
                   'phoebe-testsuite/fast_rotator/fast_rotator.py',

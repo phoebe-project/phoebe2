@@ -1231,8 +1231,8 @@ def accept_fit(system,fitparams):
     #-- which parameters were fitted?
     fitted_param_labels = [par.get_unique_label() for par in feedback['parameters']]
     #-- walk through all the parameterSets available:
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    for parset in walk:
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
         #-- fore ach parameterSet, walk to all the parameters
         for qual in parset:
             #-- extract those which need to be fitted

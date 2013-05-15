@@ -14,7 +14,7 @@ phshift = 0.0         #  Phase shift
 q = 1.71428571429     #  Mass ratio
 vgamma = -27.79       # (km/s) Systemic velocity
 sma = 194.334790243   # (Rsol) semi major axis
-long = 0.0            # (deg) Longitude of ascending node
+long_an = 0.0            # (deg) Longitude of ascending node
 distance = 960.0      # (pc) Distance to the binary system
 c1label = red_giant   # label primary component
 c2label = white_dwarf # label secondary component
@@ -32,7 +32,7 @@ com ~  {q}/(1.0+{q})*{sma}
 [phoebe--component--red_giant]
 atm = blackbody     #  Bolometric Atmosphere model
 alb = 1.0           #  Bolometric albedo (alb*flux used for heating, 1-alb for reflection)
-redistr = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
+redist = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
 syncpar = 1.0       #  Synchronicity parameter
 gravb = 1.0         #  Bolometric gravity brightening
 pot = 4.87690579551 #  Roche potential value
@@ -46,7 +46,7 @@ ld_coeffs = [1.0]          #  Bolometric limb darkening coefficients
 [phoebe--component--white_dwarf]
 atm = blackbody     #  Bolometric Atmosphere model
 alb = 1.0           #  Bolometric albedo (alb*flux used for heating, 1-alb for reflection)
-redistr = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
+redist = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
 syncpar = 1.0       #  Synchronicity parameter
 gravb = 1.0         #  Bolometric gravity brightening
 pot = 1851.45038284 #  Roche potential value
@@ -60,10 +60,10 @@ ld_coeffs = [1.0]          #  Bolometric limb darkening coefficients
 [phoebe--accretion_disk--disk]
 atm = blackbody     #  Bolometric Atmosphere model
 alb = 1.0           #  Bolometric albedo (alb*flux used for heating, 1-alb for reflection)
-redistr = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
+redist = 0.0       #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
 label = disk        #  Name of the body
 ld_coeffs = [1.0]          #  Bolometric limb darkening coefficients
-mdot = 2e-09        # (Msol/yr) Mass transfer rate
+dmdt = 2e-09        # (Msol/yr) Mass transfer rate
 mass = 1.2          # (Msol) Host star mass
 rin = 1.0           # (Rsol) Inner radius of disk
 rout = 40.0         # (Rsol) Outer radius of disk
