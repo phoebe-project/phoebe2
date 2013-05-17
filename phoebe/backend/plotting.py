@@ -753,18 +753,15 @@ class Axes(parameters.ParameterSet):
     """
     Class representing a collection of plot commands for a single axes
     """
-    def __init__(self,plotoptions=[],**kwargs):
+    def __init__(self,**kwargs):
         """
         Initialize an axes
 
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
-
-        @param plotoptions: plotoptions or list of plotoptions which are ParameterSets with context=plotting:plt
-        @type plotoptions: ParameterSet or list of ParameterSets
         """
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
-        self.plots = plotoptions if isinstance(plotoptions, list) else [plotoptions]
+        self.plots = []
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
@@ -916,6 +913,8 @@ class Axes(parameters.ParameterSet):
                 for path,item in system.walk_all():
                     if path[-1] == plotoptions['objref']:
                         obj = item
+                    if path[-1] == 'orbit' and item['label'] == plotoptions['objref'] and len(path) == 3:
+                        obj = system
                 
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
