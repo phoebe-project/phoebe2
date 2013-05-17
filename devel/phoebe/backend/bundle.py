@@ -92,6 +92,9 @@ class Bundle(object):
         for path,item in self.system.walk_all():
             if path[-1] == objectname:
                 return item
+            # there has to be a better way to include system in the search
+            if path[-1] == 'orbit' and item['label'] == objectname and len(path) == 3:
+                return self.system
         return None
         
     def get_component(self,objectname):
@@ -304,7 +307,7 @@ class Bundle(object):
             options = self.compute[label]
         # clear all previous models and create new model
         self.system.clear_synthetic() 
-        observatory.observe(self.system,times=np.arange(0,100,20.),lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
+        observatory.observe(self.system,times=options['time'],lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
 
         # dataset = body.get_synthetic(type='lcsyn',ref=lcsyn['ref'])
     #}
