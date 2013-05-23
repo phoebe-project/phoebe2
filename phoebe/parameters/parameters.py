@@ -1336,17 +1336,23 @@ class Parameter(object):
         #-- obligatory properties
         value_str = self.repr % self.get_value()
         rawvl_str = str(self.value)
+        
+        #-- cast types need a nice string thing:
+        ctv = [str,float,'choose','return_string_or_list','make_bool',np.array]        
+        ctt = ['string','float','from allowed values','string or list of values','bool','numpy array']
+        if self.cast_type in ctv:
+            cast_type_string = ctt[ctv.index(self.cast_type)]
+        else:
+            cast_type_string = 'undefined'
+        
         if '\n' in value_str: value_str = '\n'+value_str
         if '\n' in rawvl_str: rawvl_str = '\n'+rawvl_str
-        info  = "Name:           %-s\n" % self.qualifier
+        info  = "Qualifier:      %-s\n" % self.qualifier
         info += "Description:    %-s\n" % self.description
         info += "Value:          %-s\n" % value_str
-        info += "Raw value:      %-s\n" % rawvl_str
-        info += "Type:           %-s\n" % self.cast_type
+        info += "Type:           %-s\n" % cast_type_string
         if hasattr(self,'unit'):
             info += 'Unit:           %-s\n' % self.unit
-        if hasattr(self,'frame'):
-            info += 'Frame:          %-s\n' % ', '.join(self.frame)
         if hasattr(self,'choices'):
             info += 'Allowed values: %-s\n' % ' -- '.join(self.choices)
         if hasattr(self,'llim') and hasattr(self,'ulim') and hasattr(self,'step'):
@@ -1355,6 +1361,10 @@ class Parameter(object):
             info += " (%s)\n" % self.repr % self.choices[self.get_value()-1]
         elif hasattr(self,'choices') and self.cast_type=='index':
             info += " (%s)\n" % self.repr % self.choices[self.get_value()]
+        if hasattr(self,'adjust'):
+            info += "Adjustable:     %-s\n" %  self.adjust
+        if hasattr(self,'frame'):
+            info += 'Frame:          %-s\n' % ', '.join(self.frame)
         info = info.strip()
         return info
         

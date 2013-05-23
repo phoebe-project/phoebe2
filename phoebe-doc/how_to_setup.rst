@@ -49,6 +49,7 @@ following software:
 
     * svn (to download the repository)
     * Python 2.7
+    * a Fortran and C compiler (gfortran, gcc)
     * 700MB of disk space.
 
 If you're doing a :ref:`system-wide installation <label-systemwide>`
@@ -241,8 +242,10 @@ your software packages, or inform a developer.*
 
 Necessary:
 
-    * Python 2.7
+    * Python 2.7 and the python-dev package
     * Numpy (1.6.2) + Scipy (0.10.1)
+    * svn
+    * gfortran
 
 Recommended:
 
@@ -266,6 +269,7 @@ Nice to have:
        
        $:> sudo apt-get install python-numpy python-scipy
        $:> sudo apt-get install python-matplotlib python-pyfits python-mpi4py mayavi2
+       $:> sudo apt-get install gfortran
    
    The packages pymc, emcee and lmfit can be installed through pip. If you don't
    have pip, do::
