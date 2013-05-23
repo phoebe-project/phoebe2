@@ -550,10 +550,29 @@ def fit_law(mu,Imu,law='claret',fitmethod='equidist_r_leastsq'):
     """
     Fit an LD law to a sampled set of limb angles/intensities.
     
+    Most likely options for ``law`` are:
+    
+    - ``claret``
+    - ``linear``
+    - ``quadratic``
+    
+    Possible options for ``fitmethod`` are:
+    
+    - ``leastsq``: Levenberg-Marquardt fit on the coordinates as available in
+      the atmosphere grids
+    - ``fmin``: Nelder-Mead fit on the coordinates as available in the
+      atmosphere grids.
+    - ``equidist_r_leastsq``: LM-fit in r-coordinate resampled equidistantly
+    - ``equidist_mu_leastsq``: LM-fit in :math:`\mu`-coordinate resampled equidistantly
+    - ``equidist_r_fmin``: NM-fit in r-coordinate resampled equidistantly
+    - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled equidistantly
+    
     In my (Pieter) experience, C{fitmethod='equidist_r_leastsq'} seems
     appropriate for the Kurucz models.
     
     Make sure the intensities are normalised!
+    
+    **Example usage**
     
     >>> mu,intensities = get_limbdarkening(teff=10000,logg=4.0,photbands=['JOHNSON.V'],normalised=True)
     >>> p = pl.figure()

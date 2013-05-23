@@ -83,6 +83,8 @@ def generate_parameterlist_sphinx():
     """
     Generate a list of parameters suitable for inclusion in sphinx.
     """
+    
+    pars_as_text = []
     with open('phoebe-doc/parlist.rst','w') as ff:
         ff.write("""
 
@@ -136,6 +138,28 @@ ParameterSets
                 str_parset = '    '+'\n    '.join(str_parset)                
                 ff.write(str_parset)
                 ff.write('\n\n')
+                
+                links = []
+                for qual in parset:
+                    try:
+                        pars_as_text.append('.. _label-{}-{}-{}:\n\n::\n\n'.format(qual,context,frame)+"    "+"\n    ".join(str(parset.get_parameter(qual)).split('\n'))+'\n\n')
+                        links.append(':ref:`{} <label-{}-{}-{}>`'.format(qual,qual,context,frame))
+                    except:
+                        print("Failed {}".format(qual))
+                        continue
+                    
+                    
+                ff.write(", ".join(links))
+                ff.write('\n\n')
+        
+        ff.write("""
+
+Parameters
+-------------
+
+""")
+        ff.write('\n\n'.join(pars_as_text))
+        
 
 
 

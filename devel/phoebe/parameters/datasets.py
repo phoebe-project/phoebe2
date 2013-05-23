@@ -1266,7 +1266,19 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
-                
+    
+    #-- remove nans:
+    for comp in output.keys():
+        for ds in output[comp][0]:
+            columns = ds['columns']
+            keep = np.ones(len(ds[columns[0]]),bool)
+            #-- first look for nans in all columns
+            for col in columns:
+                keep = keep & -np.isnan(ds[col])
+            #-- then throw the rows with nans out
+            for col in columns:
+                ds[col] = ds[col][keep]
+    
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:

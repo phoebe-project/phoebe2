@@ -197,8 +197,8 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
     
     Keys of the output are:
 
-        - C{indeps},C{lc},C{rv1},C{rv2} when C{request='curve'}
-        - C{x},C{'y'} when C{request='image'}
+        - C{indeps}, C{lc}, C{rv1}, C{rv2} when C{request='curve'}
+        - C{x}, C{y} when C{request='image'}
     
     On the other hand, you might want to give your own filter (or limb darkening
     parameters or whatever) and your own RV curve. In that case, you could do
