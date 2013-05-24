@@ -271,7 +271,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of spectrum',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context=['spdep','pldep']),
-         dict(qualifier='weak_field', description='Type of approximation to use (weak field or not)',repr='%s',cast_type=bool,value=False,frame=['phoebe'],context='pldep'),
+         dict(qualifier='weak_field', description='Type of approximation to use (weak field or not)',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='pldep'),
          dict(qualifier='glande',   description='Lande factor',repr='%f',cast_type=float,value=1.2,frame=["phoebe"],context=['pldep']),
          dict(qualifier='clambda',   description='Central wavelength',repr='%s',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
@@ -379,14 +379,14 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type=bool,value=False,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
 
 defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:minuit'),
-         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type=bool,value=True,frame=["phoebe"],context='fitting:minuit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:minuit'),
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
