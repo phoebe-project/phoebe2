@@ -345,16 +345,12 @@ def mutual_heating(*objects,**kwargs):
     #kwargs.setdefault('heating',True)
     #-- expand bodybags --> this should be rewritten for deeper nesting
     objects_ = []
-    print objects
     for iobj in objects:
         try:
-            print '1'
             objects_ += iobj.bodies
         except AttributeError:
-            print '2'
             objects_.append(iobj)
     objects = objects_
-    print "done"
     
     #-- do we want to set the local effective temperature after mutual
     #   reflection?
