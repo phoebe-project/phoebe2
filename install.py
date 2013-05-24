@@ -101,7 +101,10 @@ with open('install.log','w') as log:
             #-- in Python3, stdout from terminal is byte code, not a str
             line = line.decode('utf-8')
             #-- keep track of the output
-            log.write(line)
+            try:
+                log.write(line)
+            except UnicodeEncodeError:
+                pass
             #-- CASE 1:  Requirement already satisfied
             if 'Requirement already satisfied' in line:
                 if last_char_was_dot:

@@ -1394,7 +1394,7 @@ class Parameter(object):
                 return np.all(self.get_value()==other.get_value())
         #-- otherwise retrieve raw values
         else:
-            return self.get_value()==other.get_value()
+            return np.all(self.get_value()==other.get_value())
     
     def __hash__(self):
         """
