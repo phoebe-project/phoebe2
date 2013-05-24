@@ -647,6 +647,8 @@ def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
     #-- perhaps the user gave a filename: then return it
     if os.path.isfile(atm):
         return atm
+    elif os.path.isfile(os.path.join(basedir_ld_coeffs,atm)):
+        return os.path.join(basedir_ld_coeffs,atm)
     #-- if the user wants tabulated blackbodies, we have a file for that.
     elif atm=='blackbody':
         basename = 'blackbody_uniform_none_teff.fits'
