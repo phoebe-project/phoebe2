@@ -31,6 +31,7 @@ class Bundle(object):
         self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
+        self.feedback = OrderedDict()
         self.figs = OrderedDict()
         
         self.pool = OrderedDict()
@@ -92,9 +93,6 @@ class Bundle(object):
         for path,item in self.system.walk_all():
             if path[-1] == objectname:
                 return item
-            # there has to be a better way to include system in the search
-            if path[-1] == 'orbit' and item['label'] == objectname and len(path) == 3:
-                return self.system
         return None
         
     def get_component(self,objectname):
@@ -284,20 +282,20 @@ class Bundle(object):
         """
         Remove a given compute parameterSet
         
-        @param plotname: name of compute parameterSet
-        @type plotname: str
+        @param label: name of compute parameterSet
+        @type label: str
         """
         if label is None:    return None
         self.compute.pop(label)        
     
-    def observe(self,label=None,mpi=False):
+    def observe(self,label=None,mpi=True):
         """
         Convenience function to run observatory.observe
         
         @param label: name of one of the compute parameterSets stored in bundle
         @type label: str
-        @param mpi: mpi parameterSet
-        @type mpi: None or parameterSet
+        @param mpi: whether to use mpi (will use stored options)
+        @type mpi: bool
         """
         if label is None:
             options = parameters.ParameterSet(context='compute')
@@ -307,39 +305,113 @@ class Bundle(object):
             options = self.compute[label]
         # clear all previous models and create new model
         self.system.clear_synthetic() 
-        observatory.observe(self.system,times=options['time'],lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
+        #~ observatory.observe(self.system,lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
+        observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
 
         # dataset = body.get_synthetic(type='lcsyn',ref=lcsyn['ref'])
     #}
             
     #{ Fitting
-    def add_fitting(self,fitresults):
+    def add_fitting(self,fitting,label=None):
         """
-        Add fitting results to the bundle.
+        Add a new fitting parameterSet
         
-        @param fitresults: results from the fitting
-        @type fitresults: None, parameterSet or list of ParameterSets
+        @param fitting: fitting parameterSet
+        @type fitting:  None, parameterSet or list of ParameterSets
+        @param label: name of parameterSet
+        @type label: None, str, or list of strs
         """
-        #-- if we've nothing to add, then just quit
-        if fitresults is None: return None
-        #-- fitresults should be a list, not one result:
-        if not isinstance(fitresults,list):
-            fitresults = [fitresults]
-        #-- then add the results to the bundle.
-        for fitresult in fitresults:
-            label = fitresult['label']
-            self.fitting[label] = fitresult
-    
+        if fitting is None: return None
+        if not isinstance(fitting,list):
+            fitting = [fitting]
+            label = [label]
+        for i,f in enumerate(fitting):
+            if label[i] is not None:
+                name = label[i]
+            else:
+                name = f['label']
+            self.fitting[name] = f
+            
     def get_fitting(self,label):
         """
+        Get a fitting parameterSet by name
+        
+        @param label: name of parameterSet
+        @type label: str
+        @return: fitting parameterSet
+        @rtype: parameterSet
         """
-        return None
+        return self.fitting[label]
         
     def remove_fitting(self,label):
         """
+        Remove a given fitting parameterSet
+        
+        @param label: name of fitting parameterSet
+        @type label: str
         """
-        self.fitting.pop(label)
+        if label is None:    return None
+        self.fitting.pop(label)        
+        
+    def run_fitting(self,label,mpi=True):
+        """
+        Run fitting for a given fitting parameterSet
+        and store the feedback
+        
+        @param label: name of fitting parameterSet
+        @type label: str
+        @param mpi: whether mpi is enabled (will use stored options)
+        @type mpi: bool
+        """
+        feedback = fitting.run(self.system, self.fitting[label], mpi=self.mpi if mpi else None)
+        self.add_feedback(feedback)
     
+    def add_feedback(self,feedback):
+        """
+        Add fitting results to the bundle.
+        
+        @param feedback: results from the fitting
+        @type feedback: None, parameterSet or list of ParameterSets
+        """
+        #-- if we've nothing to add, then just quit
+        if feedback is None: return None
+        #-- feedbacks should be a list, not one result:
+        if not isinstance(feedback,list):
+            feedback = [feedback]
+        #-- then add the results to the bundle.
+        for f in feedback:
+            label = f['label']
+            self.feedback[label] = f
+    
+    def get_feedback(self,label):
+        """
+        Get fitting results by name
+        
+        @param label: name of the fitting results
+        @type label: str
+        @return: a feedback parameter set
+        @rtype: parameterSet
+        """
+        return self.feedback[label]
+               
+    def remove_feedback(self,label):
+        """
+        Remove a given fitting feedback
+        
+        @param label: name of the fitting results
+        @type label: str
+        """
+        self.feedback.pop(label)
+    
+    def accept_feedback(self,label):
+        """
+        Accept fitting results and apply to system
+        
+        @param label: name of the fitting results
+        @type label: str
+        """
+        fitting.accept_fit(self.system,self.feedback[label])
+        
     def continue_mcmc(self,label=None,extra_iter=10):
         """
         Continue an MCMC chain.
@@ -352,9 +424,9 @@ class Bundle(object):
         @type extra_iter: int
         """
         if label is not None:
-            allfitparams = [self.fitting[label]]
+            allfitparams = [self.feedback[label]]
         else:
-            allfitparams = self.fitting.values()[::-1]
+            allfitparams = self.feedback.values()[::-1]
         #-- take the last fitting parameterSet that represents an mcmc
         for fitparams in allfitparams:
             if fitparams.context.split(':')[-1] in ['pymc','emcee']:
