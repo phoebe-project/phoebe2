@@ -2580,6 +2580,7 @@ class BodyBag(Body):
         @param list_of_bodies: list of bodies
         @type list_of_bodies: list
         """
+        self.signals = {}
         self.label = None
         if not isinstance(list_of_bodies,list):
             list_of_bodies = [list_of_bodies]
@@ -4147,17 +4148,7 @@ class BinaryRocheStar(PhysicalBody):
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []
-        if self.mesh is None:
-            dim = 3
-            ft = 'f8'
-            old_dtypes = [('_o_center',ft,(dim,)),('_o_size',ft),('_o_triangle',ft,(3*dim,)),('_o_normal_',ft,(dim,)),
-                                 ('center',ft,(dim,)),('size',ft),('triangle',ft,(3*dim,)),('normal_',ft,(dim,)),
-                                 ('_o_velo___bol_',ft,(dim,)),('velo___bol_',ft,(dim,)),('mu',ft),
-                                 ('partial',bool),('hidden',bool),('visible',bool)]
-            self.mesh = np.zeros(0,dtype=old_dtypes)
-        
         old_dtypes = self.mesh.dtype.names
-        
         #-- check if the following required labels are in the mesh, if they
         #   are not, we'll have to add them
         required = [('ld___bol','f8',(5,)),('proj___bol','f8'),
@@ -4655,15 +4646,6 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []
-        if self.mesh is None:
-            dim = 3
-            ft = 'f8'
-            old_dtypes = [('_o_center',ft,(dim,)),('_o_size',ft),('_o_triangle',ft,(3*dim,)),('_o_normal_',ft,(dim,)),
-                                 ('center',ft,(dim,)),('size',ft),('triangle',ft,(3*dim,)),('normal_',ft,(dim,)),
-                                 ('_o_velo___bol_',ft,(dim,)),('velo___bol_',ft,(dim,)),('mu',ft),
-                                 ('partial',bool),('hidden',bool),('visible',bool)]
-            self.mesh = np.zeros(0,dtype=old_dtypes)
-        
         old_dtypes = self.mesh.dtype.names
         #-- check if the following required labels are in the mesh, if they
         #   are not, we'll have to add them
