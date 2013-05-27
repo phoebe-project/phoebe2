@@ -74,8 +74,8 @@ star2,lcdep2,rvdep2 = comp2
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
-mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='python')
-mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='python')
+mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
+mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
 
 # Body setup
 # ----------
@@ -90,7 +90,7 @@ curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
 image,params = wd.lc(ps,request='image',light_curve=lc,rv_curve=rv)
 c2 = time.time()
 
-mpi = phoebe.ParameterSet(context='mpi',np=4)
+mpi = None#phoebe.ParameterSet(context='mpi',np=4)
 
 # Compute pyphoebe light curve
 times = curve['indeps']

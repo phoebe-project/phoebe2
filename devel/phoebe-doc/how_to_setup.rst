@@ -48,7 +48,7 @@ Use Linux, though Mac OSX should work too. You should have installed the
 following software:
 
     * svn (to download the repository)
-    * Python 2.7
+    * Python 2.7 (with setuptools?)
     * a Fortran and C compiler (gfortran, gcc)
     * 700MB of disk space.
 

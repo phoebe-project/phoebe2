@@ -68,19 +68,19 @@ Subsection 1.4. Subclassing PhysicalBody
 ----------------------------------------
 
 Specific meshes, i.e. meshes that can easily be parametrized, can be represented
-by a class that subclasses the L{PhysicalBody} class for convenience. These kind of
-classes facilitate the computation of the mesh. A simple example is L{Ellipsoid},
-parametrized by the radius of the ellipsoid in the x, y and z direction. One
-can also add functionality to these classes, which will be exploited in the next
-Section.
+by a class that subclasses the L{PhysicalBody} class for convenience. These kind
+of classes facilitate the computation of the mesh. A simple example is
+L{Ellipsoid}, parametrized by the radius of the ellipsoid in the x, y and z
+direction. One can also add functionality to these classes, which will be
+exploited in the next Section.
 
 Section 2. Physical meshing
 ===========================
 
 Some meshes represent a physical entity, e.g. a star. These classes (subclassing
-L{PhysicalBody}) add functionality and properties to the Body. These include local
-effective temperatures, surface gravities, intensities, velocities etc... Most
-of the physical meshes are dependent on time, so they implement a method
+L{PhysicalBody}) add functionality and properties to the Body. These include
+local effective temperatures, surface gravities, intensities, velocities etc...
+Most of the physical meshes are dependent on time, so they implement a method
 L{set_time} which takes care of setting all the properties of the mesh on that
 time point. A typical extra functionality of the physical meshes is that they
 have intensities, and thus they also implement a method L{projected_intensity}
@@ -108,12 +108,9 @@ latter is just a shortcut to L{observatory.image}.
 """
 enable_mayavi = True
 #-- load standard libraries
-import sys
-import os
 import pickle
 import uuid
 import logging
-import inspect
 import copy
 from collections import OrderedDict
 #-- load 3rd party modules
@@ -124,19 +121,19 @@ from scipy.optimize import nnls
 import scipy
 try:
     import pylab as pl
-    from matplotlib.patches import Polygon
-    from matplotlib.collections import PatchCollection
 except ImportError:
     pass
-    #print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+    #print(("Soft warning: matplotlib could not be found on your system,"
+    #       "2D plotting is disabled, as well as IFM functionality"))
 if enable_mayavi:
     try:
         from enthought.mayavi import mlab
     except ImportError:
         try:
             from mayavi import mlab
-        except:
-            #print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
+        except ImportError:
+            #print(("Soft warning: Mayavi could not be found on your system, 3D"
+            #"plotting is disabled, as well as some debugging features"))
             enable_mayavi = False
 from phoebe.units import conversions
 from phoebe.units import constants
@@ -160,7 +157,8 @@ try:
     from phoebe.utils import transit
 except ImportError:
     pass
-    #print("Soft warning: Analytical transit computations from Mandel & Agol 2002 are not available")
+    #print(("Soft warning: Analytical transit computations from Mandel &
+    #       "Agol 2002 are not available"))
 
 #-- we are not interested in messages from numpy, but we are in messages
 #   from our own code: that's why we create a logger.
@@ -189,13 +187,17 @@ def get_binary_orbit(self,time):
     a_comp = [a1,a2][n_comp]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units
-    loc1,velo1,euler1 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a1,T0*24*3600,per0=argper,long_an=long_an,
+    loc1,velo1,euler1 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a1,
+                           T0*24*3600,per0=argper,long_an=long_an,
                            incl=inclin,component='primary')
-    loc2,velo2,euler2 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a2,T0*24*3600,per0=argper,long_an=long_an,
+    loc2,velo2,euler2 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a2,
+                           T0*24*3600,per0=argper,long_an=long_an,
                            incl=inclin,component='secondary')
     loc1 = np.array(loc1)/a
     loc2 = np.array(loc2)/a
-    d = np.sqrt( (loc1[0]-loc2[0])**2 + (loc1[1]-loc2[1])**2+ (loc1[2]-loc2[2])**2)
+    d = sqrt( (loc1[0]-loc2[0])**2 + \
+              (loc1[1]-loc2[1])**2 + \
+              (loc1[2]-loc2[2])**2)
     return list(loc1)+list(velo1),list(loc2)+list(velo1),d
     
 def luminosity(body):
@@ -235,8 +237,10 @@ def luminosity(body):
     def _tief(gamma,ld_law,coeffs):
         """Small helper function to compute total intrinsic emergent flux"""
         Imu = coeffs[-1]*getattr(limbdark,'ld_'+ld_law)(cos(gamma),coeffs)
-        return Imu*cos(gamma)*sin(gamma) # sin(gamma) is for solid angle integration
-    emer_Ibolmu = 2*pi*np.array([quad(_tief,0,pi/2,args=(ld_law,ld[i]))[0] for i in range(len(mesh))])
+         # sin(gamma) is for solid angle integration
+        return Imu*cos(gamma)*sin(gamma)
+    emer_Ibolmu = 2*pi*np.array([quad(_tief,0,pi/2,args=(ld_law,ld[i]))[0] \
+                                                     for i in range(len(mesh))])
     return (emer_Ibolmu*sizes).sum()
     
 def load(filename):
@@ -415,7 +419,8 @@ def _parse_pbdeps(body,pbdep):
                        ifdep=datasets.IFDataSet)
     #-- pbdep have to be given!
     if not pbdep:
-        raise ValueError('You need to give at least one ParameterSet representing dependables')
+        raise ValueError(('You need to give at least one ParameterSet'
+                          'representing dependables'))
     #-- pbdep need to be a list or a tuple. If not, make it one
     elif not isinstance(pbdep,list) and not isinstance(pbdep,tuple):
         pbdep = [pbdep]
@@ -453,8 +458,10 @@ def _parse_pbdeps(body,pbdep):
         #-- prepare results if they were not already added by the data
         #   parser
         if not ref in body.params['syn'][res_context]:
-            body.params['syn'][res_context][ref] = result_sets[context](context=res_context,ref=ref)
-            logger.debug('Prepared results PS for context {} (ref={})'.format(res_context,ref))
+            body.params['syn'][res_context][ref] = \
+                               result_sets[context](context=res_context,ref=ref)
+            logger.debug(('Prepared results ParameterSet for context '
+                         '{} (ref={})'.format(res_context,ref)))
         
         parsed_refs.append(ref)
     #-- that's it
@@ -502,14 +509,17 @@ def _parse_obs(body,data):
         #-- if the ref already exist, generate a new one. This should never
         #   happen, so send a critical message to the user
         if ref in body.params['obs'][data_context]:
-            logger.error('PARSING DATA: Reference {} already exists! Generating new one...')
+            logger.error(('Data parsing: ref {} already exists!'
+                          'Generating new one...'.format(ref)))
             ref = str(uuid.uuid4())
             parset['ref'] = ref
         #-- prepare results if they were not already added by the data
         #   parser
         if not ref in body.params['syn'][res_context]:
-            body.params['syn'][res_context][ref] = result_sets[data_context](context=res_context,ref=ref)
-            logger.debug('Prepared results PS for context {} (ref={})'.format(res_context,ref))
+            body.params['syn'][res_context][ref] = \
+                          result_sets[data_context](context=res_context,ref=ref)
+            logger.debug(('Prepared results ParameterSet for context '
+                          '{} (ref={})'.format(res_context,ref)))
        
         body.params['obs'][data_context][ref] = parset
         parsed_refs.append(ref)
@@ -542,7 +552,6 @@ class CallInstruct:
         
         C{args} and C{kwargs} are anything C{self.function_name} accepts.
         """
-        #print "Calling function %s for all %d bodies"%(self.function_name,len(self.bodies))
         return [getattr(body,self.function_name)(*args,**kwargs) \
                     if hasattr(body,self.function_name) \
                     else None \
@@ -602,7 +611,7 @@ class Body(object):
     
     Incline 10 degrees wrt the line of sight and plot
     
-    >>> body.rotate(incl=10./180.*np.pi)
+    >>> body.rotate(incl=10./180.*pi)
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
@@ -610,7 +619,7 @@ class Body(object):
     
     Rotate 10 degrees around the vertical axis and plot
     
-    >>> body.rotate(theta=10./180.*np.pi)    
+    >>> body.rotate(theta=10./180.*pi)    
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
@@ -618,14 +627,16 @@ class Body(object):
     
     Rotate 10 degrees in the plane of the sky and plot
     
-    >>> body.rotate(Omega=10./180.*np.pi)
+    >>> body.rotate(Omega=10./180.*pi)
     >>> m = mlab.figure()
     >>> body.plot3D(normals=True,scale_factor=0.5)
     
     ]include figure]]images/universe_body_0004.png]
     """
-    def __init__(self,data=None,dim=3,orientation=None,eclipse_detection='hierarchical',
-                 compute_centers=False,compute_normals=False,compute_sizes=False):
+    def __init__(self,data=None,dim=3,orientation=None,
+                 eclipse_detection='hierarchical',
+                 compute_centers=False,compute_normals=False,
+                 compute_sizes=False):
         """
         Initialize a Body.
         
@@ -633,7 +644,8 @@ class Body(object):
         be left to the default value anyway. Have a look at examples in this
         very module for more info.
         
-        @param eclipse_detection: takes a name of an algorithm (e.g. 'hierarchical' or 'simple')
+        @param eclipse_detection: takes a name of an algorithm
+        (e.g. 'hierarchical' or 'simple')
         @type eclipse_detection: str
         """
         self.time = None
@@ -647,10 +659,15 @@ class Body(object):
         else:
             N = len(data)
         ft = 'f8' # float type
-        mesh = np.zeros(N,dtype=[('_o_center',ft,(dim,)),('_o_size',ft),('_o_triangle',ft,(3*dim,)),('_o_normal_',ft,(dim,)),
-                                 ('center',ft,(dim,)),('size',ft),('triangle',ft,(3*dim,)),('normal_',ft,(dim,)),
-                                 ('_o_velo___bol_',ft,(dim,)),('velo___bol_',ft,(dim,)),('mu',ft),
-                                 ('partial',bool),('hidden',bool),('visible',bool)])
+        mesh = np.zeros(N,dtype=[('_o_center',ft,(dim,)),('_o_size',ft),
+                                 ('_o_triangle',ft,(3*dim,)),
+                                 ('_o_normal_',ft,(dim,)),
+                                 ('center',ft,(dim,)),('size',ft),
+                                 ('triangle',ft,(3*dim,)),('normal_',ft,(dim,)),
+                                 ('_o_velo___bol_',ft,(dim,)),
+                                 ('velo___bol_',ft,(dim,)),('mu',ft),
+                                 ('partial',bool),('hidden',bool),
+                                 ('visible',bool)])
         if data is not None: # assume we got a record array:
             #-- only copy basic fields
             init_fields = set(mesh.dtype.names)
@@ -659,7 +676,8 @@ class Body(object):
             fields_given_basic = fields_given & init_fields
             #-- append extra fields
             if fields_given_extra:
-                mesh = pl.mlab.rec_append_fields(mesh,fields_given_extra,[data[field] for field in fields_given_extra])
+                mesh = pl.mlab.rec_append_fields(mesh,fields_given_extra,\
+                                  [data[field] for field in fields_given_extra])
             #-- take care of original values and their mutable counter parts.
             for field in fields_given_basic:
                 ofield = '_o_%s'%(field)
@@ -908,14 +926,20 @@ class Body(object):
                     observations['l3'] = l3
                 if loaded:
                     observations.unload()
-                logger.info('{}: pblum={:.6g} ({}), l3={:.6g} ({})'.format(observations['ref'],pblum,do_pblum and 'computed' or 'fixed',l3,do_l3 and 'computed' or 'fixed'))
+                
+                msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
+                logger.info(msg.format(observations['ref'],pblum,\
+                            do_pblum and 'computed' or 'fixed',l3,do_l3 \
+                            and 'computed' or 'fixed'))
+                        
         if link is not None and link=='all':
             model = np.hstack(complete_model)
             obser = np.hstack(complete_obser)
             sigma = np.hstack(complete_sigma)
             do_pblum = np.all(np.hstack(complete_pblum))
             do_l3 = np.all(np.hstack(complete_l3))
-            pblum,l3 = compute_pblum_or_l3(model,obser,sigma,pblum=do_pblum,l3=do_l3)
+            pblum,l3 = compute_pblum_or_l3(model,obser,sigma,
+                                           pblum=do_pblum,l3=do_l3)
             for idata in self.params['obs'].values():
                 for observations in idata.values():
                     if not do_pblum and 'pblum' in observations:
@@ -949,9 +973,12 @@ class Body(object):
         
         .. math::
         
-            p = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2_{yi}}}\exp\left(-\frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}\right)
+            p = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2_{yi}}}
+            \exp\left(-\frac{(y_i - 
+            \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}\right)
             
-            \log p = \sum_{i=1}^N -\frac{1}{2}\log(2\pi) - \log(\sigma_{yi}) - \frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}
+            \log p = \sum_{i=1}^N -\frac{1}{2}\log(2\pi) - \log(\sigma_{yi})
+            - \frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}
             
         Where :math:`p` gives the expected frequency of getting a value
         in an infinitesimal range around :math:`y_i` per unit :math:`dy`.
@@ -979,10 +1006,11 @@ class Body(object):
         
         .. warning::
         
-            The :math:`\log p` returned by this function is an **expected frequency**
-            and not a true probability. That is, the :math:`p` comes from the
-            probability density function, not the probability. To get the
-            probability itself, you can use scipy on the :math:`\chi^2`:
+            The :math:`\log p` returned by this function is an
+            **expected frequency** and not a true probability. That is, the
+            :math:`p` comes from the probability density function, not the
+            probability. To get the probability itself, you can use scipy on
+            the :math:`\chi^2`:
                 
             >>> k = Ndata - Npars
             >>> prob = scipy.stats.distributions.chi2.cdf(chi2,k)
@@ -992,7 +1020,8 @@ class Body(object):
         
         .. note:: See also
             
-            :py:func:`get_chi2 <PhysicalBody.get_chi2>` to compute the :math:`\chi^2` statistic and probability
+            :py:func:`get_chi2 <PhysicalBody.get_chi2>` to compute the
+            :math:`\chi^2` statistic and probability
         
         References: [Hogg2009]_.
         
@@ -1033,7 +1062,7 @@ class Body(object):
                 pblum = observations['pblum'] if ('pblum' in observations) else 1.0
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
                 #-- compute the log probability ---> not sure that I need to do sigma*pblum, I'm not touching the observations!
-                term1 = - 0.5*np.log(2*np.pi*(sigma)**2)
+                term1 = - 0.5*np.log(2*pi*(sigma)**2)
                 term2 = - (obser-model*pblum-l3)**2/(2.*(sigma)**2)
                 #-- do also the Stokes V profiles. Becuase they contain the
                 #   derivative of the intensity profile, the l3 factor disappears
@@ -1042,7 +1071,7 @@ class Body(object):
                         model = np.array(modelset['V'])/np.array(modelset['continuum'])
                         obser = np.array(observations['V'])/np.array(observations['continuum'])
                         sigma = np.array(observations['sigma_V'])
-                        term1 += - 0.5*np.log(2*np.pi*(sigma)**2)
+                        term1 += - 0.5*np.log(2*pi*(sigma)**2)
                         term2 += - (obser-model*pblum)**2/(2.*(sigma)**2)
                 
                 #-- statistical weight:
@@ -1070,7 +1099,7 @@ class Body(object):
         return logp, chi2, N
     
     def get_chi2(self):
-        """
+        r"""
         Return the :math:`\chi^2` and resulting probability of the model.
         
         If ``prob`` is close to unity, the model is implausible, if it is
@@ -1247,7 +1276,7 @@ class Body(object):
         """
         Run the postprocessors.
         """
-        for func,arg,kwargs in self._postprocessing:
+        for func,args,kwargs in self._postprocessing:
             getattr(processing,func)(self,time,*args,**kwargs)
     
     def set_values_from_priors(self):
@@ -1267,7 +1296,7 @@ class Body(object):
     
     #{ Functions to manipulate the mesh    
     def detect_eclipse_horizon(self,eclipse_detection=None,**kwargs):
-        """
+        r"""
         Detect the triangles at the horizon and the eclipsed triangles.
         
         Possible C{eclipse_detection} algorithms are:
@@ -1292,7 +1321,7 @@ class Body(object):
         if eclipse_detection=='hierarchical':
             eclipse.detect_eclipse_horizon(self)
         elif eclipse_detection=='simple':
-            threshold = kwargs.get('threshold',185./180.*np.pi)
+            threshold = kwargs.get('threshold',185./180.*pi)
             partial = np.abs(self.mesh['mu'])>=threshold
             visible = self.mesh['mu']>0 & -partial
             
@@ -1354,11 +1383,11 @@ class Body(object):
         side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim]-self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
         side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim]-self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
         side3 = self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]-self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
-        a = np.sqrt(np.sum(side1**2,axis=1))
-        b = np.sqrt(np.sum(side2**2,axis=1))
-        c = np.sqrt(np.sum(side3**2,axis=1))
+        a = sqrt(np.sum(side1**2,axis=1))
+        b = sqrt(np.sum(side2**2,axis=1))
+        c = sqrt(np.sum(side3**2,axis=1))
         s = 0.5*(a+b+c)
-        self.mesh[prefix+'size'] = np.sqrt( s*(s-a)*(s-b)*(s-c))
+        self.mesh[prefix+'size'] = sqrt( s*(s-a)*(s-b)*(s-c))
         #print 'CSA',self.mesh[prefix+'size'].sum()
         
     def compute_normals(self,prefixes=('','_o_')):
@@ -1488,7 +1517,8 @@ class Body(object):
         """
         #-- this Body needs to have parameters attached
         if not hasattr(self,'params'):
-            logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
+            msg = "Requested parset ref={}, type={} but nothing was found"
+            logger.info(msg.format(ref,type))
             return None,None
         #-- in some circumstances, we want the parameterSet of the body. This
         #   one often also contains information on the atmospheres etc.. but
@@ -1772,8 +1802,8 @@ class Body(object):
             for lbl in set(ref):
                 ifobs,lbl = self.get_parset(type='obs',ref=lbl)
                 times = ifobs['time']
-                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
-                baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2)
+                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/pi*180.
+                baseline = sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2)
                 eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
                 if time is None:
                     keep = np.ones(len(posangle),bool)
@@ -1970,7 +2000,7 @@ class PhysicalBody(Body):
         """
         Prepare the mesh to handle reflection from an other body.
         
-        We only need one extra column with the incoming flux divided by np.pi
+        We only need one extra column with the incoming flux divided by pi
         to account for isotropic scattering. Doppler beaming and such should
         be taken into account in the reflection algorithm. In the isotropic case,
         reflections is aspect indepedent.
@@ -2080,9 +2110,9 @@ class PhysicalBody(Body):
                 deltaz = self.params.values()[0].request_value('distance','Rsol')
                 #ps['angular_coordinates'] =
                 #d = conversions.convert(distance[1],'m',distance[0]) 
-                #x = 2*np.arctan(x/(2*d))/np.pi*180*3600 
-                #y = 2*np.arctan(y/(2*d))/np.pi*180*3600 
-                #z = 2*np.arctan(z/(2*d))/np.pi*180*3600 
+                #x = 2*np.arctan(x/(2*d))/pi*180*3600 
+                #y = 2*np.arctan(y/(2*d))/pi*180*3600 
+                #z = 2*np.arctan(z/(2*d))/pi*180*3600 
             else:
                 deltaz = 0.
         origin = np.array([0,0,deltaz])
@@ -2100,7 +2130,7 @@ class PhysicalBody(Body):
         ps['coordinates'] = np.average(self.mesh['center'],weights=wsize,axis=0)+origin,'Rsol'
         ps['photocenter'] = np.average(self.mesh['center'],weights=wflux*wsize,axis=0)+origin,'Rsol'
         ps['velocity']    = np.average(self.mesh['velo___bol_'],axis=0),'Rsol/d'
-        ps['distance']    = np.sqrt(ps['coordinates'][0]**2+ps['coordinates'][1]**2+ps['coordinates'][2]**2),'Rsol'
+        ps['distance']    = sqrt(ps['coordinates'][0]**2+ps['coordinates'][1]**2+ps['coordinates'][2]**2),'Rsol'
         #-- 4.  mass: try to call the function specifically designed to compute
         #       the mass, if the class implements it.
         try:
@@ -2244,7 +2274,7 @@ class PhysicalBody(Body):
             self.mesh = np.hstack([self.mesh[-partial],subdivided])
             if subtype==1:
                 #self.update_mesh(self.mesh['partial'])
-                self.rotate(subset=self.mesh['partial'])
+                self.rotate_and_translate(subset=self.mesh['partial'])
                 logger.info('rotated subdivided mesh')
         return len(subdivided)
     
@@ -2332,12 +2362,12 @@ class PhysicalBody(Body):
                 #-- correct for oversampling
                 if correct_oversampling>1:
                     #-- the timestamps (should just be the middle value but anyway)
-                    mytime = np.mean(base['time'][-oversampling:])
-                    base['time'] = base['obs'][:-oversampling:]
+                    mytime = np.mean(base['time'][-correct_oversampling:])
+                    base['time'] = base['obs'][:-correct_oversampling:]
                     base['time'].append(mytime)
                     #-- the fluxes should be averaged
-                    myintens = np.mean(base['flux'][-oversampling:])
-                    base['flux'] = base['flux'][:-oversampling]
+                    myintens = np.mean(base['flux'][-correct_oversampling:])
+                    base['flux'] = base['flux'][:-correct_oversampling]
                     base['flux'].append(myintens)
                 
     @decorators.parse_ref
@@ -3004,8 +3034,8 @@ class BodyBag(Body):
             #for lbl in ref:
                 #ifobs,lbl = self.get_parset(type='obs',ref=lbl)
                 #times = ifobs['time']
-                #posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/np.pi*180.
-                #baseline = np.sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
+                #posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/pi*180.
+                #baseline = sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2) 
                 #eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
                 #keep = np.abs(times-time)<1e-8
                 #output = observatory.ifm(self,posangle=posangle[keep],
@@ -3153,7 +3183,7 @@ class AccretionDisk(PhysicalBody):
         N = (radial-1)*(angular-1)*2*2 + 4*angular-4
         self.mesh = np.zeros(N,dtype=dtypes)
         c = 0
-        rs,thetas = np.linspace(Rin,Rout,radial),np.linspace(0,2*np.pi,angular)
+        rs,thetas = np.linspace(Rin,Rout,radial),np.linspace(0,2*pi,angular)
         for i,r in enumerate(rs[:-1]):
             for j,th in enumerate(thetas[:-1]):
                 self.mesh['_o_triangle'][c,0] = rs[i+1]*np.cos(thetas[j])
@@ -3284,7 +3314,7 @@ class AccretionDisk(PhysicalBody):
         M_wd = self.params['disk'].get_value('mass','kg')
         Rin = self.params['disk'].get_value('rin','m')
         b = self.params['disk']['b']
-        sigTeff4 = constants.GG*M_wd*Mdot/(8*np.pi*r**3)*(1-b*np.sqrt(Rin/r))
+        sigTeff4 = constants.GG*M_wd*Mdot/(8*pi*r**3)*(1-b*sqrt(Rin/r))
         sigTeff4[sigTeff4<0] = 1e-1 #-- numerical rounding (?) can do weird things
         self.mesh['teff'] = (sigTeff4/constants.sigma)**0.25
         
@@ -3481,10 +3511,10 @@ class Star(PhysicalBody):
         Calculate local surface gravity
         """
         x,y,z = self.mesh['_o_center'].T
-        r = np.sqrt(x**2+y**2+z**2)
+        r = sqrt(x**2+y**2+z**2)
         M = self.params['star'].request_value('mass','kg')
         rp = self.params['star'].request_value('r_pole','Rsol')
-        sin_theta = np.sqrt(x**2+y**2)/r
+        sin_theta = sqrt(x**2+y**2)/r
         cos_theta = z/r
         X = r/rp
         rp = conversions.convert('Rsol','m',rp)
@@ -3496,7 +3526,7 @@ class Star(PhysicalBody):
         r_ = r*constants.Rsol
         grav_r = -constants.GG*M/r_**2+r_*(omega*sin_theta)**2
         grav_th = r_*omega**2*sin_theta*cos_theta
-        local_grav = np.sqrt(grav_r**2 + grav_th**2)
+        local_grav = sqrt(grav_r**2 + grav_th**2)
         self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',local_grav)
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (Rp=%s)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),rp/constants.Rsol))
     
@@ -3547,7 +3577,7 @@ class Star(PhysicalBody):
         B = B/2.0*Bpolar
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
-        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar,beta/np.pi*180))
+        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar,beta/pi*180))
         logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B,axis=1).max()))
     
     @decorators.parse_ref
@@ -3572,15 +3602,15 @@ class Star(PhysicalBody):
         #-- rotational velocity: first collect some information
         omega_rot = 1./self.params['star'].request_value('rotperiod','d')
         omega_rot = np.array([0.,0.,-omega_rot])
-        logger.info('Calculating rotation velocity (Omega={:.3f} rad/d)'.format(omega_rot[-1]*2*np.pi))
+        logger.info('Calculating rotation velocity (Omega={:.3f} rad/d)'.format(omega_rot[-1]*2*pi))
         if 'diffrot' in self.params['star'] and self.params['star']['diffrot']!=0:
             #-- compute the local rotation velocities in cy/d
             b1,b2 = self.subdivision['mesh_args'][1:3]
             rpole_sol = self.subdivision['mesh_args'][-1]
-            s = np.sqrt(self.mesh['_o_center'][:,0]**2+self.mesh['_o_center'][:,1]**2)/rpole_sol
+            s = sqrt(self.mesh['_o_center'][:,0]**2+self.mesh['_o_center'][:,1]**2)/rpole_sol
             M = self.params['star'].request_value('mass','kg')
             r_pole = self.params['star'].request_value('radius','m')
-            Omega_crit = np.sqrt( 8*constants.GG*M / (27.*r_pole**3))
+            Omega_crit = sqrt( 8*constants.GG*M / (27.*r_pole**3))
             omega_rot = (b1+b2*s**2)/0.54433105395181736*Omega_crit/(2*pi)*3600*24.
             omega_rot = np.column_stack([np.zeros_like(omega_rot),\
                                    np.zeros_like(omega_rot),\
@@ -3590,7 +3620,7 @@ class Star(PhysicalBody):
         #   the rotation vector pointed in the Z direction.
         velo_rot = 2*pi*np.cross(self.mesh['_o_center'],omega_rot) #NX3 array
         #-- for logging purposes, we compute the magnitude of the velocity
-        #velo_mag = np.sqrt((velo_rot**2).sum(axis=1))
+        #velo_mag = sqrt((velo_rot**2).sum(axis=1))
         #print "... velocity between %.3g and %.3g Rsol/d"%(velo_mag.min(),velo_mag.max())
         #-- total
         #-- We need to rotate the velocities so that they are in line with the
@@ -3602,7 +3632,7 @@ class Star(PhysicalBody):
             self.mesh['velo_'+iref+'_'] = velo_rot#_
         #-- and we need the systemic velocity too...
         self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] #+ self.params['star'].request_value('vgamma','Rsol/d')
-        v = np.sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
+        v = sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
         
     
     def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None,with_partial_as_half=True):
@@ -3643,13 +3673,13 @@ class Star(PhysicalBody):
             mass = self.params['star'].request_value('mass','Msol')
             rpole = self.params['star'].request_value('radius','Rsol')
             omega_crit = roche.critical_angular_frequency(mass,rpole)
-            omega_eq = 2*np.pi/period_eq/omega_crit
-            omega_pl = 2*np.pi/period_pl/omega_crit
+            omega_eq = 2*pi/period_eq/omega_crit
+            omega_pl = 2*pi/period_pl/omega_crit
             b1 = omega_pl*0.54433105395181736
             b2 = roche.diffrotlaw_to_internal(omega_pl,omega_eq)
             r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), 'DiffRotateRoche', b1,b2,0,1.0).r[0]
             radius = r0*radius
-        vsini = 2*np.pi*radius/period_eq*np.sin(incl)
+        vsini = 2*pi*radius/period_eq*np.sin(incl)
         logger.info('Computed vsini = {} km/s'.format(vsini))
         return vsini
     
@@ -3659,11 +3689,11 @@ class Star(PhysicalBody):
         """
         M = self.params['star'].request_value('mass','kg')
         R = self.params['star'].request_value('radius','m')
-        Omega_crit = np.sqrt( 8*constants.GG*M / (27.*R**3))
+        Omega_crit = sqrt( 8*constants.GG*M / (27.*R**3))
         if period is not None:
             if not isinstance(period,str):
                 period = 's'
-                return conversions.convert('s',period,2*np.pi/Omega_crit)
+                return conversions.convert('s',period,2*pi/Omega_crit)
         #-- else, frequency in Hz or custom
         if not isinstance(frequency,str):
             frequency = 'Hz'
@@ -3722,8 +3752,8 @@ class Star(PhysicalBody):
             freq = pls.get_value('freq','cy/d')
             freq_Hz = freq / (24.*3600.)
             ampl = pls.get_value('ampl')
-            deltaT = pls.get_value('amplteff')*np.exp(1j*2*np.pi*pls.get_value('phaseteff'))
-            deltag = pls.get_value('amplgrav')*np.exp(1j*2*np.pi*pls.get_value('phasegrav'))
+            deltaT = pls.get_value('amplteff')*np.exp(1j*2*pi*pls.get_value('phaseteff'))
+            deltag = pls.get_value('amplgrav')*np.exp(1j*2*pi*pls.get_value('phasegrav'))
             phase = pls.get_value('phase')
             omega = 2*pi*freq_Hz
             k0 = constants.GG*M/omega**2/R**3    
@@ -3809,7 +3839,7 @@ class Star(PhysicalBody):
         r_pole = self.params['star'].request_value('radius','m')
         r_pole_sol = self.params['star'].request_value('radius','Rsol')
         g_pole = constants.GG*M/r_pole**2
-        Omega_crit = np.sqrt( 8*constants.GG*M / (27.*r_pole**3))
+        Omega_crit = sqrt( 8*constants.GG*M / (27.*r_pole**3))
         Omega_param= 2*pi/self.params['star'].request_value('rotperiod','s')
         Omega = Omega_param/Omega_crit
         logger.info('rotation frequency (polar) = %.6f Omega_crit'%(Omega))
@@ -4473,7 +4503,7 @@ class BinaryRocheStar(PhysicalBody):
             self.temperature()
             self.intensity(ref=ref)
             if do_reflection:
-                self.intensity(photband='OPEN.BOL')
+                self.intensity(ref='__bol')
         else:
             self.reset_mesh()
             #-- once we have the mesh, we need to place it into orbit
@@ -4491,7 +4521,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         phi0 = self.params['orbit'].get_value('phi0','rad')
         P = self.params['orbit'].get_value('period','s')
         Pprec = self.params['orbit'].get_value('precperiod','s')
-        phi = phi0 - 2*np.pi*((time-T0)/(P/3600./24.) - (time-T0)/(Pprec/3600./24.))
+        phi = phi0 - 2*pi*((time-T0)/(P/3600./24.) - (time-T0)/(Pprec/3600./24.))
         return phi
    
     def get_polar_direction(self,time=None,norm=False):
@@ -4729,7 +4759,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         #-- possibly we need to conserve the volume of the secondary component
         if component==2:
             q,oldpot = roche.change_component(q,oldpot)  
-            M1,M2 = M2,M1
+            M1, M2 = M2, M1
         
         pos1,pos2,d = get_binary_orbit(self,time)
         d_ = d*sma
@@ -4875,7 +4905,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         self.temperature()
         self.intensity(ref=ref)
         if do_reflection:
-            self.intensity(photband='OPEN.BOL')
+            self.intensity(ref='__bol')
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
     
@@ -4961,7 +4991,7 @@ class BinaryStar(Star):
             pos2 = [prim_orbit,secn_orbit][1-component]
             x1,y1 = pos1[0],pos1[1]
             x2,y2 = pos2[0],pos2[1]
-            d = np.sqrt( (x1-x2)**2 + (y1-y2)**2)
+            d = sqrt( (x1-x2)**2 + (y1-y2)**2)
             rstar = body.get_value('radius','Rsol')
             rplan = body.get_constraint('radius2','Rsol')
             z = d/rstar
@@ -4970,24 +5000,25 @@ class BinaryStar(Star):
             #   should be the total flux:
             if pos1[2]>pos2[2]:
                 z,p = 5.,1.
+            z = np.array([z])
             #-- assume uniform source and dark component
             if ld_func=='uniform':
                 logger.info("projected intensity with analytical uniform LD law")
-                proj_intens = (1-transit.occultuniform(np.array([z]),p)[0])*total_flux
+                proj_intens = (1-transit.occultuniform(z,p)[0])*total_flux
              #-- assume claret limb darkening and dark component
             elif ld_func=='claret':
                 logger.info("projected intensity with analytical Claret LD law")
                 cn = self.mesh['ld_'+ref][0,:4]
                 
                 try:
-                    proj_intens = transit.occultnonlin(np.array([z]),p,cn)[0]*total_flux
+                    proj_intens = transit.occultnonlin(z,p,cn)[0]*total_flux
                 except ValueError:
                     proj_intens = total_flux
             elif ld_func=='quadratic':
                 raise NotImplementedError
-                logger.info("projected intensity with analytical quadratic LD law")
+                logger.info("proj. intensity with analytical quadratic LD law")
                 cn = self.mesh['ld_'+ref][0,:2]
-                proj_intens = transit.occultquad(np.array([z]),p,cn)[0]
+                proj_intens = transit.occultquad(z,p,cn)[0]
             l3 = idep['l3']
             pblum = idep['pblum']
             return proj_intens*pblum + l3
