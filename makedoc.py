@@ -84,19 +84,14 @@ def generate_parameterlist_sphinx():
     Generate a list of parameters suitable for inclusion in sphinx.
     """
     
+    parsets_as_text = []
     pars_as_text = []
+    toc_phoebe = []
+    toc_wd = []
+    
+    
     with open('phoebe-doc/parlist.rst','w') as ff:
-        ff.write("""
-
-.. _list-of-parameters:        
         
-List of ParameterSets and Parameters
-=============================================
-
-ParameterSets
--------------
-
-""")
         #-- keep track of all frames and contexts.
         frames = {}
         for par in definitions.defs:
@@ -132,12 +127,16 @@ ParameterSets
                 str_parset = str(parset).split('\n')
                 if len(str_parset)<2: continue
                 #-- add a label
-                ff.write('.. _parlabel-{}-{}:\n\n'.format(frame,context))
+                parsets_as_text.append('.. _parlabel-{}-{}:\n'.format(frame,context))
                 #-- add the parameterset
-                ff.write('**{}** ({})::\n\n'.format(context,frame))
+                parsets_as_text.append('**{}** ({})::\n'.format(context,frame))
                 str_parset = '    '+'\n    '.join(str_parset)                
-                ff.write(str_parset)
-                ff.write('\n\n')
+                parsets_as_text.append(str_parset + '\n') 
+                
+                if frame=='wd':
+                    toc_wd.append('- :ref:`{} <parlabel-{}-{}>`'.format(context,frame,context))
+                elif frame=='phoebe':
+                    toc_phoebe.append(':ref:`{} <parlabel-{}-{}>`'.format(context,frame,context))
                 
                 links = []
                 for qual in parset:
@@ -148,9 +147,51 @@ ParameterSets
                         print("Failed {}".format(qual))
                         continue
                     
-                    
-                ff.write(", ".join(links))
-                ff.write('\n\n')
+                parsets_as_text.append(", ".join(links) + '\n')    
+        
+        ff.write("""
+
+.. _list-of-parameters:        
+        
+List of ParameterSets and Parameters
+=============================================
+
+""")
+
+        
+        ff.write('**Phoebe 2.0 (phoebe) frame**\n\n')
+        
+        ncol = 3
+        cw = 100
+        Nt = len(toc_phoebe)
+        N = Nt/ncol
+        
+        ff.write('+'+ ('-'*cw+'+')*ncol + '\n')
+        for i in range(N):
+            col1, col2, col3 = '','',''
+            col1 = toc_phoebe[i]
+            if (i+1*N)<Nt: col2 = toc_phoebe[i+1*N]
+            if (i+2*N)<Nt: col3 = toc_phoebe[i+2*N]
+            
+            ff.write('| {:98s} | {:98s} | {:98s} |\n'.format(col1,col2,col3))
+            ff.write('+'+ ('-'*cw+'+')*ncol + '\n')
+        
+        ff.write('\n\n')
+        
+        ff.write('**Wilson-Devinney (wd) frame**\n\n')
+        ff.write('\n'.join(toc_wd))
+        
+        ff.write('\n\n')
+        
+        ff.write("""
+ParameterSets
+-------------
+
+""")
+        
+
+        
+        ff.write('\n'.join(parsets_as_text))
         
         ff.write("""
 
@@ -331,3 +372,6 @@ if __name__=="__main__":
     if 'copy' in sys.argv[1:]:
          #subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
          subprocess.call('scp -r _build/html/* clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)
+    elif 'copyhtml' in sys.argv[1:]:
+         #subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
+         subprocess.call('scp -r _build/html/*.html clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)

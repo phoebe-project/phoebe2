@@ -251,6 +251,7 @@ import logging
 import json
 import inspect
 import difflib
+import textwrap
 from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
@@ -361,6 +362,7 @@ class Parameter(object):
        Parameter.get_value
        Parameter.get_qualifier
        Parameter.get_description
+       Parameter.get_long_description
        Parameter.get_unit
        Parameter.get_adjust
        Parameter.get_limits
@@ -714,6 +716,41 @@ class Parameter(object):
         @rtype: str
         """
         return self.description
+    
+    def get_long_description(self,width=70., initial_indent='',
+                             subsequent_indent='',force=False):
+        """
+        Return the long description of a parameter, if available.
+        
+        If it is not available, nothing will be returned. If ``force==False``,
+        the short description will be returned if no long description is
+        available.
+        
+        @param force: if True, this function will return the short description
+                      if no long description is available
+        @type force: bool
+        @param width: text wrapping width
+        @type width: int
+        @param initial_indent: String that will be prepended to the first line
+                               of wrapped output. Counts towards the length of
+                               the first line. The empty string is not indented.
+        @type initial_indent: str
+        @param subsequent_indent: String that will be prepended to all lines of
+                                  wrapped output except the first. Counts
+                                  towards the length of each line except the
+                                  first.
+        @type subsequent_indent: str
+        @return: long description of the parameter
+        @rtype: str
+        """
+        if hasattr(self,'long_description'):
+            return textwrap.fill(self.long_description,width=width,
+              initial_indent=initial_indent,subsequent_indent=subsequent_indent)
+        elif force:
+            return textwrap.fill(self.get_description(),width=width,
+              initial_indent=initial_indent,subsequent_indent=subsequent_indent)
+        else:
+            return None
     
     def get_unit(self):
         """
@@ -1322,7 +1359,7 @@ class Parameter(object):
             if inspect.ismethod(attrinst): continue
             out_dict[attrname] = attrinst
         return out_dict
-        
+   
     #}
     
     #{ Overloaders    
@@ -1348,7 +1385,7 @@ class Parameter(object):
         if '\n' in value_str: value_str = '\n'+value_str
         if '\n' in rawvl_str: rawvl_str = '\n'+rawvl_str
         info  = "Qualifier:      %-s\n" % self.qualifier
-        info += "Description:    %-s\n" % self.description
+        info += "%s\n" % self.get_long_description(force=True,initial_indent='Description:    ',subsequent_indent=' '*16,width=80)
         info += "Value:          %-s\n" % value_str
         info += "Type:           %-s\n" % cast_type_string
         if hasattr(self,'unit'):
