@@ -3970,7 +3970,8 @@ class Star(PhysicalBody):
             #-- WD style.
             N = self.params['mesh'].request_value('gridsize')
             the_grid = marching.discretize_wd_style(N,surface,Omega,1.0)
-        
+        else:
+            raise ValueError("Unknown gridstyle '{}'".format(gridstyle))
         #-- wrap everything up in one array, but first see how many lds columns
         #   we need: for sure the bolometric one, but for the rest, this is
         #   dependent on the pbdep parameters (note that at this point, we just
