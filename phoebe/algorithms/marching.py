@@ -786,7 +786,6 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
         P.remove(p0m)
         for i in range(1,nt):
             P.insert(idx+i-1, V[len(V)-nt+i])
-
     #print "Number of triangles:", len(Ts)
 
     table = np.zeros((len(Ts), 16))
@@ -816,8 +815,8 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
         table[i][13] = c.n[0]
         table[i][14] = c.n[1]
         table[i][15] = c.n[2]
-
-  
+    
+    return table
   
 def reproject(table,*new_mesh_args):
     """
@@ -851,7 +850,7 @@ def creproject(table,*new_mesh_args):
 #     center-x, center-y, center-z, area, v1-x, v1-y, v1-z, v2-x, v2-y,
 #     v2-z, v3-x, v3-y, v3-z, normal-x, normal-y, normal-z
 
-    return table
+
 
 if __name__=="__main__":
     from mayavi import mlab

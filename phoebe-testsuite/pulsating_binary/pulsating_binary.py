@@ -94,12 +94,12 @@ system = phoebe.BodyBag([pulsating_star,rotating_star])
 # Now calculate the light curves numerically and analytically:
     
 P = orbit['period']
-times = np.linspace(-0.2*P,+0.2*P,5)#100)
+times = np.linspace(-0.2*P,+0.2*P,100)
 
 extra_funcs = [observatory.ef_binary_image]*4
 extra_funcs_kwargs = [dict(select='teff',cmap=plt.cm.spectral,name='pulsbin_teff',ref='Light curve'),
                       dict(select='rv',name='pulsbin_rv',ref='Light curve'),
-                      dict(select='proj',name='pulsbin_proj',ref='Light curve'),]
+                      dict(select='proj',name='pulsbin_proj',ref='Light curve'),
                       dict(select='teff',cmap='eye',name='pulsbin_bb',ref='Light curve')]
 
 phoebe.observe(system,times,subdiv_num=3,lc=True,extra_func=extra_funcs,extra_func_kwargs=extra_funcs_kwargs)

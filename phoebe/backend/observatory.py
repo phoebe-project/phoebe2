@@ -295,13 +295,19 @@ def image(the_system,ref='__bol',context='lcdep',
         values[:,-1] = 1.
         colors = np.array([cmap(c) for c in colors])*values 
         
-        for i,triangle in enumerate(mesh['triangle']):
-            patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
-        p = PatchCollection(patches,cmap=cmap)
-        #-- set the face colors of the triangle plot objects, and make sure
-        #   the edges have the same color
-        p.set_edgecolor([tuple(c) for c in colors])
-        p.set_facecolor([tuple(c) for c in colors])
+        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+                             closed=True,
+                             edgecolors=colors,
+                             facecolors=colors)
+        
+        
+        #for i,triangle in enumerate(mesh['triangle']):
+            #patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
+        #p = PatchCollection(patches,cmap=cmap)
+        ##-- set the face colors of the triangle plot objects, and make sure
+        ##   the edges have the same color
+        #p.set_edgecolor([tuple(c) for c in colors])
+        #p.set_facecolor([tuple(c) for c in colors])
     elif cmap_=='eye':
         values = np.abs(mesh['proj_'+ref]/mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
@@ -312,13 +318,18 @@ def image(the_system,ref='__bol',context='lcdep',
         values[:,-1] = 1.
         colors = np.array([cmap(c) for c in colors])*values
         colors[colors>1] = 1.
-        for i,triangle in enumerate(mesh['triangle']):
-            patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
-        p = PatchCollection(patches,cmap=cmap)
-        #-- set the face colors of the triangle plot objects, and make sure
-        #   the edges have the same color
-        p.set_edgecolor([tuple(c) for c in colors])
-        p.set_facecolor([tuple(c) for c in colors])
+        
+        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+                             closed=True,
+                             edgecolors=colors,
+                             facecolors=colors)
+        #for i,triangle in enumerate(mesh['triangle']):
+            #patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
+        #p = PatchCollection(patches,cmap=cmap)
+        ##-- set the face colors of the triangle plot objects, and make sure
+        ##   the edges have the same color
+        #p.set_edgecolor([tuple(c) for c in colors])
+        #p.set_facecolor([tuple(c) for c in colors])
     #-- set the color scale limits
     if vmin is not None: vmin_ = vmin
     if vmax is not None: vmax_ = vmax
