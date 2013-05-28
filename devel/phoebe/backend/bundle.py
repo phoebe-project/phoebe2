@@ -297,6 +297,8 @@ class Bundle(object):
         @param mpi: whether to use mpi (will use stored options)
         @type mpi: bool
         """
+        self.system.fix_mesh()
+        self.system.fix_mesh()
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
