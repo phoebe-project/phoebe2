@@ -26,7 +26,7 @@ from scipy import ndimage
 try:
     import pylab as pl
     from matplotlib.patches import Polygon
-    from matplotlib.collections import PatchCollection
+    from matplotlib.collections import PatchCollection,PolyCollection
     import matplotlib as mpl
 except ImportError:
     pass
@@ -281,14 +281,12 @@ def image(the_system,ref='__bol',context='lcdep',
     #-- collect the triangle objects for plotting
     patches = []
     if not cmap_ in ['blackbody_proj','eye']:
-        for i,triangle in enumerate(mesh['triangle']):
-            patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=cmap(colors[i])))
-        p = PatchCollection(patches,cmap=cmap)
-        #-- set the face colors of the triangle plot objects, and make sure
-        #   the edges have the same color
-        p.set_array(values)
-        p.set_edgecolor([cmap(c) for c in colors])
-        p.set_facecolor([cmap(c) for c in colors])
+        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+                             array=values,
+                             closed=True,
+                             edgecolors=cmap(colors),
+                             facecolors=cmap(colors),
+                             cmap=cmap)
     elif cmap_=='blackbody_proj':
         values = np.abs(mesh['proj_'+ref]/mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
@@ -324,7 +322,8 @@ def image(the_system,ref='__bol',context='lcdep',
     #-- set the color scale limits
     if vmin is not None: vmin_ = vmin
     if vmax is not None: vmax_ = vmax
-    p.set_clim(vmin=vmin_,vmax=vmax_)
+    
+    p.set_clim(vmin=vmin_,vmax=vmax_)    
     #-- add the triangle plot objects to the axis, and set the axis limits to
     #   be a tiny bit larger than the object we want to plot.
     ax.add_collection(p)
