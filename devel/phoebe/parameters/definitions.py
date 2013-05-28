@@ -176,7 +176,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
          dict(qualifier='pot',    description="Roche potential value",repr='%f',cast_type=float,value=4.75,llim=0,ulim=1e10,step=0.01,adjust=False,frame=["phoebe"],context='component'),
          dict(qualifier='teff',   description='Mean effective temperature',repr='%.0f',cast_type=float,unit='K',value=10000.,llim=0.,ulim=1e20,step=1,adjust=False,frame=["phoebe"],context='component'),         
          dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
-         dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context=['component','star','accretion_disk']),
+         dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context=['component','star','accretion_disk']),
          dict(qualifier='abun',description='Metallicity',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context=['component','star']),
          dict(qualifier='label',  description='Name of the body',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['component','star','accretion_disk']),
         ]
@@ -218,7 +218,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['puls','circ_orbit']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','rvdep','ifdep','spdep','pldep']),
-         dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='%s',value=False,cast_type='make_bool',frame=['phoebe'],context=['lcdep','ifdep','spdep','pldep','rvdep']),
+         dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=False,cast_type='make_bool',frame=['phoebe'],context=['lcdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='filename', description='Name of the file containing the data',repr='%s',cast_type=str,value='',adjust=False,frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','lcsyn','ifsyn','rvsyn','spsyn','ifobs','ifsyn','plsyn']),
@@ -273,7 +273,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of spectrum',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context=['spdep','pldep']),
-         dict(qualifier='weak_field', description='Type of approximation to use (weak field or not)',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='pldep'),
+         dict(qualifier='weak_field', description='Type of approximation to use (weak field or not)',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='pldep'),
          dict(qualifier='glande',   description='Lande factor',repr='%f',cast_type=float,value=1.2,frame=["phoebe"],context=['pldep']),
          dict(qualifier='clambda',   description='Central wavelength',repr='%s',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
@@ -364,7 +364,7 @@ defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d
          dict(qualifier='burn',     description='Burn parameter',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:pymc'),
-         dict(qualifier='incremental',description='Store results in a pickle file and start from previous results',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
+         dict(qualifier='incremental',description='Store results in a pickle file and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:pymc'),
         ]
 
@@ -373,7 +373,7 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='walkers',  description='Number of walkers',repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='threads',  description='Number of threads',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
+         dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:emcee'),
         ]
@@ -381,14 +381,14 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='%s',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
 
 defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:minuit'),
-         dict(qualifier='bounded',   description='Include boundaries in fit',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:minuit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:minuit'),
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
@@ -398,13 +398,13 @@ defs += [dict(qualifier='feedback',  description='Results from gridding procedur
 #    MPI and computation context
 defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
          dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi'),
-         dict(qualifier='byslot',     description='byslot',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='mpi'),
+         dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='mpi'),
          dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi'),
         ]
         
 #    Plotting context
 defs += [dict(qualifier='location',     description="location in the figure for this axis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:axes'),
-         dict(qualifier='active',        description="whether to draw this axes", repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:axes'),
+         dict(qualifier='active',        description="whether to draw this axes", repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='category',     description='what type of plot is this',choices=['lc','rv'],cast_type='choose',value='lc',frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='title',        description="title of the plot", repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:axes'),
          dict(qualifier='xaxis',        description="quantity to plot on the xaxis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:axes'),
@@ -421,7 +421,7 @@ defs += [dict(qualifier='location',     description="location in the figure for 
 
 defs += [dict(qualifier='dataref',          description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='objref',          description='Name of the object containing the data',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='active',          description='whether to draw this plot on the axes',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='active',          description='whether to draw this plot on the axes',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='type',         description='whether plotting syn or obs dataset',repr='%s',cast_type=str,value='lcobs',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='color',        description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='alpha',        description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context='plotting:plot'),
@@ -437,10 +437,10 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
 defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
-         dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
-         dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
+         dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
+         dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
-         dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='%s',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
+         dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
          dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),

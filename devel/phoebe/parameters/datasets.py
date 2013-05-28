@@ -159,12 +159,20 @@ class DataSet(parameters.ParameterSet):
             for col in columns:
                 if col in self: self.remove(col)
     
-    def save(self,filename=None):
+    def save(self,filename=None,pretty_header=False):
         """
         Save the contents of C{columns} to C{filename}.
         
         We should offer the possibility here to write FITS files too.
         Because I'm astronomically lazy, it ain't gonna happen today!
+        
+        Later statement: perhaps no FITS option in this function, but add 
+        a separate one. But again: it ain't gonna happen today!
+        
+        @param filename: filename or file writing stream
+        @type filename: str or stream
+        @param pretty_header: append a pretty header in the comments
+        @type pretty_header: bool
         """
         #-- take 'filename' from the parameterset if nothing is given, but
         #   check if we have the permission to write the file.
@@ -175,11 +183,39 @@ class DataSet(parameters.ParameterSet):
             filename = self['filename']
         if not filename:
             filename = self['ref']
+        
+        #-- prepare to write a pretty header.
+        header = '# '   
         #-- possibly we need to redefine the columns here:
         for col in self['columns']:
             if not len(self[col]):
                 self[col] = np.zeros(len(self['time']))
-        np.savetxt(filename,np.column_stack([self[col] for col in self['columns']]))
+            header += ' {} '.format(col)
+        header = header + '\n' + '#' + '-'*(len(header)-1) + '\n'
+                
+        #-- open the filename or the stream
+        if isinstance(filename,str):
+            ff = open(filename,'a')
+        else:
+            ff = filename
+        
+        #-- write the parameters which are not columns
+        for key in self:
+            if not key in self['columns']:
+                par = self.get_parameter(key)
+                ff.write('# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str()))
+        
+        if pretty_header:
+            ff.write(header)
+        
+        #-- write the data
+        np.savetxt(ff,np.column_stack([self[col] for col in self['columns']]))
+        
+        #-- clean up
+        if isinstance(filename,str):
+            ff.close()
+        
+        
         logger.info('Wrote file {} with columns {} from dataset {}:{}'.format(filename,', '.join(self['columns']),self.context,self['ref']))
     
     def estimate_noise(self,from_col='flux',to_col='sigma'):
