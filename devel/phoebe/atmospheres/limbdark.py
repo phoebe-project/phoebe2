@@ -1229,7 +1229,8 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
     #-- radial velocity needs to be in km/s, while the natural units in the 
     #   Universe are Rsol/d. If vrad needs to be computed, we'll also include
     #   gravitational redshift
-    vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
+    #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
+    vrad = 8.04986111111111*system.mesh['velo___bol_'][:,2]
     if include_vgamma:
         vrad += 0. # tools.gravitational_redshift
     else:

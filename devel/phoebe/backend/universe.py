@@ -2216,27 +2216,44 @@ class PhysicalBody(Body):
         #-- remember which arguments were used to create the original mesh
         mesh_args = self.subdivision['mesh_args']
         mesh_args,scale = mesh_args[:-1],mesh_args[-1]
-        logger.info('updating %d/%d triangles in mesh with args %s (scale=%s)'%(sum(subset),len(self.mesh),str(mesh_args),str(scale)))
+        #logger.info('updating %d/%d triangles in mesh with args %s (scale=%s)'%(sum(subset),len(self.mesh),str(mesh_args),str(scale)))
+        logger.info('updating some triangles in mesh with args %s (scale=%s)'%(str(mesh_args),str(scale)))
         #-- then reproject the old coordinates. We assume they are fairly
         #   close to the real values.
-        for tri in range(len(old_mesh)):
-            p0 = marching.projectOntoPotential(old_mesh['_o_center'][tri]/scale,*mesh_args)
-            t1 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][0:3]/scale,*mesh_args)
-            t2 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][3:6]/scale,*mesh_args)
-            t3 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][6:9]/scale,*mesh_args)
-            #-- make sure the normal is pointed in the same direction as before:
-            cosangle = coordinates.cos_angle(old_mesh['_o_center'][tri:tri+1],
-                                             np.array([p0.n]),axis=1)
-            #cosangle = cgeometry.cos_theta(old_mesh['_o_center'][tri:tri+1].ravel(order='F').reshape((-1,3)),
-            #                               np.array([p0.n]))
-            sign = cosangle<0 and -1 or 1
+        
+        
+    
+        #-- C or Python implementation:
+        if True:
+            select = ['_o_center','size','_o_triangle','_o_normal_']
+            old_mesh_table = np.column_stack([old_mesh[x] for x in select])/scale
+            old_mesh_table = marching.creproject(old_mesh_table,*mesh_args)*scale
             for prefix in ['_o_','']:
-                old_mesh[prefix+'center'][tri] = p0.r*scale
-                old_mesh[prefix+'normal_'][tri] = sign*p0.n
-                old_mesh[prefix+'triangle'][tri][0:3] = t1.r*scale
-                old_mesh[prefix+'triangle'][tri][3:6] = t2.r*scale
-                old_mesh[prefix+'triangle'][tri][6:9] = t3.r*scale
-            
+                old_mesh[prefix+'center'] = old_mesh_table[:,0:3]
+                old_mesh[prefix+'triangle'] = old_mesh_table[:,4:13]
+                old_mesh[prefix+'normal_'] = old_mesh_table[:,13:16]
+        #-- Pure Python (old): I keep it because there might be issues with the
+        #   direction of the normals that I haven't checked yet.
+        else:
+        
+            for tri in range(len(old_mesh)):
+                p0 = marching.projectOntoPotential(old_mesh['_o_center'][tri]/scale,*mesh_args)
+                t1 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][0:3]/scale,*mesh_args)
+                t2 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][3:6]/scale,*mesh_args)
+                t3 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][6:9]/scale,*mesh_args)
+                #-- make sure the normal is pointed in the same direction as before:
+                cosangle = coordinates.cos_angle(old_mesh['_o_center'][tri:tri+1],
+                                                np.array([p0.n]),axis=1)
+                #cosangle = cgeometry.cos_theta(old_mesh['_o_center'][tri:tri+1].ravel(order='F').reshape((-1,3)),
+                #                               np.array([p0.n]))
+                sign = cosangle<0 and -1 or 1
+                for prefix in ['_o_','']:
+                    old_mesh[prefix+'center'][tri] = p0.r*scale
+                    old_mesh[prefix+'normal_'][tri] = sign*p0.n
+                    old_mesh[prefix+'triangle'][tri][0:3] = t1.r*scale
+                    old_mesh[prefix+'triangle'][tri][3:6] = t2.r*scale
+                    old_mesh[prefix+'triangle'][tri][6:9] = t3.r*scale
+                
         #-- normals are updated, but sizes are not.
         self.compute_sizes(prefix='_o_')
         #-- insert the updated values in the original mesh
@@ -4426,7 +4443,8 @@ class BinaryRocheStar(PhysicalBody):
         grav_local_ = dOmega_*zeta
         grav_local = coordinates.norm(grav_local_)
         
-        self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
+        #self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
+        self.mesh['logg'] = np.log10(grav_local)+2.0
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
 
     def temperature(self,time=None):
