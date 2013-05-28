@@ -38,7 +38,7 @@ pstar['atm'] = 'kurucz'
 pstar['ld_coeffs'] = 'kurucz'
 pstar['ld_func'] = 'claret'
 pstar['label'] = 'Pulsating Star'
-mesh1 = phoebe.ParameterSet(context='mesh:marching')
+mesh1 = phoebe.ParameterSet(context='mesh:marching',alg='c')
 mesh1['delta'] = 0.1
 
 # Create a ParameterSet with Parameters for the pulsation mode
@@ -47,7 +47,7 @@ freq_pars1['freq'] = 1.0,'cy/d' # so that K0=0.1
 freq_pars1['ampl'] = 0.015
 freq_pars1['l'] = 4
 freq_pars1['m'] = -3
-freq_pars1['deltateff'] = 0.2
+freq_pars1['amplteff'] = 0.2
 freq_pars1['ledoux_coeff'] = 0.5
 freq_pars1['scheme'] = 'coriolis'
 
@@ -68,7 +68,7 @@ rstar['gravb'] = 1.0
 rstar['radius'] = 2.26,'Rsol'
 rstar['label'] = 'Rotating Star'
 
-mesh2 = phoebe.ParameterSet(context='mesh:marching')
+mesh2 = phoebe.ParameterSet(context='mesh:marching',alg='c')
 mesh2['delta'] = 0.1
 
 # Create a ParameterSet with parameters of the binary system
@@ -94,12 +94,12 @@ system = phoebe.BodyBag([pulsating_star,rotating_star])
 # Now calculate the light curves numerically and analytically:
     
 P = orbit['period']
-times = np.linspace(-0.2*P,+0.2*P,100)
+times = np.linspace(-0.2*P,+0.2*P,5)#100)
 
 extra_funcs = [observatory.ef_binary_image]*4
 extra_funcs_kwargs = [dict(select='teff',cmap=plt.cm.spectral,name='pulsbin_teff',ref='Light curve'),
                       dict(select='rv',name='pulsbin_rv',ref='Light curve'),
-                      dict(select='proj',name='pulsbin_proj',ref='Light curve'),
+                      dict(select='proj',name='pulsbin_proj',ref='Light curve'),]
                       dict(select='teff',cmap='eye',name='pulsbin_bb',ref='Light curve')]
 
 phoebe.observe(system,times,subdiv_num=3,lc=True,extra_func=extra_funcs,extra_func_kwargs=extra_funcs_kwargs)
