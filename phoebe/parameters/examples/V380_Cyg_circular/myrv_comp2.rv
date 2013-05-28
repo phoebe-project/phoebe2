@@ -8,7 +8,6 @@
 # method = numerical
 # filename = 
 # ref = myrv_comp2
-# columns = ['time', 'rv', 'sigma']
 #  time  rv  sigma 
 #------------------
 2.497370644246028892e-02 -4.982086487980062373e+00 8.000000000000000000e+00
