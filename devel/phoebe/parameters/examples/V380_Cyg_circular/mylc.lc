@@ -10,7 +10,6 @@
 # beaming = False
 # filename = 
 # ref = mylc
-# columns = ['time', 'flux', 'sigma']
 #  time  flux  sigma 
 #--------------------
 0.000000000000000000e+00 2.037423398200062545e-08 6.273182560727572632e-09
