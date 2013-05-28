@@ -90,7 +90,7 @@ curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
 image,params = wd.lc(ps,request='image',light_curve=lc,rv_curve=rv)
 c2 = time.time()
 
-mpi = None#phoebe.ParameterSet(context='mpi',np=4)
+mpi = phoebe.ParameterSet(context='mpi',np=4)
 
 # Compute pyphoebe light curve
 times = curve['indeps']
@@ -177,7 +177,7 @@ c4 = time.time()
 print("Finished!")
 print("Initialisation:             %10.3g sec"%(c1-c0))
 print("Wilson-Devinney:            %10.3g sec"%(c2-c1))
-print("Pyphoebe:                   %10.3g min"%((c3-c2)/60.))
+print("Pyphoebe:                   %10.3g sec"%((c3-c2)))
 print("Analysis:                   %10.3g sec"%(c4-c3))
 print("-----------------------------------------")
-print("Total time:                 %10.3g min"%((c4-c0)/60.))
+print("Total time:                 %10.3g sec"%((c4-c0)))

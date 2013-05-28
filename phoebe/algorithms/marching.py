@@ -817,7 +817,35 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
         table[i][14] = c.n[1]
         table[i][15] = c.n[2]
 
+  
+  
+def reproject(table,*new_mesh_args):
+    """
+    Reproject the old coordinates. We assume they are fairly
+    close to the real values.
+    """
+    new_table = np.zeros_like(table)
+
+    for tri in range(len(table)):
+    
+        #-- reproject the triangle vertices
         
+        new_table[tri, 4: 7] = projectOntoPotential(table[tri, 4: 7],*new_mesh_args).r
+        new_table[tri, 7:10] = projectOntoPotential(table[tri, 7:10],*new_mesh_args).r
+        new_table[tri,10:13] = projectOntoPotential(table[tri,10:13],*new_mesh_args).r
+    
+        #-- reproject also the center coordinates, together with their normals
+    
+        p0 = projectOntoPotential(table[tri, 0: 3],*new_mesh_args)
+        new_table[tri,0:3] = p0.r     
+        new_table[tri,13:16] = p0.n
+    
+    return new_table  
+  
+  
+def creproject(table,*new_mesh_args):
+    new_table = cmarching.reproject(table,*new_mesh_args)
+    return new_table
 #}
 
 #     center-x, center-y, center-z, area, v1-x, v1-y, v1-z, v2-x, v2-y,
