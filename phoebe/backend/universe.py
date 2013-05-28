@@ -1839,6 +1839,7 @@ class PhysicalBody(Body):
        add_obs
        add_pbdeps
        remove_dependables
+       remove_obs
     
     **Resetting/clearing**
     
@@ -1991,6 +1992,30 @@ class PhysicalBody(Body):
         parsed_refs = _parse_obs(self,obs)
         logger.info('added obs {0}'.format(parsed_refs))
         return parsed_refs
+    
+    def remove_obs(self,refs):
+        """
+        Remove observation (and synthetic) ParameterSets from the Body.
+        """
+        refs = set(refs)
+        for dep in self.params['obs']:
+            syn = dep[:-3]+'syn'
+            keys = set(self.params['obs'][dep].keys())
+            intersect = list(keys & refs)
+            while intersect:
+                ref = intersect.pop()
+                self.params['obs'][dep].pop(ref)
+                if syn in self.params['syn'] and ref in self.params['syn'][syn]:
+                    self.params['syn'][syn].pop(ref)
+ 
+                #-- drop fields
+                fields = 'ld_{0}'.format(ref),\
+                         'lproj_{0}'.format(ref),\
+                         'velo_{0}'.format(ref),\
+                         '_o_velo_{0}'.format(ref)
+                self.mesh = pl.mlab.rec_drop_fields(self.mesh,fields)
+                logger.info('removed obs {0}'.format(ref))
+        
     
     def remove_mesh(self):
         self.mesh = np.zeros(0,dtype=self.mesh.dtype)
@@ -2289,6 +2314,38 @@ class PhysicalBody(Body):
             self.mesh = self.subdivision['orig']
             logger.info("restored mesh from subdivision")
         self.subdivision['orig'] = None
+    
+    def save_syn(self,filename,category='lc',ref=0,sigma=None,mode='w'):
+        """
+        Save synthetic data.
+        """
+        ds,ref = self.get_parset(category=category,type='syn',ref=ref)
+        pb,ref = self.get_parset(category=category,type='pbdep',ref=ref)
+        
+        #-- add errors if needed
+        if sigma is not None:
+            if 'sigma' not in ds['columns']:
+                ds['columns'].append('sigma')
+            ds['sigma'] = sigma
+        
+        #-- open the filename or the stream
+        if isinstance(filename,str):
+            ff = open(filename,mode)
+        else:
+            ff = filename
+        
+        #-- write the parameters
+        for key in pb:
+            par = pb.get_parameter(key)
+            ff.write('# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str()))
+            print '# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str())
+        
+        #-- write the dataset
+        ds.save(ff,pretty_header=True)
+        
+        #-- clean up
+        if isinstance(filename,str):
+            ff.close()
     
     #{ Functions to compute dependables
     def get_parameters(self,ref=0):

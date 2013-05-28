@@ -283,21 +283,21 @@ double dmisaligned_binary_rochedz(double r[3], double *p)
 //ROTATE ROCHE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 double rotate_roche(double r[3], double *p)
 {
-    double omega = p[0]*0.54433105395181736;
+    double Omega = p[0]*0.54433105395181736;
     double rp = sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]);
-    return 1.0/p[1] - 1.0/rp -0.5*omega*omega*(r[0]*r[0]+r[1]*r[1]);
+    return 1.0/p[1] - 1.0/rp -0.5*Omega*Omega*(r[0]*r[0]+r[1]*r[1]);
 }
 
 double drotate_rochedx(double r[3], double *p)
 {
-    double omega = p[0]*0.54433105395181736;
-    return r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - omega*omega*r[0];
+    double Omega = p[0]*0.54433105395181736;
+    return r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - Omega*Omega*r[0];
 }
 
 double drotate_rochedy(double r[3], double *p)
 {
-    double omega = p[0]*0.54433105395181736;
-    return r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - omega*omega*r[1];
+    double Omega = p[0]*0.54433105395181736;
+    return r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - Omega*Omega*r[1];
 }
 
 double drotate_rochedz(double r[3], double *p)
@@ -772,6 +772,52 @@ PyArrayObject* cdiscretize(double delta, int max_triangles, char *potential, dou
 }
 
 
+PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, double *args)
+{
+    MeshVertex p;
+    double q[3];
+    PotentialParameters *pp = initialize_pars(potential,args);
+    int i,j;
+    
+    PyArrayObject *new_table;
+    int dims[2];
+    
+    dims[0] = rows;
+    dims[1] = 16;
+    new_table = (PyArrayObject *)PyArray_FromDims(2, dims, PyArray_DOUBLE);
+
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < 3; j++){
+            q[0] = *(double *)(table->data + i*table->strides[0] + (4+3*j)*table->strides[1]);
+            q[1] = *(double *)(table->data + i*table->strides[0] + (5+3*j)*table->strides[1]);
+            q[2] = *(double *)(table->data + i*table->strides[0] + (6+3*j)*table->strides[1]);
+
+            p = project_onto_potential(q,pp);
+
+            *(double *)(new_table->data + i*table->strides[0] + (4+3*j)*table->strides[1]) = p.r[0];
+            *(double *)(new_table->data + i*table->strides[0] + (5+3*j)*table->strides[1]) = p.r[1];
+            *(double *)(new_table->data + i*table->strides[0] + (6+3*j)*table->strides[1]) = p.r[2];
+        }
+
+        q[0] = *(double *)(table->data + i*table->strides[0]);
+        q[1] = *(double *)(table->data + i*table->strides[0] + table->strides[1]);
+        q[2] = *(double *)(table->data + i*table->strides[0] + 2*table->strides[1]);
+        
+        p = project_onto_potential(q,pp);
+        
+        *(double *)(new_table->data + i*table->strides[0]) = p.r[0];
+        *(double *)(new_table->data + i*table->strides[0] + table->strides[1]) = p.r[1];
+        *(double *)(new_table->data + i*table->strides[0] + 2*table->strides[1]) = p.r[2];
+        *(double *)(new_table->data + i*table->strides[0] + 13*table->strides[1]) = p.n[0];
+        *(double *)(new_table->data + i*table->strides[0] + 14*table->strides[1]) = p.n[1];
+        *(double *)(new_table->data + i*table->strides[0] + 15*table->strides[1]) = p.n[2];
+    }
+        
+    free(pp);
+    return new_table;
+}
+
+
 static PyObject *discretize(PyObject *self, PyObject *args)
 {
     double delta;
@@ -860,9 +906,46 @@ static PyObject *discretize(PyObject *self, PyObject *args)
     return PyArray_Return(table);
 }
 
+static PyObject *reproject(PyObject *self, PyObject *args)
+{
+    PyArrayObject *table, *new_table;
+    char *potential;
+    double ipars[6];
+    double *pars=NULL;
+    int npars = PyTuple_Size(args);
+    int rows;
+    int i;
+    
+    if (npars<3) {
+        PyErr_SetString(PyExc_ValueError, "Not enough parameters.");
+        return NULL;
+    }
+    
+    if (!PyArg_ParseTuple(args, "O!s|dddddd", &PyArray_Type, &table, &potential, &ipars[0], &ipars[1], &ipars[2], &ipars[3], &ipars[4], &ipars[5]))
+        return NULL;
+        
+    if (table->nd != 2) {
+		PyErr_SetString(PyExc_ValueError, "Table not two dimensional.");
+		return NULL;
+	}
+    
+    rows = table->dimensions[0];
+    
+    pars = malloc((npars-2) * sizeof(double));
+    for (i=0;i<npars-2;i++){
+        pars[i]=ipars[i];
+    }       
+    
+    new_table = creproject(table, rows, potential, pars);
+    
+    if (pars) free(pars); 
+    return PyArray_Return(new_table);
+}
+
 static PyMethodDef marchingMethods[] = {
-  {"discretize",  discretize},
-  {NULL, NULL}
+  {"discretize",  discretize,  METH_VARARGS, "Create a mesh of an implicit function surface."},
+  {"reproject",  reproject, METH_VARARGS, "Reproject the surface."},
+  {NULL, NULL, 0, NULL},
 };
 
 PyMODINIT_FUNC

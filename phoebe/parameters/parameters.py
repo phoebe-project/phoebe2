@@ -384,6 +384,7 @@ class Parameter(object):
         Parameter.has_limits
         Parameter.is_lim
         Parameter.list_available_units
+        Parameter.to_str
         
     **Set existing Parameter information**
     
@@ -931,6 +932,15 @@ class Parameter(object):
             self._unique_label = str(uuid.uuid4())
         return self._unique_label
     
+    def to_str(self):
+        """
+        Get a string representation of only the value.
+        """
+        if hasattr(self,'repr'):
+            return "{{:{}}}".format(self.repr.replace('%','')).format(self.value)
+        else:
+            return "{:s}".format(self.get_value())
+    
     #}
     #{ Set parameter properties
     def set_qualifier(self,new_qualifier):
@@ -1371,7 +1381,7 @@ class Parameter(object):
         @rtype: str
         """
         #-- obligatory properties
-        value_str = self.repr % self.get_value()
+        value_str = self.to_str()
         rawvl_str = str(self.value)
         
         #-- cast types need a nice string thing:
