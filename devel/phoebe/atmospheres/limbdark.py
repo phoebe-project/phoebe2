@@ -855,7 +855,7 @@ def _prepare_grid(passband,atm):
     with pyfits.open(atm) as ff:
         try:
             available = [col.lower() for col in ff[passband].data.names]
-        except Exception, msg:
+        except Exception as msg:
             raise KeyError("Atmosphere file {} does not contain required information ({})".format(atm,str(msg)))
         #-- remove columns that are not available and derive which parameters
         #   need to be interpolated

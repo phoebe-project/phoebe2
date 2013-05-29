@@ -56,7 +56,7 @@ def subdivide(old_mesh,prefix='',threshold=0,algorithm='edge'):
                                 old_mesh[iprefix+'normal_'],old_mesh['mu'],threshold,new_triangles,
                                 new_sizes,new_normals,new_centers,new_mu)
         else:
-            raise ValueError,'do not understand algorithm=%s'%(algorithm)
+            raise ValueError('do not understand algorithm=%s'%(algorithm))
         #-- replace old triangles with newly subdivided ones
         new_mesh['mu'] = new_mu
         new_mesh[iprefix+'center'] = new_centers

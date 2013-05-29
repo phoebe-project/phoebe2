@@ -267,7 +267,7 @@ def chiar2006(Rv=3.1,curve='ism',**kwargs):
         alam_ak = ism[keep]
         wavelengths = wavelengths[keep]
     else:
-        raise ValueError,'no curve %s'%(curve)
+        raise ValueError('no curve %s'%(curve))
     alam_aV = alam_ak * 0.09
     #plot(1/wavelengths,alam_aV,'o-')
     return wavelengths*1e4,alam_aV
@@ -394,7 +394,7 @@ def cardelli1989(Rv=3.1,curve='cardelli',wave=None,**kwargs):
         bx =     1.952*y    + 2.908*y**2 - 3.989*y**3 - 7.985*y**4 \
               + 11.102*y**5 + 5.491*y**6 -10.805*y**7 + 3.347*y**8
     else:
-        raise ValueError,'curve %s not found'%(curve)
+        raise ValueError('curve %s not found'%(curve))
     alam_aV[optical] = ax + bx/Rv
     
     #-- ultraviolet

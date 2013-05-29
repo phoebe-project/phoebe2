@@ -175,8 +175,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         system.clear_synthetic()
         try:
             system.compute(params=params,mpi=mpi)
-        except Exception,msg:
-            print system.params.values()[0]
+        except Exception as msg:
+            print(system.params.values()[0])
             logger.info("Could not accept for some reason (original message: {})".format(msg))
     
     return fitparams
@@ -837,7 +837,7 @@ def run_minuit(system,params=None,mpi=None,fitparams=None):
     #-- run the fit
     m.migrad()
     #-- collect the feedback:
-    print dir(m)
+    print(dir(m))
     values = [m.values[x] for x in m.parameters]
     sigmas = [m.errors[x] for x in m.parameters]
     #-- note: m.covariance is also available, as well as m.matrix(correlation=True)

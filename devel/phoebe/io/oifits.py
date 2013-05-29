@@ -231,7 +231,7 @@ class OI_TARGET:
         return "%s: %s %s (%g)"%(self.target, self.raep0.ashms(), self.decep0.asdms(), self.equinox)
 
     def info(self):
-        print str(self)
+        print(str(self))
 
 class OI_WAVELENGTH:
 
@@ -256,7 +256,7 @@ class OI_WAVELENGTH:
         return "%d wavelength%s (%.3g-%.3g um)"%(len(self.eff_wave), _plurals(len(self.eff_wave)), 1e6*np.min(self.eff_wave),1e6*np.max(self.eff_wave))
 
     def info(self):
-        print str(self)
+        print(str(self))
 
 
 class OI_VIS:
@@ -338,7 +338,7 @@ class OI_VIS:
         return '%s %s%s: %d point%s (%d masked), B = %5.1f m, PA = %5.1f deg, <V> = %4.2g'%(self.target.target, self.timeobs.strftime('%F %T'), baselinename, len(self.visamp), _plurals(len(self.visamp)), np.sum(self.flag), np.sqrt(self.ucoord**2 + self.vcoord**2), np.arctan(self.ucoord / self.vcoord) * 180.0 / np.pi % 180.0, meanvis)
 
     def info(self):
-        print str(self)
+        print(str(self))
 
 class OI_VIS2:
     """
@@ -404,7 +404,7 @@ class OI_VIS2:
         return "%s %s%s: %d point%s (%d masked), B = %5.1f m, PA = %5.1f deg, <V^2> = %4.2g"%(self.target.target, self.timeobs.strftime('%F %T'), baselinename, len(self.vis2data), _plurals(len(self.vis2data)), np.sum(self.flag), np.sqrt(self.ucoord**2 + self.vcoord**2), np.arctan(self.ucoord / self.vcoord) * 180.0 / np.pi % 180.0, meanvis)
 
     def info(self):
-        print str(self)
+        print(str(self))
 
 
 class OI_T3:
@@ -480,7 +480,7 @@ class OI_T3:
         return "%s %s%s: %d point%s (%d masked), B = %5.1fm, %5.1fm, <T3> = %4.2g"%(self.target.target, self.timeobs.strftime('%F %T'), baselinename, len(self.t3amp), _plurals(len(self.t3amp)), np.sum(self.flag), np.sqrt(self.u1coord**2 + self.v1coord**2), np.sqrt(self.u2coord**2 + self.v2coord**2), meant3)
 
     def info(self):
-        print str(self)
+        print(str(self))
 
 class OI_STATION:
     """ This class corresponds to a single row (i.e. single
@@ -560,7 +560,7 @@ class OI_ARRAY:
     def info(self, verbose=0):
         """Print the array's center coordinates.  If verbosity >= 1,
         print information about each station."""
-        print str(self)
+        print(str(self))
         if verbose >= 1:
             for station in self.station:
                 print "   %s"%str(station)
