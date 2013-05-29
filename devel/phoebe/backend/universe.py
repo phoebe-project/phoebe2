@@ -173,18 +173,21 @@ def get_binary_orbit(self,time):
     P = self.params['orbit'].get_value('period','d')
     e = self.params['orbit'].get_value('ecc')
     a = self.params['orbit'].get_value('sma','m')
-    a1 = self.params['orbit'].get_constraint('sma1','m')
-    a2 = self.params['orbit'].get_constraint('sma2','m')
+    q = self.params['orbit'].get_value('q')
+    a1 = a/(1+1.0/q)
+    a2 = a-a1
+    #a1 = self.params['orbit'].get_constraint('sma1','m')
+    #a2 = self.params['orbit'].get_constraint('sma2','m')
     inclin = self.params['orbit'].get_value('incl','rad')
     argper = self.params['orbit'].get_value('per0','rad')
     long_an = self.params['orbit'].get_value('long_an','rad')
-    vgamma = self.params['orbit'].get_value('vgamma','m/s')
+    #vgamma = self.params['orbit'].get_value('vgamma','m/s')
     T0 = self.params['orbit'].get_value('t0')
-    n_comp = self.get_component()
-    component = ('primary','secondary')[n_comp]
-    com = self.params['orbit'].get_constraint('com','m')
-    pivot = np.array([com,0,0]) # center-of-mass
-    a_comp = [a1,a2][n_comp]
+    #n_comp = self.get_component()
+    #component = ('primary','secondary')[n_comp]
+    #com = self.params['orbit'].get_constraint('com','m')
+    #pivot = np.array([com,0,0]) # center-of-mass
+    #a_comp = [a1,a2][n_comp]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units
     loc1,velo1,euler1 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a1,
@@ -4325,7 +4328,8 @@ class BinaryRocheStar(PhysicalBody):
         F = self.params['component'].request_value('syncpar')
         oldpot = self.params['component'].request_value('pot')
         M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
-        M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
+        M2 = q*M1
+        #M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
         component = self.get_component()+1
         
         #-- possibly we need to conserve the volume of the secondary component
@@ -4356,11 +4360,11 @@ class BinaryRocheStar(PhysicalBody):
         for n_iter in range(max_iter):
             
             #-- compute polar radius
-            R = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,oldpot).r
+            
+            #R = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,oldpot).r
+            r = [0,0,1e-5]
+            R = marching.creproject(np.hstack([r,[0],4*r]).reshape((1,-1)),'BinaryRoche',d,q,F,oldpot)[0,0:3]
             R = np.linalg.norm(R)*sma
-            g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
-            self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol))
-            self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
             
             #-- these are the arguments to compute the new mesh:
             if oldpot<critpot:
@@ -4389,7 +4393,12 @@ class BinaryRocheStar(PhysicalBody):
             else:
                 grad = (potentials[-1]-potentials[-2])/(volumes[-1]-volumes[-2])
                 oldpot = grad*(V1-volumes[-2])+potentials[-2]
-                
+        
+        #-- keep parameters up-to-date
+        g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
+        self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol),do_run_constraints=False)
+        self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole),do_run_constraints=False)
+            
         
         #-- perhaps this was the secondary
         if component==2:

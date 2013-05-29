@@ -100,7 +100,7 @@ defs += [dict(qualifier='mpage', description="Output type of the WD code", choic
          dict(qualifier='stdev', description='Synthetic noise standard deviation',repr='%f',cast_type=float,value=0,frame=["wd"],context='root'),
          dict(qualifier='noise', description='Noise scaling',              choices=['proportional','square root','independent'],repr='%s',cast_type='indexf',value='independent',frame=["wd"],context='root'),
          dict(qualifier='seed',  description='Seed for random generator', repr='%f',cast_type=float,value=100000001.,frame=["wd"],alias=['phoebe_synscatter_seed'],context='root'),
-         dict(qualifier='ipb',   description='Compute second stars Luminosity'                ,repr='%s',cast_type=int,value=False,frame=["wd"],context='root'),
+         dict(qualifier='ipb',   description='Compute second stars Luminosity'                ,repr='%d',cast_type=int,value=False,frame=["wd"],context='root'),
          dict(qualifier='ifat1', description='Atmosphere approximation primary'               ,repr='%s',choices=['blackbody','kurucz'],cast_type='index',value='kurucz',frame=["wd"],alias=['phoebe_atm1_switch'],context='root'),
          dict(qualifier='ifat2', description='Atmosphere approximation secondary'             ,repr='%s',choices=['blackbody','kurucz'],cast_type='index',value='kurucz',frame=["wd"],alias=['phoebe_atm2_switch'],context='root'),
          dict(qualifier='n1',    description='Grid size primary'                              ,repr='%d',cast_type=int,value=70,frame=["wd"],alias=['phoebe_grid_finesize1'],context='root'),
@@ -116,8 +116,8 @@ defs += [dict(qualifier='mpage', description="Output type of the WD code", choic
 
 #  /* *********************   SPOT PARAMETERS      ************************* */
 
-defs += [dict(qualifier='ifsmv1', description='Spots on star 1 co-rotate with the star', repr='%s', cast_type=int,   value=0,     frame=["wd"],alias=['phoebe_spots_corotate1'],context='root'),
-         dict(qualifier='ifsmv2', description='Spots on star 2 co-rotate with the star', repr='%s', cast_type=int,   value=0,     frame=["wd"],alias=['phoebe_spots_corotate2'],context='root'),
+defs += [dict(qualifier='ifsmv1', description='Spots on star 1 co-rotate with the star', repr='%d', cast_type=int,   value=0,     frame=["wd"],alias=['phoebe_spots_corotate1'],context='root'),
+         dict(qualifier='ifsmv2', description='Spots on star 2 co-rotate with the star', repr='%d', cast_type=int,   value=0,     frame=["wd"],alias=['phoebe_spots_corotate2'],context='root'),
          dict(qualifier='xlat1',  description='Primary spots latitudes'                , repr='%s', cast_type='list',value=[300.],frame=["wd"],alias=['wd_spots_lat1'],context='root'),
          dict(qualifier='xlong1', description='Primary spots longitudes'               , repr='%s', cast_type='list',value=[0.],  frame=["wd"],alias=['wd_spots_long1'],context='root'),
          dict(qualifier='radsp1', description='Primary spots radii'                    , repr='%s', cast_type='list',value=[1.],  frame=["wd"],alias=['wd_spots_rad1'],context='root'),
@@ -275,10 +275,10 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='method',   description='Method for calculation of spectrum',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='weak_field', description='Type of approximation to use (weak field or not)',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='pldep'),
          dict(qualifier='glande',   description='Lande factor',repr='%f',cast_type=float,value=1.2,frame=["phoebe"],context=['pldep']),
-         dict(qualifier='clambda',   description='Central wavelength',repr='%s',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
-         dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%s',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
-         dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%s',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
-         dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%s',unit='km/s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['spobs','plobs']),
+         dict(qualifier='clambda',   description='Central wavelength',repr='%g',unit='nm',cast_type=float,value=457.2,frame=["phoebe"],context=['spdep','pldep']),
+         dict(qualifier='max_velo', description='Maximum velocity in wavelength array',repr='%g',unit='km/s',cast_type=float,value=350,frame=["phoebe"],context=['spdep','pldep']),
+         dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%g',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
+         dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%g',unit='km/s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
@@ -308,12 +308,12 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
 defs += [dict(qualifier='coordinates',description="Location of geometrical barycenter",cast_type=np.array,repr='%s',value=[0.,0.,0.],unit='Rsol',frame=["phoebe"],context=['point_source']),
          dict(qualifier='photocenter',description="Location of passband photocenter",cast_type=np.array,repr='%s',value=[0.,0.,0.],unit='Rsol',frame=["phoebe"],context=['point_source']),
          dict(qualifier='velocity',   description="Velocity of the body",repr='%s',cast_type=np.array,value=[0.,0.,0.],unit='km/s',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='distance',   description="Distance to the body",repr='%s',cast_type=float,value=0,unit='pc',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='radius',     description='Mean radius',repr='%s',value=0.,unit='Rsol',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='mass',       description="Mass of the body as a point source",repr='%s',value=0.,unit='Msol',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='teff',       description="passband mean temperature",repr='%s',value=0.,unit='K',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='surfgrav', description="passband mean surface gravity",repr='%s',value=0.,unit='[cm/s2]',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='intensity', description="passband mean intensity",repr='%s',value=0.,unit='erg/s/cm2',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='distance',   description="Distance to the body",repr='%f',cast_type=float,value=0,unit='pc',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='radius',     description='Mean radius',repr='%g',value=0.,unit='Rsol',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='mass',       description="Mass of the body as a point source",repr='%g',value=0.,unit='Msol',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='teff',       description="passband mean temperature",repr='%g',value=0.,unit='K',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='surfgrav', description="passband mean surface gravity",repr='%g',value=0.,unit='[cm/s2]',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='intensity', description="passband mean intensity",repr='%g',value=0.,unit='erg/s/cm2',frame=["phoebe"],context=['point_source']),
         ]
         
 defs += [dict(qualifier='coordinates',description="Location of the body's geometrical barycenter",repr='%s',value=[],unit='Rsol',frame=["phoebe"],context=['psdep']),
@@ -333,10 +333,10 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
          dict(qualifier='m',        description='Azimuthal order of the mode',repr='%d',cast_type=int,value=2,frame=["phoebe"],context='puls'),
          dict(qualifier='k',        description='Horizontal/vertical displacement',repr='%f',cast_type=float,value=0.001,frame=["phoebe"],context='puls'),
          dict(qualifier='ledoux_coeff',description='Ledoux Cln',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context='puls'),
-         dict(qualifier='amplteff',description='Amplitude of temperature perturbation',repr='%s',cast_type=float,value=0.025,adjust=False,frame=["phoebe"],context='puls'),
-         dict(qualifier='phaseteff',description='Phase of temperature perturbation',repr='%s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context='puls'),
-         dict(qualifier='amplgrav',description='Amplitude of gravity perturbation',repr='%s',cast_type=float,value=0.00001,adjust=False,frame=["phoebe"],context='puls'),
-         dict(qualifier='phasegrav',description='Phase of gravity perturbation',repr='%s',cast_type=float,value=0.0,adjust=False,frame=["phoebe"],context='puls'),
+         dict(qualifier='amplteff',description='Amplitude of temperature perturbation',repr='%g',cast_type=float,value=0.025,adjust=False,frame=["phoebe"],context='puls'),
+         dict(qualifier='phaseteff',description='Phase of temperature perturbation',repr='%g',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context='puls'),
+         dict(qualifier='amplgrav',description='Amplitude of gravity perturbation',repr='%g',cast_type=float,value=0.00001,adjust=False,frame=["phoebe"],context='puls'),
+         dict(qualifier='phasegrav',description='Phase of gravity perturbation',repr='%g',cast_type=float,value=0.0,adjust=False,frame=["phoebe"],context='puls'),
          dict(qualifier='incl',     description='Angle between rotation and pulsation axis',unit='deg',repr='%f',llim=0,ulim=360,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='puls'),
          dict(qualifier='trad_coeffs',  description='B vector for traditional approximation',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context='puls'),
          dict(qualifier='scheme',   description='Type of approximation for description of pulsations',repr='%s',cast_type='choose',choices=['nonrotating','coriolis','traditional approximation'],value='nonrotating',frame=["phoebe"],context='puls'),
@@ -392,7 +392,13 @@ defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s'
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
-         dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',choices=['product','list'],value='product',frame=['phoebe'],context='fitting:grid'),
+         dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',
+                                     long_description=("Determines the type of iterations. Suppose the prior on parameter 'a' is [0,1,2] and "
+                                                       "on parameter 'b' it is [7,8,9]. Then, if iterate=list, the fitting routines will "
+                                                       "run over 3 grid points with coordinates (a,b) in [(0,7), (1,8), (2,9)]. If iterate=product, "
+                                                       "all combinations will be tried out, that is (a,b) is one of [(0,7), (0,8), (0,9), (1,7), "
+                                                       "(1,8), (1,9), (2,7), (2,8), (2,9)]."),
+                                     choices=['product','list'],value='product',frame=['phoebe'],context='fitting:grid'),
         ]
 
 #    MPI and computation context
@@ -427,8 +433,8 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='alpha',        description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='marker',       description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='.',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='markersize',   description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='markeredgecolor',   description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='markerfacecolor',   description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='markeredgecolor',   description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='markerfacecolor',   description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='linestyle',    description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='linewidth',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='zorder',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),

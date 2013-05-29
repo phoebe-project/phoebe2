@@ -1930,7 +1930,8 @@ class ParameterSet(object):
     #}
     #{ Accessibility to constraints
         
-    def add_constraint(self,constraint,include_as_parameter=False):
+    def add_constraint(self,constraint,include_as_parameter=False,
+                       do_run_constraints=True):
         """
         Add explicit constraint to the parameter set.
         
@@ -1975,11 +1976,12 @@ class ParameterSet(object):
         qualifier,expression = splitted[0],'='.join(splitted[1:])
         qualifier = qualifier.split('{')[1].split('}')[0].strip()
         self.constraints[qualifier] = expression
-        if include_as_parameter==True:
+        if include_as_parameter:
             self.add(Parameter(qualifier=qualifier,value=0.))
         elif isinstance(include_as_parameter,str):
             self.add(Parameter(qualifier=qualifier,value=0.,unit=include_as_parameter))
-        self.run_constraints()
+        if do_run_constraints and '{' in expression: # don't run constraints if it's only a number!
+            self.run_constraints()
     
     def remove_constraint(self,constraint):
         """

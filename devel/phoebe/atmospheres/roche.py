@@ -707,18 +707,18 @@ def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
     #-- transform into system of component (defaults to primary)
     if component==2:
         q = 1.0/q
-    r = np.sqrt(x**2 + y**2 + z**2)
-    r_= np.sqrt((d-x)**2 + y**2 + z**2)
-    dOmega_dx = - x / r**3 + q * (d-x) / r_**3 + F**2 * (1+q)*x - q/d**2
-    dOmega_dy = - y / r**3 - q * y     / r_**3 + F**2 * (1+q)*y
-    dOmega_dz = - z / r**3 - q * z     / r_**3
-    
-    dOmega = np.array([dOmega_dx,dOmega_dy,dOmega_dz])
+    y2 = y**2
+    z2 = z**2
+    r3 = np.sqrt(x**2 + y2 + z2)**3
+    r3_= np.sqrt((d-x)**2 + y2 + z2)**3
+    dOmega_dx = - x / r3 + q * (d-x) / r3_ + F**2 * (1+q)*x - q/d**2
+    dOmega_dy = - y / r3 - q * y     / r3_ + F**2 * (1+q)*y
+    dOmega_dz = - z / r3 - q * z     / r3_
     
     if normalize:
-        return np.linalg.norm(dOmega)
+        return np.sqrt(dOmega_dx**2 + dOmega_dy**2 + dOmega_dz**2)
     else:
-        return dOmega
+        return np.array([dOmega_dx,dOmega_dy,dOmega_dz])
 
 def misaligned_binary_potential_gradient(x,y,z,q,d,F,theta,phi,component=1,normalize=False):
     """
