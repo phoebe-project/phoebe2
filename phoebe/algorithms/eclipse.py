@@ -157,7 +157,7 @@ def convex_bodies(body_list):
     for i,front_body in enumerate(body_list[:-1]):
         keep_front = -front_body.mesh['hidden']
         if not sum(keep_front):
-                continue
+            continue
         for j,ecl_body in enumerate(body_list[i+1:]):
             keep_back = -ecl_body.mesh['hidden']
             front_coords = np.vstack([front_body.mesh['center'][keep_front,0:2],\

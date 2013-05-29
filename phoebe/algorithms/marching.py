@@ -496,22 +496,22 @@ def gridsize_to_delta(gridsize):
     surfaces.
     
     You will get about twice as much triangles with WD gridding, but WD actually
-    uses sqaures, so you need to divide that number by two.
+    uses sqaures, so you need to divide that number by two::
     
-    delta = 0.037 # 23884
-    gridsize = 60 # 24088
-    delta = 0.045 # 16582
-    gridsize = 50 # 16783
-    delta = 0.0555 # 10720
-    gridsize = 40  # 10760
-    delta = 0.073 # 6092
-    gridsize = 30 # 6096
-    delta = 0.095654  # 3628
-    gridsize = 23     # 3616
-    delta = 0.145 # 1570
-    gridsize = 15 # 1560
-    delta = 0.275 # 470
-    gridsize = 8 # 464
+        delta = 0.037 # 23884
+        gridsize = 60 # 24088
+        delta = 0.045 # 16582
+        gridsize = 50 # 16783
+        delta = 0.0555 # 10720
+        gridsize = 40  # 10760
+        delta = 0.073 # 6092
+        gridsize = 30 # 6096
+        delta = 0.095654  # 3628
+        gridsize = 23     # 3616
+        delta = 0.145 # 1570
+        gridsize = 15 # 1560
+        delta = 0.275 # 470
+        gridsize = 8 # 464
     
     @param gridsize: WD gridsize parameter
     @type gridsize: float
@@ -824,7 +824,7 @@ def reproject(table,*new_mesh_args):
     close to the real values.
     """
     new_table = np.zeros_like(table)
-
+    
     for tri in range(len(table)):
     
         #-- reproject the triangle vertices
@@ -838,7 +838,7 @@ def reproject(table,*new_mesh_args):
         p0 = projectOntoPotential(table[tri, 0: 3],*new_mesh_args)
         new_table[tri,0:3] = p0.r     
         new_table[tri,13:16] = p0.n
-    
+   
     return new_table  
   
   
