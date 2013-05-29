@@ -48,8 +48,10 @@ if __name__=="__main__":
     #-- parse the arguments
     args = vars(parser.parse_args())
     
+    #-- get the input file
     input_file = args.pop('input_file')
     
+    #-- override the defaults
     for par in args:
         if par[:3]=='lc_' and par[3:] in lc:
             lc[par[3:]] = args[par]
@@ -57,13 +59,16 @@ if __name__=="__main__":
             rv[par[3:]] = args[par]
         else:
             ps[par] = args[par]
-            
-    curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
     
+    #-- report the final parameters
     print(ps)
     print(lc)
     print(rv)
     
+    #-- compute the light curve
+    curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
+    
+    #-- now do something with it
     plt.figure()
     plt.subplot(121)
     plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean(),'ro-',lw=2,label='WD')
