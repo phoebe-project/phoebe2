@@ -173,11 +173,13 @@ from phoebe.parameters import definitions as defs
 from phoebe.parameters import datasets
 from phoebe.utils import utils
 from phoebe.backend import processing
+from phoebe.atmospheres import limbdark
 try:
     from phoebe.wd import fwd
 except ImportError:
     pass
     #print('fwd not compiled, please install')
+
 
 logger = logging.getLogger('WD')
 
@@ -773,6 +775,25 @@ class BodyEmulator(object):
         if 'lcdep' in self.params['pbdep']:
             for ref in self.params['pbdep']['lcdep'].keys():
                 lcset = self.params['pbdep']['lcdep'][ref]
+                root = self.params['root']
+                try:
+                    ld_model = root.get_parameter('ld_model').get_choices()[root['ld_model']-1]
+                    #-- fix limbdarkening:
+                    atm_kwargs1 = dict(teff=self.params['root'].request_value('teff1','K'),logg=4.0)
+                    atm_kwargs2 = dict(teff=self.params['root'].request_value('teff2','K'),logg=4.0)
+                    basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format('kurucz','p',0,ld_model)        
+                    atm = '/home/pieterd/software/phoebe-code/devel/phoebe/atmospheres/tables/ld_coeffs/'+basename
+                    passband = lcset.get_parameter('filter').get_choices()[lcset['filter']-1].upper()
+                    coeffs1 = limbdark.interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs1)
+                    coeffs2 = limbdark.interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs2)
+                    lcset['ld_lcx1'] = coeffs1[0]
+                    lcset['ld_lcy1'] = coeffs1[1] if len(coeffs1.ravel())==3 else 0.0
+                    lcset['ld_lcx2'] = coeffs2[0]
+                    lcset['ld_lcy2'] = coeffs2[1] if len(coeffs2.ravel())==3 else 0.0
+                except:
+                    print("Failed deriving LD for some reason --> debug!")
+                    pass
+                
                 curve,params = lc(self.params['root'],request='curve',light_curve=lcset)
                 self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
                 self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']

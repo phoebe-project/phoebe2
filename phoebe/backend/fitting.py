@@ -885,6 +885,11 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     
     >>> feedback = run(system,fitparams=fitparams)
     
+    **See also:**
+    
+    - :ref:`fitting:grid <parlabel-phoebe-fitting:grid>` 
+    - :ref:`feedback <label-feedback-fitting:grid-phoebe>`, :ref:`iterate <label-iterate-fitting:grid-phoebe>`
+    
     @param system: the system to fit
     @type system: Body
     @param params: computation parameters
@@ -966,8 +971,8 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     #-- now run over the whole grid
     for i,pars in enumerate(the_iterator):
         msg = ', '.join(['{}={}'.format(j,k) for j,k in zip(names,pars)])
-        logger.warning('GRID: step {} - parameters: {}'.format(i,msg))
         mylogp = lnprob(pars,ids,system)
+        logger.warning('GRID: step {} - parameters: {} (logp={:.3g})'.format(i,msg,mylogp))
         this_system = copy.deepcopy(system)
         this_system.remove_mesh()
         this_system.save('gridding_{:05d}.phoebe'.format(i))

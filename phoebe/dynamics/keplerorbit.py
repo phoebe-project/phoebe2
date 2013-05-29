@@ -1440,7 +1440,7 @@ def place_in_binary_orbit(self,time):
     e = self.params['orbit'].get_value('ecc')
     a = self.params['orbit'].get_value('sma','Rsol')
     a1 = self.params['orbit'].get_constraint('sma1','Rsol')
-    a2 = self.params['orbit'].get_constraint('sma2','Rsol')
+    a2 = a-a1#self.params['orbit'].get_constraint('sma2','Rsol')
     inclin = self.params['orbit'].get_value('incl','rad')
     argper = self.params['orbit'].get_value('per0','rad')
     long_an = self.params['orbit'].get_value('long_an','rad')
@@ -1448,8 +1448,8 @@ def place_in_binary_orbit(self,time):
     T0 = self.params['orbit'].get_value('t0')
     n_comp = self.get_component()
     component = ('primary','secondary')[n_comp]
-    com = self.params['orbit'].get_constraint('com','Rsol')
-    pivot = np.array([com,0,0]) # center-of-mass
+    #com = self.params['orbit'].get_constraint('com','Rsol')
+    #pivot = np.array([com,0,0]) # center-of-mass
     a_comp = [a1,a2][n_comp]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units

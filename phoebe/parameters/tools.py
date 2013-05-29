@@ -528,9 +528,10 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     
     .. math::
     
-        \mathrm{acosw} = \mathrm{ecc} \sin(\mathrm{per0})
+        \mathrm{ecosw} = \mathrm{ecc} \sin(\mathrm{per0})
     
     This is a list of stuff that happens:
+    
     - A I{parameter} C{ecosw} will be added if it does not exist yet
     - A I{constraint} to derive the parameter C{derive} will be added.
     - If C{asini} already exists as a constraint, it will be removed
@@ -574,7 +575,7 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     #-- specify the dependent parameter
     if derive=='ecc':
         orbit.pop_constraint('ecc',None)
-        orbit.add_constraint('{ecc} = {ecosw}/np.cos({per0})')
+        orbit.add_constraint('{{ecc}} = {{ecosw}}/np.cos({{{peri}}})'.format(peri=peri))
     elif derive==peri:
         orbit.pop_constraint(peri,None)
         orbit.add_constraint('{{{peri}}} = np.arccos({{ecosw}}/{{ecc}})'.format(peri=peri))
