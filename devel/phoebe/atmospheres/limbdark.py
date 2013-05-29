@@ -971,7 +971,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                 mu,Imu = get_limbdarkening(atm_file,atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs,vgamma=vgamma,
                                        passbands=passbands)
-                print atm_file,atm_kwargs
+                print(atm_file,atm_kwargs)
             elif law=='uniform':
                 Imu_blackbody = sed.blackbody(wave_,val[0],vrad=vgamma)
                 Imu = sed.synthetic_flux(wave_*10,Imu_blackbody,passbands)
@@ -983,13 +983,13 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                     #-- fit a limbdarkening law:
                     csol,res,dflux = fit_law(mu,Imu[:,i]/Imu[0,i],law=law,fitmethod=fitmethod)
                     output[pb].append(list(val) + [res,dflux] + list(csol) + [Imu[0,i]])
-                    print output[pb][-1]
+                    print(output[pb][-1])
             else:
                 csol = []
                 for i,pb in enumerate(passbands):
                     #-- don't fit a law, we know what it is
                     output[pb].append(list(val) + [0.0,0.0] + [Imu[i]])
-                    print output[pb][-1]
+                    print(output[pb][-1])
     #-- write to a FITS file
     col_names = atm_par_names + red_par_names
     if vgamma is not None and 'vgamma' not in col_names:
@@ -1039,7 +1039,7 @@ def match_teff_logg(atm_files):
                 break
         if ival_is_in_file==len(atm_files):
             use.append(ival)
-            print ival
+            print(ival)
         else:
             remove.append(ival)
     return use,remove
@@ -1361,7 +1361,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         #   (the correction for nans in the size of the faces is probably due
         #   to a bug in the marching method, though I'm not sure):
         if np.any(np.isnan(system.mesh['size'])):
-            print 'encountered nan'
+            print('encountered nan')
             raise SystemExit
         keep = (mus>0) & (system.mesh['partial'] | system.mesh['visible'])# & -np.isnan(self.mesh['size'])
         mus = mus[keep]
