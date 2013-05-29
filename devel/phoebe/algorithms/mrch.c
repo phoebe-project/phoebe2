@@ -175,62 +175,79 @@ int triangle_array_append (TriangleArray *ta, Triangle t)
 
 // Add new potential definitions here. You also need to edit the
 // initialize_pars() function and python discretize() function.
+// Try to optimize them as much as possible because a lot of time
+// is spent here.
+// We either need both the potential and derivatives or just derivatives.
+// Caluclating both together saves some time, therefore pot function 
+// returns all values and der function returns only derivatives. In both 
+// cases they are packed into the passed ret array.
 
 //SPHERE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   
-double sphere(double r[3], double *p)
+void sphere(double r[3], double *p, double ret[4])
 {
-    return r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - p[0]*p[0];
+    ret[0] = 2*r[0];
+    ret[1] = 2*r[1];
+    ret[2] = 2*r[2];
+    ret[3]= r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - p[0]*p[0];
 }
 
-double dspheredx(double r[3], double *p)
+void dsphere(double r[3], double *p, double ret[3])
 {
-    return 2*r[0];
-}
-
-double dspheredy(double r[3], double *p)
-{
-    return 2*r[1];
-}
-
-double dspheredz(double r[3], double *p)
-{
-    return 2*r[2];
+    ret[0] = 2*r[0];
+    ret[1] = 2*r[1];
+    ret[2] = 2*r[2];
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
 //BINARY ROCHE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-double binary_roche(double r[3], double *p)
+void binary_roche (double r[3], double *p, double ret[4])
 {
-    return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + 
-           p[1]*(1.0/sqrt((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2])-r[0]/p[0]/p[0]) + 
-           0.5*p[2]*p[2]*(1+p[1])*(r[0]*r[0]+r[1]*r[1]) - p[3];
+    double a = r[0]*r[0];
+    double b = r[1]*r[1];
+    double c = r[2]*r[2];
+    double d = r[0]-p[0];
+    double e = a+b+c;
+    double f = d*d+b+c;
+    double g = p[2]*p[2]*(1.0+p[1]);
+    double h,i,j;
+    double k = p[0]*p[0];
+    double l = sqrt(e);
+    double m = sqrt(f);
+    
+    i = 1.0/(e*l);
+    j = 1.0/(f*m)*p[1];
+    h=i+j;
+    
+    ret[0] = -r[0]*(i-g) - d*j - p[1]/k;
+    ret[1] = -r[1]*(h-g);
+    ret[2] = -r[2]*h;
+    ret[3] = 1.0/l + p[1]*(1.0/m-r[0]/k) + 0.5*g*(a+b) - p[3];
 }
 
-double dbinary_rochedx(double r[3], double *p)
+void dbinary_roche (double r[3], double *p, double ret[3])
 {
-    return -r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 
-            p[1]*(r[0]-p[0])*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) -
-            p[1]/p[0]/p[0] + p[2]*p[2]*(1+p[1])*r[0];
-}
-
-double dbinary_rochedy(double r[3], double *p)
-{
-    return -r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-            p[1]*r[1]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
-            p[2]*p[2]*(1+p[1])*r[1];
-}
-
-double dbinary_rochedz(double r[3], double *p)
-{
-    return -r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-            p[1]*r[2]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5);
+    double a = r[0]*r[0];
+    double b = r[1]*r[1];
+    double c = r[2]*r[2];
+    double d = r[0]-p[0];
+    double e = a+b+c;
+    double f = d*d+b+c;
+    double g = p[2]*p[2]*(1.0+p[1]);
+    double h;
+    
+    e = 1.0/(e*sqrt(e));
+    f = 1.0/(f*sqrt(f))*p[1];
+    h=e+f;
+    
+    ret[0] = -r[0]*(e-g) - d*f - p[1]/(p[0]*p[0]);
+    ret[1] = -r[1]*(h-g);
+    ret[2] = -r[2]*h;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 //MISALIGNED BINARY ROCHE+++++++++++++++++++++++++++++++++++++++++++++++
-double misaligned_binary_roche(double r[3], double *p)
+double misaligned_binary_roche(double r[3], double *p, double ret[3])
 {
     double delta = (1-pow(cos(p[4]),2)*pow(sin(p[3]),2))*r[0]*r[0] +
             (1-pow(sin(p[4]),2)*pow(sin(p[3]),2))*r[1]*r[1] +
@@ -244,40 +261,36 @@ double misaligned_binary_roche(double r[3], double *p)
            0.5*p[2]*p[2]*(1+p[1])*delta - p[5];
 }
 
-double dmisaligned_binary_rochedx(double r[3], double *p)
+void dmisaligned_binary_roche(double r[3], double *p, double ret[3])
 {
-    double delta = 2*(1-pow(cos(p[4]),2)*pow(sin(p[3]),2))*r[0] -
+    double delta;
+
+    delta = 2*(1-pow(cos(p[4]),2)*pow(sin(p[3]),2))*r[0] -
             pow(sin(p[3]),2)*sin(2*p[4])*r[1] -
             sin(2*p[3])*cos(p[4])*r[2];
             
-    return -r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-           p[1]*(r[0]-p[0])*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) -
-           p[1]/p[0]/p[0] + 0.5*p[2]*p[2]*(1+p[1])*delta;
-}
+    ret[0] = -r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
+              p[1]*(r[0]-p[0])*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) -
+              p[1]/p[0]/p[0] + 0.5*p[2]*p[2]*(1+p[1])*delta;
 
-double dmisaligned_binary_rochedy(double r[3], double *p)
-{
-    double delta = 2*(1-pow(sin(p[4]),2)*pow(sin(p[3]),2))*r[1] -
+
+    delta = 2*(1-pow(sin(p[4]),2)*pow(sin(p[3]),2))*r[1] -
             pow(sin(p[3]),2)*sin(2*p[4])*r[0] -
             sin(2*p[3])*sin(p[4])*r[2];
             
-    return -r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-           p[1]*r[1]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
-        0.5*p[2]*p[2]*(1+p[1])*delta;
-}
+    ret[1] = -r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
+              p[1]*r[1]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
+              0.5*p[2]*p[2]*(1+p[1])*delta;
 
-double dmisaligned_binary_rochedz(double r[3], double *p)
-{
-    double delta = 2*pow(sin(p[3]),2)*r[2] -
+    delta = 2*pow(sin(p[3]),2)*r[2] -
             sin(2*p[3])*cos(p[4])*r[0] -
             sin(2*p[3])*sin(p[4])*r[1];
             
-    return -r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-            p[1]*r[2]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
-            0.5*p[2]*p[2]*(1+p[1])*delta;
+    ret[2] = -r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
+              p[1]*r[2]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
+              0.5*p[2]*p[2]*(1+p[1])*delta;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 
 //ROTATE ROCHE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -288,21 +301,16 @@ double rotate_roche(double r[3], double *p)
     return 1.0/p[1] - 1.0/rp -0.5*Omega*Omega*(r[0]*r[0]+r[1]*r[1]);
 }
 
-double drotate_rochedx(double r[3], double *p)
+void drotate_roche(double r[3], double *p, double ret[3])
 {
     double Omega = p[0]*0.54433105395181736;
-    return r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - Omega*Omega*r[0];
-}
+    //~ double a = 1.0/exp(1.5*log(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]));
+    double a = r[0]*r[0]+r[1]*r[1]+r[2]*r[2];
+    a = 1.0/(a*sqrt(a));
 
-double drotate_rochedy(double r[3], double *p)
-{
-    double Omega = p[0]*0.54433105395181736;
-    return r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - Omega*Omega*r[1];
-}
-
-double drotate_rochedz(double r[3], double *p)
-{
-    return r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5);
+    ret[0] = r[0]*a - Omega*Omega*r[0];
+    ret[1] = r[1]*a - Omega*Omega*r[1];
+    ret[2] = r[2]*a;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -313,19 +321,13 @@ double torus(double r[3], double *p)
     return p[1]*p[1]-p[0]*p[0]+2*p[0]*sqrt(r[0]*r[0]+r[1]*r[1])-r[0]*r[0]-r[1]*r[1]-r[2]*r[2];
 }
 
-double dtorusdx(double r[3], double *p)
+void dtorus(double r[3], double *p, double ret[3])
 {
-    return 2*p[0]*r[0]*pow(r[0]*r[0]+r[1]*r[1],-0.5)-2*r[0];
-}
-
-double dtorusdy(double r[3], double *p)
-{
-    return 2*p[0]*r[1]*pow(r[0]*r[0]+r[1]*r[1],-0.5)-2*r[1];
-}
-
-double dtorusdz(double r[3], double *p)
-{
-    return -2*r[2];
+    double a = 1.0/sqrt(r[0]*r[0]+r[1]*r[1]);
+    
+    ret[0] = 2*p[0]*r[0]*a-2*r[0];
+    ret[1] = 2*p[0]*r[1]*a-2*r[1];
+    ret[2] =-2*r[2];
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -338,22 +340,14 @@ double heart(double r[3], double *p)
             9./80*r[1]*r[1]*r[2]*r[2]*r[2]);
 }
 
-double dheartdx(double r[3], double *p)
+void dheart(double r[3], double *p, double ret[3])
 {
-    return (3 * pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[0] - 
-            2*r[0]*r[2]*r[2]*r[2]);
-}
-
-double dheartdy(double r[3], double *p)
-{
-    return (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*9./2.*r[1] -
-            9./40.*r[1]*r[2]*r[2]*r[2]);
-}
-
-double dheartdz(double r[3], double *p)
-{
-    return (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[2] - 
-            3*r[0]*r[0]*r[2]*r[2] - 27./80.*r[1]*r[1]*r[2]*r[2]);
+    double a = r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1;
+    a = a*a;
+    
+    ret[0] = (a*2*r[0] - 2*r[0]*r[2]*r[2]*r[2]);
+    ret[1] = (a*9./2.*r[1] - 9./40.*r[1]*r[2]*r[2]*r[2]);
+    ret[2] = (a*2*r[2] - 3*r[0]*r[0]*r[2]*r[2] - 27./80.*r[1]*r[1]*r[2]*r[2]);
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -364,10 +358,8 @@ typedef struct {
      * that are dealing with potential equations.
      */
     double *p;
-    double (* pot)();
-    double (* dx)();
-    double (* dy)();
-    double (* dz)();
+    void (* pot)();
+    void (* der)();
 } PotentialParameters;
 
 PotentialParameters *initialize_pars(char *potential, double *args)
@@ -377,51 +369,39 @@ PotentialParameters *initialize_pars(char *potential, double *args)
 
     if (!strcmp(potential,"Sphere")){
         pp->pot = sphere;
-        pp->dx  = dspheredx;
-        pp->dy  = dspheredy;
-        pp->dz  = dspheredz;
+        pp->der = dsphere;
         return pp;
     }
     
     else if (!strcmp(potential,"BinaryRoche")){
         pp->pot = binary_roche;
-        pp->dx = dbinary_rochedx;
-        pp->dy = dbinary_rochedy;
-        pp->dz = dbinary_rochedz;
+        pp->der = dbinary_roche;
         return pp;
     }
     
-    else if (!strcmp(potential,"MisalignedBinaryRoche")){
-        pp->pot = misaligned_binary_roche;
-        pp->dx = dmisaligned_binary_rochedx;
-        pp->dy = dmisaligned_binary_rochedy;
-        pp->dz = dmisaligned_binary_rochedz;
-        return pp;
-    }
-    
-    else if (!strcmp(potential,"RotateRoche")){
-        pp->pot = rotate_roche;
-        pp->dx = drotate_rochedx;
-        pp->dy = drotate_rochedy;
-        pp->dz = drotate_rochedz;
-        return pp;
-    }
-    
-    else if (!strcmp(potential,"Torus")){
-        pp->pot = torus;
-        pp->dx = dtorusdx;
-        pp->dy = dtorusdy;
-        pp->dz = dtorusdz;
-        return pp;
-    }
-    
-    else if (!strcmp(potential,"Heart")){
-        pp->pot = heart;
-        pp->dx = dheartdx;
-        pp->dy = dheartdy;
-        pp->dz = dheartdz;
-        return pp;
-    }
+    //~ else if (!strcmp(potential,"MisalignedBinaryRoche")){
+        //~ pp->pot = misaligned_binary_roche;
+        //~ pp->der = dmisaligned_binary_roche;
+        //~ return pp;
+    //~ }
+    //~ 
+    //~ else if (!strcmp(potential,"RotateRoche")){
+        //~ pp->pot = rotate_roche;
+        //~ pp->der = drotate_roche;
+        //~ return pp;
+    //~ }
+    //~ 
+    //~ else if (!strcmp(potential,"Torus")){
+        //~ pp->pot = torus;
+        //~ pp->der = dtorus;
+        //~ return pp;
+    //~ }
+    //~ 
+    //~ else if (!strcmp(potential,"Heart")){
+        //~ pp->pot = heart;
+        //~ pp->der = dheart;
+        //~ return pp;
+    //~ }
         
     return pp;
 }
@@ -432,12 +412,14 @@ PotentialParameters *initialize_pars(char *potential, double *args)
 
 MeshVertex vertex_from_pot(double r[3], PotentialParameters *pp)
 {
-    double n[3] = {pp->dx(r,pp->p),pp->dy(r,pp->p),pp->dz(r,pp->p)};
+    double n[3];
     double t1[3];
     double t2[3];
     double nn;
     double detA;
     MeshVertex v;
+    
+    pp->der(r,pp->p,n);
     
     nn = sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
     n[0] /= nn;
@@ -466,7 +448,8 @@ MeshVertex vertex_from_pot(double r[3], PotentialParameters *pp)
     v.t1[0] = t1[0];v.t1[1] = t1[1];v.t1[2] = t1[2];
     v.t2[0] = t2[0];v.t2[1] = t2[1];v.t2[2] = t2[2];
     
-    //Calculate inverse for each vertex only once
+    //Calculate inverse matrix for each vertex only once
+
     detA = v.n[0]*v.t1[1]*v.t2[2] - v.t2[0]*v.t1[1]*v.n[2] + v.t1[0]*v.t2[1]*v.n[2] - v.n[0]*v.t2[1]*v.t1[2] + v.t2[0]*v.n[1]*v.t1[2] - v.t1[0]*v.n[1]*v.t2[2];
 
     v.invM[0] = (v.t1[1]*v.t2[2] - v.t2[1]*v.t1[2])/detA;
@@ -478,8 +461,29 @@ MeshVertex vertex_from_pot(double r[3], PotentialParameters *pp)
     v.invM[6] = (v.n[1]*v.t1[2] - v.n[2]*v.t1[1])/detA;
     v.invM[7] = (v.t1[0]*v.n[2] - v.n[0]*v.t1[2])/detA;
     v.invM[8] = (v.n[0]*v.t1[1] - v.t1[0]*v.n[1])/detA;
-
     
+    return v;
+}
+
+MeshVertex vertex_from_pot_without_inverse(double r[3], PotentialParameters *pp)
+{
+    /* Used for reprojection. No inverse matrix, t1 or t2 are needed there.
+     */
+    
+    double n[3];
+    double nn;
+    MeshVertex v;
+    
+    pp->der(r,pp->p,n);
+    
+    nn = sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+    n[0] /= nn;
+    n[1] /= nn;
+    n[2] /= nn;
+    
+    v.r[0] = r[0];v.r[1] = r[1];v.r[2] = r[2];
+    v.n[0] = n[0];v.n[1] = n[1];v.n[2] = n[2];
+
     return v;
 }
 
@@ -491,11 +495,14 @@ void print_vertex(MeshVertex v)
     printf("t2 = (% .3f, % .3f, % .3f)\n",v.t2[0],v.t2[1],v.t2[2]);
 }
 
-MeshVertex project_onto_potential(double r[3], PotentialParameters *pp)
+MeshVertex project_onto_potential(double r[3], PotentialParameters *pp, int inv)
 {
+    /* Set inv=0 if inverse matrix is not needed (like in reprojection).
+     */
+    
     double ri[3] = {0.0,0.0,0.0};
     int n_iter = 0;
-    double g[3];
+    double g[4];
     double grsq;
     double s;
     
@@ -504,13 +511,11 @@ MeshVertex project_onto_potential(double r[3], PotentialParameters *pp)
         ri[1] = r[1];
         ri[2] = r[2];
         
-        g[0] = pp->dx(ri,pp->p);
-        g[1] = pp->dy(ri,pp->p);
-        g[2] = pp->dz(ri,pp->p);
-
+        pp->pot(ri,pp->p,g);
+        
         grsq = g[0]*g[0] + g[1]*g[1] + g[2]*g[2];
         
-        s = pp->pot(ri,pp->p);
+        s = g[3];
         
         r[0] = ri[0]-s*g[0]/grsq;
         r[1] = ri[1]-s*g[1]/grsq;
@@ -523,7 +528,10 @@ MeshVertex project_onto_potential(double r[3], PotentialParameters *pp)
            printf("warning: projection did not converge\n");
     }
     
-    return vertex_from_pot(r,pp);
+    if (inv)
+        return vertex_from_pot(r,pp);
+    else
+        return vertex_from_pot_without_inverse(r,pp);
 }
 
 int argmin(double *array, int length)
@@ -595,14 +603,14 @@ PyArrayObject* cdiscretize(double delta, int max_triangles, char *potential, dou
     PyArrayObject *table;
     int dims[2];
     
-    p0 = project_onto_potential(init,pp);
+    p0 = project_onto_potential(init,pp,1);
     vertex_array_append(V,p0);
 
     for (i = 0; i < 6; i++){
         qk[0] = p0.r[0]+delta*cos(i*pi3)*p0.t1[0] + delta*sin(i*pi3)*p0.t2[0];
         qk[1] = p0.r[1]+delta*cos(i*pi3)*p0.t1[1] + delta*sin(i*pi3)*p0.t2[1];
         qk[2] = p0.r[2]+delta*cos(i*pi3)*p0.t1[2] + delta*sin(i*pi3)*p0.t2[2];
-        pk = project_onto_potential(qk,pp);
+        pk = project_onto_potential(qk,pp,1);
         vertex_array_append(P,pk);
         vertex_array_append(V,pk);
     }
@@ -687,7 +695,7 @@ PyArrayObject* cdiscretize(double delta, int max_triangles, char *potential, dou
             qk[1] = p0m.r[1] + l2c[1];
             qk[2] = p0m.r[2] + l2c[2];
             
-            pk = project_onto_potential(qk,pp);
+            pk = project_onto_potential(qk,pp,1);
             vertex_array_append(V,pk);
 
             if (i == 1) tri.v0 = v1;
@@ -730,7 +738,7 @@ PyArrayObject* cdiscretize(double delta, int max_triangles, char *potential, dou
         qk[0] = (Ts->t[i].v0.r[0] + Ts->t[i].v1.r[0] + Ts->t[i].v2.r[0])/3.0;
         qk[1] = (Ts->t[i].v0.r[1] + Ts->t[i].v1.r[1] + Ts->t[i].v2.r[1])/3.0;
         qk[2] = (Ts->t[i].v0.r[2] + Ts->t[i].v1.r[2] + Ts->t[i].v2.r[2])/3.0;
-        c=project_onto_potential(qk,pp);
+        c=project_onto_potential(qk,pp,1);
         
         side1 = sqrt((Ts->t[i].v0.r[0] - Ts->t[i].v1.r[0])*(Ts->t[i].v0.r[0] - Ts->t[i].v1.r[0])+
                      (Ts->t[i].v0.r[1] - Ts->t[i].v1.r[1])*(Ts->t[i].v0.r[1] - Ts->t[i].v1.r[1])+
@@ -792,8 +800,8 @@ PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, doubl
             q[1] = *(double *)(table->data + i*table->strides[0] + (5+3*j)*table->strides[1]);
             q[2] = *(double *)(table->data + i*table->strides[0] + (6+3*j)*table->strides[1]);
 
-            p = project_onto_potential(q,pp);
-
+            p = project_onto_potential(q,pp,0);
+            
             *(double *)(new_table->data + i*table->strides[0] + (4+3*j)*table->strides[1]) = p.r[0];
             *(double *)(new_table->data + i*table->strides[0] + (5+3*j)*table->strides[1]) = p.r[1];
             *(double *)(new_table->data + i*table->strides[0] + (6+3*j)*table->strides[1]) = p.r[2];
@@ -803,7 +811,7 @@ PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, doubl
         q[1] = *(double *)(table->data + i*table->strides[0] + table->strides[1]);
         q[2] = *(double *)(table->data + i*table->strides[0] + 2*table->strides[1]);
         
-        p = project_onto_potential(q,pp);
+        p = project_onto_potential(q,pp,0);
         
         *(double *)(new_table->data + i*table->strides[0]) = p.r[0];
         *(double *)(new_table->data + i*table->strides[0] + table->strides[1]) = p.r[1];
