@@ -43,8 +43,8 @@ if __name__=="__main__":
     #print "N = ",len(table)
     #print "table = ",tableA
     #table = np.zeros((len(Ts), 16))
-    print "length of tableA = ", len(tableA[0])
-    print "table[0] = ",tableA[0]
+    print("length of tableA = ", len(tableA[0]))
+    print("table[0] = ",tableA[0])
     #table1 = np.zeros((10, 2))
     #print "table1 = ",table1
     table = tableA[0]
@@ -52,7 +52,7 @@ if __name__=="__main__":
     table = marching.cdiscretize(delta,maxNumberTriangles,'BinaryRoche',D,q,F,Omega)
 
     N = len(table)
-    print "the number of triangles = ", N
+    print("the number of triangles = ", N)
     x = np.hstack([table[:,i+4] for i in range(0,9,3)])
     y = np.hstack([table[:,i+4] for i in range(1,9,3)])
     z = np.hstack([table[:,i+4] for i in range(2,9,3)])

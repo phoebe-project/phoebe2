@@ -10,7 +10,7 @@ from phoebe.atmospheres import cspots
 
 logger = logging.getLogger('ATM.SPOTS')
 
-def distance_on_sphere((phi1,th1),(phi2,th2),R):
+def distance_on_sphere(loc1,loc2,R):
    """
    Compute the distance between two points on a sphere.
    
@@ -25,6 +25,7 @@ def distance_on_sphere((phi1,th1),(phi2,th2),R):
    @parameter th2: colatitude of point 2
    @parameter R: radius of the sphere.
    """
+   (phi1,th1),(phi2,th2) = loc1, loc2
    #-- old way
    #z = arccos(sin(th1)*sin(th2)*cos(phi1-phi2) + cos(th1)*cos(th2))
    #-- new way

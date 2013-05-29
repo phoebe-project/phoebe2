@@ -318,7 +318,7 @@ def synthetic_flux(wave,flux,passbands,units=None):
             elif filter_info['type'][i]=='CCD':
                 energys[i] = np.trapz(flux_f*transr/freq_,x=wave_)/np.trapz(transr/freq_,x=wave_)
         else:
-            raise ValueError,'units %s not understood'%(units)
+            raise ValueError('units %s not understood'%(units))
     
     #-- that's it!
     return energys

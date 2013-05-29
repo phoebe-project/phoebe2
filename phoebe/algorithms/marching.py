@@ -441,7 +441,7 @@ def projectOntoPotential(r, pot_name, *args):
         r = ri - pot(ri, *args)*g/grsq
         n_iter+=1
     if n_iter>=90:
-        print 'warning: projection did not converge'    
+        print('warning: projection did not converge')
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
     

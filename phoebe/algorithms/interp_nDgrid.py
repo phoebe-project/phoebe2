@@ -91,18 +91,18 @@ if __name__ == "__main__":
         grid_pars.append(pars)    
     grid_pars = np.array(grid_pars).T
     grid_data = np.array([1000000*grid_pars[0]+10000*grid_pars[1]+100*grid_pars[2]+grid_pars[3],100000*grid_pars[0]+1000*grid_pars[1]+10*grid_pars[2]+grid_pars[3]/10.,1000000*grid_pars[0]+10000*grid_pars[1]+100*grid_pars[2]+grid_pars[3],1000000*grid_pars[0]+10000*grid_pars[1]+100*grid_pars[2]+grid_pars[3]])
-    print np.shape(grid_data)
+    print(np.shape(grid_data))
     p = np.array([[1]*10000,[1.2]*10000,[3.1]*10000,[0.1]*10000])
-    print "Creating array"
+    print("Creating array")
     c0=time.time()    
     axis_values, pixelgrid = create_pixeltypegrid(grid_pars, grid_data)
     c1= time.time()
-    print "Interpolating"
+    print("Interpolating")
     vals = interpolate(p, axis_values,pixelgrid)
     
     c2=time.time()
     
-    print "Creating array:", c1-c0, 's'
-    print "Interpolation:", c2-c1, 's'
-    print vals
+    print("Creating array:", c1-c0, 's')
+    print("Interpolation:", c2-c1, 's')
+    print(vals)
     # ---------------------------------------------------------------------

@@ -157,19 +157,19 @@ print("Numerical error on projected area: %.6f%%"%(np.abs(np.pi-((the_sun.mesh['
 print("Numerical error on projected flux: %.6f%%"%(np.abs(nflux-aflux)/aflux*100))
 print("Error on real projected flux (measure for accuracy): %.6f%%"%(np.abs(1368000.-aflux)/aflux*100))
 
-print "\nTotal flux:"
+print("\nTotal flux:")
 lumi1 = limbdark.sphere_intensity(the_sun.params['star'],the_sun.params['pbdep']['lcdep'].values()[0])[0]
 lumi2 = params.get_value('luminosity','cgs')
 lumsn = phoebe.constants.Lsol_cgs
-print "Analytical = %.6e erg/s"%(lumi1)
-print "Numerical  = %.6e erg/s"%(lumi2)
-print "Real       = %.6e erg/s"%(lumsn)
-print "Numerical error on total area: %.6f%%"%(np.abs(4*np.pi-the_sun.area())/4*np.pi*100)
-print "Numerical error on total flux: %.6f%%"%(np.abs(lumi1-lumi2)/lumi1*100)
-print "Error on real total flux (measure for accuracy): %.6f%%"%(np.abs(lumi1-lumsn)/lumsn*100)
+print("Analytical = %.6e erg/s"%(lumi1))
+print("Numerical  = %.6e erg/s"%(lumi2))
+print("Real       = %.6e erg/s"%(lumsn))
+print("Numerical error on total area: %.6f%%"%(np.abs(4*np.pi-the_sun.area())/4*np.pi*100))
+print("Numerical error on total flux: %.6f%%"%(np.abs(lumi1-lumi2)/lumi1*100))
+print("Error on real total flux (measure for accuracy): %.6f%%"%(np.abs(lumi1-lumsn)/lumsn*100))
 
-print 'Finished!'
-print 'Total execution time: %.3g min'%((time.time()-c0)/60.)
+print('Finished!')
+print('Total execution time: %.3g min'%((time.time()-c0)/60.))
 
 """
 Code output::

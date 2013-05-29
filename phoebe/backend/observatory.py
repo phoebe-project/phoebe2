@@ -216,9 +216,9 @@ def image(the_system,ref='__bol',context='lcdep',
     logger.info('Making image of dependable set {}: plotting {}'.format(ref,select))    
     try:
         the_system.projected_intensity(ref=ref,with_partial_as_half=with_partial_as_half)
-    except ValueError,msg:
+    except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
-    except AttributeError,msg:
+    except AttributeError as msg:
         logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
     mesh = the_system.mesh
     mesh = mesh[np.argsort(mesh['center'][:,2])]

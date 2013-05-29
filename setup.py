@@ -30,7 +30,7 @@ class Build(_build):
     
     user_options.append(('wd', None,'build fpywd'))
     for o in user_options:
-        print o
+        print(o)
     
     def initialize_options(self): 
         self.wd = False
@@ -80,7 +80,6 @@ setup(
                  "Operating System :: OS Independent"],
     
     packages=['phoebe','phoebe.wd','phoebe.units','phoebe.backend',
-              'phoebe.units.uncertainties','phoebe.units.uncertainties.unumpy',
               'phoebe.utils','phoebe.atmospheres','phoebe.algorithms',
               'phoebe.parameters','phoebe.io','phoebe.dynamics'],
     

@@ -55,7 +55,8 @@ def DFTpower(time, signal, f0=None, fn=None, df=None, freqs=None, full_output=Fa
     ft[0] = A.sum()
     
     for k in range(1,Nfreq):
-        if k%10000==0: print k,Nfreq
+        if k%10000==0:
+            print(k,Nfreq)
         A *= B
         ft[k] = np.sum(A)
     if df==0:
