@@ -709,7 +709,7 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
         try:
             ci = lmfit.conf_interval(result,sigmas=(0.674,0.997),verbose=True,maxiter=10)
             lmfit.printfuncs.report_ci(ci)
-        except Exception,msg:
+        except Exception as msg:
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
     feedback = dict(parameters=ppars,values=values,sigmas=sigmas,correls=correl,\
                     redchi=result.redchi,success=result.success,

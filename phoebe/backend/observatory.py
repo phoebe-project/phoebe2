@@ -489,9 +489,9 @@ def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
     logger.info('Making image of dependable set {}: plotting {}'.format(ref,select))    
     try:
         the_system.projected_intensity(ref=ref,with_partial_as_half=with_partial_as_half)
-    except ValueError,msg:
+    except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
-    except AttributeError,msg:
+    except AttributeError as msg:
         logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
     mesh = the_system.mesh
     mesh = mesh[np.argsort(mesh['center'][:,2])]
@@ -1417,9 +1417,9 @@ def extract_times_and_refs(system,params,tol=1e-8):
     #   files). We test which times are "nearly" equal
     try:
         times = np.hstack(times)
-    except ValueError,msg:
+    except ValueError as msg:
         raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps the obs are not DataSets? (original message: {})".format(str(msg)))
-    except IndexError,msg:
+    except IndexError as msg:
         raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps there are no obs attached? (original message: {})".format(str(msg)))
     
     sa    = np.argsort(times)

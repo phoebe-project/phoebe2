@@ -57,22 +57,22 @@ from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
 from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,BinaryStar,BodyBag,BinaryBag,AccretionDisk
 
 #-- common input and output
-from parameters.parameters import load as load_ps
-from backend.universe import load as load_body
-from parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
+from .parameters.parameters import load as load_ps
+from .backend.universe import load as load_body
+from .parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
 from .parameters import create
-from utils.utils import get_basic_logger
+from .utils.utils import get_basic_logger
 
 #-- common tasks
-from parameters.tools import add_rotfreqcrit
-from backend.observatory import compute,observe,add_bitmap,image,ifm
-from backend.fitting import run
+from .parameters.tools import add_rotfreqcrit
+from .backend.observatory import compute,observe,add_bitmap,image,ifm
+from .backend.fitting import run
 
 #-- common modules
-from backend import observatory,universe,plotting,fitting
-from wd import wd
+from .backend import observatory,universe,plotting,fitting
+from .wd import wd
 
 #-- common extras
-from units import constants
-from units.conversions import convert,Unit
+from .units import constants
+from .units.conversions import convert,Unit
     
