@@ -326,6 +326,17 @@ Known issues
     $:> cd /usr/lib/python2.7
     $:> sudo ln -s plat-x86_64-linux-gnu/_sysconfigdata_nd.py .
 
+5. If you get a OSError, that seems to traceback to an attributeError, that is
+   raised when trying to install pip, the website if probably down. A little
+   higher up in the traceback you should then find something like::
+        
+        Reading http://pypi.python.org/simple/pip/
+        No local packages or download links found for pip
+        Best match: None
+   
+   Only solution: try again later! If this happens, the website is usually back
+   up again in an hour or so.
+
 Coding styles
 -------------
 

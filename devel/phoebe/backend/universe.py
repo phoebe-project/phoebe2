@@ -2358,7 +2358,7 @@ class PhysicalBody(Body):
         for key in pb:
             par = pb.get_parameter(key)
             ff.write('# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str()))
-            print '# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str())
+            print('# {:s} = {:s}\n'.format(par.get_qualifier(),par.to_str()))
         
         #-- write the dataset
         ds.save(ff,pretty_header=True)
@@ -2976,7 +2976,7 @@ class BodyBag(Body):
                 self.params['orbit']['c1label'] = label
             elif comp==1:
                 self.params['orbit']['c2label'] = label
-        except Exception,msg:
+        except Exception as msg:
             logger.error(str(msg))
         self.label = label
             
@@ -3968,6 +3968,7 @@ class Star(PhysicalBody):
                     self.save('beforecrash.phoebe')
                     raise
             elif algorithm=='c':
+                print(delta,max_triangles,self.subdivision['mesh_args'][:-1])
                 the_grid = marching.cdiscretize(delta,max_triangles,*self.subdivision['mesh_args'][:-1])
         elif gridstyle=='mesh:wd':
             #-- WD style.

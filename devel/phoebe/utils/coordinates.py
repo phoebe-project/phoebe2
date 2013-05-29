@@ -139,7 +139,7 @@ def spher2cart_coord(r,phi,theta):
     z = r*cos(theta)
     return x,y,z
 
-def spher2cart((r,phi,theta),(a_r,a_phi,a_theta)):
+def spher2cart(position, direction):
     """
     Spherical to cartesian vector transformation.
     
@@ -156,6 +156,7 @@ def spher2cart((r,phi,theta),(a_r,a_phi,a_theta)):
     @return: a_x, a_y, a_z
     @rtype: 3-tuple
     """
+    (r,phi,theta), (a_r,a_phi,a_theta) = position, direction
     ax = sin(theta)*cos(phi)*a_r + cos(theta)*cos(phi)*a_theta - sin(phi)*a_phi
     ay = sin(theta)*sin(phi)*a_r + cos(theta)*sin(phi)*a_theta + cos(phi)*a_phi
     az = cos(theta)         *a_r - sin(theta)         *a_theta

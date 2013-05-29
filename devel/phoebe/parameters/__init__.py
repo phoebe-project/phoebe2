@@ -105,9 +105,9 @@ Creating Parameters and ParameterSets:
 
     
 """
-import create
-import tools
-import datasets
+from phoebe.parameters import create
+from phoebe.parameters import tools
+from phoebe.parameters import datasets
 
 if __name__=="__main__":
     import doctest

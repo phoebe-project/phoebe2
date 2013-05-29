@@ -24,12 +24,14 @@ Initialisation
 """
 # First, import necessary modules
 import time
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
 from phoebe import wd
 
 logger = phoebe.get_basic_logger()
+logging.disable('INFO')
 c0 = time.time()
 
 # Parameter preparation
@@ -58,6 +60,7 @@ ps['ipb'] = 0
 ps['incl'] = 85.,'deg'
 ps['n1'] = 60
 ps['n2'] = 60
+ps['nref'] = 0
 ps['pshift'] = 0.
 lc['phnorm'] = 0.0
 lc['jdstrt'] = ps['hjd0']
@@ -74,8 +77,8 @@ star2,lcdep2,rvdep2 = comp2
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
-mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
-mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.2,alg='c')
+mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.07,alg='c')
+mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.07,alg='c')
 
 # Body setup
 # ----------
@@ -96,7 +99,7 @@ mpi = phoebe.ParameterSet(context='mpi',np=4)
 times = curve['indeps']
 
 system = phoebe.BodyBag([star1,star2])
-phoebe.observe(system,times,subdiv_num=3,eclipse_alg='convex',
+phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
                     lc=True,rv=True,mpi=mpi)
 c3 = time.time()         
 
