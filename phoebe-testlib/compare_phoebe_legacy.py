@@ -119,6 +119,8 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     else:
         system[0].params['mesh']['gridsize'] = 20
         system[1].params['mesh']['gridsize'] = 20
+    system[0].params['mesh']['alg'] = 'c'
+    system[1].params['mesh']['alg'] = 'c'
     
     #-- Use Phoebe 2.0 to compute the light curve in the same time range, but we
     #   override the number of time points to use (Phoebe Legacy is way faster

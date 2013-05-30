@@ -5128,7 +5128,7 @@ def serialize(body,description=True,color=True,only_adjust=False,filename=None):
         
     def par_to_str(val,color=True):
         adjust = val.get_adjust()
-        par_repr = val.repr % val.get_value()
+        par_repr = val.to_str()
         N = len(par_repr)
         if adjust is True and color is True:
             par_repr = "\033[32m" + '\033[1m' + par_repr + '\033[m'

@@ -937,7 +937,7 @@ class Parameter(object):
         Get a string representation of only the value.
         """
         if hasattr(self,'repr'):
-            return "{{:{}}}".format(self.repr.replace('%','')).format(self.value)
+            return "{{:{}}}".format(self.repr.replace('%','')).format(self.get_value())
         else:
             return "{:s}".format(self.get_value())
     
@@ -2784,7 +2784,7 @@ class Distribution(object):
         """
         return self.get_distribution(distr_type='cdf',**kwargs)
     
-    def get_limits(self):
+    def get_limits(self,factor=1.0):
         """
         Return the minimum and maximum of a distribution.
         
@@ -2798,12 +2798,20 @@ class Distribution(object):
         if self.distribution=='uniform':
             lower = self.distr_pars['lower']
             upper = self.distr_pars['upper']
+            window = upper - lower
+            mean = (lower + upper) / 2.0
+            lower = mean - factor * window/2.0
+            upper = mean + factor * window/2.0  
         elif self.distribution=='normal':
-            lower = self.distr_pars['mu']-3*self.distr_pars['sigma']
-            upper = self.distr_pars['mu']+3*self.distr_pars['sigma']
+            lower = self.distr_pars['mu']-3*self.distr_pars['sigma']*factor
+            upper = self.distr_pars['mu']+3*self.distr_pars['sigma']*factor
         elif self.distribution=='sample' or self.distribution=='histogram':
             lower = self.distr_pars['bins'].min()
             upper = self.distr_pars['bins'].max()
+            window = upper - lower
+            mean = (lower + upper) / 2.0
+            lower = mean - factor * window/2.0
+            upper = mean + factor * window/2.0 
         else:
             raise NotImplementedError
         return lower,upper

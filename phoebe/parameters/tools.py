@@ -76,6 +76,8 @@ def add_angdiam(star,angdiam=None,derive='distance',unit='mas',**kwargs):
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on angdiam and add the parameter
     star.pop_constraint('angdiam',None)
@@ -143,6 +145,8 @@ def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- default value
     if surfgrav is None:
@@ -212,6 +216,8 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     kwargs.setdefault('ulim',1000.)
     kwargs.setdefault('unit',unit)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     star.pop_constraint('vsini',None)
     star.pop_constraint('rotperiodcrit',None)
@@ -263,6 +269,8 @@ def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
     kwargs.setdefault('llim',1e-8)
     kwargs.setdefault('ulim',0.99)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     star.pop_constraint('rotfreqcrit',None)
     star.pop_constraint('rotperiodcrit',None)
@@ -313,6 +321,8 @@ def add_radius_eq(star,radius_eq=None,derive=None,unit='Rsol',**kwargs):
     kwargs.setdefault('ulim',1000.)
     kwargs.setdefault('unit',unit)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     if not 'radius_eq' in star:
         star.add(parameters.Parameter(qualifier='radius_eq',value=radius_eq,**kwargs))
@@ -351,6 +361,8 @@ def add_teffpolar(star,teffpolar=None,**kwargs):
     kwargs.setdefault('ulim',1e20)
     kwargs.setdefault('unit','K')
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     star.pop_constraint('teffpolar',None)
     
@@ -399,6 +411,8 @@ def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
     kwargs.setdefault('ulim',1e20)
     kwargs.setdefault('unit',unit)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     add_surfgrav(star,0,derive='radius')
     
@@ -433,6 +447,8 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
     kwargs.setdefault('ulim',1e20)
     kwargs.setdefault('unit',unit)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on surfgrav and add the parameter
     star.pop_constraint('Deltanu0',None)
@@ -494,6 +510,8 @@ def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
     kwargs.setdefault('context',orbit.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     if asini is None:
         asini = orbit.request_value('sma','m')*np.sin(orbit.request_value('incl','rad'))
@@ -561,6 +579,8 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     kwargs.setdefault('context',orbit.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on surfgrav and add the parameter
     orbit.pop_constraint('ecosw',None)
@@ -600,6 +620,8 @@ def add_conserve(orbit,conserve='volume',**kwargs):
     kwargs.setdefault('choices',['periastron','sup_conj','inf_conj','asc_node','desc_node','equipot'])
     kwargs.setdefault('context',orbit.context)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',str)
+    kwargs.setdefault('repr','%s')
     
     if not 'conserve' in orbit:
         orbit.add(parameters.Parameter(qualifier='conserve',value=conserve,
@@ -735,6 +757,8 @@ def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
     kwargs.setdefault('context',puls.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on amplvelo and add the parameter
     star.pop_constraint('amplvelo',None)
@@ -775,6 +799,8 @@ def add_parallax(star,parallax=None,unit='mas',**kwargs):
     kwargs.setdefault('context',star.context)
     kwargs.setdefault('adjust',False)
     kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on angdiam and add the parameter
     star.pop_constraint('parallax',None)
