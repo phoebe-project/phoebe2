@@ -327,7 +327,7 @@ Known issues
     $:> sudo ln -s plat-x86_64-linux-gnu/_sysconfigdata_nd.py .
 
 5. If you get a OSError, that seems to traceback to an attributeError, that is
-   raised when trying to install pip, the website if probably down. A little
+   raised when trying to install pip, the website is probably down. A little
    higher up in the traceback you should then find something like::
         
         Reading http://pypi.python.org/simple/pip/
