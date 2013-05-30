@@ -246,6 +246,8 @@ Necessary:
     * Numpy (1.6.2) + Scipy (0.10.1)
     * svn
     * gfortran
+    * liblapack-dev (for scipy, not necessary if scipy is already installed)
+    * libatlas-dev (for scipy, not necessary if scipy is already installed)
 
 Recommended:
 
@@ -309,24 +311,39 @@ you will have to replace ``kurucz`` with the actual filename.
 Known issues
 -------------
 
-1. It is possible that matplotlib fails to install. If so, make sure you have
+If you encounter any issues, have a look at the ``~/.pip/pip.log`` file for detailed
+error messages.
+
+1. It is possible that **scipy** fails to install, and that it complains about
+   not being able to install ``BLAS`` and such. Check if you have installed
+   the following packages::
+       
+       $:> sudo apt-get install liblapack-dev libatlas-dev python-dev gfortran
+
+
+2. It is possible that **matplotlib** fails to install. If so, make sure you have
    the packages ``libpng-devel``, ``libjpeg8-dev``, ``libfreetype6-devand`` installed.
    See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
+
+3. Installing **matplotlib** through ``easy_install`` or ``pip`` can give you
+   trouble with showing the plot window. The only solution is to install it a
+   different way, or live with it. The only restriction is that you will not be
+   able to work interactively then.
    
-2. It is possible that mpi4py fails to install. Go to their website or your
+4. It is possible that **mpi4py** fails to install. Go to their website or your
    package manager and try to install it separately. Try perhaps first to see if
    ``libopenmpi-dev`` is installed.
 
-3. It is possible that mayavi fails to install. Go to their website or your
+5. It is possible that **mayavi** fails to install. Go to their website or your
    package manager and try to install it separately.
 
-4. If you get a OSError, that seems to traceback to a module that cannot be found
+6. If you get a OSError, that seems to traceback to a module that cannot be found
    when running the virtualenv python script, then do:: 
     
     $:> cd /usr/lib/python2.7
     $:> sudo ln -s plat-x86_64-linux-gnu/_sysconfigdata_nd.py .
 
-5. If you get a OSError, that seems to traceback to an attributeError, that is
+7. If you get a OSError, that seems to traceback to an attributeError, that is
    raised when trying to install pip, the website is probably down. A little
    higher up in the traceback you should then find something like::
         
@@ -336,6 +353,9 @@ Known issues
    
    Only solution: try again later! If this happens, the website is usually back
    up again in an hour or so.
+   
+
+   
 
 Coding styles
 -------------
