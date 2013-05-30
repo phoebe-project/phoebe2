@@ -2589,6 +2589,7 @@ class ParameterSet(object):
         mystr += '\n'.join(nestings)
         return mystr
                     
+    next = __next__     # for Python 2 compatibility
         
     #}        
 
