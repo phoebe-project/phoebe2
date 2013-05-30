@@ -9,7 +9,7 @@
 #include "Python.h"
 #include "numpy/arrayobject.h"
 
-#define PI 3.14159265359
+#define PI 3.14159265358979323846
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -185,17 +185,17 @@ int triangle_array_append (TriangleArray *ta, Triangle t)
 //SPHERE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   
 void sphere(double r[3], double *p, double ret[4])
 {
-    ret[0] = 2*r[0];
-    ret[1] = 2*r[1];
-    ret[2] = 2*r[2];
-    ret[3]= r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - p[0]*p[0];
+    ret[0] = r[0]+r[0];
+    ret[1] = r[1]+r[1];
+    ret[2] = r[2]+r[2];
+    ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - p[0]*p[0];
 }
 
 void dsphere(double r[3], double *p, double ret[3])
 {
-    ret[0] = 2*r[0];
-    ret[1] = 2*r[1];
-    ret[2] = 2*r[2];
+    ret[0] = r[0]+r[0];
+    ret[1] = r[1]+r[1];
+    ret[2] = r[2]+r[2];
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -210,18 +210,18 @@ void binary_roche (double r[3], double *p, double ret[4])
     double f = d*d+b+c;
     double g = p[2]*p[2]*(1.0+p[1]);
     double h,i,j;
-    double k = p[0]*p[0];
+    double k = 1.0/(p[0]*p[0]);
     double l = sqrt(e);
     double m = sqrt(f);
-    
+
     i = 1.0/(e*l);
     j = 1.0/(f*m)*p[1];
-    h=i+j;
+    h = i+j;
     
-    ret[0] = -r[0]*(i-g) - d*j - p[1]/k;
+    ret[0] = -r[0]*(i-g) - d*j - k*p[1];
     ret[1] = -r[1]*(h-g);
     ret[2] = -r[2]*h;
-    ret[3] = 1.0/l + p[1]*(1.0/m-r[0]/k) + 0.5*g*(a+b) - p[3];
+    ret[3] = 1.0/l + p[1]*(1.0/m-k*r[0]) + 0.5*g*(a+b) - p[3];
 }
 
 void dbinary_roche (double r[3], double *p, double ret[3])
@@ -239,7 +239,7 @@ void dbinary_roche (double r[3], double *p, double ret[3])
     f = 1.0/(f*sqrt(f))*p[1];
     h=e+f;
     
-    ret[0] = -r[0]*(e-g) - d*f - p[1]/(p[0]*p[0]);
+    ret[0] = -r[0]*(e-g) - d*f - 1.0/(p[0]*p[0])*p[1];
     ret[1] = -r[1]*(h-g);
     ret[2] = -r[2]*h;
 }
@@ -247,107 +247,264 @@ void dbinary_roche (double r[3], double *p, double ret[3])
 
 
 //MISALIGNED BINARY ROCHE+++++++++++++++++++++++++++++++++++++++++++++++
-double misaligned_binary_roche(double r[3], double *p, double ret[3])
+void misaligned_binary_roche(double r[3], double *p, double ret[4])
 {
-    double delta = (1-pow(cos(p[4]),2)*pow(sin(p[3]),2))*r[0]*r[0] +
-            (1-pow(sin(p[4]),2)*pow(sin(p[3]),2))*r[1]*r[1] +
-            pow(sin(p[3]),2)*r[2]*r[2] -
-            pow(sin(p[3]),2)*sin(2*p[4])*r[0]*r[1] -
-            sin(2*p[3])*cos(p[4])*r[0]*r[2] -
-            sin(2*p[3])*sin(p[4])*r[1]*r[2];
+    double delta;
+
+    double a = cos(p[4]);
+    double b = sin(p[3]);
+    double c = a*a;
+    double d = b*b;
     
-    return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + 
-           p[1]*(1.0/sqrt((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2])-r[0]/p[0]/p[0]) + 
-           0.5*p[2]*p[2]*(1+p[1])*delta - p[5];
+    double e = r[0]*r[0];
+    double f = r[1]*r[1];
+    double g = r[2]*r[2];
+    
+    double h = e+f+g;
+    double hsq = sqrt(h);
+    double i = 1.0/(h*hsq);
+    
+    double j = (r[0]-p[0])*(r[0]-p[0])+f+g;
+    double jsq = sqrt(j);
+    double k = 1.0/(j*jsq)*p[1];
+
+    double l = 2.0*(1.0-c*d);
+    double m = d*sin(2*p[4]);
+    double n = sin(2*p[3])*a;
+    
+    double o = 0.5*p[2]*p[2]*(1.0+p[1]);
+    
+    double q = sin(p[4]);
+    double s = q*q;
+    
+    double t = 1.0/(p[0]*p[0]);
+
+    delta = l*r[0] - m*r[1] - n*r[2];
+    ret[0] = -r[0]*i - (r[0]-p[0])*k - t*p[1] + o*delta;
+
+    delta = l*r[1] - m*r[0] - n*r[2];
+    ret[1] = -r[1]*i - r[1]*k + o*delta;
+
+    delta = 2*d*r[2] - a*b*r[0] - sin(2*p[3])*sin(p[4])*r[1];
+    ret[2] = -r[2]*i - r[2]*k + o*delta;
+    
+    delta = (1.0-c*d)*e + (1.0-s*d)*f + d*g - m*r[0]*r[1] - n*r[0]*r[2] - n*r[1]*r[2];
+    ret[3] = 1.0/hsq + p[1]*(1.0/jsq - t*r[0]) + o*delta - p[5];
 }
 
 void dmisaligned_binary_roche(double r[3], double *p, double ret[3])
 {
     double delta;
 
-    delta = 2*(1-pow(cos(p[4]),2)*pow(sin(p[3]),2))*r[0] -
-            pow(sin(p[3]),2)*sin(2*p[4])*r[1] -
-            sin(2*p[3])*cos(p[4])*r[2];
-            
-    ret[0] = -r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-              p[1]*(r[0]-p[0])*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) -
-              p[1]/p[0]/p[0] + 0.5*p[2]*p[2]*(1+p[1])*delta;
+    double a = cos(p[4]);
+    double b = sin(p[3]);
+    double c = a*a;
+    double d = b*b;
+    
+    double e = r[0]*r[0];
+    double f = r[1]*r[1];
+    double g = r[2]*r[2];
+    
+    double h = e+f+g;
+    double i = 1.0/(h*sqrt(h));
+    
+    double j = (r[0]-p[0])*(r[0]-p[0])+f+g;
+    double k = 1.0/(j*sqrt(j))*p[1];
 
+    double l = 2.0*(1.0-c*d);
+    double m = d*sin(2*p[4]);
+    double n = sin(2*p[3])*a;
+    
+    double o = 0.5*p[2]*p[2]*(1.0+p[1]);
 
-    delta = 2*(1-pow(sin(p[4]),2)*pow(sin(p[3]),2))*r[1] -
-            pow(sin(p[3]),2)*sin(2*p[4])*r[0] -
-            sin(2*p[3])*sin(p[4])*r[2];
-            
-    ret[1] = -r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-              p[1]*r[1]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
-              0.5*p[2]*p[2]*(1+p[1])*delta;
+    delta = l*r[0] - m*r[1] - n*r[2];
+    ret[0] = -r[0]*i - (r[0]-p[0])*k - 1.0/(p[0]*p[0])*p[1] + o*delta;
 
-    delta = 2*pow(sin(p[3]),2)*r[2] -
-            sin(2*p[3])*cos(p[4])*r[0] -
-            sin(2*p[3])*sin(p[4])*r[1];
-            
-    ret[2] = -r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) -
-              p[1]*r[2]*pow((r[0]-p[0])*(r[0]-p[0])+r[1]*r[1]+r[2]*r[2],-1.5) + 
-              0.5*p[2]*p[2]*(1+p[1])*delta;
+    delta = l*r[1] - m*r[0] - n*r[2];
+    ret[1] = -r[1]*i - r[1]*k + o*delta;
+
+    delta = 2*d*r[2] - a*b*r[0] - sin(2*p[3])*sin(p[4])*r[1];
+    ret[2] = -r[2]*i - r[2]*k + o*delta;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 //ROTATE ROCHE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-double rotate_roche(double r[3], double *p)
+void rotate_roche(double r[3], double *p, double ret[4])
 {
     double Omega = p[0]*0.54433105395181736;
-    double rp = sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]);
-    return 1.0/p[1] - 1.0/rp -0.5*Omega*Omega*(r[0]*r[0]+r[1]*r[1]);
+    double a = r[0]*r[0]+r[1]*r[1];
+    double b = r[2]*r[2];
+    double c = a+b;
+    double d = sqrt(c);
+    double e = 1.0/(c*d);
+    double f;
+    
+    Omega = Omega*Omega;
+    f = e-Omega;
+    
+    ret[0] = r[0]*f;
+    ret[1] = r[1]*f;
+    ret[2] = r[2]*e;
+    ret[3] = 1.0/p[1] - 1.0/d - 0.5*Omega*a;
 }
 
 void drotate_roche(double r[3], double *p, double ret[3])
 {
     double Omega = p[0]*0.54433105395181736;
-    //~ double a = 1.0/exp(1.5*log(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]));
     double a = r[0]*r[0]+r[1]*r[1]+r[2]*r[2];
+    double b;
+    
     a = 1.0/(a*sqrt(a));
+    Omega = Omega*Omega;
+    b = a-Omega;
 
-    ret[0] = r[0]*a - Omega*Omega*r[0];
-    ret[1] = r[1]*a - Omega*Omega*r[1];
+    ret[0] = r[0]*b;
+    ret[1] = r[1]*b;
     ret[2] = r[2]*a;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-//TORUS+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-double torus(double r[3], double *p)
+//DIFFERENTIALLY ROTATING SINGLE STAR+++++++++++++++++++++++++++++++++++
+void diff_rotate_roche(double r[3], double *p, double ret[4])
 {
-    return p[1]*p[1]-p[0]*p[0]+2*p[0]*sqrt(r[0]*r[0]+r[1]*r[1])-r[0]*r[0]-r[1]*r[1]-r[2]*r[2];
+    double rp = sqrt(r[0]*r[0]+r[1]*r[0]+r[2]*r[0]);
+    double x2y2 = r[0]*r[0] + r[1]*r[0];
+    double fac1 = p[0]*p[0];
+    double fac2 = p[0]*p[1];
+    double fac3 = 1./3.*(2*p[0]*p[2] + p[1]*p[1]);
+    double fac4 = 0.5*p[1]*p[2];
+    double fac5 = 1./5.*p[2]*p[2];
+    
+    ret[0] = r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[0] + fac2*2*x2y2*2*r[0] + fac3*3*x2y2*x2y2*2*r[0] + fac4*4*x2y2*x2y2*x2y2*2*r[0] +fac5*5*2*r[0]);
+    ret[1] = r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[1] + fac2*2*x2y2*2*r[1] + fac3*3*x2y2*x2y2*2*r[1] + fac4*4*x2y2*x2y2*x2y2*2*r[1] +fac5*5*2*r[1]);
+    ret[2] = r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5);
+    ret[3] = 1./p[3] - 1/rp -0.5* (p[0]*p[0] * x2y2+ p[0]*p[1]* x2y2*x2y2 + 1./3.*(2*p[0]*p[1]+p[1]*p[1]) * x2y2*x2y2*x2y2 + 0.5*p[1]*p[2]* x2y2*x2y2*x2y2*x2y2 + 1./5. * p[2]*p[2] * x2y2*x2y2*x2y2*x2y2*x2y2);
+    
+    
+    //~ double a = r[0]*r[0];
+    //~ double b = r[1]*r[1];
+    //~ double c = r[2]*r[2];
+//~ 
+    //~ double d = a+b;
+    //~ double e = d+c;
+    //~ double f = sqrt(e);
+//~ 
+    //~ double g = 1.0/(e*f);
+//~ 
+    //~ double h = p[0]*p[0];
+    //~ double i = p[0]*p[1];
+    //~ double ii = p[1]*p[1];
+    //~ double j = 1.0/3.0*(p[0]*p[2] + ii);
+    //~ double k = 0.5*p[1]*p[2];
+    //~ double l = 0.2*p[2]*p[2];
+    //~ 
+    //~ double m = g - 0.5*(2.0*h + 4.0*i*d + 6.0*j*d*d + 8.0*k*d*d*d* + 10.0*l);
+    //~ 
+    //~ double n = d*d;
+    //~ double o = n*d;
+    //~ double q = o*d;
+    //~ double s = q*d;
+    //~ 
+    //~ ret[0] = m*r[0];
+    //~ ret[1] = m*r[1];
+    //~ ret[2] = g*r[2];
+    //~ ret[3] = 1.0/p[3] - 1.0/f - 0.5*(h*d + i*n + 1.0/3.0*(2.0*i+ii)*o + k*q + l*p[2]*s);
+}
+
+void ddiff_rotate_roche(double r[3], double *p, double ret[3])
+{
+    double x2y2 = r[0]*r[0] + r[1]*r[0];
+    double fac1 = p[0]*p[0];
+    double fac2 = p[0]*p[1];
+    double fac3 = 1./3.*(2*p[0]*p[2] + p[1]*p[1]);
+    double fac4 = 0.5*p[1]*p[2];
+    double fac5 = 1./5.*p[2]*p[2];
+    
+    ret[0] = r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[0] + fac2*2*x2y2*2*r[0] + fac3*3*x2y2*x2y2*2*r[0] + fac4*4*x2y2*x2y2*x2y2*2*r[0] +fac5*5*2*r[0]);
+    ret[1] = r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[1] + fac2*2*x2y2*2*r[1] + fac3*3*x2y2*x2y2*2*r[1] + fac4*4*x2y2*x2y2*x2y2*2*r[1] +fac5*5*2*r[1]);
+    ret[2] = r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5);
+    
+    
+    //~ double a = r[0]*r[0];
+    //~ double b = r[1]*r[1];
+    //~ double c = r[2]*r[2];
+//~ 
+    //~ double d = a+b;
+    //~ double e = d+c;
+    //~ double f = sqrt(e);
+//~ 
+    //~ double g = 1.0/(e*f);
+//~ 
+    //~ double h = p[0]*p[0];
+    //~ double i = p[0]*p[1];
+    //~ double j = 1.0/30.*(2.0*p[0]*p[2] + p[1]*p[1]);
+    //~ double k = 0.5*p[1]*p[2];
+    //~ double l = 0.2*p[2]*p[2];
+    //~ 
+    //~ double m = g - 0.5*(2.0*h + 4.0*i*d + 6.0*j*d*d + 8.0*k*d*d*d* + 10.0*l);
+    //~ 
+    //~ ret[0] = m*r[0];
+    //~ ret[1] = m*r[1];
+    //~ ret[2] = g*r[2];
+}
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+//TORUS+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void torus(double r[3], double *p, double ret[4])
+{
+    double a = r[0]*r[0];
+    double b = r[1]*r[1];
+    double c = sqrt(a+b);
+    double d = 1.0/c;
+    
+    ret[0] = 2.0*(p[0]*r[0]*d-r[0]);
+    ret[1] = 2.0*(p[0]*r[1]*d-r[1]);
+    ret[2] =-2.0*r[2];
+    
+    ret[3] = p[1]*p[1] - p[0]*p[0] + 2.0*p[0]*c - a - b - r[2]*r[2];
 }
 
 void dtorus(double r[3], double *p, double ret[3])
 {
     double a = 1.0/sqrt(r[0]*r[0]+r[1]*r[1]);
     
-    ret[0] = 2*p[0]*r[0]*a-2*r[0];
-    ret[1] = 2*p[0]*r[1]*a-2*r[1];
-    ret[2] =-2*r[2];
+    ret[0] = 2.0*(p[0]*r[0]*a-r[0]);
+    ret[1] = 2.0*(p[0]*r[1]*a-r[1]);
+    ret[2] =-2.0*r[2];
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 //HEART+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-double heart(double r[3], double *p)
-{
-    return (pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,3.0) - 
+void heart(double r[3], double *p, double ret[4])
+{    
+    ret[0] = (3 * pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[0] - 
+            2*r[0]*r[2]*r[2]*r[2]);
+
+    ret[1] = (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*9./2.*r[1] -
+            9./40.*r[1]*r[2]*r[2]*r[2]);
+
+    ret[2] = (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[2] - 
+            3*r[0]*r[0]*r[2]*r[2] - 27./80.*r[1]*r[1]*r[2]*r[2]);
+    
+    ret[3] = (pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,3.0) - 
             r[0]*r[0]*r[2]*r[2]*r[2] - 
             9./80*r[1]*r[1]*r[2]*r[2]*r[2]);
 }
 
 void dheart(double r[3], double *p, double ret[3])
 {
-    double a = r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1;
-    a = a*a;
-    
-    ret[0] = (a*2*r[0] - 2*r[0]*r[2]*r[2]*r[2]);
-    ret[1] = (a*9./2.*r[1] - 9./40.*r[1]*r[2]*r[2]*r[2]);
-    ret[2] = (a*2*r[2] - 3*r[0]*r[0]*r[2]*r[2] - 27./80.*r[1]*r[1]*r[2]*r[2]);
+    ret[0] = (3 * pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[0] - 
+            2*r[0]*r[2]*r[2]*r[2]);
+
+    ret[1] = (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*9./2.*r[1] -
+            9./40.*r[1]*r[2]*r[2]*r[2]);
+
+    ret[2] = (3*pow(r[0]*r[0] + 9./4.*r[1]*r[1] + r[2]*r[2] - 1,2.0)*2*r[2] - 
+            3*r[0]*r[0]*r[2]*r[2] - 27./80.*r[1]*r[1]*r[2]*r[2]);
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -379,29 +536,35 @@ PotentialParameters *initialize_pars(char *potential, double *args)
         return pp;
     }
     
-    //~ else if (!strcmp(potential,"MisalignedBinaryRoche")){
-        //~ pp->pot = misaligned_binary_roche;
-        //~ pp->der = dmisaligned_binary_roche;
-        //~ return pp;
-    //~ }
-    //~ 
-    //~ else if (!strcmp(potential,"RotateRoche")){
-        //~ pp->pot = rotate_roche;
-        //~ pp->der = drotate_roche;
-        //~ return pp;
-    //~ }
-    //~ 
-    //~ else if (!strcmp(potential,"Torus")){
-        //~ pp->pot = torus;
-        //~ pp->der = dtorus;
-        //~ return pp;
-    //~ }
-    //~ 
-    //~ else if (!strcmp(potential,"Heart")){
-        //~ pp->pot = heart;
-        //~ pp->der = dheart;
-        //~ return pp;
-    //~ }
+    else if (!strcmp(potential,"MisalignedBinaryRoche")){
+        pp->pot = misaligned_binary_roche;
+        pp->der = dmisaligned_binary_roche;
+        return pp;
+    }
+    
+    else if (!strcmp(potential,"RotateRoche")){
+        pp->pot = rotate_roche;
+        pp->der = drotate_roche;
+        return pp;
+    }
+    
+    else if (!strcmp(potential,"DiffRotateRoche")){
+        pp->pot = diff_rotate_roche;
+        pp->der = ddiff_rotate_roche;
+        return pp;
+    }
+    
+    else if (!strcmp(potential,"Torus")){
+        pp->pot = torus;
+        pp->der = dtorus;
+        return pp;
+    }
+    
+    else if (!strcmp(potential,"Heart")){
+        pp->pot = heart;
+        pp->der = dheart;
+        return pp;
+    }
         
     return pp;
 }
@@ -504,22 +667,18 @@ MeshVertex project_onto_potential(double r[3], PotentialParameters *pp, int inv)
     int n_iter = 0;
     double g[4];
     double grsq;
-    double s;
-    
+
     while (((r[0]-ri[0])*(r[0]-ri[0]) + (r[1]-ri[1])*(r[1]-ri[1]) + (r[2]-ri[2])*(r[2]-ri[2])) > 1e-12 && n_iter<100){
         ri[0] = r[0];
         ri[1] = r[1];
         ri[2] = r[2];
         
         pp->pot(ri,pp->p,g);
+        grsq = 1.0/(g[0]*g[0] + g[1]*g[1] + g[2]*g[2])*g[3];
         
-        grsq = g[0]*g[0] + g[1]*g[1] + g[2]*g[2];
-        
-        s = g[3];
-        
-        r[0] = ri[0]-s*g[0]/grsq;
-        r[1] = ri[1]-s*g[1]/grsq;
-        r[2] = ri[2]-s*g[2]/grsq;
+        r[0] -= grsq*g[0];
+        r[1] -= grsq*g[1];
+        r[2] -= grsq*g[2];
         
         n_iter++;
     }  
@@ -880,6 +1039,12 @@ static PyObject *discretize(PyObject *self, PyObject *args)
     }
     else if (!strcmp(potential,"RotateRoche")) {
         if (npars!=5){
+            PyErr_SetString(PyExc_ValueError, "Wrong number of parameters for this type of potential.");
+            return NULL;
+        }
+    }
+    else if (!strcmp(potential,"DiffRotateRoche")) {
+        if (npars!=7){
             PyErr_SetString(PyExc_ValueError, "Wrong number of parameters for this type of potential.");
             return NULL;
         }
