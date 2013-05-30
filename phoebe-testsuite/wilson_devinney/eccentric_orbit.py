@@ -93,7 +93,7 @@ curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
 image,params = wd.lc(ps,request='image',light_curve=lc,rv_curve=rv)
 c2 = time.time()
 
-mpi = phoebe.ParameterSet(context='mpi',np=4)
+mpi = None#phoebe.ParameterSet(context='mpi',np=4)
 
 # Compute pyphoebe light curve
 times = curve['indeps']
