@@ -24,11 +24,6 @@ The top level function you should use is L{run}.
    run_grid
    run_minuit
    
-**Wilson Devinney**
-
-.. autosummary::
-   
-   run_wd_emcee
    
 Section 2. Details
 ==================
@@ -630,24 +625,13 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                 name = '{}_{}'.format(qual,myid).replace('-','_')
                 prior = parameter.get_prior()
                 if fitparams['bounded']:
-                    minimum,maximum = prior.get_limits()
-                    minimum = minimum * fitparams['bounded']
-                    maximum = maximum * fitparams['bounded']
+                    minimum,maximum = prior.get_limits(factor=fitparams['bounded'])
                 else:
                     minimum,maximum = None,None
                 pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
                 #-- and add the id
                 ids.append(myid)
                 ppars.append(parameter)
-    #-- derive which algorithm to use for fitting. If all the contexts are the
-    #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
-    #algorithm = set(frames)
-    #if len(algorithm)>1:
-        #raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
-    #else:
-        #algorithm = list(algorithm)[0]
-        #logger.info('Choosing back-end {}'.format(algorithm))
-    
     traces = []
     redchis = []
     Nmodel = dict()
@@ -829,7 +813,7 @@ def run_minuit(system,params=None,mpi=None,fitparams=None):
                     #-- this is MINUIT's default, we'll set it otherwise we get a warning
                     pars['error_{}'.format(id_for_minuit)] = 1.
                 if fitparams['bounded']:
-                    lower,upper = this_param.get_prior().get_limits()
+                    lower,upper = this_param.get_prior().get_limits(factor=fitparams['bounded'])
                     pars['limit_{}'.format(id_for_minuit)] = (lower,upper)
                 had.append(myid)
                 ppars.append(this_param)
