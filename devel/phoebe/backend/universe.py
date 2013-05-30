@@ -139,7 +139,10 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import utils
-from phoebe.utils import cgeometry
+try:
+    from phoebe.utils import cgeometry
+except ImportError:
+    pass
 from phoebe.algorithms import marching
 from phoebe.algorithms import subdivision
 from phoebe.algorithms import eclipse
@@ -168,14 +171,14 @@ logger.addHandler(logging.NullHandler())
 
 
 #{ Functions of general interest    
-def get_binary_orbit(self,time):
+def get_binary_orbit(self, time):
     #-- get some information
     P = self.params['orbit'].get_value('period','d')
     e = self.params['orbit'].get_value('ecc')
     a = self.params['orbit'].get_value('sma','m')
     q = self.params['orbit'].get_value('q')
-    a1 = a/(1+1.0/q)
-    a2 = a-a1
+    a1 = a / (1 + 1.0/q)
+    a2 = a - a1
     #a1 = self.params['orbit'].get_constraint('sma1','m')
     #a2 = self.params['orbit'].get_constraint('sma2','m')
     inclin = self.params['orbit'].get_value('incl','rad')
@@ -190,18 +193,18 @@ def get_binary_orbit(self,time):
     #a_comp = [a1,a2][n_comp]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units
-    loc1,velo1,euler1 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a1,
-                           T0*24*3600,per0=argper,long_an=long_an,
-                           incl=inclin,component='primary')
-    loc2,velo2,euler2 = keplerorbit.get_orbit(time*24*3600,P*24*3600,e,a2,
-                           T0*24*3600,per0=argper,long_an=long_an,
-                           incl=inclin,component='secondary')
-    loc1 = np.array(loc1)/a
-    loc2 = np.array(loc2)/a
+    loc1, velo1, euler1 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a1,
+                                      T0*24*3600, per0=argper, long_an=long_an,
+                                      incl=inclin, component='primary')
+    loc2, velo2, euler2 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a2,
+                                      T0*24*3600, per0=argper, long_an=long_an,
+                                      incl=inclin, component='secondary')
+    loc1 = np.array(loc1) / a
+    loc2 = np.array(loc2) / a
     d = sqrt( (loc1[0]-loc2[0])**2 + \
               (loc1[1]-loc2[1])**2 + \
               (loc1[2]-loc2[2])**2)
-    return list(loc1)+list(velo1),list(loc2)+list(velo1),d
+    return list(loc1) + list(velo1), list(loc2) + list(velo1), d
     
 def luminosity(body):
     r"""
@@ -237,14 +240,14 @@ def luminosity(body):
         body.intensity(ref='__bol')
     mesh = body.mesh
     sizes = mesh['size']*(100*constants.Rsol)**2
-    def _tief(gamma,ld_law,coeffs):
+    def _tief(gamma, ld_law,coeffs):
         """Small helper function to compute total intrinsic emergent flux"""
-        Imu = coeffs[-1]*getattr(limbdark,'ld_'+ld_law)(cos(gamma),coeffs)
+        Imu = coeffs[-1] * getattr(limbdark, 'ld_'+ld_law)(cos(gamma), coeffs)
          # sin(gamma) is for solid angle integration
-        return Imu*cos(gamma)*sin(gamma)
-    emer_Ibolmu = 2*pi*np.array([quad(_tief,0,pi/2,args=(ld_law,ld[i]))[0] \
+        return Imu * cos(gamma) * sin(gamma)
+    emer_Ibolmu = 2*pi*np.array([quad(_tief, 0, pi/2, args=(ld_law, ld[i]))[0] \
                                                      for i in range(len(mesh))])
-    return (emer_Ibolmu*sizes).sum()
+    return (emer_Ibolmu * sizes).sum()
     
 def load(filename):
     """
@@ -270,7 +273,7 @@ def keep_only_results(system):
     """
     if hasattr(system,'params'):
         for key in system.params:
-            if not key=='syn':
+            if not key == 'syn':
                 trash = system.params.pop(key)
                 del trash
     if hasattr(system,'bodies'):
@@ -305,7 +308,7 @@ def merge_results(list_of_bodies):
         for ps in iteration[1:]:
             # Skip stuff that is not a result, but this should already be
             # the case
-            if ps.context[-3:]=='syn':
+            if ps.context[-3:] == 'syn':
                 # We want to merge all lists in the parametersets that are
                 # in the 'columns' parameter.
                 for key in ps:
@@ -336,19 +339,19 @@ def init_mesh(self):
     ld_law = 5
     ldbol_law = 5
     if not 'logg' in self.mesh.dtype.names:
-        lds = [('ld___bol','f8',(5,)),('proj___bol','f8')]
+        lds = [('ld___bol', 'f8', (5,)), ('proj___bol', 'f8')]
         for pbdeptype in self.params['pbdep']:
             for iobs in self.params['pbdep'][pbdeptype]:
                 iobs = self.params['pbdep'][pbdeptype][iobs]
-                lds.append(('ld_{0}'.format(iobs['ref']),'f8',(5,)))
-                lds.append(('proj_{0}'.format(iobs['ref']),'f8'))
-                lds.append(('velo_{0}_'.format(iobs['ref']),'f8',(3,)))
-                lds.append(('_o_velo_{0}_'.format(iobs['ref']),'f8',(3,)))
+                lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (5,)))
+                lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
+                lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
+                lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
         dtypes = np.dtype(self.mesh.dtype.descr + \
-                 [('logg','f8'),('teff','f8'),('abun','f8')] + lds)
+                 [('logg','f8'), ('teff','f8'), ('abun','f8')] + lds)
     else:
         dtypes = self.mesh.dtype
-    self.mesh = np.zeros(N,dtype=dtypes)
+    self.mesh = np.zeros(N, dtype=dtypes)
 
 
 
@@ -374,7 +377,7 @@ def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
         pblum,l3 = nnls(A,obs.ravel())[0]
     return pblum,l3
                     
-def _parse_pbdeps(body,pbdep):
+def _parse_pbdeps(body, pbdep):
     """
     Attach dependables to a body.
     
@@ -425,7 +428,7 @@ def _parse_pbdeps(body,pbdep):
         raise ValueError(('You need to give at least one ParameterSet'
                           'representing dependables'))
     #-- pbdep need to be a list or a tuple. If not, make it one
-    elif not isinstance(pbdep,list) and not isinstance(pbdep,tuple):
+    elif not isinstance(pbdep, list) and not isinstance(pbdep, tuple):
         pbdep = [pbdep]
     #-- if 'pbdep' is not in the 'params' dictionary, make an empty one
     if not 'pbdep' in body.params:
@@ -443,8 +446,8 @@ def _parse_pbdeps(body,pbdep):
     parsed_refs = []
     for parset in pbdep:
         context = parset.context
-        data_context = context[:-3]+'obs'
-        res_context = context[:-3]+'syn'
+        data_context = context[:-3] + 'obs'
+        res_context = context[:-3] + 'syn'
         if not context in body.params['pbdep']:
             body.params['pbdep'][context] = OrderedDict()
         if not data_context in body.params['obs']:
@@ -462,15 +465,15 @@ def _parse_pbdeps(body,pbdep):
         #   parser
         if not ref in body.params['syn'][res_context]:
             body.params['syn'][res_context][ref] = \
-                               result_sets[context](context=res_context,ref=ref)
+                              result_sets[context](context=res_context, ref=ref)
             logger.debug(('Prepared results ParameterSet for context '
-                         '{} (ref={})'.format(res_context,ref)))
+                         '{} (ref={})'.format(res_context, ref)))
         
         parsed_refs.append(ref)
     #-- that's it
     return parsed_refs
     
-def _parse_obs(body,data):
+def _parse_obs(body, data):
     """
     Attach obs to a body.
     
@@ -503,7 +506,7 @@ def _parse_obs(body,data):
     for parset in data:
         context = parset.context.rstrip('obs')
         data_context = parset.context
-        res_context = context+'syn'
+        res_context = context + 'syn'
         if not data_context in body.params['obs']:
             body.params['obs'][data_context] = OrderedDict()
         if not res_context in body.params['syn']:
@@ -520,9 +523,9 @@ def _parse_obs(body,data):
         #   parser
         if not ref in body.params['syn'][res_context]:
             body.params['syn'][res_context][ref] = \
-                          result_sets[data_context](context=res_context,ref=ref)
+                         result_sets[data_context](context=res_context, ref=ref)
             logger.debug(('Prepared results ParameterSet for context '
-                          '{} (ref={})'.format(res_context,ref)))
+                          '{} (ref={})'.format(res_context, ref)))
        
         body.params['obs'][data_context][ref] = parset
         parsed_refs.append(ref)
@@ -537,7 +540,7 @@ class CallInstruct:
     
     This is really cool!
     """
-    def __init__(self,function_name,bodies):
+    def __init__(self, function_name, bodies):
         """
         Remember the bodies and the name of the function to call.
         
@@ -549,14 +552,14 @@ class CallInstruct:
         self.function_name = function_name
         self.bodies = bodies
     
-    def __call__(self,*args,**kwargs):
+    def __call__(self, *args, **kwargs):
         """
         Now try to call the functions on the bodies.
         
         C{args} and C{kwargs} are anything C{self.function_name} accepts.
         """
-        return [getattr(body,self.function_name)(*args,**kwargs) \
-                    if hasattr(body,self.function_name) \
+        return [getattr(body, self.function_name)(*args, **kwargs) \
+                    if hasattr(body, self.function_name) \
                     else None \
                     for body in self.bodies]    
                     
@@ -636,9 +639,9 @@ class Body(object):
     
     ]include figure]]images/universe_body_0004.png]
     """
-    def __init__(self,data=None,dim=3,orientation=None,
+    def __init__(self, data=None, dim=3, orientation=None,
                  eclipse_detection='hierarchical',
-                 compute_centers=False,compute_normals=False,
+                 compute_centers=False, compute_normals=False,
                  compute_sizes=False):
         """
         Initialize a Body.
@@ -662,15 +665,16 @@ class Body(object):
         else:
             N = len(data)
         ft = 'f8' # float type
-        mesh = np.zeros(N,dtype=[('_o_center',ft,(dim,)),('_o_size',ft),
-                                 ('_o_triangle',ft,(3*dim,)),
-                                 ('_o_normal_',ft,(dim,)),
-                                 ('center',ft,(dim,)),('size',ft),
-                                 ('triangle',ft,(3*dim,)),('normal_',ft,(dim,)),
-                                 ('_o_velo___bol_',ft,(dim,)),
-                                 ('velo___bol_',ft,(dim,)),('mu',ft),
-                                 ('partial',bool),('hidden',bool),
-                                 ('visible',bool)])
+        mesh = np.zeros(N, dtype=[('_o_center', ft, (dim, )), ('_o_size', ft),
+                                  ('_o_triangle', ft, (3*dim, )),
+                                  ('_o_normal_', ft,(dim, )),
+                                  ('center', ft, (dim, )), ('size', ft),
+                                  ('triangle', ft, (3*dim, )),
+                                  ('normal_', ft, (dim, )),
+                                  ('_o_velo___bol_', ft, (dim, )),
+                                  ('velo___bol_', ft, (dim, )), ('mu', ft),
+                                  ('partial', bool), ('hidden',bool),
+                                  ('visible', bool)])
         if data is not None: # assume we got a record array:
             #-- only copy basic fields
             init_fields = set(mesh.dtype.names)
@@ -695,17 +699,20 @@ class Body(object):
         if data is None or not 'visible' in fields_given:
             self.mesh['visible'] = True
         #-- compute extra information upon request
-        if compute_centers: self.compute_centers()
-        if compute_normals: self.compute_normals()
-        if compute_sizes:   self.compute_sizes()
+        if compute_centers:
+            self.compute_centers()
+        if compute_normals:
+            self.compute_normals()
+        if compute_sizes:
+            self.compute_sizes()
         
         #-- keep track of the current orientation, the original (unsubdivided)
         #   mesh and all the parameters of the object.
-        self.orientation = dict(theta=0,incl=0,Omega=0,pivot=(0,0,0),
-                           los=[0,0,+1],conv='YXZ',vector=[0,0,0])
-        self.subdivision = dict(orig=None,mesh_args=None,N=None)
+        self.orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
+                           los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
+        self.subdivision = dict(orig=None, mesh_args=None, N=None)
         self.params = OrderedDict()
-        self._plot = {'plot3D':dict(rv=(-150,150))}
+        self._plot = {'plot3D':dict(rv=(-150, 150))}
         #-- the following list of functions will be executed before and
         #   after a call to set_time
         self._preprocessing = []
@@ -3625,7 +3632,7 @@ class Star(PhysicalBody):
         """
         Set the abundance.
         """
-        self.mesh['abun'] = self.params.values()[0]['abun']
+        self.mesh['abun'] = list(self.params.values())[0]['abun']
     
     
     def magnetic_field(self):

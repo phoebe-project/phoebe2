@@ -80,7 +80,7 @@ def temperature_zeipel(system):
     """
     #-- necessary global information: this should be the first parameterSet
     #   in a Ordered dictionary
-    body = system.params.values()[0]
+    body = list(system.params.values())[0]
     if body.has_qualifier('teffpolar'):
         Teff = body.request_value('teffpolar','K')
         type = 'polar'

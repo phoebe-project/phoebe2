@@ -2380,7 +2380,7 @@ class ParameterSet(object):
         """
         return self
     
-    def next(self):
+    def __next__(self):
         """
         Return the next parameter qualifier in the class when iterating.
         """
@@ -2391,7 +2391,7 @@ class ParameterSet(object):
             self.index += 1
             #return self.container[self.container.keys()[self.index-1]]
             return list(self.container.keys())[self.index-1]
-    
+        
     def __contains__(self,qualifier):
         """
         Check if a parameter is in the class instance.
