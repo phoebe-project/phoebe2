@@ -287,8 +287,8 @@ Nice to have:
 
 .. _label-additional_files:
 
-Additional files
-----------------
+Atmosphere tables
+-------------------
 
 If you want to use non-blackbody atmospheres, you will have to create your
 own limbdarkening tables, or use one of those provided below. Important note:
