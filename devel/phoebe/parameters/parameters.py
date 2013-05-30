@@ -2598,9 +2598,26 @@ class Distribution(object):
     """
     Class representing a distribution.
     
+    .. autosummary::
+    
+        cdf
+        pdf
+        get_distribution
+        get_limits
+        shrink
+        expand
+        draw
+        
+        update_distribution_parameters
+        convert
+        transform_to_unbounded
+        
+        
+        
+    
     Attempts at providing a uniform interface to different codes or routines.
     
-    Recognised distributions:
+    **Recognised distributions**:
     
     >>> d = Distribution('normal',mu=0,sigma=1)
     >>> d = Distribution('uniform',lower=0,upper=1)
@@ -2618,12 +2635,18 @@ class Distribution(object):
     bins here, then internally that parameter will be converted to ``bins``. 
     
     """
-    def __init__(self,distribution,**distribution_parameters):
+    def __init__(self,distribution, **distribution_parameters):
+        """
+        Initialize a distribution.
+        
+        @param distribution: type of the distribution
+        @type distribution: str
+        """
         self.distribution = distribution.lower()
         self.distr_pars = distribution_parameters
         
         #-- discrete can be equivalent to histogram
-        if distribution=='discrete':
+        if distribution == 'discrete':
             distribution = 'histogram'
             distribution_parameters['discrete'] = True
             distribution_parameters['prob'] = np.ones(len(distribution_parameters['values']))
@@ -2633,23 +2656,23 @@ class Distribution(object):
         #-- check contents:
         given_keys = set(list(distribution_parameters.keys()))
         
-        if   distribution=='histogram':
-            required_keys = set(['bins','prob','discrete'])
-        elif distribution=='uniform':
-            required_keys = set(['lower','upper'])
-        elif distribution=='normal':
-            required_keys = set(['mu','sigma'])
-        elif distribution=='sample':
-            required_keys = set(['sample','discrete'])
+        if   distribution == 'histogram':
+            required_keys = set(['bins', 'prob', 'discrete'])
+        elif distribution == 'uniform':
+            required_keys = set(['lower', 'upper'])
+        elif distribution == 'normal':
+            required_keys = set(['mu', 'sigma'])
+        elif distribution == 'sample':
+            required_keys = set(['sample', 'discrete'])
         
         if (given_keys - required_keys) or (required_keys - given_keys):
-            raise ValueError('Distribution {} needs keys {}'.format(distribution,", ".join(list(required_keys))))
+            raise ValueError('Distribution {} needs keys {}'.format(distribution, ", ".join(list(required_keys))))
         
         #-- make sure the histogram is properly normalised
         if distribution=='histogram':
             self.distr_pars['prob'] = self.distr_pars['prob']/float(np.sum(self.distr_pars['prob']))
     
-    def update_distribution_parameters(self,**distribution_parameters):
+    def update_distribution_parameters(self, **distribution_parameters):
         """
         Update the distribution parameters.
         
@@ -2658,19 +2681,30 @@ class Distribution(object):
         """
         for key in distribution_parameters:
             if not key in self.distr_pars:
-                raise ValueError('Distribution {} does not accept key {}'.format(self.distribution,key))
-            elif self.distribution=='sample' and key=='sample':
-                self.distr_pars[key] = np.hstack([self.distr_pars[key],distribution_parameters[key]])
+                raise ValueError('Distribution {} does not accept key {}'.format(self.distribution, key))
+            elif self.distribution == 'sample' and key == 'sample':
+                self.distr_pars[key] = np.hstack([self.distr_pars[key], distribution_parameters[key]])
             else:
                 self.distr_pars[key] = distribution_parameters[key]
                 
     
-    def get_distribution(self,distr_type=None,**kwargs):
+    def get_distribution(self, distr_type=None, **kwargs):
         """
         Return the distribution in a specific form.
         
-        When distr_type=='pymc', you need to supply the keyword C{name} in the
-        kwargs.
+        When ``distr_type='pymc'``, you need to supply the keyword C{name} in
+        the kwargs.
+        
+        Possibilities:
+        
+            - ``distr_type=None``: returns the name and a dictionary with the
+              distribution parameters.
+            - ``distr_type='pymc'``: return the distribution as a pymc parameter.
+            - ``pdf``: probability density function (x and y between limits)
+            - ``cdf``: cumulative density function (x and y between limits)
+        
+        @param distr_type: format of the distribution
+        @type distr_type: None or str
         """
         #-- plain
         if distr_type is None:
@@ -2691,7 +2725,7 @@ class Distribution(object):
                 return x,getattr(distributions.norm(loc=self.distr_pars['mu'],scale=self.distr_pars['sigma']),distr_type)(x)
             elif self.distribution=='uniform':
                 x = kwargs.get('x',np.linspace(L,U,1000))
-                return x,getattr(distributions.uniform(loc=self.distr_pars['lower'],scale=self.distr_pars['upper']),distr_type)(x)
+                return x,getattr(distributions.uniform(loc=L,scale=U),distr_type)(x)
             elif self.distribution=='histogram':
                 bins = self.distr_pars['bins']
                 bins = bins[:-1] + np.diff(bins)
@@ -2751,6 +2785,16 @@ class Distribution(object):
         return self.get_distribution(distr_type='cdf',**kwargs)
     
     def get_limits(self):
+        """
+        Return the minimum and maximum of a distribution.
+        
+        These are the possibilities:
+        
+            - **uniform**: lower and upper values
+            - **normal**: mean +/- 3 x sigma
+            - **sample** or **histogram**: min and max values.
+            
+        """
         if self.distribution=='uniform':
             lower = self.distr_pars['lower']
             upper = self.distr_pars['upper']
@@ -2811,6 +2855,42 @@ class Distribution(object):
             raise NotImplementedError
             
         return values
+    
+    def shrink(self, factor=10.0):
+        """
+        Shrink the extent of a distribution.
+        
+        @param factor: factor with which to shrink the distribution
+        @type factor: float
+        """
+        if self.distribution == 'uniform':
+            lower, upper = self.distr_pars['lower'], self.distr_pars['upper']
+            mean = (lower + upper) /2.0
+            width = upper - lower
+            self.distr_pars['lower'] = mean - width/2.0/factor
+            self.distr_pars['upper'] = mean + width/2.0/factor
+        elif self.distribution == 'normal':
+            self.distr_pars['sigma'] = self.distr_pars['sigma'] / factor
+        else:
+            raise NotImplementedError
+    
+    def expand(self, factor=10.0):
+        """
+        Expand the extent of a distribution.
+        
+        @param factor: factor with which to expand the distribution
+        @type factor: float
+        """
+        if self.distribution == 'uniform':
+            lower, upper = self.distr_pars['lower'], self.distr_pars['upper']
+            mean = (lower + upper) /2.0
+            width = upper - lower
+            self.distr_pars['lower'] = mean - width/2.0*factor
+            self.distr_pars['upper'] = mean + width/2.0*factor
+        elif self.distribution == 'normal':
+            self.distr_pars['sigma'] = self.distr_pars['sigma'] * factor
+        else:
+            raise NotImplementedError
     
     def transform_to_unbounded(self,low,high):
         """

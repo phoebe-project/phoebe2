@@ -92,7 +92,7 @@ new_package = False
 nr = 0
 last_char_was_dot = False
 with open('install.log','w') as log:
-    for thing_to_do in things_to_do:
+    for nr_thing,thing_to_do in enumerate(things_to_do):
         cmd = ' '.join([activate]+['&&']+thing_to_do)
         #-- do the things we need to do
         p1 = subprocess.Popen(cmd,stdout=subprocess.PIPE,shell=True)
@@ -138,8 +138,11 @@ with open('install.log','w') as log:
         p1.wait()
         #-- check if completion succeeds
         if p1.returncode!=0:
-            print("\nError during execution of '{}'".format(thing_to_do))
-            raise SystemExit
+            if nr_thing<2:
+                print("\nCritical error during execution of '{}'. Have a look in ~/.pip/pip.log for the complete log and detailed error messages.".format(" ".join(thing_to_do)))
+                raise SystemExit
+            else:
+                print("\nError during execution of '{}', but no worries. Have a look in ~/.pip/pip.log for the complete log and detailed error messages.".format(" ".join(thing_to_do)))
         #-- clean up output
         if last_char_was_dot:
             print('')

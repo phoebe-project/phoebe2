@@ -371,7 +371,15 @@ defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d
 defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d',cast_type=int,value=1000,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='burn',     description='Burn-in parameter',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='walkers',  description='Number of walkers',repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
+         dict(qualifier='walkers',  description='Number of walkers',
+                                    long_description=("Walkers are the members of the ensemble. They are "
+                                                      "almost like separate Metropolis-Hastings chains but "
+                                                      "the proposal distribution for a given walker depends "
+                                                      "on the positions of all the other walkers in the "
+                                                      "ensemble. See Goodman & Weare (2010) for more details. "
+                                                      "The best technique seems to be to start in a small ball "
+                                                      "around the a priori preferred position. Don't worry, "
+                                                      "the walkers quickly branch out and explore the rest of the space."),repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='threads',  description='Number of threads',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:emcee'),
@@ -379,10 +387,41 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='iters',     description='Number of iterations',long_description='If the iters=0, then the starting point of the fit will be the given values of the parameters in the system. If iters=n, then n number of iterations will be done where each time, the starting points of the parameters will be randomly drawn from the priors.',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='bounded',   description='Include boundaries in fit',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='bounded',   description='Include boundaries in fit',
+                                     long_description=('This float allows you to constrain the fit '
+                                                       'parameters to a certain interval. The interval '
+                                                       'is given by the "get_limits" method of the '
+                                                       'Distribution class (i.e. the prior). Setting this '
+                                                       'parameter to 3.5 will expand the prior range 3.5 times. '
+                                                       'The MINPACK-1 implementation '
+                                                       'used in scipy.optimize.leastsq for the Levenberg-Marquardt '
+                                                       'algorithm does not explicitly support bounds on parameters, '
+                                                       'and expects to be able to fully explore the available range '
+                                                       'of values for any Parameter. Simply placing hard constraints '
+                                                       '(that is, resetting the value when it exceeds the desired '
+                                                       'bounds) prevents the algorithm from determining the partial '
+                                                       'derivatives, and leads to unstable results. '
+                                                       'Instead of placing such hard constraints, bounded parameters '
+                                                       'are mathematically transformed using the formulation devised '
+                                                       '(and documented) for MINUIT. This is implemented following '
+                                                       '(and borrowing heavily from) the leastsqbound from J. J. '
+                                                       'Helmus. Parameter values are mapped from internally used, '
+                                                       'freely variable values P_internal to bounded parameters '
+                                                       'P_bounded. Tests show that uncertainties estimated for '
+                                                       'bounded parameters are quite reasonable. Of course, if '
+                                                       'the best fit value is very close to a boundary, the '
+                                                       'derivative estimated uncertainty and correlations for that '
+                                                       'parameter may not be reliable. The MINUIT documentation '
+                                                       'recommends caution in using bounds. Setting bounds can certainly '
+                                                       'increase the number of function evaluations (and so '
+                                                       'computation time), and in some cases may cause some '
+                                                       'instabilities, as the range of acceptable parameter values '
+                                                       'is not fully explored. On the other hand, prelminary tests '
+                                                       'suggest that using max and min to set clearly outlandish '
+                                                       'bounds does not greatly affect performance or results.'),repr='',cast_type=float,value=True,frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
         ]
 

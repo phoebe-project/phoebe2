@@ -384,9 +384,9 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
     frames = []
-    for parset in walk:
+    for parset in system.walk():
         frames.append(parset.frame)
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
@@ -411,22 +411,22 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
         fitparams['walkers'] = nwalkers
     #-- derive which algorithm to use for fitting. If all the contexts are the
     #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
-    algorithm = set(frames)
-    if len(algorithm)>1:
-        raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
-    else:
-        algorithm = list(algorithm)[0]
-        logger.info('Choosing back-end {}'.format(algorithm))
+    #algorithm = set(frames)
+    #if len(algorithm)>1:
+        #raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
+    #else:
+        #algorithm = list(algorithm)[0]
+        #logger.info('Choosing back-end {}'.format(algorithm))
     
     def lnprob(pars,ids,system):
         #-- evaluate the system, get the results and return a probability
         had = []
         any_outside_limits = False
         #-- walk through all the parameterSets available:
-        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         
         try:
-            for parset in walk:
+            for parset in system.walk():
                 #-- for each parameterSet, walk to all the parameters
                 for qual in parset:
                     #-- extract those which need to be fitted
@@ -564,7 +564,14 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     for iteration in range(iters):
         logger.warning("Iteration {}/{}".format(iteration+1,iters))
         if set_values_from_prior:
-            system.set_values_from_priors()
+            #system.set_values_from_priors()
+            for parset in system.walk():
+                #-- for each parameterSet, walk through all the parameters
+                for qual in parset:
+                    #-- extract those which need to be fitted
+                    if parset.get_adjust(qual) and parset.has_prior(qual):
+                        parset.get_parameter(qual).set_value_from_prior()
+            
         fitparams = _run_lmfit(system,params=params,mpi=mpi,fitparams=fitparams)
         if fitparams['feedback']['redchi']<best_chi2:
             best_fitparams = fitparams
@@ -624,6 +631,8 @@ def _run_lmfit(system,params=None,mpi=None,fitparams=None):
                 prior = parameter.get_prior()
                 if fitparams['bounded']:
                     minimum,maximum = prior.get_limits()
+                    minimum = minimum * fitparams['bounded']
+                    maximum = maximum * fitparams['bounded']
                 else:
                     minimum,maximum = None,None
                 pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
