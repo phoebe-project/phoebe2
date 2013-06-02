@@ -4,15 +4,25 @@ Fitting routines, minimization, optimization.
 Section 1. Summary
 ==================
 
-The top level function you should use is L{run}.
+The top level function you should use is :py:func`run <run>`. The fitting
+algorithm is determined by the context of the passed algorithm ParameterSet.
+There is also functionality to reiterate the fit, but starting from a different
+set of initial parameters and/or performing Monte Carlo simulations with the
+data, or by random sampling the data.
 
-**Main functions**
+**Main function**
 
 .. autosummary::
 
    run
-   accept_fit
-   summarize_fit
+   
+** Fit iterators **
+
+.. autosummary::
+
+   reinitialize_from_priors
+   monte_carlo
+   sample
    
 **Individual fitting routines**
 
@@ -23,7 +33,14 @@ The top level function you should use is L{run}.
    run_lmfit
    run_grid
    run_minuit
-   
+
+** Helper functions**
+
+.. autosummary::
+
+   accept_fit
+   summarize_fit
+
    
 Section 2. Details
 ==================
@@ -123,7 +140,9 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     @return: fitting parameters and feedback (context 'fitting:xxx')
     @rtype: ParameterSet
     """
-    
+    # First we want to get rid of any loggers that are present; we don't want
+    # to follow all the output to the screen during each single computation.
+    # Only the warning get through, and this is also how the loggers communicate
     mylogger = logging.getLogger("")
     for handler in mylogger.handlers:
         if not hasattr(handler,'baseFilename'):
@@ -131,19 +150,19 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                 handler.setLevel('WARNING')
     utils.add_filehandler(mylogger,flevel='INFO',filename='fitting_{}.log'.format("_".join(time.asctime().split())))
     
-    #-- figure out the solver, and run it
+    # We need to know how to compute the system (i.e. how many subdivisions,
+    # reflections etc...)
     if params is None:
         params = parameters.ParameterSet(context='compute')
         logger.info("No compute parameters given: adding default set")
-    #-- default fitter is nelder
+    
+    # Determine the type of fitting algorithm to run. If none is given, the
+    # default fitter is LMFIT with leastsq algorithm (Levenberg-Marquardt)
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:lmfit')
     if fitparams.context=='fitting:pymc':
         solver = run_pymc
     elif fitparams.context=='fitting:emcee':
-        #-- we'll set a default fitparams here because of the MPIRUN
-        if fitparams is None:
-            fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=20,iters=10)
         solver = run_emcee
     elif fitparams.context=='fitting:lmfit':
         solver = run_lmfit
@@ -153,32 +172,121 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         solver = run_grid
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
-    fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
     
-    #-- reset the logger
-    mylogger.handlers = mylogger.handlers[:-1]
-    for handler in mylogger.handlers:
-        if not hasattr(handler,'baseFilename'):
-            if mylogger.level<logging._levelNames['WARNING']:
-                handler.setLevel('INFO')
-    logger.info("Reset logger")
-    
-    #-- accept the best fitting model and compute the system
-    if accept:
-        accept_fit(system,fitparams)
-        system.reset()
-        system.clear_synthetic()
-        try:
-            system.compute(params=params,mpi=mpi)
-        except Exception as msg:
-            print(system.params.values()[0])
-            logger.info("Could not accept for some reason (original message: {})".format(msg))
-    
-    return fitparams
+     # current style: just run the fitter
+    if True:
+        fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
+        
+        #-- reset the logger
+        mylogger.handlers = mylogger.handlers[:-1]
+        for handler in mylogger.handlers:
+            if not hasattr(handler,'baseFilename'):
+                if mylogger.level<logging._levelNames['WARNING']:
+                    handler.setLevel('INFO')
+        logger.info("Reset logger")
+        
+        #-- accept the best fitting model and compute the system
+        if accept:
+            accept_fit(system,fitparams)
+            system.reset()
+            system.clear_synthetic()
+            try:
+                system.compute(params=params,mpi=mpi)
+            except Exception as msg:
+                print(system.params.values()[0])
+                logger.info("Could not accept for some reason (original message: {})".format(msg))
+        
+        return fitparams
 
+        
+    # Future style: run the fitter a couple of times, perhaps with different
+    # starting points, different sampling or different noise.
+    else:
+        feedbacks = []
+        for iteration in range(fitparams['iters']):
+            reinitialize_from_priors(system, fitparams):
+            monte_carlo(system, fitparams)
+            sample(system, fitparams)
+            feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
+            feedbacks.append(feedback)
+        
+        #-- Sort feedbacks from worst to best fit
+        feedbacks = sorted(feedbacks)
+        
+        #-- reset the logger to get the info messages again
+        mylogger.handlers = mylogger.handlers[:-1]
+        for handler in mylogger.handlers:
+            if not hasattr(handler,'baseFilename'):
+                if mylogger.level<logging._levelNames['WARNING']:
+                    handler.setLevel('INFO')
+        logger.info("Reset logger")
+        
+        #-- if required, accept the fit of the best feedback
+        if accept:
+            accept_fit(system, feedbacks[-1])
+            system.reset()
+            system.clear_synthetic()
+            try:
+                system.compute(params=params,mpi=mpi)
+            except Exception as msg:
+                print(system.params.values()[0])
+                logger.info("Could not accept for some reason (original message: {})".format(msg))
+        
+        return feedbacks
+    
+    
 
                 
             
+#{
+
+def reinitialize_from_priors(system, fitparams):
+    """
+    Iterate a fit starting from different initial positions.
+    """
+    #-- we need to do at least one iteration, but we need to know if parameters
+    #   need to initialized, or if we take the current values
+    if fitparams['iters']>0:
+        reinitialize_values = True
+    else:
+        reinitialize_values = False
+    iters = max(fitparams['iters'],1)
+        
+    for iteration in range(iters):
+        logger.warning("Iteration {}/{}".format(iteration+1,iters))
+        if reinitialize_values:
+            #system.set_values_from_priors()
+            for parset in system.walk():
+                #-- for each parameterSet, walk through all the parameters
+                for qual in parset:
+                    #-- extract those which need to be fitted
+                    if parset.get_adjust(qual) and parset.has_prior(qual):                        
+                        parset.get_parameter(qual).set_value_from_prior()
+        yield
+
+
+
+
+def monte_carlo(system, fitparams):
+    
+    
+    if fitparams['monte_carlo']:
+        original_data = []
+        for parset in system.walk():
+            if parset.get_context()[-3:] == 'obs':
+                sigma_cols = [c for c in parset['columns'] if 'sigma' in c]
+                for sigma in sigma_cols:
+                    meas = sigma.split('sigma_')[1]
+                    parset[meas] 
+        pass
+
+def sample():
+    pass
+
+
+
+
+#}
 
 
 
@@ -721,9 +829,9 @@ class MinuitMinimizer(object):
         #-- evaluate the system, get the results and return a probability
         had = []
         #-- walk through all the parameterSets available:
-        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         self.param_names = []
-        for parset in walk:
+        for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
                 #-- extract those which need to be fitted
@@ -748,8 +856,8 @@ class MinuitMinimizer(object):
         system = self.system
         had = []
         #-- walk through all the parameterSets available:
-        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-        for parset in walk:
+        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
                 #-- extract those which need to be fitted
@@ -795,8 +903,8 @@ def run_minuit(system,params=None,mpi=None,fitparams=None):
     ppars = [] # Phoebe parameters
     pars = {}  # Minuit parameters
     #-- walk through all the parameterSets available:
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    for parset in walk:
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
         #-- for each parameterSet, walk to all the parameters
         for qual in parset:
             #-- extract those which need to be fitted
@@ -1004,6 +1112,88 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     feedback['save_files'] = save_files
     fitparams['feedback'] = feedback
     return fitparams
+
+#}
+
+#{ Feedbacks
+
+class Feedback(object):
+    def __init__(self):
+    
+        self._optimize = 'minimize'
+        self._keys = []
+        self.index = 0
+   
+    def keys(self):
+        return self._keys
+    
+    def __iter__(self):
+        """
+        Make the class iterable.
+        """
+        return self
+    
+    def __next__(self):
+        if self.index >= len(self._keys):
+            self.index = 0
+            raise StopIteration
+        else:
+            self.index += 1
+            return self._keys[self.index-1]
+    
+    def __getitem__(self, key):
+        return getattr(self,key)
+    
+    def __lt__(self, other):
+        """
+        One statistic is less than another if it implies a worse fit.
+        """
+        if self._optimize == 'maximize':
+            return self.get_stat() < other.get_stat()
+        elif self._optimize == 'minimize':
+            return self.get_stat() > other.get_stat()
+        else:
+            raise NotImplementedError
+    
+    next = __next__
+
+class FeedbackLmfit(Feedback):
+    """
+    Feedback from lmfit.
+    """
+    def __init__(self,parameters, values, sigmas, correls,
+                 redchi, success, traces, redchis,
+                 n_data, n_pars):
+        self._optimize = 'minimize'
+        self._keys = ['parameters', 'values', 'sigmas', 'correls',
+                      'redchi', 'success', 'traces', 'redchis',
+                      'n_data', 'n_pars']
+        self.index = 0
+        
+        self.parameters = parameters
+        self.values = values
+        self.sigmas = sigmas
+        self.correls = correls
+        self.redchi = redchi
+        self.success = success
+        self.traces = traces
+        self.redchis = redchis
+        self.n_data = n_data
+        self.n_pars = n_pars
+    
+    def get_stat(self):
+        return self.redchi
+
+class FeedbackEmcee(Feedback):
+    def __init__(self,logp):
+        self._optimize = 'maximize'
+        self.index = 0
+        
+        self.logp = logp
+    
+    def get_stat(self):
+        return self.logp
+
 
 #}
 
