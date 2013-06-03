@@ -204,7 +204,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     else:
         feedbacks = []
         for iteration in range(fitparams['iters']):
-            reinitialize_from_priors(system, fitparams):
+            reinitialize_from_priors(system, fitparams)
             monte_carlo(system, fitparams)
             sample(system, fitparams)
             feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
