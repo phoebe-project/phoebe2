@@ -262,6 +262,95 @@ class DataSet(parameters.ParameterSet):
         else:
             return self.__add__(other)
     
+    def __getitem__(self, item):
+        """
+        Access information in a dataset.
+        
+        Suppose you initialized a dataset:
+        
+        >>> time = np.array([1,2,3.,4])
+        >>> flux = np.array([-1,1,-2.,0])
+        >>> lcobs = DataSet(context='lcobs', columns=['time','flux'], time=time, flux=flux, pblum=1.0, l3=0.35, ref='mylc')
+        >>> print(lcobs)
+          filename                            -- - phoebe Name of the file containing the data
+               ref mylc                       --   phoebe Name of the data structure
+              time [1.0 ... 4.0]              JD   phoebe Timepoints of the data
+              flux [-1.0 ... 0.0]   erg/s/cm2/AA   phoebe Observed signal
+            weight []                         --   phoebe Signal weight
+        fittransfo linear                     --   phoebe Transform variable in fit
+           columns ['time', 'flux']           --   phoebe Data columns
+                l3 0.35                       -- - phoebe Third light or intercept constant
+             pblum 1.0                        -- - phoebe Passband luminosity
+        statweight 1.0                        -- - phoebe Statistical weight in overall fitting
+        
+        Then the different ways to access elements are:
+        
+        Access *header* information and *array* information
+        
+        >>> lcobs['l3']
+        0.35
+        >>> lcobs['flux']
+        array([-1.,  1., -2.,  0.])
+        
+        Index and select rows in the arrays via index arrays, and return
+        a copy of the whole dataset:
+        
+        >>> keep = lcobs['flux']>=0
+        >>> lcobs2 = lcobs[keep]
+        >>> lcobs2['flux']
+        array([ 1.,  0.])
+        >>> lcobs2['time']
+        array([ 2.,  4.])
+        
+        Index and select rows in the arrays via slices:
+        
+        >>> lcobs2 = lcobs[::2]
+        array([-1., -2.])
+
+        """
+        if np.isscalar(item):
+            return super(DataSet,self).__getitem__(item)
+        else:
+            self_copy = self.copy()
+            for col in self_copy['columns']:
+                self_copy[col] = self_copy[col][item]
+            return self_copy
+    
+    def take(self, index):
+        for col in self['columns']:
+            self[col] = self[col][index]
+    
+    def hostile_alien_takeover(self, other_ds):
+        for key in other_ds:
+            self[key] = other_ds[key]
+    
+    def get_dtype(self):
+        """
+        Get the numpy data dtype for all the data columns.
+        
+        Example usage:
+        
+        >>> print(ds.dtype.names)
+        ('time', 'flux', 'sigma')
+        >>> print(ds['columns'])
+        ['time', 'flux', 'sigma']
+        """
+        dtypes = np.dtype([(col,self[col].dtype) for col in self['columns']])
+    
+        return dtypes
+    
+    def get_shape(self):
+        return (len(self),)
+    
+    def __len__(self):
+        return len(self[self['columns'][0]])
+    
+    
+    
+    dtype = property(get_dtype)
+    shape = property(get_shape)
+    
+    
 class LCDataSet(DataSet):
     """
     DataSet representing a light curve or photometry
@@ -815,6 +904,8 @@ def parse_header(filename,ext=None):
     #-- some post processing:
     if isinstance(components,str) and columns is not None:
         components = [components]*len(columns)
+    if 'filename' in ds:
+        ds['filename'] = filename
     #-- that's it!
     return (columns, components), (pb,ds)    
 
@@ -984,6 +1075,8 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     missing_columns = set(columns_required) - set(columns_in_file)
     if len(missing_columns)>0:
         raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+    
+    ds['columns'] = columns_in_file
     
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or

@@ -38,6 +38,7 @@ lcset['jdend'] = pset['hjd0']+pset['period']
 lcset['jdinc'] = 0.01*pset['period']
 lcset['indep_type'] = 'time (hjd)'
 
+
 # Generate the light curve via :py:func:`lc <phoebe.wd.wd.lc>`
 # and add some noise to it. Also rescale the flux and
 # add an offset: this is to mimic the arbitrary flux normalisation usually
@@ -139,7 +140,7 @@ pset.get_parameter('pot1').set_prior(distribution='normal',mu=6.2,sigma=0.2)
 # these boundaries (they may influence the error determination considerably), you
 # need to set ``bounded=False`` in the parameterSet controlling the properties
 # of the fit:
-fitparams = phoebe.ParameterSet(context='fitting:lmfit',method='leastsq',bounded=True)
+fitparams = phoebe.ParameterSet(context='fitting:lmfit',method='leastsq',bounded=True, iters=1)
 
 """
 

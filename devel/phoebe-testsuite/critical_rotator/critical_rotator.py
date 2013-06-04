@@ -48,7 +48,7 @@ star['ld_coeffs'] = 'kurucz'
 
 
 # For the mesh, we take a low-density grid, sampled using the marching method.
-star_mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
+star_mesh = phoebe.ParameterSet(frame='phoebe', context='mesh:marching', alg='c')
 star_mesh['delta'] = 0.06
 
 # In the first spectrum that we calculate, we set the parameters for the
@@ -56,11 +56,11 @@ star_mesh['delta'] = 0.06
 # Claret limbdarkening and Kurucz atmospheres). However, for the calculation of
 # the spectrum, we require not knowledge of the the true line profile, but use
 # a generic Gaussian line.
-spdep1 = phoebe.ParameterSet(frame='phoebe',context='spdep')
+spdep1 = phoebe.ParameterSet(frame='phoebe', context='spdep')
 spdep1['ld_func'] = 'claret'
 spdep1['atm']= 'kurucz'
 spdep1['ld_coeffs'] = 'kurucz'
-spdep1['clambda'] = 4508.3,'AA'
+spdep1['clambda'] = 4508.3, 'AA'
 spdep1['passband'] = 'JOHNSON.V'
 spdep1['method'] = 'numerical'
 spdep1['ref'] = 'Gaussian profile (numerical)'
@@ -71,7 +71,7 @@ spdep1['ref'] = 'Gaussian profile (numerical)'
 spdep2 = spdep1.copy()
 spdep2['ld_func'] = 'linear'
 spdep2['ld_coeffs'] = [0.6]
-spdep2['clambda'] = 4508.3,'AA'
+spdep2['clambda'] = 4508.3, 'AA'
 spdep2['method'] = 'analytical'
 spdep2['ref'] = 'Gaussian profile (analytical)'
 
@@ -79,13 +79,13 @@ spdep2['ref'] = 'Gaussian profile (analytical)'
 # Contamination from neighbouring lines!
 spdep3 = spdep1.copy()
 spdep3['profile'] = 'atlas'
-spdep3['clambda'] = 4508.3,'AA'
+spdep3['clambda'] = 4508.3, 'AA'
 spdep3['ref'] = 'Synthesized profile'
 
 # Body setup
 # ----------
 # Build the Star body.
-mesh1 = phoebe.Star(star,star_mesh,pbdep=[spdep1,spdep2,spdep3])
+mesh1 = phoebe.Star(star, star_mesh, pbdep=[spdep1,spdep2,spdep3])
 print mesh1
 
 # Computation of observables
