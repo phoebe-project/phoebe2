@@ -936,10 +936,14 @@ class Parameter(object):
         """
         Get a string representation of only the value.
         """
-        if hasattr(self,'repr'):
+        #if hasattr(self,'repr'):
+        #    return "{{:{}}}".format(self.repr.replace('%','')).format(self.get_value())
+        #else:
+        #    return "{}".format(self.get_value())
+        try:
             return "{{:{}}}".format(self.repr.replace('%','')).format(self.get_value())
-        else:
-            return "{:s}".format(self.get_value())
+        except:
+            return "{}".format(self.get_value())
     
     #}
     #{ Set parameter properties

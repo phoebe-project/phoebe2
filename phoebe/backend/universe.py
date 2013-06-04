@@ -1339,7 +1339,7 @@ class Body(object):
             self.mesh['hidden'] = -visible & -partial
             self.mesh['partial'] = partial
         else:
-            raise ValueError("don't know how to detect eclipses/horizon")
+            raise ValueError("don't know how to detect eclipses/horizon (set via parameter 'eclipse_detection'")
     
     def rotate_and_translate(self,theta=0,incl=0,Omega=0,
               pivot=(0,0,0),loc=(0,0,0),los=(0,0,+1),incremental=False,
@@ -2238,10 +2238,19 @@ class PhysicalBody(Body):
             select = ['_o_center','size','_o_triangle','_o_normal_']
             old_mesh_table = np.column_stack([old_mesh[x] for x in select])/scale
             old_mesh_table = marching.creproject(old_mesh_table,*mesh_args)*scale
+            
+            # Check direction of normal
+            cosangle = coordinates.cos_angle(old_mesh['_o_center'],
+                                             old_mesh_table[:,13:16],axis=1)
+            sign = np.where(cosangle<0,-1,1).reshape((-1,1))
+            
+            
             for prefix in ['_o_','']:
                 old_mesh[prefix+'center'] = old_mesh_table[:,0:3]
                 old_mesh[prefix+'triangle'] = old_mesh_table[:,4:13]
-                old_mesh[prefix+'normal_'] = old_mesh_table[:,13:16]
+                old_mesh[prefix+'normal_'] = sign*old_mesh_table[:,13:16]
+            
+            
         #-- Pure Python (old): I keep it because there might be issues with the
         #   direction of the normals that I haven't checked yet.
         else:
@@ -2699,7 +2708,10 @@ class BodyBag(Body):
         if not isinstance(list_of_bodies,list):
             list_of_bodies = [list_of_bodies]
         self.bodies = list_of_bodies
-        self.dim = self.bodies[0].dim
+        try:
+            self.dim = self.bodies[0].dim
+        except AttributeError:
+            raise AttributeError("Components in a BodyBag need to be of type 'Body', not {}".format(type(self.bodies[0])))
         #-- keep track of the current orientation, the original (unsubdivided)
         #   mesh and all the parameters of the object.
         self.orientation = dict(theta=0,incl=0,Omega=0,pivot=(0,0,0),
@@ -3087,14 +3099,15 @@ class BodyBag(Body):
         return mu,sigma,model
     
     
-    def as_point_source(self):
+    def as_point_source(self,only_coords=False):
         coords = self.mesh['center'].mean(axis=0)
         if 'orbit' in self.params:
             distance = self.params['orbit'].request_value('distance','Rsol')
         elif 'orbit' in self.bodies[0].params:
             distance = self.bodies[0].params['orbit'].request_value('distance','Rsol')
         else:
-            raise ValueError("Don't know distance")
+            distance = 0
+            logger.warning("Don't know distance")
         coords[2] += distance
         return dict(coordinates=coords)
     
@@ -3975,7 +3988,6 @@ class Star(PhysicalBody):
                     self.save('beforecrash.phoebe')
                     raise
             elif algorithm=='c':
-                print(delta,max_triangles,self.subdivision['mesh_args'][:-1])
                 the_grid = marching.cdiscretize(delta,max_triangles,*self.subdivision['mesh_args'][:-1])
         elif gridstyle=='mesh:wd':
             #-- WD style.

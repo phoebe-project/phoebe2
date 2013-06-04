@@ -953,7 +953,7 @@ def third_law(totalmass=None,sma=None,period=None):
     @type totalmass: float
     @parameter sma: system's semi-major axis (au)
     @type sma: float
-    @parameter period: period of the system (P)
+    @parameter period: period of the system (d)
     @type period: float
     @return: the quantity that is not given
     @rtype: float
