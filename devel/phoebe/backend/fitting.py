@@ -16,13 +16,13 @@ data, or by random sampling the data.
 
    run
    
-** Fit iterators **
+**Fit iterators**
 
 .. autosummary::
 
    reinitialize_from_priors
    monte_carlo
-   sample
+   subsets_via_flags
    
 **Individual fitting routines**
 
@@ -34,7 +34,7 @@ data, or by random sampling the data.
    run_grid
    run_minuit
 
-** Helper functions**
+**Helper functions**
 
 .. autosummary::
 
@@ -820,7 +820,6 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
         system.compute(params=params,mpi=mpi)
         mu,sigma,model = system.get_model()
         retvalue = (model-mu)/sigma
-        
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]

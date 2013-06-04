@@ -326,9 +326,20 @@ error messages.
    See `the matplotlib documentation <http://matplotlib.org/users/installing.html#build-requirements>`_.
 
 3. Installing **matplotlib** through ``easy_install`` or ``pip`` can give you
-   trouble with showing the plot window. The only solution is to install it a
-   different way, or live with it. The only restriction is that you will not be
-   able to work interactively then.
+   trouble with showing the plot window. Either you live with it, or try the
+   following hack::
+       
+       $:> ln -s /usr/lib/pyshared/python2.7/matplotlib/backends/_tkagg.so MYDIR/lib/python2.7/site-packages/matplotlib-1.2.1-py2.7-linux-x86_64.egg/matplotlib/backends/_tkagg.so
+   
+   Then edit the ``matplotlibrc`` file located in the directory::
+       
+       MYDIR/local/lib/python2.7/site-packages/matplotlib-1.2.1-py2.7-linux-x86_64.egg/matplotlib/mpl-data
+       
+   Somewhere in the beginning of that file, you can set the backend. Change it
+   from the Agg to::
+       
+       backend: TkAgg
+       
    
 4. It is possible that **mpi4py** fails to install. Go to their website or your
    package manager and try to install it separately. Try perhaps first to see if

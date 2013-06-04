@@ -143,6 +143,10 @@ def mpirun(fctn):
         if mpirun is None:
             return fctn(system,*args,**kwargs)
         else:
+            params = kwargs.pop('params',None)
+            if params is None:
+                params = parameters.ParameterSet(context='compute',**kwargs)
+            kwargs['params'] = params
             if mpirun is True:
                 mpirun = parameters.ParameterSet(context='mpi')
             try:

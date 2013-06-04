@@ -643,6 +643,51 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
     return comp1,comp2,orbit    
 
+def stars_from_binary(comp1,comp2,orbit):
+    """
+    Create two stars starting from a binary system.
+    """
+    sma = orbit.request_value('sma','au')
+    period = orbit.request_value('period','d')
+    q = orbit.request_value('q')
+    pot1 = comp1['pot']
+    pot2 = comp2['pot']
+    ecc = orbit['ecc']
+    f1 = comp1['syncpar']
+    f2 = comp2['syncpar']
+    
+    # Derive masses
+    totalmass = keplerorbit.third_law(sma=sma,period=period)
+    M1 = totalmass / (1.0 + q)
+    M2 = q * M1
+    
+    # Derive radii at periastron passage
+    R1 = roche.potential2radius(pot1,q,1-ecc,f1,component=1,sma=sma)
+    R2 = roche.potential2radius(pot2,q,1-ecc,f2,component=2,sma=sma)
+    
+    # Derive rotation period
+    rotperiod1 = period/f1
+    rotperiod2 = period/f2
+    
+    # Build the stars with the basic parameters
+    star1 = parameters.ParameterSet(context='star', mass=(M1,'Msol'),
+                                    radius=(R1,'au'), rotperiod=(rotperiod1,'d'))
+    star2 = parameters.ParameterSet(context='star', mass=(M2,'Msol'),
+                                    radius=(R2,'au'), rotperiod=(rotperiod2,'d'))
+    # And copy some values straight from the components
+    for key in ['teff']:
+        star1[key] = comp1.get_value_with_unit(key)
+        star2[key] = comp2.get_value_with_unit(key)
+    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb']:
+        star1[key] = comp1[key]
+        star2[key] = comp2[key]
+    star1['label'] = comp1['label']
+    star2['label'] = comp2['label']
+    
+    return star1, star2
+    
+
+
 
 @make_body
 def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\

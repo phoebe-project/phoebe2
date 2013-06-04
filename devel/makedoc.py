@@ -145,7 +145,8 @@ def generate_parameterlist_sphinx():
                         links.append(':ref:`{} <label-{}-{}-{}>`'.format(qual,qual,context,frame))
                     except:
                         print("Failed {}".format(qual))
-                        continue
+                        raise
+                        
                     
                 parsets_as_text.append(", ".join(links) + '\n')    
         
@@ -374,4 +375,4 @@ if __name__=="__main__":
          subprocess.call('scp -r _build/html/* clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)
     elif 'copyhtml' in sys.argv[1:]:
          #subprocess.call('scp -r _build/html/* copernicus.ster.kuleuven.be:public_html/phoebe_alt',shell=True)
-         subprocess.call('scp -r _build/html/*.html clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)
+         subprocess.call('scp -r _build/html/*.html _build/html/_modules clusty.ast.villanova.edu:/srv/www/phoebe/2.0/docs/',shell=True)
