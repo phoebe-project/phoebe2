@@ -2497,7 +2497,27 @@ class ParameterSet(object):
             out_dict[attrname] = attrinst
         return out_dict
         
-            
+    
+    def __repr__(self):
+        """
+        Semi machine readable representation of a ParameterSet.
+        
+        Maybe more of a summary, to avoid str represetation likek
+        """
+        props = ['context={}'.format(self.get_context())]
+        npar = len(self.container)
+        if 'ref' in self:
+            props.append("ref='{}'".format(self['ref']))
+            npar -= 1
+        elif 'label' in self:
+            props.append("label='{}'".format(self['label']))
+            npar -= 1
+        if 'filename' in self:
+            props.append("filename='{}'".format(self['filename']))
+            npar -= 1
+        props.append('<{} parameters>'.format(npar))
+        mystr = "ParameterSet({})".format(', '.join(props)) 
+        return mystr
     
     def __str__(self):
         """
@@ -2513,24 +2533,26 @@ class ParameterSet(object):
         """
         return self.to_string()
     
-    def to_string(self,only_adjustable=False):
+    def to_string(self,only_adjustable=False,width=160):
         """
         String representation of the class instance with extra options.
         
         @rtype: str
         """
         #-- first derive what the maximum lengths is for all the values. For the
-        #   width of the value column, we split also over the '\n' characters. We
-        #   also check if there are constraints give, they will be appended in
-        #   the back
+        #   width of the value column, we split over the '\n' characters. We
+        #   also check if there are constraints give, they will be appended at
+        #   the end
         def shortstr(par):
             gvalue = par#.get_value()
+            # special handling of long variables (lists, arrays)
             if hasattr(gvalue,'__iter__') and not isinstance(gvalue,str) \
                 and not isinstance(gvalue,ParameterSet) and not isinstance(gvalue,dict):
                     if (hasattr(gvalue,'shape') and not gvalue.shape) or len(gvalue)<=2: # for unsized arrays
                         gvalue = str(gvalue)
                     else:
                         gvalue = '[{} ... {}]'.format(gvalue[0],gvalue[-1])
+            # special handling of dictionaries
             elif isinstance(gvalue,dict):
                 gvalue = '{'+":,".join(list(gvalue.keys()))+':}'
             else:
@@ -2539,7 +2561,7 @@ class ParameterSet(object):
         
         try:
             col_width_value = max([len(mystr) for par in self for mystr in shortstr(self.container[par].get_value()).split('\n') if (not only_adjustable or self.container[par].get_adjust())] +\
-                                [len(str(self.get_constraint(cnt))) for cnt in self.constraints if not only_adjustable])
+                                [len(shortstr(self.get_constraint(cnt))) for cnt in self.constraints if not only_adjustable])
         except ValueError:
             return "<empty ParameterSet>"
         col_width_qualf = max([len(str(self.container[par].qualifier)) for par in self] +\
@@ -2568,10 +2590,15 @@ class ParameterSet(object):
         for constraint in self.constraints:
             if only_adjustable: continue
             str_qual = '{0:>{1}}'.format(constraint,col_width_qualf)
-            str_valu = '{0:<{1}}'.format(self.get_constraint(constraint),col_width_value)
+            str_valu = '{0:<{1}}'.format(shortstr(self.get_constraint(constraint)),col_width_value)
             str_frame = '{0:>{1}}'.format('constr',col_width_frame)
             str_unit = '{0:>{1}}'.format('n/a',col_width_unit)
-            mystr.append(' '.join([str_qual,str_valu,str_unit,' ',str_frame,str(self.constraints[constraint]).strip()]))
+            str_descr = str(self.constraints[constraint]).strip()
+            initial_indent = ' '.join([str_qual,str_valu,str_unit,' ',str_frame,''])
+            subs_indent = (len(initial_indent))*' '
+            str_descr = textwrap.fill(str_descr,initial_indent=initial_indent,
+                                      subsequent_indent=subs_indent,width=width)
+            mystr.append(str_descr)
         return '\n'.join(mystr)
     
     def __config__(self):

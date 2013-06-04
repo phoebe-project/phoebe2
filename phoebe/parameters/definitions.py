@@ -162,8 +162,8 @@ defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='
          dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='orbit'),
          dict(qualifier='sma',    description='Semi major axis',unit='Rsol',repr='%f',llim=0,ulim=1e10,step=0.0001,adjust=False,value=0.1,cast_type=float,frame=["phoebe"],context='orbit'),
          dict(qualifier='long_an',   description='Longitude of ascending node', repr='%f',llim=  0.0, ulim=   360,step=   0.01, adjust=False, cast_type=float, unit='deg',  value=0.,frame=["phoebe"],context='orbit'),
-         dict(qualifier='c1label', description='ParameterSet connected to the primary component',repr='%s',value=None,frame=["phoebe"],context='orbit'),
-         dict(qualifier='c2label', description='ParameterSet connected to the secondary component',repr='%s',value=None,frame=["phoebe"],context='orbit'),
+         dict(qualifier='c1label', description='ParameterSet connected to the primary component',repr='%s',value=None,cast_type=str, frame=["phoebe"],context='orbit'),
+         dict(qualifier='c2label', description='ParameterSet connected to the secondary component',repr='%s',value=None,cast_type=str, frame=["phoebe"],context='orbit'),
          ]
 
 #    BODY CONTEXT
@@ -479,9 +479,9 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='zorder',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
         ]
         
-defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
-         dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
-         dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],context='compute'),
+defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
+         dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
+         dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),

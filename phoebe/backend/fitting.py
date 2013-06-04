@@ -174,7 +174,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
     
      # current style: just run the fitter
-    if True:
+    if False:
         fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
         
         #-- reset the logger
@@ -202,18 +202,35 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     # Future style: run the fitter a couple of times, perhaps with different
     # starting points, different sampling or different noise.
     else:
+        # Perhaps it doesn't make much sense to iterate a fit, then the 
+        # parameter might not be given. Set it by default to 1 in that case:
+        iters = fitparams.get('iters',1)
+            
         feedbacks = []
-        for iteration in range(fitparams['iters']):
-            reinitialize_from_priors(system, fitparams)
-            monte_carlo(system, fitparams)
-            sample(system, fitparams)
-            feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
-            feedbacks.append(feedback)
         
-        #-- Sort feedbacks from worst to best fit
+        # Cycle over all subsets if required. The system itself (i.e. the
+        # observational datasets) is changed *inside* the generator function
+        for flag,ref in subsets_via_flags(system, fitparams):
+            if flag is not None:
+                logger.warning("Selected subset from {} via flag {}".format(ref,flag))
+            
+            # Iterate fit if required
+            for iteration in range(iters):
+                logger.warning("Iteration {}/{}".format(iteration+1,iters))
+                
+                # Do stuff like reinitializing the parametersets with values
+                # taken from their prior, or add MC noise to the data
+                reinitialize_from_priors(system, fitparams)
+                monte_carlo(system, fitparams)
+                
+                #  Then solve the current system
+                feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
+                feedbacks.append(feedback)
+        
+        # Sort feedbacks from worst to best fit 
         feedbacks = sorted(feedbacks)
         
-        #-- reset the logger to get the info messages again
+        # Reset the logger to get the info messages again
         mylogger.handlers = mylogger.handlers[:-1]
         for handler in mylogger.handlers:
             if not hasattr(handler,'baseFilename'):
@@ -221,7 +238,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                     handler.setLevel('INFO')
         logger.info("Reset logger")
         
-        #-- if required, accept the fit of the best feedback
+        # If required, accept the fit of the best feedback
         if accept:
             accept_fit(system, feedbacks[-1])
             system.reset()
@@ -232,7 +249,10 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                 print(system.params.values()[0])
                 logger.info("Could not accept for some reason (original message: {})".format(msg))
         
-        return feedbacks
+        if len(feedbacks)>1:
+            return feedbacks
+        else:
+            return feedbacks[0]
     
     
 
@@ -243,47 +263,83 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
 def reinitialize_from_priors(system, fitparams):
     """
     Iterate a fit starting from different initial positions.
-    """
-    #-- we need to do at least one iteration, but we need to know if parameters
-    #   need to initialized, or if we take the current values
-    if fitparams['iters']>0:
-        reinitialize_values = True
-    else:
-        reinitialize_values = False
-    iters = max(fitparams['iters'],1)
         
-    for iteration in range(iters):
-        logger.warning("Iteration {}/{}".format(iteration+1,iters))
-        if reinitialize_values:
-            #system.set_values_from_priors()
-            for parset in system.walk():
-                #-- for each parameterSet, walk through all the parameters
-                for qual in parset:
-                    #-- extract those which need to be fitted
-                    if parset.get_adjust(qual) and parset.has_prior(qual):                        
-                        parset.get_parameter(qual).set_value_from_prior()
-        yield
+    The initial positions are drawn randomly from the prior, but only for those
+    parameters that are adjustable and have a prior.
+    
+    @param system: the system to fit
+    @type system: Body
+    @param fitparams: fit parameters
+    @type fitparams: ParameterSet
+    """
+    init_from_prior = fitparams.get('init_from_prior',False)
+    if init_from_prior:
+        # Walk over the system and set the value of all adjustable parameters
+        # that have a prior to a value randomly dranw from that prior
+        for parset in system.walk():
+            #-- for each parameterSet, walk through all the parameters
+            for qual in parset:
+                #-- extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):                        
+                    parset.get_parameter(qual).set_value_from_prior()
+    
 
 
 
 
 def monte_carlo(system, fitparams):
+    """
+    Add Monte Carlo noise to the datasets.
     
-    
-    if fitparams['monte_carlo']:
-        original_data = []
+    We keep a copy of the "original" data also in the dataset, otherwise we're
+    increasing noise all the time. Each time we add noise, we need to add it to
+    the **original** dataset.
+    """
+    do_monte_carlo = fitparams.get('monte_carlo', False)
+    if do_monte_carlo:
+        # Walk through all the observational datasets.
         for parset in system.walk():
+            # If it's an observational dataset, enter it and look for sigma
+            # columns.
             if parset.get_context()[-3:] == 'obs':
                 sigma_cols = [c for c in parset['columns'] if 'sigma' in c]
                 for sigma in sigma_cols:
-                    meas = sigma.split('sigma_')[1]
-                    parset[meas] 
-        pass
+                    meas_col = sigma.split('sigma_')[1]
+                    original_meas_col = '_o_' + measurement_col
+                    if not original_meas_col in parset['columns']:
+                        # add original-data column to data
+                        parset['columns'] = parset['columns'] + [original_meas_col]
+                        parset.add_parameter(qualifier=original_meas_col, 
+                                             value=parset[meas_col])
+                    # Add noise to data
+                    noise = np.random.normal(sigma=parset[sigma])
+                    parset[meas_col] = parset[original_meas_col] + noise
 
-def sample():
-    pass
 
-
+def subsets_via_flags(system, fitparams):
+    """
+    Take a subset from the observations via extraction of unique flags.
+    """
+    do_subset = fitparams.get('subsets_via_flags', False)
+    if do_subset:
+        # Walk through all the observational datasets.
+        for parset in system.walk():
+            # If it's an observational dataset, enter it and look for flag
+            # columns.
+            if parset.get_context()[-3:] == 'obs':
+                # Keep track of original DataSet
+                original_parset = parset.copy()
+                # Look for flag columns
+                flag_cols = [c for c in parset['columns'] if c.split('_')[0] == 'flag']
+                for flag in flag_cols:
+                    unique_flags = np.sort(np.unique(self[flag]))
+                    for unique_flag in unique_flags:
+                        parset.take(self[flag] == unique_flag)
+                        yield unique_flag,parset['ref']
+                        # Restore the DataSet to its original contents
+                        parset.hostile_alien_takeover(original_parset)
+    else:
+        yield None,None
 
 
 #}
@@ -653,7 +709,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
 
 #{ Nonlinear optimizers
 
-def run_lmfit(system,params=None,mpi=None,fitparams=None):
+def __run_lmfit(system,params=None,mpi=None,fitparams=None):
     """
     Iterate an lmfit to start from different representations.
     """
@@ -684,7 +740,7 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     return best_fitparams
 
 
-def _run_lmfit(system,params=None,mpi=None,fitparams=None):
+def run_lmfit(system,params=None,mpi=None,fitparams=None):
     """
     Perform nonlinear fitting of a system using lmfit.
     
