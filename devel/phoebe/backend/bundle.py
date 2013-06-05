@@ -66,33 +66,33 @@ class Bundle(object):
         if system is None:  return None
         self.system = system 
                           
-    def get_object(self,objectname):
+    def get_object(self,objectname,bodybag=None):
         """
         search for an object inside the system structure
         
         @param objectname: label or __name__ for the desired object
         @type objectname: str
+        @param bodybag: the bodybag to search under (will default to system)
+        @type bodybag: BodyBag
         @return: the object
         @rtype: ParameterSet
         """
-        #~ for item,obj in self.system.walk_all():
-            #~ if hasattr(obj,'__name__'):
-                #~ if obj.__name__ == objectname:
-                    #~ return obj
-            #~ try:    
-                #~ if obj.params['component']['label'] == objectname:
-                    #~ return obj
-                #~ if obj.params['orbit']['label'] == objectname:
-                    #~ return obj.params['orbit']
-            #~ except AttributeError:
-                #~ pass
-        #~ if hasattr(self.system, '__name__'):
-            #~ if self.system.__name__ == objectname:
-                #~ return self.system
-        #~ return None
-        for path,item in self.system.walk_all():
-            if path[-1] == objectname:
-                return item
+        #this should return a Body or BodyBag
+        bodybag = self.system if bodybag is None else bodybag
+        for body in bodybag.get_bodies():
+            # if body is a bodybag itself, then recursively loop
+            if hasattr(body, 'get_bodies'):
+                result = self.get_object(objectname,body)
+                if result is not None:
+                    return results
+            else:
+                # check to see if we want the body
+                if body.params['component']['label'] == objectname:
+                    return body
+                
+                # check to see if we want the bodybag
+                if body.params['orbit']['label'] == objectname:
+                    return bodybag
         return None
         
     def get_component(self,objectname):
