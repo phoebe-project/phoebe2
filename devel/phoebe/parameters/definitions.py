@@ -471,7 +471,7 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='type',         description='whether plotting syn or obs dataset',repr='%s',cast_type=str,value='lcobs',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='color',        description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='alpha',        description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='marker',       description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='.',frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='marker',       description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='markersize',   description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='markeredgecolor',   description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='markerfacecolor',   description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
