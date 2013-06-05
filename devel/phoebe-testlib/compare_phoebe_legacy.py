@@ -292,6 +292,6 @@ if __name__=="__main__":
         test_cases = sorted(glob.glob('*'))
     if recompute:
         test_cases.pop(test_cases.index('--recompute'))
-    compare(test_cases[0],recompute=recompute)
+    compare(test_cases[0],recompute=recompute, conserve_volume='sup_conj')
     
     plt.show()

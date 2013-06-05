@@ -294,6 +294,11 @@ def monte_carlo(system, fitparams):
     We keep a copy of the "original" data also in the dataset, otherwise we're
     increasing noise all the time. Each time we add noise, we need to add it to
     the **original** dataset.
+    
+    @param system: the system to fit
+    @type system: Body
+    @param fitparams: fit parameters
+    @type fitparams: ParameterSet
     """
     do_monte_carlo = fitparams.get('monte_carlo', False)
     if do_monte_carlo:

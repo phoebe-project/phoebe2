@@ -4585,7 +4585,7 @@ class BinaryRocheStar(PhysicalBody):
                     P = self.params['orbit']['period']
                     t0 = self.params['orbit']['t0']
                     crit_times = keplerorbit.calculate_critical_phases(per0,e)*P + t0
-                    self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
+                    self.compute_mesh(crit_times[cvol_index]-P/2.0,conserve_volume=True)
                 #-- else we still need to compute the mesh at *this* time!
                 else:
                     self.compute_mesh(time,conserve_volume=True)
