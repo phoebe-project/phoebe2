@@ -42,9 +42,16 @@ def plot_lcsyn(system,*args,**kwargs):
     **Example usage:**
     
     >>> artists, syn, pblum, l3 = plot_lcsyn(system,'r-',lw=2)
+    
+    The plotted data can then be reproduced with:
+    
+    >>> p, = plt.plot(syn['time'], syn['flux'] * pblum + l3, 'r-', lw=2)
         
     Returns the matplotlib objects, the synthetic parameterSet and the used ``pblum``
     and ``l3`` values
+    
+    The synthetic parameterSet is 'array-ified', which means that all the columns
+    are arrays instead of lists.
     """
     ref = kwargs.pop('ref',0)
     scale = kwargs.pop('scale','obs')
@@ -88,9 +95,11 @@ def plot_lcsyn(system,*args,**kwargs):
         p, = plt.plot(time+n*period, flux, *args, **kwargs)
         artists.append(p)
 
+    ret_syn = syn.asarray()
+    
     if loaded: syn.unload()
     
-    return artists,syn,pblum,l3
+    return artists, ret_syn, pblum, l3
 
 
 def plot_lcobs(system,**kwargs):

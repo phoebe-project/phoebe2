@@ -1512,6 +1512,8 @@ class ParameterSet(object):
        remove_constraint
        run_constraints
        set_convention
+       set_enabled
+       get_enabled
        copy
        save
        save_ascii
@@ -1620,7 +1622,8 @@ class ParameterSet(object):
         self.context = context
         #-- there could be constraints
         self.constraints = OrderedDict()
-        
+        #-- a ParameterSet can be enabled (default) /disabled
+        self.enabled = True
         self.__default_units = None
         
         #-- by default, only load main parameter definitions
@@ -1680,6 +1683,29 @@ class ParameterSet(object):
         for idef in definitions:
             self.add(idef)
         self.frame = frame
+    
+    def set_enabled(self,state):
+        """
+        Enable/disable a parameterSet.
+        
+        What exactly it means to be enabled/disabled depends on the context.
+        For example, if data is enabled, it could be used for fitting. If a
+        spot parameterSet is disabled, the parameters might be stored, but no
+        spots added.
+        
+        @param state: enable/disable the ParameterSet
+        @type state: bool
+        """
+        self.enabled = state
+    
+    def get_enabled(self):
+        """
+        Check if a parameterSet is enabled or disabled.
+        
+        @return: current state
+        @rtype: bool
+        """
+        return self.enabled
     
     #}
     #{ Accessibility functions to the Parameters
