@@ -61,10 +61,11 @@ def plot_lcsyn(system,*args,**kwargs):
     if scale=='obs':
         try:
             obs = system.get_obs(category='lc',ref=ref)
+            pblum = obs['pblum']
+            l3 = obs['l3']
         except:
             raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
-        pblum = obs['pblum']
-        l3 = obs['l3']
+        
     elif scale=='syn':
         pblum = syn['pblum']
         l3 = syn['l3']

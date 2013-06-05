@@ -1690,6 +1690,8 @@ def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
     #   saying e.g. lc=True or lc=['mylc1','mylc2']
     refs = []
     typs = []
+    if not lc and not rv and not sp and not pl and not im:
+        raise ValueError("You need to compute at least one of lc, rv, sp, pl and/or im")
     #-- derive all lcdep parameterset references
     for type in ['lc','rv','sp','pl']:
         if locals()[type] is True:
@@ -1717,6 +1719,9 @@ def choose_eclipse_algorithm(all_systems,algorithm='auto'):
     if algorithm=='only_horizon':
         eclipse.horizon_via_normal(all_systems)
         return None
+    elif algorithm=='full':
+        eclipse.detect_eclipse_horizon(all_systems)
+        
     try:
         if hasattr(all_systems,'len') and len(all_systems)==2: # assume it's a binary
             try:
@@ -1779,7 +1784,8 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
         star1 = system
         star2 = None
     period = orbit['period']
-    times_ = np.linspace(0,period,250)
+    t0,tn = kwargs.pop('t0',0), kwargs.pop('tn',period)
+    times_ = np.linspace(t0,tn,250)
     orbit1 = keplerorbit.get_binary_orbit(times_,orbit,component='primary')[0]
     orbit2 = keplerorbit.get_binary_orbit(times_,orbit,component='secondary')[0]
     # What's the radius of the stars?
@@ -1798,11 +1804,12 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     ymin = ymin - 1.1*max(r1,r2)
     ymax = ymax + 1.1*max(r1,r2)
     # and make the figure
-    pl.figure(figsize=(8,abs(ymin-ymax)/abs(xmin-xmax)*8))
+    figsize = kwargs.pop('figsize',8)
+    pl.figure(figsize=(figsize,abs(ymin-ymax)/abs(xmin-xmax)*figsize))
     ax = pl.axes([0,0,1,1],aspect='equal',axisbg='k')
     ax.xaxis.set_ticks([])
     ax.yaxis.set_ticks([])
-    image(system,ax=ax,**kwargs)
+    image(system,ax=ax,**kwargs)    
     #pl.plot(orbit1[0],orbit1[1],'r-',lw=2)
     #pl.plot(orbit2[0],orbit2[1],'b-',lw=2)
     pl.xlim(xmin,xmax)

@@ -12,6 +12,40 @@ from phoebe.backend import observatory
 from phoebe.backend import universe
 from phoebe.utils import utils
 
+def update_progress(progress, width=80):
+    """
+    Displays or updates a console progress bar
+    
+    Accepts a float between 0 and 1. Any int will be converted to a float.
+    A value under 0 represents a 'halt'.
+    A value at 1 or bigger represents 100%
+    """
+    barLength = max(1, width-20-20) # Modify this to change the length of the progress bar
+    
+    progress = float(progress)
+    if progress < 0:
+        progress = 0
+        status = "{:20s}".format("First time point...")+"\r"
+    # At the end, report and let the progressbar disappear
+    elif progress > 1:
+        progress = 1
+        status = "{:20s}".format('Done...')+"\r" + " "*(20+20+barLength)+"\r"
+    elif progress <= 0.25:
+        status = "{:20s}".format("Warming up...")
+    elif progress <= 0.50:
+        status = "{:20s}".format("Going steady...")
+    elif progress <= 0.75:
+        status = "{:20s}".format("Wait for it...")
+    elif progress <= 1.00:
+        status = "{:20s}".format("Almost there...")    
+    else:
+        status = "{:20s}".format("Running...")
+    block = int(round(barLength*progress))
+    text = "MPIRUN: [{0}] {1:7.3f}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
+    text = "\r" + text[-width:]
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
 if __name__=="__main__":
     comm = MPI.COMM_WORLD
 
@@ -59,7 +93,7 @@ if __name__=="__main__":
         if params['refl']:
             system.prepare_reflection(ref='all')
             system.fix_mesh()
-        print("MPIrun: calculating at first time point")
+        update_progress(-1)#print("MPIrun: calculating at first time point")
         system.set_time(params['time'][0])
         
         
@@ -71,7 +105,8 @@ if __name__=="__main__":
         olength = len(dates)
         while len(dates):
             #-- print some diagnostics to the user.
-            print("MPIrun: starting at {:.3f}% of total run".format((olength-len(dates))/float(olength)*100))
+            #print("MPIrun: starting at {:.3f}% of total run".format((olength-len(dates))/float(olength)*100))
+            update_progress((olength-len(dates))/float(olength))
             N = len(dates)
             take = max(N/(2*nprocs),1)
             do_dates,dates = dates[:take],dates[take:]
@@ -92,6 +127,8 @@ if __name__=="__main__":
 
             # Store the results asynchronously:
             res.append(comm.irecv(bytearray(500000), node, tag=TAG_RES))
+        
+        update_progress(1.1)#print("MPIrun: finished")
         
         packet = {'continue': False}
         for i in range(1,nprocs):

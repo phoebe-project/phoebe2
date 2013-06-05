@@ -340,12 +340,16 @@ class DataSet(parameters.ParameterSet):
         return dtypes
     
     def get_shape(self):
-        return (len(self),)
+        return (len(self),)    
     
     def __len__(self):
         return len(self[self['columns'][0]])
     
-    
+    def asarray(self):
+        self_copy = self.copy()
+        for col in self['columns']:
+            self_copy[col] = np.array(self[col])
+        return self_copy
     
     dtype = property(get_dtype)
     shape = property(get_shape)
