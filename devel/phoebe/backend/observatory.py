@@ -1368,7 +1368,9 @@ def extract_times_and_refs(system,params,tol=1e-8):
     parameterSet with context C{params}.
     
     If times are already set with a list, this function does nothing. This
-    function only automatically fills the value if C{time='auto'}.\
+    function automatically fills the value if C{time='auto'}, with the
+    information inside the enabled datasets. If C{time='all'}, the enabled
+    state will be disregarded and all datasets are taken into account.
     
     @param system: Body to derive time points of
     @type system: Body
@@ -1380,7 +1382,7 @@ def extract_times_and_refs(system,params,tol=1e-8):
     """
     #-- do we really need to set anything?
     dates = params['time']
-    if not (isinstance(dates,str) and dates=='auto'):
+    if not (isinstance(dates,str)):
         return None
     times = [] # time points
     types = [] # types
@@ -1395,6 +1397,9 @@ def extract_times_and_refs(system,params,tol=1e-8):
         if not isinstance(parset,datasets.DataSet):
             continue
         if not parset.context[-3:]=='obs':
+            continue
+        #-- if the dataset is not enabled, forget about it (if dates='auto')
+        if dates == 'auto' and not parset.get_enabled():
             continue
         loaded = parset.load(force=False)
         #-- exposure times

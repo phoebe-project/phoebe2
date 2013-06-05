@@ -714,38 +714,8 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
 
 #{ Nonlinear optimizers
 
-def __run_lmfit(system,params=None,mpi=None,fitparams=None):
-    """
-    Iterate an lmfit to start from different representations.
-    """
-    if fitparams['iters']>0:
-        set_values_from_prior = True
-    else:
-        set_values_from_prior = False
-    iters = max(fitparams['iters'],1)
-    best_chi2 = np.inf
-    best_fitparams = None
-    for iteration in range(iters):
-        logger.warning("Iteration {}/{}".format(iteration+1,iters))
-        if set_values_from_prior:
-            #system.set_values_from_priors()
-            for parset in system.walk():
-                #-- for each parameterSet, walk through all the parameters
-                for qual in parset:
-                    #-- extract those which need to be fitted
-                    if parset.get_adjust(qual) and parset.has_prior(qual):
-                        parset.get_parameter(qual).set_value_from_prior()
-            
-        fitparams = _run_lmfit(system,params=params,mpi=mpi,fitparams=fitparams)
-        if fitparams['feedback']['redchi']<best_chi2:
-            best_fitparams = fitparams
-            logger.warning("Found better fit = {} < {}".format(fitparams['feedback']['redchi'],best_chi2))
-            best_chi2 = fitparams['feedback']['redchi']
-            
-    return best_fitparams
 
-
-def run_lmfit(system,params=None,mpi=None,fitparams=None):
+def run_lmfit(system, params=None, mpi=None, fitparams=None):
     """
     Perform nonlinear fitting of a system using lmfit.
     
@@ -763,7 +733,9 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     @rtype: ParameterSet
     """
     if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:lmfit')
+        fitparams = parameters.ParameterSet(frame='phoebe',
+                                            context='fitting:lmfit')
+        
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -773,65 +745,80 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     ids = []
     pars = lmfit.Parameters()
     ppars = [] # Phoebe parameters
+    
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
-    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
     frames = []
-    for parset in system.walk():#walk:
+    for parset in system.walk():
         frames.append(parset.frame)
+        
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
+            
             #-- extract those which need to be fitted
             if parset.get_adjust(qual) and parset.has_prior(qual):
+                
                 #-- ask a unique ID and check if this parameter has already
                 #   been treated. If so, continue to the next one.
                 parameter = parset.get_parameter(qual)
                 myid = parameter.get_unique_label()
-                if myid in ids: continue
+                if myid in ids:
+                    continue
+                
                 #-- else, add the name to the list of pnames. Ask for the
                 #   prior of this object
-                name = '{}_{}'.format(qual,myid).replace('-','_')
+                name = '{}_{}'.format(qual, myid).replace('-','_')
                 prior = parameter.get_prior()
                 if fitparams['bounded']:
-                    minimum,maximum = prior.get_limits(factor=fitparams['bounded'])
+                    minimum, maximum = prior.get_limits(factor=fitparams['bounded'])
                 else:
-                    minimum,maximum = None,None
-                pars.add(name,value=parameter.get_value(),min=minimum,max=maximum,vary=True)
+                    minimum, maximum = None, None
+                pars.add(name, value=parameter.get_value(),
+                         min=minimum, max=maximum, vary=True)
+                
                 #-- and add the id
                 ids.append(myid)
                 ppars.append(parameter)
+    
     traces = []
     redchis = []
     Nmodel = dict()
     
-    def model_eval(pars,system):
+    def model_eval(pars, system):
         #-- evaluate the system, get the results and return a probability
         had = []
+        
         #-- walk through all the parameterSets available:
-        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         for parset in system.walk():
+            
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
+                
                 #-- extract those which need to be fitted
                 if parset.get_adjust(qual) and parset.has_prior(qual):
+                    
                     #-- ask a unique ID and update the value of the parameter
-                    myid = parset.get_parameter(qual).get_unique_label().replace('-','_')
-                    if myid in had: continue
-                    parset[qual] = pars['{}_{}'.format(qual,myid)].value
+                    myid = parset.get_parameter(qual).get_unique_label().replace('-', '_')
+                    if myid in had:
+                        continue
+                    parset[qual] = pars['{}_{}'.format(qual, myid)].value
                     had.append(myid)
+                    
         system.reset()
         system.clear_synthetic()
-        system.compute(params=params,mpi=mpi)
-        mu,sigma,model = system.get_model()
-        retvalue = (model-mu)/sigma
+        system.compute(params=params, mpi=mpi)
+        mu, sigma, model = system.get_model()
+        retvalue = (model - mu) / sigma
+        
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
         logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
+        
         #-- keep track of trace
         traces.append(vals)
-        redchis.append(np.array(retvalue**2).sum()/(len(model)-len(pars)))
+        redchis.append(np.array(retvalue**2).sum() / (len(model)-len(pars)))
         Nmodel['Nd'] = len(model)
         Nmodel['Np'] = len(pars)
         return retvalue
@@ -843,24 +830,28 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
     #   so we need to tell it that it has to take wide steps for the computation
     #   of its derivatives.
     extra_kwargs = {}
-    if fitparams['method']=='leastsq':
+    if fitparams['method'] == 'leastsq':
         extra_kwargs['epsfcn'] = 1e-3
-    result = lmfit.minimize(model_eval,pars,args=(system,),method=fitparams['method'],**extra_kwargs)
+    result = lmfit.minimize(model_eval, pars, args=(system,),
+                            method=fitparams['method'], **extra_kwargs)
     lmfit.report_errors(pars)
+    
     #-- extract the values to put them in the feedback
     if not result.success:
         logger.error("nonlinear fit with method {} failed".format(fitparams['method']))
         values = [np.nan for ipar in pars]
     else:
-        values = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].value for ipar in ppars]
+        values = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].value for ipar in ppars]
+    
     #-- the same with the errors and correlation coefficients, if there are any
     if result.errorbars:
-        sigmas = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].stderr for ipar in ppars]
-        correl = [pars['{}_{}'.format(ipar.get_qualifier(),ipar.get_unique_label().replace('-','_'))].correl for ipar in ppars]
+        sigmas = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].stderr for ipar in ppars]
+        correl = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].correl for ipar in ppars]
     else:
         sigmas = [np.nan for ipar in pars]
         correl = [np.nan for ipar in pars]
         logger.error("Could not estimate errors (set to nan)")
+    
     #-- when asked, compute detailed confidence intervals
     if fitparams['compute_ci']:
         #-- if we do this, we need to disable boundaries
@@ -868,14 +859,19 @@ def run_lmfit(system,params=None,mpi=None,fitparams=None):
             pars[name].min = None
             pars[name].max = None
         try:
-            ci = lmfit.conf_interval(result,sigmas=(0.674,0.997),verbose=True,maxiter=10)
+            ci = lmfit.conf_interval(result, sigmas=(0.674, 0.997),
+                                     verbose=True, maxiter=10)
             lmfit.printfuncs.report_ci(ci)
         except Exception as msg:
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
-    feedback = dict(parameters=ppars,values=values,sigmas=sigmas,correls=correl,\
-                    redchi=result.redchi,success=result.success,
-                    traces=np.array(traces).T,redchis=redchis,
-                    Ndata=Nmodel['Nd'],Npars=Nmodel['Np'])
+    
+    # traces = np.array(traces).T
+    # feedback = FeedbackLmfit(ppars, values, sigmas, correl, traces, result)
+    
+    feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
+                    correls=correl, redchi=result.redchi, success=result.success,
+                    traces=np.array(traces).T, redchis=redchis,
+                    Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback
     return fitparams
 
@@ -1178,9 +1174,14 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
 #{ Feedbacks
 
 class Feedback(object):
+    """
+    Feedback from a fit.
+    
+    For inter-comparison between different fitmethods, we need to choose one
+    statistic. That'll be a chi-square (chi2).
+    """
     def __init__(self):
     
-        self._optimize = 'minimize'
         self._keys = []
         self.index = 0
    
@@ -1201,30 +1202,28 @@ class Feedback(object):
             self.index += 1
             return self._keys[self.index-1]
     
+    def get_chi2(self):
+        return 1.0
+    
     def __getitem__(self, key):
         return getattr(self,key)
     
     def __lt__(self, other):
         """
         One statistic is less than another if it implies a worse fit.
+        
+        A worse fit means a larger chi square.
         """
-        if self._optimize == 'maximize':
-            return self.get_stat() < other.get_stat()
-        elif self._optimize == 'minimize':
-            return self.get_stat() > other.get_stat()
-        else:
-            raise NotImplementedError
+        return self.get_chi2() > other.get_chi2()
     
     next = __next__
+
 
 class FeedbackLmfit(Feedback):
     """
     Feedback from lmfit.
     """
-    def __init__(self,parameters, values, sigmas, correls,
-                 redchi, success, traces, redchis,
-                 n_data, n_pars):
-        self._optimize = 'minimize'
+    def __init__(self, parameters, values, sigmas, correls, traces, result):
         self._keys = ['parameters', 'values', 'sigmas', 'correls',
                       'redchi', 'success', 'traces', 'redchis',
                       'n_data', 'n_pars']

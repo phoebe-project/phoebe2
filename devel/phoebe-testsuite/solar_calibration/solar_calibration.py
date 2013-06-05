@@ -131,11 +131,6 @@ the_sun.plot2D(savefig='sun_sun.png',ref=0)
 the_sun.plot2D(savefig='sun_sun_true_color.png',select='teff',cmap='blackbody_proj')
 the_sun.plot2D(savefig='sun_rv.png',select='rv')
 
-from mayavi import mlab
-
-the_sun.plot3D(normals=True)
-mlab.show()
-
 
 """
 
