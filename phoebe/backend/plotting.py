@@ -933,6 +933,8 @@ class Axes(parameters.ParameterSet):
             #if linestyle has not been set, make decision based on type
             if po['linestyle'] == 'auto':
                 po['linestyle'] = 'None' if plotoptions['type'][-3:] == 'obs' else '-'
+            if po['marker'] == 'auto':
+                po['marker'] = 'None' if plotoptions['type'][-3:] == 'syn' else '.'
             #if color has not been set, make decision based on type
             if po['color'] == 'auto':
                 po['color'] = 'k' if plotoptions['type'][-3:] == 'obs' else 'r' 

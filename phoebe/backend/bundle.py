@@ -184,6 +184,8 @@ class Bundle(object):
         obj = self.get_object(objectname)
         oldparent = self.get_parent(objectname)
         
+        # parent should have oldparent as its parent and obj as a child
+        
         # this isn't going to work because we can't initialize a BodyBag with no arguments/children
         parent.append(obj)
         oldparent.append(parent)
@@ -288,7 +290,7 @@ class Bundle(object):
         if label is None:    return None
         self.compute.pop(label)        
     
-    def observe(self,label=None,mpi=True):
+    def run_compute(self,label=None,mpi=True):
         """
         Convenience function to run observatory.observe
         
@@ -355,17 +357,19 @@ class Bundle(object):
         if label is None:    return None
         self.fitting.pop(label)        
         
-    def run_fitting(self,label,mpi=True):
+    def run_fitting(self,computelabel,fittinglabel,mpi=True):
         """
         Run fitting for a given fitting parameterSet
         and store the feedback
         
-        @param label: name of fitting parameterSet
-        @type label: str
+        @param computelabel: name of compute parameterSet
+        @param computelabel: str
+        @param fittinglabel: name of fitting parameterSet
+        @type fittinglabel: str
         @param mpi: whether mpi is enabled (will use stored options)
         @type mpi: bool
         """
-        feedback = fitting.run(self.system, self.fitting[label], mpi=self.mpi if mpi else None)
+        feedback = fitting.run(self.system, params=self.get_compute(computelabel), fitparams=self.get_fitting(fittinglabel), mpi=self.mpi if mpi else None)
         self.add_feedback(feedback)
     
     def add_feedback(self,feedback):
