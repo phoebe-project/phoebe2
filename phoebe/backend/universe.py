@@ -3184,7 +3184,9 @@ class BinaryBag(BodyBag):
                     try:
                         ilabel = iobject.get_label()
                     except ValueError:
-                        ilabel = uuid.uuid4()
+                        ilabel = orbit['c{}label'.format(i+1)]
+                        iobject.set_label(ilabel)
+                        #ilabel = uuid.uuid4()
                 #-- check if the Body is already in this orbit, or has an
                 #   empty  orbit
                 is_already_in_orbit = 'orbit' in iobject.params and iobject.params['orbit'] is orbit

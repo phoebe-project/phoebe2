@@ -1178,11 +1178,33 @@ class Feedback(object):
     Feedback from a fit.
     
     For inter-comparison between different fitmethods, we need to choose one
-    statistic. That'll be a chi-square (chi2).
+    statistic. That'll be a reduced chi-square (redchi2).
+    
+    These are the required properties of a feedback:
+        
+        - ``parameters``: the Parameter instances
+        - ``values``: values of the best fit
+        - ``sigmas``: estimated uncertainties or standard deviation of
+          distributions
+        - ``redchi``: reduced chi-square of best fit
+        - ``n_data``: number of data points
+        - ``n_pars``: number of free parameters
+        - ``fitparams``: parameterSet used in fitting
+        
+        
+        
+    These are optional properties:
+        
+        - ``correls``: correlation coefficients
+        - ``traces``: histories of the fit
+        - ``stats``: reduced chi-squares connected to the histories.
+        - ``success``: message
+        
     """
     def __init__(self):
     
-        self._keys = []
+        self._keys = ['parameters', 'values', 'sigmas',
+                      'redchi', 'n_data', 'n_pars', 'ref']
         self.index = 0
    
     def keys(self):
@@ -1216,6 +1238,18 @@ class Feedback(object):
         """
         return self.get_chi2() > other.get_chi2()
     
+    
+    def __str__(self):
+        """
+        String representation of a feedback.
+        """
+        txt = "Result from fit {}\n".format(self.fitparams['ref'])
+        for par, val, sig in zip(self.parameters, values, sigmas):
+            qual = par.get_qualifier()
+            txt+= "{:10s} = {} +/- {}\n".format(qual, val, sig)
+        return txt
+            
+    
     next = __next__
 
 
@@ -1223,10 +1257,29 @@ class FeedbackLmfit(Feedback):
     """
     Feedback from lmfit.
     """
-    def __init__(self, parameters, values, sigmas, correls, traces, result):
-        self._keys = ['parameters', 'values', 'sigmas', 'correls',
-                      'redchi', 'success', 'traces', 'redchis',
-                      'n_data', 'n_pars']
+    def __init__(self, parameters, values, sigmas,
+                 correls, traces, result, method):
+        """
+        Initialize a Feedback instance from Lmfit.
+        
+        We have:
+        
+            - ``parameters``: the Parameter instances
+            - ``values``: values of the best fit
+            - ``sigmas``: estimated uncertainties
+            - ``correls``: correlation coefficients
+            - ``traces``: histories of the fit
+            - ``stats``: reduced chi-squares connected to the histories.
+            - ``redchi``: reduced chi-square of best fit
+            - ``n_data``: number of data points
+            - ``n_pars``: number of free parameters
+            - ``success``: message from lmfit.
+            - ``method``: method used in lmfit
+        """
+        self._keys = ['parameters', 'values', 'sigmas',
+                      'redchi', 'n_data', 'n_pars', 'fitparams', 
+                      'correls', 'traces', 'stats', 'success']
+        
         self.index = 0
         
         self.parameters = parameters
@@ -1239,9 +1292,25 @@ class FeedbackLmfit(Feedback):
         self.redchis = redchis
         self.n_data = n_data
         self.n_pars = n_pars
+        self.fitparams = fitparams
     
     def get_stat(self):
         return self.redchi
+    
+    def __str__(self):
+        """
+        String representation of a feedback.
+        """
+        method = self.fitparams['method']
+        ref = self.fitparams['ref']
+        txt = "Result from lmfit ({}) {}\n".format(method, ref)
+        txt+= '-'*len(txt) + '\n'
+        for par, val, sig in zip(self.parameters, values, sigmas):
+            qual = par.get_qualifier()
+            txt+= "{:10s} = {} +/- {}\n".format(qual, val, sig)
+        return txt
+    
+    
 
 class FeedbackEmcee(Feedback):
     def __init__(self,logp):
