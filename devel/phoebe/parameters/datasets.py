@@ -863,9 +863,9 @@ def parse_header(filename,ext=None):
                 continue
             elif line[0]=='#':
                 #-- break when we reached the end!
+                all_lines.append(line[1:])
                 if line[1:4]=='---':
                     continue
-                all_lines.append(line[1:])
             #-- perhaps the user did not give a '----', is this safe?
             elif n_columns < 0:
                 n_columns = len(line.split('#')[0].strip().split())
@@ -902,12 +902,12 @@ def parse_header(filename,ext=None):
         #   which is followed by a line containing '#---' at least.
         #   Or the line after that one; in the latter case, also
         #   the components are given
-        elif iline==(header_length-2):
+        elif iline==(header_length-3) and all_lines[-1][:3] == '---':
             columns = line.split()
             components = all_lines[iline+1].split()
             break
         #-- now we only have column names
-        elif iline==(header_length-1):
+        elif iline==(header_length-2) and all_lines[-1][:3] == '---':
             columns = line.split()
     #-- some post processing:
     if isinstance(components,str) and columns is not None:
@@ -1074,7 +1074,6 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     
     if columns is None and not columns_in_file:
         columns_in_file = default_column_order
-        components_in_file = None
     elif columns is not None:
         columns_in_file = columns
         
@@ -1336,7 +1335,6 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
     
     if columns is None and not columns_in_file:
         columns_in_file = default_column_order
-        components_in_file = None
     elif columns is not None:
         columns_in_file = columns
     columns_required = ['time','rv']
