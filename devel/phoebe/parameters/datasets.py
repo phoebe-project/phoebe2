@@ -14,9 +14,7 @@ The following datasets are defined:
     IFDataSet
     PLDataSet
 
-The following ASCII parsers translate ASCII files to lists of DataSets. The
-string following ``parse_`` in the name of the function refers to the extension
-the file should have.
+The following ASCII parsers translate ASCII files to lists of DataSets.
 
 .. autosummary::
 
@@ -740,7 +738,8 @@ def parse_header(filename,ext=None):
     Parse only the header of an ASCII file.
     
     The columns and components are returned as well as a pbdep and dataset
-    where the keywords in the header are parsed.
+    where the keywords in the header are parsed. Also the number of columns
+    from the data part is returned (if no data, it is set to -1).
     
     If there are no columns defined, ``columns`` will be ``None``. If there
     are no components defined, ``components`` will be ``None``.
@@ -770,7 +769,7 @@ def parse_header(filename,ext=None):
     
     >>> info, ps = parse_header('example_file.phot')
     >>> print(info)
-    (None, None)
+    (None, None, -1)
     >>> print(ps)
     (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
     
@@ -783,7 +782,7 @@ def parse_header(filename,ext=None):
         
     >>> info, ps = parse_header('example_file.rv')
     >>> print(info)
-    (None, 'componentA')
+    (None, 'componentA', -1)
     >>> print(ps)
     (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
     
@@ -796,7 +795,7 @@ def parse_header(filename,ext=None):
         
     >>> info, ps = parse_header('example_file.phot')
     >>> print(info)
-    (['flux', 'passband', 'time', 'sigma', 'unit'], None)
+    (['flux', 'passband', 'time', 'sigma', 'unit'], None, -1)
     >>> print(ps)
     (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
     
@@ -811,7 +810,7 @@ def parse_header(filename,ext=None):
         
     >>> info, ps = parse_header('example_file.rv')
     >>> print(info)
-    (['rv', 'time', 'sigma'], ['componentA', 'componentA', 'componentA'])
+    (['rv', 'time', 'sigma'], ['componentA', 'componentA', 'componentA'], -1)
     >>> print(ps)
     (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
     
@@ -826,14 +825,16 @@ def parse_header(filename,ext=None):
     
     >>> info, ps = parse_header('example_file.rv')
     >>> print(info)
-    (['rv', 'time', 'sigma', 'sigma', 'rv'], ['starA', 'None', 'starA', 'starB', 'starB'])
+    (['rv', 'time', 'sigma', 'sigma', 'rv'], ['starA', 'None', 'starA', 'starB', 'starB'], -1)
     >>> print(ps)
     (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
         
     @param filename: input file
     @type filename: str
-    @return: (columns, components), (pbdep, dataset)
-    @rtype: (list/None, list/str/None), (ParameterSet, DataSet)
+    @param ext: file type, one of ``lc``, ``phot``, ``rv``, ``spec``, ``lprof``, ``vis2``, ``plprof``
+    @type ext: str
+    @return: (columns, components, ncol), (pbdep, dataset)
+    @rtype: (list/None, list/str/None, int), (ParameterSet, DataSet)
     """
     #-- create a default pbdep and DataSet
     contexts = dict(rv='rvdep',
@@ -850,21 +851,24 @@ def parse_header(filename,ext=None):
     #-- they belong together, so they should have the same reference
     ds['ref'] = pb['ref']
     #-- open the file and start reading the lines
+    n_columns = -1
     with open(filename,'r') as ff:
         # We can only avoid reading in the whole file by first going through
         # it line by line, and collect the comment lines. We need to be able
-        # to look ahead to detect where the headers ends.
+        # to look ahead to detect where the header ends.
         all_lines = []
         for line in ff.xreadlines():
             line = line.strip()
-            if not line: continue
+            if not line:
+                continue
             elif line[0]=='#':
                 #-- break when we reached the end!
                 if line[1:4]=='---':
-                    break
+                    continue
                 all_lines.append(line[1:])
             #-- perhaps the user did not give a '----', is this safe?
-            else:
+            elif n_columns < 0:
+                n_columns = len(line.split('#')[0].strip().split())
                 break
                 
     #-- prepare some output and helper variables
@@ -911,7 +915,7 @@ def parse_header(filename,ext=None):
     if 'filename' in ds:
         ds['filename'] = filename
     #-- that's it!
-    return (columns, components), (pb,ds)    
+    return (columns, components, n_columns), (pb,ds)    
 
 def parse(file_pattern,full_output=False,**kwargs):
     """
@@ -942,8 +946,6 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     Parse LC files to LCDataSets and lcdeps.
     
     **File format description**
-    
-    The filename **must** have the extension ``.lc``.
     
     The generic structure of an LC file is::
         
@@ -1067,21 +1069,23 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
-    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='lc')
+    default_column_order = ['time', 'flux', 'sigma', 'flag'][:ncol]
     
-    if columns is None and columns_in_file is None:
-        columns_in_file = ['time','flux','sigma']
+    if columns is None and not columns_in_file:
+        columns_in_file = default_column_order
+        components_in_file = None
     elif columns is not None:
         columns_in_file = columns
-    columns_required = ['time','flux','sigma']
-    columns_specs = dict(time=float,flux=float,sigma=float)
+        
+    columns_required = ['time', 'flux']
+    columns_specs = dict(time=float, flux=float, sigma=float, flag=float)
     
     missing_columns = set(columns_required) - set(columns_in_file)
     if len(missing_columns)>0:
         raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
     
     ds['columns'] = columns_in_file
-    
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
@@ -1327,13 +1331,15 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
     #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
-    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
+    (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='rv')
+    default_column_order = ['time','rv','sigma'][:ncol]
     
-    if columns is None and columns_in_file is None:
-        columns_in_file = ['time','rv','sigma']
+    if columns is None and not columns_in_file:
+        columns_in_file = default_column_order
+        components_in_file = None
     elif columns is not None:
         columns_in_file = columns
-    columns_required = ['time','rv','sigma']
+    columns_required = ['time','rv']
     columns_specs = dict(time=float,rv=float,sigma=float)
     
     missing_columns = set(columns_required) - set(columns_in_file)

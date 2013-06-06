@@ -59,7 +59,7 @@ from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,Bin
 #-- common input and output
 from .parameters.parameters import load as load_ps
 from .backend.universe import load as load_body
-from .parameters.datasets import parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
+from .parameters.datasets import parse_lc,parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
 from .parameters import create
 from .utils.utils import get_basic_logger
 
