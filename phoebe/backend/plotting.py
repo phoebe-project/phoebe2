@@ -54,11 +54,12 @@ def plot_lcsyn(system,*args,**kwargs):
     are arrays instead of lists.
     """
     ref = kwargs.pop('ref',0)
-    scale = kwargs.pop('scale','obs')
-    repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
+    scale = kwargs.pop('scale', 'obs')
+    repeat = kwargs.pop('repeat', 0)
+    period = kwargs.pop('period', None)
     #-- get parameterSets
-    syn = system.get_synthetic(category='lc',ref=ref)
+    syn = system.get_synthetic(category='lc', ref=ref)
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
     #-- load synthetics: they need to be here
     loaded = syn.load(force=False)
@@ -125,6 +126,7 @@ def plot_lcobs(system,**kwargs):
     period = kwargs.pop('period',None)
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
     #-- load observations: they need to be here
     loaded = obs.load(force=False)
@@ -176,10 +178,12 @@ def plot_lcres(system,*args,**kwargs):
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
     syn = system.get_synthetic(category='lc',ref=ref)
+    kwargs.setdefault('label', obs['ref'])
     
     #-- load observations: they need to be here
     loaded_obs = obs.load(force=False)
     loaded_syn = syn.load(force=False)
+    
     
     #-- try to get the observations. They don't need to be loaded, we just need
     #   the pblum and l3 values.

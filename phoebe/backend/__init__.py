@@ -1,5 +1,19 @@
 """
-Core interface of Phoebe
+Core interface of Phoebe.
+
+Section 1. Subpackages
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+
+    bundle
+    fitting
+    observatory
+    plotting
+    universe
+
+Section 2. Quick reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Template class**: lists all the stuff you can do with a Body.
 
@@ -29,7 +43,8 @@ Core interface of Phoebe
     observatory.stokes
     observatory.ifm
 
-Other observables such as ``lc`` and ``rv`` are computed directly from the Body.
+Other observables such as ``lc`` and ``rv`` are computed directly from the Body
+or BodyBag.
 
 **Fitting parameters**
 

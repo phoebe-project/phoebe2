@@ -74,6 +74,7 @@ import time
 import logging
 import functools
 import itertools
+import pickle
 import copy
 import numpy as np
 import scipy
@@ -865,12 +866,14 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         except Exception as msg:
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
     
-    # traces = np.array(traces).T
-    # feedback = FeedbackLmfit(ppars, values, sigmas, correl, traces, result)
+    #traces = np.array(traces).T
+    #feedback_ = FeedbackLmfit(fitparams, ppars, result, pars,
+    #                          traces, redchis)
+    #feedback_.save('test.fb')
     
     feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
                     correls=correl, redchi=result.redchi, success=result.success,
-                    traces=np.array(traces).T, redchis=redchis,
+                    traces=traces, redchis=redchis,
                     Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback
     return fitparams
@@ -1248,17 +1251,34 @@ class Feedback(object):
             qual = par.get_qualifier()
             txt+= "{:10s} = {} +/- {}\n".format(qual, val, sig)
         return txt
-            
+    
+    def save(self,filename):
+        ff = open(filename,'w')
+        pickle.dump(self,ff)
+        ff.close()  
+        logger.info('Saved model to file {} (pickle)'.format(filename))
     
     next = __next__
+
+def load(filename):
+    """
+    Load a class from a file.
+    
+    @return: Body saved in file
+    @rtype: Body
+    """
+    ff = open(filename,'r')
+    myclass = pickle.load(ff)
+    ff.close()
+    return myclass
 
 
 class FeedbackLmfit(Feedback):
     """
     Feedback from lmfit.
     """
-    def __init__(self, parameters, values, sigmas,
-                 correls, traces, result, method):
+    def __init__(self, fitparams, phoebe_pars, results, lmfit_pars,
+                 traces, redchis):
         """
         Initialize a Feedback instance from Lmfit.
         
@@ -1282,18 +1302,44 @@ class FeedbackLmfit(Feedback):
         
         self.index = 0
         
-        self.parameters = parameters
+        #-- extract the best fitting values, errors and correlation coefficients
+        #   If they failed to compute for some reason, we set them to nan:
+        method = fitparams['method']
+        
+        # First check the values
+        if results.success:
+            values = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-', '_'))].value for ipar in phoebe_pars]
+        else:
+            values = [np.nan for ipar in lmfit_pars]
+            msg = "Nonlinear fit with method {} failed".format(method)
+            logger.error(msg)
+        
+        # Then check the errorbars and correlation coefficients
+        if results.errorbars:
+            sigmas = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].stderr for ipar in phoebe_pars]
+            correl = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].correl for ipar in phoebe_pars]
+        else:
+            sigmas = [np.nan for ipar in lmfit_pars]
+            correl = [np.nan for ipar in lmfit_pars]
+            msg = "Could not estimate uncertainties (set to nan)"
+            logger.error(msg)        
+        
+        bounds = [(lmfit_pars[ipar].min, lmfit_pars[ipar].max) for ipar in lmfit_pars]
+                
+        self.fitparams = fitparams
+        self.parameters = phoebe_pars
+        self.bounds = bounds
         self.values = values
         self.sigmas = sigmas
-        self.correls = correls
-        self.redchi = redchi
-        self.success = success
+        self.correls = correl
+        self.redchi = results.redchi
+        self.success = results.success
+        self.n_data = results.ndata
+        self.n_pars = results.nvarys
+        self.df = results.nfree # = result.ndata - result.nvarys
         self.traces = traces
         self.redchis = redchis
-        self.n_data = n_data
-        self.n_pars = n_pars
-        self.fitparams = fitparams
-    
+        
     def get_stat(self):
         return self.redchi
     
@@ -1302,12 +1348,37 @@ class FeedbackLmfit(Feedback):
         String representation of a feedback.
         """
         method = self.fitparams['method']
-        ref = self.fitparams['ref']
+        ref = self.fitparams['label']
         txt = "Result from lmfit ({}) {}\n".format(method, ref)
-        txt+= '-'*len(txt) + '\n'
-        for par, val, sig in zip(self.parameters, values, sigmas):
-            qual = par.get_qualifier()
-            txt+= "{:10s} = {} +/- {}\n".format(qual, val, sig)
+        txt+= '-'*len(txt) + '\n\n'
+        txt+= str(self.fitparams) + '\n'
+        
+        header = ['context','name','unit','best','std','initial','min','max']
+        fmts = ['{:10s}','{:10s}','{:10s}','{:8.3g}','{:8.3g}','{:8.3g}','{:8.3g}','{:8.3g}']
+        table = [header]
+        
+        iters = self.parameters, self.values, self.sigmas, self.bounds
+        for par, val, sig, bound in zip(*iters):
+            if par.has_unit():
+                unit = par.get_unit()
+            else:
+                unit = ''
+            context = 'context'
+            line = [context, par.get_qualifier(), unit, val, sig, 0., bound[0], bound[1]]
+            line = [fmt.format(el) for fmt,el in zip(fmts,line)]
+            table.append(line)
+        
+        col_widths = [max([len(line[col]) for line in table]) for col in range(len(table[0]))]
+        col_fmts = ['{{:<{:d}s}}'.format(cw) for cw in col_widths]
+        
+        out_table = []
+        for line in table:
+            out_table.append('| '+' | '.join([fmt.format(el) for fmt,el in zip(col_fmts,line)]) + ' |')
+        width = len(out_table[0])
+        sep = '-'*width
+        out_table = [sep,out_table[0],sep] + out_table[1:] + [sep]
+        
+        txt += '\n'.join(out_table)
         return txt
     
     
