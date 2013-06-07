@@ -1421,7 +1421,8 @@ def extract_times_and_refs(system,params,tol=1e-8):
             # For now, we just assume we have a binary:
             period = system[0].params['orbit']['period']
             t0 = system[0].params['orbit']['t0']
-            mytimes = (parset['phase']*period) + t0
+            phshift = system[0].params['orbit']['phshift']
+            mytimes = (parset['phase'] * period) + t0 + phshift * period
             logger.warning("Converted phases to times with period={} and t0={}".format(period,t0))
         else:
             mytimes = parset['time']
