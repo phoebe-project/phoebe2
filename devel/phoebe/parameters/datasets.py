@@ -1028,7 +1028,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     # a priori, but allow to user to add/override any via ``dtypes``.
     columns_required = default_column_order[:required]
     columns_specs = dict(time=float, flux=float, sigma=float, flag=float,
-                         phase=float, rv=float)
+                         phase=float, rv=float, exptime=float, samprate=int)
     if dtypes is not None:
         for col in dtypes:
             if not col in columns_specs:
@@ -1290,14 +1290,15 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     @type full_output: bool
     @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
     """
-    default_column_order = ['time', 'flux', 'sigma', 'flag']
+    default_column_order = ['time', 'flux', 'sigma', 'flag', 'exptime',
+                            'samprate']
     
-    #-- which columns are present in the input file, and which columns are
-    #   possible in the RVDataSet? The columns that go into the RVDataSet
-    #   is the intersection of the two. The columns that are in the file but
-    #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
-    #   or for other purposes (e.g. label or unit).
-    #-- parse the header
+    # Which columns are present in the input file, and which columns are
+    # possible in the RVDataSet? The columns that go into the RVDataSet
+    # is the intersection of the two. The columns that are in the file but
+    # not in the RVDataSet are probably used for the pbdeps (e.g. passband)
+    # or for other purposes (e.g. label or unit).
+    # Parse the header
     parsed = parse_header(filename, ext='lc')
     (columns_in_file, components_in_file, ncol), (pb, ds) = parsed
     
@@ -1307,78 +1308,88 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
                              (pb, ds), default_column_order, required=2, 
                              columns=columns, components=components,
                              dtypes=dtypes, units=units)
-    
     (columns_in_file, columns_specs, units), (pb, ds) = processed
         
-    #-- prepare output dictionaries. The first level will be the label key
-    #   of the Body. The second level will be, for each Body, the pbdeps or
-    #   datasets.
+    # Prepare output dictionaries. The first level will be the label key
+    # of the Body. The second level will be, for each Body, the pbdeps or
+    # datasets.
     output = OrderedDict()
     ncol = len(columns_in_file)
     
-    #-- collect all data
+    # Collect all data
     data = []
-    #-- open the file and start reading the lines    
-    with open(filename,'r') as ff:
+
+    # Open the file and start reading the lines: skip empty and comment lines
+    with open(filename, 'r') as ff:
         for line in ff.readlines():
             line = line.strip()
-            if not line: continue
-            if line[0]=='#': continue
+            if not line:
+                continue
+            if line[0] == '#':
+                continue
             data.append(tuple(line.split()[:ncol]))
-    #-- we have the information from header now, but only use that
-    #   if it is not overriden
+
+    # We have the information from header now, but only use that if it is not
+    # overriden
     if components is None and components_in_file is None:
-        components = ['__nolabel__']*len(columns_in_file)
-    elif components is None and isinstance(components_in_file,str):
-        components = [components_in_file]*len(columns_in_file)
+        components = ['__nolabel__'] * len(columns_in_file)
+    elif components is None and isinstance(components_in_file, str):
+        components = [components_in_file] * len(columns_in_file)
     elif components is None:
         components = components_in_file
-    #-- make sure all the components are strings
+
+    # Make sure all the components are strings
     components = [str(c) for c in components]
-    #-- we need unique names for the columns in the record array
-    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
-    #-- add these to an existing dataset, or a new one.
-    #   also create pbdep to go with it!
-    #-- numpy records to allow for arrays of mixed types. We do some
-    #   numpy magic here because we cannot efficiently predefine the
-    #   length of the strings in the file: therefore, we let numpy
-    #   first cast everything to strings:
-    data = np.core.records.fromrecords(data,names=columns_in_data)
-    #-- and then say that it can keep those string arrays, but it needs
-    #   to cast everything else to the column specificer (i.e. the right type)
-    descr = data.dtype.descr
-    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
-    dtype = np.dtype(descr)
-    data = np.array(data,dtype=dtype)
     
-    #-- for each component, create two lists to contain the
-    #   LCDataSets or pbdeps    
+    # We need unique names for the columns in the record array
+    columns_in_data = ["".join([col, name]) for col, name in \
+                                         zip(columns_in_file, components)]
+    
+    # Add these to an existing dataset, or a new one. Also create pbdep to go
+    # with it!
+    # Numpy records to allow for arrays of mixed types. We do some numpy magic
+    # here because we cannot efficiently predefine the length of the strings in
+    # the file: therefore, we let numpy first cast everything to strings:
+    data = np.core.records.fromrecords(data, names=columns_in_data)
+    
+    # And then say that it can keep those string arrays, but it needs to cast
+    # everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]] == str \
+                          else (descr[i][0], columns_specs[columns_in_file[i]])\
+                              for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data, dtype=dtype)
+    
+    # For each component, create two lists to contain the LCDataSets or pbdeps    
     for label in set(components):
-        if label.lower()=='none':
+        if label.lower() == 'none':
             continue
-        output[label] = [[ds.copy()],[pb.copy()]]
-    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
-        if label.lower()=='none':
+        output[label] = [[ds.copy()], [pb.copy()]]
+    for col, coldat, label in zip(columns_in_file, columns_in_data, components):
+        if label.lower() == 'none':
             # Add each column
             for lbl in output:
                 output[lbl][0][-1][col] = data[coldat]
             continue
         
         output[label][0][-1][col] = data[coldat]
-        #-- override values already there with extra kwarg values
+        
+        # Override values already there with extra kwarg values, for both
+        # obs and pbdep parameterSets.
         for key in kwargs:
             if key in output[label][0][-1]:
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
    
-    #-- add sigma if not available:
+    # Add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
         myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
     
-    # convert to right units
+    # Convert to right units
     for col in units:
         if col == 'flux':
             f, e_f = conversions.convert(units[col],
@@ -1387,8 +1398,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
             myds['flux'] = f
             myds['sigma'] = e_f
             
-    #-- If the user didn't provide any labels (either as an argument or in the
-    #   file), we don't bother the user with it:
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:
         return output.values()[0]
     else:
@@ -1596,11 +1607,13 @@ def parse_rv(filename, columns=None, components=None,
     #-- collect all data
     data = []
     #-- open the file and start reading the lines    
-    with open(filename,'r') as ff:
+    with open(filename, 'r') as ff:
         for line in ff.readlines():
             line = line.strip()
-            if not line: continue
-            if line[0]=='#': continue
+            if not line:
+                continue
+            if line[0] == '#':
+                continue
             data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
