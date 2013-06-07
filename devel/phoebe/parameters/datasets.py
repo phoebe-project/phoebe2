@@ -225,7 +225,7 @@ class DataSet(parameters.ParameterSet):
             self.load()
             did_load = True
         noise = np.diff(self[from_col])/np.sqrt(2)
-        self[to_col] = np.hstack([noise[0],noise])
+        self[to_col] = np.ones(len(self)) * noise.mean() #np.hstack([noise[0],noise])
         if did_load:
             self.unload()
     
@@ -1202,7 +1202,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None,
     #-- add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
-        myds['sigma'] = np.ones(len(myds))
+        myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
 
     #-- If the user didn't provide any labels (either as an argument or in the

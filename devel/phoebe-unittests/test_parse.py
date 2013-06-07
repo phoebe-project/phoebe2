@@ -30,10 +30,15 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
     assert(data.shape[0] == obs[0].shape[0])
     
     # We need to have as many columns (if they were not specified):
-    if not 'columns' in kwargs:
-        assert(data.shape[1] == len(obs[0]['columns']))
-    else:
-        assert(len(kwargs['columns']) == len(obs[0]['columns']))
+    #if not 'columns' in kwargs:
+    #    assert(data.shape[1] == len(obs[0]['columns']))
+    #else:
+    if 'columns' in kwargs:
+        if not 'sigma' in kwargs['columns']:
+            extra = 1
+        else:
+            extra = 0
+        assert((len(kwargs['columns']) + extra) == len(obs[0]['columns']))
     
     # First column is most probably time column (strictly speaking this is not
     # necessary for the parser, but we assume it here in the tests)

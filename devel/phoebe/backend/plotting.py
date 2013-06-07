@@ -132,12 +132,16 @@ def plot_lcobs(system,**kwargs):
     loaded = obs.load(force=False)
     
     #-- take care of phased data
-    if not 'time' in obs['columns']:
+    if not 'time' in obs['columns'] and 'phase' in obs['columns']:
         myperiod = system[0].params['orbit']['period']
         myt0 = system[0].params['orbit']['t0']
-        time = obs['phase'] * myperiod + myt0
-    else:
+        myphshift = system[0].params['orbit']['phshift']
+        time = obs['phase'] * myperiod + myt0 + myphshift * myperiod
+    elif 'time' in obs['columns']:
         time = obs['time']
+    else:
+        raise IOError("No times or phases defined")
+    
     flux = obs['flux']
     sigm = obs['sigma']
     
