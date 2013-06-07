@@ -225,7 +225,7 @@ class DataSet(parameters.ParameterSet):
             self.load()
             did_load = True
         noise = np.diff(self[from_col])/np.sqrt(2)
-        self[to_col] = np.ones(len(self)) * noise.mean() #np.hstack([noise[0],noise])
+        self[to_col] = np.ones(len(self)) * np.std(noise) #np.hstack([noise[0],noise])
         if did_load:
             self.unload()
     
@@ -919,7 +919,7 @@ def parse_header(filename,ext=None):
 
 
 def process_header(info, sets, default_column_order, required=2, columns=None,
-                   components=None, dtypes=None):
+                   components=None, dtypes=None, units=None):
     """
     Process header information.
     """
@@ -928,6 +928,10 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     # Check minimum number of columns
     if ncol < required:
         raise ValueError("You need to give at least {} columns ({})".format(required, ", ".join(default_column_order[:required])))
+    
+    # Set units as an empty dictionary by default, that's easier
+    if units is None:
+        units = dict()
     
     # These are the default columns
     default_column_order = default_column_order[:ncol]
@@ -959,6 +963,11 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     if 'time' in missing_columns and 'phase' in columns_in_file:
         logger.warning('You have given phased data')
         __ = missing_columns.remove('time')
+    if 'flux' in missing_columns and 'mag' in columns_in_file:
+        index = columns_in_file.index('mag')
+        columns_in_file[index] = 'flux'
+        units['flux'] = 'mag'
+        __ = missing_columns.remove('flux')
     
     # If there are still missing columns, report to the user.
     if len(missing_columns) > 0:
@@ -973,7 +982,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
         if not col in ds:
             ds.add(dict(qualifier=col, value=[], description='User defined column',cast_type=np.array))
     
-    return columns_in_file, columns_specs, (pb, ds)
+    return (columns_in_file, columns_specs, units), (pb, ds)
 
 def parse(file_pattern,full_output=False,**kwargs):
     """
@@ -999,7 +1008,7 @@ def parse(file_pattern,full_output=False,**kwargs):
     
 
 
-def parse_lc(filename, columns=None, components=None, dtypes=None, 
+def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
              full_output=False, **kwargs):
     """
     Parse LC files to LCDataSets and lcdeps.
@@ -1122,23 +1131,26 @@ def parse_lc(filename, columns=None, components=None, dtypes=None,
     @type full_output: bool
     @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
     """
+    default_column_order = ['time', 'flux', 'sigma', 'flag']
+    
     #-- which columns are present in the input file, and which columns are
     #   possible in the RVDataSet? The columns that go into the RVDataSet
     #   is the intersection of the two. The columns that are in the file but
     #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
-    (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='lc')
-    default_column_order = ['time', 'flux', 'sigma', 'flag']
+    parsed = parse_header(filename, ext='lc')
+    (columns_in_file, components_in_file, ncol), (pb, ds) = parsed
     
     # Process the header: get the dtypes (column_specs), figure out which
     # columns are actually in the file, which ones are missing etc...
-    columns_in_file, columns_specs, (pb, ds) = process_header(
-                             (columns_in_file,components_in_file, ncol),
+    processed = process_header((columns_in_file,components_in_file, ncol),
                              (pb, ds), default_column_order, required=2, 
                              columns=columns, components=components,
-                             dtypes=dtypes)
+                             dtypes=dtypes, units=units)
     
+    (columns_in_file, columns_specs, units), (pb, ds) = processed
+        
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
@@ -1188,9 +1200,11 @@ def parse_lc(filename, columns=None, components=None, dtypes=None,
         output[label] = [[ds.copy()],[pb.copy()]]
     for col,coldat,label in zip(columns_in_file,columns_in_data,components):
         if label.lower()=='none':
+            # Add each column
             for lbl in output:
                 output[lbl][0][-1][col] = data[coldat]
             continue
+        
         output[label][0][-1][col] = data[coldat]
         #-- override values already there with extra kwarg values
         for key in kwargs:
@@ -1204,7 +1218,16 @@ def parse_lc(filename, columns=None, components=None, dtypes=None,
     if not 'sigma' in myds['columns']:
         myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
-
+    
+    # convert to right units
+    for col in units:
+        if col == 'flux':
+            f, e_f = conversions.convert(units[col],
+                                         myds.get_parameter(col).get_unit(), 
+                                         myds['flux'], myds['sigma'])
+            myds['flux'] = f
+            myds['sigma'] = e_f
+            
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:
@@ -1385,23 +1408,25 @@ def parse_rv(filename, columns=None, components=None,
     @type full_output: bool
     @return: (list of :ref:`rvobs <parlabel-phoebe-rvobs>`, list of :ref:`rvdep <parlabel-phoebe-rvdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
     """
+    default_column_order = ['time','rv','sigma']
+    
     #-- which columns are present in the input file, and which columns are
     #   possible in the RVDataSet? The columns that go into the RVDataSet
     #   is the intersection of the two. The columns that are in the file but
     #   not in the RVDataSet are probably used for the pbdeps (e.g. passband)
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
-    (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='rv')
-    default_column_order = ['time','rv','sigma']
+    parsed = parse_header(filename, ext='rv')
+    (columns_in_file, components_in_file, ncol), (pb, ds) = parsed
     
     # Process the header: get the dtypes (column_specs), figure out which
     # columns are actually in the file, which ones are missing etc...
-    columns_in_file, columns_specs, (pb, ds) = process_header(
-                             (columns_in_file,components_in_file, ncol),
+    processed = process_header((columns_in_file,components_in_file, ncol),
                              (pb, ds), default_column_order, required=2, 
                              columns=columns, components=components,
                              dtypes=dtypes)
     
+    (columns_in_file, columns_specs, units), (pb, ds) = processed
     
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or

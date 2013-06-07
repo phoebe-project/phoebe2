@@ -29,20 +29,16 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
     # We need to have as many lines:
     assert(data.shape[0] == obs[0].shape[0])
     
-    # We need to have as many columns (if they were not specified):
-    #if not 'columns' in kwargs:
-    #    assert(data.shape[1] == len(obs[0]['columns']))
-    #else:
-    if 'columns' in kwargs:
-        if not 'sigma' in kwargs['columns']:
-            extra = 1
-        else:
-            extra = 0
-        assert((len(kwargs['columns']) + extra) == len(obs[0]['columns']))
+    # We can't really test the number of columns, as the sigma column is
+    # added if it's not there
     
-    # First column is most probably time column (strictly speaking this is not
-    # necessary for the parser, but we assume it here in the tests)
-    assert(np.all(data[:,0] == obs[0]['time']))
+    # Test if the columns contain the same data:
+    columns = obs[0]['columns']
+    for col in range(min(len(columns),data.shape[1])):
+        # Sigma column could have been added, so we don't test for it
+        if columns[col] == 'sigma':
+            continue
+        assert(np.all(data[:,col] == obs[0][columns[col]]))
     
     
     
@@ -109,7 +105,25 @@ def test_parse_rv_hd174884():
     for rv_file in rv_files:
         check_parse_with_numpy(rv_file, type='rv', columns = ['time', 'rv', 'sigma'])
 
+def test_parse_phased_data():
+    phasedfile = '../phoebe-testlib/HD174884/hd174884.phased.data'
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
+    assert(len(obs[0]['time']) == 0)
+    assert(obs[0]['columns'] == ['phase', 'flux', 'sigma'])
 
+def test_parse_phased_data_mag():
+    phasedfile = '../phoebe-testlib/HD174884/hd174884.phased.data'
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
+    assert(len(obs[0]['time']) == 0)
+    assert(obs[0]['columns'] == ['phase', 'flux', 'sigma'])
+    
+    data = np.loadtxt(phasedfile).T
+    
+    flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1])
+    flux2 = phoebe.convert('W/m3','erg/s/cm2/AA',10**(-data[1]/2.5))
+    assert(np.all(flux1 == obs[0]['flux']))
+    assert(np.all(flux2 == obs[0]['flux']))
+    
 
 def test_parse_header():
     
