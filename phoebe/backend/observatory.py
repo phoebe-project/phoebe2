@@ -1413,17 +1413,21 @@ def extract_times_and_refs(system,params,tol=1e-8):
         else:
             samp = [1]*len(parset) # was len(parset['time'])
             
-        #-- Now the user could have given phases instead of times. I know, that
-        #   is incredibly annoying, but there's nothing we can do about it. The
-        #   definition of "phase" is quite system-dependent, so here comes some
-        #   messy code to convert phases to times
+        # Now the user could have given phases instead of times. I know, that
+        # is incredibly annoying, but there's nothing we can do about it.
+        # Believe me, I tried. Old habit die hard, they say. I don't know who
+        # "they" are, but "they" seem to be right, at least in this case (only
+        # from this case it is hard to provide a general proof of the theorem).
+        # The definition of "phase" is quite system-dependent, so here comes
+        # some messy code to convert phases to times. We can extend this later
+        # for other cases, including period changes etc.
         if 'phase' in parset['columns'] and not 'time' in parset['columns']:
-            # For now, we just assume we have a binary:
+            # For now, we just assume we have a simple binary:
             period = system[0].params['orbit']['period']
             t0 = system[0].params['orbit']['t0']
             phshift = system[0].params['orbit']['phshift']
             mytimes = (parset['phase'] * period) + t0 + phshift * period
-            logger.warning("Converted phases to times with period={} and t0={}".format(period,t0))
+            logger.warning("Converted phases to times with period={}, t0={} and phshift={}".format(period,t0,phshift))
         else:
             mytimes = parset['time']
             
