@@ -123,7 +123,7 @@ def plot_lcobs(system,**kwargs):
     """
     ref = kwargs.pop('ref',0)
     repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
+    period = kwargs.pop('period', None)
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
@@ -131,9 +131,18 @@ def plot_lcobs(system,**kwargs):
     #-- load observations: they need to be here
     loaded = obs.load(force=False)
     
-    time = obs['time']
+    #-- take care of phased data
+    if not 'time' in obs['columns']:
+        myperiod = system[0].params['orbit']['period']
+        myt0 = system[0].params['orbit']['t0']
+        time = obs['phase'] * myperiod + myt0
+    else:
+        time = obs['time']
     flux = obs['flux']
     sigm = obs['sigma']
+    
+    if not len(sigm):
+        raise ValueError("Did not find uncertainties")
     
     #-- get the period to repeat the LC with
     if period is None:

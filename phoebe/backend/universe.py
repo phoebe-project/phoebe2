@@ -2999,7 +2999,6 @@ class BodyBag(Body):
             logger.error(str(msg))
         self.label = label
             
-            
     
     def get_label(self):
         if self.label is None and len(self.bodies)==1:

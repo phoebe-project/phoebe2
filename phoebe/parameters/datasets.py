@@ -917,6 +917,64 @@ def parse_header(filename,ext=None):
     #-- that's it!
     return (columns, components, n_columns), (pb,ds)    
 
+
+def process_header(info, sets, default_column_order, required=2, columns=None,
+                   components=None, dtypes=None):
+    """
+    Process header information.
+    """
+    (columns_in_file, components_in_file, ncol), (pb, ds) = info, sets
+    
+    # Check minimum number of columns
+    if ncol < required:
+        raise ValueError("You need to give at least {} columns ({})".format(required, ", ".join(default_column_order[:required])))
+    
+    # These are the default columns
+    default_column_order = default_column_order[:ncol]
+    
+    # If the user did not give any columns, and there are no column
+    # specifications, we need to assume that they are given in default order
+    if columns is None and not columns_in_file:
+        columns_in_file = default_column_order
+    # If the user has given columns manually, we'll use those
+    elif columns is not None:
+        columns_in_file = columns
+    
+    # What data types are in the columns? We know about a few commonly used ones
+    # a priori, but allow to user to add/override any via ``dtypes``.
+    columns_required = default_column_order[:required]
+    columns_specs = dict(time=float, flux=float, sigma=float, flag=float,
+                         phase=float, rv=float)
+    if dtypes is not None:
+        for col in dtypes:
+            if not col in columns_specs:
+                logger.warning("Unrecognized column '{}' in {}. Added but ignored in the rest of the code".format(col, filename))
+            columns_specs[col] = dtypes[col]
+    
+    # Perhaps the user gave enough columns, but some of the required columns
+    # are missing
+    missing_columns = set(columns_required) - set(columns_in_file)
+    
+    # However, the user is allowed to give phases instead of time
+    if 'time' in missing_columns and 'phase' in columns_in_file:
+        logger.warning('You have given phased data')
+        __ = missing_columns.remove('time')
+    
+    # If there are still missing columns, report to the user.
+    if len(missing_columns) > 0:
+        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+    
+    # Alright, we now know all the columns: add them to the DataSet
+    ds['columns'] = columns_in_file
+    
+    # Make sure to add unrecognized columns
+    for col in columns_in_file:
+        # Add a Parameter for column names that are missing
+        if not col in ds:
+            ds.add(dict(qualifier=col, value=[], description='User defined column',cast_type=np.array))
+    
+    return columns_in_file, columns_specs, (pb, ds)
+
 def parse(file_pattern,full_output=False,**kwargs):
     """
     Parse a list of files.
@@ -941,7 +999,8 @@ def parse(file_pattern,full_output=False,**kwargs):
     
 
 
-def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
+def parse_lc(filename, columns=None, components=None, dtypes=None, 
+             full_output=False, **kwargs):
     """
     Parse LC files to LCDataSets and lcdeps.
     
@@ -1070,26 +1129,21 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
     (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='lc')
-    default_column_order = ['time', 'flux', 'sigma', 'flag'][:ncol]
+    default_column_order = ['time', 'flux', 'sigma', 'flag']
     
-    if columns is None and not columns_in_file:
-        columns_in_file = default_column_order
-    elif columns is not None:
-        columns_in_file = columns
-        
-    columns_required = ['time', 'flux']
-    columns_specs = dict(time=float, flux=float, sigma=float, flag=float)
+    # Process the header: get the dtypes (column_specs), figure out which
+    # columns are actually in the file, which ones are missing etc...
+    columns_in_file, columns_specs, (pb, ds) = process_header(
+                             (columns_in_file,components_in_file, ncol),
+                             (pb, ds), default_column_order, required=2, 
+                             columns=columns, components=components,
+                             dtypes=dtypes)
     
-    missing_columns = set(columns_required) - set(columns_in_file)
-    if len(missing_columns)>0:
-        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
-    
-    ds['columns'] = columns_in_file
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -1099,7 +1153,7 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     if components is None and components_in_file is None:
@@ -1144,7 +1198,13 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
-                
+   
+    #-- add sigma if not available:
+    myds = output.values()[0][0][-1]
+    if not 'sigma' in myds['columns']:
+        myds['sigma'] = np.ones(len(myds))
+        myds['columns'] = myds['columns'] + ['sigma']
+
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:
@@ -1152,7 +1212,8 @@ def parse_lc(filename,columns=None,components=None,full_output=False,**kwargs):
     else:
         return output
 
-def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
+def parse_rv(filename, columns=None, components=None,
+             full_output=False, dtypes=None, **kwargs):
     """
     Parse RV files to RVDataSets and rvdeps.
     
@@ -1331,24 +1392,22 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
     (columns_in_file, components_in_file, ncol), (pb, ds) = parse_header(filename, ext='rv')
-    default_column_order = ['time','rv','sigma'][:ncol]
+    default_column_order = ['time','rv','sigma']
     
-    if columns is None and not columns_in_file:
-        columns_in_file = default_column_order
-    elif columns is not None:
-        columns_in_file = columns
-    columns_required = ['time','rv']
-    columns_specs = dict(time=float,rv=float,sigma=float)
+    # Process the header: get the dtypes (column_specs), figure out which
+    # columns are actually in the file, which ones are missing etc...
+    columns_in_file, columns_specs, (pb, ds) = process_header(
+                             (columns_in_file,components_in_file, ncol),
+                             (pb, ds), default_column_order, required=2, 
+                             columns=columns, components=components,
+                             dtypes=dtypes)
     
-    missing_columns = set(columns_required) - set(columns_in_file)
-    if len(missing_columns)>0:
-        raise ValueError("Missing columns in RV file: {}".format(", ".join(missing_columns)))
     
     #-- prepare output dictionaries. The first level will be the label key
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -1358,7 +1417,7 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     if components is None and components_in_file is None:
@@ -1415,7 +1474,7 @@ def parse_rv(filename,columns=None,components=None,full_output=False,**kwargs):
             #-- then throw the rows with nans out
             for col in columns:
                 ds[col] = ds[col][keep]
-    
+        
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if '__nolabel__' in output and not full_output:
@@ -1565,7 +1624,7 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     components = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- you are allowed to give a list of filenames. If you give a string,
     #   it will be interpreted as a glob pattern
@@ -1617,14 +1676,14 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
                     elif columns is None:
                         if len(all_lines)>(iline+1) and all_lines[iline+1][:2]=='#-':
                             columns_in_file = line[1:].split()
-                            Ncol = len(columns_in_file)
+                            ncol = len(columns_in_file)
                             logger.info("Auto detecting columns in PHOT {}: {}".format(filename,", ".join(columns_in_file)))
                             missing_columns = set(columns_required) - set(columns_in_file)
                             if len(missing_columns)>0:
                                 raise ValueError("Missing columns in PHOT file: {}".format(", ".join(missing_columns)))\
                 #-- data lines:
                 else:
-                    data.append(tuple(line.split()[:Ncol]))
+                    data.append(tuple(line.split()[:ncol]))
             #-- add these to an existing dataset, or a new one.
             #   also create pbdep to go with it!
             #-- numpy records to allow for arrays of mixed types. We do some
@@ -1762,7 +1821,7 @@ def parse_spec_as_lprof(filename,line_name,clambda=4000.,wrange=1e300,columns=No
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -1772,7 +1831,7 @@ def parse_spec_as_lprof(filename,line_name,clambda=4000.,wrange=1e300,columns=No
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     if components is None and components_in_file is None:
@@ -1994,7 +2053,7 @@ def parse_vis2(filename,columns=None,full_output=False,**kwargs):
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -2004,7 +2063,7 @@ def parse_vis2(filename,columns=None,full_output=False,**kwargs):
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     #-- we don't allow information on components
@@ -2119,7 +2178,7 @@ def parse_plprof(filename,clambda,columns=None,components=None,full_output=False
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -2129,7 +2188,7 @@ def parse_plprof(filename,clambda,columns=None,components=None,full_output=False
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     if components is None and components_in_file is None:
@@ -2273,7 +2332,7 @@ def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,
     #   of the Body. The second level will be, for each Body, the pbdeps or
     #   datasets.
     output = OrderedDict()
-    Ncol = len(columns_in_file)
+    ncol = len(columns_in_file)
     
     #-- collect all data
     data = []
@@ -2284,7 +2343,7 @@ def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,
             line = line.strip()
             if not line: continue
             if line[0]=='#': continue
-            data.append(tuple(line.split()[:Ncol]))
+            data.append(tuple(line.split()[:ncol]))
     #-- we have the information from header now, but only use that
     #   if it is not overriden
     if components is None and components_in_file is None:
