@@ -839,7 +839,7 @@ def convert(_from,_to,*args,**kwargs):
         else:
             kwargs_SI[key] = kwargs[key]
     #-- add some default values if necessary
-    logger.debug('Convert %s to %s, fac_from-start_value %s/%s'%(uni_from,uni_to,fac_from,start_value))
+    logger.debug('Convert %s to %s, fac_from / start_value %s / %s'%(uni_from,uni_to,fac_from,start_value))
     
     #-- conversion is easy if same units
     ret_value = 1.
@@ -927,7 +927,10 @@ def convert(_from,_to,*args,**kwargs):
     #    2. the input was without uncertainties, but extra keywords had uncertainties
         
     if unpack and (len(args)==2 or (len(args)==1 and isinstance(ret_value,AffineScalarFunc))):
-        ret_value = ret_value.nominal_value, ret_value.std_dev
+        if hasattr(ret_value,'__len__'):
+            ret_value = unumpy.nominal_values(ret_value), unumpy.std_devs(ret_value)
+        else:
+            ret_value = ret_value.nominal_value, ret_value.std_dev
         #ret_value = unumpy.nominal_values(ret_value),unumpy.std_devs(ret_value)
         #-- convert to real floats if real floats were given
         #if not ret_value[0].shape:
@@ -2626,11 +2629,16 @@ class VegaMag(NonLinearConverter):
     """
     def __call__(self,meas,passband=None,inv=False,**kwargs):
         #-- this part should include something where the zero-flux is retrieved
-        zp = passbands.get_info()
-        match = zp['passband']==passband.upper()
-        if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
-        F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])
-        mag0 = float(zp['vegamag'][match][0])
+        if passband is None:
+            zp = 0.0
+            F0 = 1.0
+            mag0 = 0.0
+        else:
+            zp = passbands.get_info()
+            match = zp['passband']==passband.upper()
+            if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
+            F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])
+            mag0 = float(zp['vegamag'][match][0])
         if not inv: return 10**(-(meas-mag0)/2.5)*F0
         else:       return -2.5*log10(meas/F0)+mag0
 
