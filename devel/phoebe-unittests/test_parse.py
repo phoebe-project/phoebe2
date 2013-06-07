@@ -1,3 +1,7 @@
+"""
+Unit tests for data parsers.
+"""
+
 import nose
 import phoebe
 from phoebe import kelly

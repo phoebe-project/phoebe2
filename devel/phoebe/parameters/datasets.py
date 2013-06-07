@@ -748,19 +748,34 @@ def parse_header(filename,ext=None):
     define columns without defining components.
     
     When only columns are defined, they need to be in the second-to-last
-    line, followed by a separator ``#---``.
+    line, followed by a separator ``#---``::
+    
+        # rv       time           sigma
+        #---------------------------------------
     
     When both columns and components are defined, the columns need to be in
     the third-to-last line, the components in the second-to-last, followed
-    by a separator ``#---``.
+    by a separator ``#---``::
     
-    After the separator, it is assumed the data begin.
+        # rv       rv     time           sigma
+        # compA   compB    None          compA
+        #---------------------------------------
+    
+    After the separator, it is assumed that the data begin.
+    
+    If there are data, then the first line is allso read, to determine the
+    number of columns present in the data.
     
     You can give a component's name also by supplying a line ``# label = mylabel``
     in the header. If column names are found, the output ``components`` will
     be a list of the same length, with all elements set to ``mylabel``. If
     there are no column names found, I cannot figure out how many columns there
     are, so only a string ``mylabel`` is returned, instead of a list.
+    
+    The type of data is determined via the keyword ``ext``. If it is not given,
+    an attempt is made to determine the filetype from the extension.
+    
+    **Examples:**
     
     These are possible headers with their output::
     
@@ -836,23 +851,30 @@ def parse_header(filename,ext=None):
     @return: (columns, components, ncol), (pbdep, dataset)
     @rtype: (list/None, list/str/None, int), (ParameterSet, DataSet)
     """
+    
     #-- create a default pbdep and DataSet
     contexts = dict(rv='rvdep',
-                    phot='lcdep',lc='lcdep',
-                    spec='spdep',lprof='spdep',
-                    vis2='ifdep',plprof='pldep')
+                    phot='lcdep', lc='lcdep',
+                    spec='spdep', lprof='spdep',
+                    vis2='ifdep', plprof='pldep')
     dataset_classes = dict(rv=RVDataSet,
-                           phot=LCDataSet,lc=LCDataSet,
-                           spec=SPDataSet,lprof=SPDataSet,
-                           vis2=IFDataSet,plprof=PLDataSet)
+                           phot=LCDataSet, lc=LCDataSet,
+                           spec=SPDataSet, lprof=SPDataSet,
+                           vis2=IFDataSet, plprof=PLDataSet)
+    
+    #-- It is possible to automatically detect the type of data from the
+    #   extension
     ext = filename.split('.')[-1] if ext is None else ext
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
+    
     #-- they belong together, so they should have the same reference
     ds['ref'] = pb['ref']
+    
     #-- open the file and start reading the lines
     n_columns = -1
-    with open(filename,'r') as ff:
+    with open(filename, 'r') as ff:
+        
         # We can only avoid reading in the whole file by first going through
         # it line by line, and collect the comment lines. We need to be able
         # to look ahead to detect where the header ends.
@@ -861,13 +883,19 @@ def parse_header(filename,ext=None):
             line = line.strip()
             if not line:
                 continue
-            elif line[0]=='#':
+            elif line[0] == '#':
+                
                 #-- break when we reached the end!
                 all_lines.append(line[1:])
-                if line[1:4]=='---':
+                if line[1:4] == '---':
                     continue
+            
             #-- perhaps the user did not give a '----', is this safe?
             elif n_columns < 0:
+                # Count the number of columns by taking all the characters
+                # before the comment character, stripping whitespace in the
+                # beginning and at the end of the line, and then splitting by
+                # whitespace.
                 n_columns = len(line.split('#')[0].strip().split())
                 break
                 
@@ -875,18 +903,23 @@ def parse_header(filename,ext=None):
     header_length = len(all_lines)
     components = None
     columns = None
+    
     #-- now iterate over the header lines
-    for iline,line in enumerate(all_lines):
-        #-- comment lines can contain qualifiers from the RVDataSet,
+    for iline, line in enumerate(all_lines):
+        
+        #-- comment lines can contain qualifiers from the DataSet,
         #   we recognise them by the presence of the equal "=" sign.
         split = line[1:].split("=")
+        
         # if they do, they consist of "qualifier = value". Careful,
         # perhaps there are more than 1 "=" signs in the value
         # (e.g. the reference contains a "="). There are never
         # "=" signs in the qualifier.
-        if len(split)>1:
+        if len(split) > 1:
+            
             #-- qualifier is for sure the first element
             qualifier = split[0].strip()
+            
             #-- if this qualifier exists, in either the RVDataSet
             #   or pbdep, add it. Text-to-value parsing is done
             #   at the ParameterSet level
@@ -894,26 +927,30 @@ def parse_header(filename,ext=None):
                 ds[qualifier] = "=".join(split[1:]).strip()
             if qualifier in pb:
                 pb[qualifier] = "=".join(split[1:]).strip()
-            if qualifier=='label':
+            if qualifier == 'label':
                 components = "=".join(split[1:]).strip()
+        
         #-- it is also possible that the line contains the column
         #   names: they should then contain at least the required
         #   columns! We recognise the column headers as that line
         #   which is followed by a line containing '#---' at least.
         #   Or the line after that one; in the latter case, also
         #   the components are given
-        elif iline==(header_length-3) and all_lines[-1][:3] == '---':
+        elif iline == (header_length-3) and all_lines[-1][:3] == '---':
             columns = line.split()
             components = all_lines[iline+1].split()
             break
+            
         #-- now we only have column names
-        elif iline==(header_length-2) and all_lines[-1][:3] == '---':
+        elif iline == (header_length-2) and all_lines[-1][:3] == '---':
             columns = line.split()
+    
     #-- some post processing:
-    if isinstance(components,str) and columns is not None:
-        components = [components]*len(columns)
+    if isinstance(components, str) and columns is not None:
+        components = [components] * len(columns)
     if 'filename' in ds:
         ds['filename'] = filename
+    
     #-- that's it!
     return (columns, components, n_columns), (pb,ds)    
 
@@ -922,6 +959,48 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
                    components=None, dtypes=None, units=None):
     """
     Process header information.
+    
+    This assumes that the header is parsed, i.e. the first two arguments come
+    directly from the output of :py:func:`parse_header`.
+    
+    Additional information is the default order of the columns, and the number
+    of required columns.
+    
+    The user can override the auto-detection of ``columns`` and ``components``::
+    
+        >>> columns = ['rv', 'sigma', 'time']
+        >>> components = ['compA', 'compA', None]
+    
+    The user can override the default data types (``dtypes``) of the columns, 
+    and/or can specify custom ones for non-recognised columns. If the dtype
+    of a column is not given, it needs to be a standard, recognised column::
+    
+        >>> dtypes = dict(flux=int, my_new_column=float)
+    
+    Finally, also units can be given. If not given, they are assumed to be the
+    default ones. Otherwise, unit conversions are made to convert them to the
+    given units to the default ones.::
+    
+        >>> units = dict(flux='W/m2/nm')
+        
+    @param info: information from :py:func:`parse_header`
+    @type info: tuple
+    @param sets: datasets from :py:func:`parse_header`
+    @type sets: tuple
+    @param default_column_order: list of default column names
+    @type default_column_order: list of str
+    @param required: number of required columns
+    @type required: int
+    @param columns: list of user-defined columns (overrides defaults)
+    @type columns: list of str
+    @param components: list of user-defined components (overrides defaults)
+    @type components: list of str
+    @param dtypes: data types of the columns (overrides defaults)
+    @type dtypes: dict with keys one or more column names, and values a data type
+    @param units: units of the columns (converts to defaults)
+    @type units: dict with keys one or more column names, and values a unit string
+    @return: (info on column names, dtypes and units), (obs and dep ParameterSet)
+    @rtype: tuple, tuple
     """
     (columns_in_file, components_in_file, ncol), (pb, ds) = info, sets
     
@@ -940,6 +1019,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     # specifications, we need to assume that they are given in default order
     if columns is None and not columns_in_file:
         columns_in_file = default_column_order
+        
     # If the user has given columns manually, we'll use those
     elif columns is not None:
         columns_in_file = columns
@@ -952,7 +1032,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     if dtypes is not None:
         for col in dtypes:
             if not col in columns_specs:
-                logger.warning("Unrecognized column '{}' in {}. Added but ignored in the rest of the code".format(col, filename))
+                logger.warning("Unrecognized column '{}' in file. Added but ignored in the rest of the code".format(col))
             columns_specs[col] = dtypes[col]
     
     # Perhaps the user gave enough columns, but some of the required columns
@@ -980,9 +1060,13 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     for col in columns_in_file:
         # Add a Parameter for column names that are missing
         if not col in ds:
-            ds.add(dict(qualifier=col, value=[], description='User defined column',cast_type=np.array))
-    
+            ds.add(dict(qualifier=col, value=[],
+                        description='User defined column',cast_type=np.array))
+        # And if by now we don't know the dtype, use a float
+        if not col in columns_specs:
+            columns_specs[col] = float
     return (columns_in_file, columns_specs, units), (pb, ds)
+
 
 def parse(file_pattern,full_output=False,**kwargs):
     """
@@ -1068,7 +1152,82 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
  
        You can give missing values by setting a value to ``nan``
     
-    Flux needs to be in erg/s/cm2/AA.
+    **Uncertainties**
+    
+    If no ``sigma`` column is given, a column will be added with all-equal
+    values.
+    
+    **Phases and magnitudes**
+    
+    You can give phases instead of times, but then you need to specify it,
+    either in the file::
+    
+        # phase   flux        
+        #--------------------
+        0.0     1.               
+        0.1     1.01              
+        0.2     1.02              
+        0.3     0.96          
+        
+    Can be read in via::
+    
+        >>> obs, pbdep = parse_lc('myfile.lc')
+        
+    But a file with contents::
+    
+        0.0     1.               
+        0.1     1.01              
+        0.2     1.02              
+        0.3     0.96          
+                 
+    Needs to be read in via::
+    
+        >>> obs, pbdep = parse_lc('myfile.lc', columns=['phase', 'flux'])
+    
+    Since otherwise it will be assumed that the first column contains time stamps.
+    
+    If you want to pass flux units different from the default ones
+    (``erg/s/cm2/AA``), you need to specify those via the ``units`` keyword.
+    Assume the following file with times and magnitudes instead fluxes::
+    
+        0.0     1.               
+        0.1     1.01              
+        0.2     1.02              
+        0.3     0.96          
+    
+    You need to read this in via::
+    
+        >>> obs, pbdep = parse_lc('myfile.lc', units=dict(flux='mag'))
+        
+    Though for your convenience, we also recognize the column name ``mag``,
+    which will be internally converted to fluxes. A file::
+    
+        # time  mag     sigma 
+        #---------------------------
+        0.0     1.       0.1    
+        0.1     1.01     0.2         
+        0.2     1.02     0.1         
+        0.3     0.96     0.3
+        
+    Can be read in via::
+    
+        >>> obs, pbdep = parse_lc('myfile.lc')
+        >>> print(obs[0]['flux'])
+        [  3.98107171e-08   3.94457302e-08   3.90840896e-08   4.13047502e-08]
+        >>> print(obs[0]['sigma'])
+        [  3.66670255e-09   7.26617203e-09   3.59977768e-09   1.14129242e-08]
+    
+    You can retrieve the original fluxes again via::
+    
+        >>> print(obs[0].get_value('flux','mag'))
+        [1.0 1.01 1.02 0.96]
+        
+    But for the uncertainties, you need to remember that they are relative
+    with respect to the fluxes, so you need to be careful:
+    
+        >>> mag, e_mag = phoebe.convert('erg/s/cm2/AA', 'mag', obs[0]['flux'], obs[0]['sigma'])
+        >>> print(e_mag)
+        [ 0.1  0.2  0.1  0.3]
     
     **Input and output**
     
