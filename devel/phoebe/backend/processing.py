@@ -20,3 +20,7 @@ def wd_eclipse_separation(self,time,eclipse_separation=0.5):
     omega = keplerorbit.per0_from_eclipse_separation(eclipse_separation,ecc)
     self.params['root']['omega'] = omega,'rad'
     logger.info('Derived omega={} from eclipse separation={} and ecc={}'.format(omega,eclipse_separation,ecc))
+
+def phased_data(self, time):
+    raise NotImplementedError
+    

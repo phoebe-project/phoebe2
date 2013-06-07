@@ -1406,13 +1406,27 @@ def extract_times_and_refs(system,params,tol=1e-8):
         if 'exptime' in parset:
             exps = parset['exptime']
         else:
-            exps = [0]*len(parset['time'])
+            exps = [0]*len(parset) # was len(parset['time'])
         #-- sampling rates
         if 'samprate' in parset:
             samp = parset['samprate']
         else:
-            samp = [1]*len(parset['time'])
-        for itime,iexp,isamp in zip(parset['time'],exps,samp):
+            samp = [1]*len(parset) # was len(parset['time'])
+            
+        #-- Now the user could have given phases instead of times. I know, that
+        #   is incredibly annoying, but there's nothing we can do about it. The
+        #   definition of "phase" is quite system-dependent, so here comes some
+        #   messy code to convert phases to times
+        if 'phase' in parset['columns'] and not 'time' in parset['columns']:
+            # For now, we just assume we have a binary:
+            period = system[0].params['orbit']['period']
+            t0 = system[0].params['orbit']['t0']
+            mytimes = (parset['phase']*period) + t0
+            logger.warning("Converted phases to times with period={} and t0={}".format(period,t0))
+        else:
+            mytimes = parset['time']
+            
+        for itime,iexp,isamp in zip(mytimes,exps,samp):
             times.append(np.linspace(itime-iexp/2.0,itime+iexp/2.0,isamp))
             refs.append([parset['ref']]*isamp)
             types.append([parset.context]*isamp)
@@ -1659,7 +1673,6 @@ def compute(system,params=None,**kwargs):
         system.compute_pblum_or_l3()
     except:
         logger.warning("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
-
 
 def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
             extra_func=[],extra_func_kwargs=[{}],**kwargs):

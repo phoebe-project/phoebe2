@@ -1,5 +1,6 @@
 import nose
 import phoebe
+from phoebe import kelly
 import numpy as np
 import os
 
@@ -7,7 +8,7 @@ import os
 
 
 
-def check_parse_with_numpy(myfile, type='lc'):
+def check_parse_with_numpy(myfile, type='lc', **kwargs):
     """
     Compare the contents and shape of data read in by Phoebe and by Numpy.
     
@@ -18,9 +19,9 @@ def check_parse_with_numpy(myfile, type='lc'):
     # Read via Phoebe
     print("filename: {}, type: {}".format(myfile,type))
     if type == 'lc':
-        obs, pbdep = phoebe.parse_lc(myfile)
+        obs, pbdep = phoebe.parse_lc(myfile, **kwargs)
     elif type == 'rv':
-        obs, pbdep = phoebe.parse_rv(myfile)
+        obs, pbdep = phoebe.parse_rv(myfile, **kwargs)
         
     # Read via Numpy
     data = np.loadtxt(myfile)
@@ -28,8 +29,11 @@ def check_parse_with_numpy(myfile, type='lc'):
     # We need to have as many lines:
     assert(data.shape[0] == obs[0].shape[0])
     
-    # We need to have as many columns:
-    assert(data.shape[1] == len(obs[0]['columns']))
+    # We need to have as many columns (if they were not specified):
+    if not 'columns' in kwargs:
+        assert(data.shape[1] == len(obs[0]['columns']))
+    else:
+        assert(len(kwargs['columns']) == len(obs[0]['columns']))
     
     # First column is most probably time column (strictly speaking this is not
     # necessary for the parser, but we assume it here in the tests)
@@ -38,7 +42,7 @@ def check_parse_with_numpy(myfile, type='lc'):
     
     
     
-def test_parse_lc():
+def test_parse_lc_hv2241():
     
     lc_files = ['asas.V', 'davidge.B', 'davidge.U', 'davidge.V', 'pritchard.b',
                 'pritchard.Ic', 'pritchard.u', 'pritchard.v', 'pritchard.V',
@@ -48,13 +52,59 @@ def test_parse_lc():
     for lc_file in lc_files:
         check_parse_with_numpy(lc_file, type='lc')
     
-def test_parse_rv():
+    
+    
+def test_parse_rv_hv2241():
     
     rv_files = ['hv2241.final.rv1', 'hv2241.final.rv2']
     rv_files = [os.path.join('../phoebe-testlib/hv2241', rv_file) for rv_file in rv_files]
     
     for rv_file in rv_files:
         check_parse_with_numpy(rv_file, type='rv')
+
+
+def test_parse_lc_GKDra():
+    
+    lc_files = ['GKDra.B', 'GKDra.V']
+    lc_files = [os.path.join('../phoebe-testlib/GKDra', lc_file) for lc_file in lc_files]
+    
+    for lc_file in lc_files:
+        check_parse_with_numpy(lc_file, type='lc')
+
+def test_parse_rv_GKDra():
+    
+    rv_files = ['GKDra.rv1', 'GKDra.rv1']
+    rv_files = [os.path.join('../phoebe-testlib/GKDra', rv_file) for rv_file in rv_files]
+    
+    for rv_file in rv_files:
+        check_parse_with_numpy(rv_file, type='rv')
+
+def test_parse_lc_ABCas():
+    
+    lc_files = ['ABCas.y', 'ABCas.b', 'ABCas.u', 'ABCas.v']
+    lc_files = [os.path.join('../phoebe-testlib/ABCas', lc_file) for lc_file in lc_files]
+    
+    for lc_file in lc_files:
+        check_parse_with_numpy(lc_file, type='lc')
+
+
+def test_parse_lc_hd174884():
+    
+    lc_files = ['hd174884.phased.data']
+    lc_files = [os.path.join('../phoebe-testlib/HD174884', lc_file) for lc_file in lc_files]
+    
+    for lc_file in lc_files:
+        check_parse_with_numpy(lc_file, type='lc')
+
+def test_parse_rv_hd174884():
+    
+    rv_files = ['hd174884.rv1', 'hd174884.rv2']
+    rv_files = [os.path.join('../phoebe-testlib/HD174884', rv_file) for rv_file in rv_files]
+    
+    for rv_file in rv_files:
+        check_parse_with_numpy(rv_file, type='rv', columns = ['time', 'rv', 'sigma'])
+
+
 
 def test_parse_header():
     
@@ -126,5 +176,4 @@ def test_parse_lc_01():
     assert(obs['componentA'][1][0]['ref'] == 'SiII_rvs')
     assert(obs['componentA'][1][0]['passband'] == 'JOHNSON.B')
     assert(obs['componentA'][1][0]['atm'] == 'kurucz')
-    
     
