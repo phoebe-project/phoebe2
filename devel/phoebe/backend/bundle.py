@@ -7,7 +7,7 @@ import numpy as np
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 
-from phoebe.utils import callbacks
+from phoebe.utils import callbacks, utils
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.backend import fitting, observatory, plotting
@@ -46,16 +46,7 @@ class Bundle(object):
                 self.add_axes(axes[key], key)
         self.add_compute(compute)
         
-    #{ System        
-    def get_system(self):
-        """
-        Return the system.
-        
-        @return: the attached system
-        @rtype: Body
-        """
-        return self.system
-        
+    #{ System
     def set_system(self,system):
         """
         Change the system
@@ -65,56 +56,188 @@ class Bundle(object):
         """
         if system is None:  return None
         self.system = system 
-                          
-    def get_object(self,objectname,bodybag=None):
-        """
-        search for an object inside the system structure
         
-        @param objectname: label or __name__ for the desired object
-        @type objectname: str
+    def get_system(self):
+        """
+        Return the system.
+        
+        @return: the attached system
+        @rtype: Body
+        """
+        return self.system      
+                
+    def get_system_structure(self,return_type='label',flat=False,**kwargs):
+        """
+        Get the structure of the system below any bodybag in a variety of formats
+        
+        @param return_type: list of types to return including label,obj,ps,nchild,mask
+        @type return_type: str or list of strings
+        @param flat: whether to flatten to a 1d list
+        @type flat: bool
+        @return: the system structure
+        @rtype: list or list of lists        
+        """
+        all_types = ['label','obj','ps','nchild','mask']
+        
+        # create empty list for all types, later we'll decide which to return
+        struc = {}
+        for typ in all_types:
+            struc[typ]=[]
+        
+        if 'old_mask' in kwargs.keys() and 'mask' in return_type:
+            # old_mask should be passed as a tuple of two flattened lists
+            # the first list should be parametersets
+            # the second list should be the old mask (booleans)
+            # if 'mask' is in return_types, and this info is given
+            # then any matching ps from the original ps will retain its old bool
+            # any new items will have True in the mask
+            
+            # to find any new items added to the system structure
+            # pass the old flattened ps output and a list of False of the same length
+            
+            old_mask = kwargs['old_mask']
+            old_struclabel = old_mask[0]
+            old_strucmask = old_mask[1]
+            
+        else:
+            old_struclabel = [] # new mask will always be True
+                
+        if 'top_level' in kwargs.keys():
+            item = kwargs.pop('top_level') # we don't want it in kwargs for the recursive call
+        else:
+            item = self.system
+            
+        struc['obj'].append(item)
+        itemlabel = self.get_label(item)
+        struc['label'].append(itemlabel)
+        
+        # label,ps,nchild are different whether item is body or bodybag
+        if hasattr(item, 'bodies'):
+            itemps = self.get_orbit(item)
+            struc['ps'].append(itemps)
+            struc['nchild'].append('2') # should not be so strict
+        else:
+            itemps = self.get_component(item)
+            struc['ps'].append(itemps)
+            struc['nchild'].append('0')
+            
+        if itemlabel in old_struclabel: #then apply previous bool from mask
+            struc['mask'].append(old_strucmask[old_struclabel.index(itemlabel)])
+        else:
+            struc['mask'].append(True)
+
+        # recursively loop to get hierarchical structure
+        children = self.get_children(item)
+        if len(children) > 1:
+            for typ in all_types:
+                struc[typ].append([])
+        for child in children:
+            new = self.get_system_structure(return_type=['label','obj','ps','nchild','mask'],flat=flat,top_level=child,**kwargs)
+            #~ for i in range(len(new)):
+                #~ if len(new[i]) == 1:
+                    #~ new[i] = new[i][0]
+            for i,typ in enumerate(all_types):
+                #~ struc[typ][-1].append(new[i])
+                struc[typ][-1]+=new[i]
+                #~ struc[typ].append(new[i])
+                
+        #~ print "**", struc['label']
+            
+        if isinstance(return_type, list):
+            return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
+        else: #then just one passed, so return a single list
+            rtype = return_type
+            return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
+    
+    def get_object(self,objectname):
+        """
+        search for an object inside the system structure and return it if found
+        this will return the Body or BodyBag
+        to get the ParameterSet see get_ps, get_component, and get_orbit
+        
+        @param objectname: label of the desired object
+        @type objectname: str, Body, or BodyBag
         @param bodybag: the bodybag to search under (will default to system)
         @type bodybag: BodyBag
         @return: the object
         @rtype: ParameterSet
         """
         #this should return a Body or BodyBag
-        bodybag = self.system if bodybag is None else bodybag
-        for body in bodybag.get_bodies():
-            # if body is a bodybag itself, then recursively loop
-            if hasattr(body, 'get_bodies'):
-                result = self.get_object(objectname,body)
-                if result is not None:
-                    return results
-            else:
-                # check to see if we want the body
-                if body.params['component']['label'] == objectname:
-                    return body
-                
-                # check to see if we want the bodybag
-                if body.params['orbit']['label'] == objectname:
-                    return bodybag
-        return None
+        
+        if not isinstance(objectname,str): #then return whatever is sent (probably the body or bodybag)
+            return objectname
+            
+        names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
+        return objects[names.index(objectname)]
+        
+    def get_label(self,obj):
+        """
+        Get the label/name for any object (Body or BodyBag)
+        
+        @param obj: the object
+        @type obj: Body or BodyBag
+        @return: the label/name
+        @rtype: str        
+        """
+        if isinstance(obj,str): #then probably already name, and return
+            return obj
+        
+        if hasattr(obj,'bodies'): #then bodybag
+            #search for orbit in the children bodies
+            for item in obj.bodies: # should be the same for all of them, but we'll search all anyways
+                #NOTE: this may fail if you have different orbits for each component
+                if 'orbit' in item.params.keys():
+                    objectname = item.params['orbit']['label']
+            return objectname
+        else: #then hopefully body
+            return obj.get_label()
+            
+    def get_ps(self,objectname):
+        """
+        retrieve the ParameterSet for a component or orbit
+        this is the same as calling get_orbit or get_component, except that this tries to predict the type first
+        
+        @param objectname: label of the desired object
+        @type objectname: str, Body, or BodyBag
+        @return: the ParameterSet of the component
+        @rtype: ParameterSet
+        """
+        if isinstance(objectname,str):
+            obj = self.get_object(objectname)
+        if hasattr(obj,'bodies'):
+            return self.get_orbit(obj)
+        else:
+            return self.get_component(obj)
         
     def get_component(self,objectname):
         """
         retrieve the ParameterSet for a component by name
         
-        @param objectname: label or __name__ for the desired object
-        @type objectname: str
+        @param objectname: label of the desired object
+        @type objectname: str or Body
         @return: the ParameterSet of the component
         @rtype: ParameterSet
         """
-        return self.get_object(objectname=objectname).params['component']
+        # get_object already allows passing object, so we don't have to check to see if str
+        params = self.get_object(objectname=objectname).params
+        if 'component' in params.keys():
+            return params['component']
+        if 'star' in params.keys():
+            return params['star']
+        return None
     
     def get_orbit(self,objectname):
         """
         retrieve the ParameterSet for a orbit by name
         
-        @param objectname: label or __name__ for the desired object
-        @type objectname: str
+        @param objectname: label of the desired object
+        @type objectname: str or BodyBag
         @return: the ParameterSet of the orbit
         @rtype: ParameterSet
         """
+        if not isinstance(objectname,str):
+            objectname = self.get_label(objectname)
+        
         # for orbits we have to be more clever
         for path,item in self.system.walk_all():
             if path[-1] == 'orbit' and item['label']==objectname:
@@ -125,14 +248,18 @@ class Bundle(object):
         """
         retrieve the ParameterSet for a mesh by name
         
-        @param objectname: label or __name__ for the desired object
-        @type objectname: str
+        @param objectname: label of the desired object
+        @type objectname: str or Body
         @return: the ParameterSet of the mesh
         @rtype: ParameterSet
         """
-        return self.get_object(objectname=objectname).params['mesh']
-
-        
+        if isinstance(objectname,str):
+            obj = self.get_object(objectname)
+        else:
+            obj = objectname
+            
+        return obj.params['mesh']
+               
     def get_parent(self,objectname):
         """
         retrieve the parent of an item in a hierarchical structure
@@ -142,21 +269,24 @@ class Bundle(object):
         @return: the parent bodybag
         @rtype: ParameterSet        
         """
+        raise NotImplementedError
+        return None
         
-        # allow for passing the object itself instead of the label
-        if isinstance(objectname, str):
-            obj = self.get_object(objectname)
+    def get_children(self,objectname):
+        """
+        retrieve the children of an item in a hierarchical structure
+        
+        @param objectname: label of the parent object
+        @type objecname: str
+        @return: list of children objects
+        @rtype: list of Bodies/BodyBags
+        """
+        obj = self.get_object(objectname)
+        if hasattr(obj,'bodies'):
+            return self.get_object(objectname).bodies
         else:
-            obj = objectname
+            return []
             
-        # walk through all items, when we find a match return the item one above
-        for i,(path,item) in enumerate(list(self.system.walk_all())):
-            if item == obj:
-                if len(path) <=2: # then we won't be able to access system so just return it
-                    return self.system
-                else:
-                    return walk[i-1][1] 
-                    
     def remove_item(self,objectname):
         """
         remove an item and all its children from the system
@@ -164,7 +294,6 @@ class Bundle(object):
         @param objectname: label of the item to be removed
         @type objectname: str
         """
-
         obj = self.get_object(objectname)
         oldparent = self.get_parent(objectname)
 
@@ -172,7 +301,7 @@ class Bundle(object):
         raise NotImplementedError
         return obj
         
-    def add_parent(self,objectname,parent):
+    def insert_parent(self,objectname,parent):
         """
         add a parent to an existing item in the hierarchical system structure
         
@@ -181,6 +310,9 @@ class Bundle(object):
         @param parent: the new parent
         @type parent: BodyBag        
         """
+        raise NotImplementedError
+        return
+        
         obj = self.get_object(objectname)
         oldparent = self.get_parent(objectname)
         
@@ -190,7 +322,7 @@ class Bundle(object):
         parent.append(obj)
         oldparent.append(parent)
         
-    def add_child(self,objectname,child):
+    def insert_child(self,objectname,child):
         """
         add a child to an existing item in the hierarchical system structure
         
@@ -226,8 +358,6 @@ class Bundle(object):
         if context=='rvobs':
             output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
         elif context=='lcobs':
-            print("lc not currently working")
-            # problem is we're trying to attach the datasets to the wrong objects
             output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
         else:
             print("only lc and rv currently implemented")
@@ -246,6 +376,47 @@ class Bundle(object):
                 comp.add_obs(ds)
             for ps in pss:
                 comp.add_pbdeps(ps)
+                
+    def add_data(self,objectname,dataset):
+        """
+        attach dataset to an object
+        
+        @param objectname: name of the object to attach the dataset to
+        @type objectname: str
+        @param dataset: the dataset
+        @type dataset: parameterSet
+        """
+        obj = self.get_object(objectname)
+        
+        typ = dataset.context[-3:]
+        if typ=='dep':
+            obj.add_pbdeps(dataset)
+        elif typ=='obs':
+            obj.add_obs(ds)
+                
+    #~ def get_data(self,objectname=None,ref=None):
+        #~ """
+        #~ get a dataset by the object its attached to and its label
+        #~ if objectname and ref are given, this will return a single dataset
+        #~ if either or both are not give, this will return a list of all datasets matching the search
+        #~ 
+        #~ @param objectname: name of the object the dataset is attached to
+        #~ @type objectname: str
+        #~ @param ref: ref (name) of the dataset
+        #~ @type ref: str
+        #~ @return: dataset
+        #~ @rtype: parameterSet
+        #~ """
+        #~ if objectname is None:
+            #~ return_ = []
+            #~ for objname in []:
+                #~ return_ += self.get_data(objname,ref=ref)
+            #~ return return_
+        #~ obj = self.get_object(objectname)
+        #~ 
+        #~ parsets = obj.get_parset(ref=ref)
+        
+        
     #}
     
     #{ Compute
