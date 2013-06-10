@@ -737,33 +737,42 @@ def parse_header(filename,ext=None):
     """
     Parse only the header of an ASCII file.
     
-    The columns and components are returned as well as a pbdep and dataset
-    where the keywords in the header are parsed. Also the number of columns
-    from the data part is returned (if no data, it is set to -1).
+    Parsing the headers means deriving the column descriptors in the file, and
+    extracting keywords.
     
-    If there are no columns defined, ``columns`` will be ``None``. If there
-    are no components defined, ``components`` will be ``None``.
+    A header is defined as that part of the ASCII file coming before the data,
+    where the lines are preceded with comment character '#'.
     
-    You cannot define components without defining the columns, but you can
-    define columns without defining components.
+    There are two parts in a header: an unprocessed part and a processed part.
+    The processed part needs to be enclosed with separator "#---" (you can put
+    in more dashes).
     
-    When only columns are defined, they need to be in the second-to-last
-    line, followed by a separator ``#---``::
+    The processed part can contain two types of information: information on
+    parameters in pbdep and obs parameterSets, and description of the data
+    columns. The column descriptors are preceded with a word in upper case
+    letters, the parameters are in lower case letters and are followed by an
+    equal sign ('=')::
     
-        # rv       time           sigma
-        #---------------------------------------
-    
-    When both columns and components are defined, the columns need to be in
-    the third-to-last line, the components in the second-to-last, followed
-    by a separator ``#---``::
-    
-        # rv       rv     time           sigma
-        # compA   compB    None          compA
-        #---------------------------------------
-    
-    After the separator, it is assumed that the data begin.
-    
-    If there are data, then the first line is allso read, to determine the
+        # This part of the header is completely ignored.
+        # Completely, I tell you! You can write whatever
+        # rubbish here. I'm an egg, I'm an egg, I tell you, 
+        # I'm an egg!
+        #--------------------------
+        # atm = kurucz
+        # passband = JOHNSON.B
+        #NAME time flux sigma
+        #UNIT d mag mag
+        #TYPE f8 f8 f8
+        #COMP Vega Vega Vega
+        #--------------------------
+        2345667. 19.  0.1
+        2345668. 18.5 0.05
+        
+    Everything is optional, i.e. there can also be no header. You don't need to
+    give keywords *and* column descriptors, and if you give column descriptors,
+    you don't need to give them all.
+        
+    If there are data, then the first line is also read, to determine the
     number of columns present in the data.
     
     You can give a component's name also by supplying a line ``# label = mylabel``
@@ -774,75 +783,6 @@ def parse_header(filename,ext=None):
     
     The type of data is determined via the keyword ``ext``. If it is not given,
     an attempt is made to determine the filetype from the extension.
-    
-    **Examples:**
-    
-    These are possible headers with their output::
-    
-        # atm = kurucz
-        # fittransfo = log
-    
-    >>> info, ps = parse_header('example_file.phot')
-    >>> print(info)
-    (None, None, -1)
-    >>> print(ps)
-    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
-    
-    Another one::
-      
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # label = componentA
-        
-    >>> info, ps = parse_header('example_file.rv')
-    >>> print(info)
-    (None, 'componentA', -1)
-    >>> print(ps)
-    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
-    
-    Another one::
-      
-        # atm = kurucz
-        # fittransfo = log
-        # flux     passband    time  sigma  unit
-        #---------------------------------------
-        
-    >>> info, ps = parse_header('example_file.phot')
-    >>> print(info)
-    (['flux', 'passband', 'time', 'sigma', 'unit'], None, -1)
-    >>> print(ps)
-    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.LCDataSet object at 0x7f0e046ed6d0>
-    
-    Another one::
-      
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # label = componentA
-        # rv       time           sigma
-        #---------------------------------------
-        
-    >>> info, ps = parse_header('example_file.rv')
-    >>> print(info)
-    (['rv', 'time', 'sigma'], ['componentA', 'componentA', 'componentA'], -1)
-    >>> print(ps)
-    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
-    
-    And the last example::
-    
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # rv       time           sigma   sigma   rv
-        # starA    None           starA   starB   starB
-        #------------------------------------------------
-    
-    >>> info, ps = parse_header('example_file.rv')
-    >>> print(info)
-    (['rv', 'time', 'sigma', 'sigma', 'rv'], ['starA', 'None', 'starA', 'starB', 'starB'], -1)
-    >>> print(ps)
-    (<phoebe.parameters.parameters.ParameterSet object at 0x837ccd0>, <phoebe.parameters.datasets.RVDataSet object at 0x7f0e046ed6d0>
         
     @param filename: input file
     @type filename: str
@@ -1138,6 +1078,9 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     
     **File format description**
     
+        1. Simple text files
+        2. Advanced text files
+    
     *Simple text files*
     
     The minimal structure of an LC file is::
@@ -1161,8 +1104,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
         5. Exposure time (``exptime``)
         6. Sampling rate (``samprate``)
         
-    Or the order can be specified with the ``columns`` keyword. In the later case,
-    you can give exposure times without giving a flag column.
+    Or the order can be specified with the ``columns`` keyword. In the later
+    case, you can e.g. give exposure times without giving a flag column.
     
     In the case phases are given instead of time, you need to specify the order
     of the columns, and set ``phase`` as the label instead of ``time``. E.g. a
@@ -1189,17 +1132,20 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     
     >>> mymag = obs.get_value('flux', 'mag')
     
+    You can comment out data lines if you don't want to use them.
+    
     *Advanced text files*
     
     The information on the order and names of the columns, as well as
-    additional information on the light curve, can be given in the
-    text file in the form of comments. An example advanced LC file is:
-    
+    additional information on the light curve, can be given inside the
+    text file in the form of comments. An example advanced LC file is::
+        
+        # This comment is ignored
+        #----------------------
         # passband = JOHNSON.V
         # atm = kurucz
         # ref = april2011
-        # 
-        # time mag sigma
+        #NAME time mag sigma
         #----------------------
         2455453.0       1.     0.01    
         2455453.1       1.01   0.015    
@@ -1209,21 +1155,14 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     Which can be read in with one of the following equivalent lines of code::
     
     >>> obs, pbdep = parse_lc('myfile.lc')
-    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'mag', 'sigma'],
-                           passband='JOHNSON.V', atm='kurucz', ref='april2011')
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'mag', 'sigma'], passband='JOHNSON.V', atm='kurucz', ref='april2011')
     
     An attempt will be made to interpret the comment lines (i.e. those lines
-    where the first character equals '#') as qualifier/value for either the
-    :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
-    Failures are silently ignored, so you are allowed to put whatever comments
-    in there as long as you separate the header with an empty comment line from
-    the rest of the header.
+    where the first character equals '#') inside the ``#---`` separators as
+    qualifier/value for either the :ref:`lcobs <parlabel-phoebe-lcobs>` or
+    :ref:`lcdep <parlabel-phoebe-lcdep>`. Upon failure, a ``ValueError`` is
+    raised.
     
-    You can comment out data lines if you don't want to use them.
-    
-    .. tip::
- 
-       You can give missing values by setting a value to ``nan``
     
     **Uncertainties**
     
@@ -1233,7 +1172,9 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     **Units**
     
     If you want to pass flux units different from the default ones
-    (``erg/s/cm2/AA``), you need to specify those via the ``units`` keyword.
+    (``erg/s/cm2/AA``), you need to specify those via the ``units`` keyword, or
+    specify them in the column descriptors.
+    
     Assume the following file with times and magnitudes instead fluxes::
     
         0.0     1.               
@@ -1244,11 +1185,23 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     You need to read this in via::
     
         >>> obs, pbdep = parse_lc('myfile.lc', units=dict(flux='mag'))
+    
+    Or specify the units in the file::
+    
+        #---------------------------
+        #UNIT d  mag     mag 
+        #---------------------------
+        0.0     1.       0.1    
+        0.1     1.01     0.2         
+        0.2     1.02     0.1         
+        0.3     0.96     0.3
         
+    
     Though for your convenience, we also recognize the column name ``mag``,
     which will be internally converted to fluxes. A file::
     
-        # time  mag     sigma 
+        #---------------------------
+        #NAME time  mag     sigma 
         #---------------------------
         0.0     1.       0.1    
         0.1     1.01     0.2         
@@ -1293,12 +1246,12 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     a file called ``myfile.lc``. Then you can do (the following lines are
     equivalent):
     
-    >>> obs,pbdeps = parse_lc('myfile.lc')
-    >>> obs,pbdeps = parse_lc('myfile.lc',columns=['time','flux','sigma'])
+    >>> obs, pbdep = parse_lc('myfile.lc')
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'flux', 'sigma'])
     
     Which is in this case equivalent to:
     
-    >>> output = parse_lc('myfile.lc',full_output=True)
+    >>> output = parse_lc('myfile.lc', full_output=True)
     >>> obs,pbdeps = output['__nolabel__']
     
     or 
@@ -1309,7 +1262,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     
     >>> starpars = parameters.ParameterSet(context='star')
     >>> meshpars = parameters.ParameterSet(context='mesh:marching')
-    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
+    >>> star = Star(starpars, mesh=meshpars, pbdep=[pbdeps], obs=[obs])
     
     The first example explicitly contains a label, so an OrderedDict will
     always be returned, regardless the value of ``full_output``.
@@ -1320,6 +1273,10 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     @type columns: None or list of strings
     @param components: list of components for each column in the file. If not given, they will be automatically detected.
     @type components: None or list of strings
+    @param dtypes: data types, with dictionary keys the column names, and value the numpy dtype
+    @type dtypes: dictionary
+    @param units: unit strings, with dictionary keys the column names, and value the numpy dtype
+    @type units: dictionary
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
     @return: :ref:`lcobs <parlabel-phoebe-lcobs>`, :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
@@ -1336,7 +1293,16 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     parsed = parse_header(filename, ext='lc')
     (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
                    (pb, ds) = parsed
-
+    
+    # Remember user-supplied arguments and keyword arguments for this parse
+    # function
+    # add columns, components, dtypes, units, full_output
+    
+    ds['user_columns'] = columns
+    ds['user_components'] = components
+    ds['user_dtypes'] = dtypes
+    ds['user_units'] = units
+    
     # Process the header: get the dtypes (column_specs), figure out which
     # columns are actually in the file, which ones are missing etc...
     processed = process_header((columns_in_file,components_in_file,
@@ -1424,6 +1390,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     if not 'sigma' in myds['columns']:
         myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
+        logger.info("No uncertainties available in data --> estimated")
     
     # Convert to right units
     for col in units:
@@ -1433,12 +1400,6 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
                                          myds['flux'], myds['sigma'])
             myds['flux'] = f
             myds['sigma'] = e_f
-    
-    # Remember user-supplied arguments and keyword arguments for this parse
-    # function
-    # add columns, components, dtypes, units, full_output
-    
-    # NOT IMPLEMENTED YET
     
     # If the user didn't provide any labels (either as an argument or in the
     # file), we don't bother the user with it:
@@ -1452,163 +1413,7 @@ def parse_rv(filename, columns=None, components=None,
     """
     Parse RV files to RVDataSets and rvdeps.
     
-    **File format description**
-    
-    The generic structure of an RV file is::
-        
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # label = componentA
-        2455453.0     -10.   0.1    
-        2455453.1      -5.   0.15    
-        2455453.2       2.   0.11    
-        2455453.3       6.   0.09    
-    
-    In this structure, you can only give RVs of one component in one
-    file. An attempt will be made to interpret the comment lines (i.e. those lines
-    where the first character equals '#') as qualifier/value for either the
-    :ref:`rvobs <parlabel-phoebe-rvobs>` or :ref:`rvdep <parlabel-phoebe-rvdep>`.
-    Failures are silently ignored, so you are allowed to put whatever comments
-    in there (though with caution), or comment out data lines if you don't
-    want to use them. The comments are optional. So this is also allowed::
-    
-        2455453.0     -10.   0.1    
-        2455453.1      -5.   0.15    
-        2455453.2       2.   0.11    
-        2455453.3       6.   0.09
-    
-    In this case all the defaults from the :ref:`rvobs <parlabel-phoebe-rvobs>`,
-    and :ref:`rvdep <parlabel-phoebe-rvdep>` ParameterSets will be kept, but can
-    be possibly overriden by the extra kwargs. If, in this last example, you
-    want to specify that different columns belong to different components,
-    you need to give a list of those component labels, and set ``None`` wherever
-    a column does not belong to a component (e.g. the time).
-    
-    The only way in which you are allowed to deviate from this structure, is
-    by specifying column names, followed by a comment line of dashes (there
-    needs to be at least one dash, no spaces)::
-    
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # label = componentA
-        # rv       time           sigma
-        #---------------------------------------
-        -10.       2455453.0       0.1    
-         -5.       2455453.1       0.15    
-          2.       2455453.2       0.11    
-          6.       2455453.3       0.09
-    
-    In the latter case, you are allowed to omit any column except for ``time``
-    ``rv`` and ``sigma``, which are required.
-    
-    The final option that you have is to supply information on multiple
-    components in one file. In that case, you need to specify the column names
-    **and** the components, in two consecutive lines (first column names, then
-    component labels), or pass ``columns`` and ``components`` arguments during
-    the function call::
-    
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # rv       time           sigma   sigma   rv
-        # starA    None           StarA   starB   starB
-        #------------------------------------------------
-        -10.       2455453.0       0.1   0.05     11.
-         -5.       2455453.1       0.15  0.12      6.
-          2.       2455453.2       0.11  nan      nan
-          6.       2455453.3       0.09  0.2     -12.
-    
-    .. tip::
- 
-       You can give missing values by setting a value to ``nan``
-    
-    Radial velocities need to be in km/s.
-    
-    **Input and output**
-    
-    The output can be readily appended to the C{obs} and C{pbdep} keywords in
-    upon initialization of a ``Body``.
-    
-    Extra keyword arguments are passed to output RVDataSets or pbdeps,
-    wherever they exist and override the contents of the comment lines in the
-    phot file. For example, compare these two files::
-    
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = SiII_rvs
-        # rv       time           sigma   sigma   rv
-        # starA    None           starA   starB   starB
-        #------------------------------------------------
-        -10.       2455453.0       0.1   0.05     11.
-         -5.       2455453.1       0.15  0.12      6.
-          2.       2455453.2       0.11  nan      nan
-          6.       2455453.3       0.09  0.2     -12.
-
-    and::
-    
-        -10.       2455453.0       0.1   0.05     11.
-         -5.       2455453.1       0.15  0.12      6.
-          2.       2455453.2       0.11  nan      nan
-          6.       2455453.3       0.09  0.2     -12.
-    
-    Since all the information is available in the first example, you can
-    readily do:
-    
-    >>> output = parse_rv('myfile.rv')
-    
-    While you need to do supply more information the second case:
-    
-    >>> output = parse_rv('myfile.rv',columns=['rv','time','sigma','sigma','rv'],
-    ...     components=['starA',None,'StarA','starB','starB'])
-    
-    
-    If C{full_output=True}, you will get a consistent output, regardless what
-    the input file looks like. This can be useful for automatic parsing. In
-    this case, the output is an OrderedDict, with the keys at the first level
-    the key of the component (if no labels are given, this will be C{__nolabel__}).
-    The value for each key is a list of two lists: the first list contains the
-    LCDataSets, the second list the corresponding pbdeps.
-    
-    If C{full_output=False}, you will get the same output as described in the
-    previous paragraph only if labels are given in the file. Else, the output
-    consists of only one component, which is probably a bit confusing for the
-    user (at least me). So if there are no labels given and C{full_output=False},
-    the two lists are immediately returned.
-    
-    **Example usage**
-    
-    Assume that any of the **second** example is saved in 
-    file called ``myfile.phot``, you can do (the following lines are equivalent):
-    
-    >>> obs,pbdeps = parse_phot('myfile.rv')
-    >>> obs,pbdeps = parse_phot('myfile.rv',columns=['time','rv','sigma'])
-    
-    Which is in this case equivalent to:
-    
-    >>> output = parse_phot('myfile.rv',full_output=True)
-    >>> obs,pbdeps = output['__nolabel__']
-    
-    or 
-    
-    >>> obs,pbdeps = output.values()[0]
-    
-    The output can then be given to any Body:
-    
-    >>> starpars = parameters.ParameterSet(context='star')
-    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
-    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
-    
-    The first example explicitly contains a label, so an OrderedDict will
-    always be returned, regardless the value of ``full_output``.
-    
-    The last example contains labels, so the full output is always given.
-    Assume the contents of the last file is stored in ``myfile2.rv``:
-    
-    >>> output = parse_phot('myfile2.rv')
-    >>> obs1,pbdeps1 = output['starA']
-    >>> obs2,pbdeps2 = output['starB']
+    See :py:func:`parse_lc` for more information.
     
     @param filename: filename
     @type filename: string
