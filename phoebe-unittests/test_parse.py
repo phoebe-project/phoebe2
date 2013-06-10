@@ -31,18 +31,18 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
     data = np.loadtxt(myfile)
     
     # We need to have as many lines:
-    assert(data.shape[0] == obs[0].shape[0])
+    assert(data.shape[0] == obs.shape[0])
     
     # We can't really test the number of columns, as the sigma column is
     # added if it's not there
     
     # Test if the columns contain the same data:
-    columns = obs[0]['columns']
+    columns = obs['columns']
     for col in range(min(len(columns),data.shape[1])):
         # Sigma column could have been added, so we don't test for it
         if columns[col] == 'sigma':
             continue
-        assert(np.all(data[:,col] == obs[0][columns[col]]))
+        assert(np.all(data[:,col] == obs[columns[col]]))
     
     
     
@@ -112,91 +112,90 @@ def test_parse_rv_hd174884():
 def test_parse_phased_data():
     phasedfile = '../phoebe-testlib/HD174884/hd174884.phased.data'
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
-    assert(len(obs[0]['time']) == 0)
-    assert(obs[0]['columns'] == ['phase', 'flux', 'sigma'])
+    assert(len(obs['time']) == 0)
+    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
 
 def test_parse_phased_data_mag():
     phasedfile = '../phoebe-testlib/HD174884/hd174884.phased.data'
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
-    assert(len(obs[0]['time']) == 0)
-    assert(obs[0]['columns'] == ['phase', 'flux', 'sigma'])
+    assert(len(obs['time']) == 0)
+    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
     
     data = np.loadtxt(phasedfile).T
     
     flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1])
     flux2 = phoebe.convert('W/m3','erg/s/cm2/AA',10**(-data[1]/2.5))
-    assert(np.all(flux1 == obs[0]['flux']))
-    assert(np.all(flux2 == obs[0]['flux']))
+    assert(np.all(flux1 == obs['flux']))
+    assert(np.all(flux2 == obs['flux']))
     
 
 def test_parse_header():
     
-    rv_files = ['hv2241.final.rv1', 'hv2241.final.rv2']
-    lc_files = ['asas.V', 'davidge.B', 'davidge.U', 'davidge.V', 'pritchard.b',
-                'pritchard.Ic', 'pritchard.u', 'pritchard.v', 'pritchard.V',
-                'pritchard.y']
-    rv_files = [os.path.join('../phoebe-testlib/hv2241', ifile) for ifile in rv_files]
-    lc_files = [os.path.join('../phoebe-testlib/hv2241', ifile) for ifile in lc_files]
+    info, sets = phoebe.parameters.datasets.parse_header('../phoebe-testlib/datafiles/example1.lc')
+    assert(info == (None, None, None, None, 2))
     
-    for ff in rv_files:
-        info, sets = phoebe.parameters.datasets.parse_header(ff, ext='rv')
-        assert(info[2] in [2,3])
-        assert(info[:2] == (None, None))
-        assert(sets[0].get_context() == 'rvdep')
-        assert(sets[1].get_context() == 'rvobs')
-              
-    for ff in lc_files:
-        info, sets = phoebe.parameters.datasets.parse_header(ff, ext='lc')
-        assert(info[2] in [2,3])
-        assert(info[:2] == (None, None))
-        assert(sets[0].get_context() == 'lcdep')
-        assert(sets[1].get_context() == 'lcobs')
+    info, sets = phoebe.parameters.datasets.parse_header('../phoebe-testlib/datafiles/example2.lc')
+    assert(info == (None, None, None, None, 4))
     
-    filename = '../phoebe-testlib/datafiles/example0.rv'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    assert(info == (None, 'componentA', 3))
+    info, sets = phoebe.parameters.datasets.parse_header('../phoebe-testlib/datafiles/example3.lc')
+    assert(info == (['time', 'flux', 'flag', 'sigma'], ['Vega', 'Vega', 'Vega', 'Vega'], None, None, 4))
+    assert(sets[0]['passband'] == 'JOHNSON.B')
+    assert(sets[0]['atm'] == 'kurucz')
     
-    filename = '../phoebe-testlib/datafiles/example1.rv'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    assert(info == (None, None, 3))
+    info, sets = phoebe.parameters.datasets.parse_header('../phoebe-testlib/datafiles/example4.lc')
+    assert(info == (['phase', 'mag', 'sigma', 'flag'], None, None, None, 4))
+    assert(sets[0]['passband'] == 'JOHNSON.B')
+    assert(sets[0]['atm'] == 'kurucz')
     
-    filename = '../phoebe-testlib/datafiles/example2.rv'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    assert(info == (['rv', 'time', 'sigma'], ['componentA', 'componentA', 'componentA'], 3))
+    info, sets = phoebe.parameters.datasets.parse_header('../phoebe-testlib/datafiles/example5.lc')
+    assert(info[0] == ['phase', 'flux', 'sigma', 'flag'])
+    assert(info[1] == ['none', 'Vega', 'Vega', 'Vega'])
+    assert(info[2]['phase'] == 'none')
+    assert(info[2]['flux'] == 'mag')
+    assert(info[2]['flag'] == 'none')
+    assert(info[2]['sigma'] == 'mag')
+    assert(info[3]['phase'] == 'f8')
+    assert(info[3]['flux'] == 'f8')
+    assert(info[3]['flag'] == 'int')
+    assert(info[3]['sigma'] == 'f8')
+    assert(info[4] == 4)
+    assert(sets[0]['passband'] == 'JOHNSON.B')
+    assert(sets[0]['atm'] == 'kurucz')
     
-    filename = '../phoebe-testlib/datafiles/example3.rv'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    assert(info[0] == ['rv', 'time', 'sigma', 'sigma', 'rv'])
-    assert(info[1] == ['HV2241a', 'None', 'HV2241a', 'HV2241b', 'HV2241b'])
-    assert(info[2] == 5)
-    
-    filename = '../phoebe-testlib/datafiles/example1.phot'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    
-    filename = '../phoebe-testlib/datafiles/example2.phot'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    
-    filename = '../phoebe-testlib/datafiles/example3.phot'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
-    
-    filename = '../phoebe-testlib/datafiles/example4.phot'
-    info, sets = phoebe.parameters.datasets.parse_header(filename, ext='rv')
     
 def test_parse_lc_01():
     
-    filename = '../phoebe-testlib/datafiles/example0.rv'
+    obs, pbdep = phoebe.parse_lc('../phoebe-testlib/datafiles/example1.lc')
+    assert(obs['columns'] == ['time', 'flux', 'sigma'])
+    assert(len(obs['time']) == 4)
     
-    obs = phoebe.parse_rv(filename)
+    obs, pbdep = phoebe.parse_lc('../phoebe-testlib/datafiles/example2.lc')
+    assert(obs['columns'] == ['time', 'flux', 'sigma', 'flag'])
+    assert(len(obs['time']) == 4)
+    assert(pbdep['passband']=='JOHNSON.B')
     
-    time = np.array([2455453.0, 2455453.1, 2455453.2, 2455453.3])
-    rv = np.array([-10., -5., 2., 6.])
-    sigma = np.array([0.1, 0.15, 0.11, 0.09])
+    obs, pbdep = phoebe.parse_lc('../phoebe-testlib/datafiles/example3.lc')
+    assert(obs['columns'] == ['time', 'flux', 'flag', 'sigma'])
+    assert(len(obs['time']) == 4)
+    assert(np.all(obs['flag'] == 0))
+    assert(pbdep['passband']=='JOHNSON.B')
     
-    assert(np.all(obs['componentA'][0][0]['time'] == time))
-    assert(np.all(obs['componentA'][0][0]['rv'] == rv))
-    assert(np.all(obs['componentA'][0][0]['sigma'] == sigma))
-    assert(obs['componentA'][0][0]['ref'] == 'SiII_rvs')
-    assert(obs['componentA'][1][0]['ref'] == 'SiII_rvs')
-    assert(obs['componentA'][1][0]['passband'] == 'JOHNSON.B')
-    assert(obs['componentA'][1][0]['atm'] == 'kurucz')
+    obs, pbdep = phoebe.parse_lc('../phoebe-testlib/datafiles/example4.lc')
+    assert(obs['columns'] == ['phase', 'flux', 'sigma', 'flag'])
+    assert(len(obs['time']) == 0)
+    assert(len(obs['phase']) == 4)
+    assert(np.all(obs['flag'] == 0))
+    assert(isinstance(obs['flag'][0], float))
+    bla = obs.get_value('flux','mag')
+    assert(np.all(bla-np.array([10., 11.1, 10.7, 10.8])<1e-14))
+    assert(pbdep['passband']=='JOHNSON.B')
     
+    obs, pbdep = phoebe.parse_lc('../phoebe-testlib/datafiles/example5.lc')
+    assert(obs['columns'] == ['phase', 'flux', 'sigma', 'flag'])
+    assert(len(obs['time']) == 0)
+    assert(len(obs['phase']) == 4)
+    assert(np.all(obs['flag'] == 0))
+    assert(isinstance(obs['flag'][0], int))
+    bla = obs.get_value('flux','mag')
+    assert(np.all(bla-np.array([10., 11.1, 10.7, 10.8])<1e-14))
+    assert(pbdep['passband']=='JOHNSON.B')

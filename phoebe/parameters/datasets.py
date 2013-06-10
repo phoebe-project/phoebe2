@@ -873,7 +873,7 @@ def parse_header(filename,ext=None):
     
     #-- open the file and start reading the lines
     n_columns = -1
-    with open(filename, 'r') as ff:
+    with open(filename, 'rb') as ff:
         
         # We can only avoid reading in the whole file by first going through
         # it line by line, and collect the comment lines. We need to be able
@@ -887,8 +887,6 @@ def parse_header(filename,ext=None):
                 
                 #-- break when we reached the end!
                 all_lines.append(line[1:])
-                if line[1:4] == '---':
-                    continue
             
             #-- perhaps the user did not give a '----', is this safe?
             elif n_columns < 0:
@@ -903,56 +901,91 @@ def parse_header(filename,ext=None):
     header_length = len(all_lines)
     components = None
     columns = None
+    units = None
+    dtypes = None
     
     #-- now iterate over the header lines
+    inside_col_descr = False
     for iline, line in enumerate(all_lines):
+        # Remove white space at the beginning of the line
+        line = line.strip()
         
-        #-- comment lines can contain qualifiers from the DataSet,
-        #   we recognise them by the presence of the equal "=" sign.
-        split = line[1:].split("=")
+        # Toggle inside/outside col descr
+        is_separator = line[:3] == '---'
+        if is_separator:
+            inside_col_descr = not inside_col_descr
+            continue
         
-        # if they do, they consist of "qualifier = value". Careful,
-        # perhaps there are more than 1 "=" signs in the value
-        # (e.g. the reference contains a "="). There are never
-        # "=" signs in the qualifier.
-        if len(split) > 1:
+        # Everything inside the column descripter part needs to be thoroughly
+        # analysed
+        if inside_col_descr:
             
-            #-- qualifier is for sure the first element
-            qualifier = split[0].strip()
-            
-            #-- if this qualifier exists, in either the RVDataSet
-            #   or pbdep, add it. Text-to-value parsing is done
-            #   at the ParameterSet level
-            if qualifier in ds:
-                ds[qualifier] = "=".join(split[1:]).strip()
-            if qualifier in pb:
-                pb[qualifier] = "=".join(split[1:]).strip()
-            if qualifier == 'label':
-                components = "=".join(split[1:]).strip()
+            # Comment lines can contain qualifiers from the DataSet, we
+            # recognise them by the presence of the equal "=" sign.
+            split = line.split("=")
         
-        #-- it is also possible that the line contains the column
-        #   names: they should then contain at least the required
-        #   columns! We recognise the column headers as that line
-        #   which is followed by a line containing '#---' at least.
-        #   Or the line after that one; in the latter case, also
-        #   the components are given
-        elif iline == (header_length-3) and all_lines[-1][:3] == '---':
-            columns = line.split()
-            components = all_lines[iline+1].split()
-            break
+            # If they do, they consist of "qualifier = value", with "qualifier"
+            # an all-lower-case string. Careful, perhaps there are more than 1
+            # "=" signs in the value (e.g. the reference contains a "="). There
+            # are never "=" signs in the qualifier.
+            if len(split) > 1 and split[0].islower():
+                
+                # Qualifier is for sure the first element, remove whitespace
+                # surrounding it
+                qualifier = split[0].strip()
             
-        #-- now we only have column names
-        elif iline == (header_length-2) and all_lines[-1][:3] == '---':
-            columns = line.split()
-    
-    #-- some post processing:
+                # If this qualifier exists, in either the RVDataSet or pbdep,
+                # add it. Text-to-value parsing is done at the ParameterSet
+                # level, so we don't need to worry about it
+                qualifier_consumed = False
+                if qualifier in ds:
+                    ds[qualifier] = "=".join(split[1:]).strip()
+                    qualifier_consumed = True
+                if qualifier in pb:
+                    pb[qualifier] = "=".join(split[1:]).strip()
+                    qualifier_consumed = True
+                if qualifier == 'label':
+                    components = "=".join(split[1:]).strip()
+                    qualifier_consumed = True
+                    
+                if not qualifier_consumed:
+                    raise ValueError("Cannot interpret parameter {}".format(qualifier))
+            
+            # It is also possible that the line contains the column names: they
+            # should then contain at least the required columns! We recognise
+            # the column headers as that line which is followed by a line
+            # containing '#---' at least. Or the line after that one; in the
+            # latter case, also the components are given
+            elif line.split()[0].isupper():
+                descr = line[:4]
+                contents = line.split()[1:]
+                if descr == 'NAME':
+                    columns = contents
+                elif descr == 'UNIT':
+                    units = contents
+                elif descr == 'COMP':
+                    components = contents
+                elif descr == 'TYPE':
+                    dtypes = contents
+                else:
+                    raise ValueError("Unrecognized column descripter {}".format(descr))
+            
+            #-- Else I don't know what to do!
+            else:
+                raise ValueError
+        
+    # Some post processing to put stuff in the right format:
     if isinstance(components, str) and columns is not None:
         components = [components] * len(columns)
     if 'filename' in ds:
         ds['filename'] = filename
+    if units is not None:
+        units = {colname: unit for colname, unit in zip(columns, units)}
+    if dtypes is not None:
+        dtypes = {colname: dtype for colname, dtype in zip(columns, dtypes)}
     
-    #-- that's it!
-    return (columns, components, n_columns), (pb,ds)    
+    # That's it!
+    return (columns, components, units, dtypes, n_columns), (pb,ds)    
 
 
 def process_header(info, sets, default_column_order, required=2, columns=None,
@@ -1002,15 +1035,21 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     @return: (info on column names, dtypes and units), (obs and dep ParameterSet)
     @rtype: tuple, tuple
     """
-    (columns_in_file, components_in_file, ncol), (pb, ds) = info, sets
+    (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol), (pb, ds) = info, sets
     
     # Check minimum number of columns
     if ncol < required:
         raise ValueError("You need to give at least {} columns ({})".format(required, ", ".join(default_column_order[:required])))
     
     # Set units as an empty dictionary by default, that's easier
-    if units is None:
+    if units is None and units_in_file is not None:
+        units = units_in_file
+    elif units is None:
         units = dict()
+    
+    # Check if dtypes are given anywhere
+    if dtypes is None and dtypes_in_file is not None:
+        dtypes = dtypes_in_file
     
     # These are the default columns
     default_column_order = default_column_order[:ncol]
@@ -1099,54 +1138,88 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     
     **File format description**
     
-    The generic structure of an LC file is::
+    *Simple text files*
+    
+    The minimal structure of an LC file is::
+    
+        2455453.0       1.   
+        2455453.1       1.01 
+        2455453.2       1.02 
+        2455453.3       0.96 
+    
+    Which can be read in with one of the following equivalent lines of code::
+    
+    >>> obs, pbdep = parse_lc('myfile.lc')
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'flux'])
+    
+    Extra columns may be given. They can be given either in the default order:
+    
+        1. Time (``time``)
+        2. Flux (``flux``)
+        3. Uncertainty (``sigma``)
+        4. Flag (``flag``)
+        5. Exposure time (``exptime``)
+        6. Sampling rate (``samprate``)
         
+    Or the order can be specified with the ``columns`` keyword. In the later case,
+    you can give exposure times without giving a flag column.
+    
+    In the case phases are given instead of time, you need to specify the order
+    of the columns, and set ``phase`` as the label instead of ``time``. E.g. a
+    file with contents::
+    
+        0.0       1.   
+        0.1       1.01 
+        0.2       1.02 
+        0.3       0.96 
+        
+    should not be read in without extra keyword arguments, since you need to
+    specify that the first column contains phases rather than time::
+    
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['phase', 'flux'])
+    
+    Additionally, you can substitute ``mag`` for ``flux``. In contrast to the
+    ``phase`` array, which will be retained as is in the observational
+    ParameterSet (and converted to time during computations only), the ``mag``
+    column will be converted to fluxes during parsing::
+    
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'mag'])
+    
+    But the original contents may always be retrieved via::
+    
+    >>> mymag = obs.get_value('flux', 'mag')
+    
+    *Advanced text files*
+    
+    The information on the order and names of the columns, as well as
+    additional information on the light curve, can be given in the
+    text file in the form of comments. An example advanced LC file is:
+    
         # passband = JOHNSON.V
         # atm = kurucz
         # ref = april2011
-        # label = capella
+        # 
+        # time mag sigma
+        #----------------------
         2455453.0       1.     0.01    
         2455453.1       1.01   0.015    
         2455453.2       1.02   0.011    
         2455453.3       0.96   0.009    
     
-    In this structure, you can only give LCs of one component in one
-    file. An attempt will be made to interpret the comment lines (i.e. those lines
+    Which can be read in with one of the following equivalent lines of code::
+    
+    >>> obs, pbdep = parse_lc('myfile.lc')
+    >>> obs, pbdep = parse_lc('myfile.lc', columns=['time', 'mag', 'sigma'],
+                           passband='JOHNSON.V', atm='kurucz', ref='april2011')
+    
+    An attempt will be made to interpret the comment lines (i.e. those lines
     where the first character equals '#') as qualifier/value for either the
     :ref:`lcobs <parlabel-phoebe-lcobs>` or :ref:`lcdep <parlabel-phoebe-lcdep>`.
     Failures are silently ignored, so you are allowed to put whatever comments
-    in there (though with caution), or comment out data lines if you don't
-    want to use them. The comments are optional. So this is also allowed::
+    in there as long as you separate the header with an empty comment line from
+    the rest of the header.
     
-        2455453.0       1.     0.01    
-        2455453.1       1.01   0.015    
-        2455453.2       1.02   0.011    
-        2455453.3       0.96   0.009    
-    
-    In this case all the defaults from the :ref:`lcobs <parlabel-phoebe-lcobs>`,
-    and :ref:`lcdep <parlabel-phoebe-lcdep>` ParameterSets will be kept, but can
-    be possibly overriden by the extra kwargs. If, in this last example, you
-    want to specify that different columns belong to different components,
-    you need to give a list of those component labels, and set ``None`` wherever
-    a column does not belong to a component (e.g. the time).
-    
-    The only way in which you are allowed to deviate from this structure, is
-    by specifying column names, followed by a comment line of dashes (there
-    needs to be at least one dash, no spaces)::
-    
-        # passband = JOHNSON.V
-        # atm = kurucz
-        # ref = april2011
-        # label = capella
-        # flux     time           sigma
-        #---------------------------------------
-        1.         2455453.0       0.01     
-        1.01       2455453.1       0.015     
-        1.02       2455453.2       0.011     
-        0.96       2455453.3       0.009 
-    
-    In the latter case, you are allowed to omit any column except for ``time``
-    ``lc`` and ``sigma``, which are required.
+    You can comment out data lines if you don't want to use them.
     
     .. tip::
  
@@ -1157,34 +1230,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     If no ``sigma`` column is given, a column will be added with all-equal
     values.
     
-    **Phases and magnitudes**
-    
-    You can give phases instead of times, but then you need to specify it,
-    either in the file::
-    
-        # phase   flux        
-        #--------------------
-        0.0     1.               
-        0.1     1.01              
-        0.2     1.02              
-        0.3     0.96          
-        
-    Can be read in via::
-    
-        >>> obs, pbdep = parse_lc('myfile.lc')
-        
-    But a file with contents::
-    
-        0.0     1.               
-        0.1     1.01              
-        0.2     1.02              
-        0.3     0.96          
-                 
-    Needs to be read in via::
-    
-        >>> obs, pbdep = parse_lc('myfile.lc', columns=['phase', 'flux'])
-    
-    Since otherwise it will be assumed that the first column contains time stamps.
+    **Units**
     
     If you want to pass flux units different from the default ones
     (``erg/s/cm2/AA``), you need to specify those via the ``units`` keyword.
@@ -1241,16 +1287,11 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     The value for each key is a list of two lists: the first list contains the
     LCDataSets, the second list the corresponding pbdeps.
     
-    If C{full_output=False}, you will get the same output as described in the
-    previous paragraph only if labels are given in the file. Else, the output
-    consists of only one component, which is probably a bit confusing for the
-    user (at least me). So if there are no labels given and C{full_output=False},
-    the two lists are immediately returned.
-    
     **Example usage**
     
-    Assume that any of the **second** example is saved in 
-    file called ``myfile.lc``, you can do (the following lines are equivalent):
+    Assume the first example in the *Advanced test file section* is saved to
+    a file called ``myfile.lc``. Then you can do (the following lines are
+    equivalent):
     
     >>> obs,pbdeps = parse_lc('myfile.lc')
     >>> obs,pbdeps = parse_lc('myfile.lc',columns=['time','flux','sigma'])
@@ -1273,13 +1314,6 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     The first example explicitly contains a label, so an OrderedDict will
     always be returned, regardless the value of ``full_output``.
     
-    The last example contains labels, so the full output is always given.
-    Assume the contents of the last file is stored in ``myfile2.lc``:
-    
-    >>> output = parse_lc('myfile2.lc')
-    >>> obs1,pbdeps1 = output['starA']
-    >>> obs2,pbdeps2 = output['starB']
-    
     @param filename: filename
     @type filename: string
     @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
@@ -1288,7 +1322,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     @type components: None or list of strings
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
-    @return: (list of :ref:`lcobs <parlabel-phoebe-lcobs>`, list of :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
+    @return: :ref:`lcobs <parlabel-phoebe-lcobs>`, :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
     """
     default_column_order = ['time', 'flux', 'sigma', 'flag', 'exptime',
                             'samprate']
@@ -1300,11 +1334,13 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     # or for other purposes (e.g. label or unit).
     # Parse the header
     parsed = parse_header(filename, ext='lc')
-    (columns_in_file, components_in_file, ncol), (pb, ds) = parsed
-    
+    (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
+                   (pb, ds) = parsed
+
     # Process the header: get the dtypes (column_specs), figure out which
     # columns are actually in the file, which ones are missing etc...
-    processed = process_header((columns_in_file,components_in_file, ncol),
+    processed = process_header((columns_in_file,components_in_file,
+                                units_in_file, dtypes_in_file, ncol),
                              (pb, ds), default_column_order, required=2, 
                              columns=columns, components=components,
                              dtypes=dtypes, units=units)
@@ -1320,7 +1356,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     data = []
 
     # Open the file and start reading the lines: skip empty and comment lines
-    with open(filename, 'r') as ff:
+    with open(filename, 'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line:
@@ -1382,7 +1418,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
-   
+            
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
@@ -1397,16 +1433,22 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
                                          myds['flux'], myds['sigma'])
             myds['flux'] = f
             myds['sigma'] = e_f
-            
+    
+    # Remember user-supplied arguments and keyword arguments for this parse
+    # function
+    # add columns, components, dtypes, units, full_output
+    
+    # NOT IMPLEMENTED YET
+    
     # If the user didn't provide any labels (either as an argument or in the
     # file), we don't bother the user with it:
-    if '__nolabel__' in output and not full_output:
-        return output.values()[0]
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
     else:
         return output
 
 def parse_rv(filename, columns=None, components=None,
-             full_output=False, dtypes=None, **kwargs):
+             full_output=False, dtypes=None, units=None, **kwargs):
     """
     Parse RV files to RVDataSets and rvdeps.
     
@@ -1578,7 +1620,7 @@ def parse_rv(filename, columns=None, components=None,
     @type full_output: bool
     @return: (list of :ref:`rvobs <parlabel-phoebe-rvobs>`, list of :ref:`rvdep <parlabel-phoebe-rvdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
     """
-    default_column_order = ['time','rv','sigma']
+    default_column_order = ['time','rv','sigma', 'flag', 'exptime', 'samprate']
     
     #-- which columns are present in the input file, and which columns are
     #   possible in the RVDataSet? The columns that go into the RVDataSet
@@ -1587,27 +1629,28 @@ def parse_rv(filename, columns=None, components=None,
     #   or for other purposes (e.g. label or unit).
     #-- parse the header
     parsed = parse_header(filename, ext='rv')
-    (columns_in_file, components_in_file, ncol), (pb, ds) = parsed
+    (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
+                   (pb, ds) = parsed
     
     # Process the header: get the dtypes (column_specs), figure out which
     # columns are actually in the file, which ones are missing etc...
-    processed = process_header((columns_in_file,components_in_file, ncol),
+    processed = process_header((columns_in_file,components_in_file,
+                                units_in_file, dtypes_in_file, ncol),
                              (pb, ds), default_column_order, required=2, 
                              columns=columns, components=components,
-                             dtypes=dtypes)
-    
+                             dtypes=dtypes, units=units)
     (columns_in_file, columns_specs, units), (pb, ds) = processed
     
-    #-- prepare output dictionaries. The first level will be the label key
-    #   of the Body. The second level will be, for each Body, the pbdeps or
-    #   datasets.
+    # Pepare output dictionaries. The first level will be the label key of the
+    # Body. The second level will be, for each Body, the pbdeps or datasets.
     output = OrderedDict()
     ncol = len(columns_in_file)
     
-    #-- collect all data
+    # Collect all data
     data = []
-    #-- open the file and start reading the lines    
-    with open(filename, 'r') as ff:
+    
+    # Open the file and start reading the lines    
+    with open(filename, 'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line:
@@ -1615,67 +1658,96 @@ def parse_rv(filename, columns=None, components=None,
             if line[0] == '#':
                 continue
             data.append(tuple(line.split()[:ncol]))
-    #-- we have the information from header now, but only use that
-    #   if it is not overriden
+    
+    # We have the information from header now, but only use that if it is not
+    # overriden
     if components is None and components_in_file is None:
-        components = ['__nolabel__']*len(columns_in_file)
-    elif components is None and isinstance(components_in_file,str):
-        components = [components_in_file]*len(columns_in_file)
+        components = ['__nolabel__'] * len(columns_in_file)
+    elif components is None and isinstance(components_in_file, str):
+        components = [components_in_file] * len(columns_in_file)
     elif components is None:
         components = components_in_file
-    #-- make sure all the components are strings
-    components = [str(c) for c in components]
-    #-- we need unique names for the columns in the record array
-    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
-    #-- add these to an existing dataset, or a new one.
-    #   also create pbdep to go with it!
-    #-- numpy records to allow for arrays of mixed types. We do some
-    #   numpy magic here because we cannot efficiently predefine the
-    #   length of the strings in the file: therefore, we let numpy
-    #   first cast everything to strings:
-    data = np.core.records.fromrecords(data,names=columns_in_data)
-    #-- and then say that it can keep those string arrays, but it needs
-    #   to cast everything else to the column specificer (i.e. the right type)
-    descr = data.dtype.descr
-    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
-    dtype = np.dtype(descr)
-    data = np.array(data,dtype=dtype)
     
-    #-- for each component, create two lists to contain the
-    #   RVDataSets or pbdeps    
+    # Make sure all the components are strings
+    components = [str(c) for c in components]
+    
+    # We need unique names for the columns in the record array
+    columns_in_data = ["".join([col, name]) for col, name in \
+                                zip(columns_in_file, components)]
+                            
+    # Add these to an existing dataset, or a new one. Also create pbdep to go
+    # with it!
+    # Numpy records to allow for arrays of mixed types. We do some numpy magic
+    # here because we cannot efficiently predefine the length of the strings in
+    # the file: therefore, we let numpy first cast everything to strings:
+    data = np.core.records.fromrecords(data,names=columns_in_data)
+    
+    # And then say that it can keep those string arrays, but it needs to cast
+    # everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]] == str \
+                  else (descr[i][0],columns_specs[columns_in_file[i]]) \
+                      for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data, dtype=dtype)
+    
+    # For each component, create two lists to contain the RVDataSets or pbdeps    
     for label in set(components):
-        if label.lower()=='none':
+        if label.lower() == 'none':
             continue
-        output[label] = [[ds.copy()],[pb.copy()]]
-    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
-        if label.lower()=='none':
+        output[label] = [[ds.copy()], [pb.copy()]]
+    for col, coldat, label in zip(columns_in_file, columns_in_data, components):
+        if label.lower() == 'none':
             for lbl in output:
                 output[lbl][0][-1][col] = data[coldat]
             continue
+        
         output[label][0][-1][col] = data[coldat]
-        #-- override values already there with extra kwarg values
+        
+        # Override values already there with extra kwarg values
         for key in kwargs:
             if key in output[label][0][-1]:
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
     
-    #-- remove nans:
+    # Add sigma if not available:
+    myds = output.values()[0][0][-1]
+    if not 'sigma' in myds['columns']:
+        myds.estimate_noise(from_col='rv', to_col='sigma')
+        myds['columns'] = myds['columns'] + ['sigma']
+    
+    # Convert to right units
+    for col in units:
+        if col == 'rv':
+            f, e_f = conversions.convert(units[col],
+                                         myds.get_parameter(col).get_unit(), 
+                                         myds['rv'], myds['sigma'])
+            myds['rv'] = f
+            myds['sigma'] = e_f
+    
+    # Remove nans:
     for comp in output.keys():
         for ds in output[comp][0]:
             columns = ds['columns']
-            keep = np.ones(len(ds[columns[0]]),bool)
-            #-- first look for nans in all columns
+            keep = np.ones(len(ds[columns[0]]), bool)
+            # First look for nans in all columns
             for col in columns:
                 keep = keep & -np.isnan(ds[col])
-            #-- then throw the rows with nans out
+            # Then throw the rows with nans out
             for col in columns:
                 ds[col] = ds[col][keep]
-        
-    #-- If the user didn't provide any labels (either as an argument or in the
-    #   file), we don't bother the user with it:
-    if '__nolabel__' in output and not full_output:
-        return output.values()[0]
+    
+    # Remember user-supplied arguments and keyword arguments for this parse
+    # function
+    # add columns, components, dtypes, units, full_output
+    
+    # NOT IMPLEMENTED YET
+    
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
     else:
         return output
 
@@ -1838,7 +1910,7 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
         #-- collect all data
         data = []
         #-- open the file and start reading the lines
-        with open(filename,'r') as ff:
+        with open(filename,'rb') as ff:
             all_lines = ff.readlines()
             for iline,line in enumerate(all_lines):
                 line = line.strip()
@@ -2023,7 +2095,7 @@ def parse_spec_as_lprof(filename,line_name,clambda=4000.,wrange=1e300,columns=No
     #-- collect all data
     data = []
     #-- read the comments of the file
-    with open(filename,'r') as ff:
+    with open(filename,'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line: continue
@@ -2255,7 +2327,7 @@ def parse_vis2(filename,columns=None,full_output=False,**kwargs):
     #-- collect all data
     data = []
     #-- open the file and start reading the lines    
-    with open(filename,'r') as ff:
+    with open(filename,'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line: continue
@@ -2380,7 +2452,7 @@ def parse_plprof(filename,clambda,columns=None,components=None,full_output=False
     #-- collect all data
     data = []
     #-- read the comments of the file
-    with open(filename,'r') as ff:
+    with open(filename,'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
             if not line: continue
@@ -2534,7 +2606,7 @@ def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,
     #-- collect all data
     data = []
     #-- read the comments of the file
-    with open(filename,'r') as ff:
+    with open(filename,'rb') as ff:
         for linenr,line in enumerate(ff.readlines()):
             if linenr<skiprows: continue
             line = line.strip()
