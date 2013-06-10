@@ -237,6 +237,10 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv'],frame=["phoebe"],context=['rvsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['spobs','spsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','V','Q','U','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['plobs','plsyn']),
+         dict(qualifier='user_columns', description='Column names given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs']),
+         dict(qualifier='user_components', description='Component names given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs']),
+         dict(qualifier='user_dtypes', description='Data types given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs']),
+         dict(qualifier='user_units', description='Units given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs']),
         ]
 
 defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context='spobs'),
