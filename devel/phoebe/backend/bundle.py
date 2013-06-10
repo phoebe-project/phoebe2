@@ -394,27 +394,27 @@ class Bundle(object):
         elif typ=='obs':
             obj.add_obs(ds)
                 
-    #~ def get_data(self,objectname=None,ref=None):
-        #~ """
-        #~ get a dataset by the object its attached to and its label
-        #~ if objectname and ref are given, this will return a single dataset
-        #~ if either or both are not give, this will return a list of all datasets matching the search
-        #~ 
-        #~ @param objectname: name of the object the dataset is attached to
-        #~ @type objectname: str
-        #~ @param ref: ref (name) of the dataset
-        #~ @type ref: str
-        #~ @return: dataset
-        #~ @rtype: parameterSet
-        #~ """
-        #~ if objectname is None:
-            #~ return_ = []
-            #~ for objname in []:
-                #~ return_ += self.get_data(objname,ref=ref)
-            #~ return return_
-        #~ obj = self.get_object(objectname)
-        #~ 
-        #~ parsets = obj.get_parset(ref=ref)
+    def get_data(self,objectname=None,ref=None):
+        """
+        get a dataset by the object its attached to and its label
+        if objectname and ref are given, this will return a single dataset
+        if either or both are not give, this will return a list of all datasets matching the search
+        
+        @param objectname: name of the object the dataset is attached to
+        @type objectname: str
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        @return: dataset
+        @rtype: parameterSet
+        """
+        if objectname is None:
+            return_ = []
+            for objname in []:
+                return_ += self.get_data(objname,ref=ref)
+            return return_
+        obj = self.get_object(objectname)
+        
+        parsets = obj.get_parset(ref=ref)
         
         
     #}
