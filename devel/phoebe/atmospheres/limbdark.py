@@ -983,13 +983,13 @@ def compute_grid_ld_coeffs(atm_files,atm_pars,\
                     #-- fit a limbdarkening law:
                     csol,res,dflux = fit_law(mu,Imu[:,i]/Imu[0,i],law=law,fitmethod=fitmethod)
                     output[pb].append(list(val) + [res,dflux] + list(csol) + [Imu[0,i]])
-                    print(output[pb][-1])
+                    print(pb, output[pb][-1])
             else:
                 csol = []
                 for i,pb in enumerate(passbands):
                     #-- don't fit a law, we know what it is
                     output[pb].append(list(val) + [0.0,0.0] + [Imu[i]])
-                    print(output[pb][-1])
+                    print(pb, output[pb][-1])
     #-- write to a FITS file
     col_names = atm_par_names + red_par_names
     if vgamma is not None and 'vgamma' not in col_names:
