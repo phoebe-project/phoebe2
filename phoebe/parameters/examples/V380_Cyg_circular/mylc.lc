@@ -1,3 +1,4 @@
+#--------------------
 # atm = kurucz
 # ld_func = claret
 # ld_coeffs = kurucz
@@ -10,7 +11,7 @@
 # beaming = False
 # filename = 
 # ref = mylc
-#  time  flux  sigma 
+# NAME time  flux  sigma 
 #--------------------
 0.000000000000000000e+00 2.037423398200062545e-08 6.273182560727572632e-09
 2.535861020408163302e-01 2.037190592804919180e-08 6.273182560727572632e-09
