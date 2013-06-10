@@ -855,6 +855,26 @@ class Axes(parameters.ParameterSet):
         @param value: the new value
         """
         self.axesoptions.set_value(key,value)
+        
+    def _get_object(self,objectname,bodybag):
+        """
+        copied functionality from bundle.get_object to avoid import
+        """
+        for item in bodybag.get_bodies():
+            # if item is a bodybag itself, then recursively loop
+            if hasattr(item, 'get_bodies'):
+                result = self._get_object(objectname,item)
+                if result is not None:
+                    return results
+            else:
+                # check to see if we want the item
+                if 'component' in item.params.keys() and item.params['component']['label'] == objectname:
+                    return item
+                
+                # check to see if we want the itembag
+                if 'orbit' in item.params.keys() and item.params['orbit']['label'] == objectname:
+                    return bodybag
+        return None
             
     def plot(self,system,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
         """
@@ -936,12 +956,8 @@ class Axes(parameters.ParameterSet):
             if plotoptions['objref']=='auto':
                 obj = system
             else:
-                # copied functionality from bundle.get_object
-                for path,item in system.walk_all():
-                    if path[-1] == plotoptions['objref']:
-                        obj = item
-                    if path[-1] == 'orbit' and item['label'] == plotoptions['objref'] and len(path) == 3:
-                        obj = system
+                # copied functionality from bundle.get_object (since we don't want to import bundle)
+                obj = self._get_object(plotoptions['objref'],system)
                 
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
