@@ -940,7 +940,7 @@ def KOI126(create_body=True,**kwargs):
     orbitA_BC['ecc'] = 0.3043
     orbitA_BC['per0'] = 52.88,'deg'
     orbitA_BC['incl'] = 92.100,'deg'
-    
+    orbitA_BC['label'] = 'systemABC'
     
     
     mean_anomaly = 19.87/180.*np.pi
