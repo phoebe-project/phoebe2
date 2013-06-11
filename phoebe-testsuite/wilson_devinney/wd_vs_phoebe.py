@@ -90,10 +90,12 @@ ps['n1'] = 60
 ps['n2'] = 60
 lc['phnorm'] = 0.0
 lc['jdstrt'] = ps['hjd0']
-lc['jdend'] = ps['hjd0']+ps['period']
+lc['jdend'] = ps['hjd0'] + ps['period']
 lc['jdinc'] = 0.01*ps['period']
 lc['indep_type'] = 'time (hjd)'
 lc['el3'] = 0.
+lc['hla'] = 4*np.pi
+lc['cla'] = 4*np.pi
 rv['vunit'] = 1.
 
 # Convert the WD-type parameterSets to pyphoebe-type parameterSets. This
@@ -105,8 +107,8 @@ star2,lcdep2,rvdep2 = comp2
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
-mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.1,alg='c')
-mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.1,alg='c')
+mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.075,alg='c')
+mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.075,alg='c')
 
 
 # Body setup

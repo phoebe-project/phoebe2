@@ -310,9 +310,9 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
             lcdep2[index]['passband'] = val
      
         if key == 'phoebe_hla.VAL': 
-            lcdep1[index]['pblum'] = val
+            lcdep1[index]['pblum'] = val / (4*np.pi)
         if key == 'phoebe_cla.VAL': 
-            lcdep2[index]['pblum'] = val
+            lcdep2[index]['pblum'] = val / (4*np.pi)
         if key == 'phoebe_el3.VAL':
             lcdep1[index]['l3'] = val
             lcdep2[index]['l3'] = val
@@ -390,6 +390,9 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
     #-- copy the component labels to the orbits
     orbit['c1label'] = comp1['label']
     orbit['c2label'] = comp2['label']
+    
+    # t0 is the time of superior conjunction in Phoebe Legacy
+    orbit['t0type'] = 'superior conjunction'
 
 
     body1 = comp1, lcdep1, rvdep1

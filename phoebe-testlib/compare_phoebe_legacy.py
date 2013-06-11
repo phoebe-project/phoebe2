@@ -51,7 +51,7 @@ from phoebe.backend import universe
 from phoebe.dynamics import keplerorbit
 from phoebe.algorithms import eclipse
 from phoebe import kelly
-from pyphoebe.parameters import create
+from phoebe.parameters import tools 
 
 logger = phoebe.get_basic_logger()
 
@@ -66,20 +66,21 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     
     #========= FILES and INPUTS =============================================
     #--------- PHOEBE LEGACY ------------------------------------------------
-    #-- collect all the files we need, and define the names of the files we
-    #   wish to create:
-    #   First, the reference files from the LEGACY code, provided by Kelly:
-    legacy_input_file = glob.glob(os.path.join(test_case,'*.phoebe'))[0]
+    # Vollect all the files we need, and define the names of the files we
+    # wish to create:
+    # First, the reference files from the LEGACY code, provided by Kelly:
+    legacy_input_file = glob.glob(os.path.join(test_case, '*.phoebe'))[0]
     legacy_basename   = legacy_input_file.rstrip('-test.phoebe')
     legacy_lc_file    = legacy_basename + '-time.dat'
-    legacy_crit_times,legacy_crit_files = get_meshes(legacy_basename)
-    #   read Phoebe Legacy input using Kelly's parser:
-    system = kelly.legacy_to_phoebe(legacy_input_file,create_body=True,mesh=mesh)
-    #   change from definition of superior conjunction to periastron passage
-    create.from_supconj_to_perpass(system[0].params['orbit'])    
-    #-- Load the contents of the Phoebe Legacy LC file, we'll need this later
-    #   to compare the results.
-    otime,oflux = np.loadtxt(legacy_lc_file).T[:2]
+    legacy_crit_times, legacy_crit_files = get_meshes(legacy_basename)
+    
+    # Read Phoebe Legacy input using Kelly's parser:
+    system = kelly.legacy_to_phoebe(legacy_input_file, create_body=True,
+                                    mesh=mesh)
+    
+    # Load the contents of the Phoebe Legacy LC file, we'll need this later
+    # to compare the results.
+    otime, oflux = np.loadtxt(legacy_lc_file).T[:2]
     
     #--------- PHOEBE 2.0 ---------------------------------------------------
     #-- We will save the results from Phoebe 2.0 calculations so that we don't
@@ -92,19 +93,9 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     phoebe_crit_files = [phoebe_basename + os.path.basename(crit_file) for crit_file in legacy_crit_files]
     phoebe_out_file = phoebe_basename + '.pars'
     
-    #   Check if our critical times are the same as those from Legacy
-    t0 = system[0].params['orbit']['t0']
-    P = system[0].params['orbit']['period']
-    per0 = system[0].params['orbit'].request_value('per0','rad')
-    ecc = system[0].params['orbit'].request_value('ecc')
-    phshift = system[0].params['orbit'].request_value('phshift')
-    phoebe_crit_times = keplerorbit.calculate_critical_phases(per0,ecc)*P + t0
-    #-- check if Phoebe 2.0 critical times are equal to Phoebe Legacy's
-    print("Period={}, t0={}, phshift={}".format(P,t0,phshift))
-    if not np.all(legacy_crit_times==phoebe_crit_times):
-        for ff,lt,pt in zip(legacy_crit_files,legacy_crit_times,phoebe_crit_times):
-            print '{:40s}: {:.6} <-> {:.6} ({:.4}, or {:.4} phase units)'.format(ff,lt,pt,lt-pt,np.mod(lt-pt,P)/P)
-        logger.error("There is something wrong with the times of critical phases...")
+    # Compute critical times
+    tools.to_perpass(system[0].params['orbit'])
+    phoebe_crit_times = tools.critical_times(system[0].params['orbit'])
     
     #-- check if files and directories exist to write in:
     phoebe_direc = os.path.split(phoebe_basename)[0]
@@ -127,8 +118,8 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     #   remember). Make sure to conserve volume at periastron: we compute the system at
     #   T0 (time of periastron passage). Phoebe 2.0 remembers the volume at the
     #   first computed time point
-    time = np.hstack([phoebe_crit_times[cvol_index]-P/2,np.linspace(otime[0],otime[-1],250)])
-    
+    time = np.linspace(otime[0],otime[-1],250)
+
     #--------- WD -----------------------------------------------------------
     #-- read in the WD lcin file, and make sure we compute stuff in JD
     wd_input_file = legacy_basename + '-test.lcin'
@@ -167,6 +158,7 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     #-- compute the system if the light curves haven't been computed before
     if not os.path.isfile(phoebe_lc_file) or recompute:
         #-- compute the system
+        #time = time[::5]
         phoebe.observe(system,time,lc=True,mpi=mpi,subdiv_num=0,refl=False,heating=True)
         #-- retrieve the results: for each component and for the whole system
         lcref = system[0].params['pbdep']['lcdep'].values()[0]['ref']
@@ -197,9 +189,14 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
     plt.plot(otime,oflux/oflux.mean(),'r-',lw=2,label='Phoebe Legacy')
     plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean(),'bo-',lw=2,label='WD')
     plt.legend(loc='best').get_frame().set_alpha(0.5)
+    
+    for ct in phoebe_crit_times:
+        plt.axvline(ct,color='g',lw=2)
+        plt.axvline(ct+P,color='g',lw=2)
+    
     plt.xlim(time.min(),time.max())
     plt.axes([0.1,0.05,0.85,0.2])
-    plt.plot(time,(flux/flux.mean()-curve['lc']/curve['lc'].mean())*100.,'ko-')
+    #plt.plot(time,(flux/flux.mean()-curve['lc']/curve['lc'].mean())*100.,'ko-')
     plt.ylabel('Residuals [%]')
     plt.xlim(time.min(),time.max())
     plt.figure()
@@ -217,7 +214,7 @@ def compare(test_case,delta=0.1,recompute=False,mesh='marching',
         #-- read in the Phoebe Legacy mesh:
         V,W = np.loadtxt(crit_file).T
         #-- compute the Phoebe 2.0 mesh:
-        if not os.path.isfile(phoebe_crit_files[i]):
+        if not os.path.isfile(phoebe_crit_files[i]) or recompute:
             system.set_time(crit_time)
             #-- only keep the visible ones
             eclipse.convex_bodies(system.get_bodies())
