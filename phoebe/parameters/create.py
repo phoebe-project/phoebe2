@@ -986,32 +986,32 @@ def KOI126_alternate(create_body=True,**kwargs):
     starA = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True)
     starA['teff'] = 5875,'K'
     starA['mass'] = 1.347,'Msol'
-    starA['surface'] = 'sphere'
+    starA['shape'] = 'sphere'
     starA['radius'] = 2.0254,'Rsol'
     starA['rotperiod'] = np.inf
-    starA['ld_model'] = 'claret'
+    starA['ld_func'] = 'claret'
     starA['atm'] = 'kurucz'
-    starA['cl'] = 'kurucz'
+    starA['ld_coeffs'] = 'kurucz'
     
     starB = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True)
     starB['teff'] = 3000,'K'
     starB['mass'] = 0.2413,'Msol'
-    starB['surface'] = 'sphere'
+    starB['shape'] = 'sphere'
     starB['radius'] = 0.2543,'Rsol'
     starB['rotperiod'] = np.inf
-    starB['ld_model'] = 'linear'
+    starB['ld_func'] = 'linear'
     starB['atm'] = 'blackbody'
-    starB['cl'] = [0.5]
+    starB['ld_coeffs'] = [0.5]
     
     starC = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True)
     starC['teff'] = 2800,'K'
     starC['mass'] = 0.2127,'Msol'
-    starC['surface'] = 'sphere'
+    starC['shape'] = 'sphere'
     starC['radius'] = 0.2318,'Rsol'
     starC['rotperiod'] = np.inf
-    starB['ld_model'] = 'linear'
+    starB['ld_func'] = 'linear'
     starB['atm'] = 'blackbody'
-    starB['cl'] = [0.5]
+    starB['ld_coeffs'] = [0.5]
     
     #-- inner binary
     orbitBC = parameters.ParameterSet(frame='phoebe',context='orbit',add_constraints=True)
@@ -1020,7 +1020,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     orbitBC['ecc'] = 0.02334
     orbitBC['per0'] = 89.52,'deg'
     orbitBC['incl'] = 96.907-92.100,'deg'
-    orbitBC['long'] = 8.012,'deg'
+    orbitBC['long_an'] = 8.012,'deg'
     
     #-- outer binary
     orbitA_BC = parameters.ParameterSet(frame='phoebe',context='orbit',add_constraints=True)
@@ -1041,27 +1041,27 @@ def KOI126_alternate(create_body=True,**kwargs):
                           starC.request_value('mass','kg'),\
                           orbitBC.request_value('sma','m'))/(3600*24.)    
     
-    meshA = parameters.ParameterSet(frame='phoebe',context='mesh')
-    meshB = parameters.ParameterSet(frame='phoebe',context='mesh')
-    meshC = parameters.ParameterSet(frame='phoebe',context='mesh')
+    meshA = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
+    meshB = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
+    meshC = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
     
     #-- light curve
     lcdep1 = parameters.ParameterSet(frame='phoebe',context='lcdep')
-    lcdep1['ld_model'] = 'claret'
-    lcdep1['cl'] = 'kurucz'
+    lcdep1['ld_func'] = 'claret'
+    lcdep1['ld_coeffs'] = 'kurucz'
     lcdep1['atm'] = 'kurucz'
     lcdep1['passband'] = 'JOHNSON.V'
     lcdep1['ref'] = 'light curve'
     lcdep2 = lcdep1.copy()
-    lcdep2['ld_model'] = 'linear'
-    lcdep2['cl'] = [0.5]
+    lcdep2['ld_func'] = 'linear'
+    lcdep2['ld_coeffs'] = [0.5]
     lcdep2['atm'] = 'blackbody'
     lcdep3 = lcdep2.copy()
     
     
-    starA = universe.BinaryStar(starA,None,meshA,obs=[lcdep1])
-    starB = universe.BinaryStar(starB,None,meshB,obs=[lcdep2])
-    starC = universe.BinaryStar(starC,None,meshC,obs=[lcdep3])
+    starA = universe.BinaryStar(starA,None,meshA,pbdep=[lcdep1])
+    starB = universe.BinaryStar(starB,None,meshB,pbdep=[lcdep2])
+    starC = universe.BinaryStar(starC,None,meshC,pbdep=[lcdep3])
     
     systemBC = universe.BinaryBag([starB,starC],orbit=orbitBC)
     systemA_BC = universe.BinaryBag([starA,systemBC],orbit=orbitA_BC)

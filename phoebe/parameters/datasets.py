@@ -788,8 +788,8 @@ def parse_header(filename,ext=None):
     @type filename: str
     @param ext: file type, one of ``lc``, ``phot``, ``rv``, ``spec``, ``lprof``, ``vis2``, ``plprof``
     @type ext: str
-    @return: (columns, components, ncol), (pbdep, dataset)
-    @rtype: (list/None, list/str/None, int), (ParameterSet, DataSet)
+    @return: (columns, components, units, data types, ncol), (pbdep, dataset)
+    @rtype: (list/None, list/str/None, dict/None, dict/None, int), (ParameterSet, DataSet)
     """
     
     #-- create a default pbdep and DataSet
