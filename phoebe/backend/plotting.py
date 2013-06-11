@@ -958,8 +958,12 @@ class Axes(parameters.ParameterSet):
             else:
                 # copied functionality from bundle.get_object (since we don't want to import bundle)
                 obj = self._get_object(plotoptions['objref'],system)
+            
+            if plotoptions['type'][-3:]=='syn' and hasattr(obj,'bodies'):
+                dataset = obj.get_synthetic(ref=plotoptions['dataref'])
+            else:
+                dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
                 
-            dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
             
             if dataset is None:
                 logger.error("dataset {} failed to load for objects {}".format(plotoptions['dataref'],plotoptions['objref']))
