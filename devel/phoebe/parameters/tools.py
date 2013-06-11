@@ -43,6 +43,7 @@ import numpy as np
 from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.parameters import parameters
+from phoebe.dynamics import keplerorbit
 
 logger = logging.getLogger("PARS.TOOLS")
 
@@ -675,7 +676,7 @@ def add_theta_eff(orbit,theta_eff=None):
     orbit.add_constraint('{phi0} = np.arcsin(1.0/np.tan({theta}) * np.sqrt(np.cos({theta_eff})**2/np.cos({theta})**2 -1.0)) if {theta}!=np.pi/2 else np.pi/2.0-{phi0}')
     orbit.run_constraints()
 
-def from_supconj_to_perpass(orbit):
+def to_perpass(orbit):
     """
     Convert an orbital set where t0 is superior conjunction to periastron passage.
     
@@ -689,14 +690,23 @@ def from_supconj_to_perpass(orbit):
     @param orbit: parameterset of frame C{phoebe} and context C{orbit}
     @type orbit: parameterset of frame C{phoebe} and context C{orbit}
     """
-    t_supconj = orbit['t0']
-    phshift = orbit['phshift']
-    P = orbit['period']
-    per0 = orbit.get_value('per0','rad')
-    t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
-    orbit['t0'] = t0
+    t0type = orbit.get('t0type','periastron passage')
+    if t0type == 'superior conjunction':
+        t_supconj = orbit['t0']
+        phshift = orbit['phshift']
+        P = orbit['period']
+        per0 = orbit.get_value('per0','rad')
+        t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
+        orbit['t0'] = t0
+        orbit['t0type'] = 'periastron passage'           
+        logger.info('Set t0type to time of periastron passage')
+    elif t0type == 'periastron passage':
+        logger.info('t0type was already time of periastron passage')
+    else:
+        raise ValueError('Do not recognize t0type "{}"'.format(t0type))
+        
 
-def from_perpass_to_supconj(orbit):
+def to_supconj(orbit):
     """
     Convert an orbital set where t0 is periastron passage to superior conjunction.
     
@@ -710,13 +720,41 @@ def from_perpass_to_supconj(orbit):
     @param orbit: parameterset of frame C{phoebe} and context C{orbit}
     @type orbit: parameterset of frame C{phoebe} and context C{orbit}
     """
-    t_perpass = orbit['t0']
-    phshift = orbit['phshift']
-    P = orbit['period']
-    per0 = orbit.get_value('per0','rad')
-    t0 = t_perpass - (phshift - 0.25 + per0/(2*np.pi))*P
-    orbit['t0'] = t0
+    if 't0type' in orbit:
+        t0type = orbit['t0type']
+    else:
+        t0type = 'periastron passage'
+    
+    if t0type == 'periastron passage':
+        t_perpass = orbit['t0']
+        phshift = orbit['phshift']
+        P = orbit['period']
+        per0 = orbit.get_value('per0','rad')
+        t0 = t_perpass - (phshift - 0.25 + per0/(2*np.pi))*P
+        orbit['t0'] = t0
+        if 't0type' in orbit:
+            orbit['t0type'] = 'superior conjunction'
+            
+    logger.info('Set t0type to time of superior conjunction')
 
+def critical_times(orbit_in):
+    """
+    Compute critical times in an orbit.
+    """
+    if not orbit_in.get('t0type','periastron passage') == 'periastron passage':
+        orbit = orbit_in.copy()
+        to_perpass(orbit)
+    else:
+        orbit = orbit_in
+    
+    t0 = orbit['t0']
+    P = orbit['period']
+    per0 = orbit.request_value('per0','rad')
+    ecc = orbit['ecc']
+    
+    crit_times = keplerorbit.calculate_critical_phases(per0, ecc) * P + t0
+    
+    return crit_times
 #}
 
 #{ Pulsation constraints

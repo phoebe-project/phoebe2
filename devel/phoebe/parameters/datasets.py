@@ -18,6 +18,9 @@ The following ASCII parsers translate ASCII files to lists of DataSets.
 
 .. autosummary::
 
+    parse_header
+    process_header
+    parse_lc
     parse_rv
     parse_phot
     parse_vis2

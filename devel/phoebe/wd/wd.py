@@ -624,8 +624,12 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     rvdep2['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     
     #-- passband luminosities and third light
-    lcdep1['pblum'] = lc['hla']
-    lcdep2['pblum'] = lc['cla']
+    if ps_wd['ipb'] == 0:
+        lcdep1['pblum'] = 1.0
+        lcdep2['pblum'] = 1.0
+    #else:
+    #    lcdep1['pblum'] = lc['hla'] / (4*np.pi)
+    #    lcdep2['pblum'] = lc['cla'] / (4*np.pi)
     lcdep1['l3'] = lc['el3']
     lcdep2['l3'] = 0.
     
@@ -641,12 +645,16 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     comp2 = body2,lcdep2,rvdep2
     
     #-- convert from t0 (superior conjunction) to t0 (periastron passage)
-    t_supconj = orbit['t0']
-    phshift = orbit['phshift']
-    P = orbit['period']
-    per0 = orbit.get_value('per0','rad')
-    t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
-    orbit['t0'] = t0
+    #t_supconj = orbit['t0']
+    #phshift = orbit['phshift']
+    #P = orbit['period']
+    #per0 = orbit.get_value('per0','rad')
+    #t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
+    #orbit['t0'] = t0
+    #orbit['t0type'] = 'periastron passage'
+    
+    
+    orbit['t0type'] = 'superior conjunction'
     #-- gamma velocity needs to be corrected
     orbit['vgamma'] = orbit['vgamma']*100.
     

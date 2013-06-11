@@ -1914,8 +1914,10 @@ class ParameterSet(object):
         @return: value of a Parameter or default
         @rtype: anything
         """
+        if not isinstance(args,tuple):
+            args = args,
         try:
-            self.get_value(*args)
+            return self.get_value(*args)
         except AttributeError:
             return default
     

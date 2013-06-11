@@ -29,6 +29,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
 from phoebe import wd
+from phoebe.dynamics import keplerorbit
+from phoebe.parameters import tools
 
 logger = phoebe.get_basic_logger()
 logging.disable('INFO')
@@ -61,13 +63,15 @@ ps['incl'] = 85.,'deg'
 ps['n1'] = 60
 ps['n2'] = 60
 ps['nref'] = 0
-ps['pshift'] = 0.
+ps['pshift'] = 0.123
 lc['phnorm'] = 0.0
 lc['jdstrt'] = ps['hjd0']
 lc['jdend'] = ps['hjd0']+ps['period']
 lc['jdinc'] = 0.01*ps['period']
 lc['indep_type'] = 'time (hjd)'
 lc['el3'] = 0.
+lc['hla'] = 4*np.pi
+lc['cla'] = 4*np.pi
 rv['vunit'] = 1.
 
 # We can easily convert pyWD parameters to pyphoebe parameters:
@@ -93,7 +97,7 @@ curve,params = wd.lc(ps,request='curve',light_curve=lc,rv_curve=rv)
 image,params = wd.lc(ps,request='image',light_curve=lc,rv_curve=rv)
 c2 = time.time()
 
-mpi = None#phoebe.ParameterSet(context='mpi',np=4)
+mpi = phoebe.ParameterSet(context='mpi',np=4)
 
 # Compute pyphoebe light curve
 times = curve['indeps']
@@ -102,6 +106,8 @@ system = phoebe.BodyBag([star1,star2])
 phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
                     lc=True,rv=True,mpi=mpi)
 c3 = time.time()         
+
+
 
 # Analysis of results
 # -------------------
@@ -125,6 +131,17 @@ plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean(),'ro-',lw=2,label='WD')
 leg = plt.legend(loc='best',fancybox=True)
 leg.get_frame().set_alpha(0.5)
 plt.ylabel('Normalized flux')
+
+t0 = system[0].params['orbit']['t0']
+P = system[0].params['orbit']['period']
+per0 = system[0].params['orbit'].request_value('per0','rad')
+ecc = system[0].params['orbit'].request_value('ecc')
+phshift = system[0].params['orbit'].request_value('phshift')
+crit_times = tools.critical_times(system[0].params['orbit'])
+for ct in crit_times:
+    plt.axvline(ct,color='b',lw=2)
+    plt.axvline(ct+P,color='b',lw=2)
+
 plt.axes([0.1,0.1,0.85,0.20])
 plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean()-flux/flux.mean(),'ko-')
 plt.xlabel('Phase')

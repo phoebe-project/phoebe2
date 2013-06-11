@@ -2984,15 +2984,15 @@ class BodyBag(Body):
         #"""
         #return self.bodies[0].get_parset(*args,**kwargs)
     
-    def set_time(self,*args,**kwargs):
+    def set_time(self, *args, **kwargs):
         """
         Set the time of all the Bodies in the BodyBag.
         """
         for body in self.bodies:
-            body.set_time(*args,**kwargs)
+            body.set_time(*args, **kwargs)
         if 'orbit' in self.params:
             #-- once we have the mesh, we need to place it into orbit
-            keplerorbit.place_in_binary_orbit(self,args[0])
+            keplerorbit.place_in_binary_orbit(self, args[0])
     
     def set_label(self,label):
         try:
@@ -4592,7 +4592,10 @@ class BinaryRocheStar(PhysicalBody):
                     P = self.params['orbit']['period']
                     t0 = self.params['orbit']['t0']
                     crit_times = keplerorbit.calculate_critical_phases(per0,e)*P + t0
-                    self.compute_mesh(crit_times[cvol_index]-P/2.0,conserve_volume=True)
+                    print("t0 = {}, t_conserve = {}, {}".format(t0,crit_times[cvol_index], conserve_phase))
+                    #self.compute_mesh(crit_times[cvol_index]-P/2.0,conserve_volume=True)
+                    self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
+                    
                 #-- else we still need to compute the mesh at *this* time!
                 else:
                     self.compute_mesh(time,conserve_volume=True)

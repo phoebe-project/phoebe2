@@ -417,7 +417,8 @@ logger = logging.getLogger('BINARY.ORBIT')
 #{ General orbits    
 
 def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
-           deccdt=0.,dperdt=0.,mass_conservation=True,component='primary'):
+           deccdt=0.,dperdt=0.,mass_conservation=True,component='primary',
+           t0type='periastron passage'):
     r"""
     Construct an orbit in observer coordinates.
         
@@ -489,6 +490,13 @@ def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
     @return: position vector, velocity vector, Euler angles
     @rtype: 3-tuple, 3-tuple, 3-tuple
     """
+    # If t0 is not the time of periastron passage, convert it:
+    if t0type == 'superior conjunction':
+        phshift = 0.
+        t0 = from_supconj_to_perpass(t0, period, per0, phshift=phshift)
+    elif not t0type == 'periastron passage':
+        raise ValueError('t0type needs to be one of "superior conjunction" or "periastron passage"')
+    
     #-- if dpdt is non-zero, the period is actually an array, and the semi-
     #   major axis changes to match Kepler's third law (unless
     #   `mass_conservation` is set to False)
@@ -765,7 +773,7 @@ def calculate_phase(T,ecc,per0,phshift=0):
     return (M+per0)/(2.0*pi) - 0.25 + phshift
 
     
-def calculate_critical_phases(per0,ecc,phshift=0):
+def calculate_critical_phases(per0, ecc, phshift=0):
     """
     Computes critical phases in the orbit: periastron passage, superior conjunction,
     inferior conjunction, ascending node and descending node.
@@ -792,15 +800,30 @@ def calculate_critical_phases(per0,ecc,phshift=0):
     #-- Phase of periastron passage
     Phi_per0 = (per0 - pi/2.0)/(2.0*pi) + phshift
     #-- Phase of inferior/superior conjunction
-    Phi_conj = calculate_phase(pi/2.0-per0,ecc,per0,phshift)
-    Phi_inf  = calculate_phase(3.0*pi/2.0-per0,ecc,per0,phshift)
-    Phi_asc  = calculate_phase(-per0,ecc,per0,phshift)
-    Phi_desc = calculate_phase(pi-per0,ecc,per0,phshift)
+    Phi_conj = calculate_phase(pi/2.0-per0, ecc, per0, phshift)
+    Phi_inf  = calculate_phase(3.0*pi/2.0-per0, ecc, per0, phshift)
+    Phi_asc  = calculate_phase(-per0, ecc, per0, phshift)
+    Phi_desc = calculate_phase(pi-per0, ecc, per0, phshift)
     #-- convert to our stuff:
-    phases = np.array([Phi_per0,Phi_conj,Phi_inf,Phi_asc,Phi_desc])
-    return from_perpass_to_supconj(phases,1.0,per0,phshift=phshift)
+    phases = np.array([Phi_per0, Phi_conj, Phi_inf, Phi_asc, Phi_desc])
+    return from_perpass_to_supconj(phases, 1.0, per0, phshift=phshift)
 
-def from_supconj_to_perpass(t0,period,per0,phshift=0.):
+def calculate_critical_times(per0, ecc, period, t0, phshift=0.,
+                             t0type='periastron passage'):
+    """
+    Computes critical times in the orbit.
+    """
+    
+    if t0 == 'superior conjunction':
+        t0 = from_supconj_to_perpass(t0, period, per0, phshift=phshift)
+    elif not t0 == 'periastron passage':
+        raise ValueError("Do not recognize t0type='{}'".format(t0type))
+    
+    crit_phases = calculate_critical_phases(per0, ecc, phshift=phshift)
+    return crit_phases * period + t0
+
+
+def from_supconj_to_perpass(t0, period, per0, phshift=0.):
     """
     Convert the time convention where t0 is superior conjunction to periastron passage.
     
@@ -824,7 +847,7 @@ def from_supconj_to_perpass(t0,period,per0,phshift=0.):
     @return: new time zero point
     @rtype: float
     """
-    t0 = t0 + (phshift - 0.25 + per0/(2*np.pi))*period
+    t0 = t0 + (phshift - 0.25 + per0/(2*np.pi)) * period
     return t0
 
 def from_perpass_to_supconj(t0,period,per0,phshift=0.):
@@ -849,7 +872,7 @@ def from_perpass_to_supconj(t0,period,per0,phshift=0.):
     @return: new time zero point
     @rtype: float
     """
-    t0 = t0 - (phshift - 0.25 + per0/(2*np.pi))*period
+    t0 = t0 - (phshift - 0.25 + per0/(2*np.pi)) * period
     return t0
     
 
@@ -1436,25 +1459,31 @@ def place_in_binary_orbit(self,time):
     Place a body in a binary orbit at a specific time.
     """
     #-- get some information
-    P = self.params['orbit'].get_value('period','d')
+    P = self.params['orbit'].get_value('period', 'd')
     e = self.params['orbit'].get_value('ecc')
-    a = self.params['orbit'].get_value('sma','Rsol')
-    a1 = self.params['orbit'].get_constraint('sma1','Rsol')
+    a = self.params['orbit'].get_value('sma', 'Rsol')
+    a1 = self.params['orbit'].get_constraint('sma1', 'Rsol')
     a2 = a-a1#self.params['orbit'].get_constraint('sma2','Rsol')
-    inclin = self.params['orbit'].get_value('incl','rad')
-    argper = self.params['orbit'].get_value('per0','rad')
-    long_an = self.params['orbit'].get_value('long_an','rad')
-    vgamma = self.params['orbit'].get_value('vgamma','Rsol/d')
+    inclin = self.params['orbit'].get_value('incl', 'rad')
+    argper = self.params['orbit'].get_value('per0', 'rad')
+    long_an = self.params['orbit'].get_value('long_an', 'rad')
+    vgamma = self.params['orbit'].get_value('vgamma', 'Rsol/d')
     T0 = self.params['orbit'].get_value('t0')
     n_comp = self.get_component()
-    component = ('primary','secondary')[n_comp]
+    component = ('primary', 'secondary')[n_comp]
+    t0type = self.params['orbit'].get('t0type','periastron passage')
+    #t0type = 'periastron passage'
+    if t0type == 'superior conjunction':
+        time = time - self.params['orbit']['phshift'] * P
+        
     #com = self.params['orbit'].get_constraint('com','Rsol')
     #pivot = np.array([com,0,0]) # center-of-mass
-    a_comp = [a1,a2][n_comp]
+    a_comp = [a1, a2][n_comp]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units
-    loc,velo,euler = get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
-                               incl=inclin,component=component)
+    loc, velo, euler = get_orbit(time, P, e, a_comp, T0, per0=argper, 
+                                 long_an=long_an, incl=inclin,
+                                 component=component, t0type=t0type)
     loc = np.array(loc)#/constants.Rsol # in Rsol
     velo = np.array(velo)#/constants.Rsol*24*3600 # in Rsol/d
     #-- we need a new copy of the mesh
