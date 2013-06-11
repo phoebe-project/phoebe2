@@ -182,6 +182,7 @@ class Bundle(object):
         if isinstance(obj,str): #then probably already name, and return
             return obj
         
+        objectname = None
         if hasattr(obj,'bodies'): #then bodybag
             #search for orbit in the children bodies
             for item in obj.bodies: # should be the same for all of them, but we'll search all anyways
@@ -377,7 +378,7 @@ class Bundle(object):
             for ps in pss:
                 comp.add_pbdeps(ps)
                 
-    def add_data(self,objectname,dataset):
+    def add_obs(self,objectname,dataset):
         """
         attach dataset to an object
         
@@ -394,9 +395,9 @@ class Bundle(object):
         elif typ=='obs':
             obj.add_obs(ds)
                 
-    def get_data(self,objectname=None,ref=None):
+    def get_obs(self,objectname=None,ref=None):
         """
-        get a dataset by the object its attached to and its label
+        get an observables dataset by the object its attached to and its label
         if objectname and ref are given, this will return a single dataset
         if either or both are not give, this will return a list of all datasets matching the search
         
@@ -411,7 +412,7 @@ class Bundle(object):
             # then search the whole system
             return_ = []
             for objname in self.get_system_structure(return_type='obj',flat=True):
-                parsets = self.get_data(objname,ref=ref)
+                parsets = self.get_obs(objname,ref=ref)
                 for parset in parsets:
                     if parset not in return_:
                         return_.append(parset)
@@ -435,6 +436,49 @@ class Bundle(object):
                 i+=1
                 if parset != (None,None):
                     return_.append(parset[0])
+            return return_
+            
+    def get_syn(self,objectname=None,ref=None):
+        """
+        get a synthetic dataset by the object its attached to and its label
+        if objectname and ref are given, this will return a single dataset
+        if either or both are not give, this will return a list of all datasets matching the search
+        
+        @param objectname: name of the object the dataset is attached to
+        @type objectname: str
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        @return: dataset
+        @rtype: parameterSet
+        """
+        if objectname is None:
+            # then search the whole system
+            return_ = []
+            for objname in self.get_system_structure(return_type='obj',flat=True):
+                parsets = self.get_syn(objname,ref=ref)
+                for parset in parsets:
+                    if parset not in return_:
+                        return_.append(parset)
+            return return_
+            
+        # now we assume we're dealing with a single object
+        obj = self.get_object(objectname)
+        
+        if ref is not None:
+            # then search for the ref by name/index
+            parset = obj.get_synthetic(ref=ref)
+            if parset != None:
+                return [parset]
+            return []
+        else:
+            # then loop through indices until there are none left
+            return_ = []
+            parset,i = 0,0
+            while parset != None:
+                parset = obj.get_synthetic(ref=i)
+                i+=1
+                if parset != None:
+                    return_.append(parset)
             return return_
         
     #}
