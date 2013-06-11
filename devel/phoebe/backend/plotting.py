@@ -136,7 +136,7 @@ def plot_lcobs(system,**kwargs):
         myperiod = system[0].params['orbit']['period']
         myt0 = system[0].params['orbit']['t0']
         myphshift = system[0].params['orbit']['phshift']
-        time = obs['phase'] * myperiod + myt0 + myphshift * myperiod
+        time = obs['phase'] * myperiod + myt0 #+ myphshift * myperiod
     elif 'time' in obs['columns']:
         time = obs['time']
     else:

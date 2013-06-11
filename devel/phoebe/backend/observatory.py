@@ -1426,7 +1426,7 @@ def extract_times_and_refs(system,params,tol=1e-8):
             period = system[0].params['orbit']['period']
             t0 = system[0].params['orbit']['t0']
             phshift = system[0].params['orbit']['phshift']
-            mytimes = (parset['phase'] * period) + t0 + phshift * period
+            mytimes = (parset['phase'] * period) + t0
             logger.warning("Converted phases to times with period={}, t0={} and phshift={}".format(period,t0,phshift))
         else:
             mytimes = parset['time']
