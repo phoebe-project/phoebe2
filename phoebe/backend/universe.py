@@ -3057,8 +3057,9 @@ class BodyBag(Body):
         
         for i,body in enumerate(self.bodies):
             out = body.get_synthetic(*args,**kwargs)
-            total_results.append(out)
-        if cumulative is True:
+            if out is not None:
+                total_results.append(out)
+        if cumulative is True and total_results:
             total_results = sum(total_results)
         return total_results
     
