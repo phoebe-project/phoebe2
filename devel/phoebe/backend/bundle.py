@@ -408,14 +408,34 @@ class Bundle(object):
         @rtype: parameterSet
         """
         if objectname is None:
+            # then search the whole system
             return_ = []
-            for objname in []:
-                return_ += self.get_data(objname,ref=ref)
+            for objname in self.get_system_structure(return_type='obj',flat=True):
+                parsets = self.get_data(objname,ref=ref)
+                for parset in parsets:
+                    if parset not in return_:
+                        return_.append(parset)
             return return_
+            
+        # now we assume we're dealing with a single object
         obj = self.get_object(objectname)
         
-        parsets = obj.get_parset(ref=ref)
-        
+        if ref is not None:
+            # then search for the ref by name/index
+            parset = obj.get_parset(type='obs',ref=ref)
+            if parset != (None, None):
+                return [parset[0]]
+            return []
+        else:
+            # then loop through indices until there are none left
+            return_ = []
+            parset,i = 0,0
+            while parset != (None,None):
+                parset = obj.get_parset(type='obs',ref=i)
+                i+=1
+                if parset != (None,None):
+                    return_.append(parset[0])
+            return return_
         
     #}
     

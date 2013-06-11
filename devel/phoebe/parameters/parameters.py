@@ -2196,6 +2196,8 @@ class ParameterSet(object):
         CHeck if two parameterSets are equal.
         """
         mybool = True
+        if other is None:
+            return False
         for key in self.container:
             if not key in other.container:
                 mybool = False
