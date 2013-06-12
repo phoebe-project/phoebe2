@@ -625,11 +625,12 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     
     #-- passband luminosities and third light
     if ps_wd['ipb'] == 0:
-        lcdep1['pblum'] = 1.0
-        lcdep2['pblum'] = 1.0
-    #else:
-    #    lcdep1['pblum'] = lc['hla'] / (4*np.pi)
-    #    lcdep2['pblum'] = lc['cla'] / (4*np.pi)
+        lcdep1['pblum'] = -1.0
+        lcdep2['pblum'] = -1.0
+    else:
+        lcdep1['pblum'] = lc['hla']
+        lcdep2['pblum'] = lc['cla']
+    
     lcdep1['l3'] = lc['el3']
     lcdep2['l3'] = 0.
     
