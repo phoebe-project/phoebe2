@@ -23,8 +23,10 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     add_esinw
     add_conserve
     make_misaligned
+    add_theta_eff
     to_supconj
     to_perpass
+    
     critical_times
 
 **Constraints for oscillations**
@@ -811,8 +813,18 @@ def critical_times(orbit_in):
     """
     Compute critical times in an orbit.
     
+    They are the times of:
+    
+        1. Periastron passge: when the stars are closest
+        2. Superior conjunction: when the primary is eclipsed (if there are eclipses)
+        3. Inferior conjunction: when the secondary is eclipsed (if there are eclipses)
+        4. Ascending node
+        5. Descending node
+    
     @param orbit_in: parameterset of frame C{phoebe} and context C{orbit}
     @type orbit_in: parameterset of frame C{phoebe} and context C{orbit}
+    @return: times of critical points in the orbit
+    @rtype: array
     """
     if not orbit_in.get('t0type','periastron passage') == 'periastron passage':
         orbit = orbit_in.copy()
@@ -826,6 +838,8 @@ def critical_times(orbit_in):
     ecc = orbit['ecc']
     
     crit_times = keplerorbit.calculate_critical_phases(per0, ecc) * P + t0
+    crit_times[crit_times<t0] += P
+    crit_times[crit_times>(t0+P)] -= P
     
     return crit_times
 #}
