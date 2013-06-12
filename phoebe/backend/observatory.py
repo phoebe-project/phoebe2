@@ -278,6 +278,15 @@ def image(the_system,ref='__bol',context='lcdep',
             vmin_ = 2000
             vmax_ = 20000
             colors = (values-vmin_)/(vmax_-vmin_)  
+    #-- Check for nans or all zeros
+    if np.all(values==0):
+        logger.warning("Image quantities are all zero, it's gonna be a dark picture...")
+        if ref=='__bol':
+            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
+    elif np.any(np.isnan(values)):
+        logger.error("Discovered nans in values, it's gonna be an empty picture!")
+        if ref=='__bol':
+            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
     #-- collect the triangle objects for plotting
     patches = []
     if not cmap_ in ['blackbody_proj','eye']:

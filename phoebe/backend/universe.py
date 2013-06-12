@@ -206,7 +206,7 @@ def get_binary_orbit(self, time):
               (loc1[2]-loc2[2])**2)
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
     
-def luminosity(body):
+def luminosity(body, ref='__bol'):
     r"""
     Calculate the total luminosity of any object.
     
@@ -235,12 +235,12 @@ def luminosity(body):
     """
     #-- set the intensities if they are not calculated yet
     ld_law = body.params.values()[0]['ld_func']
-    ld = body.mesh['ld___bol']
+    ld = body.mesh['ld_' + ref]
     if np.all(ld==0):
-        body.intensity(ref='__bol')
+        body.intensity(ref=ref)
     mesh = body.mesh
-    sizes = mesh['size']*(100*constants.Rsol)**2
-    def _tief(gamma, ld_law,coeffs):
+    sizes = mesh['size'] * (100*constants.Rsol)**2
+    def _tief(gamma, ld_law, coeffs):
         """Small helper function to compute total intrinsic emergent flux"""
         Imu = coeffs[-1] * getattr(limbdark, 'ld_'+ld_law)(cos(gamma), coeffs)
          # sin(gamma) is for solid angle integration
@@ -4509,6 +4509,7 @@ class BinaryRocheStar(PhysicalBody):
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         """
         lcdep,ref = self.get_parset(ref)
+        
         #-- get limb angles
         mus = self.mesh['mu']
         #-- To calculate the total projected intensity, we keep track of the
@@ -4535,6 +4536,14 @@ class BinaryRocheStar(PhysicalBody):
         proj_intens = proj_intens.sum()/distance**2
         l3 = lcdep.get('l3',0.)
         pblum = lcdep.get('pblum',1.0)
+        
+        # This definition of passband luminosity should mimic the definition
+        # of WD
+        #---> We can make this *much* faster via just directly computing the
+        #     luminosity assuming Zeipel's law.
+        #passband_lum = luminosity(self,ref=ref)/ (100*constants.Rsol)**2
+        #print "WAHA",proj_intens/passband_lum*distance**2 ## = 1/(4*PI)
+        
         return proj_intens*pblum + l3
     
     
