@@ -466,7 +466,7 @@ class Bundle(object):
         
         if ref is not None:
             # then search for the ref by name/index
-            parset = obj.get_synthetic(ref=ref)
+            parset = obj.get_synthetic(ref=ref, cumulative=True)
             if parset != None:
                 return [parset]
             return []
@@ -475,7 +475,7 @@ class Bundle(object):
             return_ = []
             parset,i = 0,0
             while parset != [] and parset != None:
-                parset = obj.get_synthetic(ref=i)
+                parset = obj.get_synthetic(ref=i, cumulative=True)
                 i+=1
                 if parset != [] and parset != None:
                     return_.append(parset)
@@ -543,11 +543,13 @@ class Bundle(object):
                 return KeyError
             options = self.compute[label]
         # clear all previous models and create new model
-        self.system.clear_synthetic() 
-        #~ observatory.observe(self.system,lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
-        observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+        self.system.clear_synthetic()
+        
+        if options['time']=='auto':
+            observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+        else:
+            observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
 
-        # dataset = body.get_synthetic(type='lcsyn',ref=lcsyn['ref'])
     #}
             
     #{ Fitting
