@@ -20,10 +20,12 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     
     add_asini
     add_ecosw
+    add_esinw
     add_conserve
     make_misaligned
-    from_perpass_to_supconj
-    from_supconj_to_perpass
+    to_supconj
+    to_perpass
+    critical_times
 
 **Constraints for oscillations**
 
@@ -547,7 +549,7 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     
     .. math::
     
-        \mathrm{ecosw} = \mathrm{ecc} \sin(\mathrm{per0})
+        \mathrm{ecosw} = \mathrm{ecc} \cos(\mathrm{per0})
     
     This is a list of stuff that happens:
     
@@ -603,6 +605,74 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     else:
         raise ValueError("Cannot derive {} from ecosw".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'ecosw'".format(orbit['label'],derive))
+
+
+
+def add_esinw(orbit,esinw=None,derive='ecc',**kwargs):
+    """
+    Add esinw to an orbit parameterSet.
+    
+    Only two parameters out of C{esinw}, C{ecc} and C{per0} are
+    independent. If you add C{esinw}, you have to choose to derive
+    either C{per0} or C{ecc} from the other two:
+    
+    .. math::
+    
+        \mathrm{esinw} = \mathrm{ecc} \sin(\mathrm{per0})
+    
+    This is a list of stuff that happens:
+    
+    - A I{parameter} C{esinw} will be added if it does not exist yet
+    - A I{constraint} to derive the parameter C{derive} will be added.
+    - If there are any other constraints on the parameter C{derive}, they
+      will be removed
+    
+    Extra C{kwargs} will be passed to the creation of C{esinw} if it does
+    not exist yet.
+   
+    @param orbit: orbit parameterset
+    @type orbit: ParameterSet of context star
+    @param esinw: the parameter
+    @type esinw: float
+    @param derive: qualifier of the dependent parameter
+    @type derive: str, one of C{ecc}, C{per0}
+    @param unit: units of semi-major axis
+    @type unit: str
+    """
+    if orbit.frame=='phoebe':
+        peri = 'per0'
+    else:
+        peri = 'omega'
+    if kwargs and 'esinw' in orbit:
+        raise ValueError("You cannot give extra kwargs to add_esinw if it already exist")
+    
+    kwargs.setdefault('description','Eccentricy times sine of argument of periastron')
+    kwargs.setdefault('context',orbit.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
+    
+    #-- remove any constraints on surfgrav and add the parameter
+    orbit.pop_constraint('esinw',None)
+    if esinw is None:
+        esinw = orbit['ecc']*np.sin(orbit.request_value(peri,'rad'))
+    if not 'esinw' in orbit:
+        orbit.add(parameters.Parameter(qualifier='esinw',value=esinw,
+                                      **kwargs))
+    else:
+        orbit['esinw'] = esinw
+        
+    #-- specify the dependent parameter
+    if derive=='ecc':
+        orbit.pop_constraint('ecc',None)
+        orbit.add_constraint('{{ecc}} = {{esinw}}/np.sin({{{peri}}})'.format(peri=peri))
+    elif derive==peri:
+        orbit.pop_constraint(peri,None)
+        orbit.add_constraint('{{{peri}}} = np.arcsin({{esinw}}/{{ecc}})'.format(peri=peri))
+    else:
+        raise ValueError("Cannot derive {} from esinw".format(derive))
+    logger.info("orbit '{}': '{}' constrained by 'esinw'".format(orbit['label'],derive))
 
 
 def add_conserve(orbit,conserve='volume',**kwargs):
@@ -683,7 +753,7 @@ def to_perpass(orbit):
     Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
     have T0 as superior conjunction.
     
-    Inverse function is L{from_perpass_to_supconj}.
+    Inverse function is L{to_supconj}.
     
     See Phoebe Scientific reference Eqs. (3.30) and (3.35).
     
@@ -713,7 +783,7 @@ def to_supconj(orbit):
     Typically, parameterSets coming from Wilson-Devinney or Phoebe Legacy
     have T0 as superior conjunction.
     
-    Inverse function is L{from_supconj_to_perpass}.
+    Inverse function is L{to_perpass}.
     
     See Phoebe Scientific reference Eqs. (3.30) and (3.35).
     
@@ -740,6 +810,9 @@ def to_supconj(orbit):
 def critical_times(orbit_in):
     """
     Compute critical times in an orbit.
+    
+    @param orbit_in: parameterset of frame C{phoebe} and context C{orbit}
+    @type orbit_in: parameterset of frame C{phoebe} and context C{orbit}
     """
     if not orbit_in.get('t0type','periastron passage') == 'periastron passage':
         orbit = orbit_in.copy()

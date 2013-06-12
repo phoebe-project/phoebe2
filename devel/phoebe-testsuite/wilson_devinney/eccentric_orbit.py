@@ -42,7 +42,7 @@ c0 = time.time()
 ps,lc,rv = wd.lcin_to_ps('test01lcin.active',version='wd2003')
 
 # Change some parameters with the dictionary style access:
-ps['model'] = 'unconstrained'
+ps['model'] = 'detached'
 ps['sma'] = 40.,'Rsol'
 ps['omega'] = 63.,'deg'
 ps['period'] = 10.,'d'
@@ -71,8 +71,9 @@ lc['jdinc'] = 0.01*ps['period']
 lc['indep_type'] = 'time (hjd)'
 lc['el3'] = 0.
 lc['hla'] = 4*np.pi
-lc['cla'] = 4*np.pi
+lc['cla'] = 0.56*4*np.pi
 rv['vunit'] = 1.
+
 
 # We can easily convert pyWD parameters to pyphoebe parameters:
 comp1,comp2,binary = wd.wd_to_phoebe(ps,lc,rv)
@@ -104,10 +105,16 @@ times = curve['indeps']
 
 system = phoebe.BodyBag([star1,star2])
 phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
-                    lc=True,rv=True,mpi=mpi)
+                    lc=True,rv=True,mpi=None)
+
+system.set_time(0.)
+L1 = phoebe.universe.luminosity(star1)
+L2 = phoebe.universe.luminosity(star2)
+print("Luminosity ratio Phoebe 2.0 = {:.6f}".format(L2/L1))
+print("Luminosity ratio WD         = {:.6f}".format(10**(params['Mbol2']/-2.5)/10**(params['Mbol1']/-2.5)))
+
+
 c3 = time.time()         
-
-
 
 # Analysis of results
 # -------------------

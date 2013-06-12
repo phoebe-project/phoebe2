@@ -634,12 +634,14 @@ class Parameter(object):
             will be returned.
             2. 'index' (str): Python-style index of C{value} in C{choices} will
             be returned
-            3. 'list' (str): a list will be returned, perhaps containing only
+            3. 'indexm' (str): Specific Wilson Devinney index, where the first
+            entry starts at -1
+            4. 'list' (str): a list will be returned, perhaps containing only
             one element.
-            4. other string: the string will be interpreted as the name of a
+            5. other string: the string will be interpreted as the name of a
             function in this module's global name space. C{value} and C{*args}
             will be parsed to that function.
-            5. function: C{value} and C{*args} will be parsed to C{function}.
+            6. function: C{value} and C{*args} will be parsed to C{function}.
         
         In all other cases, it will be assumed that C{value} is a physical
         quantity (maybe we want change this and explicitly give a unit?), so
@@ -662,7 +664,13 @@ class Parameter(object):
                 if index is None:
                     return int(float(self.value))
                 elif 'index' in self.cast_type:
-                    return index + (self.cast_type=='indexf' and 1 or 0)
+                    if self.cast_type=='indexf':
+                        offset = 1
+                    elif self.cast_type=='indexm':
+                        offset = -1
+                    else:
+                        offset = 0
+                    return index + offset
                 elif 'choose' in self.cast_type:
                     return self.choices[index]
                 else:

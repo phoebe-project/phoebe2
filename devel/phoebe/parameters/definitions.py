@@ -18,7 +18,7 @@ defs  = [dict(qualifier="name" ,description="Common name of the binary",    repr
                                                                                                  "Semi-detached binary, primary star fills Roche lobe",
                                                                                                  "Semi-detached binary, secondary star fills Roche lobe",
                                                                                                  "Double contact binary"],
-                                                                                                 cast_type='indexf',value="Unconstrained binary system",
+                                                                                                 cast_type='indexm',value="Unconstrained binary system",
                                                                                                  frame=["wd"],alias=['mode'],context='root')]                                                                                                 
 
 #  /* **********************   System parameters   ************************* */
