@@ -451,18 +451,12 @@ class Bundle(object):
         @return: dataset
         @rtype: parameterSet
         """
-        counter1 = 0 
-        counter2 = 0 
         if objectname is None:
             # then search the whole system
             return_ = []
             for objname in self.get_system_structure(return_type='obj',flat=True):
-                #~ counter1+=1
-                #~ print("Counter1 = {}".format(counter1))
                 parsets = self.get_syn(objname,ref=ref)
                 for parset in parsets:
-                    #~ counter2 +=1
-                    #~ print("Counter1 = {} - Counter2 = {}".format(counter1,counter2))
                     if parset not in return_:
                         return_.append(parset)
             return return_
@@ -472,7 +466,6 @@ class Bundle(object):
         
         if ref is not None:
             # then search for the ref by name/index
-            #~ print ref
             parset = obj.get_synthetic(ref=ref)
             if parset != None:
                 return [parset]

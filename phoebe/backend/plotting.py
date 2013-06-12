@@ -787,6 +787,8 @@ class Axes(parameters.ParameterSet):
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
         """
+        super(Axes, self).__init__()
+        
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
         self.plots = []
         
