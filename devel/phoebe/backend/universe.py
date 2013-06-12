@@ -3115,7 +3115,10 @@ class BodyBag(Body):
             distance = 0
             logger.warning("Don't know distance")
         coords[2] += distance
-        return dict(coordinates=coords)
+        if only_coords:
+            return coords
+        else:
+            return dict(coordinates=coords)
     
     #@decorators.parse_ref
     #def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
