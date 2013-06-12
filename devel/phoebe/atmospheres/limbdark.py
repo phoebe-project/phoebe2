@@ -121,6 +121,23 @@ C{JOHNSON.V} and C{2MASS.J} band):
 >>> mu,intensities = get_limbdarkening(atm,dict(teff=4000,logg=4.0),
 ...                                    passbands=('JOHNSON.V','2MASS.J'))
 
+
+**Example usage**
+
+::
+
+>>> atm = 'atmospheres/tables/spec_intens/kurucz_mu_ip00k0.fits'
+>>> atm_pars = dict(teff=4000,logg=4.0)
+>>> passbands = ('JOHNSON.V','2MASS.J')
+>>> mu,intensities = get_limbdarkening(atm, atm_pars, passbands=passbands)
+
+>>> plt.plot(mu,intensities[:,0],'ko-', label=passbands[0])
+>>> plt.plot(mu,intensities[:,1],'ro-', label=passbands[1])
+
+.. image:: images/atmospheres_limbdark_query_spec_intens.png
+   :height: 266px
+   :align: center
+
 Section 4. Fitting LD coefficients
 ==================================
 
@@ -148,6 +165,8 @@ coefficients for any set of values within the grid:
 
 The output C{coeffs} contains the limb darkening coefficients (first N-1 values)
 and the center flux enabling an absolute scaling.
+
+
 
 """
 #-- required packages
@@ -538,6 +557,10 @@ def get_limbdarkening(atm,atm_kwargs={},red_kwargs={},vgamma=0,\
     mus,wave,table = get_specific_intensities(atm,atm_kwargs=atm_kwargs,
                                               red_kwargs=red_kwargs,
                                               vgamma=vgamma)
+    #-- put mus in right order
+    sa = np.argsort(mus)[::-1]
+    mus = mus[sa]
+    table = table[:,sa]
     #-- compute intensity over the stellar disk, and normalise
     intensities = np.zeros((len(mus),len(passbands)))
     for i in range(len(mus)-1):
