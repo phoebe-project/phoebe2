@@ -717,6 +717,8 @@ class Body(object):
         #   after a call to set_time
         self._preprocessing = []
         self._postprocessing = []
+        #-- Add a dict that we can use to store temporary information
+        self._clear_when_reset = dict()
         #self.params['pbdep'] = {}
     
     def __eq__(self, other):
@@ -778,6 +780,7 @@ class Body(object):
         the mesh, without the need for creating a new class instance.
         """
         self.time = None
+        self._clear_when_reset = dict()
     
     def reset_and_clear(self):
         self.reset()
@@ -4535,16 +4538,20 @@ class BinaryRocheStar(PhysicalBody):
         distance = self.params['orbit'].request_value('distance','Rsol')
         proj_intens = proj_intens.sum()/distance**2
         l3 = lcdep.get('l3',0.)
-        pblum = lcdep.get('pblum',1.0)
+        pblum = lcdep.get('pblum',-1.0)
         
-        # This definition of passband luminosity should mimic the definition
-        # of WD
-        #---> We can make this *much* faster via just directly computing the
-        #     luminosity assuming Zeipel's law.
-        #passband_lum = luminosity(self,ref=ref)/ (100*constants.Rsol)**2
-        #print "WAHA",proj_intens/passband_lum*distance**2 ## = 1/(4*PI)
+        if pblum >= 0:
+            # This definition of passband luminosity should mimic the definition
+            # of WD
+            if not 'pblum' in self._clear_when_reset:
+                passband_lum = luminosity(self,ref=ref)/ (100*constants.Rsol)**2
+                passband_lum = passband_lum / distance**2
+                self._clear_when_reset['pblum'] = passband_lum
+            else:
+                passband_lum = self._clear_when_reset['pblum']
+            proj_intens = proj_intens * pblum / passband_lum + l3
         
-        return proj_intens*pblum + l3
+        return proj_intens + l3
     
     
     

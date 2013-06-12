@@ -71,7 +71,7 @@ lc['jdinc'] = 0.01*ps['period']
 lc['indep_type'] = 'time (hjd)'
 lc['el3'] = 0.
 lc['hla'] = 4*np.pi
-lc['cla'] = 0.56*4*np.pi
+lc['cla'] = 4*np.pi#0.56*4*np.pi
 rv['vunit'] = 1.
 
 
@@ -105,14 +105,15 @@ times = curve['indeps']
 
 system = phoebe.BodyBag([star1,star2])
 phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
-                    lc=True,rv=True,mpi=None)
+                    lc=True,rv=True,mpi=mpi)
 
 system.set_time(0.)
 L1 = phoebe.universe.luminosity(star1)
 L2 = phoebe.universe.luminosity(star2)
 print("Luminosity ratio Phoebe 2.0 = {:.6f}".format(L2/L1))
 print("Luminosity ratio WD         = {:.6f}".format(10**(params['Mbol2']/-2.5)/10**(params['Mbol1']/-2.5)))
-
+print("WD passband luminosity 1 = {:.6f}".format(params['L1']))
+print("WD passband luminosity 2 = {:.6f}".format(params['L2']))
 
 c3 = time.time()         
 
