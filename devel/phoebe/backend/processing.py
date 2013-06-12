@@ -21,6 +21,12 @@ def wd_eclipse_separation(self,time,eclipse_separation=0.5):
     self.params['root']['omega'] = omega,'rad'
     logger.info('Derived omega={} from eclipse separation={} and ecc={}'.format(omega,eclipse_separation,ecc))
 
-def phased_data(self, time):
-    raise NotImplementedError
+
+def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
+    """
+    Teff ratio means:
+    
+        teff_non_fixed = teff_ratio * teff_fixed
+    """
+    self[1-fix].params['component']['teff'] = teff_ratio * self[fix].params['component']['teff']**( (-1)**fix)
     

@@ -2768,7 +2768,15 @@ class BodyBag(Body):
         self.params['obs'] = OrderedDict()
         if obs is not None:
             _parse_obs(self,obs)
-                        
+        
+        
+        #-- the following list of functions will be executed before and
+        #   after a call to set_time
+        self._preprocessing = []
+        self._postprocessing = []
+        #-- Add a dict that we can use to store temporary information
+        self._clear_when_reset = dict()
+        
 
             
                 
