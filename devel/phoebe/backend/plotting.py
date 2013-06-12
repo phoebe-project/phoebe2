@@ -962,6 +962,7 @@ class Axes(parameters.ParameterSet):
                 obj = self._get_object(plotoptions['objref'],system)
             
             if plotoptions['type'][-3:]=='syn' and hasattr(obj,'bodies'):
+                #~ dataset = obj.get_synthetic(ref=plotoptions['dataref'],cumulative=True if plotoptions['type'][:-3]=='lc' else False)
                 dataset = obj.get_synthetic(ref=plotoptions['dataref'])
             else:
                 dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
