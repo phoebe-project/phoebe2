@@ -549,9 +549,10 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     lcdep2 = lcdep1.copy()
     rvdep1 = pars.ParameterSet(frame='phoebe',context='rvdep',add_constraints=True)
     rvdep2 = rvdep1.copy()
-    #-- not implemented: met,mpage,mref,nref,icor,stdev,
-    #   noise,seed,ipb,ifat,n1,n2,the,mzero,factor,wla,atmtab,
-    #   plttab,ifsmv,xlat,xlong,radsp,tempsp
+    
+    #-- not implemented: met, mpage, mref, nref, icor, stdev,
+    #   noise, seed, ipb, ifat, n1, n2, the, mzero, factor, wla, atmtab, model
+    #   plttab, ifsmv, xlat, xlong, radsp, tempsp
     translate2binary = dict(name='label',hjd0='t0',period='period',dpdt='dpdt',
         pshift='phshift',sma='sma',rm='q',incl='incl',vga='vgamma',ecc='ecc',
         omega='per0',domegadt='dperdt')

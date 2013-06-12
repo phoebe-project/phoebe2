@@ -1446,11 +1446,12 @@ def get_binary_orbit(time,orbit,component):
     long_an = orbit.get_value('long_an','rad')
     vgamma = orbit.get_value('vgamma','Rsol/d')
     T0 = orbit.get_value('t0')
+    t0type = orbit.get('t0type', 'periastron passage')
     a_comp = [a1,a2][['primary','secondary'].index(component)]
     
     #-- where in the orbit are we? We need everything in cartesian Rsol units
     loc,velo,euler = get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
-                               incl=inclin,component=component)
+                               incl=inclin,component=component, t0type=t0type)
     return loc,velo,euler
 
 

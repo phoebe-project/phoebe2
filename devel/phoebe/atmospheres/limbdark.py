@@ -409,10 +409,10 @@ def get_grid_dimensions(atm,atm_pars=('teff','logg','abun')):
     @return: arrays with the axis values for each grid point.
     """
     ff = pyfits.open(atm)
-    dims = [np.zeros(len(ff)-1) for par in pars]
+    dims = [np.zeros(len(ff)-1) for par in atm_pars]
     for i,mod in enumerate(ff[1:]):
-        for j,key in enumerate(pars):
-            dims[i][j] = mod.header[key]            
+        for j,key in enumerate(atm_pars):
+            dims[j][i] = mod.header[key]            
     ff.close()
     return dims
 
@@ -764,11 +764,11 @@ def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
             raise IndexError
     #-- things can go outside the grid
     except IndexError:
-        msg = ", ".join(['{:.3f}<{}<{:.3f}'.format(values[i].min(),labels[i],values[i].max()) for i in range(len(labels))])
-        msg = "Parameters outside of grid {}: {}. Consider using a different atmosphere/limbdarkening grid, or use the black body approximation.".format(atm,msg)
-        #raise IndexError(msg)
-        logger.error(msg)
-        pars = np.zeros((pixelgrid.shape[-1],len(values[0])))
+       msg = ", ".join(['{:.3f}<{}<{:.3f}'.format(values[i].min(),labels[i],values[i].max()) for i in range(len(labels))])
+       msg = "Parameters outside of grid {}: {}. Consider using a different atmosphere/limbdarkening grid, or use the black body approximation.".format(atm,msg)
+       #raise IndexError(msg)
+       logger.error(msg)
+       pars = np.zeros((pixelgrid.shape[-1],len(values[0])))
     pars[-1] = 10**pars[-1]
     return pars
 
@@ -813,6 +813,20 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     t = atm_kwargs.get('teff',10000)
     p = passband
     
+    length = max([len(i)  if hasattr(i,'__len__') else 1 for i in [m,l,t]])
+    if not hasattr(m,'__len__'):
+        nm = [m]*length
+    else:
+        nm = m
+    if not hasattr(l,'__len__'):
+        nl = [l]*length
+    else:
+        nl = l
+    if not hasattr(t,'__len__'):
+        nt = [t]*length
+    else:
+        nt = t
+    
     #-- prepare lists for interpolation
     M = [-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
          -0.5,-0.3,-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
@@ -828,22 +842,28 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         atm = os.path.join(basedir_ld_coeffs,atm)
     table = _prepare_wd_grid(atm)
     
-    #-- find out where we need to be in the atmosphere table and extract that
-    #   row
-    index1 = 18-np.searchsorted(M,m)
-    index2 = np.searchsorted(L,l)
-    idx = index1*len(P)*len(L)*4 + P.index(p)*len(L)*4 + index2*4
-    Cl2 = table[idx+1,2:]
+    P_index = P.index(p)
     
-    #-- calculate the Legendre temperature
-    teff = (t-table[idx+1,0])/(table[idx+1,1]-table[idx+1,0])
-    Pl = np.array(legendre(teff))
-    
-    #-- and compute the flux
-    s = np.sum(Cl2.reshape((-1,1))*Pl,axis=0)
+    ints = np.zeros(length)
+    for i,(m,l,t) in enumerate(zip(nm,nl,nt)):
+        #-- find out where we need to be in the atmosphere table and extract that
+        #   row
+        index1 = 18-np.searchsorted(M,m)
+        index2 = np.searchsorted(L,l)
+        idx = index1*len(P)*len(L)*4 + P_index*len(L)*4 + index2*4
+        Cl2 = table[idx+1,2:]
+        
+        #-- calculate the Legendre temperature
+        teff = (t-table[idx+1,0])/(table[idx+1,1]-table[idx+1,0])
+        Pl = np.array(legendre(teff))
+        
+        #-- and compute the flux
+        #s = np.sum(Cl2.reshape((-1,1))*Pl,axis=0)
+        s = np.sum(Cl2*Pl,axis=0)
+        ints[i] = s
     
     #-- that's it!
-    return 10**s * 1e-8
+    return np.array([10**ints * 1e-8])
 
 @decorators.memoized
 def _prepare_wd_grid(atm):
