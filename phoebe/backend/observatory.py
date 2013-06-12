@@ -1752,6 +1752,7 @@ def choose_eclipse_algorithm(all_systems,algorithm='auto'):
                 X2 = all_systems[1].as_point_source(only_coords=True)
             except:
                 raise ValueError
+            
             d1 = np.sqrt( ((all_systems[0].mesh['center'][:,:2]-X1[:2])**2).sum(axis=1))
             d2 = np.sqrt( ((all_systems[1].mesh['center'][:,:2]-X2[:2])**2).sum(axis=1))
             R1 = np.max(d1)
