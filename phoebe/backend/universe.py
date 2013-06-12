@@ -3063,7 +3063,10 @@ class BodyBag(Body):
             if out is not None:
                 total_results.append(out)
         if cumulative is True and total_results:
-            total_results = sum(total_results)
+            try:
+                total_results = sum(total_results)
+            except TypeError:
+                total_results = None
         return total_results
     
     def get_obs(self,category='lc',ref=0):
