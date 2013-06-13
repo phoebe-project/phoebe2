@@ -454,8 +454,9 @@ class Bundle(object):
         if objectname is None:
             # then search the whole system
             return_ = []
-            for objname in self.get_system_structure(return_type='obj',flat=True):
-                parsets = self.get_syn(objname,ref=ref)
+            for obj in self.get_system_structure(return_type='obj',flat=True):
+                #~ print "*** a", self.get_label(obj)
+                parsets = self.get_syn(obj,ref=ref)
                 for parset in parsets:
                     if parset not in return_:
                         return_.append(parset)

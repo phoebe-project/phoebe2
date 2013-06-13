@@ -776,7 +776,7 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
     
-class Axes(parameters.ParameterSet):
+class Axes(object):
     """
     Class representing a collection of plot commands for a single axes
     """
@@ -787,10 +787,11 @@ class Axes(parameters.ParameterSet):
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
         """
-        super(Axes, self).__init__()
+        #super(Axes, self).__init__()
         
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
         self.plots = []
+        #self.context = 'Axes'
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
