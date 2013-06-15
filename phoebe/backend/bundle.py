@@ -133,16 +133,15 @@ class Bundle(object):
                 struc[typ].append([])
         for child in children:
             new = self.get_system_structure(return_type=['label','obj','ps','nchild','mask'],flat=flat,top_level=child,**kwargs)
+            #~ print "\n* curr", struc
+            #~ print "\n* new", new
             #~ for i in range(len(new)):
                 #~ if len(new[i]) == 1:
                     #~ new[i] = new[i][0]
             for i,typ in enumerate(all_types):
-                #~ struc[typ][-1].append(new[i])
                 struc[typ][-1]+=new[i]
-                #~ struc[typ].append(new[i])
-                
-        #~ print "**", struc['label']
-            
+
+        #~ print "\n* returned", self.get_label(item), struc
         if isinstance(return_type, list):
             return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
         else: #then just one passed, so return a single list
@@ -192,6 +191,16 @@ class Bundle(object):
             return objectname
         else: #then hopefully body
             return obj.get_label()
+            
+    def change_label(self,oldlabel,newlabel):
+        """
+        
+        """
+        raise NotImplementedError
+        
+        # need to handle changing label and references from children objects, etc
+        
+        return
             
     def get_ps(self,objectname):
         """
@@ -375,6 +384,9 @@ class Bundle(object):
             for ds in dss:    
                 #~ ds.load()
                 comp.add_obs(ds)
+            #~ for body in comp.get_bodies():
+                #~ for ps in pss:
+                    #~ body.add_pbdeps(ps)
             for ps in pss:
                 comp.add_pbdeps(ps)
                 
@@ -394,7 +406,26 @@ class Bundle(object):
             obj.add_pbdeps(dataset)
         elif typ=='obs':
             obj.add_obs(ds)
-                
+            
+    def enable_obs(self,ref=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        """
+        for obs in self.get_obs(ref=ref):
+            obs.enabled=True
+        return
+        
+    def disable_obs(self,ref=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        """
+        
+        for obs in self.get_obs(ref=ref):
+            obs.enabled=False
+        return
+        
     def get_obs(self,objectname=None,ref=None):
         """
         get an observables dataset by the object its attached to and its label

@@ -787,11 +787,11 @@ class Axes(object):
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
         """
-        #super(Axes, self).__init__()
+        #~ super(Axes, self).__init__()
         
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
         self.plots = []
-        #self.context = 'Axes'
+        #~ self.context = 'Axes'
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
@@ -836,6 +836,30 @@ class Axes(object):
             return self.plots
         else:
             return self.plots[i]
+            
+    def get_dataset(self,plot,system):
+        """
+        return the dataset attached to a given plotting parameterset
+        
+        @param plot: the plotoptions or index of the plot
+        @type plot: plotoptions or int
+        @param system: the system
+        @type system: BodyBag
+        @return: the dataset attached to the plotoptions
+        @rtype: ParameterSet
+        """
+        if plot in self.plots: #then we already have the plot
+            plotoptions = plot
+        else:
+            plotoptions = self.get_plot(plot)
+            
+        obj = self._get_object(plotoptions['objref'],system)
+        if plotoptions['type'][-3:]=='syn' and hasattr(obj,'bodies'):
+            #~ dataset = obj.get_synthetic(ref=plotoptions['dataref'],cumulative=True if plotoptions['type'][:-3]=='lc' else False)
+            dataset = obj.get_synthetic(ref=plotoptions['dataref'])
+        else:
+            dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
+        return dataset
         
     def get_value(self,key):
         """
@@ -863,20 +887,16 @@ class Axes(object):
         """
         copied functionality from bundle.get_object to avoid import
         """
+        if objectname=='auto':
+            return bodybag
         for item in bodybag.get_bodies():
-            # if item is a bodybag itself, then recursively loop
-            if hasattr(item, 'get_bodies'):
-                result = self._get_object(objectname,item)
-                if result is not None:
-                    return results
-            else:
-                # check to see if we want the item
-                if 'component' in item.params.keys() and item.params['component']['label'] == objectname:
-                    return item
-                
-                # check to see if we want the itembag
-                if 'orbit' in item.params.keys() and item.params['orbit']['label'] == objectname:
-                    return bodybag
+            # check to see if we want the item
+            if 'component' in item.params.keys() and item.params['component']['label'] == objectname:
+                return item
+            
+            # check to see if we want the itembag
+            if 'orbit' in item.params.keys() and item.params['orbit']['label'] == objectname:
+                return bodybag
         return None
             
     def plot(self,system,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
@@ -956,18 +976,10 @@ class Axes(object):
         for plotoptions in self.plots:
             if not plotoptions['active']:
                 continue
-            if plotoptions['objref']=='auto':
-                obj = system
-            else:
-                # copied functionality from bundle.get_object (since we don't want to import bundle)
-                obj = self._get_object(plotoptions['objref'],system)
+            # copied functionality from bundle.get_object (since we don't want to import bundle)
+            obj = self._get_object(plotoptions['objref'],system) # will return system of objref=='auto'
             
-            if plotoptions['type'][-3:]=='syn' and hasattr(obj,'bodies'):
-                #~ dataset = obj.get_synthetic(ref=plotoptions['dataref'],cumulative=True if plotoptions['type'][:-3]=='lc' else False)
-                dataset = obj.get_synthetic(ref=plotoptions['dataref'])
-            else:
-                dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
-                
+            dataset = self.get_dataset(plotoptions,system)
             
             if dataset is None:
                 logger.error("dataset {} failed to load for objects {}".format(plotoptions['dataref'],plotoptions['objref']))
