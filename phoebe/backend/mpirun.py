@@ -106,7 +106,6 @@ if __name__=="__main__":
         while len(dates):
             #-- print some diagnostics to the user.
             #print("MPIrun: starting at {:.3f}% of total run".format((olength-len(dates))/float(olength)*100))
-            update_progress((olength-len(dates))/float(olength))
             N = len(dates)
             take = max(N/(2*nprocs),1)
             do_dates,dates = dates[:take],dates[take:]
@@ -127,6 +126,9 @@ if __name__=="__main__":
 
             # Store the results asynchronously:
             res.append(comm.irecv(bytearray(500000), node, tag=TAG_RES))
+            
+            update_progress((olength-len(dates))/float(olength))
+            
         
         update_progress(1.1)#print("MPIrun: finished")
         

@@ -132,36 +132,44 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
         keep = (cos_psi1<1) & (cos_psi2<1) & (0<cos_psi1) & (0<cos_psi2)
         if not np.sum(keep): continue
         day[i] = True
-        for j,jref in enumerate(ref):
+        for j, jref in enumerate(ref):
             #-- what is the bolometric flux this triangle on the irradiated object
             #   receives from the irradiator? The mu-angles are cos(psi2). We also
             #   need to correct for the projected size (cos_psi2) of the triangle
             #   on the irradiator.
             ld_law = getattr(limbdark,'ld_{}'.format(ld_models[j]))
-            Imu0 = irradiator_mesh['ld_{}'.format(jref)][keep,-1]
-            Ibolmu = Imu0*ld_law(cos_psi2[keep],irradiator_mesh['ld_{}'.format(jref)][keep].T)
+            Imu0 = irradiator_mesh['ld_{}'.format(jref)][keep, -1]
+            Ibolmu = Imu0*ld_law(cos_psi2[keep], irradiator_mesh['ld_{}'.format(jref)][keep].T)
             Ibolmu = irradiator_mesh['size'][keep]*cos_psi2[keep]*Ibolmu
+            
             #-- every fluxray is emmited with an angle between the normal
             #   and the radial vector through the center of the star: not needed
             #   in our gridding approach because we know the size of the triangles
             #   already exactly
             #cos_gamma = coordinates.cos_angle(irradiator.mesh['center'][keep],irradiator.mesh['normal_'][keep],axis=-1)
             #Ibolmu = Ibolmu/cos_gamma
+            
             #-- but every fluxray is also received under a specific angle on the
             #   irradiated object. The size of the receiving triangle doesn't matter
             Ibolmu = cos_psi1[keep]*Ibolmu
+            
             #-- what are the distances to each triangle on the irradiator?
             distance = sqrt(np.sum(los[keep]**2,axis=1))
+            
             #-- the total (summed) projected intensity on this triangle is then
             #   dependent on the distance and the albedo
             proj_Ibolmu = np.sum(Ibolmu/distance**2)
+            
             #-- what is the total intrinsic emergent flux from this triangle? We
             #   need to integrate over a solid angle of 2pi, that is let phi run
             #   from 0->2*pi and theta from 0->pi/2
             inco[i,j] = proj_Ibolmu
+            
             #-- no need to calculate emergent flux if not bolometric!
-            if jref!='__bol': continue
-            emer_Ibolmu = 2*pi*quad(_tief,0,pi/2,args=(ld_law,irradiated.mesh['ld_{}'.format(jref)][i]))[0] # 2pi is for solid angle integration over phi
+            if jref != '__bol':
+                continue
+            
+            emer_Ibolmu = 2*pi*quad(_tief, 0, pi/2, args=(ld_law, irradiated.mesh['ld_{}'.format(jref)][i]))[0] # 2pi is for solid angle integration over phi
             
             #====== START CHECK FOR EMERGENT FLUX ======
             #-- in the case of a linear limb darkening law, we can easily evaluate
@@ -186,6 +194,9 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
         
 def single_heating_reflection(irradiated,irradiator,update_temperature=True,\
             heating=True,reflection=False,third_bodies=None):
+    """
+    Docstring
+    """
     if heating and reflection:
         ref = 'all'
     elif heating:

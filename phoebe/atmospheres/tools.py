@@ -10,7 +10,6 @@ from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.utils import pergrams
 
-
 logger = logging.getLogger('ATMO.TOOLS')
 
 def gravitational_redshift(the_system):
@@ -97,9 +96,14 @@ def doppler_shift(wave,vrad,vrad_units='km/s',flux=None):
     @return: shifted wavelength array
     @rtype: ndarray
     """ 
-    cc = constants.cc
-    cc = conversions.convert('m/s',vrad_units,cc)
+    if vrad_units == 'km/s':
+        cc = constants.cc/1000.
+    else:
+        cc = conversions.convert('m/s',vrad_units,constants.cc)
+    
+    
     wave_out = wave * (1+vrad/cc)
+    
     if flux is not None:
         flux_out = np.interp(wave,wave_out,flux)
         return flux_out
