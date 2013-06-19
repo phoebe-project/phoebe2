@@ -20,8 +20,9 @@ import logging
 import os
 import itertools
 import numpy as np
-from numpy import pi
+from numpy import pi, sqrt, sin, cos
 from scipy.ndimage.interpolation import rotate as imrotate
+from scipy.interpolate import griddata
 from scipy import ndimage
 try:
     import pylab as pl
@@ -139,7 +140,7 @@ def image(the_system,ref='__bol',context='lcdep',
     
     >>> phoebe.image(vega,select='teff',cmap='blackbody')
     >>> phoebe.image(vega,select='teff',cmap='blackbody_proj')
-    >>> phoebe.image(vega,select='teff',cmap='blackbody_eye')
+    >>> phoebe.image(vega,select='teff',cmap='eye')
     
     +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image05.png | .. image:: images/backend_observatory_image06.png | .. image:: images/backend_observatory_image07.png |
@@ -433,6 +434,69 @@ def image(the_system,ref='__bol',context='lcdep',
     
     return xlim,ylim,p
 
+
+def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
+    """
+    Draw contours on a star.
+    
+    Possible contour lines:
+    
+    The dictionary ``prop`` is passed on to ``plt.clabel``, and can for example
+    be ``prop = dict(inline=1, fontsize=14, fmt=='%.0f G')``.
+    """
+    if prop is None:
+        prop = dict()
+    method = 'cubic'
+    
+    # Make a grid for the plane-of-sky coordinates
+    visible = system.mesh['visible']
+    mesh = system.mesh[visible]
+    x = mesh['center'][:,0]
+    y = mesh['center'][:,1]
+    xi = np.linspace(x.min(), x.max(), res)
+    yi = np.linspace(y.min(), y.max(), res)
+    
+    # Get the values for the contours
+    if select == 'B':
+        z = sqrt(mesh['B_'][:,0]**2 + mesh['B_'][:,1]**2 + mesh['B_'][:,2]**2)
+    elif select in ['latitude', 'longitude']:
+        # For longitudinal and latitudinal meshes, we convert the original
+        # Cartesian coordinates to spherical coordinates
+        x_, y_, z_ = mesh['_o_center'].T
+        rho, phi, theta = coordinates.cart2spher_coord(y_, x_, z_)
+        phi = phi / np.pi * 180
+        theta = theta / np.pi * 180 
+        # Set some basic levels, to select which lines we want to plot
+        if select == 'latitude':
+            z = theta
+            if levels is None:
+                levels = np.arange(10,171,20.)
+        else:
+            method = 'linear'
+            z = phi
+            if levels is None:
+                levels = np.arange(-160,161,20.)
+            
+    else:
+        z = mesh[select]
+    
+    # Make a grid for the contour values
+    zi = griddata((x, y), z, (xi[None,:], yi[:,None]), method=method)
+
+    # For longitudinal plots, try to remove the discontinuity. This is not ideal
+    # but I don't know how else to do it.
+    if select == 'longitude':
+        phi_ = phi+0
+        phi_[phi<0] = phi_[phi<0] + 360.
+        zi_ = griddata((x, y), phi_, (xi[None,:], yi[:,None]), method=method)
+        zi[(170<zi_) & (zi_<190)] = np.nan
+
+    # plot the contours
+    CS = pl.contour(xi, yi, zi, levels=levels, **kwargs)
+    if prop:
+        pl.clabel(CS, **prop)
+    
+    
 
 def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
             cmap=None,select='proj',background=None,vmin=None,vmax=None,
@@ -1203,8 +1267,11 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
     delta_v_zeemans = (wc*1e-10)*delta_nu_zeemans/1000. # from cy/s to km/s
     #-- radial velocities
     rad_velos = -the_system.mesh['velo___bol_'][keep,2]
-    rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)    
-    nus = conversions.convert('AA','Hz',wavelengths)    
+    #rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)    
+    #nus = conversions.convert('AA','Hz',wavelengths)
+    rad_velos = rad_velos * 8.04986111111111
+    nus = constants.cc/wavelengths*1e10
+    
     logger.info('{} approximation'.format(weak_field and 'Weak-field' or 'No weak-field'))
     if method=='numerical' and not idep['profile']=='gauss':
         #-- get limb angles
@@ -1267,12 +1334,23 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
         rad_velosw = conversions.convert('km/s','AA',rad_velos,wave=(wc,'AA'))-wc
+        
+        cc_ = constants.cc/1000.
+        
         for i,(pri,rv,sz,iB,costh) in enumerate(zip(proj_intens,rad_velos,sizes,B,cos_theta)):
             rvz = delta_v_zeemans[i]
             #-- first version
-            spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
-            specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
-            specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
+            #spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
+            #specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
+            #specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
+            
+            #-- first version but inline
+            wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
+            wave_out2 = wavelengths * (1+(rv+rv_grav-rvz)/cc_)
+            wave_out3 = wavelengths * (1+(rv+rv_grav+rvz)/cc_)
+            spec = pri*sz*np.interp(wavelengths,wave_out1,template)
+            specm = pri*sz*np.interp(wavelengths,wave_out2,template)
+            specp = pri*sz*np.interp(wavelengths,wave_out3,template)
             
             #-- we can compute Stokes V in weak field approximation or not
             if do_V and weak_field:
@@ -1287,7 +1365,8 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
             
             #-- Stokes Q and U: this must be in weak field approximation for now
-            sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
+            if do_Q or do_U:
+                sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
             if do_Q:
                 stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
             if do_U:

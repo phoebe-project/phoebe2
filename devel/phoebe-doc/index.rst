@@ -212,6 +212,7 @@ Single Stars
    testsuite.vega_sed
    testsuite.KOI126
    testsuite.dipolar_field
+   testsuite.oblique
 
 Binary Stars
 =============
@@ -261,6 +262,16 @@ GUI Tutorials
 ###################
 Development notes
 ###################
+
+***********
+Milestones
+***********
+
+.. toctree::
+   :maxdepth: 1
+   
+   milestones
+
 
 ***********
 API docs

@@ -3649,7 +3649,8 @@ class Star(PhysicalBody):
         grav_r = -constants.GG*M/r_**2+r_*(omega*sin_theta)**2
         grav_th = r_*omega**2*sin_theta*cos_theta
         local_grav = sqrt(grav_r**2 + grav_th**2)
-        self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',local_grav)
+        # Convert suface gravity from m/s2 to [cm/s2]
+        self.mesh['logg'] = np.log10(local_grav) + 2.0
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (Rp=%s)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),rp/constants.Rsol))
     
     
@@ -3772,7 +3773,10 @@ class Star(PhysicalBody):
         pblum = idep.get('pblum',1.0)
         proj_int = limbdark.projected_intensity(self,method=method,
                 ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
-        return proj_int*pblum + l3
+        if pblum >= 0:
+            return proj_int*pblum + l3
+        else:
+            return proj_int + l3
         
     
     def projected_velocity(self,los=[0,0,+1],ref=0,method=None):
@@ -4137,13 +4141,16 @@ class Star(PhysicalBody):
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=True)
             
             if has_freq:
-                self.detect_eclipse_horizon(eclipse_detection='hierarchical')
-            else:
-                self.detect_eclipse_horizon(eclipse_detection='simple')
+                logger.warning("Eclipse detection neglects pulsations")
+            #    self.detect_eclipse_horizon(eclipse_detection='hierarchical')
+            #else:
+            self.detect_eclipse_horizon(eclipse_detection='simple')
         elif rotperiod<np.inf:
             self.velocity(ref=ref)
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=False)
             self.detect_eclipse_horizon(eclipse_detection='simple')
+        
+        print self.params['star']
         self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
         if self.time is None or has_freq or has_spot:
             self.intensity(ref=ref)

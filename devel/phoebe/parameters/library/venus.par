@@ -9,14 +9,15 @@ gravb      = 1.0        #  Bolometric gravity brightening
 incl       = 0.0        # (deg) Inclination angle
 long       = 0.0        # (deg) Orientation on the sky
 distance   = 4.84813681108e-06 # (pc) Distance to the star
-surface    = sphere     #  Type of surface
+shape    = sphere     #  Type of surface
 alb        = 0.67       #  Bolometric albedo (alb heating, 1-alb reflected)
-redistr    = 0.0        #  Global redist par (1-redistr) local heating, redistr global heating
+redist    = 0.0        #  Global redist par (1-redistr) local heating, redistr global heating
 irradiator = False      #  Treat body as irradiator of other objects
-metabun    = 0.0        #  Metallicity
+abun    = 0.0        #  Metallicity
 label      = Venus      #  Name of the body
 ld_func    = uniform    #  Bolometric limb darkening model
 ld_coeffs  = [1.0]      #  Bolometric limb darkening coefficients
+vgamma = 0                 # Systemic velocity
 
 
 [phoebe--orbit--Venus_orbit]

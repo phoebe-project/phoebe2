@@ -58,6 +58,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
 from phoebe import wd
+from phoebe.parameters import tools
 
 logger = phoebe.get_basic_logger()
 c0 = time.time()
@@ -84,7 +85,7 @@ ps['ifat2'] = 0
 ps['alb1'] = 0.
 ps['alb2'] = 0.
 ps['nref'] = 0
-ps['ipb'] = 0
+ps['ipb'] = 1
 ps['incl'] = 75.,'deg'
 ps['n1'] = 60
 ps['n2'] = 60
@@ -108,8 +109,8 @@ star2,lcdep2,rvdep2 = comp2
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
-mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.075,alg='c')
-mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.075,alg='c')
+mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.07,alg='c')
+mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',delta=0.07,alg='c')
 
 
 # Body setup

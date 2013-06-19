@@ -12,7 +12,7 @@ Initialisation
 # First, import necessary modules
 
 import phoebe
-from pyphoebe.parameters import create
+from phoebe.parameters import create
 
 logger = phoebe.get_basic_logger()
 
@@ -32,7 +32,7 @@ orbit['incl'] = 100.
 # compute everything in the visual, so we also need to create light curve
 # parameterSets.
 
-mesh = phoebe.ParameterSet(context='mesh:marching',delta=0.05)
+mesh = phoebe.ParameterSet(context='mesh:marching',delta=0.2)#0.05
 lcdep1 = create.dep_from_object(sun,context='lcdep',passband='JOHNSON.V',ref='Visual')
 lcdep2 = create.dep_from_object(venus,context='lcdep',passband='JOHNSON.V',ref='Visual')
 
@@ -64,6 +64,8 @@ bsun.plot2D(ref='Visual',select='teff',cmap='eye',savefig='sun_eye')
 osun = bsun.as_point_source()
 ovenus = bvenus.as_point_source()
 proj = osun['intensity']
+print osun
+print ovenus
 vmag = phoebe.convert('erg/s/cm2/AA','mag',proj,passband='JOHNSON.V')
 print("Apparent visual magnitude of the Sun = {:.3f}".format(vmag))
 proj = ovenus['intensity']
