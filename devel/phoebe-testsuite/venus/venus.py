@@ -32,17 +32,19 @@ orbit['incl'] = 100.
 # compute everything in the visual, so we also need to create light curve
 # parameterSets.
 
-mesh = phoebe.ParameterSet(context='mesh:marching',delta=0.2)#0.05
-lcdep1 = create.dep_from_object(sun,context='lcdep',passband='JOHNSON.V',ref='Visual')
-lcdep2 = create.dep_from_object(venus,context='lcdep',passband='JOHNSON.V',ref='Visual')
+mesh = phoebe.ParameterSet(context='mesh:marching', delta=0.05, alg='c')
+lcdep1 = create.dep_from_object(sun,context='lcdep', passband='JOHNSON.V',
+                                ref='Visual')
+lcdep2 = create.dep_from_object(venus,context='lcdep', passband='JOHNSON.V',
+                                ref='Visual')
 
 # Body setup
 # ----------
 
 # Then the Sun and Venus are easily created as ``BinaryStars``.
-bsun = phoebe.BinaryStar(sun,orbit,mesh,pbdep=lcdep1)
-bvenus = phoebe.BinaryStar(venus,orbit,mesh,pbdep=lcdep2)
-system = phoebe.BodyBag([bsun,bvenus])
+bsun = phoebe.BinaryStar(sun, orbit, mesh, pbdep=lcdep1)
+bvenus = phoebe.BinaryStar(venus, orbit, mesh, pbdep=lcdep2)
+system = phoebe.BodyBag([bsun, bvenus])
 
 # Computation of observables
 # --------------------------

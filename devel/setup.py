@@ -42,6 +42,8 @@ class Build(_build):
 ext_modules = [
         Extension('phoebe.utils.cgeometry',
                   sources = ['phoebe/utils/cgeometry.c']),
+        Extension('phoebe.utils.fgeometry',
+                  sources = ['phoebe/utils/fgeometry.f']),
         Extension('phoebe.atmospheres.cspots',
                   sources = ['phoebe/atmospheres/cspots.c']),
         #Extension('phoebe.algorithms.marching2FLib',
