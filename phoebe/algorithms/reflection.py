@@ -47,6 +47,8 @@ from phoebe.algorithms import eclipse
 from phoebe.units import constants
 from phoebe.backend import decorators
 from phoebe.utils import coordinates
+from phoebe.utils import cgeometry
+from phoebe.utils import fgeometry
 from phoebe.atmospheres import limbdark
 
 logger = logging.getLogger("ALGO.REFL")
@@ -75,8 +77,9 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     """
     def _tief(gamma,ld_law,coeffs):
         """Small helper function to compute total intrinsic emergent flux"""
-        Imu = coeffs[-1]*ld_law(cos(gamma),coeffs)
-        return Imu*cos(gamma)*sin(gamma) # sin(gamma) is for solid angle integration
+        cos_gamma = cos(gamma)
+        Imu = coeffs[-1]*ld_law(cos_gamma,coeffs)
+        return Imu*cos_gamma*sin(gamma) # sin(gamma) is for solid angle integration
     Nl = len(ref)
     N = len(irradiated.mesh)
     #-- run over each triangle on the irradiated star, and compute how much
@@ -125,10 +128,13 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
         los = irradiator_mesh['center']-irradiated.mesh['center'][i]
         #-- what are the angles between the normal and the lines-of-sight on
         #   the irradated object?
-        cos_psi1 = coordinates.cos_angle(irradiated.mesh['normal_'][i],los,axis=-1)
+        #cos_psi1 = coordinates.cos_angle(irradiated.mesh['normal_'][i],los,axis=-1)
+        cos_psi1 = fgeometry.cos_angle_3_nx3(irradiated.mesh['normal_'][i],los)
+        
         #-- what are the angles between the normals and the line-of-sight on
         #   the irradiator?
-        cos_psi2 = coordinates.cos_angle(los,irradiator_mesh['normal_'],axis=-1)
+        #cos_psi2 = coordinates.cos_angle(los,irradiator_mesh['normal_'],axis=-1)
+        cos_psi2 = fgeometry.cos_angle_nx3_nx3(los,irradiator_mesh['normal_'])
         keep = (cos_psi1<1) & (cos_psi2<1) & (0<cos_psi1) & (0<cos_psi2)
         if not np.sum(keep): continue
         day[i] = True
@@ -274,17 +280,23 @@ def single_heating(irradiated,irradiator,ld_func='claret',update_temperature=Tru
     day = np.zeros(N,bool)
     total_surface = irradiated.mesh['size'].sum()
     for i in range(N):
-        #-- what are the lines of sight?
+        
+        # What are the lines of sight?
         los = irradiator.mesh['center']-irradiated.mesh['center'][i]
-        #-- what are the angles between the normal and the lines-of-sight on
-        #   the irradated object?
+        
+        # What are the angles between the normal and the lines-of-sight on
+        # the irradated object?
         cos_psi1 = coordinates.cos_angle(irradiated.mesh['normal_'][i],los,axis=-1)
-        #-- what are the angles between the normals and the line-of-sight on
-        #   the irradiator?
+        #cos_psi1 = cgeometry.cos_theta(irradiated.mesh['normal_'][i],los,axis=-1)
+        
+        # What are the angles between the normals and the line-of-sight on
+        # the irradiator?
         cos_psi2 = coordinates.cos_angle(los,irradiator.mesh['normal_'],axis=-1)
+        #cos_psi2 = cgeometry.cos_theta(los,irradiator.mesh['normal_'],axis=-1)
         keep = (cos_psi1<1) & (cos_psi2<1) & (0<cos_psi1) & (0<cos_psi2)
         if not np.sum(keep): continue
         day[i] = True
+        
         #-- what is the bolometric flux this triangle on the irradiated object
         #   receives from the irradiator? The mu-angles are cos(psi2). We also
         #   need to correct for the projected size (cos_psi2) of the triangle
