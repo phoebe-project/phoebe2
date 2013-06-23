@@ -380,15 +380,20 @@ class Bundle(object):
             dss = output[objectlabel][0]
             pss = output[objectlabel][1]
             
-            # attach
+            # obs get attached to the requested object
             for ds in dss:    
                 #~ ds.load()
                 comp.add_obs(ds)
-            #~ for body in comp.get_bodies():
-                #~ for ps in pss:
-                    #~ body.add_pbdeps(ps)
-            for ps in pss:
-                comp.add_pbdeps(ps)
+
+            # pbdeps need to be attached to bodies, not body bags
+            # so if comp is a body bag, attach it to all its predecessors
+            if hasattr(comp, 'get_bodies'):
+                for body in comp.get_bodies():
+                    for ps in pss:
+                        body.add_pbdeps(ps)
+            else:
+                for ps in pss:
+                    comp.add_pbdeps(ps)
                 
     def add_obs(self,objectname,dataset):
         """
@@ -406,25 +411,6 @@ class Bundle(object):
             obj.add_pbdeps(dataset)
         elif typ=='obs':
             obj.add_obs(ds)
-            
-    def enable_obs(self,ref=None):
-        """
-        @param ref: ref (name) of the dataset
-        @type ref: str
-        """
-        for obs in self.get_obs(ref=ref):
-            obs.enabled=True
-        return
-        
-    def disable_obs(self,ref=None):
-        """
-        @param ref: ref (name) of the dataset
-        @type ref: str
-        """
-        
-        for obs in self.get_obs(ref=ref):
-            obs.enabled=False
-        return
         
     def get_obs(self,objectname=None,ref=None):
         """
@@ -468,6 +454,51 @@ class Bundle(object):
                 if parset != (None,None):
                     return_.append(parset[0])
             return return_
+
+    def enable_obs(self,ref=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        """
+        for obs in self.get_obs(ref=ref):
+            obs.enabled=True
+        return
+               
+    def disable_obs(self,ref=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        """
+        
+        for obs in self.get_obs(ref=ref):
+            obs.enabled=False
+        return
+        
+    def adjust_obs(self,ref=None,l3=None,pblum=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        @param l3: whether l3 should be marked for adjustment
+        @type l3: bool or None
+        @param pblum: whether pblum should be marked for adjustment
+        @type pblum: bool or None
+        """
+        
+        for obs in self.get_obs(ref=ref):
+            if l3 is not None:
+                obs.set_adjust('l3',l3)
+            if pblum is not None:
+                obs.set_adjust('pblum',pblum)
+        return
+        
+    def remove_obs(self,ref=None):
+        """
+        @param ref: ref (name) of the dataset
+        @type ref: str
+        """
+        for obs in self.get_obs(ref=ref):
+            obs.load()
+        return
             
     def get_syn(self,objectname=None,ref=None):
         """
