@@ -57,6 +57,7 @@ def plot_lcsyn(system,*args,**kwargs):
     scale = kwargs.pop('scale', 'obs')
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
+    ax = kwargs.pop('ax',plt.gca())
     #-- get parameterSets
     syn = system.get_synthetic(category='lc', ref=ref)
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
@@ -93,7 +94,7 @@ def plot_lcsyn(system,*args,**kwargs):
     #-- plot model
     artists = []
     for n in range(repeat+1):
-        p, = plt.plot(time+n*period, flux, *args, **kwargs)
+        p, = ax.plot(time+n*period, flux, *args, **kwargs)
         artists.append(p)
 
     ret_syn = syn.asarray()
@@ -103,7 +104,7 @@ def plot_lcsyn(system,*args,**kwargs):
     return artists, ret_syn, pblum, l3
 
 
-def plot_lcobs(system,**kwargs):
+def plot_lcobs(system,errorbars=True,**kwargs):
     """
     Plot lcobs as a light curve.
     
@@ -124,6 +125,7 @@ def plot_lcobs(system,**kwargs):
     ref = kwargs.pop('ref',0)
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period', None)
+    ax = kwargs.pop('ax',plt.gca())
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
@@ -155,7 +157,10 @@ def plot_lcobs(system,**kwargs):
     #-- plot model
     artists = []
     for n in range(repeat+1):
-        p = plt.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
+        if errorbars:
+            p = ax.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
+        else:
+            p = ax.plot(time+n*period,flux,**kwargs)
         artists.append(p)
 
     if loaded: obs.unload()
@@ -187,6 +192,7 @@ def plot_lcres(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    ax = kwargs.pop('ax',plt.gca())
     
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
@@ -226,7 +232,7 @@ def plot_lcres(system,*args,**kwargs):
     #-- plot model
     artists = []
     for n in range(repeat+1):
-        p = plt.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+        p = ax.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
         artists.append(p)
 
     if loaded_obs: obs.unload()
@@ -262,6 +268,7 @@ def plot_rvsyn(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    ax = kwargs.pop('ax',plt.gca())
     #-- get parameterSets
     syn = system.get_synthetic(category='rv',ref=ref)
     
@@ -290,7 +297,7 @@ def plot_rvsyn(system,*args,**kwargs):
     #-- plot model
     artists = []
     for n in range(repeat+1):
-        p, = plt.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+        p, = ax.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
         artists.append(p)
 
     if loaded: syn.unload()
@@ -298,7 +305,7 @@ def plot_rvsyn(system,*args,**kwargs):
     return artists,syn,l3
 
 
-def plot_rvobs(system,**kwargs):
+def plot_rvobs(system,errorbars=True,**kwargs):
     """
     Plot rvobs as a radial velocity curve.
     
@@ -319,6 +326,7 @@ def plot_rvobs(system,**kwargs):
     ref = kwargs.pop('ref',0)
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    ax = kwargs.pop('ax',plt.gca())
     #-- get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
     
@@ -336,7 +344,10 @@ def plot_rvobs(system,**kwargs):
     #-- plot model
     artists = []
     for n in range(repeat+1):
-        p = plt.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
+        if errorbars:
+            p = ax.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
+        else:
+            p = ax.plot(time+n*period,rv,**kwargs)
         artists.append(p)
 
     if loaded: obs.unload()
@@ -368,6 +379,7 @@ def plot_rvres(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    ax = kwargs.pop('ax',plt.gca())
     
     #-- get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
@@ -891,8 +903,9 @@ class Axes(object):
             return bodybag
         for item in bodybag.get_bodies():
             # check to see if we want the item
-            if 'component' in item.params.keys() and item.params['component']['label'] == objectname:
-                return item
+            for comp_key in ['component','star']:
+                if comp_key in item.params.keys() and item.params[comp_key]['label'] == objectname:
+                    return item
             
             # check to see if we want the itembag
             if 'orbit' in item.params.keys() and item.params['orbit']['label'] == objectname:
@@ -974,22 +987,22 @@ class Axes(object):
                 
         # now loop through individual plot commands
         for plotoptions in self.plots:
+            #~ print "***", plotoptions['dataref'], plotoptions['objref'], plotoptions['type'], plotoptions['active']
             if not plotoptions['active']:
                 continue
+
             # copied functionality from bundle.get_object (since we don't want to import bundle)
-            obj = self._get_object(plotoptions['objref'],system) # will return system of objref=='auto'
+            obj = self._get_object(plotoptions['objref'],system) # will return system if objref=='auto'
             
             dataset = self.get_dataset(plotoptions,system)
-            
-            if dataset is None:
-                logger.error("dataset {} failed to load for objects {}".format(plotoptions['dataref'],plotoptions['objref']))
-                return
-                
-            loaded = dataset.load(force=False) 
+            if len(dataset['time'])==0: # then empty dataset
+                continue
                 
             po = {}
             for key in plotoptions.keys():
-                if key not in ['dataref', 'objref', 'type', 'active']:
+                if key == 'errorbars':
+                    errorbars = plotoptions.get_value(key)
+                if key not in ['dataref', 'objref', 'type', 'active','errorbars']:
                     po[key] = plotoptions.get_value(key)
                     
             #if linestyle has not been set, make decision based on type
@@ -1006,11 +1019,15 @@ class Axes(object):
                 if po[key]=='auto':
                     po.pop(key)
 
-            # call mpl plot command
-            
-            # include an option to draw error bars, and if type is obs and errorbar on call axes.errorbar()?
-            
-            axes.plot(dataset[xaxis],dataset[yaxis],**po)
+            # call appropriate plotting command
+            if plotoptions['type']=='lcobs':
+                artists,obs = plot_lcobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, **po)
+            elif plotoptions['type']=='lcsyn':
+                artists,obs,pblum,l3 = plot_lcsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
+            elif plotoptions['type']=='rvobs':
+                artists,obs = plot_rvobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, **po)
+            elif plotoptions['type']=='rvsyn':
+                artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
+            else:
+                artists,obs = [],[]
                 
-            # return data to its original loaded/unloaded state
-            if loaded: dataset.unload()

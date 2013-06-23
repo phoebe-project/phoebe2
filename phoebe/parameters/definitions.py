@@ -482,6 +482,7 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='markerfacecolor',   description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='linestyle',    description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='linewidth',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
+         dict(qualifier='errorbars',    description='whether to plot errorbars, if applicable',repr='%s',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot'),
          dict(qualifier='zorder',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
         ]
         
