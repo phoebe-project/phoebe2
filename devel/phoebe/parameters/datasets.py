@@ -806,7 +806,7 @@ def parse_header(filename,ext=None):
     @rtype: (list/None, list/str/None, dict/None, dict/None, int), (ParameterSet, DataSet)
     """
     
-    #-- create a default pbdep and DataSet
+    # Create a default pbdep and DataSet
     contexts = dict(rv='rvdep',
                     phot='lcdep', lc='lcdep',
                     spec='spdep', lprof='spdep',
@@ -816,16 +816,16 @@ def parse_header(filename,ext=None):
                            spec=SPDataSet, lprof=SPDataSet,
                            vis2=IFDataSet, plprof=PLDataSet)
     
-    #-- It is possible to automatically detect the type of data from the
-    #   extension
+    # It is possible to automatically detect the type of data from the
+    # extension
     ext = filename.split('.')[-1] if ext is None else ext
     pb = parameters.ParameterSet(context=contexts[ext])
     ds = dataset_classes[ext]()
     
-    #-- they belong together, so they should have the same reference
+    # They belong together, so they should have the same reference
     ds['ref'] = pb['ref']
     
-    #-- open the file and start reading the lines
+    # Open the file and start reading the lines
     n_columns = -1
     with open(filename, 'rb') as ff:
         
@@ -839,10 +839,10 @@ def parse_header(filename,ext=None):
                 continue
             elif line[0] == '#':
                 
-                #-- break when we reached the end!
+                # Break when we reached the end!
                 all_lines.append(line[1:])
             
-            #-- perhaps the user did not give a '----', is this safe?
+            # Perhaps the user did not give a '----', is this safe?
             elif n_columns < 0:
                 # Count the number of columns by taking all the characters
                 # before the comment character, stripping whitespace in the
@@ -851,14 +851,14 @@ def parse_header(filename,ext=None):
                 n_columns = len(line.split('#')[0].strip().split())
                 break
                 
-    #-- prepare some output and helper variables
+    # Prepare some output and helper variables
     header_length = len(all_lines)
     components = None
     columns = None
     units = None
     dtypes = None
     
-    #-- now iterate over the header lines
+    # Now iterate over the header lines
     inside_col_descr = False
     for iline, line in enumerate(all_lines):
         # Remove white space at the beginning of the line
@@ -924,7 +924,7 @@ def parse_header(filename,ext=None):
                 else:
                     raise ValueError("Unrecognized column descripter {}".format(descr))
             
-            #-- Else I don't know what to do!
+            # Else I don't know what to do!
             else:
                 raise ValueError
         
@@ -940,6 +940,8 @@ def parse_header(filename,ext=None):
     
     # That's it!
     return (columns, components, units, dtypes, n_columns), (pb,ds)    
+
+
 
 
 def process_header(info, sets, default_column_order, required=2, columns=None,
@@ -1021,11 +1023,16 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     # a priori, but allow to user to add/override any via ``dtypes``.
     columns_required = default_column_order[:required]
     columns_specs = dict(time=float, flux=float, sigma=float, flag=float,
-                         phase=float, rv=float, exptime=float, samprate=int)
+                         phase=float, rv=float, exptime=float, samprate=int,
+                         ucoord=float, vcoord=float, sigma_vis2=float,
+                         sigma_phase=float, eff_wave=float, vis2=float,
+                         unit=str)
+    
     if dtypes is not None:
         for col in dtypes:
             if not col in columns_specs:
-                logger.warning("Unrecognized column '{}' in file. Added but ignored in the rest of the code".format(col))
+                logger.warning(("Unrecognized column '{}' in file. Added but "
+                                "ignored in the rest of the code").format(col))
             columns_specs[col] = dtypes[col]
     
     # Perhaps the user gave enough columns, but some of the required columns
@@ -1037,6 +1044,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
         logger.warning('You have given phased data')
         __ = missing_columns.remove('time')
     if 'flux' in missing_columns and 'mag' in columns_in_file:
+        logger.warning("You have given flux in magnitude")
         index = columns_in_file.index('mag')
         columns_in_file[index] = 'flux'
         units['flux'] = 'mag'
@@ -1044,7 +1052,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
     
     # If there are still missing columns, report to the user.
     if len(missing_columns) > 0:
-        raise ValueError("Missing columns in LC file: {}".format(", ".join(missing_columns)))
+        raise ValueError("Missing columns in file: {}".format(", ".join(missing_columns)))
     
     # Alright, we now know all the columns: add them to the DataSet
     ds['columns'] = columns_in_file
@@ -1058,7 +1066,10 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
         # And if by now we don't know the dtype, use a float
         if not col in columns_specs:
             columns_specs[col] = float
+            
     return (columns_in_file, columns_specs, units), (pb, ds)
+
+
 
 
 def parse(file_pattern,full_output=False,**kwargs):
@@ -1293,15 +1304,15 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     @type units: dictionary
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
-    @return: :ref:`lcobs <parlabel-phoebe-lcobs>`, :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of rvobs and rvdeps.
+    @return: :ref:`lcobs <parlabel-phoebe-lcobs>`, :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
     """
     default_column_order = ['time', 'flux', 'sigma', 'flag', 'exptime',
                             'samprate']
     
     # Which columns are present in the input file, and which columns are
-    # possible in the RVDataSet? The columns that go into the RVDataSet
+    # possible in the LCDataSet? The columns that go into the LCDataSet
     # is the intersection of the two. The columns that are in the file but
-    # not in the RVDataSet are probably used for the pbdeps (e.g. passband)
+    # not in the LCDataSet are probably used for the pbdeps (e.g. passband)
     # or for other purposes (e.g. label or unit).
     # Parse the header
     parsed = parse_header(filename, ext='lc')
@@ -2001,210 +2012,170 @@ def parse_spec_as_lprof(filename,line_name,clambda=4000.,wrange=1e300,columns=No
         return output
 
     
-def parse_vis2(filename,columns=None,full_output=False,**kwargs):
+def parse_vis2(filename, columns=None, components=None, dtypes=None, units=None,
+               full_output=False, **kwargs):
     """
     Parse VIS2 files to IFDataSets and ifdeps.
     
     **File format description**
     
-    The generic structure of a VIS file is::
+        1. Simple text files
+        2. Advanced text files
+    
+    *Simple text files*
+    
+    The minimal structure of a VIS2 file is::
         
-        # atm = kurucz
-        # passband = 2MASS.KS
         -7.779     7.980  0.932 0.047   56295.0550
         -14.185    0.440  0.808 0.040   56295.0550
         -29.093  -15.734  0.358 0.018   56295.0551
          -6.406   -7.546  0.957 0.048   56295.0552
         -21.314  -23.720  0.598 0.030   56295.0534
-
     
-    The columns represent respectively the **U-coordinate, V-coordinate, vis2, sigma_vis2, time**.
+    The order of the columns is:
+    
+        1. :math:`u`-coordinate (``ucoord``)
+        2. :math:`v`-coordinate (``vcoord``)
+        3. Squared visibility (``vis2``)
+        4. Uncertainty on squared visibility (``sigma_vis2``)
+        5. Time (``time``)
+    
     An attempt will be made to interpret the comment lines (i.e. those lines
     where the first character equals '#') as qualifier/value for either the
-    :ref:`ifobs <parlabel-phoebe-ifobs>` or :ref:`ifdep <parlabel-phoebe-ifdep>`.
-    Failures are silently ignored, so you are allowed to put whatever comments
-    in there (though with caution), or comment out data lines if you don't
-    want to use them. The comments are optional. So this is also allowed::
-    
-        -7.779     7.980  0.932 0.047  56295.0550
-        -14.185    0.440  0.808 0.040  56295.0550
-        -29.093  -15.734  0.358 0.018  56295.0551
-         -6.406   -7.546  0.957 0.048  56295.0552
-        -21.314  -23.720  0.598 0.030  56295.0534
-        
-    The only way in which you are allowed to deviate from this structure, is
-    by specifying column names, followed by a comment line of dashes (there
-    needs to be at least one dash, no spaces)::
-    
-        # atm = kurucz
-        # fittransfo = log
-        # passband = 2MASS.KS
-        # ucoord  vcoord  vis2  sigma_vis2 time
-        #---------------------------------------------
-        -7.779     7.980  0.932 0.047 56295.0550
-        -14.185    0.440  0.808 0.040 56295.0550
-        -29.093  -15.734  0.358 0.018 56295.0551
-         -6.406   -7.546  0.957 0.048 56295.0552
-        -21.314  -23.720  0.598 0.030 56295.0534
-    
-    In the latter case, you are allowed to omit any column except for ``ucoord``
-    ``vcoord``, ``vis2`` and ``sigma_vis2``, which are required.
-    If not given, the default ``time`` is zero. An extra optional column ``eff_wave``
-    lists the effective wavelength of each observation. If not give, the
-    effective wavelength will be derived from the passband.
-        
+    :ref:`ifobs <parlabel-phoebe-ifobs>` or :ref:`ifdep <parlabel-phoebe-ifdep>`.    
     
     .. warning::
     
        You are not allowed to have missing values. Each column must
        have a value for every observation.
     
-    **Input and output**
+    See :py:func:`parse_lc` for more information.
     
-    The output can be readily appended to the C{obs} and C{pbdep} keywords in
-    upon initialization of a ``Body``.
-    
-    Extra keyword arguments are passed to output IFDataSets or pbdeps,
-    wherever they exist and override the contents of the comment lines in the
-    phot file.
-    
-    If C{full_output=True}, you will get a consistent output, regardless what
-    the input file looks like. This can be useful for automatic parsing. In
-    this case, the output is an OrderedDict, with the keys at the first level
-    the key of the component (if no labels are given, this will be C{__nolabel__}).
-    The value for each key is a list of two lists: the first list contains the
-    IFDataSets, the second list the corresponding pbdeps.
-    
-    If C{full_output=False}, you will get the same output as described in the
-    previous paragraph only if labels are given in the file. Else, the output
-    consists of only one component, which is probably a bit confusing for the
-    user (at least me). So if there are no labels given and C{full_output=False},
-    the two lists are immediately returned.
-    
-    **Example usage**
-    
-    Assume that any of the first three examples is saved in 
-    file called ``myfile.vis2``, you can do (the following lines are equivalent):
-    
-    >>> obs,pbdeps = parse_vis2('myfile.vis2')
-    >>> obs,pbdeps = parse_vis2('myfile.vis2',columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
-    
-    Which is in this case equivalent to:
-    
-    >>> output = parse_vis2('myfile.vis2',full_output=True)
-    >>> obs,pbdeps = output['__nolabel__']
-    
-    or 
-    
-    >>> obs,pbdeps = output.values()[0]
-    
-    The output can then be given to any Body:
-    
-    >>> starpars = parameters.ParameterSet(context='star')
-    >>> meshpars = parameters.ParameterSet(context='mesh:marching')
-    >>> star = Star(starpars,mesh=meshpars,pbdep=pbdeps,obs=obs)
-    
-    @param filenames: list of filename or a filename glob pattern. If you give a list of filenames, they need to all have the same structure!
-    @type filenames: list or string
+    @param filename: filename
+    @type filename: string
     @param columns: columns in the file. If not given, they will be automatically detected or should be the default ones.
     @type columns: None or list of strings
+    @param components: list of components for each column in the file. If not given, they will be automatically detected.
+    @type components: None or list of strings
+    @param dtypes: data types, with dictionary keys the column names, and value the numpy dtype
+    @type dtypes: dictionary
+    @param units: unit strings, with dictionary keys the column names, and value the numpy dtype
+    @type units: dictionary
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
-    @return: (list of :ref:`lcobs <parlabel-phoebe-ifobs>`, list of :ref:`ifdep <parlabel-phoebe-ifdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
+    @return: :ref:`ifobs <parlabel-phoebe-ifobs>`, :ref:`ifdep <parlabel-phoebe-ifdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of ifobs and ifdeps.
     """
-    #-- which columns are present in the input file, and which columns are
-    #   possible in the LCDataSet? The columns that go into the LCDataSet
-    #   is the intersection of the two. The columns that are in the file but
-    #   not in the LCDataSet are probably used for the pbdeps (e.g. passband)
-    #   or for other purposes (e.g. label or unit).
-    (columns_in_file,components_in_file),(pb,ds) = parse_header(filename)
-    if columns is None and columns_in_file is None:
-        columns_in_file = ['ucoord','vcoord','vis2','sigma_vis2','time']
-    elif columns is not None:
-        columns_in_file = columns
-    columns_required = ['ucoord','vcoord','vis2','sigma_vis2']
-    columns_specs = dict(ucoord=float,vcoord=float,sigma_vis2=float,
-                         time=float,unit=str,vis2=float,phase=float,
-                         sigma_phase=float,eff_wave=float)
+    default_column_order = ['ucoord', 'vcoord', 'vis2', 'sigma_vis2', 'time']
     
-    missing_columns = set(columns_required) - set(columns_in_file)
-    #-- perhaps vis2 are given instead of vis
-    ampl_vis_given = False
-    if sorted(list(missing_columns))==['sigma_vis2','vis2'] and 'vis' in columns_in_file and 'sigma_vis' in columns_in_file:
-        ampl_vis_given = True
-        columns_in_file[columns_in_file.index('vis') ] = 'vis2'
-        columns_in_file[columns_in_file.index('sigma_vis') ] = 'sigma_vis2'
-    elif len(missing_columns)>0:
-        raise ValueError("Missing columns in VIS2 file: {}".format(", ".join(missing_columns)))
+    # Which columns are present in the input file, and which columns are
+    # possible in the IFDataSet? The columns that go into the IFDataSet
+    # is the intersection of the two. The columns that are in the file but
+    # not in the IFDataSet are probably used for the pbdeps (e.g. passband)
+    # or for other purposes (e.g. label or unit).
+    # Parse the header
+    parsed = parse_header(filename, ext='vis2')
+    (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
+                   (pb, ds) = parsed
     
-    #-- prepare output dictionaries. The first level will be the label key
-    #   of the Body. The second level will be, for each Body, the pbdeps or
-    #   datasets.
+    # Remember user-supplied arguments and keyword arguments for this parse
+    # function
+    # add columns, components, dtypes, units, full_output
+    
+    ds['user_columns'] = columns
+    ds['user_components'] = components
+    ds['user_dtypes'] = dtypes
+    ds['user_units'] = units
+    
+    # Process the header: get the dtypes (column_specs), figure out which
+    # columns are actually in the file, which ones are missing etc...
+    processed = process_header((columns_in_file,components_in_file,
+                                units_in_file, dtypes_in_file, ncol),
+                             (pb, ds), default_column_order, required=2, 
+                             columns=columns, components=components,
+                             dtypes=dtypes, units=units)
+    (columns_in_file, columns_specs, units), (pb, ds) = processed
+        
+    # Prepare output dictionaries. The first level will be the label key
+    # of the Body. The second level will be, for each Body, the pbdeps or
+    # datasets.
     output = OrderedDict()
     ncol = len(columns_in_file)
     
-    #-- collect all data
+    # Collect all data
     data = []
-    #-- open the file and start reading the lines    
-    with open(filename,'rb') as ff:
+
+    # Open the file and start reading the lines: skip empty and comment lines
+    with open(filename, 'rb') as ff:
         for line in ff.readlines():
             line = line.strip()
-            if not line: continue
-            if line[0]=='#': continue
+            if not line:
+                continue
+            if line[0] == '#':
+                continue
             data.append(tuple(line.split()[:ncol]))
-    #-- we have the information from header now, but only use that
-    #   if it is not overriden
-    #-- we don't allow information on components
-    components = ['__nolabel__']*len(columns_in_file)
-    #-- we need unique names for the columns in the record array
-    columns_in_data = ["".join([col,name]) for col,name in zip(columns_in_file,components)]
-    #-- add these to an existing dataset, or a new one.
-    #   also create pbdep to go with it!
-    #-- numpy records to allow for arrays of mixed types. We do some
-    #   numpy magic here because we cannot efficiently predefine the
-    #   length of the strings in the file: therefore, we let numpy
-    #   first cast everything to strings:
-    data = np.core.records.fromrecords(data,names=columns_in_data)
-    #-- and then say that it can keep those string arrays, but it needs
-    #   to cast everything else to the column specificer (i.e. the right type)
-    descr = data.dtype.descr
-    descr = [descr[i] if columns_specs[columns_in_file[i]]==str else (descr[i][0],columns_specs[columns_in_file[i]]) for i in range(len(descr))]
-    dtype = np.dtype(descr)
-    data = np.array(data,dtype=dtype)
-    if ampl_vis_given:
-        logger.info('Squared visibility in datasets, converting to visibility')
-        vis = data['vis2']**2
-        data['sigma_vis2'] = 2*vis*data['sigma_vis2']/data['vis2']
-        data['vis2'] = vis
+
+    # We have the information from header now, but only use that if it is not
+    # overriden
+    if components is None and components_in_file is None:
+        components = ['__nolabel__'] * len(columns_in_file)
+    elif components is None and isinstance(components_in_file, str):
+        components = [components_in_file] * len(columns_in_file)
+    elif components is None:
+        components = components_in_file
+
+    # Make sure all the components are strings
+    components = [str(c) for c in components]
     
-    #-- for each component, create two lists to contain the
-    #   IFDataSets or pbdeps    
+    # We need unique names for the columns in the record array
+    columns_in_data = ["".join([col, name]) for col, name in \
+                                         zip(columns_in_file, components)]
+    
+    # Add these to an existing dataset, or a new one. Also create pbdep to go
+    # with it!
+    # Numpy records to allow for arrays of mixed types. We do some numpy magic
+    # here because we cannot efficiently predefine the length of the strings in
+    # the file: therefore, we let numpy first cast everything to strings:
+    data = np.core.records.fromrecords(data, names=columns_in_data)
+    
+    # And then say that it can keep those string arrays, but it needs to cast
+    # everything else to the column specificer (i.e. the right type)
+    descr = data.dtype.descr
+    descr = [descr[i] if columns_specs[columns_in_file[i]] == str \
+                          else (descr[i][0], columns_specs[columns_in_file[i]])\
+                              for i in range(len(descr))]
+    dtype = np.dtype(descr)
+    data = np.array(data, dtype=dtype)
+    
+    # For each component, create two lists to contain the LCDataSets or pbdeps    
     for label in set(components):
-        if label.lower()=='none':
+        if label.lower() == 'none':
             continue
-        output[label] = [[ds.copy()],[pb.copy()]]
-    for col,coldat,label in zip(columns_in_file,columns_in_data,components):
-        if label.lower()=='none':
+        output[label] = [[ds.copy()], [pb.copy()]]
+    for col, coldat, label in zip(columns_in_file, columns_in_data, components):
+        if label.lower() == 'none':
+            # Add each column
             for lbl in output:
                 output[lbl][0][-1][col] = data[coldat]
             continue
+        
         output[label][0][-1][col] = data[coldat]
-        output[label][0][-1]['ref'] = filename
-        output[label][1][-1]['ref'] = filename
-        #-- override values already there with extra kwarg values
+        
+        # Override values already there with extra kwarg values, for both
+        # obs and pbdep parameterSets.
         for key in kwargs:
             if key in output[label][0][-1]:
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
                 
-    #-- If the user didn't provide any labels (either as an argument or in the
-    #   file), we don't bother the user with it:
-    if '__nolabel__' in output and not full_output:
-        return output.values()[0]
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
     else:
         return output
-
+        
+    
 
 def parse_plprof(filename,clambda,columns=None,components=None,full_output=False,**kwargs):
     """

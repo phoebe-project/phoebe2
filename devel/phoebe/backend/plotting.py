@@ -756,6 +756,69 @@ def plot_ifsyn(system, *args, **kwargs):
         syn.unload()
 
 
+def plot_ifobs(system, *args, **kwargs):
+    """
+    Plot ifobs.
+    
+    Parameter ``x`` can be any of:
+    
+        - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'time'``: plot visibilities wrt time
+    
+    Parameter ``y`` can be any of:
+    
+        - ``'vis'``: Visibilities
+        - ``'vis2'``: Squared visibilities
+        - ``'phase'``: Phases
+    
+    """
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
+    x = kwargs.pop('x', 'baseline')
+    y = kwargs.pop('y', 'vis2')
+    
+    # Get parameterSets and set a default label if none is given
+    obs = system.get_obs(category='if', ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    
+    # Load observations: they need to be here
+    loaded = obs.load(force=False)
+    
+    time = obs['time']
+    
+    # Collect X-data for plotting
+    if x == 'baseline':
+        plot_x = np.sqrt(obs['ucoord']**2 + obs['vcoord']**2)
+    else:
+        plot_x = obs[x]
+    
+    # Are there uncertainties on X?
+    if 'sigma_'+x in obs:
+        plot_e_x = obs['sigma_'+x]
+    else:
+        plot_e_x = None
+    
+    # Collect Y-data for plotting
+    if y == 'vis':
+        plot_y = np.sqrt(obs['vis2'])
+    else:
+        plot_y = obs[y]
+    
+    # Are there uncertainties on Y?
+    if 'sigma_'+y in obs:
+        plot_e_y = obs['sigma_'+y]
+    else:
+        plot_e_y = None
+    
+    
+    plt.errorbar(plot_x, plot_y, xerr=plot_e_y, yerr=plot_e_y, *args, **kwargs)
+   
+    if loaded:
+        obs.unload()
+
+
+
+
     
     
 def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,

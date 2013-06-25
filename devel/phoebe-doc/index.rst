@@ -348,6 +348,11 @@ A: Be sure to also set the ``irradiator`` property for the Bodies you wish to "s
 A: Check the value for the albedo. If you set it equal to unity, all the incoming
 radiation will be used to locally heat up the component, instead of reflecting light. Set it to zero (for the irradiated body) to have no heating, but only reflection. Be sure to set the albedo in the passband dependent parameter set too!
 
+*Q: Can I speed up plotting in any way?*
+
+A: You could try changing your backend, e.g via ``matplotlib.rcParams['backend'] = 'Agg'``
+but do this before importing Phoebe.
+
 *Q: Is Phoebe 2.x Python 3.x ready?*
 
 A: Some effort has been done to make Phoebe 2.x Python 3.x compliant. In fact,
