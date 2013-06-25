@@ -194,6 +194,7 @@ from phoebe.algorithms import interp_nDgrid
 from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
+from phoebe.atmospheres import flimbdark
 
 logger = logging.getLogger('ATMO.LD')
 logger.addHandler(logging.NullHandler())
@@ -225,6 +226,7 @@ def ld_claret(mu,coeffs):
     @rtype: array
     """
     Imu = 1-coeffs[0]*(1-mu**0.5)-coeffs[1]*(1-mu)-coeffs[2]*(1-mu**1.5)-coeffs[3]*(1-mu**2.)    
+    
     return Imu
 
 def ld_linear(mu,coeffs):
@@ -1321,7 +1323,10 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
     else:
         atm_kwargs['teff'] = system.mesh['teff']
         atm_kwargs['logg'] = system.mesh['logg']
-        atm_kwargs['abun'] = system.mesh['abun']
+        if 'abun' in system.mesh.dtype.names:
+            atm_kwargs['abun'] = system.mesh['abun']
+        else:
+            atm_kwargs['abun'] = 0.
         vgamma = vrad
         log_msg += '(multiple faces) (vgamma_mean={})'.format(vgamma.mean())
     #-- what kind of atmosphere is used to compute the limb darkening
@@ -1473,6 +1478,7 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
         #proj_velo = np.average(-system.mesh['velo_'+ref+'_'][keep,2],weights=proj_intens)
         proj_velo = np.average(-system.mesh['velo___bol_'][keep,2],weights=proj_intens)
         logger.info("projected velocity with ld_func %s = %.3g Rsol/d"%(ld_func,proj_velo))
+    
     return proj_velo
 
     

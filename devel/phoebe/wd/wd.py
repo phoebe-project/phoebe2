@@ -281,7 +281,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
     
     #-- if request==4 (mesh), you cannot give a range of phases. The mesh
     #   will be computed at the 'phstrt' only.
-    if request=='image':
+    if request == 'image':
         bps['mpage'] = 'image'
         light_curve['indep'] = light_curve['indep'][:1]
     #-- these dummy variables are needed as input for wd's LC but are not used.
@@ -293,8 +293,12 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
         light_curve.add(dict(qualifier='phstrt',description='Start Phase'          ,repr='%8.6f',cast_type=float,value=0,frame='wd',context='lc'))
         light_curve.add(dict(qualifier='phend', description='End phase',            repr='%8.6f',cast_type=float,value=1,frame='wd',context='lc'))
         light_curve.add(dict(qualifier='phinc', description='Increment phase',      repr='%8.6f',cast_type=float,value=0.01,frame='wd',context='lc'))
-        
-    indeps = light_curve['indep']
+    
+    if request in ['rv1', 'rv2']:
+        indeps = rv_curve['indep']
+    else:
+        indeps = light_curve['indep']
+    
     lc  = np.zeros_like(indeps)
     rv1 = np.zeros_like(indeps)
     rv2 = np.zeros_like(indeps)    
@@ -692,7 +696,7 @@ class BodyEmulator(object):
             ref = rvset['ref']
             self.params['pbdep']['rvdep'] = OrderedDict()
             self.params['pbdep']['rvdep'][ref+'1'] = rvset
-            self.params['pbdep']['rvdep'][ref+'2'] = rvset
+            self.params['pbdep']['rvdep'][ref+'2'] = rvset.copy()
             self.params['syn']['rvsyn'] = OrderedDict()
             self.params['syn']['rvsyn'][ref+'1'] = datasets.DataSet(context='rvsyn',ref=ref)
             self.params['syn']['rvsyn'][ref+'2'] = datasets.DataSet(context='rvsyn',ref=ref)
@@ -703,11 +707,13 @@ class BodyEmulator(object):
                     if not 'lcobs' in self.params['obs']:
                         self.params['obs']['lcobs'] = OrderedDict()
                     self.params['obs']['lcobs'][iobs['ref']] = iobs
+                    self.params['pbdep']['lcdep'][iobs['ref']]['indep'] = iobs['time']
                 elif iobs.context[:2]=='rv':
                     if not 'rvobs' in self.params['obs']:
                         self.params['obs']['rvobs'] = OrderedDict()
                     self.params['obs']['rvobs'][iobs['ref']] = iobs
-        
+                    self.params['pbdep']['rvdep'][iobs['ref']]['indep'] = iobs['time']
+                    
         self._preprocessing = []
         self._postprocessing = []
         
@@ -782,6 +788,8 @@ class BodyEmulator(object):
             
     def compute(self,*args,**kwargs):
         #self.preprocess(0.)
+        
+        
         if 'lcdep' in self.params['pbdep']:
             for ref in self.params['pbdep']['lcdep'].keys():
                 lcset = self.params['pbdep']['lcdep'][ref]
@@ -804,23 +812,22 @@ class BodyEmulator(object):
                     print("Failed deriving LD for some reason --> debug!")
                     pass
                 
-                curve,params = lc(self.params['root'],request='curve',light_curve=lcset)
+                curve,params = lc(self.params['root'],request='lc',light_curve=lcset)
                 self.params['syn']['lcsyn'][ref]['time'] = curve['indeps']
                 self.params['syn']['lcsyn'][ref]['flux'] = curve['lc']
                 self.out = params
                 
+        lcset_dummy = lcset.copy()
         if 'rvdep' in self.params['pbdep']:
-            refs = list(set([key[:-1] for key in self.params['pbdep']['rvdep'].keys()]))
+            refs = self.params['pbdep']['rvdep'].keys()
             for ref in refs:
-                rvset = self.params['pbdep']['rvdep'][ref+'1']
-                lcset = pars.ParameterSet(frame='wd',context='lc',
-                                                indep=rvset['indep'],
-                                                indep_type=rvset['indep_type'])
-                curve,params = lc(self.params['root'],request='curve',rv_curve=rvset,light_curve=lcset)
-                self.params['syn']['rvsyn'][ref+'1']['time'] = curve['indeps']
-                self.params['syn']['rvsyn'][ref+'1']['rv'] = phoebe.convert('km/s','Rsol/d',curve['rv1'])
-                self.params['syn']['rvsyn'][ref+'2']['time'] = curve['indeps']
-                self.params['syn']['rvsyn'][ref+'2']['rv'] = phoebe.convert('km/s','Rsol/d',curve['rv2'])
+                rvset = self.params['pbdep']['rvdep'][ref]
+                lcset_dummy['indep'] = rvset['indep']
+                curve1,params1 = lc(self.params['root'],request='lc',
+                                    light_curve=lcset_dummy,rv_curve=rvset)
+                self.params['syn']['rvsyn'][ref]['time'] = curve1['indeps']
+                #self.params['syn']['rvsyn'][ref]['rv'] = phoebe.convert('km/s','Rsol/d',curve1['rv'+ref[-1]])
+                self.params['syn']['rvsyn'][ref]['rv'] = curve1['rv'+ref[-1]]
         
         
         
@@ -859,17 +866,31 @@ class BodyEmulator(object):
         #self.postprocess(0.)
         
     def get_model(self):
+        
         model = np.array(self.params['syn']['lcsyn'].values()[0]['flux'])
+        
         mu = self.params['obs']['lcobs'].values()[0]['flux']
         sigma = self.params['obs']['lcobs'].values()[0]['sigma']
-        
         observations = self.params['obs']['lcobs'].values()[0]
+        
         pblum = observations['pblum'] if ('pblum' in observations) else 1.0
         l3 = observations['l3'] if ('l3' in observations) else 0.0
         
         logger.info("pblum = {}, l3 = {}".format(pblum,l3))
         
-        return mu,sigma,model*pblum+l3
+        model = model*pblum+l3
+        
+        if 'rvobs' in self.params['obs']:
+            
+            rv_model = np.hstack([val['rv'] for val in self.params['syn']['rvsyn'].values()])
+            rv_mu = np.hstack([val['rv'] for val in self.params['obs']['rvobs'].values()])
+            rv_sigma = np.hstack([val['sigma'] for val in self.params['obs']['rvobs'].values()])
+            
+            model = np.hstack([model, rv_model])
+            sigma = np.hstack([sigma, rv_sigma])
+            mu = np.hstack([mu, rv_mu])
+            
+        return mu,sigma,model
     
     def get_data(self):
         mu = self.params['obs']['lcobs'].values()[0]['flux']

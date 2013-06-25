@@ -164,7 +164,7 @@ def temperature_espinosa(system):
 
 
     
-def approximate_lagrangian_points(q,d=1.,sma=1.):
+def approximate_lagrangian_points(q, sma=1.):
     """
     Approximate Langrangian points L1, L2 and L3.
     
@@ -180,31 +180,63 @@ def approximate_lagrangian_points(q,d=1.,sma=1.):
     The Sun/Earth L1 is located about 1.5 million km from Earth:
     
     >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mearth/constants.Msol,sma=constants.au)
-    >>> (constants.au-L1)/1000.
-    1491685.3744362793
+    >>> print(L1/1000.)
+    1491685.37444
     
     The Earth/Moon L1 is located about 60.000 km from the Moon:
     
     >>> dlun = 384499. # km
     >>> L1,L2,L3 = approximate_lagrangian_points(constants.Mlun/constants.Mearth,sma=dlun)
-    >>> (dlun-L1)
-    58032.18404510553
+    >>> print(L1)
+    58032.1840451
     
-    @parameter q: mass ratio M1/M2
+    @parameter q: mass ratio M2/M1
     @type q: float
-    @parameter d: separation between the two objects (in units of sma)
-    @type d: float
     @parameter sma: system semi-major axis
     @type sma: float
     @return: L1, L2, L3 (zero is center of primary, d is center of secondary)
     @rtype: float,float,float
     """
-    mu = q/(1.+q)
+    raise NotImplementedError
+    if q <= 1:
+        mu = q / (1.0 + q)
+    else:
+        mu = 1.0 / (1.0 + q)
+    
     z = (mu/3.)**(1./3.)
     x_L1 = z - 1./3.*z**2 - 1./9.*z**3 + 58./81.*z**4
     x_L2 = z + 1./3.*z**2 - 1./9.*z**3 + 50./81.*z**4
     x_L3 = 1. - 7./12.*mu - 1127./20736.*mu**3 - 7889./248832*mu**4
-    return (d-x_L1*d)*sma,(d+x_L2*d)*sma,(-x_L3*d)*sma
+    
+    if q <= 1:
+        return (x_L1)*sma, (x_L2)*sma, (x_L3)*sma
+    else:
+        return (1.0-x_L1)*sma, (1-x_L2)*sma, (1-x_L3)*sma
+
+def exact_lagrangian_points(q, F=1.0, d=1.0, sma=1.):
+    """
+    Exact Langrangian points L1, L2 and L3.
+    
+    Give C{d} as a fraction of semi-major axis. The units of the lagrangian
+    points that you get out are C{sma}. So if you give the C{sma} in km, then
+    you get the lagrangian points in km (see examples below).
+    
+    @parameter q: mass ratio M2/M1
+    @type q: float
+    @parameter sma: system semi-major axis
+    @type sma: float
+    @return: L1, L2, L3 (zero is center of primary, d is center of secondary)
+    @rtype: float,float,float
+    """
+    
+    dxL = 1.0
+    L1 = 1e-3
+    while abs(dxL) > 1e-6:
+        dxL = - marching.dBinaryRochedx([L1, 0.0, 0.0], d, q, F) / marching.d2BinaryRochedx2([L1, 0.0, 0.0], d, q, F)
+        L1 = L1 + dxL
+    return L1*sma, 0.0, 0.0
+
+
 
 def calculate_critical_potentials(q,F=1.,d=1.,component=1):
     """
@@ -223,12 +255,13 @@ def calculate_critical_potentials(q,F=1.,d=1.,component=1):
     @return: critical potentials at L1,L2 and L3
     @rtype: float,float,float
     """
-    L1,L2,L3 = approximate_lagrangian_points(q,d=d,sma=1.)
-    theta,phi = np.pi/2,0
-    Phi_L1 = -binary_potential(L1,theta,phi,0.0,q,d,F,component=component)
-    Phi_L2 = -binary_potential(L2,theta,phi,0.0,q,d,F,component=component)
-    Phi_L3 = -binary_potential(L3,theta,phi,0.0,q,d,F,component=component)
-    return Phi_L1,Phi_L2,Phi_L3    
+    
+    L1, L2, L3 = exact_lagrangian_points(q, F, d)
+    theta, phi = np.pi/2, 0.0
+    Phi_L1 = -binary_potential(L1, np.pi/2.0, 0.0, 0.0, q, d, F, component=component)
+    Phi_L2 = 0.0
+    Phi_L3 = 0.0
+    return Phi_L1, Phi_L2, Phi_L3    
 
 def calculate_critical_radius(q,F=1.,d=1.,sma=1.,component=1,loc='pole'):
     """
@@ -268,12 +301,16 @@ def calculate_critical_radius(q,F=1.,d=1.,sma=1.,component=1,loc='pole'):
     @return: critical radius at L1 (in units of sma)
     @rtype: float
     """
-    pL1,pL2,pL3 = calculate_critical_potentials(q,F=F,d=d)
-    rL1 = potential2radius(pL1,q,d=d,F=F,sma=sma,loc=loc,component=component)
+    if loc=='eq':
+        rL1 = exact_lagrangian_points(q, F=F, d=d, sma=sma)[0]
+    else:
+        pL1, pL2, pL3 = calculate_critical_potentials(q ,F=F, d=d)
+        rL1 = potential2radius(pL1, q, d=d,F=F, sma=sma, loc=loc, component=component)
     return rL1
     
 
-def potential2radius(pot,q,d=1,F=1.,component=1,sma=1.,loc='pole',tol=1e-10,maxiter=50):
+def potential2radius(pot, q, d=1, F=1.0, component=1, sma=1.0, loc='pole',
+                     tol=1e-10, maxiter=50):
     """
     Convert a potential value to a radius.
     
@@ -957,5 +994,8 @@ def diffrotlaw_to_internal(omega_pole,omega_eq):
         return (omega_eq-b1)/r0**2-b2
     return newton(funczero,b2,args=(omega_eq,b1))
 
-
 #}
+
+if __name__=="__main__":
+    import doctest
+    doctest.testmod()

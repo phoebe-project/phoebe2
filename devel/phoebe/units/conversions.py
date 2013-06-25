@@ -2090,6 +2090,50 @@ def Hz2_to_ss(change,frequency):
     second_per_second = abs(1/frequency - 1/(frequency-change))
     return second_per_second
 
+
+def baseline_to_spatialfrequency(length, wavelength):
+    """
+    Convert base line length to spatial frequency.
+    
+    Length needs to be in meter.
+    
+    Wavelength needs to be in angstrom.
+    
+    Spatial frequency will be in cycles per arcsecond.
+    
+    This function is equivalent to:
+    
+    >>> x = convert('m', 'cy/arcsec', 112., wave=(21000.,'AA'))) * 2 * np.pi
+    >>> x = baseline_to_spatialfrequency(112., 21000.)
+    """
+    # wavelength in meter
+    wavelength = wavelength * 1e-10
+
+    spat_freq = 2 * np.pi * length / wavelength
+    
+    return spat_freq / (360. * 3600)
+
+def spatialfrequency_to_baseline(spat_freq, wavelength):
+    """
+    Convert spatial frequency to baseline
+    
+    Spatial frequency in cy/arcsec.
+    
+    Wavelength in angstrom.
+    
+    Baseline will be in meter.
+    
+    This function is equivalent to:
+    
+    >>> b1 = conversions.convert('cy/arcsec','m',258.,wave=(wl,'angstrom')) / (2* np.pi)
+    >>> spatialfrequency_to_baseline(258., 21000.)
+    """
+    # wavelength in meter
+    wavelength = wavelength * 1e-10
+
+    baseline = spat_freq * (360. * 3600) / (2 * np.pi) * wavelength
+    
+    return baseline
 #}
 
 
