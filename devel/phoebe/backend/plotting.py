@@ -17,7 +17,9 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from phoebe.atmospheres import passbands
+from phoebe.atmospheres import roche
 from phoebe.atmospheres import tools
+from phoebe.algorithms import marching
 from phoebe.units import conversions
 from phoebe.parameters import parameters
 
@@ -25,7 +27,7 @@ logger = logging.getLogger("BE.PLOT")
 
 #{ Atomic plotting functions
 
-def plot_lcsyn(system,*args,**kwargs):
+def plot_lcsyn(system, *args, **kwargs):
     """
     Plot lcsyn as a light curve.
     
@@ -38,6 +40,8 @@ def plot_lcsyn(system,*args,**kwargs):
           want to repeat the phase curve a couple of times.
         - ``period=None``: period of repetition. If not given, the last time point
           will be used
+        - ``phased=False``: decide whether to phase the data according to
+         ``period`` or not.
           
     **Example usage:**
     
@@ -53,54 +57,72 @@ def plot_lcsyn(system,*args,**kwargs):
     The synthetic parameterSet is 'array-ified', which means that all the columns
     are arrays instead of lists.
     """
-    ref = kwargs.pop('ref',0)
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
     scale = kwargs.pop('scale', 'obs')
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
-    ax = kwargs.pop('ax',plt.gca())
-    #-- get parameterSets
+    phased = kwargs.pop('phased', False)
+    
+    # Get parameterSets and set a default label if none is given
     syn = system.get_synthetic(category='lc', ref=ref)
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
-    #-- load synthetics: they need to be here
+    # Get axes
+    ax = kwargs.pop('ax',plt.gca())
+    
+    # Load synthetics: they need to be here
     loaded = syn.load(force=False)
     
-    #-- try to get the observations. They don't need to be loaded, we just need
-    #   the pblum and l3 values.
-    if scale=='obs':
+    # Try to get the observations. They don't need to be loaded, we just need
+    # the pblum and l3 values.
+    # We can scale the synthetic light curve using the observations
+    if scale == 'obs':
         try:
-            obs = system.get_obs(category='lc',ref=ref)
+            obs = system.get_obs(category='lc', ref=ref)
             pblum = obs['pblum']
             l3 = obs['l3']
         except:
             raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
-        
+    # or using the synthetic computations    
     elif scale=='syn':
         pblum = syn['pblum']
         l3 = syn['l3']
+    # else we don't scale
     else:
         pblum = 1.
         l3 = 0.
     
-    #-- take third light and passband luminosity contributions into account
+    # Now take third light and passband luminosity contributions into account
     time = np.array(syn['time'])
     flux = np.array(syn['flux'])
-    flux = flux*pblum + l3
+    flux = flux * pblum + l3
     
-    #-- get the period to repeat the LC with
+    # Get the period to repeat the LC with
     if period is None:
         period = max(time)
     
-    #-- plot model
+    # Plot model: either in phase or in time.
     artists = []
-    for n in range(repeat+1):
-        p, = ax.plot(time+n*period, flux, *args, **kwargs)
-        artists.append(p)
-
+    if not phased:
+        for n in range(repeat+1):
+            p, = ax.plot(time+n*period, flux, *args, **kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        sa = np.argsort(time)
+        time, flux = time[sa], flux[sa]
+        for n in range(repeat+1):
+            p = ax.plot(time+n, flux, *args, **kwargs)
+    
+    # Return the synthetic computations as an array
     ret_syn = syn.asarray()
     
-    if loaded: syn.unload()
+    # Unload if loaded
+    if loaded:
+        syn.unload()
     
+    # That's it!
     return artists, ret_syn, pblum, l3
 
 
@@ -115,6 +137,8 @@ def plot_lcobs(system,errorbars=True,**kwargs):
           want to repeat the phase curve a couple of times.
         - ``period=None``: period of repetition. If not given, the last time point
           will be used
+        - ``phased=False``: decide whether to phase the data according to
+         ``period`` or not.
     
     **Example usage:**
     
@@ -125,7 +149,9 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     ref = kwargs.pop('ref',0)
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period', None)
+    phased = kwargs.pop('phased', False)
     ax = kwargs.pop('ax',plt.gca())
+
     #-- get parameterSets
     obs = system.get_obs(category='lc',ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
@@ -156,12 +182,17 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     
     #-- plot model
     artists = []
-    for n in range(repeat+1):
-        if errorbars:
-            p = ax.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
-        else:
-            p = ax.plot(time+n*period,flux,**kwargs)
-        artists.append(p)
+    if not phased:
+        for n in range(repeat+1):
+            if errorbars:
+                p = ax.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
+            else:
+                p = ax.plot(time+n*period,flux,**kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        for n in range(repeat+1):
+            p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
 
     if loaded: obs.unload()
     
@@ -192,6 +223,7 @@ def plot_lcres(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
     
     #-- get parameterSets
@@ -231,9 +263,15 @@ def plot_lcres(system,*args,**kwargs):
     
     #-- plot model
     artists = []
-    for n in range(repeat+1):
-        p = ax.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
-        artists.append(p)
+    if not phased:
+        for n in range(repeat+1):
+            p = ax.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+            artists.append(p)
+    else:
+        syn_time = (syn_time % period) / period
+        for n in range(repeat+1):
+            p = ax.errorbar(syn_time+n,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+
 
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
@@ -268,7 +306,9 @@ def plot_rvsyn(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
+
     #-- get parameterSets
     syn = system.get_synthetic(category='rv',ref=ref)
     
@@ -296,9 +336,15 @@ def plot_rvsyn(system,*args,**kwargs):
     
     #-- plot model
     artists = []
-    for n in range(repeat+1):
-        p, = ax.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
-        artists.append(p)
+    if not phased:
+        for n in range(repeat+1):
+            p, = ax.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        for n in range(repeat+1):
+            p, = ax.plot(time+n, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+            artists.append(p)
 
     if loaded: syn.unload()
     
@@ -326,7 +372,9 @@ def plot_rvobs(system,errorbars=True,**kwargs):
     ref = kwargs.pop('ref',0)
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
+
     #-- get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
     
@@ -343,12 +391,18 @@ def plot_rvobs(system,errorbars=True,**kwargs):
     
     #-- plot model
     artists = []
-    for n in range(repeat+1):
-        if errorbars:
-            p = ax.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
-        else:
-            p = ax.plot(time+n*period,rv,**kwargs)
-        artists.append(p)
+    if not phased:
+        for n in range(repeat+1):
+            if errorbars:
+                p = ax.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
+            else:
+                p = ax.plot(time+n*period, rv, **kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        for n in range(repeat+1):
+            p = plt.errorbar(time+n,rv,yerr=sigm,**kwargs)
+            artists.append(p)
 
     if loaded: obs.unload()
     
@@ -379,6 +433,7 @@ def plot_rvres(system,*args,**kwargs):
     scale = kwargs.pop('scale','obs')
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
     
     #-- get parameterSets
@@ -414,9 +469,18 @@ def plot_rvres(system,*args,**kwargs):
     #-- plot model
     artists = []
     syn_rv = conversions.convert('Rsol/d','km/s',syn_rv)
-    for n in range(repeat+1):
-        p = plt.errorbar(syn_time+n*period,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
-        artists.append(p)
+    
+    if not phased:
+        for n in range(repeat+1):
+            p = ax.errorbar(syn_time+n*period,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+            artists.append(p)
+    else:
+        syn_time = (syn_time % period) / period
+        for n in range(repeat+1):
+            p = ax.errorbar(syn_time+n,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+            artists.append(p)
+
+
 
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
@@ -646,67 +710,52 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
 
 
     
-def plot_ifdep(system,ref=0,residual=False,select='vis2',
-                       kwargs_obs=None,kwargs_syn=None,
-                       kwargs_residual=None):
+def plot_ifsyn(system, *args, **kwargs):
     """
-    Plot squared visibilities or their phases.
+    Plot ifsyn.
     
-    This function will draw to the current active axes, and will set the
-    axis labels.
+    Parameter ``x`` can be any of:
     
-    @param system: system to plot
-    @type system: Body
-    @param ref: reference of the visibilities to be plotted
-    @type ref: str
-    @param residual: plot residuals or computed model and observations
-    @type residual: bool
-    @param kwargs_obs: extra matplotlib kwargs for plotting observations (errorbar)
-    @type kwargs_obs: dict
-    @param kwargs_syn: extra matplotlib kwargs for plotting synthetics (plot)
-    @type kwargs_syn: dict
-    @param kwargs_residual: extra matplotlib kwargs for plotting residuals (plot)
-    @type kwargs_residual: dict
+        - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'time'``: plot visibilities wrt time
+    
+    Parameter ``y`` can be any of:
+    
+        - ``'vis'``: Visibilities
+        - ``'vis2'``: Squared visibilities
+        - ``'phase'``: Phases
+    
     """
-    #-- get plotting options
-    if kwargs_obs is None:
-        kwargs_obs = dict(fmt='ko',ecolor='0.5',capsize=7)
-    if kwargs_syn is None:
-        kwargs_syn = dict(color='r',mew=2,marker='x',linestyle='',ms=10)
-    if kwargs_residual is None:
-        kwargs_residual = dict(fmt='ko',ecolor='0.5',capsize=7)
-    #-- get parameterSets
-    dep,ref = system.get_parset(category='if',type='pbdep',ref=ref)
-    syn,ref = system.get_parset(category='if',type='syn',ref=ref)
-    obs,ref = system.get_parset(category='if',type='obs',ref=ref)
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
+    x = kwargs.pop('x', 'baseline')
+    y = kwargs.pop('y', 'vis2')
     
-    loaded_obs = obs.load(force=False)
-    loaded_syn = syn.load(force=False)
+    # Get parameterSets and set a default label if none is given
+    syn = system.get_synthetic(category='if', ref=ref).asarray()
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
-    if 'sigma_vis2' in obs:
-        obs_sigma_vis2 = obs['sigma_vis2']
+    # Load synthetics: they need to be here
+    loaded = syn.load(force=False)
+    
+    time = syn['time']
+    
+    if x == 'baseline':
+        plot_x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)
     else:
-        obs_sigma_vis2 = np.zeros(len(obs_flux))
+        plot_x = syn[x]
     
-    obs_baselines = np.sqrt(obs['ucoord']**2+obs['vcoord']**2)
-    syn_baselines = np.sqrt(np.array(syn['ucoord'])**2+np.array(syn['vcoord'])**2)
-    obs_vis2 = obs['vis2']
-    syn_vis2 = np.array(syn['vis2'])
-    #-- plot residuals or data + model
-    if residual:
-        plt.errorbar(obs_baselines,(obs_vis2-syn_vis2)/obs_sigma_vis2,yerr=np.ones(len(obs_sigma_vis2)),**kwargs_residual)
-        plt.ylabel('$\Delta V^2$')
+    if y == 'vis':
+        plot_y = np.sqrt(syn['vis2'])
     else:
-        plt.errorbar(obs_baselines,obs_vis2,yerr=obs_sigma_vis2,**kwargs_obs)
-        plt.plot(syn_baselines,syn_vis2,**kwargs_syn)
-        plt.ylabel('$V^2$')
-        plt.gca().set_yscale('log',nonposy='clip')
+        plot_y = syn[y]
     
-    plt.xlabel("Baseline [m]")
-    plt.grid()
-    
-    if loaded_obs: obs.unload()
-    if loaded_syn: syn.unload()
+    plt.plot(plot_x, plot_y, *args, **kwargs)
+   
+    if loaded:
+        syn.unload()
+
+
     
     
 def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
@@ -787,6 +836,57 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
+
+
+def contour_BinaryRoche(orbit, height=0, comp=None, vmin=None, vmax=None,
+                               res=200, ax=None, **kwargs):
+    """
+    Plot BinaryRoche potentials.
+    
+    If you give a component, then that component will be used to draw a line.
+    
+    Else, it'll be a bunch of contours!
+    """
+    if orbit['ecc'] != 0:
+        raise NotImplementedError("Non-zero eccentricity needs a time point, or at least a default time point")
+    
+    # plot onto a given axes if necessary
+    if ax is None:
+        ax = plt.gca()
+    # plot only one level if a component is given.
+    if comp is not None:
+        syncpar = comp['syncpar']
+    else:
+        syncpar = 1.0
+        
+    # Create a mesh grid in cartesian coordinates
+    x_ = np.linspace(-1.5, 2.5, res)
+    y_ = np.linspace(-1.5, 1.5, res)
+    z = np.zeros((len(x_)*len(y_)))
+    x,y = np.meshgrid(x_,y_)
+
+    # Calculate all the potentials
+    for i,(ix,iy) in enumerate(zip(np.ravel(x), np.ravel(y))):
+        z[i] = marching.BinaryRoche([ix, iy, height], 1.0, orbit['q'], syncpar)
+    
+    # Make in logscale, that's nicer to plot
+    z = np.log10(np.abs(z).reshape((len(x_),len(y_))))
+    
+    # Derive the levels to plot
+    if comp is None:
+        if vmin is None:
+            vmin = z.min()
+        if vmax is None:
+            vmax = z.max()
+        levels = kwargs.pop('levels',np.linspace(vmin, vmax, 100))
+    else:
+        levels = kwargs.pop('levels',[np.log10(comp['pot'])])
+    
+    # Make the actual plot
+    artist = plt.contour(x*orbit['sma'], y*orbit['sma'], z, levels=levels, **kwargs)
+    return artist, (x*orbit['sma'],y*orbit['sma'],z)
+
+
     
 class Axes(object):
     """
@@ -1030,4 +1130,8 @@ class Axes(object):
                 artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
             else:
                 artists,obs = [],[]
-                
+              
+            # return data to its original loaded/unloaded state
+            if loaded: dataset.unload()
+
+
