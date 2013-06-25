@@ -194,7 +194,6 @@ from phoebe.algorithms import interp_nDgrid
 from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
-from phoebe.atmospheres import flimbdark
 
 logger = logging.getLogger('ATMO.LD')
 logger.addHandler(logging.NullHandler())
