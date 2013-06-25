@@ -1193,8 +1193,3 @@ class Axes(object):
                 artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
             else:
                 artists,obs = [],[]
-              
-            # return data to its original loaded/unloaded state
-            if loaded: dataset.unload()
-
-
