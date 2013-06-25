@@ -145,7 +145,11 @@ def mpirun(fctn):
         else:
             params = kwargs.pop('params',None)
             if params is None:
-                params = parameters.ParameterSet(context='compute',**kwargs)
+                try:
+                    params = parameters.ParameterSet(context='compute',**kwargs)
+                except:
+                    print("You cannot give extra_func with MPI")
+                    raise
             kwargs['params'] = params
             if mpirun is True:
                 mpirun = parameters.ParameterSet(context='mpi')

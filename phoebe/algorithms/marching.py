@@ -111,6 +111,20 @@ def dBinaryRochedx (r, D, q, F):
     """
     return -r[0]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*(r[0]-D)*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 -q/D/D + F*F*(1+q)*r[0]
 
+def d2BinaryRochedx2(r, D, q, F):
+    """
+    Computes second derivative of the potential with respect to x.
+    
+    @param r:      relative radius vector (3 components)
+    @param D:      instantaneous separation
+    @param q:      mass ratio
+    @param F:      synchronicity parameter
+    """
+    return (2*r[0]*r[0]-r[1]*r[1]-r[2]*r[2])/(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**2.5 +\
+          q*(2*(r[0]-D)*(r[0]-D)-r[1]*r[1]-r[2]*r[2])/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**2.5 +\
+          F*F*(1+q)
+
+
 def dBinaryRochedy (r, D, q, F):
     """
     Computes a derivative of the potential with respect to y.

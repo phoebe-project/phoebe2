@@ -1816,8 +1816,7 @@ class Body(object):
         You can only do this if you have observations attached.
         """
         #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'obs' in self.params:
-            if not ('ifobs' in self.params['obs']): return None
+        if hasattr(self,'params') and 'obs' in self.params and 'ifobs' in self.params['obs']:
             for lbl in set(ref):
                 ifobs,lbl = self.get_parset(type='obs',ref=lbl)
                 times = ifobs['time']
@@ -1841,8 +1840,13 @@ class Body(object):
                 ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
                 ifsyn['vis2'] += list(output[3])
                 ifsyn['phase'] += list(output[4])
-    
-    
+        #-- try to descend into a bodyBag
+        else:
+            try:
+                for body in self.bodies:
+                    body.ifm(ref=ref,time=time)
+            except AttributeError:
+                pass
     #}
     
     
@@ -3283,7 +3287,7 @@ class AccretionDisk(PhysicalBody):
         """
         return self.params['disk']['label']
 
-    def compute_mesh(self,radial=20,angular=50):
+    def compute_mesh(self,radial=40,angular=200):
         Rin = self.params['disk'].get_value('rin','Rsol')
         Rout = self.params['disk'].get_value('rout','Rsol')
         height = self.params['disk'].get_value('height','Rsol')
@@ -3464,7 +3468,8 @@ class AccretionDisk(PhysicalBody):
                 ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
         return proj_int
     
-    def set_time(self,time):
+    def set_time(self,time, ref='all'):
+        self.reset_mesh()
         if self.time is None:
             self.compute_mesh()
             self.surface_gravity()
@@ -4117,7 +4122,7 @@ class Star(PhysicalBody):
         if self.time is None:
             self.compute_mesh(time)
         #-- else, reset to the original values
-        elif has_freq:
+        elif has_freq:# or has_spot:
             self.reset_mesh()
         
         #-- only compute the velocity if there are spots, pulsations or it was
@@ -4150,7 +4155,6 @@ class Star(PhysicalBody):
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=False)
             self.detect_eclipse_horizon(eclipse_detection='simple')
         
-        print self.params['star']
         self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
         if self.time is None or has_freq or has_spot:
             self.intensity(ref=ref)

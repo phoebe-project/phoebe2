@@ -695,11 +695,11 @@ def rotate_into_orbit(obj,euler,loc=(0,0,0)):
     @return: rotated and translated coordinates
     @rtype: 3xarray
     """
-    x,y,z = obj
+    #x, y, z = obj
     theta,longan,incl = euler
     #-- C version
-    X,Y,Z = cgeometry.rotate_into_orbit(obj.copy(),euler,loc).reshape((3,-1))
-    return X,Y,Z
+    X_Y_Z = cgeometry.rotate_into_orbit(obj.copy(),euler,loc).reshape((3,-1))
+    return X_Y_Z
 
 
 #}
@@ -754,8 +754,20 @@ def mean_anomaly_to_time(M,total_mass,sma,T0=0):
     return M/sqrt(constants.GG*total_mass/sma**3) + T0
     
 def calculate_phase(T,ecc,per0,phshift=0):
-    """
-    Compute orbital phase from true anomaly T
+    r"""
+    Compute orbital phase from true anomaly T.
+    
+    The phase :math:`\Phi` is related to the true anomaly :math:`T`, eccentricity
+    :math:`e`, argument of periastron :math:`\omega` and phase shift :math:`\Delta\phi`
+    as:
+    
+    .. math::
+    
+        E = 2 \arctan\left[ \sqrt{\frac{1-e}{1+e}} \tan\left(\frac{T}{2}\right)\right] \\
+        
+        M = E - e\sin(E) \\
+        
+        \Phi = \frac{M+\omega}{2\pi} - \frac{1}{4} + \Delta\phi
     
     @parameter T: true anomaly
     @type T: float
@@ -774,9 +786,17 @@ def calculate_phase(T,ecc,per0,phshift=0):
 
     
 def calculate_critical_phases(per0, ecc, phshift=0):
-    """
+    r"""
     Computes critical phases in the orbit: periastron passage, superior conjunction,
     inferior conjunction, ascending node and descending node.
+    
+    The phase of periastron passage :math:`\Phi_\mathrm{per}` is related to the
+    argument of periastron :math:`\omega` and the phase shift `\Delta\phi` as
+    follows (Phoebe scientific reference Eq. ?):
+    
+    .. math::
+    
+        \Phi_\mathrm{per} = \frac{1}{2\pi}\left(\omega - \frac{\pi}{2}\right) + \Delta\phi
     
     Example usage:
     
@@ -997,11 +1017,23 @@ def third_law(totalmass=None,sma=None,period=None):
 
         
 def calculate_asini(period,ecc,K1=0,K2=0):
-    """
+    r"""
     Calculate projected semi-major axis of a component or the system (asini).
     
     Period, eccentricity and semi-amplitude are usually obtained from
     radial velocity measurements.
+    
+    .. math::
+    
+        a_1\sin i = K_1 \frac{P}{2\pi} \sqrt{ 1-e^2} & 
+        
+        a_2\sin i = K_2 \frac{P}{2\pi} \sqrt{ 1-e^2} & 
+    
+    and
+    
+    .. math::
+        
+        a\sin i = a_1 \sin i + a_2 \sin i
     
     For a doubled line binary, the system asini is obtained via::
     
@@ -1097,10 +1129,14 @@ def get_incl_from_RV(a1sini,sma,q):
     return np.arcsin(a1sini/sma*(1+1./q))
 
 def calculate_mass(component,sma,period,q):
-    """
+    r"""
     Calculate the mass of a component given the orbital paramaters.
     
     Everything should be in SI units.
+    
+    .. math::
+    
+        M = 4\pi^2 \frac{a^3}{G (1+q) P^2}
     
     @rtype: float
     """
@@ -1460,10 +1496,11 @@ def place_in_binary_orbit(self,time):
     Place a body in a binary orbit at a specific time.
     """
     #-- get some information
-    P = self.params['orbit'].get_value('period', 'd')
-    e = self.params['orbit'].get_value('ecc')
-    a = self.params['orbit'].get_value('sma', 'Rsol')
-    a1 = self.params['orbit'].get_constraint('sma1', 'Rsol')
+    P = self.params['orbit']['period']#get_value('period', 'd')
+    e = self.params['orbit']['ecc']#.get_value('ecc')
+    a = self.params['orbit']['sma']#.get_value('sma', 'Rsol')
+    q = self.params['orbit']['q']
+    a1 = a / (1+1.0/q)#self.params['orbit'].get_constraint('sma1', 'Rsol')
     a2 = a-a1#self.params['orbit'].get_constraint('sma2','Rsol')
     inclin = self.params['orbit'].get_value('incl', 'rad')
     argper = self.params['orbit'].get_value('per0', 'rad')
@@ -1485,8 +1522,8 @@ def place_in_binary_orbit(self,time):
     loc, velo, euler = get_orbit(time, P, e, a_comp, T0, per0=argper, 
                                  long_an=long_an, incl=inclin,
                                  component=component, t0type=t0type)
-    loc = np.array(loc)#/constants.Rsol # in Rsol
-    velo = np.array(velo)#/constants.Rsol*24*3600 # in Rsol/d
+    #loc = np.array(loc)#/constants.Rsol # in Rsol
+    #velo = np.array(velo)#/constants.Rsol*24*3600 # in Rsol/d
     #-- we need a new copy of the mesh
     mesh = self.mesh.copy()
     #-- modify velocity vectors due to binarity and rotation within the orbit
@@ -1509,7 +1546,7 @@ def place_in_binary_orbit(self,time):
         polar_dir = np.array([0,0,-1.0])
         
     velo_rot = np.cross(mesh['_o_center'],polar_dir*omega_rot) #NX3 array
-    velo_rot = np.array(rotate_into_orbit(velo_rot.T,euler)).T
+    velo_rot = rotate_into_orbit(velo_rot.T,euler).T
     for label in mesh.dtype.names:
         if label[:4]=='velo':
             mesh[label] += velo_rot+velo
@@ -1520,12 +1557,12 @@ def place_in_binary_orbit(self,time):
     vectrs = ['normal_']
     if 'B_' in fields:
         vectrs.append('B_')
-    mesh['center'] = np.array(rotate_into_orbit(mesh['center'].T,euler,loc)).T    
-    mesh['triangle'][:,0:3] = np.array(rotate_into_orbit(mesh['triangle'][:,0:3].T,euler,loc)).T
-    mesh['triangle'][:,3:6] = np.array(rotate_into_orbit(mesh['triangle'][:,3:6].T,euler,loc)).T
-    mesh['triangle'][:,6:9] = np.array(rotate_into_orbit(mesh['triangle'][:,6:9].T,euler,loc)).T
+    mesh['center'] = rotate_into_orbit(mesh['center'].T,euler,loc).T
+    mesh['triangle'][:,0:3] = rotate_into_orbit(mesh['triangle'][:,0:3].T,euler,loc).T
+    mesh['triangle'][:,3:6] = rotate_into_orbit(mesh['triangle'][:,3:6].T,euler,loc).T
+    mesh['triangle'][:,6:9] = rotate_into_orbit(mesh['triangle'][:,6:9].T,euler,loc).T
     for vectr in vectrs:
-        mesh[vectr] = np.array(rotate_into_orbit(mesh[vectr].T,euler)).T
+        mesh[vectr] = rotate_into_orbit(mesh[vectr].T,euler).T
     mesh['mu'] = cgeometry.cos_theta(mesh['normal_'].ravel(order='F').reshape((-1,3)),np.array([0,0,+1.0],float))
     self.mesh = mesh
     logger.info('Placed into orbit')

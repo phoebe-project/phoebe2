@@ -716,6 +716,17 @@ class IFDataSet(DataSet):
     """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','ifobs')
+        
+        # Allow the user to give baselines and position angles, but convert
+        # them immediately to u and v coordinates. If only baselines are given,
+        # asume the position angles are zero.
+        if 'baseline' in kwargs:
+            baseline = kwargs.pop('baseline')
+            posangle = kwargs.pop('posangle', np.zeros_like(baseline))
+            kwargs['ucoord'] = baseline * np.cos(posangle)
+            kwargs['vcoord'] = baseline * np.sin(posangle)
+            logger.info("IFOBS: Converted baseline and position angle data to u and v coordinates")
+        
         super(IFDataSet,self).__init__(**kwargs)
     
     

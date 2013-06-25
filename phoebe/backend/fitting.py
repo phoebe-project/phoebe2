@@ -250,6 +250,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                 print(system.params.values()[0])
                 logger.info("Could not accept for some reason (original message: {})".format(msg))
         
+        
         if len(feedbacks)>1:
             return feedbacks
         else:

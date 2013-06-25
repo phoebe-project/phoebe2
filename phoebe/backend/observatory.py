@@ -62,11 +62,10 @@ logger.addHandler(logging.NullHandler())
 
 #{ Computing observational quantities
     
-def image(the_system,ref='__bol',context='lcdep',
-            cmap=None,select='proj',background=None,vmin=None,vmax=None,
-            size=800,ax=None,savefig=False,nr=0,
-            fourier=False,
-            with_partial_as_half=True):
+def image(the_system, ref='__bol', context='lcdep',
+            cmap=None, select='proj', background=None, vmin=None, vmax=None,
+            size=800, ax=None, savefig=False, nr=0, zorder=1, 
+            fourier=False, with_partial_as_half=True):
     """
     Compute images of a system or make a 2D plot.
     
@@ -296,7 +295,7 @@ def image(the_system,ref='__bol',context='lcdep',
                              closed=True,
                              edgecolors=cmap(colors),
                              facecolors=cmap(colors),
-                             cmap=cmap)
+                             cmap=cmap, zorder=zorder)
     elif cmap_=='blackbody_proj':
         values = np.abs(mesh['proj_'+ref]/mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
@@ -706,6 +705,10 @@ def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
     return xlim,ylim,p
 
 
+# Helper function
+def rotmatrix(theta):
+    return np.array([[np.cos(theta),-np.sin(theta)],[np.sin(theta),np.cos(theta)]])
+    
     
     
 def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
@@ -723,14 +726,12 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     
         Thanks to M. Hillen. He is not responsible for bugs or errors.
     """
-    #-- information on what to compute
+    
+    # Information on what to compute
     data_pars,ref = the_system.get_parset(ref)
-    passband = data_pars.request_value('passband')
+    passband = data_pars['passband']
     
-    #-- helper function
-    def rotmatrix(theta): return np.array([[np.cos(theta),-np.sin(theta)],[np.sin(theta),np.cos(theta)]])
-    
-    #-- make sure we can cycle over the baselines and posangles
+    # Make sure we can cycle over the baselines and posangles
     single_baseline = False
     if not hasattr(baseline,'__iter__'):
         single_baseline = True
@@ -738,7 +739,7 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     if not hasattr(posangle,'__iter__'):
         posangle = [posangle]
     
-    #-- prepare output
+    # Prepare output
     frequency_out = []
     baseline_out = []
     posangle_out = []
@@ -747,13 +748,13 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     angular_scale_out = []
     angular_profile_out = []
     
-    #-- set effective wavelength to the one from the passband if not given
-    #   otherwise
+    # Set effective wavelength to the one from the passband if not given
+    # otherwise
     if eff_wave is None:
         eff_wave = passbands.get_info([passband])['eff_wave'][0]*np.ones(len(posangle))
     logger.info("ifm: cyclic frequency to m at lambda~%.4g angstrom"%(eff_wave.mean()))
-    #-- make an image if necessary, but in any case retrieve it's
-    #   dimensions
+    
+    # Make an image if necessary, but in any case retrieve it's dimensions
     if figname is None:
         figname = 'ifmfig_temp.png'
         keep_figname = False
@@ -762,14 +763,25 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
         keep_figname = True
         figname,xlims,ylims = figname
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
+    
     #-- load the image as a numpy array
     data = pl.imread(figname)[:,:,0]
     if not keep_figname:
         os.unlink(figname)
+    
     #-- cycle over all baselines and position angles
     d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
-    dpc = conversions.convert('Rsol','pc',d)
-        
+    #dpc = conversions.convert('Rsol','pc',d)
+    dpc = d*2.253987922034374e-08
+    
+    # Note: rotation might go faster but perhaps less precise if replaced with:
+    #Nx, Ny = image.shape
+    #margin = int(Nx / 2.0)
+    # X, Y = np.ogrid[-Nx/2:Nx/2, -Ny/2:Ny/2]
+    #rotated_image = np.zeros((Nx + margin, Ny + margin))
+    #rotated_image[margin/2:-margin/2, margin/2:-margin/2] = data
+    
+    prev_pa = None
     for nr,(bl,pa,wl) in enumerate(zip(baseline,posangle,eff_wave)):        
         
         if keepfig:
@@ -786,11 +798,35 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
             uc = bl*np.cos(pa/180.*np.pi)
             npix = data.shape[0]
             resol = np.abs(xlims[0]-xlims[1])/d
-            resol = conversions.convert('rad','mas',resol)/npix
-            pl.annotate('PA={:.2f}$^\circ$\n$\lambda$={:.0f}$\AA$\nB={:.0f}m\nU,V=({:.1f},{:.1f}) m\n{:d} pix\n{:.3g} mas/pix'.format(pa,eff_wave,bl,uc,vc,npix,resol),(0.95,0.95),va='top',ha='right',xycoords='axes fraction',color='r',size=20)
-        #-- rotate counter clockwise by angle in degrees, and recalculate the
-        #   values of the corners
-        data_ = imrotate(data,-pa,reshape=True,cval=0.) # was -pa
+            #resol = conversions.convert('rad','mas',resol)/npix
+            resol =  resol / (2 * np.pi) * 360. * 3600. / npix
+            an_text = (r'PA={:.2f}$^\circ$\n'
+                       r'$\lambda$={:.0f}$\AA$\n'
+                       r'B={:.0f}m\n'
+                       r'U,V=({:.1f},{:.1f}) m\n'
+                       r'{:d} pix\n{:.3g} mas/pix')
+            pl.annotate(an_text.format(pa,eff_wave[nr],bl,uc,vc,npix,resol),
+                        (0.95,0.95),va='top',ha='right',
+                        xycoords='axes fraction',color='r',size=20)
+        
+        # Rotate counter clockwise by angle in degrees, and recalculate the
+        # values of the corners
+        # We add a shortcut here not to repeat the rotation if we're at the
+        # same position angle as before. That's nice because then we can easily
+        # compute the whole profile as a function of baseline.
+        if pa!=prev_pa:
+            data_ = imrotate(data,-pa,reshape=True,cval=0., order=0) # was -pa
+        
+        prev_pa = pa
+        # Rotation might go faster if replaced with -- but we need to take a bigger
+        # array!
+        #X_, Y_ = np.cos(-theta)*X - np.sin(-theta)*Y,\
+        #         np.sin(-theta)*X + np.cos(-theta)*Y
+        #X_ = np.array(X_,int) + Nx/2 + margin/2 - 1
+        #Y_ = np.array(Y_,int) + Ny/2 + margin/2 - 1
+        #data__ = new_image[X_, Y_]
+        
+        
         if keepfig and keepfig is not True: # then it's a string
             pl.figure()
             pl.subplot(111,aspect='equal')
@@ -805,7 +841,8 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
         #-- compute Discrete Fourier transform: amplitude and phases
         x = np.array(np.linspace(xlims[0],xlims[1],len(signal)),float)
         x = x/d # radians
-        x = conversions.convert('rad','as',x) # arseconds
+        #x = conversions.convert('rad','as',x) # arseconds
+        x = x / (2 * np.pi) * 360. * 3600.
         x -= x[0]
         if single_baseline and bl==0: 
             nyquist = 0.5/x[1]
@@ -814,7 +851,8 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
             df = 0.01/x.ptp()
             logger.info('ifm: single baseline equal to 0m: computation of entire profile')
         else:
-            f0 = conversions.convert('m','cy/arcsec',bl,wave=(wl,'angstrom'))*2*np.pi
+            #f0 = conversions.convert('m','cy/arcsec',bl,wave=(wl,'angstrom'))*2*np.pi
+            f0 = conversions.baseline_to_spatialfrequency(bl, wl)
             fn = f0
             df = 0
             logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
@@ -839,8 +877,8 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
         #-- correct cumulative phase
         s1_phs = s1_phs - x.ptp()*pi*f1
         s1_phs = (s1_phs % (2*pi))# -pi
-        b1 = conversions.convert('cy/arcsec','m',f1,wave=(wl,'angstrom'))
-        b1/=(2*np.pi)
+        #b1 = conversions.convert('cy/arcsec','m',f1,wave=(wl,'angstrom')) / (2*np.pi)
+        b1 = conversions.spatialfrequency_to_baseline(f1, wl)
         if keepfig and keepfig is not True:
             pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
             pl.close()
@@ -901,6 +939,17 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     
     You can get the normalised spectrum by dividing the flux with the
     continuum.
+    
+    We probably need to following info:
+    * time stamp (and possibly exposure time)
+    * dispersion type (lin, log, variable)
+    * wavelength span (wmin,wmax for lin and log, the whole array for
+      variable dispersion)
+    * sampling power
+    * resolving power or dispersion, depending on dispersion type
+    * passband (if any)
+    * auxiliary information that is not used but may be set for reference
+      (grating, decker, angle rotation, ..., whatever)
     
     @param wavelengths: predefined array or list with 3 elements (central wavelength (angstrom), range in km/s and number of wavelength points.
     @param sigma: intrinsic width of the Gaussian profile in km/s
@@ -1621,8 +1670,7 @@ def compute(system,params=None,**kwargs):
     #inside_mpi = kwargs.pop('mpi',None)
     im = kwargs.pop('im',False)
     extra_func = kwargs.pop('extra_func',[])
-    extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])
-        
+    extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])   
     if params is None:
         params = parameters.ParameterSet(context='compute',**kwargs)
     else:
@@ -1700,6 +1748,11 @@ def compute(system,params=None,**kwargs):
         if len(x1-x2) or len(x2-x1):
             #raise ValueError("When including reflection, you need to call 'prepare_reflection' and 'fix_mesh' first")
             system.fix_mesh()
+    # If the system is circular, we're not recomputing stuff. Make sure to
+    # have computed everything as least once:
+    if circular:
+        system.set_time(0., ref='all')
+    
     #-- now we're ready to do the real stuff
     for i,(time,ref,type) in enumerate(zip(time_per_time,labl_per_time,type_per_time)):
         #-- clear previous reflection effects if necessary (not if reflect==1!)
@@ -1744,7 +1797,8 @@ def compute(system,params=None,**kwargs):
         for itype,iref in zip(type,ref):
             if itype[:-3]=='if':
                 itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
-                if iref in had_refs: continue
+                if iref in had_refs:
+                    continue
                 had_refs.append(iref)
             logger.info('Calling {} for ref {}'.format(itype[:-3],iref))
             getattr(system,itype[:-3])(ref=iref,time=time)
@@ -1876,7 +1930,7 @@ def choose_eclipse_algorithm(all_systems,algorithm='auto'):
 
 #{ Extrafuncs for compute_dependables
 
-def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
+def ef_binary_image(system,time,i,name='ef_binary_image',axes_on=True, **kwargs):
     """
     Make an image of a binary system.
     
@@ -1926,11 +1980,13 @@ def ef_binary_image(system,time,i,name='ef_binary_image',**kwargs):
     #pl.plot(orbit2[0],orbit2[1],'b-',lw=2)
     pl.xlim(xmin,xmax)
     pl.ylim(ymin,ymax)
+    if not axes_on:
+        ax.set_axis_off()
     pl.savefig('{}_{:04d}'.format(name,i))
     pl.close()
 
 
-def ef_image(system,time,i,name='ef_image',comp=0,**kwargs):
+def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     """
     Make an image of a binary system.
     
@@ -1944,8 +2000,13 @@ def ef_image(system,time,i,name='ef_image',comp=0,**kwargs):
     if hasattr(system,'__len__'):
         system = system[comp]
     # and make the figure
-    kwargs['savefig'] = '{}_comp_{:02d}_{:04d}'.format(name,comp,i)
+    savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
     image(system,**kwargs)
+    if not axes_on:
+        pl.gca().set_axis_off()
+    pl.savefig(savefig)
+    pl.close()
+    
 
 
 

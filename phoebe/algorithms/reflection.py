@@ -100,6 +100,8 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     P_redistrs = [(ps[0]['redist'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
     #if '__bol' in ref:
         #total_surface = irradiated.mesh['size'].sum()
+        
+        
     for i in range(N):
         #-- maybe some lines of sights are obstructed: skip those
         if third_bodies is not None and not (irradiated.label==third_bodies.label)\
@@ -154,7 +156,6 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #   already exactly
             #cos_gamma = coordinates.cos_angle(irradiator.mesh['center'][keep],irradiator.mesh['normal_'][keep],axis=-1)
             #Ibolmu = Ibolmu/cos_gamma
-            
             #-- but every fluxray is also received under a specific angle on the
             #   irradiated object. The size of the receiving triangle doesn't matter
             Ibolmu = cos_psi1[keep]*Ibolmu
