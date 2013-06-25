@@ -4,10 +4,39 @@ Plotting and multimedia routines.
 import os
 import glob
 import subprocess
+import numpy as np
 try:
     import matplotlib as mpl
 except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+
+def fig2data(fig, grayscale=False):
+    """
+    Convert a Matplotlib figure to a 4D numpy array with RGBA channels and return it
+    
+    Stolen from http://www.icare.univ-lille1.fr/wiki/index.php/How_to_convert_a_matplotlib_figure_to_a_numpy_array_or_a_PIL_image
+    
+    But I needed to invert the height and width.
+    
+    @param fig a matplotlib figure
+    @return a numpy 3D array of RGBA values
+    """
+    # draw the renderer
+    fig.canvas.draw()
+  
+    # Get the RGBA buffer from the figure
+    w, h = fig.canvas.get_width_height()
+    buf = np.fromstring(fig.canvas.tostring_argb(), dtype=np.uint8)
+    buf.shape = (h, w, 4)
+    
+    if grayscale:
+        #-- only return the B layer (which is equal to the R and G layer)
+        return buf[:,:,-1]
+    else:
+        # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to
+        # have it in RGBA mode
+        buf = np.roll(buf, 3, axis=2)
+        return buf
     
 
 def blackbody_cmap():

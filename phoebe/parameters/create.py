@@ -1080,13 +1080,13 @@ def vega_aufdenberg2006():
     tools.add_parallax(star,128.93,unit='mas')
     tools.add_surfgrav(star,derive='mass')
     #-- add priors
-    star.get_parameter('rotfreqcrit').set_prior(sigma=0.03)
-    star.get_parameter('parallax').set_prior(sigma=0.55)
-    star.get_parameter('radius').set_prior(sigma=0.07)
-    star.get_parameter('teffpolar').set_prior(sigma=100.)
-    star.get_parameter('mass').set_prior(sigma=0.2)
-    star.get_parameter('incl').set_prior(sigma=0.3)
-    star.get_parameter('rotperiod').set_prior(sigma=0.03)
+    star.get_parameter('rotfreqcrit').set_prior(distribution='normal', sigma=0.03)
+    star.get_parameter('parallax').set_prior(distribution='normal', sigma=0.55)
+    star.get_parameter('radius').set_prior(distribution='normal', sigma=0.07)
+    star.get_parameter('teffpolar').set_prior(distribution='normal', sigma=100.)
+    star.get_parameter('mass').set_prior(distribution='normal', sigma=0.2)
+    star.get_parameter('incl').set_prior(distribution='normal', sigma=0.3)
+    star.get_parameter('rotperiod').set_prior(distribution='normal', sigma=0.03)
     
     return star
 
@@ -1102,13 +1102,13 @@ def vega_hill2010():
     tools.add_parallax(star,130.23,unit='mas')
     tools.add_surfgrav(star,derive='mass')
     #-- add priors
-    star.get_parameter('rotfreqcrit').set_prior(sigma=0.02)
-    star.get_parameter('parallax').set_prior(sigma=0.36)
-    star.get_parameter('radius').set_prior(sigma=0.01)
-    star.get_parameter('teffpolar').set_prior(sigma=30.)
-    star.get_parameter('mass').set_prior(sigma=0.2)
-    star.get_parameter('incl').set_prior(sigma=0.1)
-    star.get_parameter('rotperiod').set_prior(sigma=0.01)
+    star.get_parameter('rotfreqcrit').set_prior(distribution='normal', sigma=0.02)
+    star.get_parameter('parallax').set_prior(distribution='normal', sigma=0.36)
+    star.get_parameter('radius').set_prior(distribution='normal', sigma=0.01)
+    star.get_parameter('teffpolar').set_prior(distribution='normal', sigma=30.)
+    star.get_parameter('mass').set_prior(distribution='normal', sigma=0.2)
+    star.get_parameter('incl').set_prior(distribution='normal', sigma=0.1)
+    star.get_parameter('rotperiod').set_prior(distribution='normal', sigma=0.01)
     
     return star
 

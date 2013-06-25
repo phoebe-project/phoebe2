@@ -37,6 +37,7 @@ lcset['jdstrt'] = pset['hjd0']
 lcset['jdend'] = pset['hjd0']+pset['period']
 lcset['jdinc'] = 0.01*pset['period']
 lcset['indep_type'] = 'time (hjd)'
+lcset['ref'] = 'mylc'
 
 
 # Generate the light curve via :py:func:`lc <phoebe.wd.wd.lc>`
@@ -76,11 +77,11 @@ plt.savefig('body_emul_data.png')
 # be discarded when using WD, since the ``lc`` and ``rv`` parameterSets are
 # already defined:
 
-obs,pbdep = phoebe.parameters.datasets.parse_lc('myobs.lc')
+obs, pbdep = phoebe.parameters.datasets.parse_lc('myobs.lc', ref='mylc')
 
 # Build the BodyEmulator: we need to pass the WD parameterSets, and the
 # observations.
-system = phoebe.wd.BodyEmulator(pset,lcset=lcset,rvset=rvset,obs=obs)
+system = phoebe.wd.BodyEmulator(pset, lcset=lcset, rvset=rvset, obs=[obs])
 
 """
 
@@ -114,7 +115,7 @@ curve_init,params_init = phoebe.wd.lc(pset,request='curve',light_curve=lcset,rv_
 # fit instead of using the fancy fitting algorithms. In any case, we want them
 # to be :py:func:`adjustable <phoebe.parameters.parameters.ParameterSet.set_adjust>`:
 pset.set_adjust(('incl','ecc','pot1'),True)
-obs[0].set_adjust(('pblum','l3'),True)
+obs.set_adjust(('pblum','l3'),True)
 
 """
 

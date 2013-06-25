@@ -54,12 +54,14 @@ Section 2.3 Fitting and statistics
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
-from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,BinaryStar,BodyBag,BinaryBag,AccretionDisk
+from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
+                              BinaryStar,BodyBag,BinaryBag,AccretionDisk
 
 #-- common input and output
 from .parameters.parameters import load as load_ps
 from .backend.universe import load as load_body
-from .parameters.datasets import parse_lc,parse_phot,parse_rv,parse_spec_as_lprof,parse_vis2
+from .parameters.datasets import parse_lc,parse_phot,parse_rv,\
+                                 parse_spec_as_lprof,parse_vis2
 from .parameters import create
 from .utils.utils import get_basic_logger
 

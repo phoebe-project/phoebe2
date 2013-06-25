@@ -64,7 +64,7 @@ logger.addHandler(logging.NullHandler())
     
 def image(the_system, ref='__bol', context='lcdep',
             cmap=None, select='proj', background=None, vmin=None, vmax=None,
-            size=800, ax=None, savefig=False, nr=0, zorder=1, 
+            size=800, ax=None, savefig=False, nr=0, zorder=1, dpi=80,
             fourier=False, with_partial_as_half=True):
     """
     Compute images of a system or make a 2D plot.
@@ -227,7 +227,7 @@ def image(the_system, ref='__bol', context='lcdep',
     if fourier and ax is None:
         fig = pl.figure(figsize=(3,3))
     elif ax is None:
-        fig = pl.figure(figsize=(size/100.,size/100.))
+        fig = pl.figure(figsize=(size/100.,size/100.), dpi=dpi)
     if ax is None:
         #-- the axes should be as big as the figure, so that there are no margins
         ax = pl.axes([0,0,1,1],axisbg=background,aspect='equal')
@@ -370,7 +370,8 @@ def image(the_system, ref='__bol', context='lcdep',
     if fourier:
         #-- save the above image, so that we can read it in to compute
         #   the 2D Fourier transform.
-        pl.savefig('__temp.png',facecolor='k',edgecolor='k');pl.close()
+        pl.savefig('__temp.png',facecolor='k',edgecolor='k')
+        pl.close()
         data = pl.imread('__temp.png')[:,:,0]
         data /= data.max()
         os.unlink('__temp.png')
@@ -756,18 +757,18 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     
     # Make an image if necessary, but in any case retrieve it's dimensions
     if figname is None:
-        figname = 'ifmfig_temp.png'
-        keep_figname = False
-        xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
+        #figname = 'ifmfig_temp.png'
+        #keep_figname = False
+        #xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
+        xlims,ylims,p = image(the_system,ref=ref, dpi=100)
+        data = np.array(plotlib.fig2data(pl.gcf(), grayscale=True),float)
+        pl.close()
+    
     else:
         keep_figname = True
         figname,xlims,ylims = figname
+        data = pl.imread(figname)[:,:,0]
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
-    
-    #-- load the image as a numpy array
-    data = pl.imread(figname)[:,:,0]
-    if not keep_figname:
-        os.unlink(figname)
     
     #-- cycle over all baselines and position angles
     d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')

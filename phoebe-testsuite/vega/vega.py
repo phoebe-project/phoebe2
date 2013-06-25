@@ -62,7 +62,7 @@ ifdep1['ld_coeffs'] = 'kurucz'
 ifdep1['atm']= 'kurucz'
 ifdep1['passband'] = '2MASS.KS'
 
-mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
+mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching', alg='c')
 mesh['delta'] = 0.1
 
 # Next, wee'll make a Star similar to Vega but that is not a rapid rotator:
@@ -159,10 +159,10 @@ f4,b4,pa4,s4,p4,x4,prof4 = phoebe.ifm(star4)
 # Analysis of results
 # -------------------
 # Make some check images
-phoebe.image(star1,savefig='vega_image1.png',ref=0,subtype='ifdep')
-phoebe.image(star2,savefig='vega_image2.png',ref=0,subtype='ifdep')
-phoebe.image(star3,savefig='vega_image3.png',ref=0,subtype='ifdep')
-phoebe.image(star4,savefig='vega_image4.png',ref=0,subtype='ifdep')
+phoebe.image(star1,savefig='vega_image1.png',ref=0,context='ifdep')
+phoebe.image(star2,savefig='vega_image2.png',ref=0,context='ifdep')
+phoebe.image(star3,savefig='vega_image3.png',ref=0,context='ifdep')
+phoebe.image(star4,savefig='vega_image4.png',ref=0,context='ifdep')
 
 """
 +-----------------------------------------+---------------------------------------+-----------------------------------------+---------------------------------------+
@@ -195,10 +195,10 @@ for mesh in system.bodies:
 
 plt.figure(figsize=(16,11))
 plt.subplot(221)
-plt.plot(b1,s1**2,'-',lw=2,label='Fast rotator')
-plt.plot(b3,s3**2,'-',lw=2,label=r'Fast rotator (LD $\alpha$)')
-plt.plot(b2,s2**2.,'-',lw=2,label='Slow rotator (UD)')
-plt.plot(b4,s4**2,'-',lw=2,label='Slow rotator (LD)')
+plt.plot(b1,s1,'-',lw=2,label='Fast rotator')
+plt.plot(b3,s3,'-',lw=2,label=r'Fast rotator (LD $\alpha$)')
+plt.plot(b2,s2,'-',lw=2,label='Slow rotator (UD)')
+plt.plot(b4,s4,'-',lw=2,label='Slow rotator (LD)')
 plt.errorbar(data_baselines,data_vis_square/100.,yerr=data_evs_square/100.,fmt='ko')
 plt.gca().set_yscale('log')
 plt.xlim(70,300)
