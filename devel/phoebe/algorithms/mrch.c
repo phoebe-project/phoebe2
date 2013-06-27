@@ -366,88 +366,46 @@ void drotate_roche(double r[3], double *p, double ret[3])
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-//DIFFERENTIALLY ROTATING SINGLE STAR+++++++++++++++++++++++++++++++++++
+//DIFFERENTIALLY ROTATING ROCHE+++++++++++++++++++++++++++++++++++++++++
 void diff_rotate_roche(double r[3], double *p, double ret[4])
 {
-    double rp = sqrt(r[0]*r[0]+r[1]*r[0]+r[2]*r[0]);
-    double x2y2 = r[0]*r[0] + r[1]*r[0];
-    double fac1 = p[0]*p[0];
-    double fac2 = p[0]*p[1];
-    double fac3 = 1./3.*(2*p[0]*p[2] + p[1]*p[1]);
-    double fac4 = 0.5*p[1]*p[2];
-    double fac5 = 1./5.*p[2]*p[2];
+    double a = r[0]*r[0] + r[1]*r[1];
+    double b = a + r[2]*r[2];
+    double c = p[0]*p[0];
+    double d = p[0]*p[1];
+    double e = 1.0/3.0*(2.0*p[0]*p[2] + p[1]*p[1]);
+    double f = 0.5*p[1]*p[2];
+    double g = 0.2*p[2]*p[2];
+    double h = 1.0/(b*sqrt(b));
+    double i = a*a;
+    double j = i*a;
+    double k = j*a;
+    double l = 1.0/3.0*(2.0*p[0]*p[1] + p[1]*p[1]);
+    double m = (h - (c + 2.0*d*a + 3.0*e*i + 4.0*f*j + 5.0*g));
     
-    ret[0] = r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[0] + fac2*2*x2y2*2*r[0] + fac3*3*x2y2*x2y2*2*r[0] + fac4*4*x2y2*x2y2*x2y2*2*r[0] +fac5*5*2*r[0]);
-    ret[1] = r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[1] + fac2*2*x2y2*2*r[1] + fac3*3*x2y2*x2y2*2*r[1] + fac4*4*x2y2*x2y2*x2y2*2*r[1] +fac5*5*2*r[1]);
-    ret[2] = r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5);
-    ret[3] = 1./p[3] - 1/rp -0.5* (p[0]*p[0] * x2y2+ p[0]*p[1]* x2y2*x2y2 + 1./3.*(2*p[0]*p[1]+p[1]*p[1]) * x2y2*x2y2*x2y2 + 0.5*p[1]*p[2]* x2y2*x2y2*x2y2*x2y2 + 1./5. * p[2]*p[2] * x2y2*x2y2*x2y2*x2y2*x2y2);
-    
-    
-    //~ double a = r[0]*r[0];
-    //~ double b = r[1]*r[1];
-    //~ double c = r[2]*r[2];
-//~ 
-    //~ double d = a+b;
-    //~ double e = d+c;
-    //~ double f = sqrt(e);
-//~ 
-    //~ double g = 1.0/(e*f);
-//~ 
-    //~ double h = p[0]*p[0];
-    //~ double i = p[0]*p[1];
-    //~ double ii = p[1]*p[1];
-    //~ double j = 1.0/3.0*(p[0]*p[2] + ii);
-    //~ double k = 0.5*p[1]*p[2];
-    //~ double l = 0.2*p[2]*p[2];
-    //~ 
-    //~ double m = g - 0.5*(2.0*h + 4.0*i*d + 6.0*j*d*d + 8.0*k*d*d*d* + 10.0*l);
-    //~ 
-    //~ double n = d*d;
-    //~ double o = n*d;
-    //~ double q = o*d;
-    //~ double s = q*d;
-    //~ 
-    //~ ret[0] = m*r[0];
-    //~ ret[1] = m*r[1];
-    //~ ret[2] = g*r[2];
-    //~ ret[3] = 1.0/p[3] - 1.0/f - 0.5*(h*d + i*n + 1.0/3.0*(2.0*i+ii)*o + k*q + l*p[2]*s);
+    ret[0] = r[0]*m;
+    ret[1] = r[1]*m;
+    ret[2] = r[2]*h;
+    ret[3] = 1.0/p[3] - 1.0/sqrt(b) - 0.5*(c*a + d*i + l*j + f*k + g*k*a);
 }
 
 void ddiff_rotate_roche(double r[3], double *p, double ret[3])
 {
-    double x2y2 = r[0]*r[0] + r[1]*r[0];
-    double fac1 = p[0]*p[0];
-    double fac2 = p[0]*p[1];
-    double fac3 = 1./3.*(2*p[0]*p[2] + p[1]*p[1]);
-    double fac4 = 0.5*p[1]*p[2];
-    double fac5 = 1./5.*p[2]*p[2];
+    double a = r[0]*r[0] + r[1]*r[1];
+    double b = a + r[2]*r[2];
+    double c = p[0]*p[0];
+    double d = p[0]*p[1];
+    double e = 1.0/3.0*(2.0*p[0]*p[2] + p[1]*p[1]);
+    double f = 0.5*p[1]*p[2];
+    double g = 0.2*p[2]*p[2];
+    double h = 1.0/(b*sqrt(b));
+    double i = a*a;
+    double j = i*a;
+    double m = (h - (c + 2.0*d*a + 3.0*e*i + 4.0*f*j + 5.0*g));
     
-    ret[0] = r[0]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[0] + fac2*2*x2y2*2*r[0] + fac3*3*x2y2*x2y2*2*r[0] + fac4*4*x2y2*x2y2*x2y2*2*r[0] +fac5*5*2*r[0]);
-    ret[1] = r[1]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5) - 0.5* (fac1*2*r[1] + fac2*2*x2y2*2*r[1] + fac3*3*x2y2*x2y2*2*r[1] + fac4*4*x2y2*x2y2*x2y2*2*r[1] +fac5*5*2*r[1]);
-    ret[2] = r[2]*pow(r[0]*r[0]+r[1]*r[1]+r[2]*r[2],-1.5);
-    
-    
-    //~ double a = r[0]*r[0];
-    //~ double b = r[1]*r[1];
-    //~ double c = r[2]*r[2];
-//~ 
-    //~ double d = a+b;
-    //~ double e = d+c;
-    //~ double f = sqrt(e);
-//~ 
-    //~ double g = 1.0/(e*f);
-//~ 
-    //~ double h = p[0]*p[0];
-    //~ double i = p[0]*p[1];
-    //~ double j = 1.0/30.*(2.0*p[0]*p[2] + p[1]*p[1]);
-    //~ double k = 0.5*p[1]*p[2];
-    //~ double l = 0.2*p[2]*p[2];
-    //~ 
-    //~ double m = g - 0.5*(2.0*h + 4.0*i*d + 6.0*j*d*d + 8.0*k*d*d*d* + 10.0*l);
-    //~ 
-    //~ ret[0] = m*r[0];
-    //~ ret[1] = m*r[1];
-    //~ ret[2] = g*r[2];
+    ret[0] = r[0]*m;
+    ret[1] = r[1]*m;
+    ret[2] = r[2]*h;
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
