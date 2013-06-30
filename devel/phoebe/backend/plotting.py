@@ -191,8 +191,14 @@ def plot_lcobs(system,errorbars=True,**kwargs):
             artists.append(p)
     else:
         time = (time % period) / period
+        # need to sort by time (if using lines)
+        o = time.argsort()
+        time, rv = time[o], rv[o]
         for n in range(repeat+1):
-            p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
+            if errorbars:
+                p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
+            else:
+                p = ax.plot(time+n,flux,**kwargs)
 
     if loaded: obs.unload()
     
@@ -342,6 +348,9 @@ def plot_rvsyn(system,*args,**kwargs):
             artists.append(p)
     else:
         time = (time % period) / period
+        # need to sort by time (if using lines)
+        o = time.argsort()
+        time, rv = time[o], rv[o]
         for n in range(repeat+1):
             p, = ax.plot(time+n, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
             artists.append(p)
@@ -400,8 +409,14 @@ def plot_rvobs(system,errorbars=True,**kwargs):
             artists.append(p)
     else:
         time = (time % period) / period
+        # need to sort by time (if using lines)
+        o = time.argsort()
+        time, rv = time[o], rv[o]
         for n in range(repeat+1):
-            p = plt.errorbar(time+n,rv,yerr=sigm,**kwargs)
+            if errorbars:
+                p = plt.errorbar(time+n,rv,yerr=sigm,**kwargs)
+            else:
+                p = plt.plot(time+n,rv,**kwargs)
             artists.append(p)
 
     if loaded: obs.unload()
@@ -476,6 +491,9 @@ def plot_rvres(system,*args,**kwargs):
             artists.append(p)
     else:
         syn_time = (syn_time % period) / period
+        # need to sort by time (if using lines)
+        o = syn_time.argsort()
+        syn_time, rv = time[o], rv[o]
         for n in range(repeat+1):
             p = ax.errorbar(syn_time+n,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
             artists.append(p)
@@ -704,11 +722,6 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
-    
-
-
-
-
     
 def plot_ifsyn(system, *args, **kwargs):
     """
@@ -1074,6 +1087,12 @@ class Axes(object):
             if 'orbit' in item.params.keys() and item.params['orbit']['label'] == objectname:
                 return bodybag
         return None
+        
+    def _get_orbit(self,objectname,bodybag):
+        for path,item in bodybag.walk_all():
+            if path[-1] == 'orbit' and item['label']==objectname:
+                return item
+        return None
             
     def plot(self,system,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
         """
@@ -1181,15 +1200,23 @@ class Axes(object):
             for key in po.keys():
                 if po[key]=='auto':
                     po.pop(key)
+                    
+            orbit = obj.params['orbit'] if hasattr(obj,'params') and 'orbit' in obj.params.keys() else self._get_orbit(plotoptions['objref'],system)
+            period = orbit.get_value('period')
+            phased = self.axesoptions.get_value('xaxis')=='phase'
+            
+            #~ print "** orbit", orbit
+            #~ print "** period", period
+            #~ print "** phased", phased
 
             # call appropriate plotting command
             if plotoptions['type']=='lcobs':
-                artists,obs = plot_lcobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, **po)
+                artists,obs = plot_lcobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, phased=phased, period=period, **po)
             elif plotoptions['type']=='lcsyn':
-                artists,obs,pblum,l3 = plot_lcsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
+                artists,obs,pblum,l3 = plot_lcsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             elif plotoptions['type']=='rvobs':
-                artists,obs = plot_rvobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, **po)
+                artists,obs = plot_rvobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, phased=phased, period=period, **po)
             elif plotoptions['type']=='rvsyn':
-                artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, **po)
+                artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             else:
                 artists,obs = [],[]
