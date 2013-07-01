@@ -11,20 +11,26 @@ from phoebe.parameters import parameters
 
 def parse_ref(fctn):
     """
+    Expand the general ref keyword in a function to a list of valid references.
+    
     If 'ref' is given, make sure it returns a list of refs.
     
     C{ref} can be any of:
-        - string 'all': all parameterSets are returned
-        - string 'alldep': all "dependent" parameterSets are returned, i.e. all but the default bolometric one.
-        - ref string/integer: only one parameterSet is returned
-        - list of strings/integers: list of parameterSets is returned
+        - '__bol': only bolometric
+        - 'all': bolometric and all observables
+        - 'alldep': all observables
+        - 'alllcdep': all observables of type lc
+        - 'myref': the observable with ref 'myref'
+        - ['ref1','ref2']: observables matching these refs
+        
     """
     @functools.wraps(fctn)
-    def parse(self,*args,**kwargs):
+    def parse(self, *args, **kwargs):
         """
         Expand the ref keyword to valid ref strings.
         
         Possibilities:
+            - None: only bolometric
             - '__bol': only bolometric
             - 'all': bolometric and all observables
             - 'alldep': all observables
@@ -32,52 +38,72 @@ def parse_ref(fctn):
             - 'myref': the observable with ref 'myref'
             - ['ref1','ref2']: observables matching these refs
         """
-        #-- take the default from the function that is decorated
+        
+        # Take the default from the function that is decorated using the
+        # "inspect" standard library module
         fctn_args = inspect.getargspec(fctn)
         if 'ref' in fctn_args.args:
             Nargs = len(fctn_args.args)
             index = fctn_args.args.index('ref')-Nargs
             default = fctn_args.defaults[index]
-        #-- if no default was given there, the "ueber"-default is 'all'.
+            
+        # If no default was given there, the "ueber"-default is 'all'.
         else:
             default = 'all'    
+        
+        # Now retrieve the ref or return the default. The trailing-underscore
+        # variable will be used to collect all the strings of valid references.
         ref = kwargs.pop('ref',default)
         ref_ = []
-        #print 'in',ref
-        # if the ref is allready a list, we don't do anything really. No
-        # wait, I guess we should check if the ref is in this Body, if it's
-        # not we remove it!
-        if isinstance(ref,(list,tuple)):
-            #-- these are the refs that are given:
+        
+        # If the ref is allready a list, check if the ref is in this Body, if
+        # it's not, we remove it!
+        if isinstance(ref, (list, tuple)):
+            
+            # These are the refs that are given:
             refs_given = set(list(ref))
-            #-- these are the refs that are available:
+            
+            # These are the refs that are available:
             refs_avail = []
             for ps in self.walk():
-                if not ps.context[-3:]=='dep':
+                if not ps.context[-3:] == 'dep':
                     continue
                 refs_avail.append(ps['ref'])
-            refs_avail = set(refs_avail+['__bol']) # (bolometric one is also available)
-            #-- so these are the refs that are given and available
+            refs_avail = set(refs_avail + ['__bol']) # (bolometric one is also available)
+            
+            # So these are the refs that are given and available
             kwargs['ref'] = list(refs_given & refs_avail)
-        elif ref is None or ref=='__bol':
+        
+        # If the ref is None, it means we need to take the bolometric one
+        elif ref is None or ref == '__bol':
             kwargs['ref'] = ['__bol']
-        # else there are a number of possibilities
+        
+        # Else there are a number of possibilities
         else:
-            if ref=='all':
+            
+            # If ref is all, we also take the bolometric one
+            if ref == 'all':
                 ref_.append('__bol')
+                
+            # Let's walk over all deps and retrieve necessary references.
             for ps in self.walk():
-                if not ps.context[-3:]=='dep':
+                if not ps.context[-3:] == 'dep':
                     continue
-                if ref=='all':
+                
+                # If ref is all or alldep, take them all! Also add it if the
+                # ref matches
+                if ref == 'all' or ref == 'alldep' or ref == ps['ref']:
                     ref_.append(ps['ref'])
-                elif ref[:3]=='all' and ps.context[:2]==ref[3:5]:
+                
+                # If ref is alllcdep, take only the lc ones
+                elif ref[:3] == 'all' and ps.context[:2] == ref[3:5]:
                     ref_.append(ps['ref'])
-                elif ref=='alldep':
-                    ref_.append(ps['ref'])
-                elif ref==ps['ref']:
-                    ref_.append(ps['ref'])
+            
+            # Make sure not to take duplicates
             kwargs['ref'] = list(set(ref_))
-        return fctn(self,*args,**kwargs)
+            
+        return fctn(self, *args, **kwargs)
+    
     return parse
 
 def merge_synthetic(list_of_bodies):

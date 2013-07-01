@@ -831,7 +831,6 @@ def plot_ifobs(system, *args, **kwargs):
 
 
 
-
     
     
 def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,

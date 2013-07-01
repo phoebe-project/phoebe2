@@ -1640,7 +1640,9 @@ class Body(object):
                     check =True
                 
         #logger.info('Removed previous synthetic calculations where present')
-    def get_synthetic(self,category=None,ref=0,cumulative=True):
+        
+        
+    def get_synthetic(self, category=None, ref=0, cumulative=True):
         """
         Retrieve results from synethetic calculations.
         
@@ -1656,16 +1658,14 @@ class Body(object):
         @return: the ParameterSet containing the synthetic calculations
         @rtype: ParameterSet
         """
-        #if category is None:
-        #    logger.warning('OBSTYPE NOT GIVEN IN GET_SYNTHETIC')
-        base,ref = self.get_parset(ref=ref,type='syn',category=category)
+        base, ref = self.get_parset(ref=ref, type='syn', category=category)
         return base
     
-    def __add__(self,other):
+    def __add__(self, other):
         """
         Combine two bodies in a BodyBag.
         """
-        return BodyBag([self,other])
+        return BodyBag([self, other])
     #}
     
     
@@ -1865,6 +1865,99 @@ class Body(object):
                     body.ifm(ref=ref,time=time)
             except AttributeError:
                 pass
+    
+    @decorators.parse_ref
+    def pl(self, ref='allpldep', time=None, obs=None):
+        """
+        Compute Stokes profiles and add results to the pbdep ParameterSet.
+        
+        Modus operandi:
+        
+            1. For this body, see if there are any obs attached. If not,
+               descend into the bodybag (if applicable) and repeat this step
+               for every body.
+            
+            2. If we have a body(bag) with observations attached, see if there
+               is a pbdep matching it. If not, descend into the bodybag
+               (if applicable) and repeat this step.
+            
+            3. If we have a body(bag) with pbdep matching the previously found
+               obs, compute the Stokes profile.
+               
+        """
+        # We need to get the observation ParameterSet so that we know all the
+        # required info on **what** exactly to compute (**how** to compute it
+        # is contained in the pbdep)
+        if obs is None and hasattr(self,'params') and 'obs' in self.params \
+                                    and 'plobs' in self.params['obs']:
+            # Compute the Stokes profiles for all references
+            for lbl in ref:
+                
+                # Get the observations if they are not given already
+                if obs is None:
+                    plobs, lbl = self.get_parset(type='obs', ref=lbl)
+                    if lbl is None:
+                        continue
+                else:
+                    plobs = obs
+                
+                # Compute the Stokes profiles for this reference
+                self.pl(ref=lbl, time=time, obs=plobs)
+        
+        # If no obs are given and there are no obs attached, assume we're a
+        # BodyBag and descend into ourselves:
+        elif obs is None:
+            try:
+                for body in self.bodies:
+                    body.pl(ref=ref, time=time, obs=obs)
+            except AttributeError:
+                pass
+        
+        # If obs are given, there is no need to look for the references, and we
+        # can readily compute the Stokes profiles
+        else:
+            ref = obs['ref']
+            
+            # Well, that is, we will only compute the Stokes if there are pbdeps
+            # on this body. If not, we assume it's a BodyBag and descend into
+            # the bodies.
+            if not (hasattr(self,'params') and 'pbdep' in self.params \
+                                    and 'pldep' in self.params['pbdep']):
+                try:
+                    for body in self.bodies:
+                        body.pl(ref=ref, time=time, obs=obs)
+                except AttributeError:
+                    pass
+                
+                # Quit here!
+                return None
+            else:
+                pbdep = self.params['pbdep']['pldep'][ref]
+                        
+            # Else, we have found the observations (from somewhere), and this
+            # Body has pldeps attached: so we can finally compute the Stokes
+            # profiles
+            base, ref = self.get_parset(ref=ref, type='syn')
+            if obs['ref'] != pbdep['ref']:
+                raise ValueError("PL: Something went wrong here! The obs don't match the pbdep...")
+            output = observatory.stokes(self, obs, pbdep)
+                
+            # If nothing was computed, don't do anything
+            if output is None:
+                return None
+                
+            # Expand output and save it to the synthetic thing
+            wavelengths_, I, V, Q , U, cont = output
+            
+            base['time'].append(self.time)
+            base['wavelength'].append(wavelengths_ / 10.)
+            base['flux'].append(I)
+            base['V'].append(V)
+            base['Q'].append(Q)
+            base['U'].append(U)
+            base['continuum'].append(cont)
+    
+    
     #}
     
     
@@ -2539,26 +2632,38 @@ class PhysicalBody(Body):
                 base['flux'].append(specflux)
                 base['continuum'].append(cont)
         
-    @decorators.parse_ref
-    def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
-        """
-        Compute Stokes profiles and add results to the pbdep ParameterSet.
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('pldep' in self.params['pbdep']): return None
-            #-- compute the Stokes profiles for all references
-            for lbl in ref:
-                base,lbl = self.get_parset(ref=lbl,type='syn')
-                wavelengths_,I,V,Q,U,cont = observatory.stokes(self,ref=lbl,
-                         wavelengths=wavelengths,sigma=sigma,depth=depth)
-                base['time'].append(self.time)
-                base['wavelength'].append(wavelengths_/10.)
-                base['flux'].append(I)
-                base['V'].append(V)
-                base['Q'].append(Q)
-                base['U'].append(U)
-                base['continuum'].append(cont)
+    #@decorators.parse_ref
+    #def pl(self, wavelengths=None, ref='allpldep', sigma=5.,depth=0.4, time=None):
+        #"""
+        #Compute Stokes profiles and add results to the pbdep ParameterSet.
+        #"""
+        ## Don't bother if we cannot do anything...
+        #if hasattr(self,'params') and 'pbdep' in self.params:
+            #if not ('pldep' in self.params['pbdep']):
+                #return None
+            
+            ## Compute the Stokes profiles for all references
+            #for lbl in ref:
+                
+                ## Compute the Stokes profiles for this reference
+                #base, lbl = self.get_parset(ref=lbl, type='syn')
+                #output = observatory.stokes(self,ref=lbl,
+                         #wavelengths=wavelengths,sigma=sigma,depth=depth)
+                
+                ## If nothing was computed, continue on to the next
+                #if output is None:
+                    #continue
+                
+                ## Expand output and save it to the synthetic thing
+                #wavelengths_, I, V, Q , U, cont = output
+                
+                #base['time'].append(self.time)
+                #base['wavelength'].append(wavelengths_/10.)
+                #base['flux'].append(I)
+                #base['V'].append(V)
+                #base['Q'].append(Q)
+                #base['U'].append(U)
+                #base['continuum'].append(cont)
     
         
     
@@ -3065,38 +3170,44 @@ class BodyBag(Body):
         except TypeError:
             raise TypeError("No components (c1label,c2label) in the orbit parameter set")
         except KeyError:
-            raise KeyError("The BodyBag is not in a binary system, perhaps some of the members are?")
+            raise KeyError(("The BodyBag is not in a binary system, "
+                            "perhaps some of the members are?"))
     
-    def get_synthetic(self,*args,**kwargs):
+    def get_synthetic(self, *args, **kwargs):
         """
-        Retrieve results.
+        Retrieve results from synthetic calculations.
         
-        If C{cumulative=False}, results will be nested. Otherwise, they will
-        be merged.
+        If C{cumulative=False}, results will be nested. Otherwise, they will be
+        merged.
         """
-        cumulative = kwargs.get('cumulative',True)
-        #-- sometimes synthetics can be added directly to the BodyBag, instead
-        #   of being built from the ones in the bodies list. E.g. interferometry
-        #   can only be computed of the whole system, since the total Fourier
-        #   transform is not the sum of the component Fourier transforms.
+        cumulative = kwargs.get('cumulative', True)
+        
+        # Sometimes synthetics can be added directly to the BodyBag, instead of
+        # being built from the ones in the bodies list. E.g. interferometry can
+        # only be computed of the whole system, since the total Fourier
+        # transform is not the sum of the component Fourier transforms.
         #   .... euhh... it kind of is! Anyway...
-        if kwargs.get('category','lc')=='ifm':
-            total_results = super(BodyBag,self).get_synthetic(*args,**kwargs)
+        if kwargs.get('category', 'lc') == 'if':
+            total_results = super(BodyBag, self).get_synthetic(*args, **kwargs)
             if total_results:
                 return total_results
-        #except ValueError:
-        #    pass
+        
+        # Prepare to return all the results
         total_results = []
         
-        for i,body in enumerate(self.bodies):
-            out = body.get_synthetic(*args,**kwargs)
+        # Run over all bodies and get the synthetic stuff from there
+        for i, body in enumerate(self.bodies):
+            out = body.get_synthetic(*args, **kwargs)
             if out is not None:
                 total_results.append(out)
+        
+        # Add the results together if cumulative results are required
         if cumulative is True and total_results:
             try:
                 total_results = sum(total_results)
             except TypeError:
                 total_results = None
+                
         return total_results
     
     def get_obs(self,category='lc',ref=0):
@@ -3640,7 +3751,9 @@ class Star(PhysicalBody):
                 msg_.append('{} {}'.format(len(self.params['obs'][type]),type))
         if len(msg_):
             msg = msg + ': ' + ', '.join(msg_)
+        init_mesh(self)
         logger.info(msg)
+        
         
     def set_label(self,label):
         self.params['star']['label'] = label
