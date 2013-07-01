@@ -149,7 +149,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         if not hasattr(handler,'baseFilename'):
             if mylogger.level<logging._levelNames['WARNING']:
                 handler.setLevel('WARNING')
-    utils.add_filehandler(mylogger,flevel='INFO',filename='fitting_{}.log'.format("_".join(time.asctime().split())))
+    utils.add_filehandler(mylogger,flevel='INFO',
+             filename='fitting_{}.log'.format("_".join(time.asctime().split())))
     
     # We need to know how to compute the system (i.e. how many subdivisions,
     # reflections etc...)
@@ -160,7 +161,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     # Determine the type of fitting algorithm to run. If none is given, the
     # default fitter is LMFIT with leastsq algorithm (Levenberg-Marquardt)
     if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:lmfit')
+        fitparams = parameters.ParameterSet(frame='phoebe',
+                                            context='fitting:lmfit')
     if fitparams.context=='fitting:pymc':
         solver = run_pymc
     elif fitparams.context=='fitting:emcee':
@@ -206,18 +208,17 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         # Perhaps it doesn't make much sense to iterate a fit, then the 
         # parameter might not be given. Set it by default to 1 in that case:
         iters = fitparams.get('iters',1)
-            
         feedbacks = []
         
         # Cycle over all subsets if required. The system itself (i.e. the
         # observational datasets) is changed *inside* the generator function
-        for flag,ref in subsets_via_flags(system, fitparams):
+        for flag, ref in subsets_via_flags(system, fitparams):
             if flag is not None:
-                logger.warning("Selected subset from {} via flag {}".format(ref,flag))
+                logger.warning("Selected subset from {} via flag {}".format(ref, flag))
             
             # Iterate fit if required
             for iteration in range(iters):
-                logger.warning("Iteration {}/{}".format(iteration+1,iters))
+                logger.warning("Iteration {}/{}".format(iteration+1, iters))
                 
                 # Do stuff like reinitializing the parametersets with values
                 # taken from their prior, or add MC noise to the data
@@ -385,6 +386,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     # which fitting algorithm to use.
     ids = []
     pars = {}
+    
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
     #   all BodyBags too.
@@ -394,21 +396,27 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
         frames.append(parset.frame)
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
+    
             #-- extract those which need to be fitted
             if parset.get_adjust(qual) and parset.has_prior(qual):
+                
                 #-- ask a unique ID and check if this parameter has already
                 #   been treated. If so, continue to the next one.
                 parameter = parset.get_parameter(qual)
                 myid = parameter.get_unique_label()
-                if myid in ids: continue
+                if myid in ids:
+                    continue
+                
                 #-- else, add the name to the list of pnames. Ask for the
                 #   prior of this object
-                name = '{}_{}'.format(qual,myid)
-                pars[name] = parameter.get_prior(name=name,fitter='pymc')
+                name = '{}_{}'.format(qual, myid)
+                pars[name] = parameter.get_prior(name=name, fitter='pymc')
                 logger.warning('Fitting {} with prior {}'.format(qual,parameter.get_prior(name=name,fitter=None)))
+                
                 #-- and add the id
                 ids.append(myid)
-    #-- derive which algorithm to use for fitting. If all the contexts are the
+    
+     #-- derive which algorithm to use for fitting. If all the contexts are the
     #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
     algorithm = set(frames)
     if len(algorithm)>1:
@@ -416,6 +424,11 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     else:
         algorithm = list(algorithm)[0]
         logger.info('Choosing back-end {}'.format(algorithm))
+    
+    
+    mu,sigma,model = system.get_model()
+    #mu,sigma,model = system.get_data()
+    n_data = len(mu)
     
     
     def model_eval(*args,**kwargs):
@@ -435,12 +448,13 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
                     had.append(myid)
         system.reset()
         system.clear_synthetic()
-        system.compute(params=params,mpi=mpi)
-        mu,sigma,model = system.get_model()
+        try:
+            system.compute(params=params,mpi=mpi)
+            mu,sigma,model = system.get_model()
+        except:
+            model = np.zeros(n_data)
         return model
    
-    mu,sigma,model = system.get_model()
-    #mu,sigma,model = system.get_data()
     
     #-- define the model
     mymodel = pymc.Deterministic(eval=model_eval,name='model',parents=pars,doc='Once upon a time there were three bears',\

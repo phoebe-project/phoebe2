@@ -107,6 +107,11 @@ def temperature_zeipel(system):
     #-- now we can compute the local temperatures. We add a constraint to
     #   the body so that we can access the polar temperature if needed
     system.mesh['teff'] = Grav**0.25 * Tpole
+    
+    #Tpole,system.mesh['teff'] = froche.temperature_zeipel(system.mesh['logg'],
+    #                   system.mesh['size'], Teff, ['mean','polar'].index(type),
+    #                   beta, gp)
+    
     body.add_constraint('{{t_pole}} = {0:.16g}'.format(Tpole))
     logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
     

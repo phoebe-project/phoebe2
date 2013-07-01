@@ -16,9 +16,11 @@ Convert a Body to an observable quantity.
     
     
 """
+# Modules from the standard library
 import logging
 import os
 import itertools
+# Third party dependencies: matplotlib and pyfits are try-excepted
 import numpy as np
 from numpy import pi, sqrt, sin, cos
 from scipy.ndimage.interpolation import rotate as imrotate
@@ -31,12 +33,11 @@ try:
     import matplotlib as mpl
 except ImportError:
     pass
-    #print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
 try:
     import pyfits
 except ImportError:
     pass
-    #print("Unable to load pyfits, you cannot use FITS files")
+# Phoebe modules
 from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
@@ -54,8 +55,10 @@ from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
 from phoebe.dynamics import keplerorbit
 
-        
+# Ignore warnings raised by numpy, we'll be responsible for them ourselves        
 np.seterr(all='ignore')
+
+# Set up a logger
 logger = logging.getLogger("OBSERVATORY")
 logger.addHandler(logging.NullHandler())
 
@@ -69,14 +72,13 @@ def image(the_system, ref='__bol', context='lcdep',
     """
     Compute images of a system or make a 2D plot.
     
-    You can make an image from basically any defined observable that has
-    fluxes computed. An image is nothing more than a representation of the
-    system, using the locally projected flux. To compute a light curve, you
-    need this, but also to compute radial velocities, spectra etc... by
-    default, however, none of these are used, and the *bolometric* fluxes are
-    used. This allows you to make an image of something for which no pbdeps
-    are defined. To choose something else, e.g. to make an image in a certain
-    passband, you need to specify ``ref`` and ``context``.
+    You can make an image from basically any defined quantity in a mesh.
+    
+    To make a true image, you need intensities. By default, he *bolometric*
+    intensities are used, but you can use the intensities from any obsersable,
+    if you pass the correct ``ref`` and ``context``. Bolometric ones are the 
+    default because this allows you to make an image of something for which no
+    pbdeps are defined. 
     
     All the default parameters are set to make a true flux image of the system,
     in linear grayscale such that white=maximum flux and black=zero flux:
@@ -94,7 +96,7 @@ def image(the_system, ref='__bol', context='lcdep',
     adjustable via the C{cmap} keyword, and the background color via keyword
     ``background``. For some selections, there are
     smart default colormaps. E.g. for the effective temperature, the following
-    two expressions give the same result:
+    two expressions yield the same result:
     
     >>> image(vega,select='teff')
     >>> image(vega,select='teff',cmap=plt.cm.hot,background='0.7')
@@ -106,9 +108,9 @@ def image(the_system, ref='__bol', context='lcdep',
     Setting C{select='rv'} will plot the radial velocity of the system, and then
     the colormap will automatically be changed to ``RdBu``, which means blue for
     velocities towards the observer, white for velocities in the plane of the
-    sky, and red for velocities away from the observer. You can adjust the settings
-    for the colorscale via ``vmin`` and ``vmax`` (if you set the limits, beware
-    that the units of RV are Rsol/d!):
+    sky, and red for velocities away from the observer. You can adjust the
+    settings for the colorscale via ``vmin`` and ``vmax`` (if you set the
+    limits, beware that the units of RV are Rsol/d!):
     
     >>> image(vega,select='rv')
     >>> image(vega,select='rv',vmin=-10,vmax=10)
@@ -135,7 +137,12 @@ def image(the_system, ref='__bol', context='lcdep',
     colors, it will be scaled automatically between 2000K and 20000K. Hot
     objects will appear blue, cool objects will appear red, intermediate
     objects will appear white. Other scaling schemes with blackbodies are
-    C{cmap='blackbody_proj'} and C{cmap='eye'}.
+    C{cmap='blackbody_proj'} and C{cmap='eye'}. The former uses the black body
+    colors mapped from the temperature of each triangle, but will darken it
+    according to the projected flux. The latter does something similar, but will
+    saturate the colors to white at about half of the maximum intensity. This
+    should make the object appear to `glow' (I find that it works better for
+    hot objects).
     
     >>> phoebe.image(vega,select='teff',cmap='blackbody')
     >>> phoebe.image(vega,select='teff',cmap='blackbody_proj')
@@ -152,10 +159,12 @@ def image(the_system, ref='__bol', context='lcdep',
     to an existing axis, that is possible by giving that axis as an argument.
     In this case, the limits are not automatically set, so you need to set
     them manually. Luckily, this function returns a recommendation for the
-    limits, as well as the collection of triangels themselves. The latter can
-    be helpful if you want to add a colorbar. These options provide with you
-    with the utmost flexibility to incorporate the image of your Body in
-    whatever customized plot or subplot you want.
+    limits, as well as the collection of triangles themselves. The latter can
+    be helpful if you want to add a colorbar. These options provide you with the
+    utmost flexibility to incorporate the image of your Body in whatever
+    customized plot or subplot you want. Beware that this function *does* set
+    the scaling of the axis to be ``equal``, if you don't want that you'll need
+    to readjust them yourself afterwards.
     
     >>> xlim,ylim,patch = phoebe.image(vega,ax=ax,background='white')
     >>> plt.xlim(xlim)
@@ -176,7 +185,7 @@ def image(the_system, ref='__bol', context='lcdep',
     the keyword ``size``, which represent the number of pixels in the X or Y
     direction. Finally, for convenience, there is keyword ``savefig``. If you
     supply it will a string, it will save the figure to that file and close
-    time image. This allows you to create and save an image of a Body with one
+    the image. This allows you to create and save an image of a Body with one
     single command.
     
     Finally, an experimental option is to compute the Fourier transform of
@@ -188,51 +197,85 @@ def image(the_system, ref='__bol', context='lcdep',
        :width: 233px                                   
        :align: center                                 
     
+    @param the_system: the Body to plot
+    @type the_system: Body
+    @param ref: reference of the intensities to use, if applicable
+    @type ref: str or int
+    @param context: context of the intensities
+    @type context: str
+    @param cmap: colormap to use
+    @type cmap: matplotlib colormap or recognised str
+    @param select: column name to use for plotting
+    @type select: str
+    @param background: axes background color
+    @type background: matplotlib color
+    @param vmin: minimum value for color scaling
+    @type vmin: float
+    @param vmax: maximum value for color scaling
+    @type vmax: float
+    @param size: size of the figure (in pixels if matplotlib's dpi=100)
+    @type size: int
+    @param ax: axes to plot in
+    @type ax: matplotlib axes instance
     @return: x limits, y limits, patch collection
     @rtype: tuple, tuple, patch collection
     """
-    #-- default color maps and background depend on the type of dependables:
-    if cmap is None and select=='rv':
+    # Default color maps and background depend on the type of dependables:
+    if cmap is None and select == 'rv':
         cmap = pl.cm.RdBu_r
-    elif cmap is None and select=='teff':
+    elif cmap is None and select == 'teff':
         cmap = pl.cm.hot
         if background is None:
             background = '0.7'
-    elif cmap is None and select[0]=='B':
+    elif cmap is None and select[0] == 'B':
         cmap = pl.cm.jet
     elif cmap is None:
         cmap = pl.cm.gray
-    #-- default color for the background
+    # Default color for the background
     if background is None:
         background = 'k'
-    #-- default lower and upper limits for colors:
+    # Default lower and upper limits for colors:
     vmin_ = vmin
     vmax_ = vmax
-        
-    if isinstance(ref,int):
-        ps,ref = the_system.get_parset(ref=ref,context=context)
-    #-- to make an image, we need some info and we need to order it from
-    #   back to front
-    logger.info('Making image of dependable set {}: plotting {}'.format(ref,select))    
+    
+    # Get the parameterSet from which we need to take the intensities and other
+    # information
+    if isinstance(ref, int):
+        ps, ref = the_system.get_parset(ref=ref, context=context)
+    
+    # We'll ask to compute the projected intensity,
+    # because that is what we need for plotting. If it fails, various things
+    # could have gone wrong, but the most likely one is that the user forgot to
+    # set the time.
+    logger.info('Making image of dependable set {}: plotting {}'.format(ref, select))    
     try:
-        the_system.projected_intensity(ref=ref,with_partial_as_half=with_partial_as_half)
+        the_system.projected_intensity(ref=ref,
+                                      with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
     except AttributeError as msg:
         logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
+    
+    # Order the body's triangles from back to front so that they get plotted in
+    # the right order.
     mesh = the_system.mesh
-    mesh = mesh[np.argsort(mesh['center'][:,2])]
-    x,y = mesh['center'][:,0],mesh['center'][:,1]
-    #-- initiate the figure
+    mesh = mesh[np.argsort(mesh['center'][:, 2])]
+    x, y = mesh['center'][:, 0],mesh['center'][:, 1]
+    
+    # Initiate the figure: if a Fourier transform needs to be computed, we'll
+    # create a small figure. Else we let the user decide. If the user supplied
+    # axes when calling the function, we'll use that one (but set the axis'
+    # background color and make sure the aspect is set to "equal").
     if fourier and ax is None:
-        fig = pl.figure(figsize=(3,3))
+        fig = pl.figure(figsize=(3, 3))
     elif ax is None:
-        fig = pl.figure(figsize=(size/100.,size/100.), dpi=dpi)
+        fig = pl.figure(figsize=(size/100., size/100.), dpi=dpi)
+        
     if ax is None:
-        #-- the axes should be as big as the figure, so that there are no margins
-        ax = pl.axes([0,0,1,1],axisbg=background,aspect='equal')
+        # The axes should be as big as the figure, so that there are no margins
+        ax = pl.axes([0, 0, 1, 1], axisbg=background, aspect='equal')
         fig = pl.gcf()
-        #-- make sure the background and outer edge of the image are black
+        # Make sure the background and outer edge of the image are black
         fig.set_facecolor(background)
         fig.set_edgecolor(background)
         axis_created = True
@@ -240,133 +283,132 @@ def image(the_system, ref='__bol', context='lcdep',
         ax.set_axis_bgcolor(background)
         ax.set_aspect('equal')
         axis_created = False
-    #-- set the colors of the triangles
+        
+    # Set the values and colors of the triangles: there's a lot of possibilities
+    # here: we can plot the projected intensity (i.e. as we would see it), but
+    # we can also plot other quantities like the effective temperature, radial
+    # velocity etc...
     cmap_ = None
-    if select=='proj':
-        colors = mesh['proj_'+ref]/mesh['mu']
+    if select == 'proj':
+        colors = mesh['proj_'+ref] / mesh['mu']
         if 'refl_'+ref in mesh.dtype.names:
-            colors += mesh['refl_'+ref]#/mesh['mu']
+            colors += mesh['refl_'+ref]
         colors /= colors.max()
         values = colors
-        vmin_ = 0
-        vmax_ = 1
+        vmin_, vmax_ = 0, 1
+        
     else:
-        if select=='rv':
-            values = -mesh['velo___bol_'][:,2]*8.049861
-        elif select=='intensity':
-            values = mesh['ld_'+ref+'_'][:,-1]
-        elif select=='proj2':
-            values = mesh['proj_'+ref]/mesh['mu']
+        if select == 'rv':
+            values = -mesh['velo___bol_'][:, 2] * 8.049861
+        elif select == 'intensity':
+            values = mesh['ld_'+ref+'_'][:, -1]
+        elif select == 'proj2':
+            values = mesh['proj_'+ref] / mesh['mu']
             if 'refl_'+ref in mesh.dtype.names:
-                values += mesh['refl_'+ref]#/mesh['mu']
-        elif select=='Bx':
-            values = mesh['B_'][:,0]
-        elif select=='By':
-            values = mesh['B_'][:,1]
-        elif select=='Bz':
-            values = mesh['B_'][:,2]    
-        elif select=='B':
-            values = np.sqrt(mesh['B_'][:,0]**2+mesh['B_'][:,1]**2+mesh['B_'][:,2]**2)
+                values += mesh['refl_'+ref]
+        elif select == 'Bx':
+            values = mesh['B_'][:, 0]
+        elif select == 'By':
+            values = mesh['B_'][:, 1]
+        elif select == 'Bz':
+            values = mesh['B_'][:, 2]    
+        elif select == 'B':
+            values = np.sqrt(mesh['B_'][:, 0]**2 + \
+                             mesh['B_'][:, 1]**2 + \
+                             mesh['B_'][:, 2]**2)
         else:
             values = mesh[select]
-        if vmin is None: vmin_ = values[mesh['mu']>0].min()
-        if vmax is None: vmax_ = values[mesh['mu']>0].max()
-        colors = (values-vmin_)/(vmax_-vmin_)
-        if cmap=='blackbody' or cmap=='blackbody_proj' or cmap=='eye':
+        
+        # Set the limits of the color scale, if we need to compute them
+        # ourselves
+        if vmin is None:
+            vmin_ = values[mesh['mu'] > 0].min()
+        if vmax is None:
+            vmax_ = values[mesh['mu'] > 0].max()
+        
+        # Special treatment for black body map, since the limits need to be
+        # fixed for the colors to match the temperature
+        colors = (values - vmin_) / (vmax_ - vmin_)
+        if cmap == 'blackbody' or cmap == 'blackbody_proj' or cmap == 'eye':
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
-            vmin_ = 2000
-            vmax_ = 20000
-            colors = (values-vmin_)/(vmax_-vmin_)  
-    #-- Check for nans or all zeros
-    if np.all(values==0):
+            vmin_, vmax_ = 2000, 20000
+            colors = (values-vmin_) / (vmax_-vmin_)
+            
+    # Check for nans or all zeros, that usually means the user did something
+    # wrong (OK, there's also a tiny chance that there's a bug somewhere)
+    if np.all(values == 0):
         logger.warning("Image quantities are all zero, it's gonna be a dark picture...")
-        if ref=='__bol':
+        if ref == '__bol':
             logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
     elif np.any(np.isnan(values)):
         logger.error("Discovered nans in values, it's gonna be an empty picture!")
-        if ref=='__bol':
+        if ref == '__bol':
             logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
-    #-- collect the triangle objects for plotting
+    
+    # Collect the triangle objects for plotting
     patches = []
-    if not cmap_ in ['blackbody_proj','eye']:
-        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+    if not cmap_ in ['blackbody_proj', 'eye']:
+        p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              array=values,
                              closed=True,
                              edgecolors=cmap(colors),
                              facecolors=cmap(colors),
                              cmap=cmap, zorder=zorder)
-    elif cmap_=='blackbody_proj':
-        values = np.abs(mesh['proj_'+ref]/mesh['mu'])
+    elif cmap_ == 'blackbody_proj':
+        # In this particular case we also need to set the values for the
+        # triangles first
+        values = np.abs(mesh['proj_'+ref] / mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
             values += mesh['refl_'+ref]
-        values = (values/values.max()).reshape((-1,1))*np.ones((len(values),4))
-        values[:,-1] = 1.
-        colors = np.array([cmap(c) for c in colors])*values 
+        values = (values / values.max()).reshape((-1, 1)) * np.ones((len(values), 4))
+        values[:, -1] = 1.0
+        colors = np.array([cmap(c) for c in colors]) * values 
         
-        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+        p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              closed=True,
                              edgecolors=colors,
                              facecolors=colors)
         
-        
-        #for i,triangle in enumerate(mesh['triangle']):
-            #patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
-        #p = PatchCollection(patches,cmap=cmap)
-        ##-- set the face colors of the triangle plot objects, and make sure
-        ##   the edges have the same color
-        #p.set_edgecolor([tuple(c) for c in colors])
-        #p.set_facecolor([tuple(c) for c in colors])
-    elif cmap_=='eye':
-        values = np.abs(mesh['proj_'+ref]/mesh['mu'])
+    elif cmap_ == 'eye':
+        values = np.abs(mesh['proj_'+ref] / mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
             values += mesh['refl_'+ref]
-        keep = values>(0.5*values.max())
-        values = values/values[keep].min()
-        values = values.reshape((-1,1))*np.ones((len(values),4))
-        values[:,-1] = 1.
-        colors = np.array([cmap(c) for c in colors])*values
-        colors[colors>1] = 1.
+        keep = values > (0.5*values.max())
+        values = values / values[keep].min()
+        values = values.reshape((-1, 1)) * np.ones((len(values), 4))
+        values[:, -1] = 1.0
+        colors = np.array([cmap(c) for c in colors]) * values
+        colors[colors > 1] = 1.0
         
-        p = PolyCollection(mesh['triangle'].reshape((-1,3,3))[:,:,:2],
+        p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              closed=True,
                              edgecolors=colors,
                              facecolors=colors)
-        #for i,triangle in enumerate(mesh['triangle']):
-            #patches.append(Polygon(triangle.reshape((3,3))[:,:2],closed=True,edgecolor=tuple(colors[i])))
-        #p = PatchCollection(patches,cmap=cmap)
-        ##-- set the face colors of the triangle plot objects, and make sure
-        ##   the edges have the same color
-        #p.set_edgecolor([tuple(c) for c in colors])
-        #p.set_facecolor([tuple(c) for c in colors])
-    #-- set the color scale limits
+
+    # Set the color scale limits
     if vmin is not None: vmin_ = vmin
     if vmax is not None: vmax_ = vmax
+    p.set_clim(vmin=vmin_,vmax=vmax_)
     
-    p.set_clim(vmin=vmin_,vmax=vmax_)    
-    #-- add the triangle plot objects to the axis, and set the axis limits to
-    #   be a tiny bit larger than the object we want to plot.
+    # Add the triangle plot objects to the axis, and set the axis limits to be
+    # a tiny bit larger than the object we want to plot.
     ax.add_collection(p)
-    #-- derive the limits for the axis
-    # old style:
-    #lim_min = min(x.min(),y.min())-0.01*x.ptp()
-    #lim_max = max(x.max(),y.max())+0.01*x.ptp()
-    #pl.xlim(lim_min,lim_max)
-    #pl.ylim(lim_min,lim_max)
-    # new style:
-    #-- dont be smart when axis where given
-    offset_x = (x.min()+x.max())/2.0
-    offset_y = (y.min()+y.max())/2.0
-    margin = 0.01*x.ptp()
-    lim_max = max(x.max()-x.min(),y.max()-y.min())
-    ax.set_xlim(offset_x-margin-lim_max/2.0,offset_x+lim_max/2.0+margin)
-    ax.set_ylim(offset_y-margin-lim_max/2.0,offset_y+lim_max/2.0+margin)
+    
+    # Derive the limits for the axis
+    # (dont be smart when axis where given)
+    offset_x = (x.min() + x.max()) / 2.0
+    offset_y = (y.min() + y.max()) / 2.0
+    margin = 0.01 * x.ptp()
+    lim_max = max(x.max() - x.min(), y.max() - y.min())
+    ax.set_xlim(offset_x - margin - lim_max/2.0,offset_x + lim_max/2.0 + margin)
+    ax.set_ylim(offset_y - margin - lim_max/2.0,offset_y + lim_max/2.0 + margin)
     if axis_created:
         ax.set_xticks([])
         ax.set_yticks([])
         #pl.box(on=False)
     
-    #-- compute Fourier transform of image
+    # Compute Fourier transform of image if needed
     if fourier:
         #-- save the above image, so that we can read it in to compute
         #   the 2D Fourier transform.
@@ -432,7 +474,7 @@ def image(the_system, ref='__bol', context='lcdep',
         hdulist.writeto(savefig)
         hdulist.close()
     
-    return xlim,ylim,p
+    return xlim, ylim, p
 
 
 def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
@@ -440,15 +482,21 @@ def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
     Draw contours on a star.
     
     Possible contour lines:
+        
+        * ``longitude``: longitudinal lines
+        * ``latitude``: latitudinal lines
+        * ``B``: magnetic field lines
     
     The dictionary ``prop`` is passed on to ``plt.clabel``, and can for example
     be ``prop = dict(inline=1, fontsize=14, fmt=='%.0f G')``.
     """
+    # Set some defaults
     if prop is None:
         prop = dict()
     method = 'cubic'
     
-    # Make a grid for the plane-of-sky coordinates
+    # Make a grid for the plane-of-sky coordinates: these are simply the x
+    # and y coordinates of the mesh
     visible = system.mesh['visible']
     mesh = system.mesh[visible]
     x = mesh['center'][:,0]
@@ -503,6 +551,8 @@ def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
             size=800,ax=None,savefig=False,nr=0,with_partial_as_half=True):
     """
     Compute images of a system or make a 2D plot.
+    
+    Very experimental, do not use this.
     
     All the default parameters are set to make a true flux image of the system,
     in linear grayscale such that white=maximum flux and black=zero flux.
@@ -712,8 +762,8 @@ def rotmatrix(theta):
     
     
     
-def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
-        figname=None,keepfig=True):
+def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
+        figname=None, keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
     
@@ -757,9 +807,12 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
     
     # Make an image if necessary, but in any case retrieve it's dimensions
     if figname is None:
-        #figname = 'ifmfig_temp.png'
+        figname = 'ifmfig_temp.png'
         #keep_figname = False
         #xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
+        #data = pl.imread(figname)[:,:,0]
+        #os.unlink(figname)
+        
         xlims,ylims,p = image(the_system,ref=ref, dpi=100)
         data = np.array(plotlib.fig2data(pl.gcf(), grayscale=True),float)
         pl.close()
@@ -916,7 +969,8 @@ def ifm(the_system,posangle=0.0,baseline=0.0,eff_wave=None,ref=0,
            angular_scale_out,angular_profile_out
 
             
-def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=True):
+def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
+                  rv_grav=True):
     """
     Compute the spectrum of a system.
     
@@ -966,8 +1020,8 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
     #-- is there data available? then we can steal the wavelength array
     #   from there. Otherwise we turn to the synthetic parameterSet.
     clip_after = None
-    iobs,refo_ = the_system.get_parset(ref=ref,context='spobs')
-    isyn,refs_ = the_system.get_parset(ref=ref,context='spsyn')
+    iobs, refo_ = the_system.get_parset(ref=ref, context='spobs')
+    isyn, refs_ = the_system.get_parset(ref=ref, context='spsyn')
     wc = None
     if refo_ is not None:
         if not 'wavelength' in iobs or not len(iobs['wavelength']):
@@ -975,19 +1029,19 @@ def make_spectrum(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,rv_grav=T
         wavelengths = iobs['wavelength']
         R = iobs['R']
         if 'vgamma' in iobs:
-            vgamma = iobs.get_value('vgamma','km/s')
-            wavelengths = tools.doppler_shift(wavelengths,vgamma)
+            vgamma = iobs.get_value('vgamma', 'km/s')
+            wavelengths = tools.doppler_shift(wavelengths, vgamma)
         if 'vmacro' in iobs:
             vmacro = iobs['vmacro']
         if 'clambda' in iobs:
-            wc = iobs.get_value('clambda','AA')
+            wc = iobs.get_value('clambda', 'AA')
         #-- make wavelength range a little bit broader and clip afterwards
         #   we do this to take into account neighbouring lines
-        clip_after = wavelengths[0],wavelengths[-1]
+        clip_after = wavelengths[0], wavelengths[-1]
         dw = wavelengths[1]-wavelengths[0]
-        wavelengths = np.hstack([np.arange(wavelengths[0]-10.,wavelengths[0],dw),
+        wavelengths = np.hstack([np.arange(wavelengths[0]-10., wavelengths[0], dw),
                                  wavelengths,
-                                 np.arange(wavelengths[-1],wavelengths[-1]+10,dw)+dw])
+                                 np.arange(wavelengths[-1], wavelengths[-1]+10, dw) + dw])
     else:
         R = None
         vmacro = 0.
@@ -1498,7 +1552,7 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
         system.intensity()
     logger.info("Added bitmap {}".format(image_file))
             
-def extract_times_and_refs(system,params,tol=1e-8):
+def extract_times_and_refs(system, params, tol=1e-8):
     """
     Automatically extract times, references and types from a BodyBag.
     
@@ -1518,104 +1572,137 @@ def extract_times_and_refs(system,params,tol=1e-8):
     equal
     @type tol: float
     """
-    #-- do we really need to set anything?
+    # Do we really need to set anything?
     dates = params['time']
-    if not (isinstance(dates,str)):
+    if not (isinstance(dates, str)):
         return None
     times = [] # time points
     types = [] # types
     refs  = [] # references
-    #-- collect the times of the data, the types and refs of the data: walk
-    #   through all the parameterSets, if they represent observations, load
-    #   the dataset and collect the times. The reference and type for each
-    #   parameterset is the same. Correct the time points to compute something
-    #   on for exposure time and sampling rates: we add time points, which
-    #   in the end should be then averaged over.
+    
+    # Collect the times of the data, the types and refs of the data: walk
+    # through all the parameterSets, if they represent observations, load the
+    # dataset and collect the times. The reference and type for each
+    # parameterset is the same. Correct the time points to compute something on
+    # for exposure time and sampling rates: we add time points, which in the end
+    # should be then averaged over.
     for parset in system.walk():
-        if not isinstance(parset,datasets.DataSet):
+        
+        # Skip stuff that is not a DataSet
+        if not isinstance(parset, datasets.DataSet):
             continue
-        if not parset.context[-3:]=='obs':
+        
+        # Skip DataSets that are not representing observations (e.g. the
+        # synthetics)
+        if not parset.context[-3:] == 'obs':
             continue
-        #-- if the dataset is not enabled, forget about it (if dates='auto')
+        
+        # If the dataset is not enabled, forget about it (if dates == 'auto')
         if dates == 'auto' and not parset.get_enabled():
             continue
         loaded = parset.load(force=False)
-        #-- exposure times
+        
+        # Retrieve exposure times
         if 'exptime' in parset:
             exps = parset['exptime']
         else:
-            exps = [0]*len(parset) # was len(parset['time'])
-        #-- sampling rates
+            exps = [0] * len(parset)
+        
+        # Sampling rates
         if 'samprate' in parset:
             samp = parset['samprate']
         else:
-            samp = [1]*len(parset) # was len(parset['time'])
+            samp = [1] * len(parset)
             
         # Now the user could have given phases instead of times. I know, that
         # is incredibly annoying, but there's nothing we can do about it.
-        # Believe me, I tried. Old habit die hard, they say. I don't know who
+        # Believe me, I tried. Old habits die hard, they say. I don't know who
         # "they" are, but "they" seem to be right, at least in this case (only
         # from this case it is hard to provide a general proof of the theorem).
-        # The definition of "phase" is quite system-dependent, so here comes
-        # some messy code to convert phases to times. We can extend this later
-        # for other cases, including period changes etc.
+        # The definition of "phase" is quite system-morphology-dependent, so
+        # here comes some messy code to convert phases to times. We can extend
+        # this later for other cases, including period changes etc.
+        
         if 'phase' in parset['columns'] and not 'time' in parset['columns']:
-            # For now, we just assume we have a simple binary:
+            
+            # For now, we just assume we have a simple binary (so it's not that
+            # messy (yet)):
             period = system[0].params['orbit']['period']
             t0 = system[0].params['orbit']['t0']
             phshift = system[0].params['orbit']['phshift']
             mytimes = (parset['phase'] * period) + t0
-            logger.warning("Converted phases to times with period={}, t0={} and phshift={}".format(period,t0,phshift))
+            logger.warning(("Converted phases to times"
+                            "with period={}, t0={} and"
+                            "phshift={}").format(period, t0, phshift))
         else:
             mytimes = parset['time']
             
-        for itime,iexp,isamp in zip(mytimes,exps,samp):
-            times.append(np.linspace(itime-iexp/2.0,itime+iexp/2.0,isamp))
-            refs.append([parset['ref']]*isamp)
-            types.append([parset.context]*isamp)
+        for itime, iexp, isamp in zip(mytimes, exps, samp):
+            times.append(np.linspace(itime - iexp/2.0, itime + iexp/2.0, isamp))
+            refs.append([parset['ref']] * isamp)
+            types.append([parset.context] * isamp)
+        
+        # Put the parameterSet in the state we found it
         if loaded: parset.unload()
-    #-- what times are actually the same? We cannot test "true" equality
-    #   because of possible numerical rounding (e.g. when reading or writing
-    #   files). We test which times are "nearly" equal
+    
+    # Next we allow for time points to be considered "the same", so that we
+    # don't need to recompute stuff for very small differences in time (at least
+    # small agains the expected variations). We cannot test "true" equality
+    # because of possible numerical rounding (e.g. when reading or writing
+    # files). We test which times are "nearly" equal.
+    
+    # But first we put all the times together, and sort them chronologically
     try:
         times = np.hstack(times)
     except ValueError as msg:
-        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps the obs are not DataSets? (original message: {})".format(str(msg)))
+        raise ValueError(("Failed to derive at which points the system needs "
+                         "to be computed. Perhaps the obs are not DataSets? "
+                         "(original message: {})").format(str(msg)))
     except IndexError as msg:
-        raise ValueError("Failed to derive at which points the system needs to be computed. Perhaps there are no obs attached? (original message: {})".format(str(msg)))
+        raise ValueError(("Failed to derive at which points the system needs "
+                          "to be computed. Perhaps there are no obs attached? "
+                          "(original message: {})").format(str(msg)))
     
     sa    = np.argsort(times)
     types = np.hstack(types)[sa]
     refs  = np.hstack(refs)[sa]
     times = times[sa]
 
-    #-- for each time point, keep a list of stuff that needs to be computed
+    # For each time point, keep a list of stuff that needs to be computed
     labl_per_time = [] # observation ref (uuid..)
     type_per_time = [] # observation type (lcdep...)
     time_per_time = [] # times of observations
-    for i,t in enumerate(times):
-        #-- if the time is the first or different from the previous one:
-        #   remember the time and start a list of refs and types
-        if i==0 or np.abs(t-time_per_time[-1])>=tol:
+    
+    for i, t in enumerate(times):
+        
+        # If the time is the first or different from the previous one: remember
+        # the time and start a list of refs and types
+        if i == 0 or np.abs(t - time_per_time[-1]) >= tol:
             time_per_time.append(times[i])
             labl_per_time.append([refs[i]])
             type_per_time.append([types[i]])
-        #-- else, append the refs and times to the last time point
-        elif labl_per_time[-1][-1]!=refs[i]:
+        
+        # Else, append the refs and times to the last time point
+        elif labl_per_time[-1][-1] != refs[i]:
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
+        
         else:
-            #-- don't know what to do here: also append or continue?
+            # Don't know what to do here: also append or continue?
             #continue
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
-    #-- and fill the parameterSet!
+    # And fill the parameterSet!
     params['time'] = time_per_time
     params['refs']= labl_per_time
     params['types'] = type_per_time
 
+
+
+
 @decorators.mpirun
-def compute(system,params=None,**kwargs):
+def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
+            **kwargs):
     """
     Automatically compute dependables of a system to match the observations.
     
@@ -1666,34 +1753,36 @@ def compute(system,params=None,**kwargs):
     @param mpi: parameters describing MPI
     @type mpi: ParameterSet of context 'mpi'
     """
-    #-- gather the parameters that give us more details on how to compute
-    #   the system: subdivisions, eclipse detection, optimization flags...
-    #inside_mpi = kwargs.pop('mpi',None)
-    im = kwargs.pop('im',False)
-    extra_func = kwargs.pop('extra_func',[])
-    extra_func_kwargs = kwargs.pop('extra_func_kwargs',[{}])   
+    
+    # Gather the parameters that give us more details on how to compute the
+    # system: subdivisions, eclipse detection, optimization flags...
+    if extra_func is None:
+        extra_func = []
+    if extra_func_kwargs is None:
+        extra_func_kwargs = [{}]
+    
     if params is None:
-        params = parameters.ParameterSet(context='compute',**kwargs)
+        params = parameters.ParameterSet(context='compute', **kwargs)
     else:
         params = params.copy()
         for key in kwargs:
             params[key] = kwargs[key]
     auto_detect_circular = True
-    #-- extract info on the time points to compute the system on, and which
-    #   pbdeps (refs+types) to compute the system for. In principle, we
-    #   could derive the type from the ref since they are unique, but this
-    #   way we allow for a possibility to implement 'all lcdep' or so in the
-    #   future.
-    extract_times_and_refs(system,params)
+    
+    # Extract info on the time points to compute the system on, and which pbdeps
+    # (refs+types) to compute the system for. In principle, we could derive the
+    # type from the ref since they are unique, but this way we allow for a
+    # possibility to implement 'all lcdep' or so in the future.
+    extract_times_and_refs(system, params)
     time_per_time = params['time']
     labl_per_time = params['refs']
     type_per_time = params['types'] 
     
-    #-- some simplifications: try to detect whether a system is circular is not
-    if hasattr(system,'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
-        circular = (system.bodies[0].params['orbit']['ecc']==0)
+    # Some simplifications: try to detect whether a system is circular is not
+    if hasattr(system, 'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
+        circular = (system.bodies[0].params['orbit']['ecc'] == 0)
         logger.info("Figured out that system is{0}circular".format(circular and ' ' or ' not '))
-        #-- perhaps one of the components is a star with a spot or pulsations
+        # Perhaps one of the components is a star with a spot or pulsations
         for body in system.bodies:
             if 'puls' in body.params or 'circ_spot' in body.params:
                 circular = False
@@ -1703,29 +1792,31 @@ def compute(system,params=None,**kwargs):
                 circular = False
                 logger.info("... but at least one of the components is misaligned")
                 break
-            
-        
     else:
         circular = False
         logger.info("Cannot figure out if system is circular or not, leaving at circular={}".format(circular))
-    #-- should we bother with irradiating Bodies and irradiated bodies? There
-    #   are a few cases here: if the system is circular, we only need to
-    #   compute the reflection once. In any case, we need to compute
-    #   bolometric stuff at the desired time stamps (only once for circular
-    #   cases, otherwise always)
+    
+    # Should we bother with irradiating Bodies and irradiated bodies? There are
+    # a few cases here: if the system is circular, we only need to compute the
+    # reflection once. In any case, we need to compute bolometric stuff at the
+    # desired time stamps (only once for circular cases, otherwise always)
     heating = params['heating'] 
     reflect = params['refl']
     nreflect = params['refl_num']
     ltt = params['ltt']
     
-    #   so what about heating then...
+    # So what about heating then...: if heating is switched on and the orbit is
+    # circular, heat only once
     if heating and circular:
         heating = 1
         labl_per_time[0].append('__bol')
+    # Else heat always
     elif heating:
         for labl in labl_per_time:
             labl.append('__bol')
-    #   and uuhhh... what about reflection?
+    
+    # and uuhhh... what about reflection? Well, same as for heating: if
+    # reflection is switched on, do it only once. Otherwise, reflect always.
     if reflect and circular:
         reflect = 1
         if not heating:
@@ -1733,97 +1824,108 @@ def compute(system,params=None,**kwargs):
     elif reflect and not heating:
         for labl in labl_per_time:
             labl.append('__bol')
-    #   and don't forget beaming!
+            
+    # And don't forget beaming!
     beaming = False
     for parset in system.walk():
         if 'beaming' in parset and parset['beaming']:
             beaming = True
             logger.info("Figured out that the system requires beaming")
-    #-- if we include reflection, we need to reserve space in the mesh
-    #   for the reflected light. We need to fix the mesh afterwards because
-    #   each body can have different fields appended in the mesh.
+    
+    # If we include reflection, we need to reserve space in the mesh for the
+    # reflected light. We need to fix the mesh afterwards because each body can
+    # have different fields appended in the mesh.
     if reflect:
         system.prepare_reflection(ref='all')
         x1 = set(system[0].mesh.dtype.names)
         x2 = set(system[1].mesh.dtype.names)
         if len(x1-x2) or len(x2-x1):
-            #raise ValueError("When including reflection, you need to call 'prepare_reflection' and 'fix_mesh' first")
             system.fix_mesh()
+    
     # If the system is circular, we're not recomputing stuff. Make sure to
     # have computed everything as least once:
     if circular:
         system.set_time(0., ref='all')
     
-    #-- now we're ready to do the real stuff
-    for i,(time,ref,type) in enumerate(zip(time_per_time,labl_per_time,type_per_time)):
-        #-- clear previous reflection effects if necessary (not if reflect==1!)
+    # Now we're ready to do the real stuff
+    iterator = zip(time_per_time, labl_per_time, type_per_time)
+    for i, (time, ref, type) in enumerate(iterator):
+        
+        # Clear previous reflection effects if necessary (not if reflect==1!)
         if reflect is True:
             system.clear_reflection()
-        #-- set the time of the system
-        system.set_time(time,ref=ref)
-        #-- fix the mesh if needed:
-        if i==0 and hasattr(system,'bodies'):
+        
+        # Set the time of the system
+        system.set_time(time, ref=ref)
+        
+        # Fix the mesh if needed:
+        if i==0 and hasattr(system, 'bodies'):
             system.fix_mesh()
-        #-- for heating an eccentric system, we first need to reset the temperature!
+        
+        # For heating an eccentric system, we first need to reset the temperature!
         if heating is True:
             system.temperature(time)
-        #-- compute intensities
+        
+        # Compute intensities
         if i==0 or not circular or beaming:
             system.intensity(ref=ref)
-        #-- update intensity should be set to True when we're doing beaming.
-        #   Perhaps we need to detect which refs have "beaming=True", collect
-        #   those in a list and update the intensities for them anyway?
+        
+        # Update intensity should be set to True when we're doing beaming.
+        # Perhaps we need to detect which refs have "beaming=True", collect
+        # those in a list and update the intensities for them anyway?
         update_intensity = False
-        #-- compute reflection effect (maybe just once, maybe always)
-        if (reflect is True or heating is True) or (i==0 and (reflect==1 or heating==1)):
-            reflection.mutual_heating(*system.bodies,heating=heating,
-                                      reflection=reflect,niter=nreflect)
+        # Compute reflection effect (maybe just once, maybe always)
+        if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
+            reflection.mutual_heating(*system.bodies, heating=heating,
+                                      reflection=reflect, niter=nreflect)
             update_intensity = True
-        #-- recompute the intensities (the velocities might have
-        #   changed within BodyBag operations, and temperatures might
-        #   have changed due to reflection)
+        
+        # Recompute the intensities (the velocities might have changed within
+        # BodyBag operations, and temperatures might have changed due to
+        # reflection)
         if update_intensity:
             system.intensity(ref=ref)
-        #-- detect eclipses/horizon
-        choose_eclipse_algorithm(system,algorithm=params['eclipse_alg'])
-        #-- if necessary, subdivide and redetect eclipses/horizon
+        
+        # Detect eclipses/horizon
+        choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+        
+        # If necessary, subdivide and redetect eclipses/horizon
         for k in range(params['subdiv_num']):
-            system.subdivide(threshold=0,algorithm=params['subdiv_alg'])
-            choose_eclipse_algorithm(system,algorithm=params['eclipse_alg'])
-        #-- correct for light travel time effects
+            system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
+            choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+        
+        # Correct for light travel time effects
         if ltt:
             system.correct_time()
-        #-- compute stuff
+        
+        # Compute observables at this time step
         had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
-        for itype,iref in zip(type,ref):
-            if itype[:-3]=='if':
+        for itype,iref in zip(type, ref):
+            if itype[:-3] == 'if':
                 itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
                 if iref in had_refs:
                     continue
                 had_refs.append(iref)
-            logger.info('Calling {} for ref {}'.format(itype[:-3],iref))
-            getattr(system,itype[:-3])(ref=iref,time=time)
-        #-- make an image if necessary
-        if im:
-            if isinstance(im,str):
-                savefig = ('%s_%014.6f.png'%(im,time)).replace('.','_')
-            else:
-                savefig = ('compute_dependable_%014.6f.png'%(time)).replace('.','_')
-            image(system,ref=ref[0],savefig=savefig)
-        #-- call extra funcs if necessary
-        for ef,kw in zip(extra_func,extra_func_kwargs):
-            ef(system,time,i,**kw)
-        #-- unsubdivide to prepare for next step
+            logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
+            getattr(system, itype[:-3])(ref=iref, time=time)
+
+        # Call extra funcs if necessary
+        for ef, kw in zip(extra_func, extra_func_kwargs):
+            ef(system, time, i, **kw)
+        
+        # Unsubdivide to prepare for next step
         if params['subdiv_num']:  
             system.unsubdivide()
+    
     #if inside_mpi is None:
     try:
         system.compute_pblum_or_l3()
     except:
         logger.warning("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
 
-def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
-            extra_func=[],extra_func_kwargs=[{}],**kwargs):
+
+def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
+            extra_func=[], extra_func_kwargs=[{}], **kwargs):
     """
     Customized computation of dependables of a system.
     
@@ -1849,35 +1951,39 @@ def observe(system,times,lc=False,rv=False,sp=False,pl=False,im=False,mpi=None,
 
     You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
     """
-    #-- gather the parameters that give us more details on how to compute
-    #   the system: subdivisions, eclipse detection, optimization flags...
-    params = parameters.ParameterSet(context='compute',**kwargs)
-    #-- what do we need to compute? The user only has the possibility of
-    #   saying e.g. lc=True or lc=['mylc1','mylc2']
+    # Gather the parameters that give us more details on how to compute the
+    # system: subdivisions, eclipse detection, optimization flags...
+    params = parameters.ParameterSet(context='compute', **kwargs)
+    
+    # What do we need to compute? The user only has the possibility of saying
+    # e.g. lc=True or lc=['mylc1','mylc2']
     refs = []
     typs = []
-    if not lc and not rv and not sp and not pl and not im:
-        raise ValueError("You need to compute at least one of lc, rv, sp, pl and/or im")
-    #-- derive all lcdep parameterset references
-    for type in ['lc','rv','sp','pl']:
+    if not lc and not rv and not sp and not pl:
+        raise ValueError("You need to compute at least one of lc, rv, sp, pl")
+    
+    # Derive all lc/rv/...dep parameterset references
+    for type in ['lc', 'rv', 'sp', 'pl']:
         if locals()[type] is True:
             for parset in system.walk():
-                if parset.context==type+'dep':
+                if parset.context == type+'dep':
                     if parset['ref'] in refs:
                         continue
                     refs.append(parset['ref'])
                     typs.append(type+'dep')
-    #-- fill in the parameterSet
+    
+    # Fill in the parameterSet
     params['time'] = times
-    params['refs'] = [refs]*len(times)
-    params['types'] = [typs]*len(times)  
-    #-- and run compute
-    compute(system,params=params,mpi=mpi,im=im,extra_func=extra_func,
+    params['refs'] = [refs] * len(times)
+    params['types'] = [typs] * len(times)  
+    
+    # And run compute
+    compute(system, params=params, mpi=mpi, extra_func=extra_func,
             extra_func_kwargs=extra_func_kwargs)
 
 
         
-def choose_eclipse_algorithm(all_systems,algorithm='auto'):
+def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     """
     Try to automatically detect the best eclipse detection algorithm.
     """
@@ -1931,7 +2037,8 @@ def choose_eclipse_algorithm(all_systems,algorithm='auto'):
 
 #{ Extrafuncs for compute_dependables
 
-def ef_binary_image(system,time,i,name='ef_binary_image',axes_on=True, **kwargs):
+def ef_binary_image(system, time, i, name='ef_binary_image',
+                    axes_on=True, **kwargs):
     """
     Make an image of a binary system.
     
@@ -1942,7 +2049,7 @@ def ef_binary_image(system,time,i,name='ef_binary_image',axes_on=True, **kwargs)
     easy.
     """
     # Compute the orbit of the system
-    if hasattr(system,'__len__'):
+    if hasattr(system, '__len__'):
         orbit = system[0].params['orbit']
         star1 = system[0]
         star2 = system[1]
@@ -1951,14 +2058,14 @@ def ef_binary_image(system,time,i,name='ef_binary_image',axes_on=True, **kwargs)
         star1 = system
         star2 = None
     period = orbit['period']
-    t0,tn = kwargs.pop('t0',0), kwargs.pop('tn',period)
-    times_ = np.linspace(t0,tn,250)
-    orbit1 = keplerorbit.get_binary_orbit(times_,orbit,component='primary')[0]
-    orbit2 = keplerorbit.get_binary_orbit(times_,orbit,component='secondary')[0]
+    t0,tn = kwargs.pop('t0', 0), kwargs.pop('tn', period)
+    times_ = np.linspace(t0, tn, 250)
+    orbit1 = keplerorbit.get_binary_orbit(times_, orbit, component='primary')[0]
+    orbit2 = keplerorbit.get_binary_orbit(times_, orbit, component='secondary')[0]
     # What's the radius of the stars?
-    r1 = coordinates.norm(star1.mesh['_o_center'],axis=1).mean()
+    r1 = coordinates.norm(star1.mesh['_o_center'], axis=1).mean()
     if star2 is not None:
-        r2 = coordinates.norm(star2.mesh['_o_center'],axis=1).mean()
+        r2 = coordinates.norm(star2.mesh['_o_center'], axis=1).mean()
     else:
         r2 = r1
     # Compute the limits
@@ -2009,22 +2116,6 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     pl.close()
     
 
-
-
-def plot_system(system):
-    """
-    Plot models and observations.        
-    """
-    for idata in system.params['obs'].values():
-        for observations in idata.values():
-            pl.figure()
-            pl.title(observations['ref'])
-            #-- get the model corresponding to this observation
-            model = system.get_synthetic(type=observations.context[:-3]+'syn',
-                                       ref=observations['ref'],
-                                       cumulative=True)
-            observations.plot()
-            model.plot()
 
 
 

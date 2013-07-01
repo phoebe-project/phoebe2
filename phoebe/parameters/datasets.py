@@ -352,6 +352,15 @@ class DataSet(parameters.ParameterSet):
             self_copy[col] = np.array(self[col])
         return self_copy
     
+    def clear(self):
+        # Reset all parameter to the initial ones
+        self.reset()
+        # But clear the results
+        for col in self['columns']:
+            self[col] = []
+        
+    
+    
     dtype = property(get_dtype)
     shape = property(get_shape)
     
