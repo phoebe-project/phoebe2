@@ -836,7 +836,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     #rotated_image[margin/2:-margin/2, margin/2:-margin/2] = data
     
     prev_pa = None
-    for nr,(bl,pa,wl) in enumerate(zip(baseline,posangle,eff_wave)):        
+    for nr, (bl, pa, wl) in enumerate(zip(baseline, posangle, eff_wave)):        
         
         if keepfig:
             xlims,ylims,p = image(the_system,ref=ref,savefig='{}_{:05d}.fits'.format(keepfig,nr))
@@ -854,11 +854,11 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
             resol = np.abs(xlims[0]-xlims[1])/d
             #resol = conversions.convert('rad','mas',resol)/npix
             resol =  resol / (2 * np.pi) * 360. * 3600. / npix
-            an_text = (r'PA={:.2f}$^\circ$\n'
-                       r'$\lambda$={:.0f}$\AA$\n'
-                       r'B={:.0f}m\n'
-                       r'U,V=({:.1f},{:.1f}) m\n'
-                       r'{:d} pix\n{:.3g} mas/pix')
+            an_text = (r'PA={:.2f}$^\circ$' +'\n'
+                       r'$\lambda$={:.0f}$\AA$' +'\n'
+                       r'B={:.0f}m' +'\n'
+                       r'U,V=({:.1f},{:.1f}) m' + '\n'
+                       r'{:d} pix' +'\n'+ '{:.3g} mas/pix')
             pl.annotate(an_text.format(pa,eff_wave[nr],bl,uc,vc,npix,resol),
                         (0.95,0.95),va='top',ha='right',
                         xycoords='axes fraction',color='r',size=20)
@@ -1191,8 +1191,7 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
         
     return wavelengths,total_spectrum,total_continum
 
-def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
-           rv_grav=True,do_V=True,do_Q=False,do_U=False):
+def stokes(the_system, obs, pbdep, rv_grav=True):
     r"""
     Calculate the stokes profiles.
     
@@ -1276,179 +1275,175 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
         Thanks to C. Neiner and E. Alecian. They are not responsible for any bugs or errors.
     
     """
-    
+    ref = obs['ref']
     mesh = the_system.mesh
-    #-- is there data available? then we can steal the wavelength array
-    #   from there. We also collect information on the resolution and on the
-    #   macro turbulent velocity. It might seem strange to derive vmacro from
-    #   the observation set, but that's because in this approximation it isn't
-    #   real part of the model, but is rather done after computing the whole
-    #   spectrum.
-    #   Finally, if data is found, we check what to compute from the
-    #   observation set.
-    iobs,ref_ = the_system.get_parset(ref=ref,context='plobs')
-    if ref_ is not None:
-        if not 'wavelength' in iobs or not len(iobs['wavelength']):
-            iobs.load()
-        wavelengths = iobs.request_value('wavelength','AA')
-        #-- instrumental info
-        R = iobs['R']
-        if 'vmacro' in iobs:
-            vmacro = iobs['vmacro']
-        #-- profiles to compute, and method to use
-        if 'V' in iobs['columns']:
-            do_V = True
-        if 'Q' in iobs['columns']:
-            do_Q = True
-        if 'U' in iobs['columns']:
-            do_U = True
-        
-    else:
-        R = None
-        vmacro = 0.
-    #-- information on dependable set: we need the limb darkening function,
-    #   the method, the glande factor and the weak field approximation boolean
-    idep,ref = the_system.get_parset(ref=ref,context='pldep')
-    ld_model = idep['ld_func']
-    method = idep['method']
-    glande = idep['glande']
-    weak_field = idep['weak_field']
-    keep = the_system.mesh['mu']<=0
-    #-- create the wavelength array from the information of the spdep: we use
-    #   central wavelength, velocity range and spectral resolving power.
-    #   We broaden the range of the wavelengths a bit, so that we are sure that
-    #   also neighbouring lines are taken into account. We clip the spectrum
-    #   afterwards if needed. If you give wavelengths yourself, you need to
-    #   take this into account yourself.
-    clip_after = None
-    logger.info('Computing spectropolarimetry of {}'.format(ref))
-    if wavelengths is None:
-        wc = idep.get_value('clambda','AA')
-        vl = idep.get_value_with_unit('max_velo')
-        w0 = conversions.convert(vl[1],'AA',-2*vl[0],wave=(wc,'AA'))
-        wn = conversions.convert(vl[1],'AA',+2*vl[0],wave=(wc,'AA'))
-        Npoints = (wn-w0) / (wc/idep['R'])
-        logger.info('Created wavelength array of length {} between {}AA and {}AA - clipped afterwards'.format(Npoints,w0,wn))
-        wavelengths = np.linspace(w0,wn,Npoints)
-        clip_after = conversions.convert(vl[1],'AA',-vl[0],wave=(wc,'AA')),\
-                     conversions.convert(vl[1],'AA',+vl[0],wave=(wc,'AA'))
-    #-- for convenience, the user might give the wavelength array at this level
-    #   to using central wavelength, velocity range and number of points.
-    elif len(wavelengths)==3:
-        w0 = conversions.convert('km/s','AA',-wavelengths[1],wave=(wavelengths[0],'AA'))
-        wn = conversions.convert('km/s','AA',+wavelengths[1],wave=(wavelengths[0],'AA'))
-        wavelengths = np.linspace(w0,wn,wavelengths[2])
-    #-- else, we assume wavelengths is already an array, so we don't need to do
-    #   anything, except for setting the central wavelength "wc".
-    else:
-        wc = (wavelengths[0]+wavelengths[-1])/2.
-    #-- if we're not seeing the star, we can easily compute the spectrum: it's
-    #   zero! Muhuhahaha!
+    
+    # Wavelength info
+    if not 'wavelength' in obs or not len(obs['wavelength']):
+        loaded = obs.load(force=False)
+    wavelengths = obs.request_value('wavelength', 'AA').ravel()
+    
+    # Instrumental info
+    R = obs.get('R', None)
+    vmacro = obs.get('vmacro', 0.0)
+    
+    # Intrinsic width of the profile
+    sigma = pbdep.get('sigma', 2.0)
+    depth = pbdep.get('depth', 0.4)
+    
+    # Profiles to compute, and method to use
+    do_V = do_Q = do_U = False
+    if 'V' in obs['columns']:
+        do_V = True
+    if 'Q' in obs['columns']:
+        do_Q = True
+    if 'U' in obs['columns']:
+        do_U = True
+    logger.info("Computing V ({}), Q ({}), U ({})".format(do_V, do_Q, do_U))
+    
+    # Information on dependable set: we need the limb darkening function, the
+    # method, the glande factor and the weak field approximation boolean.
+    ld_model = pbdep['ld_func']
+    method = pbdep['method']
+    glande = pbdep['glande']
+    weak_field = pbdep['weak_field']
+    keep = the_system.mesh['mu'] <= 0
+    
+    # Set the central wavelength "wc".
+    wc = (wavelengths[0]+wavelengths[-1])/2.
+    
+    # If we're not seeing the star, we can easily compute the spectrum: it's
+    # zero! Muhuhahaha!
     if not np.sum(keep):
         logger.info('Still need to compute (projected) intensity')
         the_system.intensity(ref=ref)
-    the_system.projected_intensity(ref=ref,method='numerical')
-    keep = the_system.mesh['proj_'+ref]>0
-    if not np.sum(keep):
-        logger.info('no spectropolarimetry synthesized, zero flux received')
-        return wavelengths,np.zeros(len(wavelengths)),np.zeros(len(wavelengths)),\
-               np.zeros(len(wavelengths)),np.zeros(len(wavelengths)),np.ones(len(wavelengths))
     
-    #-- magnitude of magnetic field and angle towards the LOS
-    B = coordinates.norm(mesh['B_'][keep],axis=1)*1e-4 # and convert to Tesla 
-    cos_theta = coordinates.cos_angle(mesh['B_'][keep],np.array([[0,0.,-1]]),axis=1)
+    # Check if there is any flux
+    the_system.projected_intensity(ref=ref, method='numerical')
+    keep = the_system.mesh['proj_'+ref] > 0
+    
+    if not np.sum(keep):
+        logger.info('no spectropolarimetry synthesized zero flux received')
+        return wavelengths, np.zeros(len(wavelengths)),\
+               np.zeros(len(wavelengths)), np.zeros(len(wavelengths)),\
+               np.zeros(len(wavelengths)), np.ones(len(wavelengths))
+    
+    
+    # Magnitude of magnetic field and angle towards the LOS (if there is any)
+    B = coordinates.norm(mesh['B_'][keep], axis=1) * 1e-4 # and convert to Tesla 
+    
+    if np.any(B != 0.0):
+        cos_theta = coordinates.cos_angle(mesh['B_'][keep],
+                                          np.array([[0.0, 0.0,-1.0]]), axis=1)
+    else:
+        cos_theta = np.zeros(len(mesh))
+    
+    # Create some shortcut arrays to avoid extensive repetition of calculations
     sin2theta = 1 - cos_theta**2
-    cos_chi = coordinates.cos_angle(mesh['B_'][keep],np.array([[1.,0.,0]]),axis=1)
+    cos_chi = coordinates.cos_angle(mesh['B_'][keep],
+                                    np.array([[1.0, 0.0, 0.0]]), axis=1)
     cos2chi = cos_chi**2
     sin2chi = 1. - cos2chi
     cos22chi = (cos2chi - sin2chi)**2
     sin22chi = 1. - cos22chi
-    #-- Zeeman splitting in angstrom
-    #bohr_magneton = 9.27400968e-24
-    #delta_nu_zeemans = -glande*bohr_magneton*B
-    delta_nu_zeemans = -glande*constants.qe*B/(4*np.pi*constants.me) # (qe is negative but somewhere my B field has wrong sign?)
+    
+    # Zeeman splitting in angstrom  (qe is negative but somewhere my B field has
+    # wrong sign?)
+    delta_nu_zeemans = -glande * constants.qe * B/ (4*np.pi*constants.me)
     delta_nu_zeemans2 = delta_nu_zeemans**2
-    delta_v_zeemans = (wc*1e-10)*delta_nu_zeemans/1000. # from cy/s to km/s
-    #-- radial velocities
-    rad_velos = -the_system.mesh['velo___bol_'][keep,2]
-    #rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)    
-    #nus = conversions.convert('AA','Hz',wavelengths)
-    rad_velos = rad_velos * 8.04986111111111
-    nus = constants.cc/wavelengths*1e10
+    delta_v_zeemans = (wc * 1e-10) * delta_nu_zeemans / 1000. # from cy/s to km/s
     
-    logger.info('{} approximation'.format(weak_field and 'Weak-field' or 'No weak-field'))
-    if method=='numerical' and not idep['profile']=='gauss':
-        #-- get limb angles
+    # Radial velocities
+    rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
+    rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
+    nus = constants.cc/wavelengths*1e10 # from AA to Hz
+    
+    # Report which approximation we use
+    approx_msg = weak_field and 'Weak-field' or 'No weak-field'
+    logger.info('{} approximation'.format(approx_msg))
+    
+    if method == 'numerical' and not pbdep['profile'] == 'gauss':
+        # Get limb angles
         mus = the_system.mesh['mu']
-        keep = (mus>0) & (the_system.mesh['partial'] | the_system.mesh['visible'])# & -np.isnan(self.mesh['size'])
+        keep = (mus > 0) & (the_system.mesh['partial'] | the_system.mesh['visible'])
         mus = mus[keep]
-        #-- negating the next array gives the partially visible things, that is
-        #   the only reason for defining it.
+        
+        # Negating the next array gives the partially visible things, that is
+        # the only reason for defining it.
         visible = the_system.mesh['visible'][keep]
-        #-- compute normalised intensity using the already calculated limb darkening
-        #   coefficents. They are normalised so that center of disk equals 1. Then
-        #   these values are used to compute the weighted sum of the spectra.
-        logger.info('using limbdarkening law {} - spectropolarimetry interpolated from grid {}'.format(ld_model,idep['profile']))
-        Imu = getattr(limbdark,'ld_%s'%(ld_model))(mus,the_system.mesh['ld_'+ref][keep].T)
-        teff,logg = the_system.mesh['teff'][keep],the_system.mesh['logg'][keep]
-        #-- fitters can go outside of the grid
-        try:
-            spectra = modspectra.interp_spectable(idep['profile'],teff,logg,wavelengths)
-        except IndexError:
-            logger.error('no spectropolarimetry synthesized (outside of grid ({}<=teff<={}, {}<=logg<={}), zero flux received'.format(teff.min(),teff.max(),logg.min(),logg.max()))
-            return wavelengths,np.zeros(len(wavelengths)),0.
-    
-        proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
+        
+        # Compute normalised intensity using the already calculated limb
+        # darkening coefficents. They are normalised so that center of disk
+        # equals 1. Then these values are used to compute the weighted sum of
+        # the spectra.
+        logger.info('using limbdarkening law {} - spectropolarimetry interpolated from grid {}'.format(ld_model,pbdep['profile']))
+        Imu = getattr(limbdark,'ld_{}'.format(ld_model))(mus, the_system.mesh['ld_'+ref][keep].T)
+        teff, logg = the_system.mesh['teff'][keep], the_system.mesh['logg'][keep]
+            
+        proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
         logger.info('synthesizing spectropolarimetry using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
-        total_continum = 0.
-        stokes_I = 0.
-        stokes_V = 0.
-        #-- gravitational redshift:
+        total_continum = 0.0
+        stokes_I = 0.0
+        stokes_V = 0.0
+        
+        # Gravitational redshift:
         if rv_grav:
-            rv_grav = 0#generic.gravitational_redshift(the_system)
+            rv_grav = 0.0 # generic.gravitational_redshift(the_system)
         for i,rv in enumerate(rad_velos):
             rvz = delta_v_zeemans[i]
-            total_continum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=proj_intens[:,i])
+            total_continum += tools.doppler_shift(wavelengths, rv+rv_grav,\
+                                                  flux=proj_intens[:, i])
             
-            specm = tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=spectra[0,:,i]*proj_intens[:,i])
-            specp = tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=spectra[0,:,i]*proj_intens[:,i])
+            # Compute left and right shifted profile, as well as the usual
+            # intensity profile
+            specm = tools.doppler_shift(wavelengths, rv+rv_grav-rvz,
+                                      flux=spectra[0, :, i] * proj_intens[:, i])
+            specp = tools.doppler_shift(wavelengths, rv+rv_grav+rvz,
+                                      flux=spectra[0, :, i] * proj_intens[:, i])  
+            stokes_I += tools.doppler_shift(wavelengths, rv+rv_grav,
+                                      flux=spectra[0, :, i] * proj_intens[:, i])
             
-            stokes_I += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
-            
-            #-- Stokes V in weak field approximation or not
+            # Stokes V (in weak field approximation or not)
             if do_V and weak_field:
-                stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
+                stokes_V -= costh * delta_nu_zeemans[i] * utils.deriv(nus, spec)
             elif do_V:
-                stokes_V += cos_theta[i]*(specm-specp)/2.
-    elif method=='numerical':
-        #-- derive intrinsic width of the profile
-        sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
+                stokes_V += cos_theta[i] * (specm-specp) / 2.0
+
+    elif method == 'numerical':
+        # Derive intrinsic width of the profile
+        sigma = conversions.convert('km/s', 'AA', sigma, wave=(wc, 'AA')) - wc
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
-        template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
+        
+        template = 1.00 - depth * np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
         sizes = the_system.mesh['size'][keep]
+        
         logger.info('synthesizing Gaussian profile using %d faces (sig= %.2e AA,RV range = %.6g to %.6g km/s)'%(len(proj_intens),sigma,rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
-        stokes_I = 0.
-        stokes_V = 0.
-        stokes_Q = 0.
-        stokes_U = 0.
-        #-- gravitational redshift:
+        stokes_I = 0.0
+        stokes_V = 0.0
+        stokes_Q = 0.0
+        stokes_U = 0.0
+        
+        # Gravitational redshift:
         if rv_grav:
-            rv_grav = 0#generic.gravitational_redshift(the_system)
-        rad_velosw = conversions.convert('km/s','AA',rad_velos,wave=(wc,'AA'))-wc
+            rv_grav = 0.0 # generic.gravitational_redshift(the_system)
         
-        cc_ = constants.cc/1000.
+        rad_velosw = conversions.convert('km/s', 'AA', rad_velos, wave=(wc, 'AA')) - wc
         
-        for i,(pri,rv,sz,iB,costh) in enumerate(zip(proj_intens,rad_velos,sizes,B,cos_theta)):
+        cc_ = constants.cc / 1000.
+        
+        iterator = zip(proj_intens,rad_velos,sizes,B,cos_theta)
+        for i, (pri, rv, sz, iB, costh) in enumerate(iterator):
+            
             rvz = delta_v_zeemans[i]
             #-- first version
             #spec  = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
             #specm = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav-rvz,flux=template)
             #specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
             
-            #-- first version but inline
+            # First version but inline
             wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
             wave_out2 = wavelengths * (1+(rv+rv_grav-rvz)/cc_)
             wave_out3 = wavelengths * (1+(rv+rv_grav+rvz)/cc_)
@@ -1456,12 +1451,12 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             specm = pri*sz*np.interp(wavelengths,wave_out2,template)
             specp = pri*sz*np.interp(wavelengths,wave_out3,template)
             
-            #-- we can compute Stokes V in weak field approximation or not
+            # We can compute Stokes V in weak field approximation or not
             if do_V and weak_field:
-                stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
+                stokes_V -= costh * delta_nu_zeemans[i] * utils.deriv(nus, spec)
             elif do_V:
-                stokes_V += costh*(specm-specp)/2.
-                
+                stokes_V += costh * (specm - specp) / 2.0
+            
             #-- second version: weak field approximation
             #mytemplate = pri*sz*(1.00 - depth*np.exp( -(wavelengths-wc-rad_velosw[i])**2/(2*sigma**2)))
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,mytemplate)
@@ -1470,21 +1465,23 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
             
             #-- Stokes Q and U: this must be in weak field approximation for now
             if do_Q or do_U:
-                sec_deriv = utils.deriv(nus,utils.deriv(nus,spec))
+                sec_deriv = utils.deriv(nus, utils.deriv(nus, spec))
             if do_Q:
                 stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
             if do_U:
                 stokes_U -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
             
             stokes_I += spec
-            total_continum += pri*sz
+            
+            total_continum += pri*sz        
+        
         #logger.info("Zeeman splitting: between {} and {} AA".format(min(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA'))),max(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA')))))
         #logger.info("Zeeman splitting: between {} and {} Hz".format(min(delta_nu_zeemans/1e6),max(delta_nu_zeemans/1e6)))
-        logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans),max(delta_v_zeemans)))
+        logger.info("Zeeman splitting: between {} and {} km/s".format(min(delta_v_zeemans), max(delta_v_zeemans)))
     else:
         raise NotImplementedError
     
-    #-- convolve with instrumental profile if desired
+    # Convolve with instrumental profile if desired
     if R is not None:
         instr_fwhm = wc/R
         instr_sigm = instr_fwhm/2.38
@@ -1496,13 +1493,7 @@ def stokes(the_system,wavelengths=None,sigma=2.,depth=0.4,ref=0,
                        1-stokes_V/total_continum,vrot=0.,vmac=0.,fwhm=instr_sigm)
         stokes_V = (1-stokes_V)*total_continum
     
-    if clip_after is not None:
-        keep = (clip_after[0]<=wavelengths) & (wavelengths<=clip_after[1])
-        wavelengths = wavelengths[keep]
-        stokes_I = stokes_I[keep]
-        stokes_V = stokes_V[keep]
-        total_continum = total_continum[keep]
-    return wavelengths,stokes_I,stokes_V,stokes_Q,stokes_U,total_continum
+    return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
 #}
