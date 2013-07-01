@@ -1755,11 +1755,15 @@ class ParameterSet(object):
         """
         self.pop(qualifier,*args)
     
-    def reset(self,qualifier):
+    def reset(self,qualifier=None):
         """
         Reset a Parameter.
         """
-        self.get_parameter(qualifier).reset()
+        if qualifier is not None:
+            self.get_parameter(qualifier).reset()
+        else:
+            for qual in self.container:
+                self.get_parameter(qualifier).reset()
         
     def get_parameter(self,qualifier):
         """

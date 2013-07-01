@@ -1052,6 +1052,11 @@ class Body(object):
         N = 0.
         for idata in self.params['obs'].values():
             for observations in idata.values():
+                
+                # Ignore disabled datasets
+                if not observations.get_enabled():
+                    continue
+                
                 #-- get the model corresponding to this observation
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                               ref=observations['ref'],
@@ -1143,6 +1148,11 @@ class Body(object):
         sigma = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
+                
+                # Ignore disabled datasets
+                if not observations.get_enabled():
+                    continue
+                
                 #-- make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
                 if observations.context=='spobs':
@@ -1178,6 +1188,11 @@ class Body(object):
         sigma = []
         for idata in self.params['obs'].values():
             for observations in idata.values():
+                
+                # Ignore disabled datasets
+                if not observations.get_enabled():
+                    continue
+                
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                          ref=observations['ref'],
                                          cumulative=True)
@@ -1617,8 +1632,11 @@ class Body(object):
             for pbdeptype in self.params['syn']:
                 for ref in self.params['syn'][pbdeptype]:
                     old = self.params['syn'][pbdeptype][ref]
-                    new = result_sets[pbdeptype](context=old.context,ref=old['ref'])
-                    self.params['syn'][pbdeptype][ref] = new
+                    # previously we re initialized the whole set
+                    #new = result_sets[pbdeptype](context=old.context,ref=old['ref'])
+                    # now we just reset every variable
+                    old.clear()
+                    #self.params['syn'][pbdeptype][ref] = old
                     check =True
                 
         #logger.info('Removed previous synthetic calculations where present')
@@ -3287,7 +3305,7 @@ class AccretionDisk(PhysicalBody):
         """
         return self.params['disk']['label']
 
-    def compute_mesh(self,radial=40,angular=200):
+    def compute_mesh(self,radial=20,angular=50):
         Rin = self.params['disk'].get_value('rin','Rsol')
         Rout = self.params['disk'].get_value('rout','Rsol')
         height = self.params['disk'].get_value('height','Rsol')

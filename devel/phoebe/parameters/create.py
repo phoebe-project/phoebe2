@@ -952,9 +952,9 @@ def KOI126(create_body=True,**kwargs):
                           starC.request_value('mass','kg'),\
                           orbitBC.request_value('sma','m'))/(3600*24.)    
     
-    meshA = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
-    meshB = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
-    meshC = parameters.ParameterSet(frame='phoebe',context='mesh:marching')
+    meshA = parameters.ParameterSet(frame='phoebe',context='mesh:marching', alg='c')
+    meshB = parameters.ParameterSet(frame='phoebe',context='mesh:marching', alg='c')
+    meshC = parameters.ParameterSet(frame='phoebe',context='mesh:marching', alg='c')
     
     #-- light curve
     lcdep1 = parameters.ParameterSet(frame='phoebe',context='lcdep')
@@ -1087,6 +1087,7 @@ def vega_aufdenberg2006():
     star.get_parameter('mass').set_prior(distribution='normal', sigma=0.2)
     star.get_parameter('incl').set_prior(distribution='normal', sigma=0.3)
     star.get_parameter('rotperiod').set_prior(distribution='normal', sigma=0.03)
+    star.get_parameter('surfgrav').set_prior(distribution='normal', sigma=0.1)
     
     return star
 
@@ -1109,6 +1110,7 @@ def vega_hill2010():
     star.get_parameter('mass').set_prior(distribution='normal', sigma=0.2)
     star.get_parameter('incl').set_prior(distribution='normal', sigma=0.1)
     star.get_parameter('rotperiod').set_prior(distribution='normal', sigma=0.01)
+    star.get_parameter('surfgrav').set_prior(distribution='normal', sigma=0.25)
     
     return star
 
