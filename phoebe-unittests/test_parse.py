@@ -49,9 +49,11 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
     
 def test_parse_lc_hv2241():
     
-    lc_files = ['asas.V', 'davidge.B', 'davidge.U', 'davidge.V', 'pritchard.b',
-                'pritchard.Ic', 'pritchard.u', 'pritchard.v', 'pritchard.V',
-                'pritchard.y']
+    lc_files = ['asas.johnson_V.lc', 'davidge.johnson_B.lc',
+                'davidge.johnson_U.lc', 'davidge.johnson_V.lc',
+                'pritchard.stromgren_b.lc', 'pritchard.cousins_I.lc',
+                'pritchard.stromgren_u.lc', 'pritchard.stromgren_v.lc',
+                'pritchard.stromgren_v.lc', 'pritchard.stromgren_y.lc']
     lc_files = [os.path.join('../phoebe-testlib/hv2241', lc_file) for lc_file in lc_files]
     
     for lc_file in lc_files:
