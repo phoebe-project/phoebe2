@@ -43,6 +43,7 @@ from scipy.optimize import newton
 from phoebe.algorithms import marching
 from phoebe.units import constants
 from phoebe.utils import coordinates
+import froche
 
 logger = logging.getLogger('ATM.ROCHE')
 
@@ -133,38 +134,53 @@ def temperature_espinosa(system):
     @param system: object to compute temperature of
     @type system: Body
     """
-    M = system.params['star'].request_value('mass','kg')
-    r_pole = system.params['star'].request_value('radius','m')
+    # Get some global and local parameters
+    M = system.params['star'].request_value('mass', 'kg')
+    r_pole = system.params['star'].request_value('radius', 'm')
     teffpolar = system.params['star'].request_value('teff')
-    #-- rotation frequency in units of critical rotation frequency
-    omega_rot = 2*np.pi/system.params['star'].request_value('rotperiod','s')
+    
+    # Rotation frequency in units of critical rotation frequency
+    omega_rot = 2*np.pi / system.params['star'].request_value('rotperiod', 's')
     Omega_crit = np.sqrt( 8*constants.GG*M / (27.*r_pole**3))
-    omega = omega_rot/Omega_crit
-    #-- equatorial radius
-    Re = fast_rotation_radius(np.pi/2,r_pole,omega)
-    #-- but define in terms of Keplerian instead of Roche (the former is used
-    #   in the paper
-    omega = omega_rot*np.sqrt(Re**3/(constants.GG*M))
-    #-- surface coordinates
-    index = np.array([1,0,2])
-    r,phi,theta = coordinates.cart2spher_coord(*system.mesh['_o_center'].T[index])
-    cr = r*constants.Rsol/Re
-    cr_pole = r_pole/Re
-    #-- find var_theta for all points on the surface:
-    def funczero(var_theta,cr,theta):
-        sol = cos(var_theta)+log(tan(0.5*var_theta))-1./3.*omega**2*cr**3*cos(theta)**3 - cos(theta)-log(tan(0.5*theta))
-        return sol
-    var_theta = np.array([newton(funczero,itheta,args=(icr,itheta)) for icr,itheta in zip(cr,theta)])
-    #-- we scale everything to the polar effective temperature
-    factor_pole = np.exp(0.5/3.*omega**2*cr_pole**3)
-    #-- funczero is not defined for the equator and pole
-    factor_eq = (1-omega**2)**(-0.5/3.)
-    scale = teffpolar*np.sqrt(cr_pole)/factor_pole
-    #-- now compute the effective temperature
-    factor = sqrt(tan(var_theta)/tan(theta))
+    omega = omega_rot / Omega_crit
+    
+    # Compute equatorial radius
+    Re = fast_rotation_radius(np.pi/2.0, r_pole, omega)
+    
+    # But define in terms of Keplerian instead of Roche (the former is used in
+    # the paper
+    omega = omega_rot * np.sqrt(Re**3 / (constants.GG*M))
+    
+    # Surface coordinates
+    index = np.array([1, 0, 2])
+    r, phi, theta = coordinates.cart2spher_coord(*system.mesh['_o_center'].T[index])
+    cr = r * constants.Rsol/Re
+    cr_pole = r_pole / Re
+    
+    # Python version: find var_theta for all points on the surface:
+    #def funczero(var_theta,cr,theta):
+    #    sol = cos(var_theta)+log(tan(0.5*var_theta))-1./3.*omega**2*cr**3*cos(theta)**3 - cos(theta)-log(tan(0.5*theta))
+    #    return sol
+    #var_theta = np.array([newton(funczero,itheta,args=(icr,itheta)) for icr,itheta in zip(cr,theta)])
+    
+    # Find var_theta for all points on the surface:
+    var_theta = froche.espinosa(cr, theta, omega)
+    
+    # We scale everything to the polar effective temperature
+    factor_pole = np.exp(0.5/3. * omega**2*cr_pole**3)
+    
+    # Funczero is not defined for the equator and pole
+    factor_eq = (1 - omega**2)**(-0.5/3.)
+    scale = teffpolar * np.sqrt(cr_pole)/factor_pole
+    
+    # Now compute the effective temperature
+    factor = sqrt(tan(var_theta) / tan(theta))
     factor[(factor>factor_eq) | (factor<factor_pole)] = factor_eq
     teff = scale * (cr**-4 + omega**4*cr**2*sin(theta)**2-2*omega**2*sin(theta)**2/cr)**0.125*factor
+    
+    # And put it in the mesh
     system.mesh['teff'] = teff
+    
     logger.info("derived effective temperature (Espinosa) (%.3f <= teff <= %.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max()))
 
 
