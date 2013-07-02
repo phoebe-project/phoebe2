@@ -6,6 +6,7 @@ import logging
 import numpy as np
 from collections import OrderedDict
 import matplotlib.pyplot as plt
+import copy
 
 from phoebe.utils import callbacks, utils
 from phoebe.parameters import parameters
@@ -77,7 +78,7 @@ class Bundle(object):
         @return: the system structure
         @rtype: list or list of lists        
         """
-        all_types = ['label','obj','ps','nchild','mask']
+        all_types = ['obj','ps','nchild','mask','label']
         
         # create empty list for all types, later we'll decide which to return
         struc = {}
@@ -117,7 +118,7 @@ class Bundle(object):
             struc['ps'].append(itemps)
             struc['nchild'].append('2') # should not be so strict
         else:
-            itemps = self.get_component(item)
+            itemps = self.get_component(item) #problem is this uses get_system_structure
             struc['ps'].append(itemps)
             struc['nchild'].append('0')
             
@@ -132,16 +133,10 @@ class Bundle(object):
             for typ in all_types:
                 struc[typ].append([])
         for child in children:
-            new = self.get_system_structure(return_type=['label','obj','ps','nchild','mask'],flat=flat,top_level=child,**kwargs)
-            #~ print "\n* curr", struc
-            #~ print "\n* new", new
-            #~ for i in range(len(new)):
-                #~ if len(new[i]) == 1:
-                    #~ new[i] = new[i][0]
+            new = self.get_system_structure(return_type=all_types,flat=flat,top_level=child,**kwargs)
             for i,typ in enumerate(all_types):
                 struc[typ][-1]+=new[i]
 
-        #~ print "\n* returned", self.get_label(item), struc
         if isinstance(return_type, list):
             return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
         else: #then just one passed, so return a single list
@@ -232,7 +227,7 @@ class Bundle(object):
         params = self.get_object(objectname=objectname).params
         if 'component' in params.keys():
             return params['component']
-        if 'star' in params.keys():
+        elif 'star' in params.keys():
             return params['star']
         return None
     
@@ -293,7 +288,7 @@ class Bundle(object):
         """
         obj = self.get_object(objectname)
         if hasattr(obj,'bodies'):
-            return self.get_object(objectname).bodies
+            return [b.bodies[0] if hasattr(b,'bodies') else b for b in self.get_object(objectname).bodies]
         else:
             return []
             
@@ -852,12 +847,19 @@ class Bundle(object):
     #}
     
     #{ Saving
+    def copy(self):
+        """
+        Copy this instance.
+        """
+        return copy.deepcopy(self)
+    
     def save(self,filename):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
         """
-        self.purge_signals()
+        #~ self_copy = self.copy()
+        #~ self.purge_signals()
         ff = open(filename,'w')
         pickle.dump(self,ff)
         ff.close()  
