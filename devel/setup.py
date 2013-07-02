@@ -60,6 +60,8 @@ ext_modules = [
         Extension('phoebe.algorithms.cmarching',
                   sources=['phoebe/algorithms/mrch.c'],
                   libraries = ['m']),
+        Extension('phoebe.atmospheres.froche',
+                  sources=['phoebe/atmospheres/froche.f']),
         ]
 setup(
     
