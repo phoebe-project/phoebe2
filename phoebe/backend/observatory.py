@@ -6,7 +6,7 @@ Convert a Body to an observable quantity.
     image
     surfmap
     ifm
-    make_spectrum
+    spectrum
     stokes
     
 .. autosummary::
@@ -968,9 +968,8 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
            visibility_out,phase_out,\
            angular_scale_out,angular_profile_out
 
-            
-def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
-                  rv_grav=True):
+
+def spectrum(the_system, obs, pbdep, rv_grav=True):
     """
     Compute the spectrum of a system.
     
@@ -1006,115 +1005,101 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
     * auxiliary information that is not used but may be set for reference
       (grating, decker, angle rotation, ..., whatever)
     
-    @param wavelengths: predefined array or list with 3 elements (central wavelength (angstrom), range in km/s and number of wavelength points.
-    @param sigma: intrinsic width of the Gaussian profile in km/s
-    @type sigma: float
     """
-    #-- we need some information on how to compute the spectrum that is not
-    #   available in the pbdep parameterSet: we need to know which wavelength
-    #   range, and how to sample that wavelength range. We seek this
-    #   information first in the observations parameterSet, if there is one.
-    #   if there are none, we look for it in the synthetic parameterSet.
-    #   The same holds for information on a posteriori inclusion of
-    #   macroturbulence, and instrumental broadening
-    #-- is there data available? then we can steal the wavelength array
-    #   from there. Otherwise we turn to the synthetic parameterSet.
-    clip_after = None
-    iobs, refo_ = the_system.get_parset(ref=ref, context='spobs')
-    isyn, refs_ = the_system.get_parset(ref=ref, context='spsyn')
-    wc = None
-    if refo_ is not None:
-        if not 'wavelength' in iobs or not len(iobs['wavelength']):
-            iobs.load()
-        wavelengths = iobs['wavelength']
-        R = iobs['R']
-        if 'vgamma' in iobs:
-            vgamma = iobs.get_value('vgamma', 'km/s')
-            wavelengths = tools.doppler_shift(wavelengths, vgamma)
-        if 'vmacro' in iobs:
-            vmacro = iobs['vmacro']
-        if 'clambda' in iobs:
-            wc = iobs.get_value('clambda', 'AA')
-        #-- make wavelength range a little bit broader and clip afterwards
-        #   we do this to take into account neighbouring lines
-        clip_after = wavelengths[0], wavelengths[-1]
-        dw = wavelengths[1]-wavelengths[0]
-        wavelengths = np.hstack([np.arange(wavelengths[0]-10., wavelengths[0], dw),
-                                 wavelengths,
-                                 np.arange(wavelengths[-1], wavelengths[-1]+10, dw) + dw])
-    else:
-        R = None
-        vmacro = 0.
-    #-- information on dependable set
-    idep,ref = the_system.get_parset(ref=ref,context='spdep')
-    ld_model = idep['ld_func']
-    method = idep['method']
-    keep = the_system.mesh['mu']<=0
-    #-- create the wavelength array from the information of the spdep: we use
-    #   central wavelength, velocity range and spectral resolving power.
-    #   We broaden the range of the wavelengths a bit, so that we are sure that
-    #   also neighbouring lines are taken into account. We clip the spectrum
-    #   afterwards if needed. If you give wavelengths yourself, you need to
-    #   take this into account yourself.
-
-    logger.info('Computing spectrum of {}'.format(ref))
-    if wavelengths is None:
-        wc = idep.get_value('clambda','AA')
-        vl = idep.get_value_with_unit('max_velo')
-        w0 = conversions.convert(vl[1],'AA',-2*vl[0],wave=(wc,'AA'))
-        wn = conversions.convert(vl[1],'AA',+2*vl[0],wave=(wc,'AA'))
-        Npoints = (wn-w0) / (wc/idep['R'])
-        logger.info('Created wavelength array of length {} between {}AA and {}AA - clipped afterwards'.format(Npoints,w0,wn))
-        wavelengths = np.linspace(w0,wn,Npoints)
-        clip_after = conversions.convert(vl[1],'AA',-vl[0],wave=(wc,'AA')),\
-                     conversions.convert(vl[1],'AA',+vl[0],wave=(wc,'AA'))
-    #-- for convenience, the user might give the wavelength array at this level
-    #   to using central wavelength, velocity range and number of points.
-    elif len(wavelengths)==3:
-        w0 = conversions.convert('km/s','AA',-wavelengths[1],wave=(wavelengths[0],'AA'))
-        wn = conversions.convert('km/s','AA',+wavelengths[1],wave=(wavelengths[0],'AA'))
-        wavelengths = np.linspace(w0,wn,wavelengths[2])
-    #-- else, we assume wavelengths is already an array, so we don't need to do
-    #   anything, except for setting the central wavelength "wc".
-    elif wc is None:
-        wc = (wavelengths[0]+wavelengths[-1])/2.    
-    #-- if we're not seeing the star, we can easily compute the spectrum: it's
-    #   zero!
+    ref = obs['ref']
+    mesh = the_system.mesh
+    
+    # Wavelength info
+    if not 'wavelength' in obs or not len(obs['wavelength']):
+        loaded = obs.load(force=False)
+    wavelengths = obs.request_value('wavelength', 'AA').ravel()
+    
+    # Instrumental info
+    R = obs.get('R', None)
+    vmacro = obs.get('vmacro', 0.0)
+    
+    # Intrinsic width of the profile
+    vmicro = pbdep.get('vmicro', 5.0)
+    depth = pbdep.get('depth', 0.4)
+    
+    # Information on dependable set: we need the limb darkening function and
+    # the method
+    ld_model = pbdep['ld_func']
+    method = pbdep['method']
+    profile = pbdep['profile']
+    extend = pbdep.get('extend', 100.)
+    keep = the_system.mesh['mu'] <= 0
+    
+    # Set the central wavelength "wc".
+    wc = (wavelengths[0]+wavelengths[-1])/2.
+    
+    # Broaden the range of the wavelengths a bit, so that we are sure that also
+    # neighbouring lines are taken into account. We clip the spectrum
+    # aftwards. This "a bit" is taken to be 500 km/s, just to be sure.
+    if extend > 0:
+        w0 = conversions.convert('km/s', 'AA', -extend, wave=(wavelengths[0], 'AA'))
+        wn = conversions.convert('km/s', 'AA', +extend, wave=(wavelengths[-1], 'AA'))
+        step_before = (wavelengths[1]  - wavelengths[0])
+        step_after =  (wavelengths[-1] - wavelengths[-2])
+        wave_before = np.arange(w0, wavelengths[0], step_before)
+        wave_after = np.arange(wavelengths[-1], wn, step_after)
+        wavelengths = np.hstack([wave_before, wavelengths, wave_after])
+    
+    # If we're not seeing the star, we can easily compute the spectrum: it's
+    # zero! Hihihi (hysterical laughter)!
     if not np.sum(keep):
         logger.info('Still need to compute (projected) intensity')
         the_system.intensity(ref=ref)
-    the_system.projected_intensity(ref=ref,method='numerical')
-    keep = the_system.mesh['proj_'+ref]>0
+        
+    # Check if there is any flux    
+    the_system.projected_intensity(ref=ref, method='numerical')
+    keep = the_system.mesh['proj_'+ref] > 0
+    
     if not np.sum(keep):
-        logger.info('no spectrum synthesized (nothing visible), zero flux received')
-        return wavelengths,np.zeros(len(wavelengths)),0.
+        logger.info('no spectrum synthesized, zero flux received')
+        return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
-    if method=='numerical' and not idep['profile']=='gauss':    
-        #-- get limb angles
+    cc_ = constants.cc / 1000.
+        
+    if method == 'numerical' and not profile == 'gauss':    
+        # Get limb angles
         mus = the_system.mesh['mu']
-        keep = (mus>0) & (the_system.mesh['partial'] | the_system.mesh['visible'])# & -np.isnan(self.mesh['size'])
+        keep = (mus > 0) & (the_system.mesh['partial'] | the_system.mesh['visible'])
         mus = mus[keep]
-        #-- negating the next array gives the partially visible things, that is
-        #   the only reason for defining it.
+        
+        # Negating the next array gives the partially visible things, that is
+        # the only reason for defining it.
         visible = the_system.mesh['visible'][keep]
-        #-- compute normalised intensity using the already calculated limb darkening
-        #   coefficents. They are normalised so that center of disk equals 1. Then
-        #   these values are used to compute the weighted sum of the spectra.
-        logger.info('using limbdarkening law {} - spectra interpolated from grid {}'.format(ld_model,idep['profile']))
-        Imu = getattr(limbdark,'ld_%s'%(ld_model))(mus,the_system.mesh['ld_'+ref][keep].T)
-        teff,logg = the_system.mesh['teff'][keep],the_system.mesh['logg'][keep]
-        #-- fitters can go outside of the grid
+        
+        # Compute normalised intensity using the already calculated limb
+        # darkening coefficents. They are normalised so that center of disk
+        # equals 1. Then these values are used to compute the weighted sum of
+        # the spectra.
+        logger.info(("using limbdarkening law {} - spectra interpolated "
+                     "from grid {}").format(ld_model, profile))
+        
+        ld_func = getattr(limbdark, 'ld_{}'.format(ld_model))
+        Imu = ld_func(mus, the_system.mesh['ld_' + ref][keep].T)
+        teff, logg = the_system.mesh['teff'][keep], the_system.mesh['logg'][keep]
+        
+        # Interpolate (fitters can go outside of grid)
         try:
-            spectra = modspectra.interp_spectable(idep['profile'],teff,logg,wavelengths)
+            spectra = modspectra.interp_spectable(profile, teff, logg, wavelengths)
         except IndexError:
-            logger.error('no spectrum synthesized (outside of grid ({}<=teff<={}, {}<=logg<={}), zero flux received'.format(teff.min(),teff.max(),logg.min(),logg.max()))
-            return wavelengths,np.zeros(len(wavelengths)),0.
+            logger.error(("no spectrum synthesized (outside of grid "
+                          "({}<=teff<={}, {}<=logg<={}), zero flux "
+                          "received").format(teff.min(), teff.max(),
+                                             logg.min(), logg.max()))
+                          
+            return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
-        proj_intens = spectra[1]*mus*Imu*the_system.mesh['size'][keep]
-        rad_velos = -the_system.mesh['velo___bol_'][keep,2]
-        rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
+        # Compute the spectrum
+        proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
+        rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
+        rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
+        
         if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
-            vgamma = the_system.params.values()[0].get_value('vgamma','km/s')
+            vgamma = the_system.params.values()[0].get_value('vgamma', 'km/s')
             rad_velos += vgamma
             logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
@@ -1125,16 +1110,24 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
         for i,rv in enumerate(rad_velos):
+            
+            # Not inline
             total_spectrum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
             total_continum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=proj_intens[:,i])
-    elif method=='numerical':
+            
+            # Inline
+            #wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
+            #total_spectrum += 
+            
+    elif method == 'numerical':
         #-- derive intrinsic width of the profile
-        sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
-        logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
+        sigma = conversions.convert('km/s','AA',vmicro,wave=(wc,'AA'))-wc
+        logger.info('Intrinsic width of the profile: {} AA ({} km/s)'.format(sigma, vmicro))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
         rad_velos = -the_system.mesh['velo___bol_'][keep,2]
-        rad_velos = conversions.convert('Rsol/d','km/s',rad_velos)
+        rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
+        
         if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
             vgamma = the_system.params.values()[0].get_value('vgamma','km/s')
             rad_velos += vgamma
@@ -1147,18 +1140,23 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
         for pri,rv,sz in zip(proj_intens,rad_velos,sizes):
-            spec = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
+            
+            #spec = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
+            
+            wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
+            spec = pri*sz*np.interp(wavelengths,wave_out1,template)
+            
             total_spectrum += spec
             total_continum += pri*sz
     
-    elif method=='analytical' and idep['profile']=='gauss':
+    elif method == 'analytical' and profile == 'gauss':
         #-- For the analytical computation, we require a linear limb darkening
         #   law
-        if not idep['ld_func']=='linear':
+        if not ld_model =='linear':
             raise ValueError("Analytical computation of spectrum requires a 'linear' limb-darkening model (not '{}')".format(idep['ld_func']))
-        epsilon = idep['ld_coeffs'][0]
+        epsilon = pbdep['ld_coeffs'][0]
         vrot = the_system.mesh['velo___bol_'][:,2].max() # this is vsini!
-        vrot = conversions.convert('Rsol/d','km/s',vrot)
+        vrot = vrot * 8.04986111111111 # from Rsol/d to km/s
         logger.info('analytical rotational broadening with veq=%.6f km/s'%(vrot))
         #teff = the_system.params['star']['teff']
         #logg = the_system.params['star'].request_value('logg','[cm/s2]')
@@ -1167,7 +1165,8 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
         sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
-        wavelengths,total_spectrum = tools.rotational_broadening(wavelengths,template,vrot,stepr=-1,epsilon=epsilon)
+        wavelengths, total_spectrum = tools.rotational_broadening(wavelengths,
+                              template, vrot, stepr=-1, epsilon=epsilon)
         total_continum = np.ones_like(wavelengths)
    
     #-- convolve with instrumental profile if desired
@@ -1179,21 +1178,18 @@ def make_spectrum(the_system, wavelengths=None, sigma=2., depth=0.4, ref=0,
                        total_spectrum/total_continum,vrot=0.,vmac=vmacro,fwhm=instr_sigm)
         total_spectrum *= total_continum
    
-    if clip_after is not None:
-        keep = (clip_after[0]<=wavelengths) & (wavelengths<=clip_after[1])
+    if extend > 0:
+        keep = slice(len(wave_before), len(wavelengths) - len(wave_after))
         wavelengths = wavelengths[keep]
         total_spectrum = total_spectrum[keep]
         total_continum = total_continum[keep]
         
-    
-    
-        
-        
-    return wavelengths,total_spectrum,total_continum
+    return wavelengths, total_spectrum, total_continum
+
 
 def stokes(the_system, obs, pbdep, rv_grav=True):
     r"""
-    Calculate the stokes profiles.
+    Calculate the Stokes profiles of a system.
     
     What you need to do is to calculate the Zeeman effect, i.e. the shift
     between the right circularly polarised line and the left circularly
@@ -1288,7 +1284,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     vmacro = obs.get('vmacro', 0.0)
     
     # Intrinsic width of the profile
-    sigma = pbdep.get('sigma', 2.0)
+    vmicro = pbdep.get('vmicro', 5.0)
     depth = pbdep.get('depth', 0.4)
     
     # Profiles to compute, and method to use
@@ -1313,7 +1309,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     wc = (wavelengths[0]+wavelengths[-1])/2.
     
     # If we're not seeing the star, we can easily compute the spectrum: it's
-    # zero! Muhuhahaha!
+    # zero! Muhuhahaha (evil laughter)!
     if not np.sum(keep):
         logger.info('Still need to compute (projected) intensity')
         the_system.intensity(ref=ref)
@@ -1412,8 +1408,8 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
 
     elif method == 'numerical':
         # Derive intrinsic width of the profile
-        sigma = conversions.convert('km/s', 'AA', sigma, wave=(wc, 'AA')) - wc
-        logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
+        sigma = conversions.convert('km/s', 'AA', vmicro, wave=(wc, 'AA')) - wc
+        logger.info('Intrinsic width of the profile: {} AA ({} km/s)'.format(sigma, vmicro))
         
         template = 1.00 - depth * np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
@@ -1578,7 +1574,6 @@ def extract_times_and_refs(system, params, tol=1e-8):
     # for exposure time and sampling rates: we add time points, which in the end
     # should be then averaged over.
     for parset in system.walk():
-        
         # Skip stuff that is not a DataSet
         if not isinstance(parset, datasets.DataSet):
             continue
@@ -1613,7 +1608,6 @@ def extract_times_and_refs(system, params, tol=1e-8):
         # The definition of "phase" is quite system-morphology-dependent, so
         # here comes some messy code to convert phases to times. We can extend
         # this later for other cases, including period changes etc.
-        
         if 'phase' in parset['columns'] and not 'time' in parset['columns']:
             
             # For now, we just assume we have a simple binary (so it's not that

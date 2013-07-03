@@ -6,14 +6,23 @@ Plotting facilities for observations and synthetic computations.
    plot_lcsyn
    plot_lcobs
    plot_lcres
+   plot_lcsyn_as_sed
+   plot_lcobs_as_sed
+   plot_lcres_as_sed
+   
    plot_rvsyn
    plot_rvobs
    plot_rvres
    
    
+   
+   
 """
 
 import logging
+import itertools
+import os
+from collections import OrderedDict
 import matplotlib.pyplot as plt
 import numpy as np
 from phoebe.atmospheres import passbands
@@ -507,6 +516,250 @@ def plot_rvres(system,*args,**kwargs):
 
 #}
 
+def plot_lcsyn_as_sed(system, *args, **kwargs):
+    """
+    Plot all lcsyns as an SED.
+    """
+    cmap = kwargs.pop('cmap', plt.cm.spectral)
+    include_label = kwargs.pop('label', True)
+    # We'll need to plot all the observations of the LC category
+    all_lc_refs = system.get_refs(category='lc')
+    
+    to_plot = OrderedDict()
+    
+    # Collect the points per passband system, not per passband
+    for j,ref in enumerate(all_lc_refs):
+        # Get the pbdep (for info) and the synthetics
+        dep,ref = system.get_parset(type='pbdep',ref=ref)
+        syn,ref = system.get_parset(type='syn',ref=ref)
+        
+        passband = dep['passband']
+        pass_sys = os.path.splitext(passband)[0]
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[])
+        
+        # An SED means we need the effective wavelength of the passbands
+        wave = passbands.get_info([passband])['eff_wave']
+        wave = list(wave) * len(syn['flux'])
+        
+        to_plot[pass_sys]['x'].append(wave)
+        to_plot[pass_sys]['y'].append(syn['flux'])
+    
+    # Decide on the colors
+    color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
+    
+    # And finally plot the points
+    for key in to_plot.keys():
+        # Get data
+        x = np.hstack(to_plot[key]['x'])
+        y = np.hstack(to_plot[key]['y'])
+        
+        # Plot data
+        if include_label:
+            kwargs['label'] = key
+        kwargs['color'] = color_cycle.next()
+        plt.plot(x, y, *args, **kwargs)
+
+
+def plot_lcobs_as_sed(system, *args, **kwargs):
+    """
+    Plot all lcobs as an SED.
+    """
+    cmap = kwargs.pop('cmap', plt.cm.spectral)
+    include_label = kwargs.pop('label', True)
+    # We'll need to plot all the observations of the LC category
+    all_lc_refs = system.get_refs(category='lc')
+    
+    to_plot = OrderedDict()
+    
+    # Collect the points per passband system, not per passband
+    for j,ref in enumerate(all_lc_refs):
+        # Get the pbdep (for info) and the synthetics
+        dep, ref = system.get_parset(type='pbdep', ref=ref)
+        obs, ref = system.get_parset(type='obs', ref=ref)
+        
+        passband = dep['passband']
+        pass_sys = os.path.splitext(passband)[0]
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
+        
+        # An SED means we need the effective wavelength of the passbands
+        wave = passbands.get_info([passband])['eff_wave']
+        wave = list(wave) * len(obs['flux'])
+        
+        to_plot[pass_sys]['x'].append(wave)
+        to_plot[pass_sys]['y'].append(obs['flux'])
+        to_plot[pass_sys]['e_y'].append(obs['sigma'])
+    
+    # Decide on the colors
+    color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
+    
+    # And finally plot the points
+    for key in to_plot.keys():
+        # Get data
+        x = np.hstack(to_plot[key]['x'])
+        y = np.hstack(to_plot[key]['y'])
+        e_y = np.hstack(to_plot[key]['e_y'])
+        
+        # Plot data
+        if include_label:
+            kwargs['label'] = key
+        kwargs['color'] = color_cycle.next()
+        plt.errorbar(x, y, yerr=e_y, **kwargs)
+
+def plot_lcres_as_sed(system, *args, **kwargs):
+    """
+    Plot all lc residuals as an SED.
+    """
+    cmap = kwargs.pop('cmap', plt.cm.spectral)
+    include_label = kwargs.pop('label', True)
+    # We'll need to plot all the observations of the LC category
+    all_lc_refs = system.get_refs(category='lc')
+    
+    to_plot = OrderedDict()
+    
+    # Collect the points per passband system, not per passband
+    for j,ref in enumerate(all_lc_refs):
+        # Get the pbdep (for info) and the synthetics
+        dep, ref = system.get_parset(type='pbdep', ref=ref)
+        obs, ref = system.get_parset(type='obs', ref=ref)
+        syn, ref = system.get_parset(type='syn', ref=ref)
+        
+        passband = dep['passband']
+        pass_sys = os.path.splitext(passband)[0]
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
+        
+        # An SED means we need the effective wavelength of the passbands
+        wave = passbands.get_info([passband])['eff_wave']
+        wave = list(wave) * len(obs['flux'])
+        
+        to_plot[pass_sys]['x'].append(wave)
+        to_plot[pass_sys]['y'].append((obs['flux']-syn['flux']) / obs['sigma'])
+        to_plot[pass_sys]['e_y'].append(np.ones(len(obs['flux'])))
+    
+    # Decide on the colors
+    color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
+    
+    # And finally plot the points
+    for key in to_plot.keys():
+        # Get data
+        x = np.hstack(to_plot[key]['x'])
+        y = np.hstack(to_plot[key]['y'])
+        e_y = np.hstack(to_plot[key]['e_y'])
+        
+        # Plot data
+        if include_label:
+            kwargs['label'] = key
+        kwargs['color'] = color_cycle.next()
+        plt.errorbar(x, y, yerr=e_y, **kwargs)
+
+
+def plot_spsyn_as_profile(system, *args, **kwargs):
+    """
+    Plot spsyn as a spectroscopic line profile.
+    """
+    scale = kwargs.pop('scale', 'obs')
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    
+    syn, ref = system.get_parset(category='sp', type='syn', ref=ref)
+    loaded = syn.load(force=False)
+    
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    
+    x = syn['wavelength'][index]
+    y = syn['flux'][index] / syn['continuum'][index]
+    
+    try:
+        obs = system.get_obs(category='sp', ref=ref)
+        pblum = obs['pblum']
+        l3 = obs['l3']
+        
+        # Shift the synthetic wavelengths if necessary
+        if 'vgamma' in obs and obs['vgamma']!=0:
+            x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
+    except:
+        raise ValueError(("No observations in this system or component, "
+                         "so no scalings available: set keyword `scale=None`"))
+    
+    
+    
+    y = y * pblum + l3
+    
+    plt.plot(x, y, *args, **kwargs)
+    
+    if loaded:
+        syn.unload()
+    
+    
+def plot_spobs_as_profile(system, *args, **kwargs):
+    """
+    Plot spobs as a spectroscopic line profile.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    
+    
+    obs, ref = system.get_parset(category='sp', type='obs', ref=ref)
+    loaded = obs.load(force=False)
+    
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    
+    x = obs['wavelength'][index]
+    y = obs['flux'][index] / obs['continuum'][index]
+    e_y = obs['sigma'][index] / obs['continuum'][index]
+    
+    plt.errorbar(x, y, yerr=e_y, **kwargs)
+    
+    if loaded:
+        obs.unload()    
+    
+    
+def plot_spres_as_profile(system, *args, **kwargs):
+    """
+    Plot spobs as a spectroscopic line profile.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    scale = kwargs.pop('scale', 'obs')
+    
+    obs, ref = system.get_parset(category='sp', type='obs', ref=ref)
+    syn, ref = system.get_parset(category='sp', type='syn', ref=ref)
+    
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    try:
+        pblum = obs['pblum']
+        l3 = obs['l3']
+        y2 = syn['flux'][index] / syn['continuum'][index] * pblum + l3
+    except:
+        raise ValueError(("No observations in this system or component, "
+                         "so no scalings available: set keyword `scale=None`"))
+    
+    
+    
+    x = obs['wavelength'][index]
+    y1 = obs['flux'][index] / obs['continuum'][index]
+    e_y1 = obs['sigma'][index] / obs['continuum'][index]
+    y = (y1 - y2) / e_y1
+    e_y = np.ones(len(y))
+    
+    plt.errorbar(x, y, yerr=e_y, **kwargs)
+    
+    if loaded_obs:
+        obs.unload()        
+    if loaded_syn:
+        syn.unload()        
+    
+    
+
+
 
 def plot_lcdeps_as_sed(system,residual=False,
                        kwargs_obs=None,kwargs_syn=None,
@@ -566,84 +819,6 @@ def plot_lcdeps_as_sed(system,residual=False,
         plt.xlabel("Wavelength [$\AA$]")
         plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
 
-def plot_lcdep_as_lc(system,ref=0,residual=False,
-                       kwargs_obs=None,kwargs_syn=None,
-                       kwargs_residual=None,repeat=False):
-    """
-    Plot an entry in an lcdep as a light curve.
-    
-    This function will draw to the current active axes, and will set the
-    axis labels.
-    
-    @param system: system to plot
-    @type system: Body
-    @param ref: reference of the spectrum to be plotted
-    @type ref: str
-    @param residual: plot residuals or computed model and observations
-    @type residual: bool
-    @param kwargs_obs: extra matplotlib kwargs for plotting observations (errorbar)
-    @type kwargs_obs: dict
-    @param kwargs_syn: extra matplotlib kwargs for plotting synthetics (plot)
-    @type kwargs_syn: dict
-    @param kwargs_residual: extra matplotlib kwargs for plotting residuals (plot)
-    @type kwargs_residual: dict
-    """
-    #-- get plotting options
-    if kwargs_obs is None:
-        kwargs_obs = dict(fmt='ko-',ecolor='0.5')
-    if kwargs_syn is None:
-        kwargs_syn = dict(color='r',linestyle='-',lw=2)
-    if kwargs_residual is None:
-        kwargs_residual = dict(fmt='ko-',ecolor='0.5')
-    #-- get parameterSets
-    dep,ref = system.get_parset(category='lc',type='pbdep',ref=ref)
-    syn = system.get_synthetic(category='lc',ref=ref)
-    obs = system.get_obs(category='lc',ref=ref)
-    
-    loaded_obs = obs.load(force=False)
-    try:
-        loaded_syn = syn.load(force=False)
-    except IOError:
-        loaded_syn = None
-    
-    #-- correct synthetic flux for corrections of third light and passband
-    #   luminosity
-    obs_time = obs['time']
-    obs_flux = obs['flux']
-    if 'sigma' in obs:
-        obs_sigm = obs['sigma']
-    else:
-        obs_sigm = np.zeros(len(obs_flux))
-    
-    #-- take third light and passband luminosity contributions into account
-    if loaded_syn is not None:
-        syn_flux = np.array(syn['flux'])
-        syn_flux = syn_flux*obs['pblum'] + obs['l3']
-    
-    #-- plot residuals or data + model
-    if residual:
-        plt.errorbar(obs_time,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_residual)
-        if repeat:
-            plt.errorbar(obs_time+obs_time[-1],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_residual)
-        plt.ylabel(r'$\Delta$ Flux/$\sigma$')
-    else:
-        plt.errorbar(obs_time,obs_flux,yerr=obs_sigm,**kwargs_obs)
-        if loaded_syn is not None:
-            plt.plot(syn['time'],syn_flux,**kwargs_syn)
-        
-        if repeat:
-            plt.errorbar(obs_time+obs_time[-1],obs_flux,yerr=obs_sigm,**kwargs_obs)
-            if loaded_syn is not None:
-                plt.plot(syn['time']+syn['time'][-1],syn_flux,**kwargs_syn)
-            
-            
-        plt.ylabel('Flux')
-    
-    plt.xlabel("Time [days]")
-    plt.title(ref)
-    
-    if loaded_obs: obs.unload()
-    if loaded_syn: syn.unload()
 
     
 def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
@@ -830,7 +1005,72 @@ def plot_ifobs(system, *args, **kwargs):
         obs.unload()
 
 
-
+def plot_ifres(system, *args, **kwargs):
+    """
+    Plot ifres.
+    
+    Parameter ``x`` can be any of:
+    
+        - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'time'``: plot visibilities wrt time
+    
+    Parameter ``y`` can be any of:
+    
+        - ``'vis'``: Visibilities
+        - ``'vis2'``: Squared visibilities
+        - ``'phase'``: Phases
+    
+    """
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
+    x = kwargs.pop('x', 'baseline')
+    y = kwargs.pop('y', 'vis2')
+    
+    # Get parameterSets and set a default label if none is given
+    obs = system.get_obs(category='if', ref=ref)
+    syn = system.get_synthetic(category='if', ref=ref)
+    kwargs.setdefault('label', obs['ref'])
+    
+    # Load observations: they need to be here
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    time = obs['time']
+    
+    # Collect X-data for plotting
+    if x == 'baseline':
+        plot_x = np.sqrt(obs['ucoord']**2 + obs['vcoord']**2)
+    else:
+        plot_x = obs[x]
+    
+    # Are there uncertainties on X?
+    if 'sigma_'+x in obs:
+        plot_e_x = obs['sigma_'+x]
+    else:
+        plot_e_x = None
+    
+    # Collect Y-data for plotting
+    if y == 'vis':
+        plot_y_obs = np.sqrt(obs['vis2'])
+        plot_y_syn = np.sqrt(syn['vis2'])
+    else:
+        plot_y_obs = obs[y]
+        plot_y_syn = syn[y]
+    
+    # Are there uncertainties on Y?
+    if 'sigma_'+y in obs:
+        plot_e_y = obs['sigma_'+y]
+    else:
+        plot_e_y = np.ones(len(plot_y_syn))
+    
+    
+    plt.errorbar(plot_x, (plot_y_obs-plot_y_syn)/plot_e_y, xerr=plot_e_y,
+                                   yerr=np.ones_like(plot_e_y), *args, **kwargs)
+   
+    if loaded_obs:
+        obs.unload()
+    if loaded_syn:
+        syn.unload()
     
     
 def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
