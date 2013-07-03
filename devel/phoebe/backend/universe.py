@@ -107,13 +107,13 @@ latter is just a shortcut to L{observatory.image}.
 
 """
 enable_mayavi = True
-#-- load standard libraries
+# Load standard libraries
 import pickle
 import uuid
 import logging
 import copy
 from collections import OrderedDict
-#-- load 3rd party modules
+# Load 3rd party modules
 import numpy as np
 from numpy import sin,cos,pi,sqrt,pi
 from scipy.integrate import quad
@@ -123,8 +123,6 @@ try:
     import pylab as pl
 except ImportError:
     pass
-    #print(("Soft warning: matplotlib could not be found on your system,"
-    #       "2D plotting is disabled, as well as IFM functionality"))
 if enable_mayavi:
     try:
         from enthought.mayavi import mlab
@@ -132,8 +130,6 @@ if enable_mayavi:
         try:
             from mayavi import mlab
         except ImportError:
-            #print(("Soft warning: Mayavi could not be found on your system, 3D"
-            #"plotting is disabled, as well as some debugging features"))
             enable_mayavi = False
 from phoebe.units import conversions
 from phoebe.units import constants
@@ -160,11 +156,9 @@ try:
     from phoebe.utils import transit
 except ImportError:
     pass
-    #print(("Soft warning: Analytical transit computations from Mandel &
-    #       "Agol 2002 are not available"))
 
-#-- we are not interested in messages from numpy, but we are in messages
-#   from our own code: that's why we create a logger.
+# We are not interested in messages from numpy, but we are in messages from our
+# own code: that's why we create a logger.
 np.seterr(all='ignore')
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
@@ -172,27 +166,27 @@ logger.addHandler(logging.NullHandler())
 
 #{ Functions of general interest    
 def get_binary_orbit(self, time):
-    #-- get some information
-    P = self.params['orbit'].get_value('period','d')
+    """
+    Get the orbital coordinates of a Body at a certain time.
+    
+    @param self: a Body
+    @type self: Body
+    @param time: the time in the orbit
+    @type time: float
+    """
+    # Get some information
+    P = self.params['orbit'].get_value('period', 'd')
     e = self.params['orbit'].get_value('ecc')
-    a = self.params['orbit'].get_value('sma','m')
+    a = self.params['orbit'].get_value('sma', 'm')
     q = self.params['orbit'].get_value('q')
     a1 = a / (1 + 1.0/q)
     a2 = a - a1
-    #a1 = self.params['orbit'].get_constraint('sma1','m')
-    #a2 = self.params['orbit'].get_constraint('sma2','m')
     inclin = self.params['orbit'].get_value('incl','rad')
     argper = self.params['orbit'].get_value('per0','rad')
     long_an = self.params['orbit'].get_value('long_an','rad')
-    #vgamma = self.params['orbit'].get_value('vgamma','m/s')
     T0 = self.params['orbit'].get_value('t0')
-    #n_comp = self.get_component()
-    #component = ('primary','secondary')[n_comp]
-    #com = self.params['orbit'].get_constraint('com','m')
-    #pivot = np.array([com,0,0]) # center-of-mass
-    #a_comp = [a1,a2][n_comp]
     
-    #-- where in the orbit are we? We need everything in cartesian Rsol units
+    # Where in the orbit are we? We need everything in cartesian Rsol units
     loc1, velo1, euler1 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a1,
                                       T0*24*3600, per0=argper, long_an=long_an,
                                       incl=inclin, component='primary')
@@ -205,6 +199,7 @@ def get_binary_orbit(self, time):
               (loc1[1]-loc2[1])**2 + \
               (loc1[2]-loc2[2])**2)
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
+    
     
 def luminosity(body, ref='__bol'):
     r"""
@@ -249,6 +244,7 @@ def luminosity(body, ref='__bol'):
                                                      for i in range(len(mesh))])
     return (emer_Ibolmu * sizes).sum()
     
+    
 def load(filename):
     """
     Load a class from a file.
@@ -261,6 +257,7 @@ def load(filename):
     ff.close()
     return myclass
 
+
 def keep_only_results(system):
     """
     Remove all information from this Body except for the results
@@ -271,16 +268,17 @@ def keep_only_results(system):
     It can be handy to remove unnecessary information from a Body before
     passing it around via the MPI protocol.
     """
-    if hasattr(system,'params'):
+    if hasattr(system, 'params'):
         for key in system.params:
             if not key == 'syn':
                 trash = system.params.pop(key)
                 del trash
-    if hasattr(system,'bodies'):
+    if hasattr(system, 'bodies'):
         for body in system.bodies:
             keep_only_results(body)
     system.remove_mesh()
     return system
+
 
 def merge_results(list_of_bodies):
     """
@@ -321,7 +319,6 @@ def merge_results(list_of_bodies):
     return list_of_bodies[0]
 
    
-
 def init_mesh(self):
     """
     Initialize a mesh.
@@ -351,12 +348,30 @@ def init_mesh(self):
                  [('logg','f8'), ('teff','f8'), ('abun','f8')] + lds)
     else:
         dtypes = self.mesh.dtype
+    
+    # Magnetic field?
+    if 'magnetic_field' in self.params:
+        dtypes = np.dtype(dtypes.descr + \
+                 [('B_', 'f8', (3,)), ('_o_B_','f8', (3,))])
+    
     self.mesh = np.zeros(N, dtype=dtypes)
 
 
+def check_body(body):
+    """
+    Check consistency of a Body.
+    
+    We do the following things:
+        - If there is only one pbdep, check if the obs have the same reference
+        - Check if type of obs is DataSet, type of pbdep is ParameterSet
+        - Check if passbands are present in atmosphere table
+    """
+    raise NotImplementedError
 
 
-def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
+
+
+def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False):
     """
     Rescale the observations to match a model.
     
@@ -364,49 +379,56 @@ def compute_pblum_or_l3(model,obs,sigma=None,pblum=False,l3=False):
     """
     if sigma is None:
         sigma = np.ones_like(obs)
+        
     #   only scaling factor
     if pblum and not l3:
-        pblum = np.average(obs/model,weights=1./sigma**2)
+        pblum = np.average(obs / model, weights=1.0/sigma**2)
+    
     #   only offset
     elif not pblum and l3:
-        l3 = np.average(obs-model,weights=1./sigma**2)
+        l3 = np.average(obs - model, weights=1.0/sigma**2)
+    
     #   scaling factor and offset
     elif pblum and l3:
-        A = np.column_stack([model.ravel(),np.ones(len(model.ravel()))])
+        A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
         #pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
-        pblum,l3 = nnls(A,obs.ravel())[0]
-    return pblum,l3
+        pblum, l3 = nnls(A, obs.ravel())[0]
+    
+    return pblum, l3
                     
 def _parse_pbdeps(body, pbdep):
     """
-    Attach dependables to a body.
+    Attach passband dependables to a body.
     
     This function takes care of separating different types of dependables,
     and attaching them in the C{params} dictionary, an attribute of a
     L{PhysicalBody}. Observables are for example parameterSets of type C{lcdep},
     C{rvdep} or C{spdep} (non-exhaustive list).
     
-    First, this function checks if observations are actually given. That is,
-    it cannot be C{None}.
+    First, this function checks if dependables are actually given. That is, it
+    cannot be equal to C{None}.
     
     Next, the function checks whether only one single dependable has been
-    given. Since we actually expect a list but know what is meant with a
-    single dependable too, we just contain the single dependable in a list.
+    given. Since we actually expect a list but know what to do with a single
+    dependable too, we simply put the single dependable in a list.
     
     If C{body} has no C{pbdep} entry yet in the C{body.params} dictionary,
     a new (ordered) dictionary will be created.
     
-    Finally, it will be checked what types of dependables are given, and each
-    of them will be added to the ordered dictionary of the dependable. The
-    key of each dependable is its reference (ref).
+    Finally, it checks what types of dependables are given, and each of them
+    will be added to the ordered dictionary of the dependable. The key of each
+    dependable is its reference (ref).
+    
+    For each added pbdep, also a "syn" equivalent will be created for
+    convenience. It is possible that it stays empty during the course of the
+    computations, that's a problem for other functions.
     
     Working with ordered dictionary separated according to dependable type
     enables us to unambiguously reference a certain dependable set with a
     reference (duh), but also with an index. E.g. the first C{lcdep} set that
     is added is referenced by index number 0. This is handy because if you
     only work with one or two light curves, the user shouldn't be bothered
-    with comming up with names for them (but can still do so if he/she wishes
-    so).
+    with thinkig about names for them (but can still do so if he/she wishes so).
     
     The function returns a list of all the references of the dependables that
     have been parsed.
@@ -418,36 +440,46 @@ def _parse_pbdeps(body, pbdep):
     @return: list of parsed references
     @rtype: list of str
     """
+    # Map pbdeps to DataSets
     result_sets = dict(lcdep=datasets.LCDataSet,
                        rvdep=datasets.RVDataSet,
                        spdep=datasets.SPDataSet,
                        pldep=datasets.PLDataSet,
                        ifdep=datasets.IFDataSet)
-    #-- pbdep have to be given!
+    
+    # Pbdep have to be given!
     if not pbdep:
         raise ValueError(('You need to give at least one ParameterSet'
                           'representing dependables'))
-    #-- pbdep need to be a list or a tuple. If not, make it one
+        
+    # pbdep need to be a list or a tuple. If not, make it one
     elif not isinstance(pbdep, list) and not isinstance(pbdep, tuple):
         pbdep = [pbdep]
-    #-- if 'pbdep' is not in the 'params' dictionary, make an empty one
+    
+    # If 'pbdep' is not in the 'params' dictionary, make an empty one
     if not 'pbdep' in body.params:
         body.params['pbdep'] = OrderedDict()
-    #-- if 'obs' is not in the 'params' dictionary, make an empty one
+    
+    # If 'obs' is not in the 'params' dictionary, make an empty one
     if not 'obs' in body.params:
         body.params['obs'] = OrderedDict()
-    #-- if 'syn' is not in the 'params' dictionary, make an empty one
+    
+    # If 'syn' is not in the 'params' dictionary, make an empty one
     if not 'syn' in body.params:
         body.params['syn'] = OrderedDict()
-    #-- for all parameterSets in pbdep, add them to body.params['pbdep']. This
-    #   dictionary is itself a dictionary with keys the different contexts,
-    #   and each entry in that context (ordered) dictionary has as key the
-    #   reference and as value the parameterSet.
+    
+    # For all parameterSets in pbdep, add them to body.params['pbdep']. This
+    # dictionary is itself a dictionary with keys the different contexts, and
+    # each entry in that context (ordered) dictionary, has as key the reference
+    # and as value the parameterSet.
     parsed_refs = []
     for parset in pbdep:
         context = parset.context
         data_context = context[:-3] + 'obs'
         res_context = context[:-3] + 'syn'
+        
+        # Perform basic checks to make sure all dictionaries exist (perhaps this
+        # is the first time to add things)
         if not context in body.params['pbdep']:
             body.params['pbdep'][context] = OrderedDict()
         if not data_context in body.params['obs']:
@@ -455,14 +487,16 @@ def _parse_pbdeps(body, pbdep):
         if not res_context in body.params['syn']:
             body.params['syn'][res_context] = OrderedDict()
         ref = parset['ref']
-        #-- if the ref already exist, generate a new one
+        
+        # If the ref already exist, generate a new one
         if ref in body.params['pbdep'][context]:
             ref = str(uuid.uuid4())
             parset['ref'] = ref
-        #-- add parameterSet to dictionaries
+        
+        # Add parameterSet to dictionaries
         body.params['pbdep'][context][ref] = parset
-        #-- prepare results if they were not already added by the data
-        #   parser
+        
+        # Prepare results if they were not already added by the data parser
         if not ref in body.params['syn'][res_context]:
             body.params['syn'][res_context][ref] = \
                               result_sets[context](context=res_context, ref=ref)
@@ -470,8 +504,10 @@ def _parse_pbdeps(body, pbdep):
                          '{} (ref={})'.format(res_context, ref)))
         
         parsed_refs.append(ref)
-    #-- that's it
+    
+    # That's it
     return parsed_refs
+    
     
 def _parse_obs(body, data):
     """
@@ -1957,7 +1993,92 @@ class Body(object):
             base['U'].append(U)
             base['continuum'].append(cont)
     
-    
+    @decorators.parse_ref
+    def sp(self, ref='allspdep', time=None, obs=None):
+        """
+        Compute spectrum and add results to the pbdep ParameterSet.
+        
+        Modus operandi:
+        
+            1. For this body, see if there are any obs attached. If not,
+               descend into the bodybag (if applicable) and repeat this step
+               for every body.
+            
+            2. If we have a body(bag) with observations attached, see if there
+               is a pbdep matching it. If not, descend into the bodybag
+               (if applicable) and repeat this step.
+            
+            3. If we have a body(bag) with pbdep matching the previously found
+               obs, compute the spectrum.
+               
+        """
+        # We need to get the observation ParameterSet so that we know all the
+        # required info on **what** exactly to compute (**how** to compute it
+        # is contained in the pbdep)
+        if obs is None and hasattr(self,'params') and 'obs' in self.params \
+                                    and 'spobs' in self.params['obs']:
+            # Compute the Stokes profiles for all references
+            for lbl in ref:
+                
+                # Get the observations if they are not given already
+                if obs is None:
+                    spobs, lbl = self.get_parset(type='obs', ref=lbl)
+                    if lbl is None:
+                        continue
+                else:
+                    spobs = obs
+                
+                # Compute the Stokes profiles for this reference
+                self.sp(ref=lbl, time=time, obs=spobs)
+        
+        # If no obs are given and there are no obs attached, assume we're a
+        # BodyBag and descend into ourselves:
+        elif obs is None:
+            try:
+                for body in self.bodies:
+                    body.sp(ref=ref, time=time, obs=obs)
+            except AttributeError:
+                pass
+        
+        # If obs are given, there is no need to look for the references, and we
+        # can readily compute the spectrum
+        else:
+            ref = obs['ref']
+            
+            # Well, that is, we will only compute the Stokes if there are pbdeps
+            # on this body. If not, we assume it's a BodyBag and descend into
+            # the bodies.
+            if not (hasattr(self,'params') and 'pbdep' in self.params \
+                                    and 'spdep' in self.params['pbdep']):
+                try:
+                    for body in self.bodies:
+                        body.sp(ref=ref, time=time, obs=obs)
+                except AttributeError:
+                    pass
+                
+                # Quit here!
+                return None
+            else:
+                pbdep = self.params['pbdep']['spdep'][ref]
+                        
+            # Else, we have found the observations (from somewhere), and this
+            # Body has spdeps attached: so we can finally compute the spectra
+            base, ref = self.get_parset(ref=ref, type='syn')
+            if obs['ref'] != pbdep['ref']:
+                raise ValueError("SP: Something went wrong here! The obs don't match the pbdep...")
+            output = observatory.spectrum(self, obs, pbdep)
+                
+            # If nothing was computed, don't do anything
+            if output is None:
+                return None
+                
+            # Expand output and save it to the synthetic thing
+            wavelengths_, I, cont = output
+            
+            base['time'].append(self.time)
+            base['wavelength'].append(wavelengths_ / 10.)
+            base['flux'].append(I)
+            base['continuum'].append(cont)
     #}
     
     
@@ -2615,22 +2736,22 @@ class PhysicalBody(Body):
                 for qualifier in myps:
                     self.params['pbdep']['psdep'][lbl]['syn']['time'].append(self.time)
                     
-    @decorators.parse_ref
-    def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4,time=None):
-        """
-        Compute spectrum and add results to the pbdep ParameterSet.
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('spdep' in self.params['pbdep']): return None
-            #-- compute the spectrum for all references
-            for lbl in ref:
-                base,lbl = self.get_parset(ref=lbl,type='syn')
-                wavelengths_,specflux,cont = observatory.make_spectrum(self,ref=lbl,wavelengths=wavelengths,sigma=sigma,depth=depth)
-                base['time'].append(self.time)
-                base['wavelength'].append(wavelengths_)
-                base['flux'].append(specflux)
-                base['continuum'].append(cont)
+    #@decorators.parse_ref
+    #def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4,time=None):
+        #"""
+        #Compute spectrum and add results to the pbdep ParameterSet.
+        #"""
+        ##-- don't bother if we cannot do anything...
+        #if hasattr(self,'params') and 'pbdep' in self.params:
+            #if not ('spdep' in self.params['pbdep']): return None
+            ##-- compute the spectrum for all references
+            #for lbl in ref:
+                #base,lbl = self.get_parset(ref=lbl,type='syn')
+                #wavelengths_,specflux,cont = observatory.make_spectrum(self,ref=lbl,wavelengths=wavelengths,sigma=sigma,depth=depth)
+                #base['time'].append(self.time)
+                #base['wavelength'].append(wavelengths_)
+                #base['flux'].append(specflux)
+                #base['continuum'].append(cont)
         
     #@decorators.parse_ref
     #def pl(self, wavelengths=None, ref='allpldep', sigma=5.,depth=0.4, time=None):
@@ -3679,8 +3800,8 @@ class Star(PhysicalBody):
     ]include figure]]images/universe_star_0004.png]
     
     """
-    def __init__(self,star,mesh,reddening=None,circ_spot=None,puls=None,
-                 magnetic_field=None,pbdep=None,obs=None,**kwargs):
+    def __init__(self, star, mesh, reddening=None, circ_spot=None, puls=None,
+                 magnetic_field=None, pbdep=None, obs=None, **kwargs):
         """
         Initialize a star.
         
@@ -3696,45 +3817,63 @@ class Star(PhysicalBody):
         If we have information on spots and pulsations, we attach them to the
         root here too.
         """
-        super(Star,self).__init__(dim=3)
+        # Basic initialisation
+        super(Star, self).__init__(dim=3)
+        
+        # Prepare basic parameterSets and Ordered dictionaries
         self.params['star'] = star
         self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
         self.params['obs'] = OrderedDict()
         self.params['syn'] = OrderedDict()
+        
+        # Shortcut to make a binaryStar
         if 'orbit' in kwargs:
             self.params['orbit'] = kwargs.pop('orbit')
-        #-- add interstellar reddening (if none is given, set to the default,
-        #   this means no reddening
+            
+        # Add interstellar reddening (if none is given, set to the default, this
+        # means no reddening
         if reddening is None:
             reddening = parameters.ParameterSet(context='reddening:interstellar')
         self.params['reddening'] = reddening
-        #-- add spot parameters when applicable
+        
+        # Add spot parameters when applicable
         if circ_spot is not None:
-            if not isinstance(circ_spot,list):
+            if not isinstance(circ_spot, list):
                 to_add = [circ_spot]
             else:
                 to_add = circ_spot
             self.params['circ_spot'] = to_add
-        #-- add pulsation parameters when applicable
+            
+        # Add pulsation parameters when applicable
         if puls is not None:
-            if not isinstance(puls,list):
+            if not isinstance(puls, list):
                 to_add = [puls]
             else:
                 to_add = puls
             self.params['puls'] = to_add
-        #-- add magnetic field parameters when applicable
+            
+        # Add magnetic field parameters when applicable
         if magnetic_field is not None:
             self.params['magnetic_field'] = magnetic_field
-        #-- add the parameters to compute dependables
+        
+        # Add the parameters to compute dependables
         if pbdep is not None:
-            _parse_pbdeps(self,pbdep)
-        #-- add the parameters from the data
+            _parse_pbdeps(self, pbdep)
+        
+        # Add the parameters from the observations
         if obs is not None:
-            _parse_obs(self,obs)
+            _parse_obs(self, obs)
+        
+        # Check for leftover kwargs and report to the user
         if kwargs:
             logger.warning("Unused keyword arguments {} upon initialization of Star".format(kwargs.keys()))
-        #-- generate a comprehensive log message:
+        
+        # Initialise the mesh
+        init_mesh(self)
+        
+        # Generate a comprehensive log message, that explains what has been
+        # added:
         msg = "Created Star {}".format(self.get_label())
         msg_ = []
         if circ_spot is not None:
@@ -3751,59 +3890,81 @@ class Star(PhysicalBody):
                 msg_.append('{} {}'.format(len(self.params['obs'][type]),type))
         if len(msg_):
             msg = msg + ': ' + ', '.join(msg_)
-        init_mesh(self)
         logger.info(msg)
         
+                
+    def set_label(self, label):
+        """
+        Set the label of a Star
         
-    def set_label(self,label):
+        @param label: label of the Star
+        @type label: str
+        """
         self.params['star']['label'] = label
+
     
     def get_label(self):
         """
         Get the label of the Body.
+        
+        @return: label of the Star
+        @rtype: str
         """
         return self.params['star']['label']
+    
     
     def surface_gravity(self):
         """
         Calculate local surface gravity
         """
-        x,y,z = self.mesh['_o_center'].T
-        r = sqrt(x**2+y**2+z**2)
-        M = self.params['star'].request_value('mass','kg')
-        rp = self.params['star'].request_value('r_pole','Rsol')
-        sin_theta = sqrt(x**2+y**2)/r
-        cos_theta = z/r
-        X = r/rp
-        rp = conversions.convert('Rsol','m',rp)
+        # Retrieve basic information on coordinates, mass etc..
+        x, y, z = self.mesh['_o_center'].T
+        r = sqrt(x**2 + y**2 + z**2)
+        M = self.params['star'].request_value('mass', 'kg')
+        rp = self.params['star'].request_value('r_pole', 'Rsol')
+        
+        # Some coordinate transformations
+        sin_theta = sqrt(x**2 + y**2) / r
+        cos_theta = z / r
+        X = r / rp
+        rp = conversions.convert('Rsol', 'm', rp)
+        
+        # Information on rotation
         Omega = self.params['star'].request_value('Omega_rot')
-        omega = 2*pi/self.params['star'].request_value('rotperiod','s')
-        if self.params['star']['shape']=='sphere':
+        omega = 2*pi/self.params['star'].request_value('rotperiod', 's')
+        if self.params['star']['shape'] == 'sphere':
             omega = 0.
             Omega = 0.
-        r_ = r*constants.Rsol
-        grav_r = -constants.GG*M/r_**2+r_*(omega*sin_theta)**2
-        grav_th = r_*omega**2*sin_theta*cos_theta
+        
+        # Compute local surface gravity
+        r_ = r * constants.Rsol
+        grav_r = -constants.GG*M / r_**2 + r_ * (omega*sin_theta)**2
+        grav_th = r_*omega**2 * sin_theta * cos_theta
         local_grav = sqrt(grav_r**2 + grav_th**2)
+        
         # Convert suface gravity from m/s2 to [cm/s2]
         self.mesh['logg'] = np.log10(local_grav) + 2.0
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (Rp=%s)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),rp/constants.Rsol))
     
     
-    def temperature(self,time):
+    def temperature(self, time):
         """
         Calculate local temperature.
         """
-        #-- if the gravity brightening law is not specified, use 'Zeipel's
+        # If the gravity brightening law is not specified, use 'Zeipel's
         if 'gravblaw' in self.params['star']:
             gravblaw = self.params['star']['gravblaw']
         else:
             gravblaw = 'zeipel'
+        
+        # Compute temperature
         getattr(roche,'temperature_{}'.format(gravblaw))(self)
-        #-- perhaps we want to add spots.
+        
+        # Perhaps we want to add spots.
         self.add_spots(time)
     
-    def abundance(self,time):
+    
+    def abundance(self, time):
         """
         Set the abundance.
         """
@@ -3819,40 +3980,40 @@ class Star(PhysicalBody):
         polar magnetic field as the magnetic field strength in the direction
         of the magnetic axes but at a distance of 1 polar radius....
         """
-        #-- dipolar:
+        # Dipolar field:
         parset = self.params['magnetic_field']
-        beta = parset.get_value('beta','rad')
-        phi0 = parset.get_value('phi0','rad')
+        beta = parset.get_value('beta', 'rad')
+        phi0 = parset.get_value('phi0', 'rad')
         Bpolar = parset.get_value('Bpolar')
         R = self.params.values()[0].get_value('radius')
-        r_ = self.mesh['_o_center']/R
+        r_ = self.mesh['_o_center'] / R
         
-        #m_ = np.array([np.sin(beta),0.,np.cos(beta)])
-        m_ = np.array([np.sin(beta)*np.cos(phi0)-0*np.sin(phi0),
-                       np.sin(beta)*np.sin(phi0)+0.*np.cos(phi0),
+        m_ = np.array([np.sin(beta) * np.cos(phi0) - 0.0*np.sin(phi0),
+                       np.sin(beta) * np.sin(phi0) + 0.0*np.cos(phi0),
                        np.cos(beta)])
-        dotprod = np.dot(m_,r_.T).reshape(-1,1)
+        dotprod = np.dot(m_, r_.T).reshape(-1, 1)
         B =     (3*dotprod    *r_ - m_)
-        B = B/2.0*Bpolar
+        B = B / 2.0 * Bpolar
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
-        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar,beta/pi*180))
-        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B,axis=1).max()))
+        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar, beta/pi*180))
+        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B, axis=1).max()))
+    
     
     @decorators.parse_ref
-    def intensity(self,ref='all'):
+    def intensity(self, ref='all'):
         """
         Calculate local intensity and limb darkening coefficients.
         """
         #-- now run over all labels and compute the intensities
         parset_isr = self.params['reddening']
         for iref in ref:
-            parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
-            limbdark.local_intensity(self,parset_pbdep,parset_isr)
+            parset_pbdep, ref = self.get_parset(ref=iref, type='pbdep')
+            limbdark.local_intensity(self, parset_pbdep, parset_isr)
         
     
     @decorators.parse_ref
-    def velocity(self,time=None,ref=None):
+    def velocity(self, time=None, ref=None):
         """
         Calculate the velocity of each surface via the rotational velocity
         """
@@ -3944,6 +4105,7 @@ class Star(PhysicalBody):
         vsini = 2*pi*radius/period_eq*np.sin(incl)
         logger.info('Computed vsini = {} km/s'.format(vsini))
         return vsini
+    
     
     def critical_rotation(self,frequency='Hz',period=None):
         """
@@ -4276,8 +4438,8 @@ class Star(PhysicalBody):
             #   visible/hidden stuff (i.e. assuming convex shape)
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=True)
             
-            if has_freq:
-                logger.warning("Eclipse detection neglects pulsations")
+            #if has_freq:
+            #    logger.warning("Eclipse detection neglects pulsations")
             #    self.detect_eclipse_horizon(eclipse_detection='hierarchical')
             #else:
             self.detect_eclipse_horizon(eclipse_detection='simple')
