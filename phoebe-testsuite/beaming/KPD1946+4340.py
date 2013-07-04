@@ -31,12 +31,17 @@ system1 = create.from_library('KPD1946+4340',create_body=True,pbdep=['lcdep'],
          atm='true_blackbody',ld_func='linear',ld_coeffs=[0.5],beaming=True)
 system1[0].params['mesh']['delta'] = 0.1
 system1[1].params['mesh']['delta'] = 0.1
+system1[0].params['mesh']['alg'] = 'c'
+system1[1].params['mesh']['alg'] = 'c'
+
 
 # Then without doppler beaming:
 system2 = create.from_library('KPD1946+4340',create_body=True,pbdep=['lcdep'],
          atm='true_blackbody',ld_func='linear',ld_coeffs=[0.5],beaming=False)
 system2[0].params['mesh']['delta'] = 0.1
 system2[1].params['mesh']['delta'] = 0.1
+system2[0].params['mesh']['alg'] = 'c'
+system2[1].params['mesh']['alg'] = 'c'
 
 # Computation of observables
 # --------------------------
@@ -46,9 +51,9 @@ period = system1[0].params['orbit']['period']
 t0 = system1[0].params['orbit']['t0']
 times = np.linspace(t0,t0+0.95*period,150)
 
-mpi = phoebe.ParameterSet(context='mpi',np=8)
-phoebe.observe(system1,times,lc=True,heating=False,refl=False,mpi=mpi)
-phoebe.observe(system2,times,lc=True,heating=False,refl=False)
+mpi = None#phoebe.ParameterSet(context='mpi',np=8)
+phoebe.observe(system1,times,lc=True,heating=False,refl=False, eclipse_alg='convex')#,mpi=mpi)
+phoebe.observe(system2,times,lc=True,heating=False,refl=False,eclipse_alg='convex')
 
 # Analysis of results
 # -------------------

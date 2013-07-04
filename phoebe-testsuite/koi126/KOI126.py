@@ -45,12 +45,13 @@ for i,time in enumerate(times):
     # Clear results and define the window. We set the mesh of the A star pretty
     # coarse, so that the calculations go reasonably quick.
     system.clear_synthetic()
-    system[0].params['mesh']['delta']=0.1
+    system[0].params['mesh']['delta'] = 0.1
     system.reset()
     times_ = np.linspace(time-window/2.,time+window/2.,250)
     # Compute the light curve and retrieve the results
     phoebe.observe(system,times_,lc=True,eclipse_alg='auto')
-    times,signal = system.get_lc(ref='light curve')
+    mylc = system.get_synthetic(category='lc', ref='light curve').asarray()
+    times, signal = mylc['time'], mylc['flux']
     # Make an image at the center time, make a high quality image of the final
     # case
     system.reset()
