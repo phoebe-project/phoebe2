@@ -3382,6 +3382,7 @@ _factors = collections.OrderedDict([
            ('Rsol',  (constants.Rsol,  constants.Rsol_units,'length','Solar radius')), # Solar radius
            ('Rearth',(constants.Rearth,constants.Rearth_units,'length','Earth radius')), # Earth radius
            ('Rjup',  (constants.Rjup,constants.Rjup_units,'length','Jupiter radius')), # Jupiter radius
+           ('Rlun',  (constants.Rlun,constants.Rlun_units,'length','Lunar radius')), # Lunar radius
            ('ft',    (0.3048,        'm','length','foot (international)')), # foot (international)
            ('USft',  (1200./3937.,   'm','length','foot (US)')), # foot (US)
            ('fathom',(1.828803657607315,'m','length','fathom')),
@@ -3616,7 +3617,9 @@ _scalings ={'y':       1e-24, # yocto
             }
  
 #-- some common aliases
-_aliases = [('micron','mum'),('au','AU'),('lbs','lb'),
+_aliases = [('micron','mum'),('au','AU'),('lbs','lb'),('rjup','Rjup'),('rsol','Rsol'),
+            ('rearth','Rearth'),('mjup', 'Mjup'), ('msol', 'Msol'),
+            ('mearth','Mearth'),('mlun', 'Mlun'), ('rlun', 'Rlun'),
             ('micro','mu'),('milli','m'),('kilo','k'),('mega','M'),('giga','G'),
             ('nano','n'),('dyne','dyn'),
             ('watt','W'),('Watt','W'),
@@ -3632,6 +3635,7 @@ _aliases = [('micron','mum'),('au','AU'),('lbs','lb'),
             ('celcius','C'),('fahrenheit','F'),('hr','h'),
             ('Vegamag','vegamag'),('mile','mi'),
             ('oz','ounce'),('sun','sol'),('_sun','sol'),('_sol','sol'),
+            ('_jup','jup'),('_earth','earth'),('_lun','lun'),
             ('solMass','Msol'),('solLum','Lsol'),
             ('pk','hp'),('mph','mi/h'),('HJD','JD')
             ]
