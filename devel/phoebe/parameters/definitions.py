@@ -199,10 +199,10 @@ defs += [dict(qualifier='long',      description='Spot longitude at T0',        
          dict(qualifier='t0',        description="Spot time zeropoint",repr='%f',cast_type=float,unit='JD',value=0.,adjust=False,frame=['phoebe'],context='circ_spot'),
         ]        
 
-defs += [dict(qualifier='delta',    description='Stepsize for mesh generation via marching method',repr='%f',cast_type=float,value=0.2,frame=['phoebe'],context=['mesh:marching']),
+defs += [dict(qualifier='delta',    description='Stepsize for mesh generation via marching method',repr='%f',cast_type=float,value=0.1,frame=['phoebe'],context=['mesh:marching']),
          dict(qualifier='maxpoints',description='Maximum number of triangles for marching method',repr='%d',cast_type=int,value=20000,frame=['phoebe'],context=['mesh:marching']),
          dict(qualifier='gridsize', description='Number of meshpoints for WD style discretization',repr='%d',cast_type=int,value=90,frame=['phoebe'],context=['mesh:wd']),
-         dict(qualifier='alg', description='Select type of algorithm',repr='%s',cast_type='choose',choices=['c','python'],value='python',frame=['phoebe'],context=['mesh:marching']),
+         dict(qualifier='alg', description='Select type of algorithm',repr='%s',cast_type='choose',choices=['c','python'],value='c',frame=['phoebe'],context=['mesh:marching']),
          #dict(qualifier='style',    description='Discretization style',repr='%s',cast_type='choose',choices=['marching','cmarching','wd'],value='marching',frame=['phoebe'],context=['mesh'])
          ]        
         
