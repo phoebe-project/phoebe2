@@ -52,7 +52,7 @@ star.add(dict(qualifier='eqrotperiod',value=22.8,unit='h',\
 star.add_constraint('{diffrot}={eqrotperiod}-{rotperiod}')
 
 # For the mesh, we take a low-density grid, sampled using the marching method.
-star_mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
+star_mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',alg='c')
 star_mesh['delta'] = 0.1
 
 # In the spectrum that we calculate, we set the parameters for the atmosphere

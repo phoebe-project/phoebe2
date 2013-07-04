@@ -64,19 +64,19 @@ logger = phoebe.get_basic_logger()
 # We load the parameters of Vega from the library, but add a few new ones
 # which we like to fit.
 
-star = phoebe.create.from_library('Vega',gravblaw='espinosa')
-mesh = phoebe.PS(context='mesh:marching',alg='python',delta=0.1)
+star = phoebe.create.from_library('Vega', gravblaw='espinosa')
+mesh = phoebe.PS(context='mesh:marching',alg='c',delta=0.1)
 
 # The parameters that we want to fit but are not available, are not very
 # exotic so they can be added via the :py:mod:`parameters.tools <phoebe.parameters.tools>`
 # module
 
-tools.add_surfgrav(star,4.0,derive='mass')
-tools.add_rotfreqcrit(star,0.5)
-tools.add_teffpolar(star,9000.)
+tools.add_surfgrav(star, 4.0, derive='mass')
+tools.add_rotfreqcrit(star, 0.5)
+tools.add_teffpolar(star, 9000.)
 
 # Next, we tell to code to consider these parameters to be fitted.
-star.set_adjust(True,'teffpolar','radius','surfgrav','incl','rotfreqcrit')
+star.set_adjust(('teffpolar','radius','surfgrav','incl','rotfreqcrit'),True)
 
 # To be sure the code doesn't go of the grid, we define priors, which will be
 # interpreted as boundaries for the Levenberg-Marquardt algorithm.
@@ -94,18 +94,20 @@ star.get_parameter('rotfreqcrit').set_prior(distribution='uniform',lower=0.,uppe
 # process, each time starting from a new, random starting point drawn from the
 # priors.
 fitparams = phoebe.PS(context='fitting:lmfit',method='leastsq',label='mynonlin',
-                      compute_ci=False,bounded=True,iters=0)
+                      compute_ci=False,bounded=True,iters=1)
 
 # The last thing we need before building the star are the actual observations.
 # The phot files also contain the required information for the lcdeps, so
 # we don't need to define any extra parameters. You can view the contents of
 # the phot file :download:`here <../phoebe-testsuite/vega/Vega.phot>`.
 lcdats,lcdeps = phoebe.parse_phot('Vega.phot')
+ifobs, ifdep = phoebe.parse_vis2('Vega.vis2')
+ifobs.set_enabled(False)
 
 # Body setup
 # ----------
 # All is left, is build the star!
-mystar = phoebe.Star(star,mesh,pbdep=lcdeps,obs=lcdats)
+mystar = phoebe.Star(star,mesh,pbdep=lcdeps+[ifdep],obs=lcdats+[ifobs])
 
 # Fitting process
 # ---------------
@@ -115,6 +117,8 @@ mystar = phoebe.Star(star,mesh,pbdep=lcdeps,obs=lcdats)
 # in checking the parameters or the model.
 if True:
     fitparams = phoebe.run(mystar,fitparams=fitparams,accept=True)
+    mystar.params['obs']['ifobs'].values()[0].set_enabled(True)
+    mystar.compute()
     #mystar.save('vega_sed_{}.phoebe'.format(star['gravblaw']))
     #fitparams.save('fitparams_{}.phoebe'.format(star['gravblaw']))
 else:
@@ -164,6 +168,11 @@ plt.xlim(1200,10000)
 plt.ylim(8e-10,8e-9)
 #plt.savefig('vega_sed_bestfit2_{}.png'.format(star['gravblaw']))
 
+plt.figure()
+phoebe.plotting.plot_ifobs(mystar, fmt='ko')
+phoebe.plotting.plot_ifsyn(mystar, 'rx', ms=10, mew=2)
+
+plt.show()
 """
 
 +----------------------------------------------+---------------------------------------------+

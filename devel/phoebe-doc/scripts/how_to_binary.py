@@ -180,25 +180,27 @@ interface and/or upon initialisation:
 
 """
 
-lcdep1a = phoebe.ParameterSet(context='lcdep',passband='JOHNSON.V',\
+primary_lc1 = phoebe.ParameterSet(context='lcdep',passband='JOHNSON.V',\
             atm='kurucz',ld_coeffs='kurucz',ld_func='claret')
-lcdep1b = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
+primary_lc2 = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
             atm='blackbody',ld_coeffs=[0.5],ld_func='linear',ref='linear thing')
 spdep = phoebe.ParameterSet(context='spdep')
 
 """
-Each observable parameterSet has a ``label`` keyword, which needs to be a unique
+Each observable parameterSet has a ``ref`` keyword, which needs to be a unique
 string. If not specified, the UUID framework is used to generate a unique
 label, but this is typically not human-readable. Since these labels are
 automatically generated, it is not strictly necessary to specify them
 manually. They are only there for convenience, in case you have a lot of
-observable ParameterSets and you want to have an easy way of refering to them:
-there are two ways to refer to parameterSets once the Body is created (see
-below):
+observable ParameterSets and you want to have an easy way of refering to them.
+Also when linking two components or attaching observations in a later stage,
+the reference becomes important as it links the ParameterSets describing *how*
+to compute something with the data that belong to it. There are two ways to refer
+to parameterSets once the Body is created (see below):
 
-    * By index and subtype: e.g. the pair ``subtype='lcdep',label=1`` refers
-      to the second ParameterSet of subtype 'lcdep' that is added.
-    * By name: e.g. ``label='linear thing'``, in this case, also unambiguously
+    * By index and context: e.g. the pair ``context='lcdep',ref=1`` refers
+      to the second ParameterSet of context 'lcdep' that is added.
+    * By name: e.g. ``ref='linear thing'``, in this case, also unambiguously
       refers to the second PararameterSet that was added.
 
 This behaviour is possible because internally, the parameterSets are stored
@@ -212,16 +214,15 @@ to make sure that the labels match (notice that you can do that even though
 a label is automatically generated):
 """
 
-lcdep2a = phoebe.ParameterSet(context='lcdep',passband='JOHNSON.V',\
-            atm='kurucz',ld_coeffs=[0.4],ld_func='linear',ref=lcdep1a['ref'])
-lcdep2b = phoebe.ParameterSet(context='lcdep',passband='KEPLER.V',\
-            atm='blackbody',ld_coeffs=[0.3],ld_func='linear',ref='linear thing')
+secondary_lc1 = phoebe.ParameterSet(context='lcdep', passband='JOHNSON.V',\
+            atm='kurucz', ld_coeffs=[0.4], ld_func='linear', ref=primary_lc1['ref'])
+secondary_lc2 = phoebe.ParameterSet(context='lcdep', passband='KEPLER.V',\
+            atm='blackbody', ld_coeffs=[0.3], ld_func='linear', ref='linear thing')
 
 """
 
-Notice that we do not redefine the observable set for the spectra. It is
-allowed to pass the exact same parameterSet to all components (they don't even
-need to be copied).
+Notice that we do not redefine the observable set for the spectra. You can pass
+the same parameterSet to multiple components.
 
 Step 3: Creating the Bodies
 -------------------------------------
@@ -240,7 +241,7 @@ the ``create`` module as before, but setting also the keyword ``create_body``
 to ``True``:
 """
 
-system = phoebe.create.from_library('V380_Cyg',create_body=True)
+system = phoebe.create.from_library('V380_Cyg', create_body=True)
 
 """
 If you want to change parameters, you need to go through the ``params``
@@ -248,7 +249,7 @@ attribute of each Body in the BodyBag. For example, if you want to change
 the temperature of the secondary component:
 """
 
-system[1].params['component']['teff'] = 9800.,'K'
+system[1].params['component']['teff'] = 9800., 'K'
 
 """
 It is, however, advised not to go through the interface of the Bodies once
@@ -269,11 +270,18 @@ mesh = phoebe.ParameterSet(context='mesh:marching')
 # The ``BinaryRocheStars`` are then easily created and (optionally) put in
 # a ``BodyBag``, after importing the universe:
 
-star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
-star2 = phoebe.BinaryRocheStar(comp2,orbit=orbit,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
-system = phoebe.BodyBag([star1,star2])
+star1 = phoebe.BinaryRocheStar(comp1, orbit=orbit, mesh=mesh, pbdep=[primary_lc1, primary_lc2, spdep])
+star2 = phoebe.BinaryRocheStar(comp2, orbit=orbit, mesh=mesh, pbdep=[secondary_lc1, secondary_lc2, spdep])
+system = phoebe.BodyBag([star1, star2])
 
 """
+
+.. admonition:: Adding one or more pbdeps
+
+    You can add only one pbdep (e.g. only ``primary_lc1`` and ``secondary_lc1``),
+    but you need to add one pbdep for each component. Adding a pbdep basically
+    tells the code *how* to compute something. These specifications can be
+    different for each body, so you need to give each body this information!
 
 
 Possibility 3: Via hierarchical packing
@@ -299,8 +307,8 @@ When creating a Body which requires an orbit to initialize, it is allowed in
 this case to set it to ``None``. But only in this case!
 """
 
-star1 = phoebe.BinaryRocheStar(comp1,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
-star2 = phoebe.BinaryRocheStar(comp2,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
+star1 = phoebe.BinaryRocheStar(comp1,mesh=mesh,pbdep=[primary_lc1,primary_lc2,spdep])
+star2 = phoebe.BinaryRocheStar(comp2,mesh=mesh,pbdep=[secondary_lc1,secondary_lc2,spdep])
 system = phoebe.BinaryBag([star1,star2],orbit=orbit)
 
 """
@@ -380,8 +388,8 @@ we start over quickly. We make a circular version of V380 Cyg:
 """
 
 comp1,comp2,orbit = phoebe.create.from_library('V380_Cyg')
-star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,pbdep=[lcdep1a,lcdep1b,spdep])
-star2 = phoebe.BinaryRocheStar(comp2,orbit=orbit,mesh=mesh,pbdep=[lcdep2a,lcdep2b,spdep])
+star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,pbdep=[primary_lc1,primary_lc2,spdep])
+star2 = phoebe.BinaryRocheStar(comp2,orbit=orbit,mesh=mesh,pbdep=[secondary_lc1,secondary_lc2,spdep])
 system = phoebe.BodyBag([star1,star2])
 orbit['ecc'] = 0.
 
@@ -496,9 +504,9 @@ to add data to all Bodies.
 """
 
 star1 = phoebe.BinaryRocheStar(comp1,orbit=orbit,mesh=mesh,
-                                 pbdep=[lcdep1a,lcdep1b,spdep],obs=[spdata1])
+                                 pbdep=[primary_lc1,primary_lc2,spdep],obs=[spdata1])
 star2 = phoebe.BinaryRocheStar(comp2,orbit,mesh,
-                                 pbdep=[lcdep2a,lcdep2b,spdep],obs=[spdata2])
+                                 pbdep=[secondary_lc1,secondary_lc2,spdep],obs=[spdata2])
 system = phoebe.BodyBag([star1,star2],obs=[lcdata])
 
 """

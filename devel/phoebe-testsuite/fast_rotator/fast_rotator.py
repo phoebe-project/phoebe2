@@ -65,10 +65,16 @@ spdep2 = spdep1.copy()
 spdep2['method'] = 'analytical'
 spdep2['ref'] = 'Via convolution'
 
+# Fake some observations, so that we know onto which wavelengths we need to
+# compute the spectrum
+wavelengths = np.linspace(399.7, 400.3, 1000)
+spobs1 = phoebe.ParameterSet(context='spobs', ref=spdep1['ref'], wavelength=wavelengths)
+spobs2 = phoebe.ParameterSet(context='spobs', ref=spdep2['ref'], wavelength=wavelengths)
+
 # Body setup
 # ----------
 # Build the :py:class:`Star <phoebe.backend.universe.Star>` body.
-mesh1 = phoebe.Star(star,mesh,pbdep=[spdep1,spdep2])
+mesh1 = phoebe.Star(star, mesh, pbdep=[spdep1, spdep2])
 print mesh1
 
 # Computation of observables
@@ -78,7 +84,9 @@ mesh1.set_time(0)
 
 # Compute the spectrum, and make an image of the star. Also, make a plot of
 # the radial velocity of the surface elements.
-mesh1.sp()
+mesh1.sp(obs=spobs1)
+mesh1.sp(obs=spobs2)
+
 mesh1.plot2D(savefig='fast_rotator_image.png')
 mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
 """

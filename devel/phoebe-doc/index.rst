@@ -271,6 +271,7 @@ Milestones
    :maxdepth: 1
    
    milestones
+   profiling/profile_stats
 
 
 ***********

@@ -29,40 +29,38 @@ Initialisation
 
 """
 # First, import necessary modules
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
 
 logger = phoebe.get_basic_logger()
 
-c0 = time.time()
-
 # Parameter preparation
 # ---------------------
 
 # Create a ParameterSet with parameters matching Vega. The bolometric atmosphere
 # and limb darkening coefficients are set the Kurucz and Claret models.
-vega = phoebe.ParameterSet(frame='phoebe',context='star',label='True Vega',add_constraints=True)
-vega['teff'] = 8900,'K'
-vega['mass'] = 2.3,'Msol'
-vega['radius'] = 2.26,'Rsol'
-vega['rotperiod'] = 12.5,'h'
+vega = phoebe.ParameterSet(frame='phoebe', context='star', label='True Vega',
+                           add_constraints=True)
+vega['teff'] = 8900, 'K'
+vega['mass'] = 2.3, 'Msol'
+vega['radius'] = 2.26, 'Rsol'
+vega['rotperiod'] = 12.5, 'h'
 vega['gravb'] = 1.
-vega['incl'] = 4.7,'deg'
-vega['distance'] = 7.756,'pc'
+vega['incl'] = 4.7, 'deg'
+vega['distance'] = 7.756, 'pc'
 vega['ld_func'] = 'claret'
 vega['atm'] = 'kurucz'
 vega['ld_coeffs'] = 'kurucz'
 
 # We want to compute interferometric visibilities in the K band:
-ifdep1 = phoebe.ParameterSet(frame='phoebe',context='ifdep',ref='Fast rotator')
+ifdep1 = phoebe.ParameterSet(frame='phoebe', context='ifdep', ref='Fast rotator')
 ifdep1['ld_func'] = 'claret'
 ifdep1['ld_coeffs'] = 'kurucz'
 ifdep1['atm']= 'kurucz'
 ifdep1['passband'] = '2MASS.KS'
 
-mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching', alg='c')
+mesh = phoebe.ParameterSet(frame='phoebe', context='mesh:marching', alg='c')
 mesh['delta'] = 0.1
 
 # Next, wee'll make a Star similar to Vega but that is not a rapid rotator:
@@ -74,11 +72,12 @@ mesh['delta'] = 0.1
 # will be adjusted accordingly.
 vega2 = vega.copy()
 vega2['rotperiod'] = np.inf
-vega2['teff'] = 9700,'K'
+vega2['teff'] = 9700, 'K'
 vega2['label'] = 'Non-rotating Vega (uniform disk)'
 
 # 
-theta2 = phoebe.Parameter(qualifier='angdiam',description='Angular diameter',unit='mas',value=3.209)
+theta2 = phoebe.Parameter(qualifier='angdiam', description='Angular diameter',
+                          unit='mas', value=3.209)
 vega2.add(theta2)
 vega2.add_constraint('{radius}=0.5*{angdiam}*{distance}')
 
@@ -90,7 +89,7 @@ ifdep2['ref'] = 'uniform LD'
 # The next nonrotating model has an angular diameter of 3.345 mas, and a power-
 # law limbdarkening.
 vega3 = vega2.copy()
-vega3['angdiam'] = 3.345,'mas'
+vega3['angdiam'] = 3.345, 'mas'
 vega3['label'] = "Non-rotating Vega (power law)"
 ifdep3 = ifdep1.copy()
 ifdep3['ld_func'] = 'power'
@@ -100,7 +99,7 @@ ifdep3['ref'] = 'power-law LD'
 # The final nonrotating model has an angular diameter of 3.259 and normal
 #  Claret limbdarkening.
 vega4 = vega3.copy()
-vega4['angdiam'] =3.259,'mas'
+vega4['angdiam'] =3.259, 'mas'
 vega4['label'] = 'Non-rotating Vega (Claret)'
 ifdep4 = ifdep1.copy()
 ifdep4['ld_func'] = 'claret'
@@ -123,38 +122,37 @@ data_evs_square = np.array([0.8846,0.2019,0.0742,0.0417,0.1976,0.1710,0.1493,
                             0.0194,0.0314,0.0670,0.0414,0.0344,0.0259,0.0238,
                             0.0427,0.0241,0.0199,0.0682])
 
-#ifobs = phoebe.IFDataSet(baseline=data_baselines,
-                         #vis=data_vis_square**2,
-                         #sigma_vis=0.5*data_evs_square/np.sqrt(data_vis_square),
-                         #ref='vega_if')
+ifobs_simul1 = phoebe.IFDataSet(time=np.zeros(100),
+                          baseline=np.linspace(0,300,100))
+
+# We need to copy the ifobs because we need to set the reference for each of
+# them differently, since the ifdeps have different references.
+
+ifobs_simul2 = ifobs_simul1.copy()
+ifobs_simul3 = ifobs_simul1.copy()
+ifobs_simul4 = ifobs_simul1.copy()
+ifobs_simul1['ref'] = ifdep1['ref']
+ifobs_simul2['ref'] = ifdep2['ref']
+ifobs_simul3['ref'] = ifdep3['ref']
+ifobs_simul4['ref'] = ifdep4['ref']
 
 # Body setup
 # ----------
 
 # Build the Star Bodies
-star1 = phoebe.Star(vega, mesh,pbdep=ifdep1)#,obs=ifobs)
-star2 = phoebe.Star(vega2,mesh,pbdep=ifdep2)#,obs=ifobs)
-star3 = phoebe.Star(vega3,mesh,pbdep=ifdep3)#,obs=ifobs)
-star4 = phoebe.Star(vega4,mesh,pbdep=ifdep4)#,obs=ifobs)
+star1 = phoebe.Star(vega,  mesh, pbdep=ifdep1, obs=ifobs_simul1)
+star2 = phoebe.Star(vega2, mesh, pbdep=ifdep2, obs=ifobs_simul2)
+star3 = phoebe.Star(vega3, mesh, pbdep=ifdep3, obs=ifobs_simul3)
+star4 = phoebe.Star(vega4, mesh, pbdep=ifdep4, obs=ifobs_simul4)
 
 # For convenience, we put everything in a BodyBag. Then we can set the time of
 # all bodies simultaneously and don't have to cycle through them.
-system = phoebe.BodyBag([star1,star2,star3,star4])
+system = phoebe.BodyBag([star1, star2, star3, star4])
 
 # Computation of observables
 # --------------------------
 
-# Set the time in the universe and compute the projected intensity. We need this
-# to compute images and visibilities.
-system.set_time(0)
-system.intensity()
-system.projected_intensity()
-
-# Now compute the visibilities
-f1,b1,pa1,s1,p1,x1,prof1 = phoebe.ifm(star1)
-f2,b2,pa2,s2,p2,x2,prof2 = phoebe.ifm(star2)
-f3,b3,pa3,s3,p3,x3,prof3 = phoebe.ifm(star3)
-f4,b4,pa4,s4,p4,x4,prof4 = phoebe.ifm(star4)
+system.compute(eclipse_alg='only_horizon')
 
 # Analysis of results
 # -------------------
@@ -193,48 +191,40 @@ for mesh in system.bodies:
     print 'T_pole - T_eq = %.3f - %.3fK\n\n'%(mesh.mesh['teff'].max(),mesh.mesh['teff'].min())
 
 
-plt.figure(figsize=(16,11))
-plt.subplot(221)
-plt.plot(b1,s1,'-',lw=2,label='Fast rotator')
-plt.plot(b3,s3,'-',lw=2,label=r'Fast rotator (LD $\alpha$)')
-plt.plot(b2,s2,'-',lw=2,label='Slow rotator (UD)')
-plt.plot(b4,s4,'-',lw=2,label='Slow rotator (LD)')
-plt.errorbar(data_baselines,data_vis_square/100.,yerr=data_evs_square/100.,fmt='ko')
-plt.gca().set_yscale('log')
-plt.xlim(70,300)
-plt.ylim(0.0009,1.01)
-leg = plt.legend(loc='best',fancybox=True)
-leg.get_frame().set_alpha(0.5)
+plt.figure(figsize=(10,6))
+
+# Make the basic plot of the visibilities versus baseline
+
+plt.subplot(121)
+phoebe.plotting.plot_ifsyn(star1, '-', lw=2, x='baseline', y='vis2')
+phoebe.plotting.plot_ifsyn(star2, '-', lw=2, x='baseline', y='vis2')
+phoebe.plotting.plot_ifsyn(star3, '-', lw=2, x='baseline', y='vis2')
+phoebe.plotting.plot_ifsyn(star4, '-', lw=2, x='baseline', y='vis2')
+plt.errorbar(data_baselines, data_vis_square/100., yerr=data_evs_square/100.,
+             fmt='ko')
+
+# Take care of some figure decorations
+
+plt.gca().set_yscale('log', nonposy='clip')
+plt.legend(loc='best', fancybox=True).get_frame().set_alpha(0.5)
 plt.xlabel('meter')
 plt.ylabel('Squared Visibility')
-plt.xlim(0,300)
-plt.subplot(222)
-plt.plot(b1,p1/np.pi*180,'o-')
-plt.plot(b3,p3/np.pi*180,'o-')
-plt.plot(b2,p2/np.pi*180,'o-')
-plt.plot(b4,p4/np.pi*180,'o-')
+plt.axis([0, 300, 0.0009, 1.01])
+
+# Then plot the phases versus baseline
+
+plt.subplot(122)
+phoebe.plotting.plot_ifsyn(star1, 'o-', x='baseline', y='phase')
+phoebe.plotting.plot_ifsyn(star2, 'o-', x='baseline', y='phase')
+phoebe.plotting.plot_ifsyn(star3, 'o-', x='baseline', y='phase')
+phoebe.plotting.plot_ifsyn(star4, 'o-', x='baseline', y='phase')
+
+# And the figure decorations
+
 plt.xlabel('meter')
-plt.ylabel('Phase [deg]')
-plt.ylim(0,360)
-plt.xlim(0,300)
-plt.subplot(223)
-plt.plot(x1*1000,prof1,lw=2)
-plt.plot(x3*1000,prof3,lw=2)
-plt.plot(x2*1000,prof2,lw=2)
-plt.plot(x4*1000,prof4,lw=2)
-plt.xlabel('x [mas]')
-plt.ylabel('Normalised intensity')
-plt.subplot(224)
-system.projected_intensity(ref='__bol')
-Imu1 = star1.mesh['proj___bol']/star1.mesh['mu']
-Imu3 = star3.mesh['proj___bol']/star3.mesh['mu']
-Imu2 = star2.mesh['proj___bol']/star2.mesh['mu']
-Imu4 = star4.mesh['proj___bol']/star4.mesh['mu']
-plt.plot(star1.mesh['mu'],Imu1/Imu1.max(),'bo',mec='b',ms=3)
-plt.plot(star3.mesh['mu'],Imu3/Imu1.max(),'go',mec='g',ms=3)
-plt.plot(star2.mesh['mu'],Imu2/Imu1.max(),'ro',mec='r',ms=3)
-plt.plot(star4.mesh['mu'],Imu4/Imu1.max(),'co',mec='c',ms=3)
-plt.xlim(0,1)
+plt.ylabel('Phase [rad]')
+plt.axis([0, 300, 0, 2*np.pi])
+
 plt.savefig('vega_details')
 
 """
@@ -248,5 +238,4 @@ plt.savefig('vega_details')
 """
 
 print 'Finished!'
-print 'Total execution time: %.3g sec'%((time.time()-c0))
 

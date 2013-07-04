@@ -148,6 +148,8 @@ def blackbody_cmap():
 def make_movie(filecode,fps=24,bitrate=None,output='output.avi',cleanup=False):
     """
     Repeat last 10 frames!
+    
+    bitrate=10 seems to be good for avi
     """
     if os.path.splitext(output)[1]=='.avi':
         if bitrate is None:

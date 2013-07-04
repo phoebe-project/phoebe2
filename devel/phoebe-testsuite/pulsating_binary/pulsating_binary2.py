@@ -48,7 +48,7 @@ freq_pars1['freq'] = 21.2,'cy/d' # so that K0=0.1
 freq_pars1['ampl'] = 0.015
 freq_pars1['l'] = 4
 freq_pars1['m'] = -3
-freq_pars1['deltateff'] = 0.2
+freq_pars1['amplteff'] = 0.2
 freq_pars1['ledoux_coeff'] = 0.5
 freq_pars1['scheme'] = 'coriolis'
 
@@ -80,7 +80,7 @@ system = phoebe.BinaryStar(pstar,orbit,mesh1,puls=[freq_pars1],pbdep=[lcdep1])
     
 P = orbit['period']
 intimes = np.linspace(0,3*P,500)
-mpi = phoebe.ParameterSet(context='mpi',np=8)
+mpi = None#phoebe.ParameterSet(context='mpi',np=8)
 phoebe.observe(system,intimes,subdiv_num=0,lc=True,ltt=True,mpi=mpi)
 
 # Analysis of results
