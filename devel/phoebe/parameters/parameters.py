@@ -1718,7 +1718,7 @@ class ParameterSet(object):
     #}
     #{ Accessibility functions to the Parameters
     
-    def add(self,parameter):
+    def add(self, parameter, force=False):
         """
         Add a parameter to the class instance.
         
@@ -1728,13 +1728,15 @@ class ParameterSet(object):
         C{parameter} can either be a Parameter instance, or a dictionary with
         stuff like C{qualifier}, C{value} etc.
         """
-        #-- maybe we gave a dictionary with the properties instead of a Parameter.
-        #   in that case, convert the dict to a Parameter object first
-        if not isinstance(parameter,Parameter):
+        # Maybe we gave a dictionary with the properties instead of a Parameter.
+        # in that case, convert the dict to a Parameter object first
+        if not isinstance(parameter, Parameter):
             parameter = Parameter(**parameter)
-        #-- now add it to the container
-        if parameter.qualifier in self.container:
-            raise KeyError('{0} already exists'.format(parameter.qualifier) )
+            
+        # Now add it to the container
+        if parameter.qualifier in self.container and not force:
+            raise KeyError('{0} already exists'.format(parameter.qualifier))
+        
         self.container[parameter.qualifier] = parameter
         #self.__dict__[parameter.qualifier] = parameter.get_value()
     

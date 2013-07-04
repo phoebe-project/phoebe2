@@ -1074,6 +1074,7 @@ def plot_ifres(system, *args, **kwargs):
     
     
 def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
+                          velocity=False, factor=1.0,
                           kwargs_obs=None,kwargs_syn=None,
                           kwargs_residual=None):
     """
@@ -1125,9 +1126,10 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     else:
         obs_sigm = np.zeros(len(obs_flux))
     
-    #-- shift the observed wavelengths if necessary
-    if 'vgamma' in obs and obs['vgamma']!=0:
-        obs_wave = tools.doppler_shift(obs_wave,obs.get_value('vgamma','km/s'))
+    ##-- shift the observed wavelengths if necessary
+    ## NONONO! This is taken care of during computation of the spectra!
+    #if 'vgamma' in obs and obs['vgamma']!=0:
+        #obs_wave = tools.doppler_shift(obs_wave,obs.get_value('vgamma','km/s'))
     
     #-- normalise the spectrum and take third light and passband luminosity
     #   contributions into account
@@ -1137,15 +1139,22 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     else:
         syn_flux = syn_flux*obs['pblum']
     
-    print("============>>>{} = {}<<<=========".format(ref,obs['pblum']))
+    x_obs = obs['wavelength']
+    x_syn = syn['wavelength'][index]
+    
+    if velocity:
+        clambda = (x_obs[0]+x_obs[-1])/2.0
+        unit = obs.get_parameter('wavelength').get_unit()
+        x_obs = conversions.convert(unit, 'km/s', x_obs, wave=(clambda,unit))
+        x_syn = conversions.convert(unit, 'km/s', x_syn, wave=(clambda,unit))
     
     #-- plot residuals or data + model
     if residual:
-        plt.errorbar(obs['wavelength'],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
+        plt.errorbar(x_obs,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
         plt.ylabel('$\Delta$ normalised Stokes {}'.format(stokes))
     else:
-        plt.errorbar(obs['wavelength'],obs_flux,yerr=obs_sigm,**kwargs_obs)
-        plt.plot(syn['wavelength'][index],syn_flux,**kwargs_syn)
+        plt.errorbar(x_obs,obs_flux*factor,yerr=obs_sigm*factor,**kwargs_obs)
+        plt.plot(x_syn,syn_flux*factor,**kwargs_syn)
         plt.ylabel('Normalised Stokes {}'.format(stokes))
     
     plt.xlabel("Wavelength [$\AA$]")

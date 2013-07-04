@@ -31,8 +31,9 @@ data, or by random sampling the data.
    run_pymc
    run_emcee
    run_lmfit
-   run_grid
    run_minuit
+   run_grid
+   run_genetic
 
 **Helper functions**
 
@@ -1078,6 +1079,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     """
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:grid')
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -1087,31 +1089,39 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     ids = []
     names = []
     ranges = []
-    #-- walk through all the parameterSets available. This needs to be via
-    #   this utility function because we need to iteratively walk down through
-    #   all BodyBags too.
-    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    
+    # Walk through all the parameterSets available. This needs to be via this
+    # this utility function because we need to iteratively walk down through all
+    # BodyBags too.
     for parset in system.walk():
-        #-- for each parameterSet, walk through all the parameters
+        
+        # For each parameterSet, walk through all the parameters
         for qual in parset:
-            #-- extract those which need to be fitted
+            
+            # Extract those which need to be fitted
             if parset.get_adjust(qual) and parset.has_prior(qual):
-                #-- ask a unique ID and check if this parameter has already
-                #   been treated. If so, continue to the next one.
+                
+                # Ask a unique ID and check if this parameter has already been
+                # treated. If so, continue to the next one.
                 parameter = parset.get_parameter(qual)
                 myid = parameter.get_unique_label()
-                if myid in ids: continue
-                #-- construct the range:
+                if myid in ids:
+                    continue
+                
+                # Construct the range:
                 myrange = parameter.get_prior().distr_pars['bins']
-                #-- and add the id
+                
+                # And add the id
                 ids.append(myid)
                 names.append(qual)
                 ranges.append(myrange) 
     
     def lnprob(pars,ids,system):
-        #-- evaluate the system, get the results and return a probability
+        
+        # Evaluate the system, get the results and return a probability
         had = []
-        #-- walk through all the parameterSets available:
+        
+        # Walk through all the parameterSets available:
         walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
@@ -1193,7 +1203,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
 #{ Genetic algorithm
 
 
-def run_genetic(system,params=None,mpi=None,fitparams=None):
+def run_genetic(system, params=None, mpi=None, fitparams=None):
     """
     Fit the system using a genetic algorithm.
         
@@ -1214,8 +1224,12 @@ def run_genetic(system,params=None,mpi=None,fitparams=None):
     @rtype: ParameterSet
     """
     if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:genetic')
-
+        fitparams = parameters.ParameterSet(frame='phoebe',
+                                            context='fitting:genetic')
+    
+    # Get the size of the population
+    population_size = fitparams['population_size']
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -1225,26 +1239,33 @@ def run_genetic(system,params=None,mpi=None,fitparams=None):
     ids = []
     names = []
     ranges = []
-    #-- walk through all the parameterSets available. This needs to be via
-    #   this utility function because we need to iteratively walk down through
-    #   all BodyBags too.
-    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    
+    # Walk through all the parameterSets available. This needs to be via this
+    # utility function because we need to iteratively walk down through all
+    # BodyBags too.
     for parset in system.walk():
-        #-- for each parameterSet, walk through all the parameters
+        
+        # For each parameterSet, walk through all the parameters
         for qual in parset:
-            #-- extract those which need to be fitted
+            
+            # Extract those which need to be fitted
             if parset.get_adjust(qual) and parset.has_prior(qual):
-                #-- ask a unique ID and check if this parameter has already
-                #   been treated. If so, continue to the next one.
+                
+                # Ask a unique ID and check if this parameter has already been
+                # treated. If so, continue to the next one.
                 parameter = parset.get_parameter(qual)
                 myid = parameter.get_unique_label()
                 if myid in ids: continue
-                #-- construct the range:
-                myrange = parameter.get_prior().get_limits()
-                #-- and add the id
+                
+                # Get the limits of the parameter (or the set of initial children?)
+                population = parameter.get_prior().draw(size=population_size)
+                
+                # And add the id
                 ids.append(myid)
                 names.append(qual)
-                ranges.append(myrange) 
+                ranges.append(population) 
+    
+    
     raise NotImplementedError
     def lnprob(pars,ids,system):
         #-- evaluate the system, get the results and return a probability
