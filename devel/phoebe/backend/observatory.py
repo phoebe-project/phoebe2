@@ -1027,7 +1027,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     ld_model = pbdep['ld_func']
     method = pbdep['method']
     profile = pbdep['profile']
-    extend = pbdep.get('extend', 100.)
+    extend = pbdep.get('extend', 500.)
     keep = the_system.mesh['mu'] <= 0
     
     # Set the central wavelength "wc".
@@ -1162,7 +1162,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         #logg = the_system.params['star'].request_value('logg','[cm/s2]')
         #spectra = limbdark.interp_spectable('atlas',[teff],[logg],wavelengths)
         #spectrum = spectra[0]/spectra[1]
-        sigma = conversions.convert('km/s','AA',sigma,wave=(wc,'AA'))-wc
+        sigma = conversions.convert('km/s','AA', vmicro, wave=(wc,'AA'))-wc
         logger.info('Intrinsic width of the profile: {} AA'.format(sigma))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         wavelengths, total_spectrum = tools.rotational_broadening(wavelengths,

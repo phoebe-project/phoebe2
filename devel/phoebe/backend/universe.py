@@ -2914,9 +2914,8 @@ class BodyBag(Body):
     a system of bodies in binary orbit around another object.
     
     In practical terms, a BodyBag may be thought of as a list object with
-    extra capabilities. It is possible to iterate over Bodies in the BodyBag
-    using the C{for body in bodybag} paradigm. You can index a BodyBag using
-    integer indexing, array indexing and slicing. You can ask for the length
+    extra capabilities. You can index a BodyBag using integer indexing, array
+    indexing and slicing. You can ask for the length
     of a BodyBag (C{len}), you can append other Bodies to it (C{append}) and
     add two BodyBags together to create a new (nested) BodyBag.
     
@@ -2928,9 +2927,9 @@ class BodyBag(Body):
     >>> bodies = []
     >>> for i in range(3):
     ...    star_pars = parameters.ParameterSet(context='star',label='star{}'.format(i))
-    ...    mesh_pars = parameters.ParameterSet(context='mesh')
+    ...    mesh_pars = parameters.ParameterSet(context='mesh:marching')
     ...    lcdp_pars = parameters.ParameterSet(context='lcdep')
-    ...    star = Star(star_pars,mesh_pars,pbdep=[lcdp_pars])
+    ...    star = Star(star_pars,mesh=mesh_pars,pbdep=[lcdp_pars])
     ...    bodies.append(star)
 
     A BodyBag is easily created from a list of Bodies:
@@ -2946,9 +2945,9 @@ class BodyBag(Body):
     >>> print(bb[-1].params['star']['label'])
     star2
 
-    We can iterate over a BodyBag:
+    We can iterate over the list of bodies in a BodyBag:
     
-    >>> for star in bb:
+    >>> for star in bb.bodies:
     ...    print(star.params['star']['label'])
     star0
     star1
@@ -2957,7 +2956,7 @@ class BodyBag(Body):
     We can slice it:
     
     >>> bb2 = bb[::2]
-    >>> for star in bb2:
+    >>> for star in bb2.bodies:
     ...    print(star.params['star']['label'])
     star0
     star2
@@ -2975,7 +2974,7 @@ class BodyBag(Body):
     too, they can also be summed.
     
     >>> bb3 = bodies[1] + bodies[2]
-    >>> for star in bb3:
+    >>> for star in bb3.bodies:
     ...    print star.params['star']['label']
     star1
     star2
@@ -2988,7 +2987,8 @@ class BodyBag(Body):
     C{bodies[2]}) and Body C{bodies[0]}. It is B{not} a BodyBag consisting
     of three bodies!
     """
-    def __init__(self,list_of_bodies,obs=None,report_problems=False,solve_problems=False,**kwargs):
+    def __init__(self,list_of_bodies, obs=None, report_problems=False, 
+                 solve_problems=False, **kwargs):
         """
         Initialise a BodyBag.
         
@@ -2998,76 +2998,102 @@ class BodyBag(Body):
         @param list_of_bodies: list of bodies
         @type list_of_bodies: list
         """
+        # We definitely need signals and a label, even if it's empty
         self.signals = {}
         self.label = None
-        if not isinstance(list_of_bodies,list):
+        
+        # Make sure the list of bodies is a list
+        if not isinstance(list_of_bodies, list):
             list_of_bodies = [list_of_bodies]
         self.bodies = list_of_bodies
+        
+        # The components need to be Bodies. I'm storing the "dimension" variable
+        # here, but that's a left over from earlier days. It doesn't hurt to
+        # have it.
         try:
             self.dim = self.bodies[0].dim
         except AttributeError:
             raise AttributeError("Components in a BodyBag need to be of type 'Body', not {}".format(type(self.bodies[0])))
-        #-- keep track of the current orientation, the original (unsubdivided)
-        #   mesh and all the parameters of the object.
-        self.orientation = dict(theta=0,incl=0,Omega=0,pivot=(0,0,0),
-                           los=[0,0,+1],conv='YXZ',vector=[0,0,0])
+        
+        # Keep track of the current orientation, the original (unsubdivided)
+        # mesh and all the parameters of the object.
+        self.orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
+                           los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
         self.subdivision = dict(orig=None)
         self.params = OrderedDict()
-        #if len(list_of_bodies)==1:
-        #    self.params = list_of_bodies[0].params
+        
+        # Also the _plot is a leftover from earlier days, this is deprecated
         self._plot = self.bodies[0]._plot
+        
+        # Process any extra keyword arguments: they can contain a label for the
+        # bodybag, or extra ParameterSets. We need to set a label for a BodyBag
+        # if it's a binary, so that we can figure out which component it is
         for key in kwargs:
-            if key=='label':
+            if key == 'label':
                 self.label = kwargs[key]
                 continue
             self.params[key] = kwargs[key]
-            #-- we need to set a label for a BodyBag if it's a binary, so that
-            #   we can figure out which component it is
-        #-- perform a consistency check for the labels in the mesh.
-        #   First cycle over all Bodies. That means traverse into BodyBags,
-        #   so we can handle hierarchical systems! The check is not performed
-        #   because it is actually not strictly necessary for the labels to be
-        #   the same, but the use of the class is limited. Still, one might
-        #   want to collect different bodies in a BodyBag only to set the time
-        #   of all of them, without the need for plotting or making dependables
-        #   for all of them together... perhaps we need a different BodyBag for
-        #   this, or we introduce some flags like "consistency_check=True" or so
+            
+        # Perform a consistency check for the labels in the mesh. First we cycle
+        # over all Bodies. That means traverse into BodyBags, so we can handle
+        # hierarchical systems! The check is not performed because it is
+        # actually not strictly necessary for the labels to be the same, but the
+        # use of the class is limited. Still, one might want to collect
+        # different bodies in a BodyBag only to set the time of all of them,
+        # without the need for plotting or making dependables for all of them
+        # together... perhaps we need a different BodyBag for this, or we
+        # introduce some flags like "consistency_check=True" or so
         if report_problems:
             present_refs = []
             check_for_this_body = []
-            for i,body in enumerate(utils.traverse(self.bodies,list_types=(list,tuple,BodyBag),dict_types=(dict,))):
+            
+            # Iterator of bodies, lists, tuples and dictionaries
+            iterator = utils.traverse(self.bodies,
+                                      list_types=(list, tuple, BodyBag),
+                                      dict_types=(dict,))
+            for i,body in enumerate(iterator):
+                
+                # Iterate over passband depedent ParameterSets
                 for ps in utils.traverse(body.params['pbdep']):
+                    
+                    # There cannot be two parametersets with the same ref
                     check_for_this_body.append(ps['ref'])
-                    if i==0 and ps['ref'] in present_refs:
+                    if i == 0 and ps['ref'] in present_refs:
                         raise ValueError("at least 2 dependables have reference {} in Body {}: make sure the labels are unique".format(ps['ref'],body.label))
                     elif i==0:
                         present_refs.append(ps['ref'])
+                
+                # Check which references are unique to this body and the other
+                # bodies
                 left_over = set(present_refs) - set(check_for_this_body)
                 right_over = set(check_for_this_body) - set(present_refs)
                 if len(left_over):
                     raise ValueError("missing dependables ({}) and/or extra dependables ({}) in Body {}".format(", ".join(left_over),", ".join(right_over),body.get_label()))        
                 check_for_this_body = []
-        #-- obfuscated uncommented code here we come!!!
+        
+        # Fix the mesh if need
         if solve_problems:
             self.fix_mesh()
+            
+        # Prepare to hold synthetic results and/or observations.
         self.params['syn'] = OrderedDict()
         self.params['obs'] = OrderedDict()
+        
+        # If observations are give, parse them now
         if obs is not None:
-            _parse_obs(self,obs)
+            _parse_obs(self, obs)
         
         
-        #-- the following list of functions will be executed before and
-        #   after a call to set_time
+        # The following list of functions will be executed before and after a
+        # call to set_time
         self._preprocessing = []
         self._postprocessing = []
-        #-- Add a dict that we can use to store temporary information
-        self._clear_when_reset = dict()
         
-
-            
+        # Add a dict that we can use to store temporary information
+        self._clear_when_reset = dict()  
                 
     
-    def __getattr__(self,name):
+    def __getattr__(self, name):
         """
         Pass on nonexisting functions to the individual bodies.
         
