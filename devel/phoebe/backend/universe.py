@@ -903,14 +903,17 @@ class Body(object):
         fits, where pblum is then interpreted as some kind of scaling factor
         (e.g. the angular diameter). Perhaps there are other applications.
         """
+        
+        # We need observations of course
         if not 'obs' in self.params:
             logger.info('Cannot compute pblum or l3, no observations defined')
             return None
-        #-- we'll collect the complete model first (i.e. all the observations
-        #   in one big 1D array). We'll keep track of the references,
-        #   so that we know which points represent a particular observation
-        #   set. Then afterwards, we compute the pblums for all the linked
-        #   datasets... or for all them separtely if link=None.
+        
+        # We'll collect the complete model first (i.e. all the observations in
+        # one big 1D array). We'll keep track of the references, so that we know
+        # which points represent a particular observation set. Then afterwards,
+        # we compute the pblums for all the linked datasets... or for all of
+        # separately if link=None.
         if link is not None:
             complete_refrs = []
             complete_model = []
@@ -918,15 +921,23 @@ class Body(object):
             complete_sigma = []
             complete_pblum = []
             complete_l3 = []
+        
         for idata in self.params['obs'].values():
             for observations in idata.values():
-                #-- get the model corresponding to this observation
+                
+                # Ignore disabled datasets
+                if not observations.get_enabled():
+                    continue
+                
+                # Get the model corresponding to this observation
                 model = self.get_synthetic(category=observations.context[:-3],
                                            ref=observations['ref'],
                                            cumulative=True)
-                #-- make sure to have loaded the observations from a file
+                
+                # Make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
-                #-- get the "model" and "observations" and their error.
+                
+                # Get the "model" and "observations" and their error.
                 if observations.context in ['spobs','plobs']:
                     model = np.array(model['flux'])/np.array(model['continuum'])
                     obser = np.array(observations['flux'])/np.array(observations['continuum'])
@@ -938,19 +949,22 @@ class Body(object):
                 else:
                     logger.error('PBLUM/L3: skipping {}'.format(observations.context))
                     continue
-                #-- determine pblum and l3 for these data if necessary. The
-                #   pblum and l3 for the model, independently of the
-                #   observations, should have been computed before when
-                #   computing the model. Only fit the pblum and l3 here if
-                #   these parameters are available in the dataset, and they
-                #   are set to be adjustable
+                
+                # Determine pblum and l3 for these data if necessary. The pblum
+                # and l3 for the model, independently of the observations,
+                # should have been computed before when computing the model.
+                # Only fit the pblum and l3 here if these parameters are
+                # available in the dataset, and they are set to be adjustable
                 do_pblum = False
                 do_l3 = False
+                
                 if 'pblum' in observations and observations.get_adjust('pblum'):
                     do_pblum = True
+                
                 if 'l3' in observations and observations.get_adjust('l3'):
                     do_l3 = True
-                #-- keep track
+                
+                # Keep track of linking ====> EXPERIMENTAL <======
                 if link is not None:
                     complete_model.append(model)
                     complete_obser.append(obser)
@@ -960,10 +974,10 @@ class Body(object):
                     complete_l3.append([do_l3]*len(model))
                     continue
                 
-                #-- old stuff is below, to revert, just comment out everything
-                #   after the for-loop
+                # Do the computations
                 if do_pblum or do_l3:
                     pblum,l3 = compute_pblum_or_l3(model,obser,sigma,pblum=do_pblum,l3=do_l3)
+                
                 #   perhaps we don't need to fit, but we still need to
                 #   take it into account
                 if not do_pblum and 'pblum' in observations:
@@ -1216,6 +1230,10 @@ class Body(object):
         """
         Return all data and complete model in one long chain of data.
         
+        For some of the fitters, the output of this function is used in the
+        fitting process. So if anything goes wrong, this is probably the place
+        to start debugging.
+        
         @return: obs, sigma, model
         @rtype: 3xarray
         """
@@ -1252,11 +1270,7 @@ class Body(object):
                     sigma_ = np.ravel(np.array(observations['sigma']))
                 else:
                     raise NotImplementedError('probability')
-                if observations.context=='plobs':
-                    if 'V' in observations['columns']:
-                        model_ = np.hstack([model_,np.ravel(np.array(modelset['V'])/np.array(modelset['continuum']))])
-                        obser_ = np.hstack([obser_,np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
-                        sigma_ = np.hstack([sigma_,np.ravel(np.array(observations['sigma_V']))])
+                
                 #-- statistical weight:
                 statweight = observations['statweight']
                 #-- take pblum and l3 into account:
@@ -1264,12 +1278,22 @@ class Body(object):
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
                 model_ = pblum*model_ + l3
                 
+                if observations.context=='plobs':
+                    if 'V' in observations['columns']:
+                        # We need to correct the Stokes profile for the passband
+                        # luminosity factor, as this was not taken into account
+                        # during the calculations
+                        model_ = np.hstack([model_,np.ravel(np.array(modelset['V'])/np.array(modelset['continuum'])*pblum)])
+                        obser_ = np.hstack([obser_,np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
+                        sigma_ = np.hstack([sigma_,np.ravel(np.array(observations['sigma_V']))])
+                
                 #-- transform to log if necessary:
                 if 'fittransfo' in observations and observations['fittransfo']=='log10':
                     sigma_ = sigma_/(obser_*np.log(10))
                     model_ = np.log10(model_)
                     obser_ = np.log10(obser_)
                     logger.info("Transformed model to log10 for fitting")
+                
                 #-- append to the "whole" model.
                 model.append(model_)
                 mu.append(obser_)

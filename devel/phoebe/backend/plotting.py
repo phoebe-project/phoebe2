@@ -1137,6 +1137,8 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     else:
         syn_flux = syn_flux*obs['pblum']
     
+    print("============>>>{} = {}<<<=========".format(ref,obs['pblum']))
+    
     #-- plot residuals or data + model
     if residual:
         plt.errorbar(obs['wavelength'],(obs_flux-syn_flux)/obs_sigm,yerr=np.ones(len(obs_sigm)),**kwargs_obs)
@@ -1148,6 +1150,14 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     
     plt.xlabel("Wavelength [$\AA$]")
     plt.title(ref)
+    
+    #plt.figure()
+    #mu, sigma, model = system.get_model()
+    #retvalue = (model - mu) / sigma
+    #plt.figure()
+    #plt.errorbar(range(len(mu)),mu,yerr=sigma,fmt='ko-')
+    #plt.plot(range(len(mu)),model,'r-',lw=2)
+    #plt.annotate('$\chi^2 = {:.3f}$'.format((retvalue**2).mean()),(0.9,0.9),ha='right',xycoords='axes fraction')      
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()

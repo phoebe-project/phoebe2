@@ -1302,6 +1302,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     ld_model = pbdep['ld_func']
     method = pbdep['method']
     glande = pbdep['glande']
+    profile = pbdep['profile']
     weak_field = pbdep['weak_field']
     keep = the_system.mesh['mu'] <= 0
     
@@ -1358,7 +1359,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     approx_msg = weak_field and 'Weak-field' or 'No weak-field'
     logger.info('{} approximation'.format(approx_msg))
     
-    if method == 'numerical' and not pbdep['profile'] == 'gauss':
+    if method == 'numerical' and not profile == 'gauss':
         # Get limb angles
         mus = the_system.mesh['mu']
         keep = (mus > 0) & (the_system.mesh['partial'] | the_system.mesh['visible'])
@@ -1376,12 +1377,17 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
         Imu = getattr(limbdark,'ld_{}'.format(ld_model))(mus, the_system.mesh['ld_'+ref][keep].T)
         teff, logg = the_system.mesh['teff'][keep], the_system.mesh['logg'][keep]
             
+        # Interpolate (fitters can go outside of grid)    
+        spectra = modspectra.interp_spectable(profile, teff, logg, wavelengths)
+            
         proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
         logger.info('synthesizing spectropolarimetry using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
         total_continum = 0.0
         stokes_I = 0.0
         stokes_V = 0.0
+        stokes_Q = 0.0
+        stokes_U = 0.0
         
         # Gravitational redshift:
         if rv_grav:
@@ -1903,10 +1909,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             system.unsubdivide()
     
     #if inside_mpi is None:
-    try:
-        system.compute_pblum_or_l3()
-    except:
-        logger.warning("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
+    #try:
+    system.compute_pblum_or_l3()
+    #except:
+    #    logger.error("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
 
 
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
