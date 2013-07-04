@@ -1189,6 +1189,145 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
 
 #}
 
+
+#{ Genetic algorithm
+
+
+def run_genetic(system,params=None,mpi=None,fitparams=None):
+    """
+    Fit the system using a genetic algorithm.
+        
+    **See also:**
+    
+    - :ref:`fitting:grid <parlabel-phoebe-fitting:genetic>` 
+    - :ref:`feedback <label-feedback-fitting:genetic-phoebe>`, :ref:`iterate <label-iterate-fitting:genetic-phoebe>`
+    
+    @param system: the system to fit
+    @type system: Body
+    @param params: computation parameters
+    @type params: ParameterSet
+    @param mpi: mpi parameters
+    @type mpi: ParameterSet
+    @param fitparams: fit algorithm parameters
+    @type fitparams: ParameterSet
+    @return: the grid sampling history (ParameterSet of context 'fitting:genetic'
+    @rtype: ParameterSet
+    """
+    if fitparams is None:
+        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:genetic')
+
+    # We need unique names for the parameters that need to be fitted, we need
+    # initial values and identifiers to distinguish parameters with the same
+    # name (we'll also use the identifier in the parameter name to make sure
+    # they are unique). While we are iterating over all the parameterSets,
+    # we'll also have a look at what context they are in. From this, we decide
+    # which fitting algorithm to use.
+    ids = []
+    names = []
+    ranges = []
+    #-- walk through all the parameterSets available. This needs to be via
+    #   this utility function because we need to iteratively walk down through
+    #   all BodyBags too.
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
+        #-- for each parameterSet, walk through all the parameters
+        for qual in parset:
+            #-- extract those which need to be fitted
+            if parset.get_adjust(qual) and parset.has_prior(qual):
+                #-- ask a unique ID and check if this parameter has already
+                #   been treated. If so, continue to the next one.
+                parameter = parset.get_parameter(qual)
+                myid = parameter.get_unique_label()
+                if myid in ids: continue
+                #-- construct the range:
+                myrange = parameter.get_prior().get_limits()
+                #-- and add the id
+                ids.append(myid)
+                names.append(qual)
+                ranges.append(myrange) 
+    raise NotImplementedError
+    def lnprob(pars,ids,system):
+        #-- evaluate the system, get the results and return a probability
+        had = []
+        #-- walk through all the parameterSets available:
+        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        for parset in system.walk():
+            #-- for each parameterSet, walk to all the parameters
+            for qual in parset:
+                #-- extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):
+                    #-- ask a unique ID and update the value of the parameter
+                    myid = parset.get_parameter(qual).get_unique_label()
+                    if myid in had: continue
+                    index = ids.index(myid)
+                    parset[qual] = pars[index]
+                    had.append(myid)
+        system.reset()
+        system.clear_synthetic()
+        system.compute(params=params,mpi=mpi)
+        logp, chi2, N = system.get_logp()
+        return logp
+    
+    #-- now run over the whole grid
+    grid_pars = []
+    grid_logp = []
+    save_files= []
+    
+    #-- well, that is, it can be defined as a product or a list:
+    #   product of [1,2], [10,11] is [1,10],[1,11],[2,10],[2,11]
+    #   list of    [1,2], [10,11] is [1,10],[2,11]
+    if fitparams['iterate']=='product':
+        the_iterator = itertools.product(*ranges)
+    elif fitparams['iterate']=='list':
+        the_iterator = zip(*ranges)
+    
+    #-- now run over the whole grid
+    for i,pars in enumerate(the_iterator):
+        msg = ', '.join(['{}={}'.format(j,k) for j,k in zip(names,pars)])
+        mylogp = lnprob(pars,ids,system)
+        logger.warning('GRID: step {} - parameters: {} (logp={:.3g})'.format(i,msg,mylogp))
+        this_system = copy.deepcopy(system)
+        this_system.remove_mesh()
+        this_system.save('gridding_{:05d}.phoebe'.format(i))
+        del this_system
+        grid_pars.append(pars)
+        grid_logp.append(mylogp)
+        save_files.append('gridding_{:05d}.phoebe'.format(i))
+    
+    #-- convert to arrays
+    grid_pars = np.array(grid_pars)
+    grid_logp = np.array(grid_logp)
+    
+    #-- store the info in a feedback dictionary
+    feedback = dict(parameters=[],values=[],priors=[],save_files=[])
+    
+    #-- add the posteriors to the parameters
+    had = []
+    #-- walk through all the parameterSets available:
+    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    for parset in system.walk():
+        #-- fore ach parameterSet, walk to all the parameters
+        for qual in parset:
+            #-- extract those which need to be fitted
+            if parset.get_adjust(qual) and parset.has_prior(qual):
+                #-- ask a unique ID and update the value of the parameter
+                myid = parset.get_parameter(qual).get_unique_label()
+                if myid in had: continue
+                had.append(myid)
+                index = ids.index(myid)
+                this_param = parset.get_parameter(qual)
+                #this_param.set_posterior(trace.ravel())f
+                feedback['parameters'].append(this_param)
+                feedback['values'].append(grid_pars[:,index])
+                feedback['priors'].append(this_param.get_prior().distr_pars['bins'])
+    feedback['logp'] = grid_logp
+    feedback['save_files'] = save_files
+    fitparams['feedback'] = feedback
+    return fitparams
+
+#}
+
+
 #{ Feedbacks
 
 class Feedback(object):
