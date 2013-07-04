@@ -371,12 +371,18 @@ def check_body(body):
 
 
 
-def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False):
+def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False, type='nnls'):
     """
     Rescale the observations to match a model.
     
     obs = pblum * model + l3
+    
+    Type:
+        - nnls does not allow negative coefficients
+        - lstsq does allow negative coefficients
     """
+    algorithm = dict(nnls=nnls, lstsq=np.linalg.lstsq)[type]
+    
     if sigma is None:
         sigma = np.ones_like(obs)
         
@@ -392,7 +398,8 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False):
     elif pblum and l3:
         A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
         #pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
-        pblum, l3 = nnls(A, obs.ravel())[0]
+        #pblum, l3 = nnls(A, obs.ravel())[0]
+        pblum, l3 = algorithm(A, obs.ravel())[0]
     
     return pblum, l3
                     
@@ -976,7 +983,14 @@ class Body(object):
                 
                 # Do the computations
                 if do_pblum or do_l3:
-                    pblum,l3 = compute_pblum_or_l3(model,obser,sigma,pblum=do_pblum,l3=do_l3)
+                    # We allow for negative coefficients in spectra
+                    if observations.context in ['plobs','spobs']:
+                        alg = 'lstsq'
+                    # But not in other stuff
+                    else:
+                        alg = 'nnls'
+                    pblum,l3 = compute_pblum_or_l3(model, obser, sigma, 
+                                   pblum=do_pblum, l3=do_l3, type=alg)
                 
                 #   perhaps we don't need to fit, but we still need to
                 #   take it into account
@@ -5498,10 +5512,22 @@ class BinaryStar(Star):
             return proj_intens*pblum + l3
 
 
-def serialize(body,description=True,color=True,only_adjust=False,filename=None):
+def serialize(body, description=True, color=True, only_adjust=False,
+              filename=None, skip_data=True):
     """
     Attempt no. 1 to serialize a Body.
     """
+    def isdata(par):
+        value = par.get_value()
+        isarray = hasattr(value,'dtype')
+        islist = isinstance(value,list)
+        if islist and len(value):
+            isarray = hasattr(value[0],'dtype')
+        if islist and len(value)>10:
+            isarray = True
+        return isarray
+    
+    
     #-- if need write to a file, override the defaults
     if filename is not None:
         color = False
@@ -5531,6 +5557,10 @@ def serialize(body,description=True,color=True,only_adjust=False,filename=None):
     parval_length = 0
     for path,val in body.walk_all():
         if isinstance(val,parameters.Parameter):
+            
+            if skip_data and isdata(val):
+                continue
+            
             while len(levels)<(len(path)-1):
                 levels.append(0)
             for i,level in enumerate(path[:-1]):
@@ -5541,6 +5571,10 @@ def serialize(body,description=True,color=True,only_adjust=False,filename=None):
     for path,val in body.walk_all():
         path = list(path)
         if isinstance(val,parameters.Parameter):
+            
+            if skip_data and isdata(val):
+                continue
+            
             par_str,N = par_to_str(val,color=color)
             if N==0:
                 continue

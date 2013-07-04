@@ -1282,6 +1282,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     # Instrumental info
     R = obs.get('R', None)
     vmacro = obs.get('vmacro', 0.0)
+    vrad_obs = obs.get('vgamma', 0.0)
     
     # Intrinsic width of the profile
     vmicro = pbdep.get('vmicro', 5.0)
@@ -1354,6 +1355,9 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
     rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
     nus = constants.cc/wavelengths*1e10 # from AA to Hz
+    
+    # Correct radial velocities for vgamma in observation set
+    rad_velos = rad_velos + vrad_obs 
     
     # Report which approximation we use
     approx_msg = weak_field and 'Weak-field' or 'No weak-field'
@@ -1909,10 +1913,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             system.unsubdivide()
     
     #if inside_mpi is None:
-    #try:
-    system.compute_pblum_or_l3()
-    #except:
-    #    logger.error("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
+    # We can't compute pblum or l3 inside MPI, because it's this function that
+    # is called for different parts of the datasets. So no thread has all the
+    # information. This is solved in the MPI decorator, which calls the
+    # function after everything is merged.
+    try:
+        system.compute_pblum_or_l3()
+    except:
+        logger.warning("Cannot compute pblum or l3. I can think of two reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body.")
 
 
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,

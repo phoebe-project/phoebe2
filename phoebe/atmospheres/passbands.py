@@ -160,15 +160,21 @@ def get_response(passband):
     @rtype: (array, array)
     """
     passband = passband.upper()
-    if passband=='OPEN.BOL':
-        return np.array([1,1e10]),np.array([1/(1e10-1),1/(1e10-1)])
-        
-    photfile = os.path.join(os.path.dirname(__file__),'ptf',passband)
-    wave, response = np.loadtxt(photfile,unpack=True)[:2]
+    
+    # It's easy for a bolometric filter: totally open
+    if passband == 'OPEN.BOL':
+        return np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)])
+    
+    # Get file with the passband and read it in
+    photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
+    wave, response = np.loadtxt(photfile, unpack=True)[:2]
+    
+    # make sure the contents are sorted according to wavelength
     sa = np.argsort(wave)
-    return wave[sa],response[sa]
+    return wave[sa], response[sa]
 
-def eff_wave(passband,model=None):
+
+def eff_wave(passband, model=None):
     """
     Return the effective wavelength of a photometric passband.
     
@@ -224,6 +230,7 @@ def eff_wave(passband,model=None):
     
     return my_eff_wave
 
+
 def list_response(name):
     """
     List available response curves matching C{name}.
@@ -240,6 +247,7 @@ def list_response(name):
     """
     responses = sorted(glob.glob(os.path.join(os.path.dirname(__file__),'ptf',name)))
     return [os.path.basename(resp) for resp in responses]
+
     
 @decorators.memoized
 def get_info(passbands=None):
@@ -287,8 +295,21 @@ def get_info(passbands=None):
     return zp
 
 
-
-
+def get_passband_from_wavelength(wavelength, wrange=100.0):
+    """
+    Retrieve the passbands in the vicinity around a central wavelength.
+    
+    Return the closest one and all in a certain range.
+    """
+    
+    # Retrieve all passband information
+    info = get_info()
+    
+    best_index = np.argmin(np.abs(info['eff_wave'] - wavelength))
+    valid = np.abs(info['eff_wave']-wavelength) <= (wrange/2.0)
+    
+    return info[best_index]['passband'], info[valid]['passband']
+    
 
 if __name__=="__main__":
     import doctest
