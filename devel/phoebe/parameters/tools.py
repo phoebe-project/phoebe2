@@ -39,11 +39,13 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 
 .. autosummary::
 
+    list_available_units
     add_unbounded_from_bounded
     
 """
 import logging
 import numpy as np
+import textwrap
 from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.parameters import parameters
@@ -1095,4 +1097,72 @@ def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
     #parset.add_constraint('{{{qualifier:s}}} = np.tan(np.pi*(({{{new_qualifier:s}}}-{low:.8e})/({high:.8e}-{low:.8e})-0.5))'.format(**locals()))
     parset.add_constraint('{{{qualifier:s}}} = (np.arctan({{{new_qualifier:s}}})/np.pi + 0.5)*({high:.8e}-{low:.8e}) + {low:.8e}'.format(**locals()))
     #return (np.arctan(par)/np.pi+0.5)*(high-low)+low
+
+#}
+
+
+
+
+
+#{ Other stuff
+
+def list_available_units(qualifier, context=None):
+    """
+    List the available units of a parameter.
     
+    If you don't give a context (e.g. `lcdep'), a report from all context where
+    the parameters is found will be given. Otherwise only that particular
+    context will be used. Alternatively you can give a full parameterSet to
+    the context parameter. In the latter case, the context will be derived from
+    the ParameterSet.
+    
+    @param qualifier: name of the unit to list the available units
+    @type qualifier: str
+    @param context: name of the context
+    @type context: str or ParameterSet
+    """
+    print("List of available units for parameter {}:".format(qualifier))
+    if context is not None and not isinstance(context,str):
+        context = context.get_context()
+    
+    previous = None
+    for idef in parameters.defs.defs:
+        if qualifier == idef['qualifier']:
+            
+            if context is not None and not (context in idef['context']):
+                continue
+            
+            if context is None:
+                this_context = idef['context']
+            else:
+                this_context = context
+            
+            par = parameters.Parameter(**idef)
+            unit_type, units = par.list_available_units()
+            name = '* context {} ({}): '.format(this_context, unit_type)
+            indent = ' '*len(name)
+            
+            # Don't do unnecessary repeats
+            if unit_type == previous:
+                print("{}same as above".format(name))
+                continue
+            else:
+                previous = unit_type
+            
+            lines = []
+            for i, unit in enumerate(units):
+                
+                start = name if i == 0 else indent
+                
+                expl = conversions._factors[unit]
+                conv = '{:.6e} {}'.format(expl[0], expl[1])
+                #contents = "\n".join(textwrap.wrap("- {} ({} - {:>16s}) ".format(unit, expl[3], conv),
+                                                   #initial_indent=start, subsequent_indent=indent))
+                contents = "{}- {:10s} {:22s}".format(start, unit, "("+expl[3]+")")
+                contents = "{} ({:>14s}) ".format(contents, conv)
+                lines.append(contents)
+            
+            print("\n".join(lines))
+                
+       
+#}
