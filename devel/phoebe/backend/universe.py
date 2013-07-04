@@ -2831,7 +2831,7 @@ class BodyBag(Body):
     """
     Body representing a group of bodies.
     
-        **Adding/remove parameters, data and bodies**
+    **Adding and removing parameters, data and bodies**
     
     .. autosummary::
     
@@ -2846,7 +2846,7 @@ class BodyBag(Body):
        reset
        remove_mesh
        
-    **Request (additional) information**
+    **Requesting (additional) information**
     
     .. autosummary::
     
@@ -2873,7 +2873,7 @@ class BodyBag(Body):
        walk_type
        get_bodies
     
-    **Compute passband dependent quantities**
+    **Computing passband dependent quantities**
     
     .. autosummary::
     
@@ -2907,14 +2907,14 @@ class BodyBag(Body):
     
     A L{BodyBag} keeps a list of all Bodies in the bag separately, but basic
     Body operations such as rotation and translation are performed on a merged
-    mesh of all Bodies. Yet, calling a function that is not defined in L{Body},
-    will result in a looped call over all Bodies in the L{BodyBag}. Thus,
-    calling L{intensity} of a BodyBag will set the intensity of each L{Body} in
+    mesh of all Bodies. Calling a function that is not defined in L{Body}
+    will result in a looped call over all Bodies in the L{BodyBag}. For example,
+    calling L{intensity} on a BodyBag will set the intensity of each L{Body} in
     the L{BodyBag}. This behaviour makes it easy to nest Bodies, e.g. for putting
     a system of bodies in binary orbit around another object.
     
-    In practical usage, one could probably best see the BodyBag as list object
-    with extra capabilities. It is possible to cycle over Bodies in the BodyBag
+    In practical terms, a BodyBag may be thought of as a list object with
+    extra capabilities. It is possible to iterate over Bodies in the BodyBag
     using the C{for body in bodybag} paradigm. You can index a BodyBag using
     integer indexing, array indexing and slicing. You can ask for the length
     of a BodyBag (C{len}), you can append other Bodies to it (C{append}) and
@@ -2922,7 +2922,7 @@ class BodyBag(Body):
     
     **Section 2: Example usage**
     
-    Let's create a BodyBag consisting of three stars. For clarity, we first
+    Let us create a BodyBag consisting of three stars. For clarity, we first
     make a list of the stars:
     
     >>> bodies = []
@@ -2937,7 +2937,7 @@ class BodyBag(Body):
     
     >>> bb = BodyBag(bodies)
 
-    A Bodybag behaves much like a list:
+    A BodyBag behaves much like a list:
     
     >>> print(len(bb))
     3
@@ -2971,7 +2971,7 @@ class BodyBag(Body):
     star2
     star1
     
-    A Bodybag can also be created by summing Bodies. Since BodyBags are Bodies
+    A BodyBag can also be created by summing Bodies. Since BodyBags are Bodies
     too, they can also be summed.
     
     >>> bb3 = bodies[1] + bodies[2]
