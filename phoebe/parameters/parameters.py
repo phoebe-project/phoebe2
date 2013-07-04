@@ -1302,10 +1302,11 @@ class Parameter(object):
         """
         unit_type = conversions.get_type(self.get_unit())
         allowed = []
+        
         for fac in conversions._factors:
-            if conversions._factors[fac][2]==unit_type:
+            if conversions._factors[fac][2] == unit_type:
                 allowed.append(fac)
-        return unit_type,allowed
+        return unit_type, allowed
     
     def transform_to_unbounded(self,from_='limits'):
         r"""

@@ -59,6 +59,8 @@ for example the surface gravity and radius, instead of mass and radius.
     tools.add_surfgrav
     tools.add_teffpolar
     tools.add_angdiam
+    
+    tools.list_available_units
 
 Example usage
 -------------
