@@ -223,25 +223,36 @@ def luminosity(body, ref='__bol'):
     the sterradian (:math:`\mathrm{erg}/\mathrm{s}/\mathrm{cm}^2`). Finally, an integration over the surface
     removes the last units and the result is erg/s.
     
-    with :math:`\theta` the angle between the line of sight and the surface normal,
-    i.e. :math:`\theta=0` at the center of the disk.
+    Here, :math:`\theta` is the angle between the line of sight and the surface
+    normal, i.e. :math:`\theta=0` at the center of the disk.
     
     @return: luminosity of the object (erg/s)
     @rtype: float
     """
-    #-- set the intensities if they are not calculated yet
+    # Set the intensities if they are not calculated yet
     ld_law = body.params.values()[0]['ld_func']
     ld = body.mesh['ld_' + ref]
     if np.all(ld==0):
         body.intensity(ref=ref)
+    
+    # Get a reference to the mesh, and get the sizes of the triangles in real
+    # units
     mesh = body.mesh
     sizes = mesh['size'] * (100*constants.Rsol)**2
-    def _tief(gamma, ld_law, coeffs):
+    
+    # Get the function to evaluate the LD law
+    ld_law = getattr(limbdark, 'ld_'+ld_law)
+    
+    # Define the function to compute the total intrinsic emergent flux
+    def _tief(gamma, coeffs):
         """Small helper function to compute total intrinsic emergent flux"""
-        Imu = coeffs[-1] * getattr(limbdark, 'ld_'+ld_law)(cos(gamma), coeffs)
+        cos_gamma = cos(gamma)
+        Imu = coeffs[-1] * ld_law(cos_gamma, coeffs)
          # sin(gamma) is for solid angle integration
-        return Imu * cos(gamma) * sin(gamma)
-    emer_Ibolmu = 2*pi*np.array([quad(_tief, 0, pi/2, args=(ld_law, ld[i]))[0] \
+        return Imu * cos_gamma * sin(gamma)
+    
+    # Then do integration:
+    emer_Ibolmu = 2*pi*np.array([quad(_tief, 0, pi/2, args=(ld[i],))[0] \
                                                      for i in range(len(mesh))])
     return (emer_Ibolmu * sizes).sum()
     
