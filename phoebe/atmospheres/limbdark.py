@@ -273,7 +273,7 @@ def ld_nonlinear(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    if hasattr(mu,'__iter__'):
+    if not np.isscalar(mu):
         mu[mu==0] = 1e-16
     elif mu==0:
         mu = 1e-16
