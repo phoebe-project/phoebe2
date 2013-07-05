@@ -112,6 +112,7 @@ import pickle
 import uuid
 import logging
 import copy
+import textwrap
 from collections import OrderedDict
 # Load 3rd party modules
 import numpy as np
@@ -366,7 +367,57 @@ def check_body(body):
         - Check if type of obs is DataSet, type of pbdep is ParameterSet
         - Check if passbands are present in atmosphere table
     """
-    raise NotImplementedError
+    # Run over the following categories, and keep track how many are added
+    categories = {'lc':[], 'rv':[], 'sp':[], 'if':[], 'pl':[]}
+    
+    # Get all the references in the body
+    refs = body.get_refs()
+    refs = body.get_refs(per_category=True)
+    
+    message = []
+    
+    for category in refs.keys():
+        
+        # Keep track of how many pbdeps and obs there are: if there is only one
+        # each and their references don't match, we can fix it
+        number_pbdeps = []
+        number_obs = []
+        
+        for ref in refs[category]:
+            # For each reference, check if the dep and obs exist. This returns
+            # the ParameterSet and the reference. If it returns Nones, it does
+            # not exist
+            ps1, rf1 = body.get_parset(ref=ref, context=category + 'dep')
+            ps2, rf2 = body.get_parset(ref=ref, context=category + 'obs')
+            
+            if rf1 is None and rf2 is not None:
+                message.append("Found obs ({}) with ref '{}' but no pbdep to match it".format(category, ref))
+                number_obs.append(ps2)
+            elif rf1 is not None and rf2 is None:
+                #message.append("Found pbdep ({}) with ref '{}' but no observations to match it (in principle this is OK)".format(category, ref))
+                number_pbdeps.append(ps1)
+            elif rf1 is not None and rf2 is not None:
+                number_pbdeps.append(ps1)
+                number_obs.append(ps2)
+            else:
+                raise ValueError("Shouldn't happen. Contact a developer. If you are one, contact another")
+            
+        # There is one particular case where we can fix things automatically
+        # I think: if there is only one pbdep and one obs, they should fit
+        # together!
+        # OK, this is a little harder than I thought, since I need to fix both
+        # the reference and the key in the ordered dict, but the ordered dict
+        # can be tucked away deep inside a nested BodyBag. I can't think of an
+        # easy way to change the key...
+        #if len(number_pbdeps) == 1 and len(number_obs) == 1:
+        #    old_ref = number_obs[0]['ref']
+        #    new_ref = number_pbdeps[0]['ref']
+        #    message.append("Fixed ref {} of category {}".format(ref, category))
+        #d2 = OrderedDict([(new_key, v) if k == old_key else (k, v) for k, v in d.items()])
+        
+    
+            
+    print("\n".join(message))
 
 
 
@@ -565,8 +616,11 @@ def _parse_obs(body, data):
         #-- prepare results if they were not already added by the data
         #   parser
         if not ref in body.params['syn'][res_context]:
-            body.params['syn'][res_context][ref] = \
+            try:
+                body.params['syn'][res_context][ref] = \
                          result_sets[data_context](context=res_context, ref=ref)
+            except KeyError:
+                raise KeyError("Failed parsing obs {}: perhaps not an obs?".format(ref))
             logger.debug(('Prepared results ParameterSet for context '
                           '{} (ref={})'.format(res_context, ref)))
        
@@ -1557,7 +1611,7 @@ class Body(object):
             table = np.column_stack([phi1,theta1,r1,phi2,theta2,r2,phi3,theta3,r3])
             return table
     
-    def get_refs(self,category=None):
+    def get_refs(self, category=None, per_category=False):
         """
         Return the list of unique references.
         
@@ -1577,30 +1631,56 @@ class Body(object):
         
         @param category: category to limit the list of references to.
         @type category: str, recognised category (one of 'lc','rv',...)
-        @return: list of unique references
-        @rtype: list of str
+        @return: list of unique references (if ``per_category=False``) or a dictionary with unique references per category (if ``per_category=True``)
+        @rtype: list of str or dict
         """
-        #-- collect references
+        # Collect references and categories
         refs = []
-        #-- run over all parameterSets
+        cats = []
+        
+        # Run over all parameterSets
         for ps in self.walk():
+            
+            # Get the context and category: (perhaps we had "lcdep:bla"; this
+            # is not implemented yet, but we foresee its future implementation)
             this_context = ps.context.split(':')[0]
             this_category = this_context[:-3]
-            #-- only treat those parameterSets that are deps, syns or obs
-            #   (i.e. not component, orbit, star...)
+            
+            # Only treat those parameterSets that are deps, syns or obs (i.e.
+            # not component, orbit, star...)
             if this_context[-3:] in ['dep','syn','obs']:
-                #-- skip nonmatching contexts
-                if category is not None and category!=this_category:
-                    continue
-                #-- but add all the rest!
-                refs.append(ps['ref'])
-        #-- gaurantee a list of unique references, always given in the same
-        #   (alphabetical) order.
-        return sorted(set(refs))
                 
+                # Skip nonmatching contexts
+                if category is not None and category != this_category:
+                    continue
+                
+                # But add all the rest!
+                refs.append(ps['ref'])
+                cats.append(this_category)
+        
+        if category is not None or not per_category:
+            # Gaurantee a list of unique references, always given in the same
+            # (alphabetical) order.
+            return sorted(set(refs))
+        
+        else:
+            
+            # Return a dictionary:
+            ret_dict = OrderedDict()
+            for ref, cat in zip(refs, cats):
+            
+                # Add the reference if it's not already there
+                if cat in ret_dict and not (ref in ret_dict[cat]):
+                    ret_dict[cat] = sorted(ret_dict[cat] + [ref])
+                
+                # Initialize this category if it's not already present
+                elif not (cat in ret_dict):
+                    ret_dict[cat] = [ref]
+            
+            return ret_dict
                 
     
-    def get_parset(self,ref=None,context=None,type='pbdep',category=None):
+    def get_parset(self, ref=None, context=None, type='pbdep', category=None):
         """
         Return the parameter set with the given reference from the C{params}
         dictionary attached to the Body.
@@ -1622,42 +1702,85 @@ class Body(object):
         at.
         
         returns parset and it's reference (in reverse order)
+        
+        If possible, please give the context. There is still a bug in the
+        code below, that does not iterate over bodies in a lower level if nothing
+        was found in this body. Have a look at the first part of the code to
+        find the small workaround for that.
+        
         """
-        #-- this Body needs to have parameters attached
-        if not hasattr(self,'params'):
+        # This Body needs to have parameters attached
+        if not hasattr(self, 'params'):
             msg = "Requested parset ref={}, type={} but nothing was found"
-            logger.info(msg.format(ref,type))
-            return None,None
-        #-- in some circumstances, we want the parameterSet of the body. This
-        #   one often also contains information on the atmospheres etc.. but
-        #   then bolometrically
-        if ref is None or ref=='__bol':
+            logger.info(msg.format(ref, type))
+            return None, None
+        
+        # In some circumstances, we want the parameterSet of the body. This one
+        # often also contains information on the atmospheres etc.. but the
+        # bolometrically
+        if ref is None or ref == '__bol':
             logger.info("Requested bolometric parameterSet")
-            return list(self.params.values())[0],'__bol'
-        #-- Next, we check if a context is given. If it is, we immediately can
-        #   derive the type and category, so there's no need for looping
+            return list(self.params.values())[0], '__bol'
+        
+        # Next, we check if a context is given. If it is, we immediately can
+        # derive the type and category, so there's no need for looping
         if context is not None:
             type = context[-3:]
-            if type=='dep': type = 'pbdep'
+            
+            # dep is an alias for pbdep
+            if type == 'dep':
+                type = 'pbdep'
+            
+            # Check if this type and context are available
             if type in self.params and context in self.params[type]:
-                if isinstance(ref,str) and ref in self.params[type][context]:
+                # A reference can be a string or an integer, and there are
+                # certain number of references
+                ref_is_string = isinstance(ref, str)
+                n_refs = len(self.params[type][context].values())
+                
+                # A reference can be a string. If so, check if it exists
+                if ref_is_string and ref in self.params[type][context]:
                     ps = self.params[type][context][ref]
-                elif not isinstance(ref,str) and ref<len(self.params[type][context].values()):
+                
+                # A reference can be an integer. If so, check if it exists 
+                elif ref_is_string and ref < n_refs:
                     ps = self.params[type][context].values()[ref]
-                #-- look in a level down
-                elif hasattr(self,'bodies'):
-                    return self[0].get_parset(ref=ref,type=type,context=context,category=category)
+                    
+                # Look in a level down
+                elif hasattr(self, 'bodies'):
+                    # We need to iterate over all bodies, and as soon as we
+                    # found one, we can return it
+                    for body in self.bodies:
+                        ret_value = body.get_parset(ref=ref, type=type,
+                                             context=context, category=category)
+                        if ret_value[0] is not None:
+                            return ret_value
+                    return None, None
+                
+                # Else, no luck! We didn't find anything!
                 else:
                     logger.info("Requested parset ref={}, context={} but it does not seem to exist".format(ref,context))
-                    return None,None
+                    return None, None
+                
                 logger.info("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
-                return ps,ps['ref']
-            elif hasattr(self,'bodies'):
-                return self[0].get_parset(ref=ref,type=type,context=context,category=category)
+                return ps, ps['ref']
+            
+            elif hasattr(self, 'bodies'):
+                # We need to iterate over all bodies, and as soon as we
+                # found one, we can return it    
+                for body in self.bodies:
+                    ret_value = body.get_parset(ref=ref, type=type,
+                                             context=context, category=category)
+                    if ret_value[0] is not None:
+                        return ret_value
+                return None, None
+            
+            # Elese, no luck! We didn't find anything and really tried our best
             else:
                 logger.info("Requested parset ref={}, context={} but it does not exist".format(ref,context))
-                return None,None
-        #-- else, we need to start searching for the right type and category!
+                return None, None
+            
+        # Else, we need to start searching for the right type and category!
         else:
             #counter = 0
             #-- this could be dangerous!!
@@ -1684,14 +1807,113 @@ class Body(object):
         
         Should show some kind of hierarchical list::
         
-            System
-             +---> Star1
-             +---> BinaryBag
-                    +---> Star1
-                    +---> Star2
-                            
+            entire system
+            |
+            +==========> Vega+Sirius & B9V (BodyBag placed in orbit)
+            |         |
+            |         +==========> Vega+Sirius (BodyBag placed in orbit)
+            |         |         |
+            |         |         +----------> Vega (BinaryRocheStar)
+            |         |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1
+            |         |         |                 ifdep
+            |         |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1
+            |         |         |                 ifsyn
+            |         |         |
+            |         |         +----------> Sirius (BinaryRocheStar)
+            |         |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1
+            |         |         |                 ifdep
+            |         |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1
+            |         |         |                 ifsyn
+            |         |
+            |         +==========> B9V_01dd510c-32d8-4a8c-8c1c-38cd92bdd738 (Star placed in orbit)
+            |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1 ifdep
+            |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn
+            |
+            +==========> V380_Cyg (BodyBag placed in orbit)
+            |         |
+            |         +----------> B1V_primary (BinaryRocheStar)
+            |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1 ifdep
+            |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn
+            |         |
+            |         +----------> B1V_secondary (BinaryRocheStar)
+            |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1 ifdep
+            |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn                    
+
         """
-        raise NotImplementedError("I surely don't need this feature; if you do, you can implement it :-)")
+        def add_summary(thing, text):
+           # Add information on pbdeps, obs and syn:
+            try:
+                indent = text[-1].split('+')[0] + '|' + ' '*len(text[-1].split('+')[1].split('>')[0]) + '  '
+            except IndexError:
+                indent = ''
+            summary = []
+            for ptype in ['pbdep', 'obs', 'syn']:
+                this_type = ['{}: '.format(ptype[-3:])]
+                ns = 0
+                for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+                    lbl = (category+ptype[-3:])
+                    if ptype in thing.params and lbl in thing.params[ptype]:
+                        this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
+                        ns += len(thing.params[ptype][lbl])
+                
+                if ns > 0:
+                    mystring = this_type[0]+', '.join(this_type[1:])
+                    summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+5*' ')))
+            text += summary
+            
+            
+        try:   
+            text = ["{} ({})".format(self.get_label(),self.__class__.__name__)]
+        except ValueError:
+            text = ["<nolabel> ({})".format(self.__class__.__name__)]
+
+        add_summary(self, text)
+
+        previous_label = text[-1]
+
+        for loc, thing in self.walk_all():
+            
+            # Iteration happens over all ParameterSets and bodies. We are only
+            # interested in the Bodies.
+            if not isinstance(thing, Body):
+                continue
+            
+            # Get the label from this thing
+            label = thing.get_label()
+            
+            # If this thing is a BodyBag, treat it as such
+            if isinstance(thing, BodyBag) and previous_label != label:
+                level = len(loc)-1 
+                
+                
+                prefix = ('|'+(' '*9))*(level-2)
+                text.append(prefix + '|')
+                prefix += '+' + '='*10
+                text.append(prefix + '> ' + loc[-1])
+                
+                if loc[-1]==loc[-2]:
+                    continue
+                    
+            elif isinstance(thing, BodyBag):
+                text[-1] += ' (BodyBag placed in orbit)'
+            
+            elif previous_label == label:
+                text[-1] += ' ({} placed in orbit)'.format(thing.__class__.__name__)
+            
+            elif previous_label != label:
+                level = len(set(loc))-1
+                
+                prefix = ('|'+(' '*9))*(level-1)
+                if level > 0:
+                    text.append(prefix + '|')
+                    prefix += '+' + '-'*10
+                    text.append(prefix + '> ' + label + ' ({})'.format(thing.__class__.__name__))
+                
+            add_summary(thing, text)
+            
+            previous_label = label
+            
+        print "\n".join(text)
     
     def clear_synthetic(self):
         """
@@ -5630,6 +5852,8 @@ def serialize(body, description=True, color=True, only_adjust=False,
             ff.write(txt)
     else:   
         return txt
+
+
 if __name__=="__main__":
     import doctest
     doctest.testmod()
