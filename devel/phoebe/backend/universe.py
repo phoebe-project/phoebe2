@@ -175,7 +175,7 @@ def get_binary_orbit(self, time):
     @param time: the time in the orbit
     @type time: float
     """
-    # Get some information
+    # Get some information on the orbit
     P = self.params['orbit'].get_value('period', 'd')
     e = self.params['orbit'].get_value('ecc')
     a = self.params['orbit'].get_value('sma', 'm')
@@ -187,24 +187,30 @@ def get_binary_orbit(self, time):
     long_an = self.params['orbit'].get_value('long_an','rad')
     T0 = self.params['orbit'].get_value('t0')
     
-    # Where in the orbit are we? We need everything in cartesian Rsol units
+    # Where in the orbit are we?
     loc1, velo1, euler1 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a1,
                                       T0*24*3600, per0=argper, long_an=long_an,
                                       incl=inclin, component='primary')
     loc2, velo2, euler2 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a2,
                                       T0*24*3600, per0=argper, long_an=long_an,
                                       incl=inclin, component='secondary')
+    
+    # We need everything in cartesian Rsol units
     loc1 = np.array(loc1) / a
     loc2 = np.array(loc2) / a
+    
+    # And we're also interested in the distance between the two components
     d = sqrt( (loc1[0]-loc2[0])**2 + \
               (loc1[1]-loc2[1])**2 + \
               (loc1[2]-loc2[2])**2)
+    
+    # That's it, thank you for your attention
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
     
     
 def luminosity(body, ref='__bol'):
     r"""
-    Calculate the total luminosity of any object.
+    Calculate the total luminosity of an object.
     
     This is a numerical general implementation of the intensity moments for
     spheres.
@@ -261,10 +267,14 @@ def load(filename):
     """
     Load a class from a file.
     
+    Any class defined in this module can be loaded.
+    
+    @param filename: location of the file
+    @type filename: str
     @return: Body saved in file
     @rtype: Body
     """
-    ff = open(filename,'r')
+    ff = open(filename, 'r')
     myclass = pickle.load(ff)
     ff.close()
     return myclass
@@ -1798,7 +1808,7 @@ class Body(object):
                     ps = self.params[type][context][ref]
                 
                 # A reference can be an integer. If so, check if it exists 
-                elif ref_is_string and ref < n_refs:
+                elif not ref_is_string and ref < n_refs:
                     ps = self.params[type][context].values()[ref]
                     
                 # Look in a level down

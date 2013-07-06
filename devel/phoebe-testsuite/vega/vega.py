@@ -5,11 +5,11 @@ Vega (interferometry)
 Last updated: ***time***
 
 Compute Vega's bolometric luminosity numerically, and compare with the observed
-value (see Aufdenberg (2008).
+value (see [Aufdenberg2006]_.
 
 Compare the "true" Vega model with:
 
-* the fast-rotating limbdarkened disk model from Aufdenberg 2008
+* the fast-rotating limbdarkened disk model from [Aufdenberg2006]_
 * a non-rotating Claret-limbdarkening model
 * a non-rotating uniform disk model
 
@@ -22,7 +22,7 @@ We compare the values of the total projected intensity (calculated
 numerically and the observed values). We make an image and a plot of the radial
 velocities of all surface elements.
 
-Inspired upon [Aufdenberg2008]_.
+Inspired upon [Aufdenberg2006]_.
     
 Initialisation
 --------------

@@ -8,6 +8,8 @@ import tempfile
 import subprocess
 import os
 from phoebe.parameters import parameters
+from phoebe.utils import decoratorsmod
+
 
 def parse_ref(fctn):
     """
@@ -38,7 +40,6 @@ def parse_ref(fctn):
             - 'myref': the observable with ref 'myref'
             - ['ref1','ref2']: observables matching these refs
         """
-        
         # Take the default from the function that is decorated using the
         # "inspect" standard library module
         fctn_args = inspect.getargspec(fctn)
@@ -106,6 +107,9 @@ def parse_ref(fctn):
     
     return parse
 
+
+
+
 def merge_synthetic(list_of_bodies):
     """
     Merge synthetic data of a list of bodies.
@@ -130,6 +134,13 @@ def merge_synthetic(list_of_bodies):
                     if isinstance(value,list):
                         iteration[0][key] += value
     return list_of_bodies[0]
+
+
+
+
+
+
+
 
 
 def mpirun(fctn):
