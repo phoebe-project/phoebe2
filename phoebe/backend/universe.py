@@ -594,38 +594,75 @@ def _parse_obs(body, data):
                        spobs=datasets.SPDataSet,
                        plobs=datasets.PLDataSet,
                        ifobs=datasets.IFDataSet)
-    #-- data needs to be a list. If not, make it one
-    if not isinstance(data,list):
+    
+    # Data needs to be a list. If not, make it one
+    if not isinstance(data, list):
         data = [data]
-    #-- if 'obs' is not in the 'params' dictionary, make an empty one, and
-    #   to the same with 'syn'
+    
+    # If 'obs' is not in the 'params' dictionary, make an empty one, and do the
+    # same with 'syn'
     if not 'obs' in body.params:
         body.params['obs'] = OrderedDict()
     if not 'syn' in body.params:
         body.params['syn'] = OrderedDict()
-    #-- for all parameterSets in data, add them to body.params['obs']. This
-    #   dictionary is itself a dictionary with keys the different contexts,
-    #   and each entry in that context (ordered) dictionary has as key the
-    #   refs and as value the parameterSet.
+    
+    # Get the list of the current references in the data, to check if the data
+    # we are adding has a corresponding pbdep
+    pbdep_refs = body.get_refs(per_category=True, include=('pbdep',))
+    
+    # For all parameterSets in data, add them to body.params['obs']. This
+    # dictionary is itself a dictionary with keys the different contexts, and
+    # each entry in that context (ordered) dictionary has as key the refs and as
+    # value the parameterSet.
     parsed_refs = []
     for parset in data:
+        
+        # Build the string names of the obs and syn contexts
         context = parset.context.rstrip('obs')
         data_context = parset.context
         res_context = context + 'syn'
+        
+        # If this category (lc, rv...) does not exist yet, add it
         if not data_context in body.params['obs']:
             body.params['obs'][data_context] = OrderedDict()
         if not res_context in body.params['syn']:
             body.params['syn'][res_context] = OrderedDict()
+            
         ref = parset['ref']
-        #-- if the ref already exist, generate a new one. This should never
-        #   happen, so send a critical message to the user
+        
+        # Check if the reference is present in the Body. There should be a
+        # corresponding pbdep somewhere!
+        if not ref in pbdep_refs[context]:
+            logger.warning(("Adding obs with ref='{}', but no corresponding "
+                            "pbdeps found. Attempting fix.").format(ref))
+            
+            # If we have only one dataset and only one pbdep, we can assume
+            # they belong together (right?)
+            if len(pbdep_refs[context]) == 1 and len(data) == 1:
+                ref = pbdep_refs[context][0]
+                parset['ref'] = ref
+                logger.info("Fix succeeded: {}obs ref fixed to '{}'".format(context, ref))
+            
+            else:
+                logger.info(("Fix failed, there is no obvious match between "
+                            "the pbdeps and obs"))
+                # If there is only one pbdep reference, assume the user just forgot
+                # about setting it, and correct it. Otherwise, raise a ValueError
+                raise ValueError(("Adding {context}obs with ref='{ref}', but no "
+                              "corresponding {context}deps found (syn cannot "
+                              "be computed). I found the following "
+                              "{context}dep refs: {av}").format(context=context,
+                               ref=ref, av=", ".join(pbdep_refs[context])))
+        
+        # If the ref already exist, generate a new one. This should never
+        # happen, so send a critical message to the user
         if ref in body.params['obs'][data_context]:
-            logger.error(('Data parsing: ref {} already exists!'
+            logger.warning(('Data parsing: ref {} already exists!'
                           'Generating new one...'.format(ref)))
             ref = str(uuid.uuid4())
             parset['ref'] = ref
-        #-- prepare results if they were not already added by the data
-        #   parser
+            
+        # Prepare results if they were not already added by the data parser
         if not ref in body.params['syn'][res_context]:
             try:
                 body.params['syn'][res_context][ref] = \
@@ -637,7 +674,8 @@ def _parse_obs(body, data):
        
         body.params['obs'][data_context][ref] = parset
         parsed_refs.append(ref)
-    #-- that's it
+    
+    # That's it
     return parsed_refs
 
 #}
@@ -1622,7 +1660,8 @@ class Body(object):
             table = np.column_stack([phi1,theta1,r1,phi2,theta2,r2,phi3,theta3,r3])
             return table
     
-    def get_refs(self, category=None, per_category=False):
+    def get_refs(self, category=None, per_category=False,
+                 include=('obs','syn','dep')):
         """
         Return the list of unique references.
         
@@ -1649,6 +1688,11 @@ class Body(object):
         refs = []
         cats = []
         
+        # Make sure the deps are correctly parsed:
+        include = list(include)
+        if 'pbdep' in include:
+            include.append('dep')
+        
         # Run over all parameterSets
         for ps in self.walk():
             
@@ -1659,7 +1703,7 @@ class Body(object):
             
             # Only treat those parameterSets that are deps, syns or obs (i.e.
             # not component, orbit, star...)
-            if this_context[-3:] in ['dep','syn','obs']:
+            if this_context[-3:] in include:
                 
                 # Skip nonmatching contexts
                 if category is not None and category != this_category:
@@ -1812,9 +1856,11 @@ class Body(object):
                     counter += 1
             return None,None
     
-    def list(self):
+    def list(self, summary=None):
         """
         List with indices all the parameterSets that are available.
+        
+        ``summary`` can be None, 'short' or long.
         
         Should show some kind of hierarchical list::
         
@@ -1851,37 +1897,110 @@ class Body(object):
             |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn                    
 
         """
-        def add_summary(thing, text):
-           # Add information on pbdeps, obs and syn:
+        def add_summary_short(thing, text):
+           """
+           Add information on pbdeps, obs and syn
+           """
+           
+           # Construct the  "|     |     " string that preceeds the summary info
+           # We need to have the same length as the previous line. If there
+           # is no previous line, or it is not indented, we don't need to indent
+           # this one
+           try:
+               indent = text[-1].split('+')[0] \
+                      + '|'\
+                      + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                      + '  '
+           except IndexError:
+               indent = ''
+               
+           # Collect info on the three types    
+           summary = []
+           for ptype in ['pbdep', 'obs', 'syn']:
+               
+               # Which type is this? keep track of the number of members, if
+               # there are none, don't report
+               this_type = ['{}: '.format(ptype[-3:])]
+               ns = 0
+               
+               # Loop over all categories and make a string
+               for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+                   lbl = (category+ptype[-3:])
+                   if ptype in thing.params and lbl in thing.params[ptype]:
+                       this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
+                       ns += len(thing.params[ptype][lbl])
+               
+               # Only report if there are some
+               if ns > 0:
+                   mystring = this_type[0]+', '.join(this_type[1:])
+                   summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+5*' ')))
+           
+           text += summary
+        
+        
+        def add_summary_long(thing, text):
+            """
+            Add information on pbdeps, obs and syn
+            """
+           
+            # Construct the  "|     |     " string that preceeds the summary info
+            # We need to have the same length as the previous line. If there
+            # is no previous line, or it is not indented, we don't need to indent
+            # this one
             try:
-                indent = text[-1].split('+')[0] + '|' + ' '*len(text[-1].split('+')[1].split('>')[0]) + '  '
+                indent = text[-1].split('+')[0] \
+                       + '|'\
+                       + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                       + '  '
             except IndexError:
                 indent = ''
+               
+            # Collect references
             summary = []
-            for ptype in ['pbdep', 'obs', 'syn']:
-                this_type = ['{}: '.format(ptype[-3:])]
-                ns = 0
-                for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+            # Loop over all categories and make a string
+            for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+               
+                for ptype in ['pbdep','obs']:
+                    ns = 0 
                     lbl = (category+ptype[-3:])
+                    mystring = ['{}: '.format(lbl)]
                     if ptype in thing.params and lbl in thing.params[ptype]:
-                        this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
+                        for ref in thing.params[ptype][lbl]:
+                            mystring.append(ref)
                         ns += len(thing.params[ptype][lbl])
-                
-                if ns > 0:
-                    mystring = this_type[0]+', '.join(this_type[1:])
-                    summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+5*' ')))
+                    mystring = mystring[0] + ', '.join(mystring[1:])
+                    # Only report if there are some
+                    if ns > 0:
+                        summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=79)))
+           
             text += summary
-            
-            
+        
+        
+        def emphasize(text):
+            return '\033[1m\033[4m' + text + '\033[m'    
+        
+        if summary:
+            add_summary = locals()['add_summary_'+summary]
+        else:
+            add_summary = lambda thing, text: ''
+        
+        # Top level string: possible the BB has no label
         try:   
             text = ["{} ({})".format(self.get_label(),self.__class__.__name__)]
         except ValueError:
             text = ["<nolabel> ({})".format(self.__class__.__name__)]
-
+        
+        text[-1] = emphasize(text[-1])
+        
+        # Add the summary of the top level thing
         add_summary(self, text)
 
+        # Keep track of the previous label, we want to skip indentation for
+        # single-body BodyBags (that is a Body(Bag) in a BodyBag just for
+        # orbit-purposes)
         previous_label = text[-1]
-
+        
+        # Walk over all things in the system
         for loc, thing in self.walk_all():
             
             # Iteration happens over all ParameterSets and bodies. We are only
@@ -1890,41 +2009,57 @@ class Body(object):
                 continue
             
             # Get the label from this thing
-            label = thing.get_label()
-            
+            try:
+                label = thing.get_label()
+            except ValueError:
+                label = '<nolabel>'
+                
+            label = emphasize(label)
+                
             # If this thing is a BodyBag, treat it as such
             if isinstance(thing, BodyBag) and previous_label != label:
+                
+                # A body bag is represented by a "|   |    +=======>" sign
                 level = len(loc)-1 
-                
-                
                 prefix = ('|'+(' '*9))*(level-2)
                 text.append(prefix + '|')
                 prefix += '+' + '='*10
-                text.append(prefix + '> ' + loc[-1])
+                text.append(prefix + '> ' + label)
                 
+                # But avoid repetition
                 if loc[-1]==loc[-2]:
                     continue
-                    
+            
+            # If the label is the same as the previous one and it's a BodyBag
+            # report that it is just one that is used to place something in an
+            # orbit
             elif isinstance(thing, BodyBag):
                 text[-1] += ' (BodyBag placed in orbit)'
             
+            # If this label is the same as the previous one, but it's not a
+            # BodyBag, report so.
             elif previous_label == label:
                 text[-1] += ' ({} placed in orbit)'.format(thing.__class__.__name__)
             
+            # Else report the normal Body
             elif previous_label != label:
-                level = len(set(loc))-1
                 
+                # A normal body is represented by a "|   |    +-------->" sign
+                level = len(set(loc))-1
                 prefix = ('|'+(' '*9))*(level-1)
                 if level > 0:
                     text.append(prefix + '|')
                     prefix += '+' + '-'*10
                     text.append(prefix + '> ' + label + ' ({})'.format(thing.__class__.__name__))
-                
+            
+            # Add a summary for this body
             add_summary(thing, text)
             
+            # Remember the label
             previous_label = label
             
-        print "\n".join(text)
+        print("\n".join(text))
+    
     
     def clear_synthetic(self):
         """
@@ -3439,7 +3574,7 @@ class BodyBag(Body):
         #-- here, we check which columns are missing from each Body's
         #   mesh. If they are missing, we simply add them and copy
         #   the contents from the original mesh.
-        logger.info("Fixing mesh")
+        logger.info("Preparing mesh")
         names = list(self.bodies[0].mesh.dtype.names)
         descrs = self.bodies[0].mesh.dtype.descr
         for b in self.bodies[1:]:
