@@ -301,6 +301,7 @@ def ld_logarithmic(mu,coeffs):
     """
     return ld_nonlinear(mu,coeffs)
 
+
 def ld_quadratic(mu,coeffs):
     r"""
     Quadratic law
