@@ -217,6 +217,13 @@ def collect_refs_from_rst():
             with open(rstfile,'r') as ff:
                 for line in ff.readlines():
                     all_refs += re.findall(re_ref,line)
+    for root,dirs,files in os.walk('phoebe-testsuite'):
+        files = [os.path.join(root,ff) for ff in files if os.path.splitext(ff)[1]=='.py']
+        if not files: continue
+        for rstfile in files:
+            with open(rstfile,'r') as ff:
+                for line in ff.readlines():
+                    all_refs += re.findall(re_ref,line)
     return sorted(set(all_refs))
 
 def make_html_friendly(text):
@@ -237,6 +244,7 @@ def write_bib(refs):
     names = dict()
     names[r'{\mnras}'] = 'MNRAS'
     names[r'{\aap}'] = 'A&A'
+    names[r'{\aaps}'] = 'A&A Supplement Series'
     names[r'{\apjl}'] = 'ApJ Letters'
     names[r'{\apj}'] = 'ApJ'
     names[r'{Communications in Asteroseismology}'] = 'Communications in Asteroseismology'
@@ -247,6 +255,7 @@ def write_bib(refs):
     names[r'{\pasp}'] = 'PASP'
     names[r'{\zap}'] = 'Zeitschrift fur Astrophysik'
     names[r'{\aj}'] = 'Astrophysical Journal'
+    names[r'{The Observatory}'] = 'The Observatory'
 
 
     

@@ -48,10 +48,12 @@ Only involving ParameterSets:
  rotperiod 22.0                 d - phoebe Polar rotation period
    diffrot 0.0                  d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
      gravb 1.0                 -- - phoebe Bolometric gravity brightening
+  gravblaw zeipel              --   phoebe Gravity brightening law
       incl 82.75              deg - phoebe Inclination angle
-      long 0.0                deg - phoebe Orientation on the sky
+      long 0.0                deg - phoebe Orientation on the sky (East of North)
   distance 4.84813681108e-06   pc - phoebe Distance to the star
-     shape equipot             --   phoebe Shape of surface
+     shape sphere              --   phoebe Shape of surface
+    vgamma 0.0               km/s - phoebe Systemic velocity
        alb 1.0                 -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
     redist 0.0                 -- - phoebe Global redist par (1-redist) local heating, redist global heating
 irradiator False               --   phoebe Treat body as irradiator of other objects
@@ -73,10 +75,12 @@ extra keyword arguments:
  rotperiod 0.821716         d - phoebe Polar rotation period
    diffrot 0.0              d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
      gravb 1.0             -- - phoebe Bolometric gravity brightening
+  gravblaw zeipel          --   phoebe Gravity brightening law
       incl 90.0           deg - phoebe Inclination angle
-      long 0.0            deg - phoebe Orientation on the sky
+      long 0.0            deg - phoebe Orientation on the sky (East of North)
   distance 10.0            pc - phoebe Distance to the star
      shape equipot         --   phoebe Shape of surface
+    vgamma 0.0           km/s - phoebe Systemic velocity
        alb 1.0             -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
     redist 0.0             -- - phoebe Global redist par (1-redist) local heating, redist global heating
 irradiator False           --   phoebe Treat body as irradiator of other objects
@@ -93,9 +97,10 @@ the secondary) and ``orbitkwargs`` (for the orbit). The only exception are
 the semi major axis ``sma`` and period ``period``, one of which is required
 (but not both) to create the system.
   
->>> Astar = star_from_spectral_type('A0V',label='myA0V')
->>> Bstar = star_from_spectral_type('B3V',label='myB3V')
->>> comp1,comp2,orbit = binary_from_stars(Astar,Bstar,sma=(10,'Rsol'),orbitkwargs=dict(label='myorbit'))
+>>> Astar = star_from_spectral_type('A0V', label='myA0V')
+>>> Bstar = star_from_spectral_type('B3V', label='myB3V')
+>>> comp1,comp2,orbit = binary_from_stars(Astar, Bstar, sma=(10,'Rsol'), 
+...                                       orbitkwargs=dict(label='myorbit'))
 >>> print(comp1)
        atm kurucz         --   phoebe Bolometric Atmosphere model
        alb 1.0            -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
@@ -123,37 +128,38 @@ irradiator False          --   phoebe Treat body as irradiator of other objects
    ld_func claret         --   phoebe Bolometric limb darkening model
  ld_coeffs kurucz         --   phoebe Bolometric limb darkening coefficients
 >>> print(orbit)
-     dpdt 0.0                 s/yr - phoebe Period change
-   dperdt 0.0               deg/yr - phoebe Periastron change
-      ecc 0.0                   -- - phoebe Eccentricity
-       t0 0.0                   JD - phoebe Zeropoint date
-     incl 90.0                 deg - phoebe Inclination angle
-    label myorbit               --   phoebe Name of the system
-   period 1.07339522938          d - phoebe Period of the system
-     per0 90.0                 deg - phoebe Periastron
-  phshift 0.0                   -- - phoebe Phase shift
-        q 1.76879729976         -- - phoebe Mass ratio
-   vgamma 0.0                 km/s - phoebe Systemic velocity
-      sma 10.0                Rsol - phoebe Semi major axis
-  long_an 0.0                  deg - phoebe Longitude of ascending node
-  c1label myA0V                 --   phoebe ParameterSet connected to the primary component
-  c2label myB3V                 --   phoebe ParameterSet connected to the secondary component
- distance 10.0                  pc   phoebe Distance to the binary system
-     sma1 4443130136.21        n/a   constr {sma} / (1.0 + 1.0/{q})
-     sma2 2511949863.79        n/a   constr {sma} / (1.0 + {q})
-totalmass 2.3138943678e+31     n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG
-    mass1 8.35703779398e+30    n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + {q})
-    mass2 1.4781905884e+31     n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + 1.0/{q})
-    asini 6955080000.0         n/a   constr {sma} * sin({incl})
-      com 4443130136.21        n/a   constr {q}/(1.0+{q})*{sma}
-       q1 1.76879729976        n/a   constr {q}
-       q2 0.565355906036       n/a   constr 1.0/{q}
+     dpdt 0.0                  s/yr - phoebe Period change
+   dperdt 0.0                deg/yr - phoebe Periastron change
+      ecc 0.0                    -- - phoebe Eccentricity
+       t0 0.0                    JD - phoebe Zeropoint date
+   t0type periastron passage     --   phoebe Interpretation of zeropoint date
+     incl 90.0                  deg - phoebe Inclination angle
+    label myorbit                --   phoebe Name of the system
+   period 1.07339522938           d - phoebe Period of the system
+     per0 90.0                  deg - phoebe Periastron
+  phshift 0.0                    -- - phoebe Phase shift
+        q 1.76879729976          -- - phoebe Mass ratio
+   vgamma 0.0                  km/s - phoebe Systemic velocity
+      sma 10.0                 Rsol - phoebe Semi major axis
+  long_an 0.0                   deg - phoebe Longitude of ascending node
+  c1label myA0V                  --   phoebe ParameterSet connected to the primary component
+  c2label myB3V                  --   phoebe ParameterSet connected to the secondary component
+ distance 10.0                   pc - phoebe Distance to the binary system
+     sma1 4443130136.21         n/a   constr {sma} / (1.0 + 1.0/{q})
+     sma2 2511949863.79         n/a   constr {sma} / (1.0 + {q})
+totalmass 2.3138943678e+31      n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG
+    mass1 8.35703779398e+30     n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + {q})
+    mass2 1.4781905884e+31      n/a   constr 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + 1.0/{q})
+    asini 6955080000.0          n/a   constr {sma} * sin({incl})
+      com 4443130136.21         n/a   constr {q}/(1.0+{q})*{sma}
+       q1 1.76879729976         n/a   constr {q}
+       q2 0.565355906036        n/a   constr 1.0/{q}
 
 Creating Bodies:
 
->>> the_sun_body = from_library('sun',create_body=True)
->>> myAstar_body = star_from_spectral_type('A0V',create_body=True)
->>> the_system = binary_from_stars(Astar,Bstar,separation='well-detached',create_body=True)
+>>> the_sun_body = from_library('sun', create_body=True)
+>>> myAstar_body = star_from_spectral_type('A0V', create_body=True)
+>>> the_system = binary_from_stars(Astar, Bstar, period=(20., 'd'), create_body=True)
 
 """
 import logging
@@ -170,6 +176,7 @@ from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.units import conversions
 from phoebe.units import constants
+from phoebe.utils import decoratorsmod
 from phoebe.io import ascii
 
 
@@ -184,8 +191,8 @@ def make_body(fctn):
     *args are passed to fctn
     **kwargs are passed to get_obs
     """
-    @functools.wraps(fctn)
-    def make_body_decorator(*args,**kwargs):
+    fctn.cache = {}
+    def make_body_decorator(fctn, *args,**kwargs):
         #-- first check if a body needs to be created
         create_body = kwargs.pop('create_body',False)
         #-- then make the parameterSets
@@ -219,7 +226,10 @@ def make_body(fctn):
                 myobs = observables(**kwargs)
                 ps = GenericBody(*ps,pbdep=myobs)
         return ps
-    return make_body_decorator
+    return decoratorsmod.decorator(make_body_decorator, fctn)
+
+
+
 
 class GenericBody(object):
     """
@@ -393,7 +403,7 @@ def observables(pbdep=('lcdep','spdep','ifdep','rvdep'),**kwargs):
     return pbdep_    
     
 @make_body
-def from_library(name,create_body=False,**kwargs):
+def from_library(name, create_body=False, **kwargs):
     """
     Create stars and objects from the library.
     
@@ -404,8 +414,21 @@ def from_library(name,create_body=False,**kwargs):
     In case C{name} is a more complex system, it is best to not automatically
     create a body or to call one of the dedicated functions.
     
+    Example usage::
+    
+        >>> vega = from_library('Vega')
+        
+    Extra keyword arguments will be passed to the creation of the parameterSets,
+    e.g.::
+    
+        >>> vega = from_library('Vega', rotperiod=(5., 'd'))
+    
     @param name: name of the object or system
     @type name: str
+    @param create_body: flag to automatically create a Body from the parameters
+    @type create_body: bool
+    @return: parameterSets or Body
+    @rtype: parameterSets of Body
     """
     # if the argument is not a filename, try to retrieve the star from the
     # local library
@@ -436,13 +459,14 @@ def from_library(name,create_body=False,**kwargs):
 
  
 @make_body
-def star_from_spectral_type(spectype,create_body=False,**kwargs):
+def star_from_spectral_type(spectype, create_body=False, **kwargs):
     """
     Create a star with a specific spectral type.
     
-    Spectral type information from Pickles 1998 and Habets 1981.
-    Rotational velocities from http://adsabs.harvard.edu/abs/1965Obs....85..166M
+    Spectral type information is taken from [Pickles1998]_ and [Habets1981]_.
     
+    Rotational velocities are taken from [McNally1965]_.
+        
     This function is not meant as a calibration of some sorts, it only returns
     approximate parameters for a star of a given spectral type. I mean
     approximate in the B{really} wide sense.
@@ -450,7 +474,7 @@ def star_from_spectral_type(spectype,create_body=False,**kwargs):
     If the spectral type is not recognised, a list of allowed spectral types
     will be returned.
     
-    >>> Astar = spectral_type('A0V')
+    >>> Astar = star_from_spectral_type('A0V')
     >>> print(Astar['teff'])
     9549.92586
     >>> print(Astar['mass'])

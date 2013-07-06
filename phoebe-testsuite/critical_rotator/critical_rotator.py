@@ -60,7 +60,6 @@ spdep1 = phoebe.ParameterSet(frame='phoebe', context='spdep')
 spdep1['ld_func'] = 'claret'
 spdep1['atm']= 'kurucz'
 spdep1['ld_coeffs'] = 'kurucz'
-spdep1['clambda'] = 4508.3, 'AA'
 spdep1['passband'] = 'JOHNSON.V'
 spdep1['method'] = 'numerical'
 spdep1['ref'] = 'Gaussian profile (numerical)'
@@ -71,7 +70,6 @@ spdep1['ref'] = 'Gaussian profile (numerical)'
 spdep2 = spdep1.copy()
 spdep2['ld_func'] = 'linear'
 spdep2['ld_coeffs'] = [0.6]
-spdep2['clambda'] = 4508.3, 'AA'
 spdep2['method'] = 'analytical'
 spdep2['ref'] = 'Gaussian profile (analytical)'
 
@@ -79,8 +77,16 @@ spdep2['ref'] = 'Gaussian profile (analytical)'
 # Contamination from neighbouring lines!
 spdep3 = spdep1.copy()
 spdep3['profile'] = 'atlas'
-spdep3['clambda'] = 4508.3, 'AA'
 spdep3['ref'] = 'Synthesized profile'
+
+# Define specifics for the computation of the spectra
+wavelengths = np.linspace(-0.6, 0.6, 1000) + 450.83
+spobs1 = phoebe.ParameterSet(context='spobs', ref=spdep1['ref'], 
+                             wavelength=wavelengths)
+spobs2 = phoebe.ParameterSet(context='spobs', ref=spdep2['ref'],
+                             wavelength=wavelengths)
+spobs3 = phoebe.ParameterSet(context='spobs', ref=spdep3['ref'], 
+                             wavelength=wavelengths)
 
 # Body setup
 # ----------
@@ -93,7 +99,9 @@ print mesh1
 mesh1.set_time(0,ref='all')
 
 # Compute the spectrum
-mesh1.sp()
+mesh1.sp(obs=spobs1)
+mesh1.sp(obs=spobs2)
+mesh1.sp(obs=spobs3)
 
 # and make an image of the star and a map of it's effective temperature.
 phoebe.image(mesh1,savefig='critical_rotator_image.png')
