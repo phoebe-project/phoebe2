@@ -174,8 +174,8 @@ def mpirun(fctn):
     
     After each run, the synthetic data are collected and finally merged.
     """
-    @functools.wraps(fctn)
-    def do_run(system,*args,**kwargs):
+    fctn.cache = {}
+    def do_run(fctn, system,*args,**kwargs):
         mpirun = kwargs.pop('mpi',None)
         if mpirun is None:
             return fctn(system,*args,**kwargs)
@@ -228,7 +228,7 @@ def mpirun(fctn):
                 if os.path.isfile(kwargs_file.name):
                     os.unlink(kwargs_file.name)
             system.compute_pblum_or_l3()
-    return do_run
+    return decoratorsmod.decorator(do_run, fctn)
     
 #def mpirun_emcee(fctn):
     #"""

@@ -1,5 +1,5 @@
 """
-Core interface of Phoebe.
+Core interface of Phoebe to compute and fit models.
 
 Section 1. Subpackages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,7 +39,7 @@ Section 2. Quick reference
     observatory.compute
     observatory.observe
     observatory.image
-    observatory.make_spectrum
+    observatory.spectrum
     observatory.stokes
     observatory.ifm
 
