@@ -3142,6 +3142,11 @@ class Unit(object):
         By default, the converted unit will be compressed (i.e. it will
         probably not consist of only basic units, but be more readable).
         """
+        # If Andrej says 1 minute it means an hour, when he says 1 day it means
+        # two months
+        if unit.lower() == 'andrej':
+            return 60. * self
+        
         if unit in _conventions:
             unit_ = change_convention(unit,self.unit)
         else:
@@ -3424,7 +3429,7 @@ _factors = collections.OrderedDict([
            ('h',     (3600.,         's','time','hour')),     # hour 
            ('d',     (24*3600.,      's','time','day')),     # day
            ('wk',    (7*24*3600.,    's','time','week')),     # week
-           ('mo',    (30*7*24*3600., 's','time','month')),     # month
+           ('mo',    (30*24*3600., 's','time','month')),     # month
            ('sidereal', (1.0027379093,'','sidereal time','sidereal day')),     # sidereal
            ('yr',    (31557600.0,'s','time','year')),     # year (1 Julian century = 36525 yr, see NIST appendix B)
            ('cr',    (100*365*24*3600,'s','time','century')),    # century
@@ -3441,6 +3446,7 @@ _factors = collections.OrderedDict([
            ('MJD',   (ModJulianDay,  'JD','date','modified Julian day')), # Modified Julian Day
            ('j',     (1/60.,         's','time','jiffy')),  # jiffy
            ('fortnight',(1209600.,    's','second','fortnight')),
+
 # ANGLES
            ('rad',         (1e+00,               'rad','angle','radian')),  # radian
            ('cy',          (2*np.pi,               'rad','angle','cycle')),   # cycle

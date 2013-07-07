@@ -4,7 +4,7 @@ Convert a Body to an observable quantity.
 .. autosummary::
 
     image
-    surfmap
+    contour
     ifm
     spectrum
     stokes
@@ -479,7 +479,7 @@ def image(the_system, ref='__bol', context='lcdep',
 
 def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
     """
-    Draw contours on a star.
+    Draw contour lines on a Body.
     
     Possible contour lines:
         
@@ -1548,7 +1548,8 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
     if update_intensities:
         system.intensity()
     logger.info("Added bitmap {}".format(image_file))
-            
+           
+           
 def extract_times_and_refs(system, params, tol=1e-8):
     """
     Automatically extract times, references and types from a BodyBag.
@@ -1707,7 +1708,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     to the ``system``.
     
     Detailed configuration of the computations is provided via the optional
-    parameterSet :ref:`compute <parlabel-phoebe-compute>`: ::
+    :ref:`compute <parlabel-phoebe-compute>`: parameterSet, given to the
+    ``params`` keyword::
     
             time auto   --   phoebe Compute observables of system at these times
             refs auto   --   phoebe Compute observables of system at these times
@@ -1724,6 +1726,13 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     given as kwargs.
         
     You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
+    
+    The keywords ``extra_func`` and ``extra_func_kwargs`` accept a list of extra
+    functions to run after each time step. You can use this for example to plot
+    an image of a binary system as you compute through the orbit. See example
+    functions such as :py:func:`ef_binary_image` for example signatures of these
+    functions. It is perfectly possible that user-defined functions (i.e. those
+    not residing in this module) will not be callable when using MPI.
     
     **Example usage**:
     
@@ -1854,7 +1863,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         system.set_time(time, ref=ref)
         
         # Fix the mesh if needed:
-        if i==0 and hasattr(system, 'bodies'):
+        if i == 0 and hasattr(system, 'bodies'):
             system.fix_mesh()
         
         # For heating an eccentric system, we first need to reset the temperature!
@@ -1862,7 +1871,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             system.temperature(time)
         
         # Compute intensities
-        if i==0 or not circular or beaming:
+        if i == 0 or not circular or beaming:
             system.intensity(ref=ref)
         
         # Update intensity should be set to True when we're doing beaming.
@@ -1928,14 +1937,18 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     """
     Customized computation of dependables of a system.
     
-    This is similar as :py:func:`compute`. The difference
-    is that this function is more flexible. You have to provide your own times,
-    but also what type of observations you want to compute. This is probably
-    required when you want to do simulations of a system, without comparing
-    the observations.
+    This is similar as :py:func:`compute`. The difference is that in this
+    funciton, you have to provide your own times, and also what type of
+    observations you want to compute. This is probably useful when you want to
+    do simulations of a system, without comparing the observations. It does not
+    offer the flexibility to e.g. compute radial velocities and light curves at
+    differen times.
     
-    Parameters to tweak the calculations are given as keyword arguments, and
-    can be any of::
+    This function is equivalent to :py:func:`compute` if you would add ``obs``
+    DataSets to the Body where the ``time`` column is everywhere the same.
+    
+    In contrast to :py:func:`compute`, the parameters to tweak the calculations
+    are given as keyword arguments (not as a ParameterSet), and can be any of::
     
             time auto   --   phoebe Compute observables of system at these times
             refs auto   --   phoebe Compute observables of system at these times
@@ -1969,7 +1982,7 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
                     if parset['ref'] in refs:
                         continue
                     refs.append(parset['ref'])
-                    typs.append(type+'dep')
+                    typs.append(type + 'dep')
     
     # Fill in the parameterSet
     params['time'] = times
@@ -1985,12 +1998,15 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
 def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     """
     Try to automatically detect the best eclipse detection algorithm.
+    
+    @param algorithm: override the algorithm in the case there are no eclipses.
+    @type algorithm: str, one of 'only_horizon' or 'full'
     """
-    #-- perhaps we know there are no eclipses
-    if algorithm=='only_horizon':
+    # Perhaps we know there are no eclipses
+    if algorithm == 'only_horizon':
         eclipse.horizon_via_normal(all_systems)
         return None
-    elif algorithm=='full':
+    elif algorithm == 'full':
         eclipse.detect_eclipse_horizon(all_systems)
         
     try:

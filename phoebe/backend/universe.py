@@ -18,6 +18,24 @@ Classes representing meshes and functions to handle them.
    BinaryStar
    BinaryRocheStar
    AccretionDisk
+   
+**Helper functions**
+
+.. autosummary::    
+
+   get_binary_orbit
+   luminosity
+   load
+   
+**For developers**
+
+.. autosummary::    
+
+   keep_only_results
+   merge_results
+   init_mesh
+   check_body
+   compute_pblum_or_l3
     
 Section 1. Basic meshing
 ========================
@@ -166,14 +184,21 @@ logger.addHandler(logging.NullHandler())
 
 
 #{ Functions of general interest    
+
 def get_binary_orbit(self, time):
     """
-    Get the orbital coordinates of a Body at a certain time.
+    Get the orbital coordinates of a Body (and it's companion) at a certain time.
+    
+    This function is a small wrapper around the function
+    :py:func:`get_orbit <phoebe.dynamics.keplerorbit.get_orbit>` from the
+    ``keplerorbit`` module inside the ``dynamics`` package.
     
     @param self: a Body
     @type self: Body
     @param time: the time in the orbit
     @type time: float
+    @return: location and velocity of primar, secondary and distance between components
+    @rtype: [x1, y1, z1, vx1, vy1, vz1], [x2, y2, z2, vx2, vy2, vz2], d
     """
     # Get some information on the orbit
     P = self.params['orbit'].get_value('period', 'd')
@@ -199,7 +224,7 @@ def get_binary_orbit(self, time):
     loc1 = np.array(loc1) / a
     loc2 = np.array(loc2) / a
     
-    # And we're also interested in the distance between the two components
+    # Compute the distance between the two components
     d = sqrt( (loc1[0]-loc2[0])**2 + \
               (loc1[1]-loc2[1])**2 + \
               (loc1[2]-loc2[2])**2)
@@ -211,9 +236,6 @@ def get_binary_orbit(self, time):
 def luminosity(body, ref='__bol'):
     r"""
     Calculate the total luminosity of an object.
-    
-    This is a numerical general implementation of the intensity moments for
-    spheres.
     
     It integrates the limbdarkening law over the solid angle on one hemisphere
     of the triangle, for every triangle on the surface:
@@ -282,13 +304,13 @@ def load(filename):
 
 def keep_only_results(system):
     """
-    Remove all information from this Body except for the results
-    in the C{params} attribute.
+    Remove all information from this Body except for the results.
     
-    Removes parameterSets and meshes.
+    The results are then still located in the C{params} attribute, but all other
+    parameterSets and meshes are removed.
     
-    It can be handy to remove unnecessary information from a Body before
-    passing it around via the MPI protocol.
+    It can be handy to remove unnecessary information from a Body before passing
+    it around via the MPI protocol.
     """
     if hasattr(system, 'params'):
         for key in system.params:
@@ -345,20 +367,37 @@ def init_mesh(self):
     """
     Initialize a mesh.
     
-    This adds columns to the mesh record array according to the dependables.
+    This adds columns to the mesh record array according to the dependables, and
+    resets any existing mesh to all zeros.
     
     @param self: the Physical body to set the mesh of
     @type self: PhysicalBody
     """
-    #-- wrap everything up in one array, but first see how many lds columns
-    #   we need: for sure the bolometric one, but for the rest, this is
-    #   dependent on the pbdep parameters (note that at this point, we just
-    #   prepare the array, we don't do anything with it yet):
+    # Wrap everything up in one array, but first see how many lds columns we
+    # need: for sure the bolometric one, but for the rest, this is dependent on
+    # on the pbdep parameters (note that at this point, we just prepare the
+    # array, we don't do anything with it yet):
+    
+    # We need the length of the current mesh, and note that our limb-darkening
+    # laws can have maximum 5 parameters (4 + intensity)
     N = len(self.mesh)
     ld_law = 5
     ldbol_law = 5
+    
+    # If this mesh is not initialised at all (simply tested by checking 'logg')
+    # then we need to do a lot of stuff
     if not 'logg' in self.mesh.dtype.names:
+        
+        # Bolometric intensities (we don't need 'bolometric' velocities because
+        # they have been added by the base class (Body) already
         lds = [('ld___bol', 'f8', (5,)), ('proj___bol', 'f8')]
+        
+        # Velocities and passband intensities. Actually we don't need the
+        # velocities. The bolometric velocities should be combined with the
+        # passband luminosities to  compute the passband velocities. I still
+        # retain them here because I don't know if the code will crash if I
+        # remove them. That can be tested once we have an extensive automatic
+        # test suite
         for pbdeptype in self.params['pbdep']:
             for iobs in self.params['pbdep'][pbdeptype]:
                 iobs = self.params['pbdep'][pbdeptype][iobs]
@@ -366,13 +405,17 @@ def init_mesh(self):
                 lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
                 lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
                 lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
+        
+        # Basic info
         dtypes = np.dtype(self.mesh.dtype.descr + \
                  [('logg','f8'), ('teff','f8'), ('abun','f8')] + lds)
+    
+    # Else everything is just fine
     else:
         dtypes = self.mesh.dtype
     
-    # Magnetic field?
-    if 'magnetic_field' in self.params:
+    # Add a magnetic field if necessary
+    if 'magnetic_field' in self.params and not 'B_' in dtypes.names:
         dtypes = np.dtype(dtypes.descr + \
                  [('B_', 'f8', (3,)), ('_o_B_','f8', (3,))])
     
@@ -430,6 +473,8 @@ def check_body(body):
         # the reference and the key in the ordered dict, but the ordered dict
         # can be tucked away deep inside a nested BodyBag. I can't think of an
         # easy way to change the key...
+        # Few days later I *can* think of an easier way to solve: upon
+        # initalization. Check the "add_obs" function.
         #if len(number_pbdeps) == 1 and len(number_obs) == 1:
         #    old_ref = number_obs[0]['ref']
         #    new_ref = number_pbdeps[0]['ref']
@@ -443,16 +488,44 @@ def check_body(body):
 
 
 
-def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False, type='nnls'):
-    """
+def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
+                        type='nnls'):
+    r"""
     Rescale the observations to match a model.
     
-    obs = pblum * model + l3
+    .. math::
+        
+        O = P_b M + l_3
+    
+    where :math:`O` represents the observations, :math:`M` the model, :math:`P_b`
+    represents a linear scaling factor (sometimes called passband luminosity)
+    and :math:`l_3` represents an offset term (sometimes called third light).
+    
+    The user has the choice to fit none of, only one of, or both of ``pblum``
+    and ``l3``.
+    
+    Note that the philosophy of this function is that we do **not** (I repeat
+    do **not**) touch the observations in *(any** circumstance. Our model should
+    generate the data, not otherwise. Of course sometimes you want to process
+    the observations before; you can, but do so before passing them to Phoebe
+    (e.g. normalizing a spectrum). Parameters that you want to introduce (either
+    fixed or to be fitted) should be stored inside the ``obs`` DataSets, and the
+    data generating functions (``lc`` etc..) should know about them.
+    
+    If no uncertainties are given, they will be set to unity.
     
     Type:
-        - nnls does not allow negative coefficients
-        - lstsq does allow negative coefficients
+        - **nnls** does not allow negative coefficients: this can be useful for
+          light curves: you perhaps don't want to accommodate for negative third
+          light thingies.
+        - **lstsq** does allow negative coefficients: this can be used for spectral
+          lines: if the model profile is shallower than the observations, you
+          can still enlargen them.
+          
+    The type can only be given if pblum and l3 need to be fitted (for no
+    particular reason).
     """
+    # Choose the algorithm
     algorithm = dict(nnls=nnls, lstsq=np.linalg.lstsq)[type]
     
     if sigma is None:
@@ -469,11 +542,10 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False, type='nnl
     #   scaling factor and offset
     elif pblum and l3:
         A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
-        #pblum,l3 = np.linalg.lstsq(A,obs.ravel())[0]
-        #pblum, l3 = nnls(A, obs.ravel())[0]
         pblum, l3 = algorithm(A, obs.ravel())[0]
     
     return pblum, l3
+                    
                     
 def _parse_pbdeps(body, pbdep):
     """
@@ -487,12 +559,12 @@ def _parse_pbdeps(body, pbdep):
     First, this function checks if dependables are actually given. That is, it
     cannot be equal to C{None}.
     
-    Next, the function checks whether only one single dependable has been
-    given. Since we actually expect a list but know what to do with a single
-    dependable too, we simply put the single dependable in a list.
+    Next, the function checks whether only one single dependable has been given.
+    Since we actually expect a list but know what to do with a single dependable
+    too, we simply put the single dependable in a list.
     
-    If C{body} has no C{pbdep} entry yet in the C{body.params} dictionary,
-    a new (ordered) dictionary will be created.
+    If C{body} has no C{pbdep} entry yet in the C{body.params} dictionary, a new
+    (ordered) dictionary will be created.
     
     Finally, it checks what types of dependables are given, and each of them
     will be added to the ordered dictionary of the dependable. The key of each
@@ -500,12 +572,13 @@ def _parse_pbdeps(body, pbdep):
     
     For each added pbdep, also a "syn" equivalent will be created for
     convenience. It is possible that it stays empty during the course of the
-    computations, that's a problem for other functions.
+    computations, but that's a problem for other functions. We know nothing
+    here, we're from Barcelona.
     
-    Working with ordered dictionary separated according to dependable type
+    Working with an ordered dictionary separated according to dependable type
     enables us to unambiguously reference a certain dependable set with a
-    reference (duh), but also with an index. E.g. the first C{lcdep} set that
-    is added is referenced by index number 0. This is handy because if you
+    reference (duh), but also with an index (aha!). E.g. the first C{lcdep} set
+    that is added is referenced by index number 0. This is handy because if you
     only work with one or two light curves, the user shouldn't be bothered
     with thinkig about names for them (but can still do so if he/she wishes so).
     
@@ -535,15 +608,15 @@ def _parse_pbdeps(body, pbdep):
     elif not isinstance(pbdep, list) and not isinstance(pbdep, tuple):
         pbdep = [pbdep]
     
-    # If 'pbdep' is not in the 'params' dictionary, make an empty one
+    # If 'pbdep' is not in the 'params' dictionary, prepare an empty one
     if not 'pbdep' in body.params:
         body.params['pbdep'] = OrderedDict()
     
-    # If 'obs' is not in the 'params' dictionary, make an empty one
+    # If 'obs' is not in the 'params' dictionary, prepare an empty one
     if not 'obs' in body.params:
         body.params['obs'] = OrderedDict()
     
-    # If 'syn' is not in the 'params' dictionary, make an empty one
+    # If 'syn' is not in the 'params' dictionary, prepare an empty one
     if not 'syn' in body.params:
         body.params['syn'] = OrderedDict()
     
@@ -553,6 +626,9 @@ def _parse_pbdeps(body, pbdep):
     # and as value the parameterSet.
     parsed_refs = []
     for parset in pbdep:
+        
+        # Build the names for the pbdep context (e.g. lcdep), the data context
+        # (e.g. lcobs) and the synthetic context (e.g. lcsyn).
         context = parset.context
         data_context = context[:-3] + 'obs'
         res_context = context[:-3] + 'syn'
@@ -567,12 +643,14 @@ def _parse_pbdeps(body, pbdep):
             body.params['syn'][res_context] = OrderedDict()
         ref = parset['ref']
         
-        # If the ref already exist, generate a new one
+        # If the ref already exist, generate a new one but warn the user
         if ref in body.params['pbdep'][context]:
+            logger.warning(("Adding pbdeps: ref '{}' already exists, "
+                            "generating a new one (via UUID4)").format(ref))
             ref = str(uuid.uuid4())
             parset['ref'] = ref
         
-        # Add parameterSet to dictionaries
+        # Add the parameterSet to the relevant dictionary
         body.params['pbdep'][context][ref] = parset
         
         # Prepare results if they were not already added by the data parser
@@ -582,6 +660,7 @@ def _parse_pbdeps(body, pbdep):
             logger.debug(('Prepared results ParameterSet for context '
                          '{} (ref={})'.format(res_context, ref)))
         
+        # Remember this reference, 'cause we want to report on what's been added
         parsed_refs.append(ref)
     
     # That's it
@@ -593,6 +672,14 @@ def _parse_obs(body, data):
     Attach obs to a body.
     
     For each dataset, we also add a 'syn' thingy.
+    
+    For more explanations, this function is very similar to
+    :py:func:`_parse_pbdeps`, except that we check for correspondence between
+    pbdeps and obs. Implicitly we assume that :py:func:`_parse_pbdeps` is called
+    first: if there exists only one pbdep of the given type, and it has a
+    different reference than the observations added here, the reference will be
+    changed too match the pbdep. This is done because if only adding one dataset
+    per type, users often forget about the references.
     
     @param body: Body to add data to
     @type body: Body
@@ -618,7 +705,7 @@ def _parse_obs(body, data):
     
     # Get the list of the current references in the data, to check if the data
     # we are adding has a corresponding pbdep
-    pbdep_refs = body.get_refs(per_category=True, include=('pbdep',))
+    pbdep_refs = body.get_refs(per_category=True, include=('pbdep', ))
     
     # For all parameterSets in data, add them to body.params['obs']. This
     # dictionary is itself a dictionary with keys the different contexts, and
@@ -651,16 +738,18 @@ def _parse_obs(body, data):
             if len(pbdep_refs[context]) == 1 and len(data) == 1:
                 ref = pbdep_refs[context][0]
                 parset['ref'] = ref
-                logger.info("Fix succeeded: {}obs ref fixed to '{}'".format(context, ref))
+                logger.info(("Fix succeeded: {}obs ref fixed to "
+                             "'{}'").format(context, ref))
             
             else:
                 logger.info(("Fix failed, there is no obvious match between "
                             "the pbdeps and obs"))
-                # If there is only one pbdep reference, assume the user just forgot
-                # about setting it, and correct it. Otherwise, raise a ValueError
-                raise ValueError(("Adding {context}obs with ref='{ref}', but no "
-                              "corresponding {context}deps found (syn cannot "
-                              "be computed). I found the following "
+                # If there is only one pbdep reference, assume the user just
+                # forgot about setting it, and correct it. Otherwise, raise a
+                # ValueError
+                raise ValueError(("Adding {context}obs with ref='{ref}', but "
+                              "no corresponding {context}deps found (syn "
+                              "cannot be computed). I found the following "
                               "{context}dep refs: {av}").format(context=context,
                                ref=ref, av=", ".join(pbdep_refs[context])))
         
@@ -678,10 +767,12 @@ def _parse_obs(body, data):
                 body.params['syn'][res_context][ref] = \
                          result_sets[data_context](context=res_context, ref=ref)
             except KeyError:
-                raise KeyError("Failed parsing obs {}: perhaps not an obs?".format(ref))
+                raise KeyError(("Failed parsing obs {}: perhaps not "
+                                "an obs?").format(ref))
             logger.debug(('Prepared results ParameterSet for context '
                           '{} (ref={})'.format(res_context, ref)))
-       
+        
+        # In case you suffer from amnesia: remember the ref
         body.params['obs'][data_context][ref] = parset
         parsed_refs.append(ref)
     
@@ -695,6 +786,9 @@ class CallInstruct:
     Pass on calls to other objects.
     
     This is really cool!
+    
+    But coolness is not a quality criterion... maybe this causes us more
+    trouble than it's worth...
     """
     def __init__(self, function_name, bodies):
         """
@@ -719,9 +813,88 @@ class CallInstruct:
                     else None \
                     for body in self.bodies]    
                     
+                    
 class Body(object):
     """
     Base class representing a Body in the Universe.
+    
+    A Body represent the base properties an object can have. It basically has
+    a minimal mesh (record array ``mesh``), a container to hold parameters
+    (OrderedDict ``params``) and a time stamp (float ``time`` or None). It also
+    provides basic manipulations and calculations of a mesh:
+    
+    **Input and output**
+    
+    .. autosummary::
+    
+        to_string
+        list
+        save
+        copy
+        plot2D
+        plot3D
+        get_label
+        set_label
+    
+    **Accessing parameters and ParameterSets**
+        
+    .. autosummary::
+    
+        walk
+        walk_type
+        walk_all
+        
+        get_refs
+        get_parset
+        get_synthetic
+        get_data
+        get_model
+        get_adjustable_parameters
+        set_values_from_priors
+        
+        reset
+        reset_and_clear
+        clear_synthetic
+        
+    **Statistics**
+    
+    .. autosummary::
+    
+        get_logp
+        get_chi2
+        
+    
+    **Computations**
+    
+    .. autosummary::
+    
+        rotate_and_translate
+        rotate
+        translate
+        compute
+        compute_pblum_or_l3
+        detect_eclipse_horizon
+        compute_centers
+        compute_sizes
+        compute_normals
+        area
+        get_coords
+        add_preprocess
+        add_postprocess
+        preprocess
+        postprocess
+        ifm
+        pl
+        sp
+    
+    The equality operator (``==`` and ``!=``) is implemented and will return
+    True only if the left and right hand side are of the same class and have
+    the exact same structure and variables.
+    
+    Iterating over a Body with the ``for element in body`` paradigm will iterate
+    over all ParameterSets in the ``params`` attribute.
+    
+    Adding to Bodies will create a BodyBag.
     
     The point is to initialize it with a record array. Then, extra information
     can be added, such as the com (centre-of-mass), angles. Functions
@@ -738,7 +911,7 @@ class Body(object):
     line-of-sight as an input argument (aside from the Euler angles and rotation
     convention name).
     
-    Example:
+    **Example usage:**
     
     >>> verts = [(0,0.0,0),(0,0.2,0),(1,0.3,0),(1,0.0,0),
     ...          (0,0.0,2),(0,0.3,2),(1,0.2,2),(1,0.0,2)]
@@ -810,18 +983,33 @@ class Body(object):
         (e.g. 'hierarchical' or 'simple')
         @type eclipse_detection: str
         """
+        # We need to know the time and the dimensions (*sigh*... that'll be 3
+        # always. I thought I was being general by foreseeing the possibility
+        # to model 2D objects, but seriously... who does that?)
         self.time = None
         self.dim = dim
+        
+        # Remember how to detect eclipses for the Body. This will probably be
+        # overriden in superclasses.
         self.eclipse_detection = eclipse_detection
+        
+        # Make a Body iterable, and give it a default unique label.
         self.index = 0
         self.label = str(id(self))
         
+        # Probably upon initialisation, the mesh is unknown. But we foresee the
+        # possibility to initialize a Body with a custom mesh
         if data is None:
-            N = 0
+            n_mesh = 0
         else:
-            N = len(data)
-        ft = 'f8' # float type
-        mesh = np.zeros(N, dtype=[('_o_center', ft, (dim, )), ('_o_size', ft),
+            n_mesh = len(data)
+        
+        # The basic float type is 'f8'
+        ft = 'f8'
+        
+        # Initialise the mesh
+        mesh = np.zeros(n_mesh, dtype=[('_o_center', ft, (dim, )),
+                                  ('_o_size', ft),
                                   ('_o_triangle', ft, (3*dim, )),
                                   ('_o_normal_', ft,(dim, )),
                                   ('center', ft, (dim, )), ('size', ft),
@@ -831,60 +1019,88 @@ class Body(object):
                                   ('velo___bol_', ft, (dim, )), ('mu', ft),
                                   ('partial', bool), ('hidden',bool),
                                   ('visible', bool)])
-        if data is not None: # assume we got a record array:
-            #-- only copy basic fields
+        
+        # We allow the user to supply a custom mesh. In that case it needs to
+        # be a record array
+        if data is not None:
+            # Only copy basic fields
             init_fields = set(mesh.dtype.names)
             fields_given = set(data.dtype.names)
-            fields_given_extra = list(fields_given-init_fields)
+            fields_given_extra = list(fields_given - init_fields)
             fields_given_basic = fields_given & init_fields
-            #-- append extra fields
+            
+            # Append extra fields
             if fields_given_extra:
                 mesh = pl.mlab.rec_append_fields(mesh,fields_given_extra,\
                                   [data[field] for field in fields_given_extra])
-            #-- take care of original values and their mutable counter parts.
+            
+            # Take care of original values and their mutable counter parts.
             for field in fields_given_basic:
-                ofield = '_o_%s'%(field)
+                ofield = '_o_{}'.format(field)
+                
                 if ofield in fields_given:
                     mesh[ofield] = data[ofield]
                 elif ofield in mesh.dtype.names:
                     mesh[ofield] = data[field]
+                
                 mesh[field] = data[field]
+        
+        # In any case, we have a mesh now. Set it as an attribute
         self.mesh = mesh
-        #-- if no information on visibility of the triangles is given, set them
-        #   all the visible
+        
+        # If no information on visibility of the triangles is given, set them
+        # all to be visible
         if data is None or not 'visible' in fields_given:
             self.mesh['visible'] = True
-        #-- compute extra information upon request
+        
+        # Compute extra information upon request
         if compute_centers:
             self.compute_centers()
+        
         if compute_normals:
             self.compute_normals()
+        
         if compute_sizes:
             self.compute_sizes()
         
-        #-- keep track of the current orientation, the original (unsubdivided)
-        #   mesh and all the parameters of the object.
+        # Keep track of the current orientation, the original (unsubdivided)
+        # mesh and all the parameters of the object.
         self.orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
                            los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
         self.subdivision = dict(orig=None, mesh_args=None, N=None)
         self.params = OrderedDict()
+        
+        # The following attribute is deprecated, and was meant to store default
+        # plot information. When we have unit tests in place, we can try to
+        # remove this statement.
         self._plot = {'plot3D':dict(rv=(-150, 150))}
-        #-- the following list of functions will be executed before and
-        #   after a call to set_time
+        
+        # The following list of functions will be executed before and after a
+        # call to set_time
         self._preprocessing = []
         self._postprocessing = []
-        #-- Add a dict that we can use to store temporary information
+        
+        # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()
-        #self.params['pbdep'] = {}
+        
     
     def __eq__(self, other):
+        """
+        Two Bodies are equal if all of their attributes are equal.
+        """
         return (isinstance(other, self.__class__)
             and self.__dict__ == other.__dict__)
 
     def __ne__(self, other):
+        """
+        Two Bodies are different if not all of their attributes are equal.
+        """
         return not self.__eq__(other)
     
     def __str__(self):
+        """
+        String representation of a Body.
+        """
         return self.to_string()
     
     def to_string(self,only_adjustable=False):
@@ -928,7 +1144,7 @@ class Body(object):
     
     def reset(self):
         """
-        Resets the Body but does not clear the results.
+        Reset the Body but do not clear the synthetic calculations.
         
         After a reset, calling C{set_time} again guarentees that the mesh
         will be recalculated. This could be useful if you want to change
@@ -938,20 +1154,27 @@ class Body(object):
         self.time = None
         self._clear_when_reset = dict()
     
+    
     def reset_and_clear(self):
+        """
+        Reset the Body and clear the synthetic calculations.
+        """
         self.reset()
         self.clear_synthetic()
     
+    
     def walk(self):
         """
-        Return iterable to walk through all the parameters of a (nested) Body.
+        Walk through all the ParameterSets of a (nested) Body.
         
         This will recursively return all Parametersets in the Body.
         
         @return: generator of ParameterSets
         @rtype: generator
         """
-        return utils.traverse(self,list_types=(BodyBag,Body,list,tuple),dict_types=(dict,))
+        return utils.traverse(self,list_types=(BodyBag,Body,list,tuple),
+                              dict_types=(dict,))
+    
     
     def walk_type(self,type='syn'):
         """
@@ -971,7 +1194,7 @@ class Body(object):
     
     def walk_all(self,path_as_string=True):
         """
-        Hierarchically walk down a nested Body(Bag).
+        Walk through all Bodies/ParameterSets/Parameters in nested Body(Bag).
         
         We need to:
         
@@ -981,39 +1204,46 @@ class Body(object):
             
         And remember at what level we are!
         
-        Each iteration, this function returns a path and a 
+        Each iteration, this function returns a path and a object (Body,
+        ParameterSet, Parameter)
         """
-        for val,path in utils.traverse_memory(self,list_types=(Body,list,tuple),
-                                     dict_types=(dict,),
-                                     parset_types=(parameters.ParameterSet,),
-                                     get_label=(Body,),
-                                     get_context=(parameters.ParameterSet,),
+        for val,path in utils.traverse_memory(self,
+                                     list_types=(Body, list,tuple),
+                                     dict_types=(dict, ),
+                                     parset_types=(parameters.ParameterSet, ),
+                                     get_label=(Body, ),
+                                     get_context=(parameters.ParameterSet, ),
                                      skip=()):
-            #-- first one is always root
+            # First one is always root
             path[0] = str(self.__class__.__name__)
-            #-- convert to a string if desirable
+            # CConvert to a string if desirable
             if path_as_string:
                 for i in range(len(path)):
-                    if isinstance(path[i],parameters.ParameterSet):
+                    if isinstance(path[i], parameters.ParameterSet):
                         path[i] = path[i].context
-                    elif isinstance(path[i],parameters.Parameter):
+                    elif isinstance(path[i], parameters.Parameter):
                         path[i] = path[i].get_qualifier()
-                    elif isinstance(path[i],Body):
+                    elif isinstance(path[i], Body):
                         path[i] = path[i].get_label()
-                    elif isinstance(path[i],str):
+                    elif isinstance(path[i], str):
                         continue
                     else:
                         path[i] = '>>>'
                 
-            yield path,val
+            yield path, val
     
-    def compute(self,*args,**kwargs):
+    
+    def compute(self, *args, **kwargs):
         """
-        Call observatory.compute.
+        Compute synthetics to match the attached observations.
+        
+        See :py:func:`observatory.compute <phoebe.backend.observatory.compute>`
+        for a thorough discussion of the arguments and keyword arguments.
         """
         observatory.compute(self,*args,**kwargs)
     
-    def compute_pblum_or_l3(self,link=None):
+    
+    def compute_pblum_or_l3(self, link=None):
         """
         Compute and set passband luminosity and third light if required.
         
@@ -1089,9 +1319,9 @@ class Body(object):
                     complete_model.append(model)
                     complete_obser.append(obser)
                     complete_sigma.append(sigma)
-                    complete_refrs.append([observations['ref']]*len(model))
-                    complete_pblum.append([do_pblum]*len(model))
-                    complete_l3.append([do_l3]*len(model))
+                    complete_refrs.append([observations['ref']] * len(model))
+                    complete_pblum.append([do_pblum] * len(model))
+                    complete_l3.append([do_l3] * len(model))
                     continue
                 
                 # Do the computations
@@ -1124,18 +1354,18 @@ class Body(object):
                     observations.unload()
                 
                 msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
-                logger.info(msg.format(observations['ref'],pblum,\
-                            do_pblum and 'computed' or 'fixed',l3,do_l3 \
+                logger.info(msg.format(observations['ref'], pblum,\
+                            do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
                         
-        if link is not None and link=='all':
+        if link is not None and link == 'all':
             model = np.hstack(complete_model)
             obser = np.hstack(complete_obser)
             sigma = np.hstack(complete_sigma)
             do_pblum = np.all(np.hstack(complete_pblum))
             do_l3 = np.all(np.hstack(complete_l3))
-            pblum,l3 = compute_pblum_or_l3(model,obser,sigma,
-                                           pblum=do_pblum,l3=do_l3)
+            pblum, l3 = compute_pblum_or_l3(model, obser, sigma,
+                                           pblum=do_pblum, l3=do_l3)
             for idata in self.params['obs'].values():
                 for observations in idata.values():
                     if not do_pblum and 'pblum' in observations:
@@ -1146,7 +1376,7 @@ class Body(object):
                         l3 = observations['l3']
                     elif not do_l3:
                         l3 = 0.0
-                    #-- set the values and add them to the posteriors
+                    # Set the values and add them to the posteriors
                     if do_pblum:
                         observations['pblum'] = pblum
                     if do_l3:
@@ -1226,7 +1456,7 @@ class Body(object):
         """
         logp = 0.
         chi2 = 0.
-        N = 0.
+        n_data = 0.
         for idata in self.params['obs'].values():
             for observations in idata.values():
                 
@@ -1234,70 +1464,88 @@ class Body(object):
                 if not observations.get_enabled():
                     continue
                 
-                #-- get the model corresponding to this observation
+                # Get the model corresponding to this observation
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                               ref=observations['ref'],
                                               cumulative=True)
-                #-- make sure to have loaded the observations from a file
+                
+                # Make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
-                #-- get the "model" and "observations" and their error.
-                if observations.context=='spobs' or observations.context=='plobs':
-                    model = np.array(modelset['flux'])/np.array(modelset['continuum'])
-                    obser = np.array(observations['flux'])/np.array(observations['continuum'])
+                
+                # Get the "model" and "observations" and their error.
+                if observations.context in ['spobs','plobs']:
+                    model = np.array(modelset['flux']) / np.array(modelset['continuum'])
+                    obser = np.array(observations['flux']) / np.array(observations['continuum'])
                     sigma = np.array(observations['sigma'])
-                elif observations.context=='lcobs':
+                
+                elif observations.context == 'lcobs':
                     model = np.array(modelset['flux'])
                     obser = np.array(observations['flux'])
                     sigma = np.array(observations['sigma'])
-                elif observations.context=='ifobs':
+                
+                elif observations.context == 'ifobs':
                     model = np.array(modelset['vis2'])
                     obser = np.array(observations['vis2'])
                     sigma = np.array(observations['sigma_vis2'])
-                elif observations.context=='rvobs':
-                    model = conversions.convert('Rsol/d','km/s',np.array(modelset['rv']))
+                
+                elif observations.context == 'rvobs':
+                    model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
                     obser = np.array(observations['rv'])
                     sigma = np.array(observations['sigma'])
+                    
                 else:
-                    raise NotImplementedError('probability for {}'.format(observations.context))                
-                #-- take pblum and l3 into account:
+                    raise NotImplementedError(("probability for "
+                                 "{}").format(observations.context))
+                    
+                # Take pblum and l3 into account:
                 pblum = observations['pblum'] if ('pblum' in observations) else 1.0
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
-                #-- compute the log probability ---> not sure that I need to do sigma*pblum, I'm not touching the observations!
+                
+                # Compute the log probability ---> not sure that I need to do
+                #                                  sigma*pblum, I'm not touching
+                #                                  the observations!
                 term1 = - 0.5*np.log(2*pi*(sigma)**2)
-                term2 = - (obser-model*pblum-l3)**2/(2.*(sigma)**2)
-                #-- do also the Stokes V profiles. Becuase they contain the
-                #   derivative of the intensity profile, the l3 factor disappears
-                if observations.context=='plobs':
+                term2 = - (obser-model*pblum-l3)**2 / (2.*(sigma)**2)
+                
+                # Do also the Stokes V profiles. Because they contain the
+                # derivative of the intensity profile, the l3 factor disappears
+                if observations.context == 'plobs':
                     if 'V' in observations['columns']:
-                        model = np.array(modelset['V'])/np.array(modelset['continuum'])
-                        obser = np.array(observations['V'])/np.array(observations['continuum'])
+                        model = np.array(modelset['V']) / np.array(modelset['continuum'])
+                        obser = np.array(observations['V']) / np.array(observations['continuum'])
                         sigma = np.array(observations['sigma_V'])
                         term1 += - 0.5*np.log(2*pi*(sigma)**2)
-                        term2 += - (obser-model*pblum)**2/(2.*(sigma)**2)
+                        term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
                 
-                #-- statistical weight:
+                # Statistical weight:
                 statweight = observations['statweight']
+                
                 #   if stat_weight is negative, we try to determine the
                 #   effective number of points:
                 # ... not implemented yet ...
                 #   else, we take take the mean and multiply it with the
                 #   weight:
                 if statweight>0:
-                    this_logp = (term1 + term2).mean()*statweight
-                    this_chi2 = -(2*term2).mean()*statweight
+                    this_logp = (term1 + term2).mean() * statweight
+                    this_chi2 = -(2*term2).mean() * statweight
+                
                 #   if statistical weight is zero, we don't do anything:
                 else:
                     this_logp = (term1 + term2).sum()
                     this_chi2 = -2*term2.sum()
-                logger.info("Statist weight of {} = {}".format(observations['ref'],statweight))
-                logger.info("pblum = {:.3g}, l3 = {:.3g}".format(pblum,l3))
-                logger.info("Chi2 of {}".format(observations['ref'],term2*2))
+                
+                logger.info("Statist weight of {} = {}".format(observations['ref'],
+                                                               statweight))
+                logger.info("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
+                logger.info("Chi2 of {}".format(observations['ref'], term2*2))
                 logp += this_logp
                 chi2 += this_chi2
-                N += len(obser)
+                n_data += len(obser)
                 if loaded:
                     observations.unload()
-        return logp, chi2, N
+                    
+        return logp, chi2, n_data
+    
     
     def get_chi2(self):
         r"""
@@ -1585,7 +1833,22 @@ class Body(object):
         self.orientation['vector'] = loc
     
     
+    def rotate(self, theta=0,incl=0,Omega=0,
+              pivot=(0,0,0),los=(0,0,+1),incremental=False,
+              subset=None):
+        """
+        Rotate a Body around a pivot point
+        """
+        return rotate_and_translate(self, theta=theta, incl=incl, Omega=Omega,
+               pivot=pivot, los=los, incremental=incremental, subset=subset)
     
+    
+    def translate(self,loc=(0,0,0), los=(0,0,+1),incremental=False, subset=None):
+        """
+        Translate a Body to another location.
+        """
+        return rotate_and_translate(self, loc=loc, los=los,
+                incremental=incremental, subset=subset)
     
     
     def compute_centers(self):
@@ -1597,28 +1860,71 @@ class Body(object):
             self.mesh['center'][:,idim] = self.mesh['triangle'][:,idim::self.dim].sum(axis=1)/3.
     
     def compute_sizes(self,prefix=''):
-        """
-        Compute triangle sizes from the triangle vertices
-        """
-        #-- size of triangle
-        side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim]-self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
-        side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim]-self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
-        side3 = self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]-self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
-        a = sqrt(np.sum(side1**2,axis=1))
-        b = sqrt(np.sum(side2**2,axis=1))
-        c = sqrt(np.sum(side3**2,axis=1))
-        s = 0.5*(a+b+c)
-        self.mesh[prefix+'size'] = sqrt( s*(s-a)*(s-b)*(s-c))
-        #print 'CSA',self.mesh[prefix+'size'].sum()
+        r"""
+        Compute triangle sizes from the triangle vertices.
         
-    def compute_normals(self,prefixes=('','_o_')):
+        The size :math:`s` of a triangle with vertex coordinates
+        :math:`\vec{e}_0`, :math:`\vec{e}_1` and :math:`\vec{e}_2` is given by
+        
+        Let
+        
+        .. math::
+        
+            \vec{s}_0 = \vec{e}_0 - \vec{e}_1 \\
+            \vec{s}_1 = \vec{e}_0 - \vec{e}_2 \\
+            \vec{s}_2 = \vec{e}_1 - \vec{e}_2 \\
+                
+        then
+        
+        .. math::
+            
+            a = ||\vec{s}_0|| \\
+            b = ||\vec{s}_1|| \\
+            c = ||\vec{s}_2|| \\
+            k = \frac{a + b + c}{2} \\
+            
+        and finally:
+        
+        .. math::
+        
+            s = \sqrt{ k (k-a) (k-b) (k-c)}
+        
         """
+        # Length of edges
+        side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
+                self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
+        side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
+                self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
+        side3 = self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim] -\
+                self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
+        
+        # Some coefficients
+        a = sqrt(np.sum(side1**2, axis=1))
+        b = sqrt(np.sum(side2**2, axis=1))
+        c = sqrt(np.sum(side3**2, axis=1))
+        k = 0.5 * (a+b+c)
+        
+        # And finally the size
+        self.mesh[prefix+'size'] = sqrt( k*(k-a)*(k-b)*(k-c))
+    
+    
+    def compute_normals(self,prefixes=('','_o_')):
+        r"""
         Compute normals from the triangle vertices.
         
         The normal on a triangle is defined as the cross product of the edge
-        vectors::
+        vectors:
             
-            N = E(0,1) X E(0,2)
+        .. math::
+        
+            \vec{n} = \vec{e}_{0,1} \times \vec{e}_{0,2}
+        
+        with
+        
+        .. math::
+        
+            \vec{e}_{0,1} = \vec{e}_0 - \vec{e}_1 \\
+            \vec{e}_{0,2} = \vec{e}_0 - \vec{e}_2 \\
         
         Comparison between numeric normals and true normals for a sphere. The
         numeric normals are automatically computed for an Ellipsoid. For a
@@ -1636,14 +1942,27 @@ class Body(object):
         >>> p = mlab.draw()
             
         """
-        #-- normal is cross product of two sides
+        # Normal is cross product of two sides
         for prefix in prefixes:
-            side1 = self.mesh[prefix+'triangle'][:,0:0+self.dim]-self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
-            side2 = self.mesh[prefix+'triangle'][:,0:0+self.dim]-self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
-            self.mesh[prefix+'normal_'] = np.cross(side1,side2)
+            
+            # Compute the sides
+            side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
+                    self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
+            side2 = self.mesh[prefix+'triangle'][:,0*self.dom:1*self.dim] -\
+                    self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
+            
+            # Compute the corss product
+            self.mesh[prefix+'normal_'] = np.cross(side1, side2)
 
     def area(self):
+        """
+        Compute the total surface area of a Body.
+        
+        @return: total surface area in :math:`R^2_\odot`.
+        @rtype: float
+        """
         return self.mesh['size'].sum()
+    
     
     def get_coords(self,type='spherical',loc='center'):
         """
@@ -1908,44 +2227,44 @@ class Body(object):
 
         """
         def add_summary_short(thing, text):
-           """
-           Add information on pbdeps, obs and syn
-           """
-           
-           # Construct the  "|     |     " string that preceeds the summary info
-           # We need to have the same length as the previous line. If there
-           # is no previous line, or it is not indented, we don't need to indent
-           # this one
-           try:
-               indent = text[-1].split('+')[0] \
-                      + '|'\
-                      + ' '*len(text[-1].split('+')[1].split('>')[0]) \
-                      + '  '
-           except IndexError:
-               indent = ''
-               
-           # Collect info on the three types    
-           summary = []
-           for ptype in ['pbdep', 'obs', 'syn']:
-               
-               # Which type is this? keep track of the number of members, if
-               # there are none, don't report
-               this_type = ['{}: '.format(ptype[-3:])]
-               ns = 0
-               
-               # Loop over all categories and make a string
-               for category in ['lc', 'rv', 'sp', 'if', 'pl']:
-                   lbl = (category+ptype[-3:])
-                   if ptype in thing.params and lbl in thing.params[ptype]:
-                       this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
-                       ns += len(thing.params[ptype][lbl])
-               
-               # Only report if there are some
-               if ns > 0:
-                   mystring = this_type[0]+', '.join(this_type[1:])
-                   summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+5*' ')))
-           
-           text += summary
+            """
+            Add information on pbdeps, obs and syn
+            """
+            
+            # Construct the  "|     |     " string that preceeds the summary info
+            # We need to have the same length as the previous line. If there
+            # is no previous line, or it is not indented, we don't need to indent
+            # this one
+            try:
+                indent = text[-1].split('+')[0] \
+                        + '|'\
+                        + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                        + '  '
+            except IndexError:
+                indent = ''
+                
+            # Collect info on the three types    
+            summary = []
+            for ptype in ['pbdep', 'obs', 'syn']:
+                
+                # Which type is this? keep track of the number of members, if
+                # there are none, don't report
+                this_type = ['{}: '.format(ptype[-3:])]
+                ns = 0
+                
+                # Loop over all categories and make a string
+                for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+                    lbl = (category+ptype[-3:])
+                    if ptype in thing.params and lbl in thing.params[ptype]:
+                        this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
+                        ns += len(thing.params[ptype][lbl])
+                
+                # Only report if there are some
+                if ns > 0:
+                    mystring = this_type[0]+', '.join(this_type[1:])
+                    summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+5*' ')))
+            
+            text += summary
         
         
         def add_summary_long(thing, text):
@@ -2262,14 +2581,14 @@ class Body(object):
         #mlab.view(focalpoint=)
     
     
-    def save(self,filename):
+    def save(self, filename):
         """
         Save a class to an file.
         
         You need to purge signals before writing.
         """
-        ff = open(filename,'w')
-        pickle.dump(self,ff)
+        ff = open(filename, 'w')
+        pickle.dump(self, ff)
         ff.close()  
         logger.info('Saved model to file {} (pickle)'.format(filename))
     
@@ -2281,7 +2600,7 @@ class Body(object):
     
     
     @decorators.parse_ref
-    def ifm(self,ref='allifdep',time=None):
+    def ifm(self, ref='allifdep', time=None):
         """
         You can only do this if you have observations attached.
         """
@@ -3507,7 +3826,7 @@ class BodyBag(Body):
     
     def walk_type(self,type='syn'):
         """
-        Walk through all types of a certain parameterSet.
+        Walk through parameterSets of a certain type.
         
         This can be handy to walk through all 'syn', 'pbdep' or 'obs'.
         

@@ -1,5 +1,5 @@
 """
-Core interface of Wilson-Devinney
+Core interface of Wilson-Devinney to compute models
 
 .. autosummary::
 
@@ -10,5 +10,5 @@ Core interface of Wilson-Devinney
     wd.BodyEmulator
     
 """
-#-- make some functions available in the root
+# Make some functions available in the root
 from phoebe.wd.wd import lc,ps_to_lcin,lcin_to_ps
