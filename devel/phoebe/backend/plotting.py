@@ -1459,13 +1459,21 @@ class Axes(object):
                 if po[key]=='auto':
                     po.pop(key)
                     
-            orbit = obj.params['orbit'] if hasattr(obj,'params') and 'orbit' in obj.params.keys() else self._get_orbit(plotoptions['objref'],system)
-            period = orbit.get_value('period')
-            phased = self.axesoptions.get_value('xaxis')=='phase'
+            # get phasing information
+            xaxis = self.axesoptions.get_value('xaxis')
+            phased = xaxis.split(':')[0]=='phase'
             
-            #~ print "** orbit", orbit
+            if phased and len(xaxis.split(':')) > 1:
+                orbit = self._get_orbit(xaxis.split(':')[1],system) 
+            elif hasattr(obj,'params') and 'orbit' in obj.params.keys():
+                orbit = obj.params['orbit']
+            else:
+                orbit = self._get_orbit(plotoptions['objref'],system)
+            period = orbit.get_value('period')
+
             #~ print "** period", period
-            #~ print "** phased", phased
+            #~ print "** phased", phasede
+            #~ print "** type", plotoptions['type']
 
             # call appropriate plotting command
             if plotoptions['type']=='lcobs':
