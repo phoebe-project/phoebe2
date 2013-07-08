@@ -662,55 +662,90 @@ def fit_law(mu,Imu,law='claret',fitmethod='equidist_r_leastsq'):
     int1,int2 = np.trapz(Imu,x=mu),np.trapz(myfit,x=mu)
     dflux = (int1-int2)/int1
     return csol,res,dflux
+
+
 #}
 #{ LD Passband coefficients
-def choose_ld_coeffs_table(atm,atm_kwargs={},red_kwargs={}):
+
+
+def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
     """
     Derive the filename of a precalculated LD grid from the input parameters.
-   
+    
+    @param atm: atmosphere table filename or designation
+    @type atm: str
     """
-    #-- perhaps the user gave a filename: then return it
+    # Perhaps the user gave an absolute filename: then return it
     if os.path.isfile(atm):
         return atm
+    
+    # Perhaps the user gave the name of table that is pre-installed (relative
+    # filename)
     elif os.path.isfile(os.path.join(basedir_ld_coeffs,atm)):
         return os.path.join(basedir_ld_coeffs,atm)
-    #-- if the user wants tabulated blackbodies, we have a file for that.
-    elif atm=='blackbody':
+    
+    # If the user wants tabulated blackbodies, we have a file for that.
+    elif atm == 'blackbody':
         basename = 'blackbody_uniform_none_teff.fits'
-        return os.path.join(basedir_ld_coeffs,basename)
-    #-- else we need to be a little bit more clever and derive the file with
-    #   the tabulated values based on abundance, LD func etc...
+        return os.path.join(basedir_ld_coeffs, basename)
+    
+    # Else we need to be a little bit more clever and derive the file with the
+    # tabulated values based on abundance, LD func etc...
     else:
-        #-- get some basic info
+        
+        # Get some basic info
         abun = atm_kwargs['abun']
         ld_func = atm_kwargs['ld_func']
         ld_coeffs = atm_kwargs['ld_coeffs']
-        #-- if the LD is uniform or given by the user itself, we're only
-        #   interested in the center intensities, so we can use the default
-        #   grid
-        if ld_func=='uniform' or not isinstance(ld_coeffs,str):
+        
+        # If the LD is uniform or coefficients are given by the user itself,
+        # we're only interested in the center intensities, so we can use the
+        # default grid to get the intensties. That'll be the claret one.
+        if ld_func == 'uniform' or not isinstance(ld_coeffs, str):
             ld_func = 'claret'
-        #-- do we need to interpolate in abundance?
-        if hasattr(abun,'__iter__'):
-            if np.all(abun==abun[0]):
-                prefix = 'm' if abun[0]<0 else 'p'
+        
+        # Do we need to interpolate in abundance?
+        # Perhaps the abundances are an array, i.e. they are different for every
+        # triangle
+        if hasattr(abun, '__iter__'):
+            
+            # No, we don't need to interpolate in abundance, although abundances
+            # is an array -- but all the values are equal
+            if np.all(abun == abun[0]):
+                prefix = 'm' if abun[0] < 0 else 'p'
                 abun = abs(abun[0])*10
-                basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun,ld_func)
+                basename = ("{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg"
+                            ".fits").format(atm, prefix, abun, ld_func)
+            # Yes, we do, but this doesn't seem to be implemented yet
             else:
                 prefix = ''
                 raise ValueError("Cannot automatically detect atmosphere file")
+        
+        # We don't need to interpolate at all.
         else:
-            prefix = 'm' if abun<0 else 'p'
+            prefix = 'm' if (abun < 0) else 'p'
             abun = abs(abun*10)
-            basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format(atm,prefix,abun,ld_func)        
-        ret_val = os.path.join(basedir_ld_coeffs,basename)
+            basename = ("{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg"
+                        ".fits").format(atm, prefix, abun, ld_func)
+        
+        ret_val = os.path.join(basedir_ld_coeffs, basename)
+        
+        # Although we now figured out which atmosphere file to use, it doesn't
+        # seem to be present. Check that!
         if os.path.isfile(ret_val):
             return ret_val
         else:
-            raise ValueError("Cannot interpret atm parameter {}: I think the file that I need is {}, but it doesn't exist. If in doubt, consult the installation section of the documentation on how to add atmosphere tables.".format(atm,ret_val))
+            raise ValueError(("Cannot interpret atm parameter {}: I think "
+                              "the file that I need is {}, but it doesn't "
+                              "exist. If in doubt, consult the installation "
+                              "section of the documentation on how to add "
+                              "atmosphere tables.").format(atm, ret_val))
+    
+    # Finally we're done
     return atm
     
-def interp_ld_coeffs(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
+    
+def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     """
     Interpolate an atmosphere table.
     
@@ -783,6 +818,7 @@ def legendre(x):
         denom += 1
         pl.append((fac1*pl[-1]-fac2*pl[-2])/denom)
     return pl
+
 
 def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     """

@@ -430,6 +430,10 @@ def check_body(body):
         - If there is only one pbdep, check if the obs have the same reference
         - Check if type of obs is DataSet, type of pbdep is ParameterSet
         - Check if passbands are present in atmosphere table
+        
+    Deprecated after a very short life time, functionality taken over by
+    add_pbdep and add_obs. Only the atmosphere table check needs to be
+    performed.
     """
     # Run over the following categories, and keep track how many are added
     categories = {'lc':[], 'rv':[], 'sp':[], 'if':[], 'pl':[]}
@@ -455,16 +459,20 @@ def check_body(body):
             ps2, rf2 = body.get_parset(ref=ref, context=category + 'obs')
             
             if rf1 is None and rf2 is not None:
-                message.append("Found obs ({}) with ref '{}' but no pbdep to match it".format(category, ref))
+                message.append(("Found obs ({}) with ref '{}' but no pbdep to "
+                               "match it").format(category, ref))
                 number_obs.append(ps2)
             elif rf1 is not None and rf2 is None:
-                #message.append("Found pbdep ({}) with ref '{}' but no observations to match it (in principle this is OK)".format(category, ref))
+                #message.append(("Found pbdep ({}) with ref '{}' but no "
+                #                "observations to match it (in principle this "
+                #                "is OK)").format(category, ref))
                 number_pbdeps.append(ps1)
             elif rf1 is not None and rf2 is not None:
                 number_pbdeps.append(ps1)
                 number_obs.append(ps2)
             else:
-                raise ValueError("Shouldn't happen. Contact a developer. If you are one, contact another")
+                raise ValueError(("Shouldn't happen. Contact a developer. If "
+                                  "you are one, contact another"))
             
         # There is one particular case where we can fix things automatically
         # I think: if there is only one pbdep and one obs, they should fit
@@ -479,10 +487,9 @@ def check_body(body):
         #    old_ref = number_obs[0]['ref']
         #    new_ref = number_pbdeps[0]['ref']
         #    message.append("Fixed ref {} of category {}".format(ref, category))
-        #d2 = OrderedDict([(new_key, v) if k == old_key else (k, v) for k, v in d.items()])
-        
-    
-            
+        #d2 = OrderedDict([(new_key, v) if k == old_key else (k, v) for k, v \
+        #                  in d.items()])
+                    
     print("\n".join(message))
 
 
@@ -651,6 +658,11 @@ def _parse_pbdeps(body, pbdep):
             parset['ref'] = ref
         
         # Add the parameterSet to the relevant dictionary
+        # This might be a little over the top, but I'll also check if the thing
+        # that is added is really a ParameterSet
+        if not isinstance(parset, parameters.ParameterSet):
+            raise ValueError(("Trying to add pbdep with ref={} but it's "
+                             "not a ParameterSet").format(ref))
         body.params['pbdep'][context][ref] = parset
         
         # Prepare results if they were not already added by the data parser
@@ -772,9 +784,18 @@ def _parse_obs(body, data):
             logger.debug(('Prepared results ParameterSet for context '
                           '{} (ref={})'.format(res_context, ref)))
         
-        # In case you suffer from amnesia: remember the ref
+        # This might be a little over the top, but I'll also check if the thing
+        # that is added is really a ParameterSet
+        if not isinstance(parset, parameters.ParameterSet):
+            raise ValueError(("Trying to add obs with ref={} but it's "
+                             "not a DataSet (it's a {}").format(ref, 
+                                                     parset.__class__.__name__))
         body.params['obs'][data_context][ref] = parset
+        
+        
+        # In case you suffer from amnesia: remember the ref
         parsed_refs.append(ref)
+        
     
     # That's it
     return parsed_refs
@@ -1112,24 +1133,39 @@ class Body(object):
         @return: string representation of the parameterSets
         @rtype: str
         """
+        level1 = "============ {}/{}/{:d} ============\n{}\n"
+        level2 = "============ {}/{}/{:d} ({}) ============\n{}\n"
+        level3 = "============ {} ============\n{}\n"
+        level4 = "============ {}/{:d} ============\n{}\n"
+        
         txt = ''
         params = self.params
         for param in params:
-            if isinstance(params[param],dict):
+            if isinstance(params[param], dict):
                 for pbdep in params[param]:
-                    if isinstance(params[param][pbdep],list):
+                    
+                    if isinstance(params[param][pbdep], list):
                         for i,ipbdep in enumerate(params[param][pbdep]):
-                            txt += '============ %s/%s/%d ============\n%s\n'%(param,pbdep,i,ipbdep.to_string(only_adjustable=only_adjustable))
-                    elif isinstance(params[param][pbdep],dict):
+                            txt += level1.format(param, pbdep, i,\
+                              ipbdep.to_string(only_adjustable=only_adjustable))
+                    
+                    elif isinstance(params[param][pbdep], dict):
                         for i,lbl in enumerate(params[param][pbdep]):
-                            txt += '============ %s/%s/%d (%s) ============\n%s\n'%(param,pbdep,i,lbl,params[param][pbdep][lbl].to_string(only_adjustable=only_adjustable))
+                            txt += level2.format(param, pbdep, i, lbl,\
+           params[param][pbdep][lbl].to_string(only_adjustable=only_adjustable))
+                    
                     else:
-                        txt += '============ %s ============\n%s\n'%(param,params[param].to_string(only_adjustable=only_adjustable))
+                        txt += level3.format(param,\
+                       params[param].to_string(only_adjustable=only_adjustable))
+
             elif isinstance(params[param],list):
                 for i,ipbdep in enumerate(params[param]):
-                    txt += '============ %s/%d ============\n%s\n'%(param,i,ipbdep.to_string(only_adjustable=only_adjustable))
+                    txt += level4.format(param, i,\
+                              ipbdep.to_string(only_adjustable=only_adjustable))
             else:
-                txt += '============ %s ============\n%s\n'%(param,params[param].to_string(only_adjustable=only_adjustable))
+                txt += level3.format(param,\
+                       params[param].to_string(only_adjustable=only_adjustable))
+        
         return txt
     
     def __iter__(self):
@@ -1210,13 +1246,15 @@ class Body(object):
         for val,path in utils.traverse_memory(self,
                                      list_types=(Body, list,tuple),
                                      dict_types=(dict, ),
-                                     parset_types=(parameters.ParameterSet, ),
+                                       parset_types=(parameters.ParameterSet, ),
                                      get_label=(Body, ),
                                      get_context=(parameters.ParameterSet, ),
                                      skip=()):
+            
             # First one is always root
             path[0] = str(self.__class__.__name__)
-            # CConvert to a string if desirable
+            
+            # Convert to a string if desirable
             if path_as_string:
                 for i in range(len(path)):
                     if isinstance(path[i], parameters.ParameterSet):
@@ -1229,7 +1267,8 @@ class Body(object):
                         continue
                     else:
                         path[i] = '>>>'
-                
+            
+            # All is left is to return it
             yield path, val
     
     
@@ -1273,31 +1312,33 @@ class Body(object):
             complete_l3 = []
         
         for idata in self.params['obs'].values():
-            for observations in idata.values():
+            for obs in idata.values():
                 
                 # Ignore disabled datasets
                 if not observations.get_enabled():
                     continue
                 
                 # Get the model corresponding to this observation
-                model = self.get_synthetic(category=observations.context[:-3],
-                                           ref=observations['ref'],
+                model = self.get_synthetic(category=obs.context[:-3],
+                                           ref=obs['ref'],
                                            cumulative=True)
                 
                 # Make sure to have loaded the observations from a file
-                loaded = observations.load(force=False)
+                loaded = obs.load(force=False)
                 
                 # Get the "model" and "observations" and their error.
-                if observations.context in ['spobs','plobs']:
+                if obs.context in ['spobs','plobs']:
                     model = np.array(model['flux'])/np.array(model['continuum'])
-                    obser = np.array(observations['flux'])/np.array(observations['continuum'])
-                    sigma = np.array(observations['sigma'])
-                elif observations.context=='lcobs':
+                    obser = np.array(obs['flux']) / np.array(obs['continuum'])
+                    sigma = np.array(obs['sigma'])
+                
+                elif observations.context == 'lcobs':
                     model = np.array(model['flux'])
-                    obser = np.array(observations['flux'])
-                    sigma = np.array(observations['sigma'])
+                    obser = np.array(obs['flux'])
+                    sigma = np.array(obs['sigma'])
+                
                 else:
-                    logger.error('PBLUM/L3: skipping {}'.format(observations.context))
+                    logger.error('PBLUM/L3: skipping {}'.format(obs.context))
                     continue
                 
                 # Determine pblum and l3 for these data if necessary. The pblum
@@ -1308,10 +1349,10 @@ class Body(object):
                 do_pblum = False
                 do_l3 = False
                 
-                if 'pblum' in observations and observations.get_adjust('pblum'):
+                if 'pblum' in obs and obs.get_adjust('pblum'):
                     do_pblum = True
                 
-                if 'l3' in observations and observations.get_adjust('l3'):
+                if 'l3' in obs and obs.get_adjust('l3'):
                     do_l3 = True
                 
                 # Keep track of linking ====> EXPERIMENTAL <======
@@ -1327,7 +1368,7 @@ class Body(object):
                 # Do the computations
                 if do_pblum or do_l3:
                     # We allow for negative coefficients in spectra
-                    if observations.context in ['plobs','spobs']:
+                    if obs.context in ['plobs','spobs']:
                         alg = 'lstsq'
                     # But not in other stuff
                     else:
@@ -1337,24 +1378,24 @@ class Body(object):
                 
                 #   perhaps we don't need to fit, but we still need to
                 #   take it into account
-                if not do_pblum and 'pblum' in observations:
-                    pblum = observations['pblum']
+                if not do_pblum and 'pblum' in obs:
+                    pblum = obs['pblum']
                 elif not do_pblum:
                     pblum = 1.0
-                if not do_l3 and 'l3' in observations:
-                    l3 = observations['l3']
+                if not do_l3 and 'l3' in obs:
+                    l3 = obs['l3']
                 elif not do_l3:
                     l3 = 0.0
                 #-- set the values and add them to the posteriors
                 if do_pblum:
-                    observations['pblum'] = pblum
+                    obs['pblum'] = pblum
                 if do_l3:
-                    observations['l3'] = l3
+                    obs['l3'] = l3
                 if loaded:
-                    observations.unload()
+                    obs.unload()
                 
                 msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
-                logger.info(msg.format(observations['ref'], pblum,\
+                logger.info(msg.format(obs['ref'], pblum,\
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
                         
@@ -1367,20 +1408,20 @@ class Body(object):
             pblum, l3 = compute_pblum_or_l3(model, obser, sigma,
                                            pblum=do_pblum, l3=do_l3)
             for idata in self.params['obs'].values():
-                for observations in idata.values():
-                    if not do_pblum and 'pblum' in observations:
-                        pblum = observations['pblum']
+                for obs in idata.values():
+                    if not do_pblum and 'pblum' in obs:
+                        pblum = obs['pblum']
                     elif not do_pblum:
                         pblum = 1.0
-                    if not do_l3 and 'l3' in observations:
-                        l3 = observations['l3']
+                    if not do_l3 and 'l3' in obs:
+                        l3 = obs['l3']
                     elif not do_l3:
                         l3 = 0.0
                     # Set the values and add them to the posteriors
                     if do_pblum:
-                        observations['pblum'] = pblum
+                        obs['pblum'] = pblum
                     if do_l3:
-                        observations['l3'] = l3
+                        obs['l3'] = l3
             logger.critical('Linking of subsets not yet implemented')
             raise NotImplementedError("Linking of subsets")
                             
@@ -1458,48 +1499,48 @@ class Body(object):
         chi2 = 0.
         n_data = 0.
         for idata in self.params['obs'].values():
-            for observations in idata.values():
+            for obs in idata.values():
                 
                 # Ignore disabled datasets
-                if not observations.get_enabled():
+                if not obs.get_enabled():
                     continue
                 
                 # Get the model corresponding to this observation
-                modelset = self.get_synthetic(category=observations.context[:-3],
-                                              ref=observations['ref'],
+                modelset = self.get_synthetic(category=obs.context[:-3],
+                                              ref=obs['ref'],
                                               cumulative=True)
                 
                 # Make sure to have loaded the observations from a file
-                loaded = observations.load(force=False)
+                loaded = obs.load(force=False)
                 
                 # Get the "model" and "observations" and their error.
-                if observations.context in ['spobs','plobs']:
+                if obs.context in ['spobs','plobs']:
                     model = np.array(modelset['flux']) / np.array(modelset['continuum'])
-                    obser = np.array(observations['flux']) / np.array(observations['continuum'])
-                    sigma = np.array(observations['sigma'])
+                    obser = np.array(obs['flux']) / np.array(obs['continuum'])
+                    sigma = np.array(obs['sigma'])
                 
-                elif observations.context == 'lcobs':
+                elif obs.context == 'lcobs':
                     model = np.array(modelset['flux'])
-                    obser = np.array(observations['flux'])
-                    sigma = np.array(observations['sigma'])
+                    obser = np.array(obs['flux'])
+                    sigma = np.array(obs['sigma'])
                 
-                elif observations.context == 'ifobs':
+                elif obs.context == 'ifobs':
                     model = np.array(modelset['vis2'])
-                    obser = np.array(observations['vis2'])
-                    sigma = np.array(observations['sigma_vis2'])
+                    obser = np.array(obs['vis2'])
+                    sigma = np.array(obs['sigma_vis2'])
                 
-                elif observations.context == 'rvobs':
+                elif obs.context == 'rvobs':
                     model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
-                    obser = np.array(observations['rv'])
-                    sigma = np.array(observations['sigma'])
+                    obser = np.array(obs['rv'])
+                    sigma = np.array(obs['sigma'])
                     
                 else:
                     raise NotImplementedError(("probability for "
-                                 "{}").format(observations.context))
+                                 "{}").format(obs.context))
                     
                 # Take pblum and l3 into account:
-                pblum = observations['pblum'] if ('pblum' in observations) else 1.0
-                l3 = observations['l3'] if ('l3' in observations) else 0.0
+                pblum = obs['pblum'] if ('pblum' in obs) else 1.0
+                l3 = obs['l3'] if ('l3' in obs) else 0.0
                 
                 # Compute the log probability ---> not sure that I need to do
                 #                                  sigma*pblum, I'm not touching
@@ -1509,16 +1550,16 @@ class Body(object):
                 
                 # Do also the Stokes V profiles. Because they contain the
                 # derivative of the intensity profile, the l3 factor disappears
-                if observations.context == 'plobs':
-                    if 'V' in observations['columns']:
+                if obs.context == 'plobs':
+                    if 'V' in obs['columns']:
                         model = np.array(modelset['V']) / np.array(modelset['continuum'])
-                        obser = np.array(observations['V']) / np.array(observations['continuum'])
-                        sigma = np.array(observations['sigma_V'])
+                        obser = np.array(obs['V']) / np.array(obs['continuum'])
+                        sigma = np.array(obs['sigma_V'])
                         term1 += - 0.5*np.log(2*pi*(sigma)**2)
                         term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
                 
                 # Statistical weight:
-                statweight = observations['statweight']
+                statweight = obs['statweight']
                 
                 #   if stat_weight is negative, we try to determine the
                 #   effective number of points:
@@ -1534,15 +1575,15 @@ class Body(object):
                     this_logp = (term1 + term2).sum()
                     this_chi2 = -2*term2.sum()
                 
-                logger.info("Statist weight of {} = {}".format(observations['ref'],
+                logger.info("Statist weight of {} = {}".format(obs['ref'],
                                                                statweight))
                 logger.info("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
-                logger.info("Chi2 of {}".format(observations['ref'], term2*2))
+                logger.info("Chi2 of {}".format(obs['ref'], term2*2))
                 logp += this_logp
                 chi2 += this_chi2
                 n_data += len(obser)
                 if loaded:
-                    observations.unload()
+                    obs.unload()
                     
         return logp, chi2, n_data
     
@@ -1554,14 +1595,16 @@ class Body(object):
         If ``prob`` is close to unity, the model is implausible, if it is
         close to zero, it is very plausible.
         """
-        #-- get the necessary info
-        logp, chi2, Ndata = self.get_logp()
+        # Get the necessary info
+        logp, chi2, n_data = self.get_logp()
         adj = self.get_adjustable_parameters()
-        Npar = len(adj)
-        #-- compute the chi2 probability
-        k = Ndata - Npar
-        prob = scipy.stats.distributions.chi2.cdf(chi2,k)
-        #-- that's it!
+        n_par = len(adj)
+        
+        # Compute the chi2 probability with n_data - n_par degrees of freedom
+        k = n_data - n_par
+        prob = scipy.stats.distributions.chi2.cdf(chi2, k)
+        
+        # That's it!
         return chi2, prob, Ndata, Npar
         
     
@@ -1578,28 +1621,31 @@ class Body(object):
                 if not observations.get_enabled():
                     continue
                 
-                #-- make sure to have loaded the observations from a file
+                # Make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
-                if observations.context=='spobs':
+                if observations.context == 'spobs':
                     obser_ = np.ravel(observations['flux']/observations['continuum'])
                     sigma_ = np.ravel(observations['sigma'])
-                elif observations.context=='lcobs':
+                elif observations.context == 'lcobs':
                     obser_ = np.ravel(observations['flux'])
                     sigma_ = np.ravel(observations['sigma'])
-                elif observations.context=='ifobs':
+                elif observations.context == 'ifobs':
                     obser_ = np.ravel(observations['vis2'])
                     sigma_ = np.ravel(observations['sigma_vis2'])
-                elif observations.context=='rvobs':
+                elif observations.context == 'rvobs':
                     obser_ = np.ravel(observations['rv'])
                     sigma_ = np.ravel(observations['sigma'])
                 else:
                     raise NotImplementedError('probability')  
-                #-- append to the "whole" model.
+                
+                # Append to the "whole" model.
                 mu.append(obser_)
                 sigma.append(sigma_)
                 if loaded:
                     observations.unload()
-        return np.hstack(mu),np.hstack(sigma)
+        
+        return np.hstack(mu), np.hstack(sigma)
+    
     
     def get_model(self):
         """
@@ -1625,71 +1671,79 @@ class Body(object):
                 modelset = self.get_synthetic(category=observations.context[:-3],
                                          ref=observations['ref'],
                                          cumulative=True)
-                #-- make sure to have loaded the observations from a file
+                
+                # Make sure to have loaded the observations from a file
                 loaded = observations.load(force=False)
-                if observations.context=='spobs' or observations.context=='plobs':
+                if observations.context in ['spobs', 'plobs']:
                     model_ = np.ravel(np.array(modelset['flux'])/np.array(modelset['continuum']))
                     obser_ = np.ravel(np.array(observations['flux'])/np.array(observations['continuum']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
-                elif observations.context=='lcobs':
+                elif observations.context == 'lcobs':
                     model_ = np.ravel(np.array(modelset['flux']))
                     obser_ = np.ravel(np.array(observations['flux']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
-                elif observations.context=='ifobs':
+                elif observations.context == 'ifobs':
                     model_ = np.ravel(np.array(modelset['vis2']))
                     obser_ = np.ravel(np.array(observations['vis2']))
                     sigma_ = np.ravel(np.array(observations['sigma_vis2']))
-                elif observations.context=='rvobs':
-                    model_ = conversions.convert('Rsol/d','km/s',np.ravel(np.array(modelset['rv'])))
+                elif observations.context == 'rvobs':
+                    model_ = conversions.convert('Rsol/d', 'km/s', np.ravel(np.array(modelset['rv'])))
                     obser_ = np.ravel(np.array(observations['rv']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
                 else:
                     raise NotImplementedError('probability')
                 
-                #-- statistical weight:
+                # Statistical weight:
                 statweight = observations['statweight']
-                #-- take pblum and l3 into account:
+                
+                # Take pblum and l3 into account:
                 pblum = observations['pblum'] if ('pblum' in observations) else 1.0
                 l3 = observations['l3'] if ('l3' in observations) else 0.0
                 model_ = pblum*model_ + l3
                 
-                if observations.context=='plobs':
+                if observations.context == 'plobs':
                     if 'V' in observations['columns']:
                         # We need to correct the Stokes profile for the passband
                         # luminosity factor, as this was not taken into account
                         # during the calculations
-                        model_ = np.hstack([model_,np.ravel(np.array(modelset['V'])/np.array(modelset['continuum'])*pblum)])
-                        obser_ = np.hstack([obser_,np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
-                        sigma_ = np.hstack([sigma_,np.ravel(np.array(observations['sigma_V']))])
+                        model_ = np.hstack([model_, np.ravel(np.array(modelset['V'])/np.array(modelset['continuum'])*pblum)])
+                        obser_ = np.hstack([obser_, np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
+                        sigma_ = np.hstack([sigma_, np.ravel(np.array(observations['sigma_V']))])
                 
-                #-- transform to log if necessary:
+                # Transform to log if necessary:
                 if 'fittransfo' in observations and observations['fittransfo']=='log10':
-                    sigma_ = sigma_/(obser_*np.log(10))
+                    sigma_ = sigma_ / (obser_*np.log(10))
                     model_ = np.log10(model_)
                     obser_ = np.log10(obser_)
                     logger.info("Transformed model to log10 for fitting")
                 
-                #-- append to the "whole" model.
+                # Append to the "whole" model.
                 model.append(model_)
                 mu.append(obser_)
-                sigma.append(sigma_/statweight**2)
+                sigma.append(sigma_ / statweight**2)
                 if loaded:
                     observations.unload()
+                    
         if not len(mu):
             mu = np.array([])
             sigma = np.array([])
             model = np.array([])
-            return mu,sigma,model
+            return mu, sigma, model
         else:
-            return np.hstack(mu),np.hstack(sigma),np.hstack(model)
+            return np.hstack(mu), np.hstack(sigma), np.hstack(model)
+    
     
     def get_adjustable_parameters(self):
+        """
+        Return a list of all adjustable parameters.
+        """
         mylist = []
-        for path,val in self.walk_all():
+        for path, val in self.walk_all():
             path = list(path)
             if isinstance(val,parameters.Parameter) and val.get_adjust():
                 mylist.append(val)
         return mylist
+    
     
     def get_label(self):
         """
@@ -1700,6 +1754,7 @@ class Body(object):
         """
         return self.label
     
+    
     def set_label(self,label):
         """
         Set the label of the class instance.
@@ -1709,7 +1764,8 @@ class Body(object):
         """
         self.label = label
     
-    def add_preprocess(self,func,*args,**kwargs):
+    
+    def add_preprocess(self, func, *args, **kwargs):
         """
         Add a preprocess to the Body.
         
@@ -1719,52 +1775,58 @@ class Body(object):
         @param func: name of a processing function in backend.processes
         @type func: str
         """
-        self._preprocessing.append((func,args,kwargs))
+        self._preprocessing.append((func, args, kwargs))
 
-    def add_postprocess(self,func,*args,**kwargs):
+
+    def add_postprocess(self, func, *args, **kwargs):
         """
         Add a postprocess to the Body.
         
         @param func: name of a processing function in backend.processes
         @type func: str
         """
-        self._postprocessing.append((func,args,kwargs))
+        self._postprocessing.append((func, args, kwargs))
     
         
-    def preprocess(self,time):
+    def preprocess(self, time):
         """
         Run the preprocessors.
         
         @param time: time to which the Body will be set
         @type time: float or None
         """
-        for func,arg,kwargs in self._preprocessing:
-            getattr(processing,func)(self,time,*arg,**kwargs)
+        for func, arg, kwargs in self._preprocessing:
+            getattr(processing, func)(self, time, *arg, **kwargs)
     
-    def postprocess(self,time):
+    
+    def postprocess(self, time):
         """
         Run the postprocessors.
         """
-        for func,args,kwargs in self._postprocessing:
-            getattr(processing,func)(self,time,*args,**kwargs)
+        for func, args, kwargs in self._postprocessing:
+            getattr(processing, func)(self, time, *args, **kwargs)
+    
     
     def set_values_from_priors(self):
         """
         Set values from adjustable parameters with a prior to a random value
         from it's prior.
         """
-        walk = utils.traverse(self,list_types=(BodyBag,Body,list,tuple),dict_types=(dict,))
+        walk = utils.traverse(self,list_types=(BodyBag, Body, list, tuple),
+                                   dict_types=(dict, ))
         for parset in walk:
-            #-- for each parameterSet, walk through all the parameters
+            
+            # For each parameterSet, walk through all the parameters
             for qual in parset:
-                #-- extract those which need to be fitted
+                
+                # Extract those which need to be fitted
                 if parset.get_adjust(qual) and parset.has_prior(qual):
                     parset.get_parameter(qual).set_value_from_prior()
                 
     
     
     #{ Functions to manipulate the mesh    
-    def detect_eclipse_horizon(self,eclipse_detection=None,**kwargs):
+    def detect_eclipse_horizon(self, eclipse_detection=None, **kwargs):
         r"""
         Detect the triangles at the horizon and the eclipsed triangles.
         
@@ -1787,23 +1849,32 @@ class Body(object):
         if eclipse_detection is None:
             eclipse_detection = self.eclipse_detection
         
-        if eclipse_detection=='hierarchical':
+        # Generic eclipse detection
+        if eclipse_detection == 'hierarchical':
             eclipse.detect_eclipse_horizon(self)
-        elif eclipse_detection=='simple':
-            threshold = kwargs.get('threshold',185./180.*pi)
-            partial = np.abs(self.mesh['mu'])>=threshold
-            visible = self.mesh['mu']>0 & -partial
+        
+        # Simple eclipse detection -> maybe replace with eclipse.horizon_via_normal?
+        elif eclipse_detection == 'simple':
+            threshold = kwargs.get('threshold', 185./180.*pi)
+            partial = np.abs(self.mesh['mu']) >= threshold
+            visible = (self.mesh['mu'] > 0) & -partial
             
             self.mesh['visible'] = visible
             self.mesh['hidden'] = -visible & -partial
             self.mesh['partial'] = partial
+        
+        # Maybe we don't understand
         else:
             raise ValueError("don't know how to detect eclipses/horizon (set via parameter 'eclipse_detection'")
     
-    def rotate_and_translate(self,theta=0,incl=0,Omega=0,
-              pivot=(0,0,0),loc=(0,0,0),los=(0,0,+1),incremental=False,
+    
+    def rotate_and_translate(self,theta=0, incl=0, Omega=0,
+              pivot=(0, 0, 0), loc=(0, 0, 0), los=(0, 0, +1), incremental=False,
               subset=None):
-        #-- select a subset (e.g. of partially visible triangles) or not?
+        """
+        Perform a rotation and translation of a Body.
+        """
+        # Select a subset (e.g. of partially visible triangles) or not?
         if subset is not None:
             logger.info('rotating subset of mesh into current configuration')
             mesh = self.mesh[subset]
@@ -1815,16 +1886,19 @@ class Body(object):
             loc = self.orientation['vector']
         else:
             mesh = self.mesh
-        #-- rotate
+        
+        # Rotate
         mesh = coordinates.rotate_and_translate(mesh,
-                       theta=theta,incl=incl,Omega=Omega,
-                       pivot=pivot,los=los,loc=loc,incremental=incremental)
-        #-- replace the subset or not?
+                       theta=theta, incl=incl, Omega=Omega,
+                       pivot=pivot, los=los, loc=loc, incremental=incremental)
+        
+        # Replace the subset or not?
         if subset is not None:
             self.mesh[subset] = mesh
         else:
             self.mesh = mesh
-        #-- remember the orientiation, maybe this is useful at some point.
+        
+        # Remember the orientiation, maybe this is useful at some point.
         self.orientation['theta'] = theta
         self.orientation['incl'] = incl
         self.orientation['Omega'] = Omega
@@ -2441,13 +2515,14 @@ class Body(object):
     
     
     #{ Input and output
-    def plot2D(self,**kwargs):
+    def plot2D(self, **kwargs):
         """
         Plot mesh in 2D using matplotlib.
         
         For more information, see :py:func:`phoebe.backend.observatory.image`.
         """
-        return observatory.image(self,**kwargs)
+        return observatory.image(self, **kwargs)
+        
         
     def plot3D(self,select=None,normals=False,scalars=None,centers=False,
                   velos=False,B=False,offset=(0,0,0),savefig=False,coframe='',**kwargs):
@@ -2822,91 +2897,23 @@ class PhysicalBody(Body):
     """
     Extends a Body with extra functions relevant to physical bodies.
     
-    **Adding/remove parameters and data**
+    Additional functionality:
     
     .. autosummary::
     
-       add_obs
-       add_pbdeps
-       remove_dependables
-       remove_obs
-    
-    **Resetting/clearing**
-    
-    .. autosummary::
-        
-       Body.clear_synthetic
-       Body.reset
-       clear_reflection
-       prepare_reflection
-       remove_mesh
-       reset_mesh
-       unsubdivide
-       
-    **Request (additional) information**
-    
-    .. autosummary::
-    
-       Body.get_parset
-       Body.get_refs
-       Body.get_synthetic
-       Body.get_coords
-       Body.get_label
-       Body.list
-       get_parameters
-       as_point_source
-    
-    **Statistics**
-    
-    .. autosummary::
-    
-       Body.get_logp
-       Body.get_chi2
-       Body.get_model
-    
-    **Iterators**
-    
-    .. autosummary::
-    
-       Body.walk
-       Body.walk_type
-    
-    **Compute passband dependent quantities**
-    
-    .. autosummary::
-    
-        ifm
-        lc
-        ps
-        rv
-        sp
-        
-    **Body computations**
-     
-    .. autosummary::
-       
-       Body.compute_centers
-       Body.compute_normals
-       Body.compute_sizes
-       Body.compute_pblum_or_l3
-       Body.detect_eclipse_horizon
-       subdivide
-       update_mesh
-    
-    **Input/output**
-    
-    .. autosummary::
-    
-        Body.save
-        Body.to_string
-    
-    **Basic plotting** (see plotting module for more options)
-    
-    .. autosummary::
-        
-       Body.plot2D
-       Body.plot3D
-        
+        correct_time
+        add_pbdeps
+        add_obs
+        remove_pbdeps
+        remove_obs
+        remove_mesh
+        reset_mesh
+        update_mesh
+        subdivide
+        unsubdivide
+        prepare_reflection
+        clear_reflection
+        as_point_source
        
        
     """
@@ -2932,6 +2939,7 @@ class PhysicalBody(Body):
         
         logger.info('light travel time at LOS distance {:.3f} Rsol from barycentre: {:+.3g} min'.format(mydistance,correction*24*60))
     
+    
     def add_pbdeps(self,pbdep):
         """
         Add a list of dependable ParameterSets to the Body.
@@ -2952,6 +2960,7 @@ class PhysicalBody(Body):
         logger.info('added pbdeps {0}'.format(parsed_refs))
         return parsed_refs
     
+    
     def remove_pbeps(self,refs):
         """
         Remove dependable ParameterSets from the Body.
@@ -2970,6 +2979,7 @@ class PhysicalBody(Body):
                          '_o_velo_{0}'.format(ref)
                 self.mesh = pl.mlab.rec_drop_fields(self.mesh,fields)
                 logger.info('removed pbdeps {0}'.format(fields))
+    
     
     def add_obs(self,obs):
         """
@@ -3010,6 +3020,7 @@ class PhysicalBody(Body):
     def remove_mesh(self):
         self.mesh = np.zeros(0,dtype=self.mesh.dtype)
     
+    
     @decorators.parse_ref
     def prepare_reflection(self,ref=None):
         """
@@ -3032,6 +3043,7 @@ class PhysicalBody(Body):
             self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
             logger.info('added reflection column for pbdep {}'.format(iref))
     
+    
     @decorators.parse_ref
     def clear_reflection(self,ref='all'):
         """
@@ -3042,39 +3054,7 @@ class PhysicalBody(Body):
             if field in self.mesh.dtype.names:
                 self.mesh[field] = 0.0
                 logger.info('Emptied reflection column {}'.format(iref))
-                
-    
-    #def get_parset(self,ref=None,context=None,type='pbdep',category=None):
-        #"""
-        #Return the parameter set with the given ref from the C{params}
-        #dictionary attached to the Body.
-        
-        #If ref is None, return the parameterSet of the body itself.
-        #If ref is an integer, return the "n-th" parameterSet.
-        #If ref is a string, return the parameterSet with the ref matching
-        #the string.
-        
-        #returns parset and its ref (in reverse order)
-        #"""
-        #if ref is None or ref=='__bol':
-            #logger.info("Requested bolometric parameterSet")
-            #return list(self.params.values())[0],'__bol'
-        #else:
-            #counter = 0
-            #subtypes = subtype and [subtype] or self.params[type].keys()
-            #for itype in subtypes:
-                ##itype += type[-3:] # we want here subtype=='lc'-->'lcdep' or 'lcsyn'
-                #for ips in self.params[type][itype]:
-                    #ps = self.params[type][itype][ips]
-                    #is_ref = ('ref' in ps) and (ps['ref']==ref)
-                    #is_number = counter==ref
-                    #if is_ref or is_number:
-                        #logger.info("Requested parset ref={}, type={}, subtype={} and found ref={}, context={}".format(ref,type,subtype,ps['ref'],ps.get_context()))
-                        #return ps,ps['ref']
-                    #counter += 1
-            #logger.info("Requested parset ref={}, type={}, subtype={} but nothing was found".format(ref,type,subtype))
-            #return None,None
-    
+                    
     
     def as_point_source(self,only_coords=False,ref=0):
         """
@@ -3471,57 +3451,6 @@ class PhysicalBody(Body):
                 for qualifier in myps:
                     self.params['pbdep']['psdep'][lbl]['syn']['time'].append(self.time)
                     
-    #@decorators.parse_ref
-    #def sp(self,wavelengths=None,ref='allspdep',sigma=5.,depth=0.4,time=None):
-        #"""
-        #Compute spectrum and add results to the pbdep ParameterSet.
-        #"""
-        ##-- don't bother if we cannot do anything...
-        #if hasattr(self,'params') and 'pbdep' in self.params:
-            #if not ('spdep' in self.params['pbdep']): return None
-            ##-- compute the spectrum for all references
-            #for lbl in ref:
-                #base,lbl = self.get_parset(ref=lbl,type='syn')
-                #wavelengths_,specflux,cont = observatory.make_spectrum(self,ref=lbl,wavelengths=wavelengths,sigma=sigma,depth=depth)
-                #base['time'].append(self.time)
-                #base['wavelength'].append(wavelengths_)
-                #base['flux'].append(specflux)
-                #base['continuum'].append(cont)
-        
-    #@decorators.parse_ref
-    #def pl(self, wavelengths=None, ref='allpldep', sigma=5.,depth=0.4, time=None):
-        #"""
-        #Compute Stokes profiles and add results to the pbdep ParameterSet.
-        #"""
-        ## Don't bother if we cannot do anything...
-        #if hasattr(self,'params') and 'pbdep' in self.params:
-            #if not ('pldep' in self.params['pbdep']):
-                #return None
-            
-            ## Compute the Stokes profiles for all references
-            #for lbl in ref:
-                
-                ## Compute the Stokes profiles for this reference
-                #base, lbl = self.get_parset(ref=lbl, type='syn')
-                #output = observatory.stokes(self,ref=lbl,
-                         #wavelengths=wavelengths,sigma=sigma,depth=depth)
-                
-                ## If nothing was computed, continue on to the next
-                #if output is None:
-                    #continue
-                
-                ## Expand output and save it to the synthetic thing
-                #wavelengths_, I, V, Q , U, cont = output
-                
-                #base['time'].append(self.time)
-                #base['wavelength'].append(wavelengths_/10.)
-                #base['flux'].append(I)
-                #base['V'].append(V)
-                #base['Q'].append(Q)
-                #base['U'].append(U)
-                #base['continuum'].append(cont)
-    
-        
     
     
 class BodyBag(Body):
@@ -3806,14 +3735,17 @@ class BodyBag(Body):
         recursion depth can be reached. Now, the loading sees no function
         C{__getnewargs__} and will thus not try to load it.
         """
-        #-- make sure to pass on calls to builtin functions immediately to the
-        #   bodybag.
+        
+        # Make sure to pass on calls to builtin functions immediately to the
+        # bodybag.
         if name.startswith('__') and name.endswith('__'):
-            return super(BodyBag,self).__getattr__(name)        
-        #-- all other functions needs to pass by CallInstruct to see if they
-        #   can be called from BodyBag or from each object individually.
+            return super(BodyBag, self).__getattr__(name)
+        
+        # All other functions needs to pass by CallInstruct to see if they can
+        # can be called from BodyBag or from each object individually.
         else:
-            return CallInstruct(name,self.bodies)
+            return CallInstruct(name, self.bodies)
+    
     
     def __iter__(self):
         """
@@ -3824,11 +3756,14 @@ class BodyBag(Body):
         for body in self.bodies:
             yield body
     
-    def walk_type(self,type='syn'):
+    
+    def walk_type(self, type='syn'):
         """
         Walk through parameterSets of a certain type.
         
         This can be handy to walk through all 'syn', 'pbdep' or 'obs'.
+        
+        Overrides walk_type from Body
         
         @param type: type of dependable to walk through
         @type type: str, one of 'syn', 'pbdep', 'obs'
@@ -3853,7 +3788,8 @@ class BodyBag(Body):
         """
         return len(self.bodies)
     
-    def __getitem__(self,key):
+    
+    def __getitem__(self, key):
         """
         Implements various ways to get individual bodies.
         
@@ -3871,30 +3807,44 @@ class BodyBag(Body):
         @return: individual Body or BodyBag of subset
         @rtype: Body or BodyBag
         """
-        #-- via slicing
-        if isinstance(key,slice):
+        
+        # Via slicing
+        if isinstance(key, slice):
             return BodyBag([self[ii] for ii in range(*key.indices(len(self)))])
-        #-- via an integer
-        elif isinstance(key,int):
+        
+        # Via an integer
+        elif isinstance(key, int):
             return self.bodies[key]
+        
+        # Else it's an array (could be a string still, we're not checking that)
         else:
-            #-- try to make the input an array
+            
+            # Try to make the input an array
             try:
                 key = np.array(key)
             except:
-                raise IndexError("Cannot use instance of type {} for indexing".format(type(key)))
-            #-- integer array slicing
-            if key.dtype==np.dtype(int):
+                raise IndexError(("Cannot use instance of type {} for "
+                                  "indexing").format(type(key)))
+            
+            # Iinteger array slicing
+            if key.dtype == np.dtype(int):
                 return BodyBag([self[ii] for ii in key])
-            #-- boolean array slicing
-            elif key.dtype==np.dtype(bool):
+            
+            # Boolean array slicing
+            elif key.dtype == np.dtype(bool):
                 return BodyBag([self[ii] for ii in range(len(key)) if key[ii]])
-            #-- that's all I can come up with
+            
+            # That's all I can come up with
             else:
-                raise IndexError("Cannot use arrays of type {} for indexing".format(key.dtype))
+                raise IndexError(("Cannot use arrays of type {} for "
+                                  "indexing").format(key.dtype))
     
     def __str__(self):
+        """
+        String representation.
+        """
         return self.to_string()
+    
     
     def fix_mesh(self):
         """
@@ -6328,7 +6278,7 @@ def serialize(body, description=True, color=True, only_adjust=False,
     else:   
         return txt
 
-
+# If this module is run from a terminal as a script, execute the unit tests
 if __name__=="__main__":
     import doctest
     doctest.testmod()
