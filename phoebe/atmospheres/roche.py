@@ -56,7 +56,9 @@ def temperature_zeipel(system):
     
     See e.g. [VonZeipel1924]_ and [Lucy1967]_.
     
-    beta is gravity darkening parameter.
+    This law assumes the star is spherically symmetric.
+    
+    :math:`\beta` is called the gravity darkening (or brightening) parameter.
     
     Definition [Eq. 4.23 in Phoebe Scientific Reference]:
     
@@ -64,7 +66,6 @@ def temperature_zeipel(system):
     
         T_\mathrm{eff}^4 = T_\mathrm{pole}  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
         
-    
     with
     
         - :math:`\beta/\mathrm{gravb} = 1.00` for radiative atmospheres (:math:`T_\mathrm{eff}\geq 8000\,\mathrm{K}`)
@@ -79,36 +80,44 @@ def temperature_zeipel(system):
     @param system: object to compute temperature of
     @type system: Body
     """
-    #-- necessary global information: this should be the first parameterSet
-    #   in a Ordered dictionary
+    # Necessary global information: this should be the first parameterSet in an
+    # Ordered dictionary
     body = list(system.params.values())[0]
     if body.has_qualifier('teffpolar'):
-        Teff = body.request_value('teffpolar','K')
+        Teff = body.request_value('teffpolar', 'K')
         type = 'polar'
     else:
-        Teff = body.request_value('teff','K')
+        Teff = body.request_value('teff', 'K')
         type = 'mean'
+    
+    # We need the gravity brightening parameter and the polar surface gravity
+    # as a reference point
     beta = body.request_value('gravb')
     gp = body.request_value('g_pole')
-    #-- consistency check for gravity brightening
-    if Teff>=8000. and beta!=1.00:
+    
+    # Consistency check for gravity brightening
+    if Teff >= 8000. and beta != 1.00:
         logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 is a better approx than gravb={:.2f}'.format(Teff,beta))
-    elif Teff<=6600. and beta!=0.32:
+    elif Teff <= 6600. and beta != 0.32:
         logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 is a better approx than gravb={:.2f}'.format(Teff,beta))
-    elif beta<0.32 or beta>1.00:
+    elif beta < 0.32 or beta > 1.00:
         logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-    #-- compute G and Tpole
+    
+    # Compute G and Tpole
     Grav = abs(10**(system.mesh['logg']-2)/gp)**beta
-    if type=='mean':
+    
+    if type == 'mean':
         Tpole = Teff*(np.sum(system.mesh['size']) / np.sum(Grav*system.mesh['size']))**(0.25)
-    elif type=='polar':
+    elif type == 'polar':
         Tpole = Teff
     else:
         raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(type))
-    #-- now we can compute the local temperatures. We add a constraint to
-    #   the body so that we can access the polar temperature if needed
+    
+    # Now we can compute the local temperatures. We add a constraint to the body
+    # so that we can access the polar temperature if needed
     system.mesh['teff'] = Grav**0.25 * Tpole
     
+    #=== FORTRAN ATTEMPT DOESN'T GO ANY FASTER =======
     #Tpole,system.mesh['teff'] = froche.temperature_zeipel(system.mesh['logg'],
     #                   system.mesh['size'], Teff, ['mean','polar'].index(type),
     #                   beta, gp)
@@ -121,7 +130,8 @@ def temperature_espinosa(system):
     r"""
     Calculate local temperature according to [Espinosa2011]_.
     
-    This model doesn't need a gravity darkening parameter:
+    This model doesn't need a gravity darkening parameter, and assumes a single,
+    rotating star. The effecive temperature is computed via
     
     .. math::
     
@@ -130,6 +140,23 @@ def temperature_espinosa(system):
         \cos\hat{\theta} + \log\tan\frac{\hat{\theta}}{2} - \frac{\omega^2\tilde{r}^3\cos^3\theta}{3} - \cos\theta - \log\tan\frac{\theta}{2} = 0
         
     with :math:`\tilde{r} = r/R_e` the radius coordinate relative to the equatorial radius, and :math:`\theta` the colatitude.
+    
+    Let's slightly rephrase some of the key sentences from [Espinosa2011]_:
+    
+    They assume that the flux :math:`\mathbf{F}` in the envelope of a rotating
+    star is very close to
+    
+    .. math::
+    
+        \mathbf{F} = - f(r, \theta) \mathbf{g}_\mathrm{eff}
+    
+    Thus the energy flux vector is almost antiparallel to the effective gravity.
+    The authors claim this to be justified in a convective atmosphere, where
+    heat transport is mainly in the vertical direction, because convective
+    bubbles rise against gravity. In radiative regions, they say the flux is
+    antiparallel to the temperature gradient, which is slightly off the
+    potential gradient. Still, they say that their models have shown that this
+    deviation is very small, even for very fast rotation.
     
     @param system: object to compute temperature of
     @type system: Body
@@ -163,7 +190,7 @@ def temperature_espinosa(system):
     #    return sol
     #var_theta = np.array([newton(funczero,itheta,args=(icr,itheta)) for icr,itheta in zip(cr,theta)])
     
-    # Find var_theta for all points on the surface:
+    # Find var_theta for all points on the surface (Fortran version):
     var_theta = froche.espinosa(cr, theta, omega)
     
     # We scale everything to the polar effective temperature
@@ -234,6 +261,7 @@ def approximate_lagrangian_points(q, sma=1.):
     else:
         return (1.0-x_L1)*sma, (1-x_L2)*sma, (1-x_L3)*sma
 
+
 def exact_lagrangian_points(q, F=1.0, d=1.0, sma=1.):
     """
     Exact Langrangian points L1, L2 and L3.
@@ -283,6 +311,7 @@ def calculate_critical_potentials(q,F=1.,d=1.,component=1):
     Phi_L2 = 0.0
     Phi_L3 = 0.0
     return Phi_L1, Phi_L2, Phi_L3    
+
 
 def calculate_critical_radius(q,F=1.,d=1.,sma=1.,component=1,loc='pole'):
     """

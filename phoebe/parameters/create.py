@@ -176,7 +176,6 @@ from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.units import conversions
 from phoebe.units import constants
-from phoebe.utils import decoratorsmod
 from phoebe.io import ascii
 
 
@@ -191,9 +190,11 @@ def make_body(fctn):
     *args are passed to fctn
     **kwargs are passed to get_obs
     """
-    fctn.cache = {}
-    def make_body_decorator(fctn, *args,**kwargs):
+    @functools.wraps(fctn)
+    def make_body_decorator(*args,**kwargs):
+        print args, kwargs
         #-- first check if a body needs to be created
+        print fctn, args, kwargs
         create_body = kwargs.pop('create_body',False)
         #-- then make the parameterSets
         ps = fctn(*args,**kwargs)
@@ -226,8 +227,7 @@ def make_body(fctn):
                 myobs = observables(**kwargs)
                 ps = GenericBody(*ps,pbdep=myobs)
         return ps
-    return decoratorsmod.decorator(make_body_decorator, fctn)
-
+    return make_body_decorator
 
 
 
