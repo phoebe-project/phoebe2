@@ -341,7 +341,7 @@ class Bundle(object):
     #}  
     
     #{ Loading Data
-    def load_data(self,context,filename,passband=None,columns=None,components=None,name=None):
+    def load_data(self,context,filename,passband=None,columns=None,components=None,ref=None):
         """
         import data from a file, create multiple DataSets, load data,
         and add to corresponding bodies
@@ -360,10 +360,10 @@ class Bundle(object):
         @type name: str    
         """
         
-        if context=='rvobs':
-            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
-        elif context=='lcobs':
-            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': name})
+        if 'rv' in context:
+            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'lc' in context:
+            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         else:
             print("only lc and rv currently implemented")
         
@@ -390,6 +390,16 @@ class Bundle(object):
                 for ps in pss:
                     comp.add_pbdeps(ps)
                 
+    def create_syn(self,context,passband=None,components=None,ref=None):
+        """
+        
+        """
+        # create pbdeps and attach to the necessary object
+        # this function will be used for creating pbdeps without loading an actual file ie. creating a synthetic model only
+        # times will need to be provided by the compute options (auto will not load times out of a pbdep)
+        
+        raise NotImplementedError
+    
     def add_obs(self,objectname,dataset):
         """
         attach dataset to an object
@@ -859,7 +869,7 @@ class Bundle(object):
         Will automatically purge all signals attached through bundle
         """
         #~ self_copy = self.copy()
-        #~ self.purge_signals()
+        self.purge_signals()
         ff = open(filename,'w')
         pickle.dump(self,ff)
         ff.close()  
