@@ -194,6 +194,7 @@ from phoebe.algorithms import interp_nDgrid
 from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
+from phoebe.atmospheres import passbands as pbmod
 
 logger = logging.getLogger('ATMO.LD')
 logger.addHandler(logging.NullHandler())
@@ -966,136 +967,355 @@ def _prepare_grid(passband,atm):
 
 #{ Grid creators
 
-def compute_grid_ld_coeffs(atm_files,atm_pars,\
+def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
-                           filename=None,filetag='kurucz'):
+                           filetag='kurucz'):
     """
     Create an interpolatable grid of limb darkening coefficients.
     
-    Example usage::
-        
+    Example usage:
+    
+    **Case 0**: You want to run it with minimal settings (i.e. using all the
+    default settings):
+    
+        >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
+        >>> limbdark.compute_grid_ld_coeffs(atm_files)
+    
+    **Case 1**:  You want to compute limb darkening coefficients for a Kurucz
+    grid in ``teff`` and ``logg`` for solar metallicity. You want to use the
+    Claret limb darkening law and have the 2MASS.J and JOHNSON.V filter. To fit
+    them, you want to use the Levenberg-Marquardt method, with the stellar disk
+    sampled equidistantly in the disk radius coordinate (:math:`r`, as opposed
+    to limb angle :math:`\mu`). Finally you want to have a file written with the
+    prefix ``kurucz_p00`` to denote solar metallicity and grid type.
+    
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
         >>> limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
-              law='claret',passbands=['2MASS.J','JOHSON.V'],fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
-    
+        ...      law='claret',passbands=['2MASS.J','JOHNSON.V'],
+        ...      fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
+        
     This will create a FITS file, and this filename can be used in the
     C{atm} and C{ld_coeffs} parameters in Phoebe.
+    
+    **Case 2**: you want to add a passband to an existing file, say the one
+    previously generated. Since all settings are saved inside the FITS header,
+    you simply need to do:
+        
+        >>> atm_file = 'kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits'
+        >>> limbdark.compute_grid_ld_coeffs(atm_file, passbands=['2MASS.J'])
+    
+    **Case 3**: Like Case 1, but with Doppler beaming included:
+    
+        >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
+        >>> limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
+        ...      vgamma=[-500, -250, 0, 250, 500],
+        ...      law='claret',passbands=['2MASS.J','JOHNSON.V'],
+        ...      fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
+    
+    @param atm_files: a list of files of grids specific intensities that will be
+     used to integrate the passbands over
+    @type atm_files: list of str
+    @param atm_pars: names of the variables that will be interpolated in by
+     :py:func:`interp_ld_coeffs` (e.g. `teff`, `logg`...) except radial velocity
+     (that needs to be given by ``vgamma`` (see below)) and reddening parameters
+     (those need to be given by ``red_pars_iter``). Thus, all variables listed
+     here need to be inherent to the atmospheres themselves.
+    @type atm_pars: tuple of str
+    @param red_pars_iter: dictionary with reddening parameters that need to be
+     interpolated over by :py:func:`interp_ld_coeffs`. The keys are the names
+     of the parameters, the values are arrays for the grid.
+    @type red_pars_iter: dictionary
+    @param red_pars_fixed: dictionary with reddening parameters that need to
+     be fixed. The keys are the names of the parameters, the values the
+     corresponding fixed values.
+    @type red_pars_fixed: dictionary
+    @param vgamma: list of values to use for Doppler beaming (i.e. velocity in
+     km/s)
+    @type vgamma: list of floats
+    @param passbands: list of passbands to include. You are allowed to use
+     ``'2MASS*'`` to denote all 2MASS filters
+    @type passbands: list of str
+    @param law: limb darkening law to use
+    @type law: str, any recognised limb darkening law
+    @param fitmethod: method used to fit the limb darkening law
+    @type fitmethod: any recognised fit method
+    @param filetag: tag used as prefix for the generated filename
+    @type filetag: str
     """
     overwrite = None
-    #-- OPEN.BOL must always be in there:
-    passbands = sorted(list(set(list(passbands)+['OPEN.BOL'])))
-    print("Creating grid from {} in passbands {}".format(", ".join(atm_files),", ".join(passbands)))
-    if filename is None:
-        filename = '{}_{}_{}_'.format(filetag,law,fitmethod)
+    
+    # Let's prepare the list of passbands:
+    #  - make sure 'OPEN.BOL' is always in there, this is used for bolometric
+    #    intensities
+    #  - Make sure the list of passbands has no duplicates
+    #  - expand '*' to all passbands matching the pattern (this also removes
+    #    passbands that are not defined)
+    passbands_ = sorted(list(set(list(passbands) + ['OPEN.BOL'])))
+    passbands = []
+    for passband in passbands_:
+        these_responses = pbmod.list_response(name=passband)
+        passbands += these_responses
+        if not these_responses:
+            logger.warning('No passbands found matching pattern {}'.format(passband))
+    passbands = sorted(set(passbands))
+    
+    # If the user gave a list of files, it needs to a list of specific
+    # intensities.
+    if not isinstance(atm_files, str):
+        
+        # The filename contains the filetag, the ld law, the fit method, ...
+        filename = '{}_{}_{}_'.format(filetag, law, fitmethod)
         filename+= '_'.join(atm_pars)
+        
+        # ... reddening parameters (free), ...
         if red_pars_iter:
             filename += '_' + '_'.join(sorted(list(red_pars_iter.keys())))
+            
+        # ... reddening parameters (fixed), ...
         for key in red_pars_fixed:
             filename += '_{}{}'.format(key,red_pars_fixed[key])
+            
+        # ... radial velocity (if given)
         if vgamma is not None:
             filename += '_vgamma'
+            
         filename += '.fits'
-    #-- if the file already exists, we'll append to it; so don't do any work
-    #   twice (but first backup it!)
-    if os.path.isfile(filename):
-        #-- safely backup existing file if needed
+        
+        logger.info(("Creating new grid from {} in passbands "
+                "{}").format(", ".join(atm_files),",  ".join(passbands)))
+    
+    # If the user gave one file, it needs to a previously computed grid of
+    # limbdarkening coefficients. It that case we can append new passbands to it
+    else:
+        filename = atm_files
+        
+        # Safely backup existing file if needed
         if os.path.isfile(filename+'.backup'):
             if overwrite is None:
-                    answer = raw_input('Backup file for {} already exists. Overwrite? (Y/n): '.format(filename))
-                    if answer=='n': overwrite = False
-                    elif answer=='y': overwrite = None
-                    elif answer=='Y' or answer=='': overwrite = True
-                    else:
-                        raise ValueError("option '{}' not recognised".format(answer))
+                answer = raw_input('Backup file for {} already exists. Overwrite? (Y/n): '.format(filename))
+                if answer == 'n':
+                    overwrite = False
+                elif answer == 'y':
+                    overwrite = None
+                elif answer == 'Y' or answer == '':
+                    overwrite = True
+                else:
+                    raise ValueError("option '{}' not recognised".format(answer))
+            
             if overwrite is True:
                 shutil.copy(filename,filename+'.backup')
-        #-- sort out which passbands are already computed
+        
+        # If we need to expand an existing file, we need to deduce what
+        # parameters were used to compute it.
+        
+        # Sort out which passbands are already computed
         with pyfits.open(filename) as ff:
             existing_passbands = [ext.header['extname'] for ext in ff[1:]]
-        logger.info("Skipping passbands {} (they already exist)".format(set(passbands) & set(existing_passbands)))
-        passbands = sorted(list(set(passbands)-set(existing_passbands)))
-    else:
-        logger.info("Gridfile '{}' does not exist yet".format(filename))
-    #-- collect parameter names and values
+        
+        overlap = set(passbands) & set(existing_passbands)
+        if len(overlap):
+            logger.info(("Skipping passbands {} (they already exist"
+                         ")").format(overlap))
+        
+        passbands = sorted(list(set(passbands) - set(existing_passbands)))
+        
+        # Set all the parameters from the contents of this FITS file
+        with pyfits.open(filename) as ff:
+            
+            # Fitmethod and law are easy
+            fitmethod = ff[0].header['C__FITMETHOD']
+            law = ff[0].header['C__LD_FUNC']
+            
+            # Vgamma: fitted and range?
+            if 'vgamma' in ff[1].columns.names:
+                vgamma = np.sort(np.unique(ff[1].data.field('vgamma')))
+            else:
+                vgamma = None
+            
+            # Fixed reddening parameters and specific intensity files require
+            # a bit more work:
+            red_pars_fixed = dict()
+            red_pars_iter = dict()
+            atm_files = []
+            atm_pars = []        
+            
+            for key in ff[0].header.keys():
+                
+                # Atmosphere parameter names:
+                if key[:6] == 'C__AI_':
+                    atm_pars.append(key[6:])
+                
+                # Iterated reddening parameters:
+                if key[:6] == 'C__RI_':
+                    name = key[6:]
+                    red_pars_iter[name] = np.sort(np.unique(ff[1].data.field(name)))
+                
+                # Fixed reddening parameters:
+                if key[:6] == 'C__RF_':
+                    red_pars_fixed[key[6:]] = ff[0].header[key]
+
+                # Specific intensity files (should be located in correct
+                # directory (phoebe/atmospheres/tables/spec_intens)
+                elif key[:10] == 'C__ATMFILE':
+                    direc = os.path.dirname(os.path.abspath(__file__))
+                    atm_file = os.path.join(direc, 'tables', 'spec_intens',
+                                            ff[0].header[key])
+                    atm_files.append(atm_file)
+            
+    # Build a comprehensive logging message
+    red_pars_fix_str = ['{}={}'.format(key, red_pars_fixed[key]) for \
+          key in red_pars_fixed]
+    red_pars_fix_str = ", ".join(red_pars_fix_str)
+    logger.info(("Using specific intensity files "
+                "{}").format(", ".join(atm_files)))
+    logger.info(("Settings: fitmethod={}, ld_func={}, "
+                 "reddening={}").format(fitmethod, law, red_pars_fix_str))
+    logger.info(("Grid in atmosphere parameters: "
+                 "{}").format(", ".join(atm_pars)))
+    logger.info(("Grid in reddening parameters: "
+                 "{}").format(", ".join(list(red_pars_iter.keys()))))
+    logger.info(("Grid in vgamma: {}".format(vgamma)))
+            
+    # Collect parameter names and values
     atm_par_names = list(atm_pars)
     red_par_names = sorted(list(red_pars_iter.keys()))
     other_pars = [red_pars_iter[name] for name in red_par_names]
     if vgamma is not None:
         other_pars.append(vgamma)
-    #-- prepare to store the results: for each passband, we need an array.
-    #   The rows of that array will be the grid points + coefficients +
-    #   fit statistics
+        
+    # Prepare to store the results: for each passband, we need an array. The
+    # rows of that array will be the grid points + coefficients + fit statistics
     output = {passband:[] for passband in passbands}
+    
     for atm_file in atm_files:
-        #-- special case if blackbody: we need to build our atmosphere model
-        if atm_file=='blackbody':
-            wave_ = np.logspace(2,5,10000)
-        for nval,val in enumerate(iter_grid_dimensions(atm_file,atm_par_names,other_pars)):
-            print(atm_file,val)
+        
+        # Special case if blackbody: we need to build our atmosphere model
+        if atm_file == 'blackbody':
+            wave_ = np.logspace(2, 5, 10000)
+        
+        # Check if the file exists
+        elif not os.path.isfile(atm_file):
+            raise ValueError(("Cannot fit LD law, specific intensity file {} "
+                             "does not exist").format(atm_file))
             
-            #-- the first values are from the atmosphere grid
-            atm_kwargs = {name:val[i] for i,name in enumerate(atm_par_names)}
+        iterator = iter_grid_dimensions(atm_file, atm_par_names, other_pars)
+        for nval, val in enumerate(iterator):
+            
+            logger.info("{}: {}".format(atm_file, val))
+            
+            # The first values are from the atmosphere grid
+            atm_kwargs = {name:val[i] for i, name in enumerate(atm_par_names)}
             val_ = val[len(atm_par_names):]
-            #-- the next values are from the reddening
-            red_kwargs = {name:val_[i] for i,name in enumerate(red_par_names)}
+            
+            # The next values are from the reddening
+            red_kwargs = {name:val_[i] for i, name in enumerate(red_par_names)}
+            
             #   but we need to also include the fixed ones
             for key in red_pars_fixed:
                 red_kwargs[key] = red_pars_fixed[key]
             val_ = val_[len(red_par_names):]
-            #-- perhaps there was vrad information too.
+            
+            # Perhaps there was vrad information too.
             if val_:
                 vgamma = val_[0]
-            #-- retrieve the limb darkening law
-            if atm_file!='blackbody':
-                mu,Imu = get_limbdarkening(atm_file,atm_kwargs=atm_kwargs,
-                                       red_kwargs=red_kwargs,vgamma=vgamma,
+            
+            # Retrieve the limb darkening law
+            if atm_file != 'blackbody':
+                mu, Imu = get_limbdarkening(atm_file, atm_kwargs=atm_kwargs,
+                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                        passbands=passbands)
-                print(atm_file,atm_kwargs)
-            elif law=='uniform':
-                Imu_blackbody = sed.blackbody(wave_,val[0],vrad=vgamma)
-                Imu = sed.synthetic_flux(wave_*10,Imu_blackbody,passbands)
+            
+            # Blackbodies must have a uniform LD law
+            elif law == 'uniform':
+                Imu_blackbody = sed.blackbody(wave_, val[0], vrad=vgamma)
+                Imu = sed.synthetic_flux(wave_*10, Imu_blackbody, passbands)
+            
             else:
                 raise ValueError("Blackbodies must have a uniform LD law")
-                
-            if law!='uniform':
-                for i,pb in enumerate(passbands):
-                    #-- fit a limbdarkening law:
-                    csol,res,dflux = fit_law(mu,Imu[:,i]/Imu[0,i],law=law,fitmethod=fitmethod)
-                    output[pb].append(list(val) + [res,dflux] + list(csol) + [Imu[0,i]])
-                    print(pb, output[pb][-1])
+            
+            # Only if the law is not uniform, we really need to fit something
+            if law != 'uniform':
+                for i, pb in enumerate(passbands):
+                    # Fit a limbdarkening law:
+                    csol, res, dflux = fit_law(mu, Imu[:, i]/Imu[0, i],
+                                               law=law, fitmethod=fitmethod)
+                    output[pb].append(list(val) + [res, dflux] + list(csol) + \
+                                      [Imu[0, i]])
+                    
+                    logger.info("{}: {}".format(pb, output[pb][-1]))
+            
+            # For a uniform limb darkening law, we can just take the center-of-
+            # disk intensity
             else:
                 csol = []
-                for i,pb in enumerate(passbands):
-                    #-- don't fit a law, we know what it is
-                    output[pb].append(list(val) + [0.0,0.0] + [Imu[i]])
-                    print(pb, output[pb][-1])
-    #-- write to a FITS file
+                for i, pb in enumerate(passbands):
+                    
+                    # So don't fit a law, we know what it is
+                    output[pb].append(list(val) + [0.0, 0.0] + [Imu[i]])
+            
+                    logger.info("{}: {}".format(pb, output[pb][-1]))
+            
+    # Write the results to a FITS file
+    
+    # Names of the columns
     col_names = atm_par_names + red_par_names
     if vgamma is not None and 'vgamma' not in col_names:
             col_names.append('vgamma')
-    col_names = col_names + ['res','dflux'] + ['a{:d}'.format(i+1) for i in range(len(csol))] + ['Imu1']
-    #-- if the file already exists, append to it
+    col_names = col_names + ['res', 'dflux'] + \
+                   ['a{:d}'.format(i+1) for i in range(len(csol))] + ['Imu1']
+    
+    # If the file already exists, append to it
     if os.path.isfile(filename):
         filename = pyfits.open(filename,mode='update')
-    #-- append all the tables
+    
+    # Append all the tables
     for pb in sorted(list(output.keys())):
         grid = np.array(output[pb]).T
         header = dict(extname=pb)
-        filename = fits.write_array(grid,filename,col_names,header_dict=header,ext='new',close=False)
-    filename[0].header.update('HIERARCH FITMETHOD',fitmethod,'method used to fit the LD coefficients')
-    filename[0].header.update('LD_FUNC',law,'fitted limb darkening function')
+        filename = fits.write_array(grid, filename, col_names,
+                                    header_dict=header, ext='new', close=False)
+    
+    # Store as much information in the FITS header as possible, we could need
+    # this latter on if we want to expand a certain table.
+    
+    # Some information on the type of file, the fitmethod and ld law
+    filename[0].header.update('FILETYPE', 'LDCOEFFS', 'type of file')
+    filename[0].header.update('HIERARCH C__FITMETHOD', fitmethod,
+                              'method used to fit the LD coefficients')
+    filename[0].header.update('HIERARCH C__LD_FUNC', law,
+                              'fitted limb darkening function')
+    
+    # Info on the fixed reddening parameters
     for key in red_pars_fixed:
-        filename[0].header.update('HIERARCH '+key,red_pars_fixed[key],'fixed reddening parameter')
+        filename[0].header.update('HIERARCH C__RF_'+key, red_pars_fixed[key],
+                                  'fixed reddening parameter')
+    
+    # Info on the interpolatable reddening parameters
+    for key in red_pars_iter:
+        filename[0].header.update('HIERARCH C__RI_'+key,
+                                  key, 'iterated reddening parameter')
+    
+    # Info on atmospheric parameters
+    for key in atm_pars:
+        filename[0].header.update('HIERARCH C__AI_'+key,
+                                  key, 'iterated atmosphere parameter')
+    
+    # Info on used atmosphere files.
+    for iatm, atm_file in enumerate(atm_files):
+        filename[0].header.update('HIERARCH C__ATMFILE{:03d}'.format(iatm),
+                 os.path.basename(atm_file), 'included specific intensity file')
         
-    #-- copy keys from first atm_file
-    if atm_files[0]!='blackbody':
+    # Copy keys from first atm_file
+    if atm_files[0] != 'blackbody':
         with pyfits.open(atm_files[0]) as gg:
             for key in gg[0].header.keys():
-                if key in ['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','EXTEND']:
+                keys = ['SIMPLE', 'BITPIX', 'NAXIS','NAXIS1','NAXIS2','EXTEND']
+                if key in keys:
                     continue
-                filename[0].header.update(key,gg[0].header[key],'key from first atm_file')
+                filename[0].header.update(key, gg[0].header[key],
+                                          'key from first atm_file')
         
     filename.close()
 

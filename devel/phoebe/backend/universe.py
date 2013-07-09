@@ -60,6 +60,8 @@ the triangles numerically. Alternatively (and recommended), one can also compute
 these quantities from implicit equations. See L{Body} for more details and
 examples.
 
+.. inheritance-diagram:: Body
+
 Subsection 1.2. PhysicalBody
 ----------------------------
 
@@ -68,6 +70,8 @@ capabilities by making subdivision available, and implementing functions to
 generate light curves (L{PhysicalBody.lc}), radial velocity curves
 (L{PhysicalBody.rv}), spectra (L{PhysicalBody.spectrum}) and interferometric
 visibilities (L{PhysicalBody.ifm}).
+
+.. inheritance-diagram:: PhysicalBody
 
 Subsection 1.3. BodyBag
 -----------------------
@@ -81,6 +85,10 @@ called that is not implemented in L{Body} or L{BodyBag}, the L{BodyBag} will
 assume that the function exists for every L{Body} in the L{BodyBag}, and call
 these functions. E.g. calling an intensity function on the BodyBag, will set
 the intensities for all Bodies individually.
+
+.. inheritance-diagram:: BodyBag
+
+.. inheritance-diagram:: BinaryBag
 
 Subsection 1.4. Subclassing PhysicalBody
 ----------------------------------------
@@ -877,6 +885,7 @@ class Body(object):
         reset_and_clear
         clear_synthetic
         
+
     **Statistics**
     
     .. autosummary::
@@ -907,6 +916,7 @@ class Body(object):
         ifm
         pl
         sp
+
     
     The equality operator (``==`` and ``!=``) is implemented and will return
     True only if the left and right hand side are of the same class and have
@@ -1479,8 +1489,13 @@ class Body(object):
             probability. To get the probability itself, you can use scipy on
             the :math:`\chi^2`:
                 
-            >>> k = Ndata - Npars
-            >>> prob = scipy.stats.distributions.chi2.cdf(chi2,k)
+            >>> n_data = 100
+            >>> n_pars = 7
+            >>> chi2 = 110.0
+            >>> k = n_data - n_pars
+            >>> prob = scipy.stats.distributions.chi2.cdf(chi2, k)
+            >>> print(prob)
+            0.889890617416
             
             If ``prob`` is close to 1 then your model is implausible, if it is
             close to zero it is very plausible.
@@ -1913,15 +1928,16 @@ class Body(object):
         """
         Rotate a Body around a pivot point
         """
-        return rotate_and_translate(self, theta=theta, incl=incl, Omega=Omega,
-               pivot=pivot, los=los, incremental=incremental, subset=subset)
+        return self.rotate_and_translate(theta=theta, incl=incl,
+               Omega=Omega, pivot=pivot, los=los, incremental=incremental,
+               subset=subset)
     
     
     def translate(self,loc=(0,0,0), los=(0,0,+1),incremental=False, subset=None):
         """
         Translate a Body to another location.
         """
-        return rotate_and_translate(self, loc=loc, los=los,
+        return self.rotate_and_translate(loc=loc, los=los,
                 incremental=incremental, subset=subset)
     
     
@@ -2002,18 +2018,20 @@ class Body(object):
         
         Comparison between numeric normals and true normals for a sphere. The
         numeric normals are automatically computed for an Ellipsoid. For a
-        sphere, they are easily defined.
+        sphere, they are easily defined. The example below doesn't work anymore
+        because the Ellipsoid class has been removed. Perhaps we re-include it
+        again at some point.
         
-        >>> sphere = Ellipsoid()
-        >>> sphere.compute_mesh(delta=0.3)
+        >>> #sphere = Ellipsoid()
+        >>> #sphere.compute_mesh(delta=0.3)
         
-        >>> p = mlab.figure()
-        >>> sphere.plot3D(normals=True)
+        >>> #p = mlab.figure()
+        >>> #sphere.plot3D(normals=True)
         
-        >>> sphere.mesh['normal_'] = sphere.mesh['center']
-        >>> sphere.plot3D(normals=True)
-        >>> p = mlab.gcf().scene.camera.parallel_scale=0.3
-        >>> p = mlab.draw()
+        >>> #sphere.mesh['normal_'] = sphere.mesh['center']
+        >>> #sphere.plot3D(normals=True)
+        >>> #p = mlab.gcf().scene.camera.parallel_scale=0.3
+        >>> #p = mlab.draw()
             
         """
         # Normal is cross product of two sides
@@ -2022,7 +2040,7 @@ class Body(object):
             # Compute the sides
             side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
                     self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
-            side2 = self.mesh[prefix+'triangle'][:,0*self.dom:1*self.dim] -\
+            side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
                     self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
             
             # Compute the corss product
@@ -3590,7 +3608,7 @@ class BodyBag(Body):
     Append new bodies to an existing BodyBag:
     
     >>> bb2.append(bb[1])
-    >>> for star in bb2:
+    >>> for star in bb2.bodies:
     ...    print(star.params['star']['label'])
     star0
     star2
@@ -4215,7 +4233,10 @@ class AccretionDisk(PhysicalBody):
     Flaring Accretion Disk.
     
     The implementation of the L{AccretionDisk} follows closely the descriptions
-    presented in the papers of U{Copperwheat et al. (2010) <http://adsabs.harvard.edu/abs/2010MNRAS.402.1824C>} and U{Wood et al. (1992) <http://adsabs.harvard.edu/abs/1992ApJ...393..729W>}.
+    presented in the papers of [Copperwheat2010]_ and [Wood1992]_.
+    
+     <http://adsabs.harvard.edu/abs/2010MNRAS.402.1824C>
+     <http://adsabs.harvard.edu/abs/1992ApJ...393..729W>
     
     There is no limb-darkening included yet.
     
@@ -4447,10 +4468,12 @@ class Star(PhysicalBody):
     Construct a simple star with the default parameters representing the Sun
     (sort of, don't start nitpicking):
     
-    >>> star_pars = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True,label='mystar')
-    >>> lcdep1 = parameters.ParameterSet(frame='phoebe',context='lcdep',ref='mylc')
-    >>> mesh = parameters.ParameterSet(frame='phoebe',context='mesh')
-    >>> star = Star(star_pars,mesh,pbdep=[lcdep1])
+    >>> star_pars = parameters.ParameterSet(frame='phoebe', context='star',
+    ...     add_constraints=True, label='mystar')
+    >>> lcdep1 = parameters.ParameterSet(frame='phoebe', context='lcdep',
+    ...     ref='mylc')
+    >>> mesh = parameters.ParameterSet(frame='phoebe', context='mesh:marching')
+    >>> star = Star(star_pars, mesh, pbdep=[lcdep1])
     
     We initialized the star with these parameters::
     

@@ -85,7 +85,7 @@ def image(the_system, ref='__bol', context='lcdep',
     
     >>> vega = phoebe.create.from_library('vega',create_body=True)
     >>> vega.set_time(0.)
-    >>> image(vega)
+    >>> xlim, ylim, patch = image(vega)
     
     .. image:: images/backend_observatory_image01.png 
        :scale: 20 %                                   
@@ -98,8 +98,9 @@ def image(the_system, ref='__bol', context='lcdep',
     smart default colormaps. E.g. for the effective temperature, the following
     two expressions yield the same result:
     
-    >>> image(vega,select='teff')
-    >>> image(vega,select='teff',cmap=plt.cm.hot,background='0.7')
+    >>> xlims, ylims, patch = image(vega, select='teff')
+    >>> xlims, ylims, patch = image(vega, select='teff', cmap=pl.cm.hot,
+    ...                             background='0.7')
     
     .. image:: images/backend_observatory_image02.png 
        :scale: 20 %                                   
@@ -112,8 +113,8 @@ def image(the_system, ref='__bol', context='lcdep',
     settings for the colorscale via ``vmin`` and ``vmax`` (if you set the
     limits, beware that the units of RV are Rsol/d!):
     
-    >>> image(vega,select='rv')
-    >>> image(vega,select='rv',vmin=-10,vmax=10)
+    >>> xlims, ylims, patch = image(vega, select='rv')
+    >>> xlims, ylims, patch = image(vega, select='rv', vmin=-10, vmax=10)
     
     +---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image03.png | .. image:: images/backend_observatory_image04.png |
@@ -144,9 +145,9 @@ def image(the_system, ref='__bol', context='lcdep',
     should make the object appear to `glow' (I find that it works better for
     hot objects).
     
-    >>> phoebe.image(vega,select='teff',cmap='blackbody')
-    >>> phoebe.image(vega,select='teff',cmap='blackbody_proj')
-    >>> phoebe.image(vega,select='teff',cmap='eye')
+    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='blackbody')
+    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='blackbody_proj')
+    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='eye')
     
     +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image05.png | .. image:: images/backend_observatory_image06.png | .. image:: images/backend_observatory_image07.png |
@@ -166,13 +167,14 @@ def image(the_system, ref='__bol', context='lcdep',
     the scaling of the axis to be ``equal``, if you don't want that you'll need
     to readjust them yourself afterwards.
     
-    >>> xlim,ylim,patch = phoebe.image(vega,ax=ax,background='white')
-    >>> plt.xlim(xlim)
-    >>> plt.ylim(ylim)
-    >>> plt.xlabel("X-Distance [$R_\odot$]")
-    >>> plt.ylabel("Y-Distance [$R_\odot$]")
+    >>> ax = pl.gca()
+    >>> xlim, ylim, patch = phoebe.image(vega,ax=ax,background='white')
+    >>> p = pl.xlim(xlim)
+    >>> p = pl.ylim(ylim)
+    >>> p = pl.xlabel("X-Distance [$R_\odot$]")
+    >>> p = pl.ylabel("Y-Distance [$R_\odot$]")
     
-    >>> cbar = plt.colorbar(patch)
+    >>> cbar = pl.colorbar(patch)
     >>> cbar.set_label('Relative flux')
     
     +---------------------------------------------------+---------------------------------------------------+
@@ -191,7 +193,7 @@ def image(the_system, ref='__bol', context='lcdep',
     Finally, an experimental option is to compute the Fourier transform of
     an image instead of the normal image:
     
-    >>> image(vega,fourier=True)
+    >>> xlims, ylims, patch = image(vega,fourier=True)
     
     .. image:: images/backend_observatory_image10.png 
        :width: 233px                                   
@@ -486,9 +488,44 @@ def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
         * ``longitude``: longitudinal lines
         * ``latitude``: latitudinal lines
         * ``B``: magnetic field lines
+        * ``teff``: effective temperature lines
+        * ... (any column in the mesh)
     
-    The dictionary ``prop`` is passed on to ``plt.clabel``, and can for example
-    be ``prop = dict(inline=1, fontsize=14, fmt=='%.0f G')``.
+    The dictionary ``prop`` is passed on to ``pl.clabel``, and can for example
+    be ``prop = dict(inline=1, fontsize=14, fmt='%.0f G')``.
+    
+    **Example usage**
+    
+    First create a star like Vega.
+    
+    >>> vega = phoebe.create.from_library('vega',create_body=True)
+    >>> vega.set_time(0.)
+
+    The make three images, each time overlaying some contours. Note that are
+    some difficulties with the longitudinal contour lines, because of the
+    discontinuity at the pole and the longitudinal stitch. The quality of those
+    plots will depend heavily on the resolution of the mesh (more than for other
+    contour lines).
+    
+    >>> image(vega)
+    >>> contour(vega, select='longitude')
+
+    >>> image(vega)
+    >>> contour(vega, select='latitude', colors='k', linewidths=2, linestyles='-')
+
+    >>> image(vega)
+    >>> contour(vega, select='teff', levels=[11000, 10500,10000,9500,9000],
+    ...     cmap=plt.cm.hot, linewidths=2,
+    ...     prop=dict(inline=1, fontsize=14, fmt='%.0f K'))
+
+    +---------------------------------------------------------+------------------------------------------------------+------------------------------------------------------+
+    | .. image:: images/backend_observatory_contour01.png     | .. image:: images/backend_observatory_contour02.png  | .. image:: images/backend_observatory_contour03.png  |
+    |   :width: 233px                                         |   :width: 233px                                      |   :width: 233px                                      |
+    |   :height: 233px                                        |   :height: 233px                                     |   :height: 233px                                     |
+    |   :align: center                                        |   :align: center                                     |   :align: center                                     |
+    +---------------------------------------------------------+------------------------------------------------------+------------------------------------------------------+    
+    
+    
     """
     # Set some defaults
     if prop is None:
@@ -1708,7 +1745,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     to the ``system``.
     
     Detailed configuration of the computations is provided via the optional
-    :ref:`compute <parlabel-phoebe-compute>`: parameterSet, given to the
+    :ref:`compute <parlabel-phoebe-compute>` parameterSet, set via the
     ``params`` keyword::
     
             time auto   --   phoebe Compute observables of system at these times
@@ -1725,7 +1762,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     But for convenience, all parameters in this parameterSet can also be
     given as kwargs.
         
-    You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
+    You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet for
+    multithreading across different cores and/or machines.
     
     The keywords ``extra_func`` and ``extra_func_kwargs`` accept a list of extra
     functions to run after each time step. You can use this for example to plot
@@ -1740,13 +1778,17 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     >>> vega = phoebe.create.from_library('vega')
     >>> mesh = phoebe.ParameterSet(context='mesh:marching')
-    >>> lcdeps, lcobs = phoebe.parse_phot('vega.phot')
-    >>> vega = phoebe.Star(vega,mesh,pbdep=lcdeps,obs=lcobs)
+    >>> lcobs, lcdeps = phoebe.parse_phot('../../phoebe-testsuite/vega/Vega.phot')
+    >>> vega = phoebe.Star(vega, mesh=mesh, pbdep=lcdeps, obs=lcobs)
     
-    Then we can easily compute the photometry to match the observations:
+    Then we can easily compute the photometry to match the observations in a few
+    alternative ways:
     
     >>> compute(vega)
-    >>> compute(vega,subdiv_num=2)
+    >>> compute(vega, subdiv_num=2)
+    
+    >>> mpi = phoebe.ParameterSet(context='mpi', np=4)
+    >>> compute(vega, subdiv_num=2, mpi=mpi)
     
     
     
@@ -2136,9 +2178,11 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
 
 
 #}
-
-
-
+# If this module is run from a terminal as a script, execute the unit tests
+if __name__=="__main__":
+    import phoebe
+    import doctest
+    doctest.testmod()
 
 
 

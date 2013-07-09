@@ -17,7 +17,8 @@ Short list of available systems:
 >>> import pylab as pl
 >>> responses = list_response('*.*')
 >>> systems = [response.split('.')[0] for response in responses]
->>> set_responses = sorted(set([response.split('.')[0] for response in systems]))
+>>> set_responses = sorted(set([response.split('.')[0] 
+...                                for response in systems]))
 >>> for i,resp in enumerate(set_responses):
 ...    print '%10s (%3d filters)'%(resp,systems.count(resp))
      2MASS (  3 filters)
@@ -170,8 +171,8 @@ def get_response(passband):
     wave, response = np.loadtxt(photfile, unpack=True)[:2]
     
     # make sure the contents are sorted according to wavelength
-    sa = np.argsort(wave)
-    return wave[sa], response[sa]
+    sort_array = np.argsort(wave)
+    return wave[sort_array], response[sort_array]
 
 
 def eff_wave(passband, model=None):
@@ -179,7 +180,7 @@ def eff_wave(passband, model=None):
     Return the effective wavelength of a photometric passband.
     
     The effective wavelength is defined as the average wavelength weighted with
-    the response curve.
+    the response curve, and is given in angstrom.
     
     >>> eff_wave('2MASS.J')
     12412.136241640892
@@ -196,42 +197,57 @@ def eff_wave(passband, model=None):
     @rtype: float or numpy array
     """
     
-    #-- if passband is a string, it's the name of a passband: put it in a container
-    #   but unwrap afterwards
-    if isinstance(passband,str):
+    # If passband is a string, it's the name of a passband: put it in a
+    # container but unwrap afterwards
+    if isinstance(passband, str):
         single_band = True
         passband = [passband]
-    #-- else, it is a container
+        
+    # Else, it is a container
     else:
         single_band = False
-        
+       
+    # Then run over each passband and compute the effective wavelength   
     my_eff_wave = []
     for ipassband in passband:
+        
+        # If the passband is not defined, set it to nan, otherwise compute the
+        # effective wavelength.
         try:
-            wave,response = get_response(ipassband)
+            wave, response = get_response(ipassband)
+            
+            # If a model is given take it into account
             if model is None:
-                this_eff_wave = np.average(wave,weights=response)
+                this_eff_wave = np.average(wave, weights=response)
             else:
-                #-- interpolate response curve onto higher resolution model and
-                #   take weighted average
-                is_response = response>1e-10
-                start_response,end_response = wave[is_response].min(),wave[is_response].max()
-                fluxm = 10**np.interp(np.log10(wave),np.log10(model[0]),np.log10(model[1]))
-                this_eff_wave = np.trapz(wave*fluxm*response,x=wave) / np.trapz(fluxm*response,x=wave)
-        #-- if the passband is not defined:
+                # Interpolate response curve onto higher resolution model and
+                # take weighted average
+                #is_response = response > 1e-10
+                #start_response = wave[is_response].min()
+                #end_response = wave[is_response].max()
+                fluxm = 10**np.interp(np.log10(wave), np.log10(model[0]),
+                                      np.log10(model[1]))
+                this_eff_wave = np.trapz(wave*fluxm*response, x=wave) / \
+                                np.trapz(fluxm*response, x=wave)
+        
+        # If the passband is not defined, set the effective wavelength to nan
         except IOError:
             this_eff_wave = np.nan
+            
+        # Remember the result    
         my_eff_wave.append(this_eff_wave)
     
+    # And provide an intuitive return value: if the user gave a single passband,
+    # return a single wavelength. Otherwise return an array
     if single_band:
         my_eff_wave = my_eff_wave[0]
     else:
-        my_eff_wave = np.array(my_eff_wave,float)
+        my_eff_wave = np.array(my_eff_wave, float)
     
     return my_eff_wave
 
 
-def list_response(name):
+def list_response(name='*'):
     """
     List available response curves matching C{name}.
     
@@ -245,7 +261,8 @@ def list_response(name):
     @return: list of responses
     @rtype: list of str
     """
-    responses = sorted(glob.glob(os.path.join(os.path.dirname(__file__),'ptf',name)))
+    responses = sorted(glob.glob(os.path.join(os.path.dirname(__file__),
+                                 'ptf', name)))
     return [os.path.basename(resp) for resp in responses]
 
     
@@ -266,33 +283,41 @@ def get_info(passbands=None):
         - Fnu0, Fnu0_units, Fnu0_lit,
         - source
     
-    @param passbands: list of passbands to get the information from. The input order is equal to the output order. If C{None}, all filters are returned.
+    @param passbands: list of passbands to get the information from.
+      The input order is equal to the output order. If C{None}, all filters are
+      returned.
     @type passbands: iterable container (list, tuple, 1Darray)
     @return: record array containing all information on the requested passbands.
     @rtype: record array
     """
-    zp_file = os.path.join(os.path.dirname(__file__),'ptf','zeropoints.dat')
-    zp = np.loadtxt(zp_file,dtype=str,unpack=True)
-    header = ['passband','eff_wave','type','vegamag','vegamag_lit','ABmag',
-              'ABmag_lit','STmag','STmag_lit','Flam0','Flam0_units','Flam0_lit',
-              'Fnu0','Fnu0_units','Fnu0_lit','source']
-    types = ['S50','>f8','S3','>f8','int32','>f8','int32','>f8','int32','>f8',
-             'S50','int32','>f8','S50','int32','S100']
-    dtype = [(head,typ) for head,typ in zip(header,types)]
+    # Read in the file
+    zp_file = os.path.join(os.path.dirname(__file__), 'ptf', 'zeropoints.dat')
+    zp_table = np.loadtxt(zp_file, dtype=str, unpack=True)
+    
+    # Define column name and type
+    header = ['passband', 'eff_wave', 'type', 'vegamag', 'vegamag_lit', 'ABmag',
+              'ABmag_lit', 'STmag', 'STmag_lit', 'Flam0', 'Flam0_units',
+              'Flam0_lit', 'Fnu0', 'Fnu0_units', 'Fnu0_lit', 'source']
+    types = ['S50', '>f8', 'S3', '>f8', 'int32', '>f8', 'int32', '>f8',
+             'int32', '>f8', 'S50', 'int32', '>f8', 'S50', 'int32', 'S100']
+    dtype = [(head, typ) for head, typ in zip(header, types)]
     dtype = np.dtype(dtype)
-    zp = [np.cast[dtype[i]](zp[i]) for i in range(len(zp))]
-    zp = np.rec.array(zp,dtype=dtype)
-    zp = zp[np.argsort(zp['passband'])]
     
-    #-- list passbands in order given, and remove those that do not have
-    #   zeropoints etc.
+    # Cast the columns to the right type
+    zp_table = [np.cast[dtype[i]](zp_table[i]) for i in range(len(zp_table))]
+    zp_table = np.rec.array(zp_table, dtype=dtype)
+    zp_table = zp_table[np.argsort(zp_table['passband'])]
+    
+    # List passbands in order given, and remove those that do not have
+    # zeropoints etc.
     if passbands is not None:
-        order = np.searchsorted(zp['passband'],passbands)
-        zp = zp[order]
-        keep = (zp['passband']==passbands)
-        zp = zp[keep]
+        order = np.searchsorted(zp_table['passband'], passbands)
+        zp_table = zp_table[order]
+        keep = (zp_table['passband'] == passbands)
+        zp_table = zp_table[keep]
     
-    return zp
+    # That's it
+    return zp_table
 
 
 def get_passband_from_wavelength(wavelength, wrange=100.0):
@@ -311,10 +336,6 @@ def get_passband_from_wavelength(wavelength, wrange=100.0):
     return info[best_index]['passband'], info[valid]['passband']
     
 
-if __name__=="__main__":
+if __name__ == "__main__":
     import doctest
-    fails,tests = doctest.testmod()
-    if not fails:
-        print(("All {0} tests succeeded".format(tests)))
-    else:
-        print(("{0}/{1} tests failed".format(fails,tests)))
+    doctest.testmod()
