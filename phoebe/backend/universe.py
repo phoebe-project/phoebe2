@@ -884,6 +884,8 @@ class Body(object):
         reset
         reset_and_clear
         clear_synthetic
+        add_obs
+        remove_obs
         
 
     **Statistics**
@@ -2523,6 +2525,54 @@ class Body(object):
         """
         base, ref = self.get_parset(ref=ref, type='syn', category=category)
         return base
+
+    
+    def add_obs(self, obs):
+        """
+        Add a list of DataSets to the Body.
+        
+        @param obs: list of DataSets
+        @type obs: list
+        """
+        # Add data to params
+        parsed_refs = _parse_obs(self, obs)
+        logger.info('added obs {0}'.format(parsed_refs))
+        return parsed_refs
+    
+    
+    def remove_obs(self, refs):
+        """
+        Remove observation (and synthetic) ParameterSets from the Body.
+        """
+        # Seems logical that a user would give a string
+        if isinstance(refs, str):
+            refs = [refs]
+        
+        # Make the refs unique, cycle over them and remove them
+        refs = set(refs)
+        
+        for dep in self.params['obs']:
+            
+            syn = dep[:-3] + 'syn'
+            keys = set(self.params['obs'][dep].keys())
+            intersect = list(keys & refs)
+            
+            # As long as there are references in common with the dictionary,
+            # remove one
+            while intersect:
+                ref = intersect.pop()
+                self.params['obs'][dep].pop(ref)
+                if syn in self.params['syn'] and ref in self.params['syn'][syn]:
+                    self.params['syn'][syn].pop(ref)
+ 
+                # Drop fields
+                fields = 'ld_{0}'.format(ref),\
+                         'lproj_{0}'.format(ref),\
+                         'velo_{0}'.format(ref),\
+                         '_o_velo_{0}'.format(ref)
+                self.mesh = pl.mlab.rec_drop_fields(self.mesh, fields)
+                logger.info('removed obs {0}'.format(ref))
+    
     
     def __add__(self, other):
         """
@@ -2999,40 +3049,6 @@ class PhysicalBody(Body):
                 logger.info('removed pbdeps {0}'.format(fields))
     
     
-    def add_obs(self,obs):
-        """
-        Add a list of DataSets to the Body.
-        
-        @param obs: list of DataSets
-        @type obs: list
-        """
-        #-- add data to params
-        parsed_refs = _parse_obs(self,obs)
-        logger.info('added obs {0}'.format(parsed_refs))
-        return parsed_refs
-    
-    def remove_obs(self,refs):
-        """
-        Remove observation (and synthetic) ParameterSets from the Body.
-        """
-        refs = set(refs)
-        for dep in self.params['obs']:
-            syn = dep[:-3]+'syn'
-            keys = set(self.params['obs'][dep].keys())
-            intersect = list(keys & refs)
-            while intersect:
-                ref = intersect.pop()
-                self.params['obs'][dep].pop(ref)
-                if syn in self.params['syn'] and ref in self.params['syn'][syn]:
-                    self.params['syn'][syn].pop(ref)
- 
-                #-- drop fields
-                fields = 'ld_{0}'.format(ref),\
-                         'lproj_{0}'.format(ref),\
-                         'velo_{0}'.format(ref),\
-                         '_o_velo_{0}'.format(ref)
-                self.mesh = pl.mlab.rec_drop_fields(self.mesh,fields)
-                logger.info('removed obs {0}'.format(ref))
         
     
     def remove_mesh(self):
@@ -3894,10 +3910,7 @@ class BodyBag(Body):
     def remove_mesh(self):
         for body in self.bodies:
             body.remove_mesh()
-    
-    def add_obs(self,obs):
-        _parse_obs(self,obs)
-    
+        
     def get_bodies(self):
         """
         Return all possibly hierarchically stored bodies in a flatted list.
