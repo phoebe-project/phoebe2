@@ -8,7 +8,6 @@ import tempfile
 import subprocess
 import os
 from phoebe.parameters import parameters
-from phoebe.utils import decoratorsmod
 
 
 def parse_ref(fctn):
