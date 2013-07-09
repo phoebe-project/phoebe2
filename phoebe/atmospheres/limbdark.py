@@ -975,6 +975,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     """
     Create an interpolatable grid of limb darkening coefficients.
     
+    A FITS file will be created, where each extension has the name of the
+    passband. For reference, there is also an extension ``_REF_PASSBAND`` for
+    each passband with the used response curves.
+    
     Example usage:
     
     **Case 0**: You want to run it with minimal settings (i.e. using all the
@@ -1270,11 +1274,17 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     if os.path.isfile(filename):
         filename = pyfits.open(filename,mode='update')
     
-    # Append all the tables
+    # Append the tables
     for pb in sorted(list(output.keys())):
         grid = np.array(output[pb]).T
         header = dict(extname=pb)
         filename = fits.write_array(grid, filename, col_names,
+                                    header_dict=header, ext='new', close=False)
+        
+        # Append the passband for reference
+        header = dict(extname='_REF_'+pb)
+        grid = np.array(pbmod.get_response(pb))
+        filename = fits.write_array(grid, filename, ['WAVELENGTH', 'RESPONSE'],
                                     header_dict=header, ext='new', close=False)
     
     # Store as much information in the FITS header as possible, we could need

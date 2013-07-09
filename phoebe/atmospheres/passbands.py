@@ -180,7 +180,7 @@ def get_response(passband):
     # custom passbands
     
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
-    photfiles_is_file = os.path.isfile(photfile)
+    photfile_is_file = os.path.isfile(photfile)
     
     # If the file exists and files have preference over custom passbands:
     if photfile_is_file and prefer_file:
