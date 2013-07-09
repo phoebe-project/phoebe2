@@ -4,9 +4,13 @@ Interface to information on a variety of passbands.
 .. autosummary::
 
     get_response
+    add_response
     list_response
+    subdivide_response
     eff_wave
     get_info
+    get_passband_from_wavelength
+    
     
 
 Section 1. Available response functions
@@ -141,6 +145,10 @@ import os
 import glob
 from phoebe.utils import decorators
 
+# Allow for on-the-fly addition of photometric passbands.
+custom_passbands = {'_prefer_file': True}
+
+
 @decorators.memoized
 def get_response(passband):
     """
@@ -161,18 +169,40 @@ def get_response(passband):
     @rtype: (array, array)
     """
     passband = passband.upper()
+    prefer_file = custom_passbands['_prefer_file']
+    
     
     # It's easy for a bolometric filter: totally open
     if passband == 'OPEN.BOL':
         return np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)])
     
-    # Get file with the passband and read it in
+    # Either get the passband from a file or get it from the dictionary of
+    # custom passbands
+    
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
-    wave, response = np.loadtxt(photfile, unpack=True)[:2]
+    photfiles_is_file = os.path.isfile(photfile)
+    
+    # If the file exists and files have preference over custom passbands:
+    if photfile_is_file and prefer_file:
+        wave, response = np.loadtxt(photfile, unpack=True)[:2]
+    
+    # Else, if the custom filter exists and is preferred
+    elif passband in custom_passbands:
+        wave, response = custom_passbands[passband]['response']
+    
+    # Else, if the file is not preferred but a custom one does not exist:
+    elif photfile_is_file:
+        wave, response = np.loadtxt(photfile, unpack=True)[:2]
+    
+    # Else we don't know what to do
+    else:
+        raise IOError,('{0} does not exist {1}'.format(photband,custom_filters.keys())) 
     
     # make sure the contents are sorted according to wavelength
     sort_array = np.argsort(wave)
     return wave[sort_array], response[sort_array]
+
+   
 
 
 def eff_wave(passband, model=None):
@@ -334,6 +364,115 @@ def get_passband_from_wavelength(wavelength, wrange=100.0):
     valid = np.abs(info['eff_wave']-wavelength) <= (wrange/2.0)
     
     return info[best_index]['passband'], info[valid]['passband']
+
+
+
+def add_response(wave, response, passband='CUSTOM.PTF', force=False,
+                 copy_from='JOHNSON.V', **kwargs):
+    """
+    Add a custom passband to the set of predefined passbands.
+    
+    Extra keywords are:
+        'eff_wave', 'type',
+        'vegamag', 'vegamag_lit',
+        'ABmag', 'ABmag_lit',
+        'STmag', 'STmag_lit',
+        'Flam0', 'Flam0_units', 'Flam0_lit',
+        'Fnu0', 'Fnu0_units', 'Fnu0_lit',
+        'source'
+        
+    default ``type`` is ``'CCD'``.
+    default ``passband`` is ``'CUSTOM.PTF'``
+    
+    @param wave: wavelength (angstrom)
+    @type wave: ndarray
+    @param response: response
+    @type response: ndarray
+    @param passband: photometric passband
+    @type passband: str (``'SYSTEM.FILTER'``)
+    """
+    
+    # Check if the passband already exists:
+    photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
+    if os.path.isfile(photfile) and not kwargs['force']:
+        raise ValueError, 'bandpass {0} already exists'.format(photfile)
+    elif passband in custom_passbands:
+        logger.debug('Overwriting previous definition of {0}'.format(passband))
+    custom_passbands[passband] = dict(response=(wave, response))
+    
+    # Set effective wavelength
+    kwargs.setdefault('type', 'CCD')
+    kwargs.setdefault('eff_wave', eff_wave(passband, det_type=kwargs['type']))
+    
+    # Add info for zeropoints.dat file: make sure wherever "lit" is part of the
+    # name, we replace it with "0". Then, we overwrite any existing information
+    # with info given
+    myrow = get_info([kwargs['copy_from']])
+    for name in myrow.dtype.names:
+        if 'lit' in name:
+            myrow[name] = 0
+        myrow[name] = kwargs.pop(name, myrow[name])
+        
+    # Remove memoized things to be sure to have the most up-to-date info
+    del decorators.memory[__name__]
+    
+    # Finally add the info:
+    custom_passbands[passband]['zp'] = myrow
+    logger.info('Added passband {0} to the predefined set'.format(passband))
+
+
+def subdivide_response(passband, parts=10, sampling=100, add=True):
+    """
+    Subdivide a passband in a number of narrower parts.
+    
+    This can be useful to use in interferometric bandwidth smearing.
+    
+    If ``add=True``, a new passband will be added with the naming scheme::
+    
+        SYSTEM.FILTER_<PART>_<TOTAL_PARTS>
+        
+    @param passband: passband to subdivide
+    @type passband: str
+    """
+    
+    # Get the original response
+    wave, response = get_response(passband)
+    
+    # Concentrate on the part that isn't zero:
+    positive = np.array(response > 0, int)
+    edges = np.diff(positive)
+    start = np.argmax(edges)
+    end = len(edges) - np.argmin(edges[::-1])
+    
+    # Divide the response in the number of parts
+    new_edges = np.linspace(wave[start], wave[end], parts+1)
+    responses = []
+    
+    for part in range(parts):
+        
+        # Create a new wavelength array for this part of the response curve
+        this_wave = np.linspace(new_edges[part], new_edges[part+1], sampling)
+        delta_wave = this_wave[1] - this_wave[0]
+    
+        # And extend it slightly to have really sharp edges.
+        this_wave = np.hstack([this_wave[0]-delta_wave/100.,
+                               this_wave,
+                               this_wave[-1]+delta_wave/100.])
+        
+        # Interpolate the response curve on this part, and make edges sharp
+        this_response = np.interp(this_wave, wave, response)
+        this_response[0] = 0.
+        this_response[-1] = 0.
+        responses.append((this_wave,this_response))
+        
+        if add:
+            new_passband = "{}_{:04d}_{:04d}".format(passband, part, parts)
+            add_response(this_wave, this_response, passband=new_passband,
+                         force=True, copy_from=passband)
+        
+    return responses
+    
+    
     
 
 if __name__ == "__main__":
