@@ -6,10 +6,13 @@ Section 1. File formats
 
 There are two types of grids defined in the FITS format:
 
-    1. grids with B{specific intensities}, holding in each extension a FITS table
-    with a full at discrete limb angles, for a given set of parameter values.
-    2. grids with B{LD coefficients}, holding in each extension a FITS table a grid
-    of coefficients as a function of a given set of parameter values.
+    1. grids with B{specific intensities}, holding in each extension a FITS
+    table with a full at discrete limb angles, for a given set of parameter
+    values. Grids supplied with Phoebe should live in the directory
+    ``atmospheres/tables/spec_intens/``
+    2. grids with B{LD coefficients}, holding in each extension a FITS table a
+    grid of coefficients as a function of a given set of parameter values. These
+    grids should live in the directory ``atmospheres/tables/ld_coeffs/``
    
 Section 1.1 FITS of Specific intensities
 ----------------------------------------
@@ -47,8 +50,9 @@ Each FITS table has a data array with the following columns:
     - C{res}: residuals from LD function fit
     - C{dflux}: relative difference between actual intensities and intensities
       from the fit
-    - C{a1}: first limb darkening coefficients
-    - C{ai}: ith limb darkening coefficients
+    - C{a1}: first limb darkening coefficient
+    - ...
+    - C{an}: n-th limb darkening coefficient
     - C{Imu1}: flux of mu=1 SED.
 
 Section 2. Creating LD grids
@@ -66,14 +70,15 @@ Section 3. Querying specific intensities
 To query the tables of specific intensities from a file C{atm} for a certain
 effective temperature and surface gravity, do:
 
->>> mu,wavelengths,table = get_specific_intensities(atm,dict(teff=4000,logg=4.0))
+>>> mu, wavelengths, table = get_specific_intensities(atm,
+...                                                   dict(teff=4000, logg=4.0))
 
 As before, you can also specify reddening parameters or a systemic velocity.
 You can immediately integrate the table in a list of passbands, (e.g. in the
 C{JOHNSON.V} and C{2MASS.J} band):
 
->>> mu,intensities = get_limbdarkening(atm,dict(teff=4000,logg=4.0),
-...                                    passbands=('JOHNSON.V','2MASS.J'))
+>>> mu, intensities = get_limbdarkening(atm, dict(teff=4000, logg=4.0),
+...                                    passbands=('JOHNSON.V', '2MASS.J'))
 
 
 **Example usage**
@@ -81,12 +86,12 @@ C{JOHNSON.V} and C{2MASS.J} band):
 ::
 
 >>> atm = 'atmospheres/tables/spec_intens/kurucz_mu_ip00k0.fits'
->>> atm_pars = dict(teff=4000,logg=4.0)
->>> passbands = ('JOHNSON.V','2MASS.J')
->>> mu,intensities = get_limbdarkening(atm, atm_pars, passbands=passbands)
+>>> atm_pars = dict(teff=4000, logg=4.0)
+>>> passbands = ('JOHNSON.V', '2MASS.J')
+>>> mu, intensities = get_limbdarkening(atm, atm_pars, passbands=passbands)
 
->>> plt.plot(mu,intensities[:,0],'ko-', label=passbands[0])
->>> plt.plot(mu,intensities[:,1],'ro-', label=passbands[1])
+>>> plt.plot(mu, intensities[:,0], 'ko-', label=passbands[0])
+>>> plt.plot(mu, intensities[:,1], 'ro-', label=passbands[1])
 
 .. image:: images/atmospheres_limbdark_query_spec_intens.png
    :height: 266px
@@ -101,8 +106,8 @@ the last example from the previous section. The function C{fit_law} only
 allows to fit one particular passband, and we better normalise the intensity
 profile with the value in the disk-center:
 
->>> coeffs,res,dflux = fit_law(mu,intensities[:,0]/intensities[0,0],law='claret',
-...                            fitmethod='equidist_r_leastsq')
+>>> coeffs, res, dflux = fit_law(mu, intensities[:,0]/intensities[0,0],
+...                            law='claret', fitmethod='equidist_r_leastsq')
 
 The latter outputs the LD coeffs (C{coeffs}) and some fit statistics, such
 as the residuals between the true and fitted fluxes, and the relative
@@ -115,7 +120,8 @@ Section 5. Querying precomputed LD coefficients
 Once an LD grid is precomputed, you can interpolate the limb darkening
 coefficients for any set of values within the grid:
 
->>> coeffs = interp_ld_coeffs(atm,'JOHNSON.V',atm_kwargs=dict(teff=4000,logg=4.0))
+>>> coeffs = interp_ld_coeffs(atm, 'JOHNSON.V',
+...                           atm_kwargs=dict(teff=4000, logg=4.0))
 
 The output C{coeffs} contains the limb darkening coefficients (first N-1 values)
 and the center flux enabling an absolute scaling.
@@ -123,14 +129,17 @@ and the center flux enabling an absolute scaling.
 
 
 """
-#-- required packages
+# Required system packages
 import os
 import itertools
 import logging
+
+# Third party modules
 import numpy as np
 from scipy.optimize import leastsq,fmin
 from scipy.interpolate import splrep,splev
-#-- optional packages
+
+# Optional packages
 try:
     import pyfits
 except ImportError:
@@ -139,7 +148,8 @@ try:
     import pylab as pl
 except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
-#-- Phoebe modules
+
+# Phoebe modules
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import decorators
@@ -154,12 +164,12 @@ logger = logging.getLogger('ATMO.LD')
 logger.addHandler(logging.NullHandler())
 
 basedir = os.path.dirname(os.path.abspath(__file__))
-basedir_spec_intens = os.path.join(basedir,'tables','spec_intens')
-basedir_ld_coeffs = os.path.join(basedir,'tables','ld_coeffs')
+basedir_spec_intens = os.path.join(basedir, 'tables', 'spec_intens')
+basedir_ld_coeffs = os.path.join(basedir, 'tables', 'ld_coeffs')
 
 #{ LD laws
 
-def ld_claret(mu,coeffs):
+def ld_claret(mu, coeffs):
     r"""
     Claret's limb darkening law.
     
@@ -179,11 +189,13 @@ def ld_claret(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    Imu = 1-coeffs[0]*(1-mu**0.5)-coeffs[1]*(1-mu)-coeffs[2]*(1-mu**1.5)-coeffs[3]*(1-mu**2.)    
+    Imu = 1 - coeffs[0]*(1-mu**0.5) - coeffs[1]*(1-mu) -\
+              coeffs[2]*(1-mu**1.5) - coeffs[3]*(1-mu**2.)    
     
     return Imu
 
-def ld_linear(mu,coeffs):
+
+def ld_linear(mu, coeffs):
     r"""
     Linear or linear cosine law
     
@@ -197,8 +209,6 @@ def ld_linear(mu,coeffs):
     |    :align: center                                    |    :align: center                                     |
     +------------------------------------------------------+-------------------------------------------------------+
     
-    
-    
     @param mu: limb angles mu=cos(theta)
     @type mu: numpy array
     @param coeffs: limb darkening coefficients
@@ -206,9 +216,10 @@ def ld_linear(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    return 1-coeffs[0]*(1-mu)
+    return 1 - coeffs[0]*(1-mu)
     
-def ld_nonlinear(mu,coeffs):
+    
+def ld_nonlinear(mu, coeffs):
     r"""
     Nonlinear or logarithmic law
     
@@ -229,12 +240,13 @@ def ld_nonlinear(mu,coeffs):
     @rtype: array
     """
     if not np.isscalar(mu):
-        mu[mu==0] = 1e-16
-    elif mu==0:
+        mu[mu == 0] = 1e-16
+    elif mu == 0:
         mu = 1e-16
-    return 1-coeffs[0]*(1-mu)-coeffs[1]*mu*np.log(mu)
+    return 1 - coeffs[0]*(1-mu) - coeffs[1]*mu*np.log(mu)
 
-def ld_logarithmic(mu,coeffs):
+
+def ld_logarithmic(mu, coeffs):
     r"""
     Nonlinear or logarithmic law
     
@@ -254,10 +266,10 @@ def ld_logarithmic(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    return ld_nonlinear(mu,coeffs)
+    return ld_nonlinear(mu, coeffs)
 
 
-def ld_quadratic(mu,coeffs):
+def ld_quadratic(mu, coeffs):
     r"""
     Quadratic law
     
@@ -277,9 +289,10 @@ def ld_quadratic(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    return 1-coeffs[0]*(1-mu)-coeffs[1]*(1-mu)**2.0
+    return 1 - coeffs[0]*(1-mu) - coeffs[1]*(1-mu)**2.0
 
-def ld_uniform(mu,coeffs):
+
+def ld_uniform(mu, coeffs):
     r"""
     Uniform law.
     
@@ -295,9 +308,10 @@ def ld_uniform(mu,coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    return 1.
+    return 1.0
 
-def ld_power(mu,coeffs):
+
+def ld_power(mu, coeffs):
     r"""
     Power law
 
@@ -319,6 +333,7 @@ def ld_power(mu,coeffs):
     """
     return mu**coeffs[0]
 
+
 def _r(mu):
     r"""
     Convert mu to r coordinates
@@ -333,6 +348,7 @@ def _r(mu):
     @rtype: array
     """
     return np.sqrt(1.-mu**2.)
+
     
 def _mu(r_):
     r"""
@@ -350,13 +366,14 @@ def _mu(r_):
     """
     return np.sqrt(1.-r_**2.)
 
+
 #}
 #{ Specific intensities
 
 
-def get_grid_dimensions(atm,atm_pars=('teff','logg','abun')):
+def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun')):
     """
-    Retrieve all gridpoints and their parameter values from an atmosphere grid.
+    Retrieve all gridpoints from a specific intensity grid.
     
     @param atm: atmosphere grid filename
     @type atm: str
@@ -365,13 +382,19 @@ def get_grid_dimensions(atm,atm_pars=('teff','logg','abun')):
     @rtype: n x array
     @return: arrays with the axis values for each grid point.
     """
-    ff = pyfits.open(atm)
-    dims = [np.zeros(len(ff)-1) for par in atm_pars]
-    for i,mod in enumerate(ff[1:]):
-        for j,key in enumerate(atm_pars):
-            dims[j][i] = mod.header[key]            
-    ff.close()
+    
+    with pyfits.open(atm) as ff:
+        dims = [np.zeros(len(ff)-1) for par in atm_pars]
+        
+        # Just loop over all extensions
+        for i, mod in enumerate(ff[1:]):
+            
+            # And retrieve the values from the atm_pars
+            for j, key in enumerate(atm_pars):
+                dims[j][i] = mod.header[key]            
+    
     return dims
+
 
 def iter_grid_dimensions(atm,atm_pars,other_pars):
     """
@@ -386,17 +409,20 @@ def iter_grid_dimensions(atm,atm_pars,other_pars):
     @return: values of grid points 
     @rtype: tuple
     """
-    if atm=='blackbody':
-        teffs = np.logspace(3,np.log10(50000),100)
-        for pars in itertools.product(*[teffs]+list(other_pars)):
+    # Special treatment for blackbodies
+    if atm == 'blackbody':
+        teffs = np.logspace(3, np.log10(50000), 100)
+        for pars in itertools.product(*[teffs] + list(other_pars)):
             yield pars
+    
+    # Otherwise, for "normal" grids:
     else:
         with pyfits.open(atm) as ff:
-            for pars in itertools.product(*[ff[1:]]+list(other_pars)):
+            for pars in itertools.product(*[ff[1:]] + list(other_pars)):
                 yield [pars[0].header[key] for key in atm_pars] + list(pars[1:])
     
 
-def get_specific_intensities(atm,atm_kwargs={},red_kwargs={},vgamma=0):
+def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
     """
     Retrieve specific intensities of a model atmosphere at different angles.
     
@@ -405,14 +431,14 @@ def get_specific_intensities(atm,atm_kwargs={},red_kwargs={},vgamma=0):
     C{atm_kwargs} should be a dictionary with keys and values adequate for
     the grid, e.g. for a single-metallicity Kurucz grid::
         
-        atm_kwargs = dict(teff=10000,logg=4.0)
+        atm_kwargs = dict(teff=10000, logg=4.0)
     
     Extra keywords are determined by the header keys in the C{atm} file.
     
     C{red_kwargs} should be a dictionary with keys and values adequate for the
     limb darkening law, e.g.::
     
-        red_kwargs = dict(law='fitzpatrick2004',Rv=3.1,ebv=0.5)
+        red_kwargs = dict(law='fitzpatrick2004', Rv=3.1, ebv=0.5)
     
     The keywords are determined by the L{reddening.redden} function.
     
@@ -435,56 +461,67 @@ def get_specific_intensities(atm,atm_kwargs={},red_kwargs={},vgamma=0):
     @return: mu angles, wavelengths, table (Nwave x Nmu)
     @rtype: array, array, array
     """
-    #-- read the atmosphere file:
-    ff = pyfits.open(atm)
+    # Read the atmosphere file if it is not an open file already:
+    if isinstance(atm, str):
+        ff = pyfits.open(atm)
+    else:
+        ff = atm
+    
     if not atm_kwargs:
         raise ValueError("No arguments given")
     
-    #-- try to run over each extension, and check if the values in the header
-    #   correspond to the values given by the keys in C{atm_kwargs}.
+    # Try to run over each extension, and check if the values in the header
+    # correspond to the values given by the keys in C{atm_kwargs}.
     try:
         for mod in ff[1:]:
             for key in atm_kwargs:
-                if mod.header[key]!=atm_kwargs[key]:
-                    #-- for sure, this is not the right extension, don't check
-                    #   the other keys
+                if mod.header[key] != atm_kwargs[key]:
+                    # For sure, this is not the right extension, don't check the
+                    # other keys (break search for keys)
                     break
             else:
-                #-- this is the right extension! Don't check the other
-                #   extensions
+                # This is the right extension! Don't check the other extensions
+                # (break search for extensions)
                 break
         else:
-            #-- we haven't found the right extension
-            raise ValueError("Did not found pars {} in {}".format(atm_kwargs,atm))
-        #-- retrieve the mu angles, table and wavelength array
-        whole_table = np.array(mod.data.tolist(),float)
-        wave = whole_table[:,0] # first column, but skip first row
-        table = whole_table[:,1:] 
+            # We haven't found the right extension
+            raise ValueError(("Did not found pars {} in "
+                              "{}").format(atm_kwargs, atm))
+        
+        # Retrieve the mu angles, table and wavelength array
+        whole_table = np.array(mod.data.tolist(), float)
+        wave = whole_table[:, 0] # first column, but skip first row
+        table = whole_table[:, 1:] 
         mu = np.array(mod.columns.names[1:], float)
-        logger.debug('Model LD taken directly from file (%s)'%(os.path.basename(atm)))
+        logger.debug(("Model LD taken directly from file "
+                     "({})").format(atm))
+        
     except KeyError:
         raise KeyError("Specific intensity not available in atmosphere file")
     
-    ff.close()
+    # Only close the file if we really have to.
+    if isinstance(atm, str):
+        ff.close()
     
-    #-- velocity shift for doppler beaming if necessary
-    if vgamma is not None and vgamma!=0:
-        cc = constants.cc/1000. #speed of light in km/s
+    # Velocity shift for Doppler beaming if necessary
+    if vgamma is not None and vgamma != 0:
+        cc = constants.cc / 1000. #speed of light in km/s
         for i in range(len(mu)):
-            flux_shift = tools.doppler_shift(wave,-vgamma,flux=table[:,i])
-            table[:,i] = flux_shift + 5.*vgamma/cc*flux_shift
+            flux_shift = tools.doppler_shift(wave, -vgamma, flux=table[:, i])
+            table[:, i] = flux_shift + 5.*vgamma / cc * flux_shift
     
-    #-- redden if necessary
+    # Redden if necessary
     if red_kwargs:
         for i in range(len(mu)):
-            table[:,i] = reddening.redden(table[:,i],wave=wave,rtype='flux',**red_kwargs)
+            table[:, i] = reddening.redden(table[:, i], wave=wave,
+                                           rtype='flux', **red_kwargs)
     
-    #-- that's it!
-    return mu,wave,table
+    # That's it!
+    return mu, wave, table
     
 
-def get_limbdarkening(atm,atm_kwargs={},red_kwargs={},vgamma=0,\
-              passbands=('JOHNSON.V',),normalised=False):
+def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
+              passbands=('JOHNSON.V',), normalised=False):
     """
     Retrieve a limb darkening law for a specific star and specific bandpass.
     
@@ -510,23 +547,26 @@ def get_limbdarkening(atm,atm_kwargs={},red_kwargs={},vgamma=0,\
     @return: :math:`\mu` angles, intensities
     @rtype: array,array
     """
-    #-- retrieve model atmosphere for a given teff and logg
-    mus,wave,table = get_specific_intensities(atm,atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs,
-                                              vgamma=vgamma)
-    #-- put mus in right order
+    # Retrieve model atmosphere for a given teff and logg
+    mus, wave, table = get_specific_intensities(atm, atm_kwargs=atm_kwargs,
+                                                red_kwargs=red_kwargs,
+                                                vgamma=vgamma)
+    
+    # Put mus (limb angles) in right order
     sa = np.argsort(mus)[::-1]
     mus = mus[sa]
-    table = table[:,sa]
-    #-- compute intensity over the stellar disk, and normalise
-    intensities = np.zeros((len(mus),len(passbands)))
+    table = table[:, sa]
+    
+    # Compute intensity over the stellar disk, and normalise
+    intensities = np.zeros((len(mus), len(passbands)))
     for i in range(len(mus)-1):
-        intensities[i] = sed.synthetic_flux(wave,table[:,i],passbands)
+        intensities[i] = sed.synthetic_flux(wave, table[:, i], passbands)
     if normalised:
         intensities/= intensities.max(axis=0)
-    return mus,intensities
+    return mus, intensities
 
-def fit_law(mu,Imu,law='claret',fitmethod='equidist_r_leastsq'):
+
+def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
     """
     Fit an LD law to a sampled set of limb angles/intensities.
     
@@ -563,39 +603,47 @@ def fit_law(mu,Imu,law='claret',fitmethod='equidist_r_leastsq'):
     >>> Imus = ld_claret(mus,cl)
     >>> p = pl.plot(mus,Imus,'r-',lw=2)
     
-    
-    
     @return: coefficients, sum of squared residuals,relative flux difference between prediction and model integrated intensity
     @rtype: array, float, float
     """
     def ldres_fmin(coeffs, mu, Imu, law):
-        return sum((Imu - globals()['ld_%s'%(law)](mu,coeffs))**2)
+        return sum((Imu - globals()['ld_{}'.format(law)](mu, coeffs))**2)
     
     def ldres_leastsq(coeffs, mu, Imu, law):
-        return Imu - globals()['ld_%s'%(law)](mu,coeffs)
+        return Imu - globals()['ld_{}'.format(law)](mu, coeffs)
     
-    #-- prepare array for coefficients and set the initial guess
-    Ncoeffs = dict(claret=4,linear=1,nonlinear=2,logarithmic=2,quadratic=2,
+    # Prepare array for coefficients and set the initial guess
+    Ncoeffs = dict(claret=4, linear=1, nonlinear=2, logarithmic=2, quadratic=2,
                    power=1)
     c0 = np.zeros(Ncoeffs[law])
     c0[0] = 0.6
-    #-- do the fitting
-    if fitmethod=='leastsq':
-        (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu,Imu,law))
-    elif fitmethod=='fmin':
-        csol  = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,args=(mu,Imu,law),disp=0)
+    
+    # Do the fitting; there's several possibilities
+    
+    # On the original resolution with the Levenberg-Marquardt (LM) algorithm
+    if fitmethod == 'leastsq':
+        (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu, Imu, law))
+        
+    # On the original resolution with the Nelder-Mead simplex (NMS) method    
+    elif fitmethod == 'fmin':
+        csol = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,
+                    args=(mu, Imu, law), disp=0)
+    
+    # Equidistantly sampled in limb angle + LM
     elif fitmethod=='equidist_mu_leastsq':
         mu_order = np.argsort(mu)
-        tck = splrep(mu[mu_order],Imu[mu_order],s=0.0, k=2)
-        mu_spl = np.linspace(mu[mu_order][0],1,5000)
-        Imu_spl = splev(mu_spl,tck,der=0)    
-        (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl,Imu_spl,law))
+        tck = splrep(mu[mu_order], Imu[mu_order],s=0.0, k=2)
+        mu_spl = np.linspace(mu[mu_order][0], 1, 5000)
+        Imu_spl = splev(mu_spl, tck, der=0)    
+        (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl, Imu_spl, law))
+    
+    # Equidistantly sampled in radius coordinate + LM
     elif fitmethod=='equidist_r_leastsq':
         mu_order = np.argsort(mu)
-        tck = splrep(mu[mu_order],Imu[mu_order],s=0., k=2)
-        r_spl = np.linspace(mu[mu_order][0],1,5000)
+        tck = splrep(mu[mu_order], Imu[mu_order],s=0., k=2)
+        r_spl = np.linspace(mu[mu_order][0], 1, 5000)
         mu_spl = np.sqrt(1-r_spl**2)
-        Imu_spl = splev(mu_spl,tck,der=0)    
+        Imu_spl = splev(mu_spl, tck, der=0)    
         (csol,ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl,Imu_spl,law))
     elif fitmethod=='equidist_mu_fmin':
         mu_order = np.argsort(mu)
@@ -1205,7 +1253,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         elif not os.path.isfile(atm_file):
             raise ValueError(("Cannot fit LD law, specific intensity file {} "
                              "does not exist").format(atm_file))
-            
+        
+        # Else we pre-open the atmosphere file to try to gain some time
+        else:
+            open_atm_file = pyfits.open(atm_file)
+        
         iterator = iter_grid_dimensions(atm_file, atm_par_names, other_pars)
         for nval, val in enumerate(iterator):
             
@@ -1229,7 +1281,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             
             # Retrieve the limb darkening law
             if atm_file != 'blackbody':
-                mu, Imu = get_limbdarkening(atm_file, atm_kwargs=atm_kwargs,
+                mu, Imu = get_limbdarkening(open_atm_file,
+                                       atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs, vgamma=vgamma,
                                        passbands=passbands)
             
@@ -1262,7 +1315,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     output[pb].append(list(val) + [0.0, 0.0] + [Imu[i]])
             
                     logger.info("{}: {}".format(pb, output[pb][-1]))
-            
+        
+        # Close the atm file again if necessary
+        if atm_file == 'blackbody':
+            open_atm_file.close()
+        
     # Write the results to a FITS file
     
     # Names of the columns

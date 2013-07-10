@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 """
 Definitions of interstellar reddening curves
 
@@ -208,8 +208,9 @@ def redden(flux,wave=None,passbands=None,ebv=0.,rtype='flux',law='cardelli1989',
     if rtype=='flux':
         flux_dered = flux / 10**(mag*ebv/2.5)
     elif rtype=='mag':
-        flux_dered = flux - mag*ebv
+        flux_dered = flux + mag*ebv
     return flux_dered
+
 
 def deredden(flux,wave=None,passbands=None,ebv=0.,rtype='flux',**kwargs):
     """
