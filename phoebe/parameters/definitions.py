@@ -504,8 +504,7 @@ defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.
          dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['global']),
          dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['global']),
          dict(qualifier='distance',description='Distance to the object',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='global'),
-         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='global'),
-         
+         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='global'),         
         ]
 
         

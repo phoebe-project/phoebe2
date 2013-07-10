@@ -57,54 +57,8 @@ Section 2. Creating LD grids
 There is a lot of flexibility in creating grids with limb darkening grids,
 to make sure that the values you are interested in can be interpolated if
 necessary, or otherwise be fixed. Therefore, creating these kind of grids
-can be quite complicated. Hopefully, the following examples help in clarifying
-the methods.
-
-Suppose you have a list of atmosphere tables C{atm_files}, and you want to
-create a grid that can be interpolated in effective temperature, surface
-gravity and abundance,
-
->>> atm_pars = ('teff','logg','abun')
-
-Suppose you want to do that in the C{JOHNSON.V} passband, using the C{claret}
-limb darkening law, fitted equidistantly in radius coordinates with the
-Levenberg-Marquardt routine. Then the basic interface is:
-
->>> compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,passbands=('JOHNSON.V',),
-...       fitmethod='equidist_r_leastsq',filename='abun.fits')
-
-
-Not all parameters you wish to interpolate are part of the precomputed tables.
-This can be for example the system's radial velocity C{vgamma}, or the
-extinction parameters. Suppose you want to make a grid in E(B-V):
-
->>> compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
-...       red_pars_iter=dict(ebv=np.linspace(0,0.5,5)),
-...       red_pars_fixed=dict(law='fitzpatrick2004',Rv=3.1),
-...       passbands=('JOHNSON.V',),fitmethod='equidist_r_leastsq',
-...       filename='red.fits')
-
-You need to split up the reddening parameters in those you which to `grid'
-(C{red_pars_iter}), and those you want to keep fixed (C{red_pars_fixed}). The
-former needs to be a dictionary, with the key the parameter name you wish to
-vary, and the value an array of the parameter values you wish to put in the
-grid. Similar examples, assuming that C{atm_files} is a list of specific
-intensity files with different metallicities, are:
-
->>> compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg','abun'),
-...       red_pars_iter=dict(ebv=np.linspace(0,0.5,5),Rv=[2.1,3.1,5.1]),
-...       red_pars_fixed=dict(law='fitzpatrick2004'),
-...       passbands=('JOHNSON.V',),fitmethod='equidist_r_leastsq',
-...       filename='red.fits')
-
-This last example also generate a small grid in C{Rv}.
-
->>> compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg','abun'),
-...       red_pars_fixed=dict(law='fitzpatrick2004',Rv=3.1,ebv=0.123),
-...       passbands=('JOHNSON.V',),fitmethod='equidist_r_leastsq',
-...       filename='red.fits')
-
-While this example fixes all reddening parameters.
+can be quite complicated. A detailed explanation can be found in the description
+of :py:func:`compute_grid_ld_coeffs`.
 
 Section 3. Querying specific intensities
 ========================================
@@ -979,7 +933,17 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     passband. For reference, there is also an extension ``_REF_PASSBAND`` for
     each passband with the used response curves.
     
-    Example usage:
+    There is a lot of flexibility in creating grids with limb darkening grids,
+    to make sure that the values you are interested in can be interpolated if
+    necessary, or otherwise be fixed. Therefore, creating these kind of grids
+    can be quite complicated. Hopefully, the following examples help in
+    clarifying the methods.
+    
+    Prerequisite: you have a list of atmosphere files with at least one
+    element. These tables contain specific intensities spanning a certain grid
+    of parameters.
+    
+    **Example usage:**
     
     **Case 0**: You want to run it with minimal settings (i.e. using all the
     default settings):
@@ -996,9 +960,9 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     prefix ``kurucz_p00`` to denote solar metallicity and grid type.
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
-        >>> limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
-        ...      law='claret',passbands=['2MASS.J','JOHNSON.V'],
-        ...      fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
+        >>> limbdark.compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
+        ...      law='claret', passbands=['2MASS.J','JOHNSON.V'],
+        ...      fitmethod='equidist_r_leastsq', filetag='kurucz_p00')
         
     This will create a FITS file, and this filename can be used in the
     C{atm} and C{ld_coeffs} parameters in Phoebe.
@@ -1013,10 +977,48 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     **Case 3**: Like Case 1, but with Doppler beaming included:
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
-        >>> limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=('teff','logg'),
+        >>> limbdark.compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
         ...      vgamma=[-500, -250, 0, 250, 500],
-        ...      law='claret',passbands=['2MASS.J','JOHNSON.V'],
-        ...      fitmethod='equidist_r_leastsq',filetag='kurucz_p00')
+        ...      law='claret', passbands=['2MASS.J', 'JOHNSON.V'],
+        ...      fitmethod='equidist_r_leastsq', filetag='kurucz_p00')
+    
+    Note that not all parameters you wish to interpolate need to be part of the
+    precomputed tables. This holds for the radial velocity, but also for the
+    extinction parameters.
+    
+    **Case 4**: Suppose you want to make a grid in E(B-V):
+    
+        >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
+        >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff', 'logg'),
+        ...       red_pars_iter=dict(ebv=np.linspace(0, 0.5, 5)),
+        ...       red_pars_fixed=dict(law='fitzpatrick2004', Rv=3.1),
+        ...       passbands=('JOHNSON.V',), fitmethod='equidist_r_leastsq',
+        ...       filetag='kurucz_red')
+    
+    You need to split up the reddening parameters in those you which to `grid'
+    (C{red_pars_iter}), and those you want to keep fixed (C{red_pars_fixed}).
+    The former needs to be a dictionary, with the key the parameter name you
+    wish to vary, and the value an array of the parameter values you wish to put
+    in the grid. 
+    
+    **Case 5**: Like Case 1, but with different abundances. Then you need a
+    list of different atmopshere files. They need to span now ``teff``, ``logg``
+    and ``abund``. We compute the LD coefficients in all Johnson bands:
+    
+        >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits',
+        ...              'spec_intens/kurucz_mu_ip05k2.fits',
+        ...              'spec_intens/kurucz_mu_ip10k2.fits']
+        >>> compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,passbands=('JOHNSON*',),
+            fitmethod='equidist_r_leastsq', filetag='kurucz')
+    
+    **Case 6**: Putting it all together:
+    
+        >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff', 'logg', 'abun'),
+        ...       red_pars_iter=dict(ebv=np.linspace(0, 0.5, 5),
+        ...                          Rv=[2.1, 3.1, 5.1]),
+        ...       red_pars_fixed=dict(law='fitzpatrick2004'),
+        ...       passbands=('JOHNSON.V',), fitmethod='equidist_r_leastsq',
+        ...       filetag='kurucz_all')
     
     @param atm_files: a list of files of grids specific intensities that will be
      used to integrate the passbands over
