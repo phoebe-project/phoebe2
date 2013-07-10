@@ -2048,6 +2048,7 @@ class Body(object):
             # Compute the corss product
             self.mesh[prefix+'normal_'] = np.cross(side1, side2)
 
+
     def area(self):
         """
         Compute the total surface area of a Body.
@@ -3647,8 +3648,8 @@ class BodyBag(Body):
     C{bodies[2]}) and Body C{bodies[0]}. It is B{not} a BodyBag consisting
     of three bodies!
     """
-    def __init__(self,list_of_bodies, obs=None, report_problems=False, 
-                 solve_problems=False, **kwargs):
+    def __init__(self,list_of_bodies, obs=None,
+                 report_problems=False,  solve_problems=False, **kwargs):
         """
         Initialise a BodyBag.
         
@@ -3681,6 +3682,11 @@ class BodyBag(Body):
                            los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
         self.subdivision = dict(orig=None)
         self.params = OrderedDict()
+        
+        # Add global parameters, but only if given. DO NOT add default ones,
+        # that can be confusing
+        if 'global' in kwargs:
+            self.params['global'] = kwargs.pop('global')
         
         # Also the _plot is a leftover from earlier days, this is deprecated
         self._plot = self.bodies[0]._plot
@@ -4547,8 +4553,9 @@ class Star(PhysicalBody):
     ]include figure]]images/universe_star_0004.png]
     
     """
-    def __init__(self, star, mesh, reddening=None, circ_spot=None, puls=None,
-                 magnetic_field=None, pbdep=None, obs=None, **kwargs):
+    def __init__(self, star, mesh, reddening=None, circ_spot=None,
+                 puls=None, magnetic_field=None, pbdep=None, obs=None,
+                 **kwargs):
         """
         Initialize a star.
         
@@ -4577,7 +4584,12 @@ class Star(PhysicalBody):
         # Shortcut to make a binaryStar
         if 'orbit' in kwargs:
             self.params['orbit'] = kwargs.pop('orbit')
-            
+        
+        # Add global parameters, but only if given. DO NOT add default ones,
+        # that can be confusing
+        if 'global' in kwargs:
+            self.params['global'] = kwargs.pop('global')
+        
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
         if reddening is None:
@@ -5223,6 +5235,12 @@ class BinaryRocheStar(PhysicalBody):
         self.time = None
         #-- label the body
         self.label = self.params['component']['label']
+        
+        # Add global parameters, but only if given. DO NOT add default ones,
+        # that can be confusing
+        if 'global' in kwargs:
+            self.params['global'] = kwargs.pop('global')
+        
         #-- add interstellar reddening (if none is given, set to the default,
         #   this means no reddening
         if reddening is None:
