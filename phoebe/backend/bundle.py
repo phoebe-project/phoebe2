@@ -372,14 +372,10 @@ class Bundle(object):
             comp = self.get_object(objectlabel)
             
             # unpack all datasets and parametersets
-            dss = output[objectlabel][0]
-            pss = output[objectlabel][1]
+            dss = output[objectlabel][0] # obs
+            pss = output[objectlabel][1] # pbdep
             
-            # obs get attached to the requested object
-            for ds in dss:    
-                #~ ds.load()
-                comp.add_obs(ds)
-
+            # attach pbdeps *before* obs (or will throw error and ref will not be correct)
             # pbdeps need to be attached to bodies, not body bags
             # so if comp is a body bag, attach it to all its predecessors
             if hasattr(comp, 'get_bodies'):
@@ -389,6 +385,11 @@ class Bundle(object):
             else:
                 for ps in pss:
                     comp.add_pbdeps(ps)
+
+            # obs get attached to the requested object
+            for ds in dss:    
+                #~ ds.load()
+                comp.add_obs(ds)
                 
     def create_syn(self,context,passband=None,components=None,ref=None):
         """
@@ -496,13 +497,24 @@ class Bundle(object):
                 obs.set_adjust('pblum',pblum)
         return
         
-    def remove_obs(self,ref=None):
+    def remove_data(self,ref):
         """
         @param ref: ref (name) of the dataset
         @type ref: str
         """
-        for obs in self.get_obs(ref=ref):
-            obs.load()
+
+        # disable any plotoptions that use this dataset
+        for axes in self.axes:
+            for pl in axes.plots:
+                if pl.get_value('dataref')==ref:
+                    pl.set_value('active',False)
+        
+        # remove all obs attached to any object in the system
+        for obj in self.get_system_structure(return_type='obj',flat=True):
+            obj.remove_obs(refs=[ref])
+            if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
+                obj.remove_pbdeps(refs=[ref]) 
+
         return
             
     def get_syn(self,objectname=None,ref=None):
