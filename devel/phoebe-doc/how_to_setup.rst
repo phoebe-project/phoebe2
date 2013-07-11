@@ -9,16 +9,17 @@ How to set up Phoebe 2.x
 Easy start (I don't have time for this and I don't want to mess with my system)
 ------------------------------------------------------------------------------------------
 
-Then do::
+To install Phoebe and all requirements to a local directory with minimal effort, do::
     
     $:> cd ~/
     $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/install.py
     $:> python install.py
 
-Sit back and relax, or get a cup of coffee. It can take a while.
+Get a cup of coffee, sit back and relax. It can take a while.
 
 This will create a folder ``phoebe`` (make sure it doesn't exist yet) in which
-Phoebe and all the dependencies are installed. Deleting it undoes the whole installation.
+Phoebe and all the dependencies are installed. Everything is contained in this
+one directory. You can uninstall Phoebe by simply removing this directory.
 
 A minimal scripting demo::
     
@@ -39,15 +40,15 @@ A minimal interactive demo::
     
     In [4]: mystar.plot2D()
 
-If you encounter any errors, read on.
+If you encounter any errors, please let us know about it and read on.
 
 Prerequisites
 -------------
 
-Use Linux, though Mac OSX should work too. You should have installed the
+Use Linux, though Mac OSX should work too. You should have the
 following software:
 
-    * svn (to download the repository)
+    * subversion (to download the repository)
     * Python 2.7 (with setuptools?)
     * a Fortran and C compiler (gfortran, gcc)
     * 700MB of disk space.
@@ -66,18 +67,17 @@ System-wide installation (requires root)
 Download the SVN
 ~~~~~~~~~~~~~~~~~~~~
 
-Download the `Phoebe SVN repository <http://phoebe.fmf.uni-lj.si/?q=node/12>`_.
+Download the `Phoebe SVN repository <http://phoebe-project.org/?q=node/12>`_.
 You don't need the entire Phoebe repository (but it doesn't hurt) and you
-don't need to install the 0.x or 1.x version of Phoebe (though nobody died
-trying). The new 2.x version is completely indepedent. The minimal branch you
-need to download is the devel branch.
+don't need to install the 0.x or 1.x version of Phoebe -- a.k.a. the stable
+branch -- though nobody died trying. The new 2.x version is completely
+indepedent. The branch you need to download is the devel branch.
 
-Go to some working directory and type in a
-terminal (read only access for non-developers)::
+Go to a working directory of choice and issue (read only access for non-developers)::
 
     $:> svn checkout svn://svn.code.sf.net/p/phoebe/code/devel devel
     
-Developers might want read and write access, and can download Phoebe via::
+Developers will read and write access, and can download Phoebe via::
 
     $:> svn checkout --username <username> svn+ssh://username@svn.code.sf.net/p/phoebe/code/ phoebe-code
 
@@ -99,7 +99,7 @@ If you don't have ``pip``, build the package with::
     
 Make sure that you have the necessary permissions for the second step.
 
-Finally, to test your installation, go to some working directory, start a
+Finally, to test your installation, go to your working directory, start a
 Python shell and try to import the main Phoebe namespace::
 
     >>> import phoebe
@@ -124,8 +124,9 @@ If you installed Phoebe via ``pip``, you can simply do::
     
     $:> sudo pip uninstall phoebe
     
-Otherwise, you need to manually remove the installation directory.
+If you installed Phoebe via ``setup.py``, issue::
 
+    $:> sudo python setup.py uninstall
 
 
 .. _label-virtualenv:
@@ -138,7 +139,7 @@ Installation
 
 If you don't have root or administrator priviliges, you can still install Phoebe
 in what is known as a *virtual environment*. If you don't know what that means,
-don't worry, neither do I. But it is still the solution to your problems.
+don't worry, we don't either. ;) But it is still the solution to your problems.
 
 In short, download the :download:`installation script <../install.py>` and run it::
     
@@ -159,16 +160,13 @@ Most of the things below are based on `this blog <http://dubroy.com/blog/so-you-
    If all goes well, you should be able to download the :download:`installation script <install_phoebe.sh>`
    and execute it in a terminal. 
 
-Don't forget to execute step 3. If you choose
-to add the the line to your bash profile, you're fine forever. Otherwise, you
-need to source the virtual environment each time.
 
     1. Download `the latest version version of virtualenv.py <https://raw.github.com/pypa/virtualenv/master/virtualenv.py>`_
        to some location (it really doesn't matter where)::
           
          $:> wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
 
-    2. Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use another too)::
+    2. Create a base Python environment, e.g. in the directory ``~/venv/base`` (but you can use any other directory too)::
     
          $:> python virtualenv.py --no-site-packages ~/venv/base
         
@@ -177,7 +175,7 @@ need to source the virtual environment each time.
         
          $:> source ~/venv/base/bin/activate
     
-    4. Download the three requirements files :download:`numpy-basic <numpy-basic.txt>`,
+    4. Download the three requirements files:: :download:`numpy-basic <numpy-basic.txt>`,
        :download:`phoebe-basic <phoebe-basic.txt>`, :download:`phoebe-full <phoebe-full.txt>`::
       
          $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/numpy-basic.txt . 
@@ -201,11 +199,11 @@ need to source the virtual environment each time.
          $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits ~/venv/base/src/phoebe/phoebe/atmospheres/tables/ld_coeffs/
          $:> wget http://www.phoebe-project.org/2.0/docs/_downloads/blackbody_uniform_none_teff.fits ~/venv/base/src/phoebe/phoebe/atmospheres/tables/ld_coeffs/        
 
-Now you're ready to run Phoebe!::
+Now you're ready to run Phoebe::
     
     >>> import phoebe
 
-Happy modelling!
+Happy modeling!
 
 Updating
 ~~~~~~~~~~~~~~~~~~
@@ -236,11 +234,11 @@ Software requirements
 
 *Note: not all of the version numbers are necessarily minimum requirements. If
 you have earlier versions of some of these packages, try to build and see if
-works. It is possible that only on specific occasions where features are used
+it works. It is possible that only on specific occasions where features are used
 from later versions, errors occur. If this happens to you, you can either update
-your software packages, or inform a developer.*
+your software packages, or inform a developers.*
 
-Necessary:
+Required:
 
     * Python 2.7 and the python-dev package
     * Numpy (1.6.2) + Scipy (0.10.1)
@@ -253,12 +251,12 @@ Recommended:
 
     * Matplotlib (1.1.1): required for making plots
     * pyfits (3.0.8): required for using tabulated atmosphere models
-    * pymc (2.2): required for MCMC fitting with Metropolis_hastings algorithm
+    * pymc (2.2): required for MCMC fitting with Metropolis-Hastings algorithm
     * emcee (1.1.2): required for MCMC fitting with Affine Invariants
     * lmfit (0.7): required for nonlinear optimizers
     
 
-Nice to have:
+Suggested:
 
     * mayavi (4.1.0): required for making 3D plots (exclusively for debugging purposes)
     * mpi4py (1.3): required for making use of multi-processor capabilities
@@ -266,21 +264,20 @@ Nice to have:
 
 .. note::
    
-   *buntu users can install numpy, scipy, matplotlib, pyfits, mpi4py and
+   *buntu users can install numpy, scipy, matplotlib, pyfits, pymc, mpi4py and
    mayavi from the package repository (Software Apper, Muon, apt-get)::
        
        $:> sudo apt-get install python-numpy python-scipy
-       $:> sudo apt-get install python-matplotlib python-pyfits python-mpi4py mayavi2
+       $:> sudo apt-get install python-matplotlib python-pyfits python-pymc python-mpi4py mayavi2
        $:> sudo apt-get install gfortran
    
-   The packages pymc, emcee and lmfit can be installed through pip. If you don't
+   The packages emcee and lmfit can be installed through pip. If you don't
    have pip, do::
        
        $:> sudo apt-get install python-pip
    
    followed by::
        
-       $:> sudo pip install pymc
        $:> sudo pip install emcee
        $:> sudo pip install lmfit
 
@@ -291,9 +288,9 @@ Atmosphere tables
 -------------------
 
 If you want to use non-blackbody atmospheres, you will have to create your
-own limbdarkening tables, or use one of those provided below. Important note:
+own limb darkening tables, or use one of those provided below. Important note:
 you need to download these files separately, and put them in your
-``devel/phoebe/atmosphers/tables/ld_coeffs/`` directory **before** making the
+``devel/phoebe/atmospheres/tables/ld_coeffs/`` directory **before** making the
 distribution (with ``pip sdist``) or the ``setup.py install``.
 
 Atmosphere files:
@@ -301,15 +298,15 @@ Atmosphere files:
     * :download:`Kurucz, solar Z, Claret LD, fitted equidistantly in r coordinates, grid in Teff,logg <../phoebe/atmospheres/tables/ld_coeffs/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits>`.
     * :download:`Blackbody, uniform LD, grid in Teff only <../phoebe/atmospheres/tables/ld_coeffs/blackbody_uniform_none_teff.fits>`.
     
-These limb darkening tables belong in ``phoebe/atmospheres/tables/ld_coeffs``. If you keep the filename as it is, it get's
+These limb darkening tables belong in ``phoebe/atmospheres/tables/ld_coeffs``. If you keep the filename as-is, it get's
 automatically detected via the shortcut ``atm=kurucz`` or ``ld_coeffs=kurucz``, otherwise
 you will have to replace ``kurucz`` with the actual filename.
 
 
 .. _label-issues:
 
-Known issues
--------------
+Troubleshooting
+----------------
 
 If you encounter any issues, have a look at the ``~/.pip/pip.log`` file for detailed
 error messages.
