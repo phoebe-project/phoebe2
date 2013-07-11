@@ -511,8 +511,11 @@ import datetime
 
 #-- optional libraries: WARNING: when these modules are not installed, the
 #   module's use is restricted
-try: import ephem
-except ImportError: print("Unable to load pyephem, stellar coordinate transformations unavailable")
+try:
+    import ephem
+except ImportError:
+    pass
+    #print("Unable to load pyephem, stellar coordinate transformations unavailable")
 
 #-- from IVS repository
 from phoebe.units import constants
