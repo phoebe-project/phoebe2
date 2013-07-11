@@ -189,7 +189,7 @@ class Bundle(object):
             
     def change_label(self,oldlabel,newlabel):
         """
-        
+        not implemented yet
         """
         raise NotImplementedError
         
@@ -564,7 +564,7 @@ class Bundle(object):
     #}
     
     #{ Compute
-    def add_compute(self,compute,label=None):
+    def add_compute(self,compute=None,label=None):
         """
         Add a new compute parameterSet
         
@@ -573,7 +573,10 @@ class Bundle(object):
         @param label: name of parameterSet
         @type label: None, str, or list of strs
         """
-        if compute is None: return None
+        if compute is None:
+            if label is None:
+                return
+            compute = parameters.ParameterSet(context='compute')
         if not isinstance(compute,list):
             compute = [compute]
             label = [label]
