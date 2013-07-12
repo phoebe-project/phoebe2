@@ -71,18 +71,20 @@ Section 3. Querying specific intensities
 ========================================
 
 To query the tables of specific intensities from a file C{atm} for a certain
-effective temperature and surface gravity, do:
+effective temperature and surface gravity, use :py:func:`get_specific_intensities`:
 
 >>> mu, wavelengths, table = get_specific_intensities(atm,
 ...                                                   dict(teff=4000, logg=4.0))
 
-As before, you can also specify reddening parameters or a systemic velocity.
-You can immediately integrate the table in a list of passbands, (e.g. in the
-C{JOHNSON.V} and C{2MASS.J} band):
+In the above it is also possible to specify reddening parameters or a systemic
+velocity. You can immediately integrate the table in a list of passbands, (e.g.
+in the C{JOHNSON.V} and C{2MASS.J} band) via :py:func:`get_limbdarkening`:
 
 >>> mu, intensities = get_limbdarkening(atm, dict(teff=4000, logg=4.0),
 ...                                    passbands=('JOHNSON.V', '2MASS.J'))
 
+So :py:func:`get_limbdarkening` is the passband-integrated version of 
+:py:func:`get_specific_intensities`.
 
 **Example usage**
 
@@ -134,7 +136,7 @@ Section 6. Handling files and directories for atmosphere files
 ==============================================================
 
 Did you ever want to know where the specific intensity files and limb darkening
-coefficient files are stored on your system? Then call:
+coefficient files are stored on your system? Then call::
 
     paths = limbdark.get_paths()
 

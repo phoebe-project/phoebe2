@@ -240,7 +240,7 @@ def mpirun(fctn):
                 
                 # Construct mpirun command
                 # Number of nodes
-                num_proc = mpirun['np']
+                num_proc = mpirun_par['np']
                 
                 # Byslot
                 if mpirun_par['byslot']:

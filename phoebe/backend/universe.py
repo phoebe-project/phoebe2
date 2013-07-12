@@ -162,6 +162,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import utils
+from phoebe.utils.decorators import memoized, clear_memoization
 try:
     from phoebe.utils import cgeometry
 except ImportError:
@@ -1327,7 +1328,7 @@ class Body(object):
             for obs in idata.values():
                 
                 # Ignore disabled datasets
-                if not observations.get_enabled():
+                if not obs.get_enabled():
                     continue
                 
                 # Get the model corresponding to this observation
@@ -1339,12 +1340,12 @@ class Body(object):
                 loaded = obs.load(force=False)
                 
                 # Get the "model" and "observations" and their error.
-                if obs.context in ['spobs','plobs']:
+                if obs.context in ['spobs','plobs'] and 'flux' in obs:
                     model = np.array(model['flux'])/np.array(model['continuum'])
                     obser = np.array(obs['flux']) / np.array(obs['continuum'])
                     sigma = np.array(obs['sigma'])
                 
-                elif observations.context == 'lcobs':
+                elif obs.context == 'lcobs' and 'flux' in obs:
                     model = np.array(model['flux'])
                     obser = np.array(obs['flux'])
                     sigma = np.array(obs['sigma'])
@@ -3201,8 +3202,16 @@ class PhysicalBody(Body):
         Reset the mesh to its original position
         """
         columns = self.mesh.dtype.names
+        #source = [col for col in columns if col[:3] == '_o_']
+        #destin = [col[3:] for col in source]
+        #mymesh = self.mesh
+        #mymesh[destin] = mymesh[source]
+        #mymesh['partial'] = False
+        #mymesh['visible'] = False
+        #mymesh['hidden'] = True
+        #self.mesh = mymesh
         for column in columns:
-            if column[:3]=='_o_' and column[3:] in columns:
+            if column[:3] == '_o_' and column[3:] in columns:
                 self.mesh[column[3:]] = self.mesh[column]
         self.mesh['partial'] = False
         self.mesh['visible'] = False
