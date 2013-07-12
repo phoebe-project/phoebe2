@@ -763,8 +763,13 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
         
         # <-- insert reddening parameters here -->    
         
-        if vgamma != 0:
-            postfix.append('vgamma')
+        # <-- insert beaming parameters here -->    
+        try:
+            if vgamma != 0:
+                postfix.append('vgamma')
+        except ValueError:
+            if not np.allclose(vgamma, 0):
+                postfix.append('vgamma')
         
         postfix = "_".join(postfix)
         

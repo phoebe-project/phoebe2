@@ -88,7 +88,7 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
 
     
     
-def horizon_via_normal(body_list):
+def horizon_via_normal_old(body_list):
     """
     Detect horizon via the sign of the mu angle (no eclipses).
     
@@ -130,6 +130,44 @@ def horizon_via_normal(body_list):
     if len(body_list)==1:
         body_list = body_list[0]    
     #-- that's it!
+
+def horizon_via_normal(body_list):
+    """
+    Detect horizon via the sign of the mu angle (no eclipses).
+    
+    This function is the simplest type of horizon detection and only works
+    for unobscuring convex bodies. It sets all the triangles that have a
+    normal point towards the observer (mu>0) to be visible, and the rest
+    invisible. There is no partial visibility defined, although it could
+    be extended to include those that have mu angle of zero (with some
+    tolerance limit).
+    
+    @param body_list: list of bodies
+    @type body_list: list
+    """
+    # Possible a BodyBag is given, in that case take the separate Bodies
+    if hasattr(body_list, 'bodies'):
+        body_list = body_list.bodies
+    
+    # Possible a Body is given, make sure to make it into a list
+    elif not isinstance(body_list, list):
+        body_list = [body_list]
+    
+    # Cycle over all Bodies
+    for body in body_list:
+        # If the Body is a BodyBag, recursively compute its horizon
+        if hasattr(body, 'bodies'):
+            horizon_via_normal(body_list)
+            continue
+        
+        # Else we have a normal Body
+        mesh = body.mesh
+        visible = mesh['mu'] > 0
+        mesh['hidden'] = -visible
+        mesh['visible']=  visible
+        mesh['partial']= 0.0
+    
+    
     
 def convex_bodies(body_list):
     """
