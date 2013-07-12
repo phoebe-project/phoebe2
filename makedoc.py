@@ -261,8 +261,12 @@ def write_bib(refs):
     
     __refs = [ref.lower() for ref in refs]
     
-    with open('/home/pieterd/articles/templates/complete.bib','r') as bib:
-        whole_bib = bib.readlines()
+    try:
+        with open('/home/pieterd/articles/templates/complete.bib','r') as bib:
+            whole_bib = bib.readlines()
+    except IOError:
+        whole_bib = []
+        print("Can't find the bib file")
         
     with open('phoebe-doc/bibliography.rst','w') as ff:
         
