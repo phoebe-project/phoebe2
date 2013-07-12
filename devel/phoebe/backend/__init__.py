@@ -7,18 +7,20 @@ Section 1. Subpackages
 .. autosummary::
 
     bundle
-    fitting
-    observatory
-    plotting
     universe
+    observatory
+    fitting
+    plotting
+    
 
 Section 2. Quick reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Template class**: lists all the stuff you can do with a Body.
+**Template classes**: lists all the stuff you can do with a Body.
 
 .. autosummary::
 
+    universe.Body
     universe.PhysicalBody
 
 **Creating Bodies**

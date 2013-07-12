@@ -109,6 +109,7 @@ Let's extend that minimal example a little bit more:
    :maxdepth: 2
     
    how_to_binary
+   how_to_bundle
    
 And perhaps a special section on saving and loading files in all kinds of formats?
     

@@ -1790,6 +1790,22 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     >>> mpi = phoebe.ParameterSet(context='mpi', np=4)
     >>> compute(vega, subdiv_num=2, mpi=mpi)
     
+    **And then what?**:
+    
+    Things you might want to do after computing:
+    
+        - :py:meth:`system.get_synthetic(ref=0, category='lc') <phoebe.backend.universe.Body.get_synthetic>`:
+          retrieves the results of a certain category from the the Body.
+        - :py:func:`plotting.plot_lcsyn(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the synthetic to the current axes.
+        - :py:func:`plotting.plot_lcobs(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the observations to the current axes.
+        - :py:func:`plotting.plot_lcres(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the residuals to the current axes.
+    
+    Or substitute the name of the observations to the ``ref`` keyword. There are
+    similar functions or keywords for other observables, simply replace `lc`
+    with other types.
     
     
     @param system: the system to compute
@@ -2004,6 +2020,22 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
      eclipse_alg auto   --   phoebe Type of eclipse algorithm
 
     You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet.
+    
+    Things you might want to do after observing:
+    
+        - :py:meth:`system.get_synthetic(ref=0, category='lc') <phoebe.backend.universe.Body.get_synthetic>`:
+          retrieves the results of a certain category from the the Body.
+        - :py:func:`plotting.plot_lcsyn(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the synthetic to the current axes.
+        - :py:func:`plotting.plot_lcobs(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the observations to the current axes.
+        - :py:func:`plotting.plot_lcres(system, ref=0) <phoebe.backend.plotting.plot_lcsyn>`:
+          plots the residuals to the current axes.
+    
+    Or substitute the name of the observations to the ``ref`` keyword. There are
+    similar functions or keywords for other observables, simply replace `lc`
+    with other types.
+    
     """
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...

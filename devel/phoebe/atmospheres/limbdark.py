@@ -7,23 +7,26 @@ Section 1. File formats
 There are two types of grids defined in the FITS format:
 
     1. grids with B{specific intensities}, holding in each extension a FITS
-    table with a full at discrete limb angles, for a given set of parameter
-    values. Grids supplied with Phoebe should live in the directory
-    ``atmospheres/tables/spec_intens/``
+       table with a full at discrete limb angles, for a given set of parameter
+       values. Grids supplied with Phoebe should live in the directory
+       ``atmospheres/tables/spec_intens/``
     2. grids with B{LD coefficients}, holding in each extension a FITS table a
-    grid of coefficients as a function of a given set of parameter values. These
-    grids should live in the directory ``atmospheres/tables/ld_coeffs/``
+       grid of coefficients as a function of a given set of parameter values.
+       These grids should live in the directory
+       ``atmospheres/tables/ld_coeffs/``
    
 Section 1.1 FITS of Specific intensities
 ----------------------------------------
 
 Each FITS table has the following header keys (KEY (type)):
 
-    - C{TEFF} (float): effective temperature (K) of the specific intensities in the extension
+    - C{TEFF} (float): effective temperature (K) of the specific intensities in
+      the extension
     - C{LOGG} (float): log of surface gravity (cgs)
     - C{ABUN} (float): log of metallicity wrt to solar (optional)
     - C{VMIC} (float): microturbulent velocity (km/s) (optional)
-    - C{...} (float):  any other float that is relevant to this atmosphere model and which can be used to interpolate in
+    - C{...} (float):  any other float that is relevant to this atmosphere model
+      and which can be used to interpolate in
 
 Each FITS table has a data array with the following columns:
 
@@ -127,12 +130,20 @@ The output C{coeffs} contains the limb darkening coefficients (first N-1 values)
 and the center flux enabling an absolute scaling.
 
 
+Section 6. Handling files and directories for atmosphere files
+==============================================================
+
+Did you ever want to know where the specific intensity files and limb darkening
+coefficient files are stored on your system? Then call:
+
+    paths = limbdark.get_paths()
 
 """
 # Required system packages
 import os
 import itertools
 import logging
+import shutil
 
 # Third party modules
 import numpy as np
@@ -143,11 +154,14 @@ from scipy.interpolate import splrep,splev
 try:
     import pyfits
 except ImportError:
-    print("Soft warning: pyfits could not be found on your system, you can only use black body atmospheres and Gaussian synthetic spectral profiles")
+    print(("Soft warning: pyfits could not be found on your system, you can "
+           "only use black body atmospheres and Gaussian synthetic spectral "
+           "profiles"))
 try:
     import pylab as pl
 except ImportError:
-    print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+    print(("Soft warning: matplotlib could not be found on your system, 2D "
+           "plotting is disabled, as well as IFM functionality"))
 
 # Phoebe modules
 from phoebe.units import conversions
@@ -532,8 +546,8 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
     
     See e.g. [Heyrovsky2007]_
     
-    If you specify one angle (:math:`\mu` in radians), it will take the closest match
-    from the grid.
+    If you specify one angle (:math:`\mu` in radians), it will take the closest
+    match from the grid.
     
     :math:`\mu = \cos(\\theta)` where :math:`\\theta` is the angle between the
     surface and the line of sight. :math:`\mu=1` means :math:`\\theta=0` means
@@ -541,8 +555,9 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
     
     Example usage:
     
-    >>> teff,logg = 5000,4.5
-    >>> mu,intensities = get_limbdarkening(teff=teff,logg=logg,photbands=['JOHNSON.V'])
+    >>> teff, logg = 5000, 4.5
+    >>> mu,intensities = get_limbdarkening(teff=teff, logg=logg,
+    ...          photbands=['JOHNSON.V'])
 
     @return: :math:`\mu` angles, intensities
     @rtype: array,array
@@ -583,9 +598,11 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
     - ``fmin``: Nelder-Mead fit on the coordinates as available in the
       atmosphere grids.
     - ``equidist_r_leastsq``: LM-fit in r-coordinate resampled equidistantly
-    - ``equidist_mu_leastsq``: LM-fit in :math:`\mu`-coordinate resampled equidistantly
+    - ``equidist_mu_leastsq``: LM-fit in :math:`\mu`-coordinate resampled
+       equidistantly
     - ``equidist_r_fmin``: NM-fit in r-coordinate resampled equidistantly
-    - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled equidistantly
+    - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled
+       equidistantly
     
     In my (Pieter) experience, C{fitmethod='equidist_r_leastsq'} seems
     appropriate for the Kurucz models.
@@ -594,7 +611,8 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
     
     **Example usage**
     
-    >>> mu,intensities = get_limbdarkening(teff=10000,logg=4.0,photbands=['JOHNSON.V'],normalised=True)
+    >>> mu,intensities = get_limbdarkening(teff=10000, logg=4.0,
+    ...                 photbands=['JOHNSON.V'], normalised=True)
     >>> p = pl.figure()
     >>> p = pl.plot(mu,intensities[:,0],'ko-')
     >>> cl,ssr,rdiff = fit_law(mu,intensities[:,0],law='claret')
@@ -603,7 +621,8 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
     >>> Imus = ld_claret(mus,cl)
     >>> p = pl.plot(mus,Imus,'r-',lw=2)
     
-    @return: coefficients, sum of squared residuals,relative flux difference between prediction and model integrated intensity
+    @return: coefficients, sum of squared residuals,relative flux difference
+     between prediction and model integrated intensity
     @rtype: array, float, float
     """
     def ldres_fmin(coeffs, mu, Imu, law):
@@ -630,7 +649,7 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
                     args=(mu, Imu, law), disp=0)
     
     # Equidistantly sampled in limb angle + LM
-    elif fitmethod=='equidist_mu_leastsq':
+    elif fitmethod == 'equidist_mu_leastsq':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order], Imu[mu_order],s=0.0, k=2)
         mu_spl = np.linspace(mu[mu_order][0], 1, 5000)
@@ -638,42 +657,73 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
         (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl, Imu_spl, law))
     
     # Equidistantly sampled in radius coordinate + LM
-    elif fitmethod=='equidist_r_leastsq':
+    elif fitmethod == 'equidist_r_leastsq':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order], Imu[mu_order],s=0., k=2)
         r_spl = np.linspace(mu[mu_order][0], 1, 5000)
         mu_spl = np.sqrt(1-r_spl**2)
         Imu_spl = splev(mu_spl, tck, der=0)    
         (csol,ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl,Imu_spl,law))
-    elif fitmethod=='equidist_mu_fmin':
+    
+    # Equidistantly sampled in limb angle coordinate + NMS
+    elif fitmethod == 'equidist_mu_fmin':
         mu_order = np.argsort(mu)
-        tck = splrep(mu[mu_order],Imu[mu_order],k=2, s=0.0)
-        mu_spl = np.linspace(mu[mu_order][0],1,5000)
-        Imu_spl = splev(mu_spl,tck,der=0)
-        csol  = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,args=(mu_spl,Imu_spl,law),disp=0)
-    elif fitmethod=='equidist_r_fmin':
+        tck = splrep(mu[mu_order], Imu[mu_order],k=2, s=0.0)
+        mu_spl = np.linspace(mu[mu_order][0], 1, 5000)
+        Imu_spl = splev(mu_spl, tck, der=0)
+        csol = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,
+                     args=(mu_spl, Imu_spl, law), disp=0)
+    
+    # Equidistantly sampled in radius coordinate + NMS
+    elif fitmethod == 'equidist_r_fmin':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order],Imu[mu_order],k=2, s=0.0)
         r_spl = np.linspace(mu[mu_order][0],1,5000)
         mu_spl = np.sqrt(1-r_spl**2)
-        Imu_spl = splev(mu_spl,tck,der=0)
-        csol  = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,args=(mu_spl,Imu_spl,law),disp=0)
+        Imu_spl = splev(mu_spl, tck, der=0)
+        csol  = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,args=(mu_spl,\
+                                                         Imu_spl, law), disp=0)
+    
     else:
         raise ValueError("Fitmethod {} not recognised".format(fitmethod))
-    myfit = globals()['ld_%s'%(law)](mu,csol)
+    
+    myfit = globals()['ld_{}'.format(law)](mu, csol)
     res =  np.sum(Imu - myfit)**2
-    int1,int2 = np.trapz(Imu,x=mu),np.trapz(myfit,x=mu)
-    dflux = (int1-int2)/int1
-    return csol,res,dflux
+    int1, int2 = np.trapz(Imu, x=mu), np.trapz(myfit, x=mu)
+    dflux = (int1 - int2) / int1
+    return csol, res, dflux
 
 
 #}
 #{ LD Passband coefficients
 
 
-def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
+def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
+                           fitmethod='equidist_r_leastsq'):
     """
     Derive the filename of a precalculated LD grid from the input parameters.
+    
+    Possibilities:
+        
+        - if ``atm`` is an existing absolute path, nothing is done but to return
+          the filename.
+        - if ``atm`` is a relative path name and it exists in the
+          ``atmospheres/tables/ld_coeffs`` directory, the absolute path name
+          will be returned.
+        - if ``atm='blackbody'``, then ``blackbody_uniform_none_teff.fits`` is
+          returned.
+        
+    If none of these conditions is fulfilled a little more work is done. In this
+    case, we collect the information from the limb darkening function, limb
+    darkening coefficients, atmospheric parameters (abundances...) and other
+    parameters (reddening...), and derive the the filename. The structure of
+    such a filename is::
+    
+        {atm}_{prefix}{abun:02.0f}_{ld_func}_{fitmethod}_{var1}_..._{varn}.fits
+    
+    For example :file:`kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits`.
+    
+    We need to do a lot more work here to derive it!
     
     @param atm: atmosphere table filename or designation
     @type atm: str
@@ -684,8 +734,8 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
     
     # Perhaps the user gave the name of table that is pre-installed (relative
     # filename)
-    elif os.path.isfile(os.path.join(basedir_ld_coeffs,atm)):
-        return os.path.join(basedir_ld_coeffs,atm)
+    elif os.path.isfile(os.path.join(basedir_ld_coeffs, atm)):
+        return os.path.join(basedir_ld_coeffs, atm)
     
     # If the user wants tabulated blackbodies, we have a file for that.
     elif atm == 'blackbody':
@@ -700,6 +750,23 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
         abun = atm_kwargs['abun']
         ld_func = atm_kwargs['ld_func']
         ld_coeffs = atm_kwargs['ld_coeffs']
+        postfix = []
+        
+        # Build the postfix; this shows us in what variables the grids needs to
+        # be interpolatable in.
+        if 'teff' in atm_kwargs:
+            postfix.append('teff')
+        if 'logg' in atm_kwargs:
+            postfix.append('logg')
+        #if 'abun' in atm_kwargs:
+        #    postfix.append('abun')
+        
+        # <-- insert reddening parameters here -->    
+        
+        if vgamma != 0:
+            postfix.append('vgamma')
+        
+        postfix = "_".join(postfix)
         
         # If the LD is uniform or coefficients are given by the user itself,
         # we're only interested in the center intensities, so we can use the
@@ -717,8 +784,9 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
             if np.all(abun == abun[0]):
                 prefix = 'm' if abun[0] < 0 else 'p'
                 abun = abs(abun[0])*10
-                basename = ("{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg"
-                            ".fits").format(atm, prefix, abun, ld_func)
+                basename = ("{}_{}{:02.0f}_{}_{}_{}"
+                            ".fits").format(atm, prefix, abun, ld_func,
+                                            fitmethod, postfix)
             # Yes, we do, but this doesn't seem to be implemented yet
             else:
                 prefix = ''
@@ -728,8 +796,8 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}):
         else:
             prefix = 'm' if (abun < 0) else 'p'
             abun = abs(abun*10)
-            basename = ("{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg"
-                        ".fits").format(atm, prefix, abun, ld_func)
+            basename = ("{}_{}{:02.0f}_{}_{}_{}.fits").format(atm, prefix,
+                                            abun, ld_func, fitmethod, postfix)
         
         ret_val = os.path.join(basedir_ld_coeffs, basename)
         
@@ -763,54 +831,82 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     @param passband: photometric passband
     @type passband: str
     """
-    #-- get the FITS-file containing the tables
-    #   retrieve structured information on the grid (memoized)
-    atm = choose_ld_coeffs_table(atm,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs)
-    axis_values,pixelgrid,labels = _prepare_grid(passband,atm)
-    #-- prepare input: the variable "labels" contains the name of all the
-    #   variables (teff, logg, ebv, etc... which can be interpolated. If all
-    #   z values for example are equal, we do not need to interpolate in
-    #   metallicity, and _prepare_grid will have removed the 'z' label from
-    #   that list. In the following 3 lines of code, we collect only those
-    #   parameters which need to be interpolated in the grid. Beware that this
-    #   means that the z variable will simply be ignored! If you ask for z=0.1
-    #   but all values in the grid are z=0.0, this function will not complain
-    #   and just give you the z=0.0 interpolation results!
-    N = 1
-    for i,label in enumerate(labels):
-        if label in atm_kwargs and hasattr(atm_kwargs[label],'__len__'):
-            N = max(N,len(atm_kwargs[label]))
-        elif label in red_kwargs and hasattr(red_kwargs[label],'__len__'):
-            N = max(N,len(red_kwargs[label]))
-        elif label=='vgamma' and hasattr(vgamma,'__len__'):
-            N = max(N,len(vgamma))
+    # Get the FITS-file containing the tables, and retrieve structured
+    # information on the grid (memoized)
+    atm = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,\
+                                 red_kwargs=red_kwargs, vgamma=vgamma)                         
+    axis_values, pixelgrid, labels = _prepare_grid(passband, atm)
+    
+    # Prepare input: the variable "labels" contains the name of all the
+    # variables (teff, logg, ebv, etc... which can be interpolated. If all z
+    # values for example are equal, we do not need to interpolate in
+    # metallicity, and _prepare_grid will have removed the 'z' label from that
+    # list. In the following 3 lines of code, we collect only those parameters
+    # which need to be interpolated in the grid. Beware that this means that the
+    # z variable will simply be ignored! If you ask for z=0.1 but all values in
+    # the grid are z=0.0, this function will not complain and just give you the
+    # z=0.0 interpolation results!
+    n_dim = 1
+    
+    for i, label in enumerate(labels):
+        
+        # if the label is an atmosphere keyword and has a length, determine its
+        # length
+        if label in atm_kwargs and hasattr(atm_kwargs[label], '__len__'):
+            n_dim = max(n_dim, len(atm_kwargs[label]))
+        
+        # if the label is a reddening keyword and has a length, determine its
+        # length
+        elif label in red_kwargs and hasattr(red_kwargs[label], '__len__'):
+            n_dim = max(n_dim, len(red_kwargs[label]))
+        
+        # if the label is the 'vgamma' keyword and has a length, determine its
+        # length
+        elif label == 'vgamma' and hasattr(vgamma, '__len__'):
+            n_dim = max(n_dim, len(vgamma))
+        
         #else:
         #    raise ValueError("Somethin' wrong with the atmo table: ")
-    values = np.zeros((len(labels),N))
-    for i,label in enumerate(labels):
-        #-- get the value from the atm_kwargs or red_kwargs
+    
+    # Initiate the array to hold the grid dimensions and interpolated values
+    values = np.zeros((len(labels), n_dim))
+    
+    for i, label in enumerate(labels):
+        
+        # Get the value from the atm_kwargs or red_kwargs
         if label in atm_kwargs:
             values[i] = atm_kwargs[label]
         elif label in red_kwargs:
             values[i] = red_kwargs[label]
-        elif label=='vgamma':
+        elif label == 'vgamma':
             values[i] = vgamma
         else:
-            raise ValueError("Somethin' wrong with the atmo table: cannot interpret label {}".format(label))
-    #-- try to interpolate
+            raise ValueError(("Somethin' wrong with the atmo table: cannot "
+                              "interpret label {}").format(label))
+    
+    # Try to interpolate
     try:
-        pars = interp_nDgrid.interpolate(values,axis_values,pixelgrid)
+        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid)
         if np.any(np.isnan(pars)):
             raise IndexError
-    #-- things can go outside the grid
+    
+    # Things can go outside the grid
     except IndexError:
-       msg = ", ".join(['{:.3f}<{}<{:.3f}'.format(values[i].min(),labels[i],values[i].max()) for i in range(len(labels))])
-       msg = "Parameters outside of grid {}: {}. Consider using a different atmosphere/limbdarkening grid, or use the black body approximation.".format(atm,msg)
-       #raise IndexError(msg)
-       logger.error(msg)
-       pars = np.zeros((pixelgrid.shape[-1],len(values[0])))
+        msg = ", ".join(['{:.3f}<{}<{:.3f}'.format(values[i].min(), labels[i],\
+                                 values[i].max()) for i in range(len(labels))])
+        msg = ("Parameters outside of grid {}: {}. Consider using a different "
+               "atmosphere/limbdarkening grid, or use the black body "
+               "approximation.").format(atm, msg)
+        logger.error(msg)
+        
+        pars = np.zeros((pixelgrid.shape[-1], len(values[0])))
+    
+    # The intensities were interpolated in log, but we want them in linear scale
     pars[-1] = 10**pars[-1]
+    
+    # That's it!
     return pars
+
 
 def legendre(x):
     pl = [np.ones_like(x), x]
@@ -1485,11 +1581,11 @@ def I_ls(ll,ss):
     
     Recursive implementation.
     
-    >>> _I_ls(0,0.5)
+    >>> I_ls(0,0.5)
     0.6666666666666666
-    >>> _I_ls(1,0.5)
+    >>> I_ls(1,0.5)
     0.4
-    >>> _I_ls(2,0.5)
+    >>> I_ls(2,0.5)
     0.09523809523809523
     """
     if ll==0:
@@ -1497,7 +1593,7 @@ def I_ls(ll,ss):
     elif ll==1:
         return 1./(2.+ss)
     else:
-        return (ss-ll+2)/(ss+ll-2+3.)*_I_ls(ll-2,ss)        
+        return (ss-ll+2)/(ss+ll-2+3.)*I_ls(ll-2,ss)        
     
 
 def sphere_intensity(body,pbdep,red_kwargs={}):
@@ -1581,70 +1677,108 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
 
 #{ Phoebe interface
 
-def local_intensity(system,parset_pbdep,parset_isr={}):
+def local_intensity(system, parset_pbdep, parset_isr={}):
     """
     Calculate local intensity.
     
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
     """
-    #-- get the arguments we need
+    # Get the arguments we need
     atm = parset_pbdep['atm']
     ld_coeffs = parset_pbdep['ld_coeffs']
     ld_func = parset_pbdep['ld_func']
-    passband = ('passband' in parset_pbdep) and parset_pbdep['passband'] or 'OPEN.BOL'
-    include_vgamma = ('beaming' in parset_pbdep) and parset_pbdep['beaming'] or False
-    ref = ('ref' in parset_pbdep) and parset_pbdep['ref'] or '__bol'
-    #-- compute local intensity
-    #-- radial velocity needs to be in km/s, while the natural units in the 
-    #   Universe are Rsol/d. If vrad needs to be computed, we'll also include
-    #   gravitational redshift
+    
+    # Passband: if it's not available (e.g. in the "Star" parset), we need to
+    # take the bolometric passband
+    if 'passband' in parset_pbdep:
+        passband = parset_pbdep['passband']
+    else:
+        passband = 'OPEN.BOL'
+    
+    # Doppler beaming: include it if there is such a keyword and it is turned on
+    if 'beaming' in parset_pbdep and parset_pbdep['beaming']:
+        include_vgamma = True
+    else:
+        include_vgamma = False
+    
+    # The reference we need to take to compute stuff (if not available, it's
+    # bolometric)
+    if 'ref' in parset_pbdep:
+        ref = parset_pbdep['ref']
+    else:
+        ref = '__bol'
+    
+    # Radial velocity needs to be in km/s, while the natural units in the 
+    # Universe are Rsol/d. If vrad needs to be computed, we'll also include
+    # gravitational redshift
     #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
     vrad = 8.04986111111111*system.mesh['velo___bol_'][:,2]
+    
     if include_vgamma:
         vrad += 0. # tools.gravitational_redshift
     else:
         vrad *= 0.
-    #-- in the following we need to take care of a lot of possible inputs by
-    #   the user, and some possible simplifications for the calculations
-    #   First of all, it is possible that the whole star has the same local
-    #   parameters. In that case, we compute the limb darkening coefficients
-    #   only for one surface element and then set all surface elements to be
-    #   the same.
-    #   Basically, we need to compute intensities and limb darkening
-    #   coefficients. In principle, they could be derived from different sets
-    #   of atmosphere models, or, the LD coeffs could be set manually to be
-    #   constant over the whole star while the intensities are varied over the
-    #   surface.
-    tag = 'ld_'+ref
-    log_msg = "{:s}({:s}): ".format(passband,tag[3:])
-    #-- we need parameters on the passband and reddening in the form of a
-    #   dictionary. We may add too much information, since the function
-    #   "interp_ld_coeffs" only extract those that are relevant.
+    
+    # In the following we need to take care of a lot of possible inputs by the
+    # user, and some possible simplifications for the calculations.
+    #
+    # First of all, it is possible that the whole star has the same local
+    # parameters. In that case, we compute the limb darkening coefficients only
+    # for one surface element and then set all surface elements to be the same.
+    #
+    # Basically, we need to compute intensities and limb darkening coefficients.
+    # In principle, they could be derived from different sets of atmosphere
+    # models, or, the LD coeffs could be set manually to be constant over the
+    # whole star while the intensities are varied over the surface.
+    
+    tag = 'ld_' + ref
+    log_msg = "{:s}({:s}): ".format(passband, tag[3:])
+    
+    # Now, in which parameters do we need to interpolate? This is probably teff
+    # and logg, but perhaps abundances, reddening,.. hell, perhaps even micro-
+    # turbulent velocity or mixing length parameter.
+    # 
+    # We need parameters on the passband and reddening in the form of a
+    # dictionary. We may add too much information, since the function
+    # "interp_ld_coeffs" only extracts those that are relevant.
     atm_kwargs = dict(parset_pbdep)
-    #-- No reddening for bolometric fluxes!
-    if ref=='__bol':# and parset_isr.get_context()=='reddening:interstellar':
+    
+    # No reddening for bolometric fluxes!
+    if ref == '__bol':
         red_kwargs = {}
-        logger.info("Not propagating interstellar reddening info for {} (taking default from grid)".format(ref))
+        logger.info(("Not propagating interstellar reddening info for {} "
+                    "(taking default from grid)").format(ref))
     else:
         red_kwargs = dict(parset_isr)
-    #-- This is what I was talking about: maybe everything has the same teff and
-    #   logg? We'll use the 'allclose' function, which takes care of small
-    #   numerical machine-precision variations
-    uniform_pars = np.allclose(system.mesh['teff'],system.mesh['teff'][0]) and \
-                   np.allclose(system.mesh['logg'],system.mesh['logg'][0]) and \
-                   np.allclose(system.mesh['abun'],system.mesh['abun'][0]) and \
-                   np.allclose(vrad,vrad[0])
-    ld_coeffs_from_grid = isinstance(ld_coeffs,str)
+    
+    # This is what I was talking about: maybe everything has the same teff and
+    # logg? We'll use the 'allclose' function, which takes care of small
+    # numerical machine-precision variations
+    uniform_pars = np.allclose(system.mesh['teff'], system.mesh['teff'][0]) and\
+                   np.allclose(system.mesh['logg'], system.mesh['logg'][0]) and\
+                   np.allclose(system.mesh['abun'], system.mesh['abun'][0]) and\
+                   np.allclose(vrad, vrad[0])
+    
+    # Possibly, the user gave LD coefficients (that is. the ld_coeffs parameter
+    # is not a atring)
+    ld_coeffs_from_grid = isinstance(ld_coeffs, str)
     if not ld_coeffs_from_grid:
-        system.mesh[tag][:,:len(ld_coeffs)] = np.array(ld_coeffs)
+        system.mesh[tag][:, :len(ld_coeffs)] = np.array(ld_coeffs)
+    
+    # If the parameters are all uniform over the surface, don't compute them
+    # all
     if uniform_pars:
-        #-- take the first surface element as the representative one
+        
+        # But take the first surface element as the representative one
         atm_kwargs['teff'] = system.mesh['teff'][:1]
         atm_kwargs['logg'] = system.mesh['logg'][:1]
         atm_kwargs['abun'] = system.mesh['abun'][:1]
         vgamma = vrad[:1]
         log_msg += '(single faces) (vgamma={})'.format(vgamma)
+    
+    # Else there is no way out of it, and we'll have to interpoalte stuff for
+    # every single triangle
     else:
         atm_kwargs['teff'] = system.mesh['teff']
         atm_kwargs['logg'] = system.mesh['logg']
@@ -1654,52 +1788,79 @@ def local_intensity(system,parset_pbdep,parset_isr={}):
             atm_kwargs['abun'] = 0.
         vgamma = vrad
         log_msg += '(multiple faces) (vgamma_mean={})'.format(vgamma.mean())
-    #-- what kind of atmosphere is used to compute the limb darkening
-    #   coefficients? They come from a model atmosphere (ld_coeffs is a filename),
-    #   or they are a list of LD coeffs, assumed to be constant over the
-    #   surface. If a filename is given, we immediately also set the
-    #   intensities of each surface element. If the user wants different
-    #   stuff, we'll take care of that in the next few lines.
+    
+    # What kind of atmosphere is used to compute the limbdarkening coefficients?
+    # They come from a model atmosphere (ld_coeffs is a filename), or they are a
+    # list of LD coeffs, assumed to be constant over the surface. If a filename
+    # is given, we immediately also set the intensities of each surface element.
+    # If the user wants different stuff, we'll take care of that in the next few
+    # lines.
     if ld_coeffs_from_grid:
-        log_msg += ', LD via table ld_coeffs={:s}'.format(os.path.basename(ld_coeffs) )
-        coeffs = interp_ld_coeffs(ld_coeffs,passband,atm_kwargs=atm_kwargs,
-                                       red_kwargs=red_kwargs,vgamma=vgamma).T
-        system.mesh[tag][:,:coeffs.shape[1]-1] = coeffs[:,:-1]
-        system.mesh[tag][:,-1] = coeffs[:,-1]
+        log_msg += (', LD via table ld_coeffs='
+                   '{:s}').format(os.path.basename(ld_coeffs))
+        coeffs = interp_ld_coeffs(ld_coeffs, passband, atm_kwargs=atm_kwargs,
+                                       red_kwargs=red_kwargs, vgamma=vgamma).T
+        system.mesh[tag][:, :coeffs.shape[1]-1] = coeffs[:, :-1]
+        system.mesh[tag][:, -1] = coeffs[:, -1]
+        
+    # Else the LD coeffs are just arrays and we can fill them in
     else:
         log_msg += ', LD via coeffs {}'.format(str(ld_coeffs))
         system.mesh[tag][:,:len(ld_coeffs)] = np.array(ld_coeffs)
-    #-- what kind of atmosphere is used to compute the intensities? Black
-    #   bodies we do on the fly, which means there are no limits on the
-    #   effective temperature used. Note that black bodies are not 
-    #   sensitive to logg.
-    if atm=='true_blackbody':
-        wave_ = np.logspace(2,5,10000)
-        log_msg += ', intens via atm=true_blackbody'
+        
+    # What kind of atmosphere is used to compute the intensities? Black bodies
+    # we do on the fly here, which means there are no limits on the effective
+    # temperature used. Note that black bodies are not sensitive to logg.
+    if atm == 'true_blackbody':
+        wave_ = np.logspace(2, 5, 10000)
+        log_msg += (', intens via atm=true_blackbody (this is going to take '
+                   'forever...)')
+        
+        # But seriously, don't try to do this for every triangle! Let's hope
+        # uniform_pars is true...
         if uniform_pars:
-            Imu_blackbody = sed.blackbody(wave_,atm_kwargs['teff'][0],vrad=vgamma)
-            system.mesh[tag][:,-1] = sed.synthetic_flux(wave_*10,Imu_blackbody,[passband])[0]
+            Imu_blackbody = sed.blackbody(wave_, atm_kwargs['teff'][0],
+                                          vrad=vgamma)
+            system.mesh[tag][:, -1] = sed.synthetic_flux(wave_*10,
+                                          Imu_blackbody, [passband])[0]
+        
+        # What the frack? You must be kidding... OK, here we go, creating
+        # black bodies and integrating them over the passband as we go...
+        # Imagine doing this for several light curves... oh boy. 
         else:
             for i,T in enumerate(atm_kwargs['teff']):
-                Imu_blackbody = sed.blackbody(wave_,T,vrad=vgamma[i])
-                system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,Imu_blackbody,[passband])[0]
-    #-- remember that if the ld_coeffs was a string, we already set the intensities
-    elif not ld_coeffs_from_grid or atm!=ld_coeffs:
+                Imu_blackbody = sed.blackbody(wave_, T, vrad=vgamma[i])
+                system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
+                                                 Imu_blackbody, [passband])[0]
+    
+    # Remember that if the ld_coeffs was a string, we already set the
+    # intensities. For the Wilson-Devinney type intensities, the user needs to
+    # set the limb darkening coefficients (WD doesn't do the fancy stuff we do)
+    elif not ld_coeffs_from_grid or atm != ld_coeffs:
         log_msg += ', intens via table atm={:s}, '.format(os.path.basename(atm))
-        #-- WD compatibility layer:
-        if os.path.splitext(atm)[1]=='.dat':
-            system.mesh[tag][:,-1] = interp_ld_coeffs_wd(atm,passband,atm_kwargs=atm_kwargs,
-                                            red_kwargs=red_kwargs,vgamma=vgamma)
-        #-- Phoebe layer
+        
+        # Wilson-Devinney compatibility layer:
+        if os.path.splitext(atm)[1] == '.dat':
+            system.mesh[tag][:, -1] = interp_ld_coeffs_wd(atm, passband,
+                                         atm_kwargs=atm_kwargs,
+                                         red_kwargs=red_kwargs, vgamma=vgamma)
+        
+        # Phoebe layer
         else:
-            system.mesh[tag][:,-1] = interp_ld_coeffs(atm,passband,atm_kwargs=atm_kwargs,
-                                            red_kwargs=red_kwargs,vgamma=vgamma)[-1]
-    #-- else, we did everything already in the "if ld_coeffs_from_grid" part
+            system.mesh[tag][:,-1] = interp_ld_coeffs(atm,passband,
+                                       atm_kwargs=atm_kwargs,
+                                       red_kwargs=red_kwargs, vgamma=vgamma)[-1]
+    
+    # Else, we did everything already in the "if ld_coeffs_from_grid" part
     logger.info(log_msg)
+    
     # Optional consistency check:
     if True:
         if np.any(np.isnan(system.mesh[tag])):
-            raise ValueError("Value outside of grid: check if the surface gravity, temperature etc fall inside the grids. Perhaps if you have an eccentric orbit, the star is outside of the grid only for some phases.")
+            raise ValueError(("Value outside of grid: check if the surface "
+                              "gravity, temperature etc fall inside the grids. "
+                              "Perhaps if you have an eccentric orbit, the star"
+                              "is outside of the grid only for some phases."))
 
 
 
@@ -1807,6 +1968,45 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
     return proj_velo
 
     
+#}
+
+#{ System administration
+
+def get_paths():
+    """
+    Return the paths where the LD files are located.
+    
+    @return: path to grid with LD coefficients, path to grid with specific
+     intensities
+    @rtype: str, str
+    """
+    return os.path.join(basedir, 'tables','ld_coeffs'),\
+           os.path.join(basedir, 'tables','spec_intens')
+
+def add_file(filename):
+    """
+    Add an atmosphere file to the right installation directory.
+    """
+    # What kind of file is it?
+    with pyfits.open(filename) as ff:
+        has_key = 'FILETYPE' in ff[0].header.keys()
+        if has_key and ff[0].header['FILETYPE'] == 'LDCOEFFS':
+            index = 0
+        else:
+            index = 1
+    
+    # Where do we need to store it?
+    path = get_paths()[index]
+    
+    # Do we have access to that directory? If so, copy it. Else, produce the
+    # copy statement
+    destination = os.path.join(path, os.path.basename(filename))
+    if os.access(path):
+        shutil.copy(filename, destination)
+    else:
+        logger.warning("No permission to write {}".format(destination))
+        print("sudo cp {} {}".format(filename, destination))
+
 #}
     
 if __name__=="__main__":
