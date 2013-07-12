@@ -367,6 +367,7 @@ if __name__=="__main__":
     for pythonfile in test_suite:
         python_to_sphinx(pythonfile,type='testsuite.',latex=False)
     python_to_sphinx('phoebe-doc/scripts/how_to_binary.py',type='',latex=False)
+    python_to_sphinx('phoebe-doc/scripts/how_to_bundle.py',type='',latex=False)
     
     subprocess.call('sphinx-apidoc -f -o phoebe-doc phoebe',shell=True)
     os.chdir('phoebe-doc')

@@ -20,12 +20,15 @@ def update_progress(progress, width=80):
     A value under 0 represents a 'halt'.
     A value at 1 or bigger represents 100%
     """
-    barLength = max(1, width-20-20) # Modify this to change the length of the progress bar
+     # Modify this to change the length of the progress bar
+    barLength = max(1, width-20-20)
     
+    # What's our progress...
     progress = float(progress)
     if progress < 0:
         progress = 0
-        status = "{:20s}".format("First time point...")+"\r"
+        status = "{:20s}".format("First time point...") + "\r"
+        
     # At the end, report and let the progressbar disappear
     elif progress > 1:
         progress = 1
@@ -46,6 +49,7 @@ def update_progress(progress, width=80):
     sys.stdout.write(text)
     sys.stdout.flush()
 
+
 if __name__=="__main__":
     comm = MPI.COMM_WORLD
 
@@ -65,14 +69,20 @@ if __name__=="__main__":
     if myrank == 0:
         
         try:
+            
             # Load the system that we want to compute
             system = universe.load(sys.argv[2])
+            
             # Load the arguments to the function
-            with open(sys.argv[3],'r') as ff: args = cPickle.load(ff)
+            with open(sys.argv[3],'r') as open_file:
+                args = cPickle.load(open_file)
+            
             # Load the keyword arguments to the function
-            with open(sys.argv[4],'r') as ff: kwargs = cPickle.load(ff)
+            with open(sys.argv[4],'r') as open_file:
+                kwargs = cPickle.load(open_file)
         finally:
-            #-- Clean up pickle files once they are loaded:
+            
+            # Clean up pickle files once they are loaded:
             os.unlink(sys.argv[2])
             os.unlink(sys.argv[3])
             os.unlink(sys.argv[4])
@@ -82,7 +92,7 @@ if __name__=="__main__":
 
         # Derive at which phases this system needs to be computed
         params = kwargs.pop('params')
-        observatory.extract_times_and_refs(system,params,tol=1e-6)
+        observatory.extract_times_and_refs(system, params, tol=1e-6)
         dates = params['time']
         labels = params['refs']
         types = params['types']
@@ -93,7 +103,9 @@ if __name__=="__main__":
         if params['refl']:
             system.prepare_reflection(ref='all')
             system.fix_mesh()
-        update_progress(-1)#print("MPIrun: calculating at first time point")
+        
+        update_progress(-1)
+        
         system.set_time(params['time'][0])
         
         
@@ -104,13 +116,13 @@ if __name__=="__main__":
         # are 4 workers, we only take 1 phase point for each worker.
         olength = len(dates)
         while len(dates):
-            #-- print some diagnostics to the user.
-            #print("MPIrun: starting at {:.3f}% of total run".format((olength-len(dates))/float(olength)*100))
+            
+            # Print some diagnostics to the user.
             N = len(dates)
-            take = max(N/(2*nprocs),1)
-            do_dates,dates = dates[:take],dates[take:]
-            do_labels,labels = labels[:take],labels[take:]
-            do_types,types = types[:take],types[take:]
+            take = max(N / (2*nprocs), 1)
+            do_dates, dates = dates[:take], dates[take:]
+            do_labels, labels = labels[:take], labels[take:]
+            do_types, types = types[:take], types[take:]
             # Pass on the subset of dates/labels/types to compute
             kwargs['params'] = params.copy()
             kwargs['params']['time'] = do_dates
@@ -121,7 +133,8 @@ if __name__=="__main__":
             node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
             
             # Send the phase and the system to that worker.
-            packet = {'system':system, 'args':args, 'kwargs':kwargs, 'continue': True}
+            packet = {'system':system, 'args':args, 'kwargs':kwargs,\
+                      'continue': True}
             comm.send(packet, node, tag=TAG_DATA)
 
             # Store the results asynchronously:
@@ -129,11 +142,11 @@ if __name__=="__main__":
             
             update_progress((olength-len(dates))/float(olength))
             
-        
-        update_progress(1.1)#print("MPIrun: finished")
+        # Finish off the progressbar
+        update_progress(1.1)
         
         packet = {'continue': False}
-        for i in range(1,nprocs):
+        for i in range(1, nprocs):
             node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
             comm.send(packet, node, tag=TAG_DATA)
         
@@ -152,8 +165,10 @@ if __name__=="__main__":
         
         
     else:
+        
         # This is the worker.
         while True:
+            
             # Send the work request:
             comm.send(myrank, 0, tag=TAG_REQ)
             
@@ -161,8 +176,10 @@ if __name__=="__main__":
             packet = comm.recv (tag=TAG_DATA)
             if packet['continue'] == False:
                 break
+            
             # Do the work:
-            getattr(observatory,function)(packet['system'],*packet['args'],**packet['kwargs'])
+            func = getattr(observatory, function)
+            func(packet['system'], *packet['args'], **packet['kwargs'])
             
             # Send the results back to the manager:
             the_result = universe.keep_only_results(packet['system'])
