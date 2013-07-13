@@ -884,7 +884,7 @@ class ColorChooserButton(QPushButton):
         QObject.connect(self, SIGNAL("clicked()"), self.on_clicked)
         
         if kind == 'obs':
-            self.setToolTip("color for synthetic")
+            self.setToolTip("color for observables")
         elif kind=='syn':
             self.setToolTip("color for synthetic")
         

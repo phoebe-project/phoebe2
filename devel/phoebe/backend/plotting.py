@@ -202,7 +202,7 @@ def plot_lcobs(system,errorbars=True,**kwargs):
         time = (time % period) / period
         # need to sort by time (if using lines)
         o = time.argsort()
-        time, rv = time[o], rv[o]
+        time, flux = time[o], flux[o]
         for n in range(repeat+1):
             if errorbars:
                 p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
@@ -423,9 +423,9 @@ def plot_rvobs(system,errorbars=True,**kwargs):
         time, rv = time[o], rv[o]
         for n in range(repeat+1):
             if errorbars:
-                p = plt.errorbar(time+n,rv,yerr=sigm,**kwargs)
+                p = ax.errorbar(time+n,rv,yerr=sigm,**kwargs)
             else:
-                p = plt.plot(time+n,rv,**kwargs)
+                p = ax.plot(time+n,rv,**kwargs)
             artists.append(p)
 
     if loaded: obs.unload()
@@ -1241,6 +1241,12 @@ class Axes(object):
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
+            
+    def keys(self):
+        return self.axesoptions.keys()
+        
+    def values(self):
+        return self.axesoptions.values()
         
     def add_plot(self,plotoptions=None,**kwargs):
         """
