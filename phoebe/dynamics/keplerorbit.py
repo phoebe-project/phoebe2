@@ -416,16 +416,17 @@ logger = logging.getLogger('BINARY.ORBIT')
 
 #{ General orbits    
 
-def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
-           deccdt=0.,dperdt=0.,mass_conservation=True,component='primary',
-           t0type='periastron passage'):
+def get_orbit(times, period, ecc, sma, t0, per0=0., long_an=0., incl=0.,
+              dpdt=0., deccdt=0., dperdt=0., mass_conservation=True,
+              component='primary', t0type='periastron passage'):
     r"""
     Construct an orbit in observer coordinates.
         
     Argument ``Parameters`` contains:
         1. period (s)
         2. eccentricity
-        3. component semi-major axis (not system semi-major axis!) (m)
+        3. component semi-major axis (not system semi-major axis! see below
+           for conversion formula from system to component semi-major axis) (m)
         4. time of periastron passage :math:`t_0` (not :math:`x_0`!) (s)
         
     Optional parameters for orientation in 3D:
@@ -458,6 +459,14 @@ def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
     See Hilditch p41 for a sketch of the coordinates. The difference with this
     is that all angles are inverted. In this approach, North is in the
     positive X direction, East is in the negative Y direction (?).
+    
+    The system semi-major axis and component semi-major axes are connected to 
+    the mass ratio :math:`q=M_2/M_1` via:
+    
+    .. math::
+    
+        a_1 = \frac{a}{1 + \frac{1}{q}} \\
+        a_2 = \frac{a}{1 + q}
     
     @param times: times of observations (s)
     @type times: array
@@ -551,13 +560,13 @@ def get_orbit(times,period,ecc,sma,t0,per0=0.,long_an=0.,incl=0.,dpdt=0.,
     return (x,y,z),(vx,vy,vz),(theta_,long_an,incl)
     
 
-def get_barycentric_orbit(bary_times,*args,**kwargs):
+def get_barycentric_orbit(bary_times, *args, **kwargs):
     """
     Construct on orbit in observer coordinates corrected for light LTT effects.
     
     @param bary_times: barycentric time coordinates
     @type bary_times: float or array
-    @return: proper times, position vector, velocity vector, Euler angles
+    @return: position vector, velocity vector, Euler angles, proper times
     @rtype: 3-tuple, 3-tuple, 3-tuple, array/float
     """
     #-- We need to set the location of the object such that it light arrives
@@ -568,15 +577,17 @@ def get_barycentric_orbit(bary_times,*args,**kwargs):
     #   need it to be t_bary. Thus, we need to optimize it's location (i.e.
     #   proper time) until the observed time is the barycentric time.
     def propertime_barytime_residual(t):
-        pos,velo,euler = get_orbit(t,*args,**kwargs)
+        pos, velo, euler = get_orbit(t, *args, **kwargs)
         z = pos[2]
-        return t+z/constants.cc/(24*3600.)-t_bary
+        #return t + z/constants.cc/(24*3600) - t_bary
+        return t + z/constants.cc - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
-    propertimes = [newton(propertime_barytime_residual,t_bary) for t_bary in bary_times]
+    propertimes = [newton(propertime_barytime_residual, t_bary) for t_bary in bary_times]
     propertimes = np.array(propertimes)
     #-- then make an orbit with these times!
-    this_orbit = get_orbit(propertimes,*args,**kwargs)
+    this_orbit = get_orbit(propertimes, *args, **kwargs)
     return list(this_orbit) + [propertimes]
+
 
 def get_hierarchical_orbit(times,orbits,comps):
     """
@@ -630,7 +641,8 @@ def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False
     def propertime_barytime_residual(t):
         obj,vel = get_hierarchical_orbit(t,orbits,comps)
         z = obj[2]
-        return t+z/constants.cc/(24*3600.)-t_bary
+        #return t+z/constants.cc/(24*3600.)-t_bary
+        return t + z/constants.cc - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual,t_bary) for t_bary in bary_times]
     propertimes = np.array(propertimes)
@@ -1055,13 +1067,13 @@ def calculate_asini(period,ecc,K1=0,K2=0):
     asini+= np.abs(K2)*factor
     return asini
     
-def calculate_mass_function(period,ecc,K):
+def calculate_mass_function(period, ecc, K):
     r"""
     Calculate mass function f(m).
     
     .. math::
         
-        f(M) = (M\sin \mathrm{incl})^3/(M_1+M)^2
+        f(M) = (M_2\sin \mathrm{incl})^3/(M_1+M_2)^2
     
         f(M) = 1.0361\times 10^7 (1-\mathrm{ecc}^2)^(1.5) K^3 \mathrm{period}
     
@@ -1341,9 +1353,13 @@ def parse_ps(func,ps,*args,**kwargs):
     if (argnr_start+len(defaults))<len(argnames):
         for argnr,argname in enumerate(argnames[argnr_start:-len(defaults)]):
             if argname in ps:
+                # Take the component sma instead of system sma
+                if argname == 'sma' and 'component' in kwargs:
+                    argname = 'sma{:d}'.format([None,'primary','secondary'].index(kwargs['component']))
+                    argvals.append(ps.request_value(argname))
                 #-- if the paramer has units, make sure to take the SI value
                 #   else, just take the value
-                if ps.has_unit(argname):
+                elif ps.has_unit(argname):
                     argvals.append(ps.request_value(argname,'SI'))
                 else:
                     argvals.append(ps.request_value(argname))
