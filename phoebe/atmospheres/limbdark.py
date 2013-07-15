@@ -933,7 +933,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     Example usage:
     
         >>> atm_kwargs = dict(teff=6000.,logg=4.0,z=0.)
-        >>> interp_ld_coeffs_wd('atmcof.dat','V',atm_kwargs=atm_kwargs)
+        >>> interp_ld_coeffs_wd('atmcof.dat','JOHNSON.V',atm_kwargs=atm_kwargs)
         
     Remarks:
     
@@ -1001,18 +1001,23 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         index1 = 18-np.searchsorted(M, m)
         index2 = np.searchsorted(L, l)
         idx = index1*len(P)*len(L)*4 + P_index*len(L)*4 + index2*4
-        Cl2 = table[idx+1,2:]
+
+        # if j == None, it means that the value for the temperature is
+        # out of range and exception should be raised (or black-body
+        # approximation used). That remains unhandled.
+        j = None if t < table[idx,0] else next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+
+        Cl = table[idx+j,2:]
         
-        # Calculate the Legendre temperature
-        teff = (t-table[idx+1, 0]) / (table[idx+1, 1]-table[idx+1, 0])
+        # calculate the Legendre temperature
+        teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
         Pl = np.array(legendre(teff))
-        
-        #-- and compute the flux
-        #s = np.sum(Cl2.reshape((-1,1))*Pl,axis=0)
-        s = np.sum(Cl2*Pl, axis=0)
+
+        # and compute the flux
+        s = np.sum(Cl*Pl, axis=0)
         ints[i] = s
     
-    #-- that's it!
+    # that's it!
     return np.array([10**ints * 1e-8])
 
 
