@@ -325,10 +325,11 @@ def get_info(passbands=None):
     zp_table = np.loadtxt(zp_file, dtype=str, unpack=True)
     
     # Define column name and type
-    header = ['passband', 'eff_wave', 'type', 'vegamag', 'vegamag_lit', 'ABmag',
-              'ABmag_lit', 'STmag', 'STmag_lit', 'Flam0', 'Flam0_units',
-              'Flam0_lit', 'Fnu0', 'Fnu0_units', 'Fnu0_lit', 'source']
-    types = ['S50', '>f8', 'S3', '>f8', 'int32', '>f8', 'int32', '>f8',
+    header = ['passband', 'eff_wave', 'type', 'transmission', 'vegamag',
+              'vegamag_lit', 'ABmag', 'ABmag_lit', 'STmag', 'STmag_lit',
+              'Flam0', 'Flam0_units', 'Flam0_lit', 'Fnu0', 'Fnu0_units',
+              'Fnu0_lit', 'source']
+    types = ['S50', '>f8', 'S3', '>f8', '>f8', 'int32', '>f8', 'int32', '>f8',
              'int32', '>f8', 'S50', 'int32', '>f8', 'S50', 'int32', 'S100']
     dtype = [(head, typ) for head, typ in zip(header, types)]
     dtype = np.dtype(dtype)
@@ -391,6 +392,8 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
     @param passband: photometric passband
     @type passband: str (``'SYSTEM.FILTER'``)
     """
+    # Clear all things that are memoized from this module
+    decorators.clear_memoization(keys=['passbands'])
     
     # Check if the passband already exists:
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
@@ -403,7 +406,7 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
     # Set effective wavelength
     kwargs.setdefault('type', 'CCD')
     kwargs.setdefault('eff_wave', eff_wave(passband, det_type=kwargs['type']))
-    
+    kwargs.setdefault('transmission', np.trapz(response, x=wave))
     # Add info for zeropoints.dat file: make sure wherever "lit" is part of the
     # name, we replace it with "0". Then, we overwrite any existing information
     # with info given
@@ -465,12 +468,16 @@ def subdivide_response(passband, parts=10, sampling=100, add=True):
         this_response[-1] = 0.
         responses.append((this_wave,this_response))
         
+        # Give them a default name, which the user can use to refer to them
+        # (but doesn't need to)
+        new_name = "{}_{:04d}_{:04d}".format(passband, part, parts)
+        names.append(new_name)
+        
         if add:
-            new_passband = "{}_{:04d}_{:04d}".format(passband, part, parts)
-            add_response(this_wave, this_response, passband=new_passband,
+            add_response(this_wave, this_response, passband=new_name,
                          force=True, copy_from=passband)
         
-    return responses
+    return responses, names
     
     
     

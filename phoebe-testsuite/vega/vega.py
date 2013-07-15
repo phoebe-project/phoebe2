@@ -233,7 +233,7 @@ plt.savefig('vega_details')
    :width: 700px
    :alt: map to buried treasure
 
-   Inteferometric quantities of the Vega models.
+   Interferometric quantities of the Vega models.
 
 """
 

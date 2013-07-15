@@ -27,7 +27,10 @@ def python_to_sphinx(pythonfile,latex=False,type='testsuite.'):
     start_doc = False
     inside_code = False
     
-    tt.write(":download:`Download this page as a python script <../{}>`\n\n".format(pythonfile))
+    if '/' in type:
+        tt.write(":download:`Download this page as a python script <{}>`\n\n".format(os.path.basename(pythonfile)))
+    else:
+        tt.write(":download:`Download this page as a python script <../{}>`\n\n".format(pythonfile))
     
     for line in ff.readlines():
         if 'time.time(' in line: continue
@@ -372,6 +375,7 @@ if __name__=="__main__":
         python_to_sphinx(pythonfile,type='testsuite.',latex=False)
     python_to_sphinx('phoebe-doc/scripts/how_to_binary.py',type='',latex=False)
     python_to_sphinx('phoebe-doc/scripts/how_to_bundle.py',type='',latex=False)
+    python_to_sphinx('phoebe-doc/verification/compare_atm_int.py',type='verification/',latex=False)
     
     subprocess.call('sphinx-apidoc -f -o phoebe-doc phoebe',shell=True)
     os.chdir('phoebe-doc')

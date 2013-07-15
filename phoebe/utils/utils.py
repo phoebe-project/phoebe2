@@ -4,6 +4,8 @@ Various tools and utilities.
 import logging
 import sys
 import os
+import inspect
+import webbrowser
 import numpy as np
 
 #{ Loggers
@@ -136,6 +138,27 @@ def add_filehandler(logger,style="default",flevel='DEBUG',
     logging.getLogger(name).addHandler(fh)
     logging.getLogger(name).handlers[-1].level = flevel
     return logging.getLogger(name)
+
+def help(obj):
+    """
+    Open the HTML help pages for a certain function or class instance.
+    """
+    try:
+        myclass = obj
+        modfile = inspect.getabsfile(obj)
+    except TypeError:
+        myclass = obj.__class__
+        modfile = inspect.getabsfile(obj.__class__)
+    
+    path = os.path.splitext(modfile[modfile.rfind('phoebe'):])[0]
+    
+    url_base = "http://www.phoebe-project.org/2.0/docs/"
+    url_module = ".".join(path.split(os.sep)[:-1]) + '.html'
+    url_loc = ".".join(path.split(os.sep)) + '.' + myclass.__name__
+    
+    url = os.path.join(url_base, url_module + '#' + url_loc)
+    webbrowser.open(url)
+
 #}
 
 

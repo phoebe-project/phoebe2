@@ -20,6 +20,7 @@ Convert a Body to an observable quantity.
 import logging
 import os
 import itertools
+import functools
 # Third party dependencies: matplotlib and pyfits are try-excepted
 import numpy as np
 from numpy import pi, sqrt, sin, cos
@@ -796,11 +797,86 @@ def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
 # Helper function
 def rotmatrix(theta):
     return np.array([[np.cos(theta),-np.sin(theta)],[np.sin(theta),np.cos(theta)]])
+
+
+def prepare_bandwidth_smearing(ldgrid_file, passband, subdivide=10):
+    """
+    Prepare an atmosphere grid file for bandwidth smearking.
+    
+    This means:
+        1. Subdivide the passband in a number of parts and temporarily add them
+           to the library.
+        2. Compute LD coeffs for all the parts (if they do not exist yet)
+        3. Add those LD coeffs to the atmosphere file (if they do not exist yet) 
+    """
+    # Subdivide the passband
+    responses, names = passband.subdivide_response(passband, parts=subdivide,\
+                                                   add=True)
+    
+    # Add them to grid (won't do anything if they already exist)
+    limbdark.compute_grid_ld_coeffs(ldgrid_file, passbands=names)
     
     
+
+def bandwidth_smearing(fctn):
+    """
+    Apply bandwidth smearing to interferometry.
     
+    This calls :py:func:`ifm` a couple of times, each time compute the
+    visibilities in a different part of the passband. In the end, a weighted
+    average of all visibilities is taken.
+    """
+    @functools.wraps(fctn)
+    def do_bandwidth_smearing(system, *args, **kwargs):
+        # In how many parts do we need to divide the passband?
+        n_parts = kwargs.pop('bandwidth_smearing', 1)
+        ref = kwargs['ref']
+        
+        # We need to look up the passband; for now hardcode it to 2MASS.KS
+        parset, pref = system.get_parset(ref=ref, context='ifdep')
+        passband = parset['passband']
+        
+        # For each port, compute the visibilities and such.
+        output = []
+        proj_int = np.ones(n_parts)
+        transmission_weight = np.ones(n_parts)
+        
+        for n_part in range(n_parts):
+            
+            # Only use this subdivision when there's more than one part to
+            # subdivide the bands over
+            if n_parts>1:
+                postfix = '{:04d}_{:04d}'.format(n_part, n_parts)
+                this_ref = ref + postfix
+                kwargs['ref'] = this_ref
+                
+                # Keep track of the total project intensity and relative
+                # transmission of this part of the passband
+                this_proj_int = system.projected_intensity(ref=kwargs['ref'])
+                proj_int[n_part] = np.sum(np.array(this_proj_int))
+                transmission_weight[n_part] = \
+                         passbands.get_info([passband+postfix])['transmission']
+        
+                
+            # Compute the ifm observables
+            freq, base, pos_angle, visib, phase, \
+                            ang_scale, ang_prof = fctn(system, *args, **kwargs)
+            output.append([visib, phase])
+                        
+        # Now compute all the averages...
+        output = np.array(output)
+        weights = proj_int*transmission_weight
+        vis2, phase = np.average(output, axis=0, weights=weights)
+        
+        # That's it -- we just need to make sure to have the same return
+        # signature as "ifm". Please change it in the future.
+        return freq, None, None, vis2, phase, None, None
+    
+    return do_bandwidth_smearing    
+    
+@bandwidth_smearing    
 def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
-        figname=None, keepfig=True):
+        figname=None, bandwidth_smearing=1, keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
     

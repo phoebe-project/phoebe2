@@ -2183,10 +2183,12 @@ class Body(object):
         
         returns parset and it's reference (in reverse order)
         
-        If possible, please give the context. There is still a bug in the
-        code below, that does not iterate over bodies in a lower level if nothing
-        was found in this body. Have a look at the first part of the code to
-        find the small workaround for that.
+        .. warning::
+        
+            If possible, please give the context. There is still a bug in the
+            code below, that does not iterate over bodies in a lower level if
+            nothing was found in this body. Have a look at the first part of the
+            code to find the small workaround for that.
         
         """
         # This Body needs to have parameters attached
@@ -2749,27 +2751,38 @@ class Body(object):
         """
         You can only do this if you have observations attached.
         """
-        #-- don't bother if we cannot do anything...
+        # Don't bother if we cannot do anything...
         if hasattr(self,'params') and 'obs' in self.params and 'ifobs' in self.params['obs']:
             for lbl in set(ref):
-                ifobs,lbl = self.get_parset(type='obs',ref=lbl)
+                # Get the parameterSet with relevant parameters
+                ifobs, lbl = self.get_parset(type='obs', ref=lbl)
+                
+                # Retrieve the times of observations, the baseline coordinates
+                # (baseline length and position angle) and effective wavelength
                 times = ifobs['time']
                 posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/pi*180.
                 baseline = sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2)
                 eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
+                
+                # If not time is given, assume all baselines are measured at
+                # the same time (or equivalently the system is time independent)
                 if time is None:
                     keep = np.ones(len(posangle),bool)
+                
+                # Else, regard all time differences below 1e-8 seconds as
+                # negligible
                 else:
                     keep = np.abs(times-time)<1e-8
-                #-- if nothing needs to be computed, don't do it
-                if sum(keep)==0:
+                    
+                # If nothing needs to be computed, don't do it
+                if sum(keep) == 0:
                     continue
-                output = observatory.ifm(self,posangle=posangle[keep],
+                output = observatory.ifm(self, posangle=posangle[keep],
                                      baseline=baseline[keep],eff_wave=eff_wave,
-                                     ref=lbl,keepfig=False)
+                                     ref=lbl, keepfig=False)
                                      #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
-                ifsyn,lbl = self.get_parset(type='syn',ref=lbl)
-                ifsyn['time'] += [time]*len(output[0])
+                ifsyn, lbl = self.get_parset(type='syn', ref=lbl)
+                ifsyn['time'] += [time] * len(output[0])
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
                 ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
                 ifsyn['vis2'] += list(output[3])
