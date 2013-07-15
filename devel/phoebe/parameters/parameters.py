@@ -706,7 +706,10 @@ class Parameter(object):
         #-- catch *ANY* exception, but throw it back out there with some extra
         #   information
         except Exception as msg:
-            raise TypeError("qualifier '{}': cannot cast {} to {} (original message: {})".format(self.qualifier,self.value,self.cast_type,msg))
+            if self.cast_type == 'choose':
+                raise TypeError("qualifier '{}': cannot cast {} to {} (not any of {}) (original message: {})".format(self.qualifier,self.value,self.cast_type,", ".join(self.choices), msg))
+            else:   
+                raise TypeError("qualifier '{}': cannot cast {} to {} (original message: {})".format(self.qualifier,self.value,self.cast_type,msg))
     
     def get_input(self,*args):
         """

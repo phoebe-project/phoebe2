@@ -940,6 +940,8 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         - reddening (C{red_kwargs}) is not implemented
         - doppler beaming (C{vgamma}) is not implemented
     
+    Compare with native `Phoebe` LD support:
+    
     @param atm: atmosphere table filename or alias
     @type atm: string
     @param atm_kwargs: dict with keys specifying the atmospheric parameters
@@ -951,63 +953,68 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     @param passband: photometric passband
     @type passband: str
     """
-    #-- get atmospheric properties
-    m = atm_kwargs.get('abun',0)
-    l = atm_kwargs.get('logg',4.5)
-    t = atm_kwargs.get('teff',10000)
+    # Get atmospheric properties
+    m = atm_kwargs.get('abun', 0)
+    l = atm_kwargs.get('logg', 4.5)
+    t = atm_kwargs.get('teff', 10000)
     p = passband
     
-    length = max([len(i)  if hasattr(i,'__len__') else 1 for i in [m,l,t]])
-    if not hasattr(m,'__len__'):
+    # Make sure all the interpolatable quantities are arrays of the same length
+    # not that some (or all) of them can be scalars
+    length = max([len(i)  if hasattr(i, '__len__') else 1 for i in [m, l, t]])
+    
+    # So if they are not arrays, make them in arrays with constant values
+    if not hasattr(m, '__len__'):
         nm = [m]*length
     else:
         nm = m
-    if not hasattr(l,'__len__'):
+    if not hasattr(l, '__len__'):
         nl = [l]*length
     else:
         nl = l
-    if not hasattr(t,'__len__'):
+    if not hasattr(t, '__len__'):
         nt = [t]*length
     else:
         nt = t
     
-    #-- prepare lists for interpolation
+    # Prepare lists for interpolation
     M = [-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
          -0.5,-0.3,-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
     L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-    P = ['STROMGREN.U','STROMGREN.V','STROMGREN.B','STROMGREN.Y',
-         'JOHNSON.U','JOHNSON.B','JOHNSON.V','JOHNSON.R','JOHNSON.I',
-         'JOHNSON.J','JOHNSON.K','JOHNSON.L','JOHNSON.M','JOHNSON.N',
-         'COUSINS.R','COUSINS.I','OPEN.BOL',None,None,None,None,None,
-         'TYCHO2.BT','TYCHO2.VT','HIPPARCOS.HP']
+    P = ['STROMGREN.U', 'STROMGREN.V', 'STROMGREN.B', 'STROMGREN.Y',
+         'JOHNSON.U', 'JOHNSON.B', 'JOHNSON.V', 'JOHNSON.R', 'JOHNSON.I',
+         'JOHNSON.J', 'JOHNSON.K', 'JOHNSON.L', 'JOHNSON.M', 'JOHNSON.N',
+         'COUSINS.R', 'COUSINS.I', 'OPEN.BOL', None, None, None, None, None,
+         'TYCHO2.BT', 'TYCHO2.VT', 'HIPPARCOS.HP']
     
-    #-- get the atmosphere table's location and read it in.
+    # Get the atmosphere table's location and read it in.
     if not os.path.isfile(atm):
-        atm = os.path.join(basedir_ld_coeffs,atm)
+        atm = os.path.join(basedir_ld_coeffs, atm)
     table = _prepare_wd_grid(atm)
     
     P_index = P.index(p)
     
     ints = np.zeros(length)
-    for i,(m,l,t) in enumerate(zip(nm,nl,nt)):
-        #-- find out where we need to be in the atmosphere table and extract that
-        #   row
-        index1 = 18-np.searchsorted(M,m)
-        index2 = np.searchsorted(L,l)
+    for i,(m, l,t) in enumerate(zip(nm, nl, nt)):
+        # Find out where we need to be in the atmosphere table and extract that
+        # row
+        index1 = 18-np.searchsorted(M, m)
+        index2 = np.searchsorted(L, l)
         idx = index1*len(P)*len(L)*4 + P_index*len(L)*4 + index2*4
         Cl2 = table[idx+1,2:]
         
-        #-- calculate the Legendre temperature
-        teff = (t-table[idx+1,0])/(table[idx+1,1]-table[idx+1,0])
+        # Calculate the Legendre temperature
+        teff = (t-table[idx+1, 0]) / (table[idx+1, 1]-table[idx+1, 0])
         Pl = np.array(legendre(teff))
         
         #-- and compute the flux
         #s = np.sum(Cl2.reshape((-1,1))*Pl,axis=0)
-        s = np.sum(Cl2*Pl,axis=0)
+        s = np.sum(Cl2*Pl, axis=0)
         ints[i] = s
     
     #-- that's it!
     return np.array([10**ints * 1e-8])
+
 
 @decorators.memoized
 def _prepare_wd_grid(atm):
