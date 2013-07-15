@@ -1006,6 +1006,9 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         # out of range and exception should be raised (or black-body
         # approximation used). That remains unhandled.
         j = None if t < table[idx,0] else next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+        
+        if j is None:
+            logger.error("Parameters outside of grid: Consider using a different atmosphere model")
 
         Cl = table[idx+j,2:]
         
