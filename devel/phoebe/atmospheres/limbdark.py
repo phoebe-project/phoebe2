@@ -170,6 +170,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import decorators
 from phoebe.io import fits
+from phoebe.io import ascii
 from phoebe.algorithms import interp_nDgrid
 from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
@@ -1027,7 +1028,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
 @decorators.memoized
 def _prepare_wd_grid(atm):
     logger.info("Prepared WD grid {}: interpolate in teff, logg, abun".format(os.path.basename(atm)))
-    return np.loadtxt(atm)
+    return ascii.loadtxt(atm)
 
 @decorators.memoized
 def _prepare_grid(passband,atm):

@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import numpy as np
+from StringIO import StringIO
 
 logger = logging.getLogger("IO.ASCII")
 logger.addHandler(logging.NullHandler())
@@ -238,3 +239,16 @@ def read2recarray(filename,**kwargs):
     #-- and build the record array
     data = np.rec.array(data, dtype=dtype)
     return return_comments and (data,comm) or data
+
+def loadtxt(filename, *args, **kwargs):
+    """
+    Load a text file using numpy's loadtxt, but fix Fortran float "D" notation.
+    """
+    with open(filename, 'r') as ff:
+        contents = "".join(ff.readlines())
+        contents = contents.replace('D','E')
+        contents = contents.replace('d','e')
+        c = StringIO(contents)
+    data = np.loadtxt(c, *args, **kwargs)
+    return data
+    
