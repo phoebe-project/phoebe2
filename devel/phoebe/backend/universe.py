@@ -2429,7 +2429,6 @@ class Body(object):
         
         # Walk over all things in the system
         for loc, thing in self.walk_all():
-            
             # Iteration happens over all ParameterSets and bodies. We are only
             # interested in the Bodies.
             if not isinstance(thing, Body):
@@ -2447,8 +2446,8 @@ class Body(object):
             if isinstance(thing, BodyBag) and previous_label != label:
                 
                 # A body bag is represented by a "|   |    +=======>" sign
-                level = len(loc)-1 
-                prefix = ('|'+(' '*9))*(level-2)
+                level = len(set(loc))-1 
+                prefix = ('|'+(' '*9))*(level-1) ### was level-2 but line above was not "set"
                 text.append(prefix + '|')
                 prefix += '+' + '='*10
                 text.append(prefix + '> ' + label)
@@ -3670,7 +3669,7 @@ class BodyBag(Body):
     C{bodies[2]}) and Body C{bodies[0]}. It is B{not} a BodyBag consisting
     of three bodies!
     """
-    def __init__(self,list_of_bodies, obs=None,
+    def __init__(self,list_of_bodies, obs=None, connected=True,
                  report_problems=False,  solve_problems=False, **kwargs):
         """
         Initialise a BodyBag.
@@ -3684,6 +3683,12 @@ class BodyBag(Body):
         # We definitely need signals and a label, even if it's empty
         self.signals = {}
         self.label = None
+        
+        # Do the components belong together? This is important for the eclipse
+        # detection algorithm. If they don't belong together, we don't need
+        # to detect eclipses on the total BodyBag, but we can delegate it to the
+        # components
+        self.connected = connected
         
         # Make sure the list of bodies is a list
         if not isinstance(list_of_bodies, list):
@@ -3716,6 +3721,7 @@ class BodyBag(Body):
         # Process any extra keyword arguments: they can contain a label for the
         # bodybag, or extra ParameterSets. We need to set a label for a BodyBag
         # if it's a binary, so that we can figure out which component it is
+        # We also allow for "compute" parameters here!
         for key in kwargs:
             if key == 'label':
                 self.label = kwargs[key]
@@ -4013,15 +4019,32 @@ class BodyBag(Body):
         #"""
         #return self.bodies[0].get_parset(*args,**kwargs)
     
-    def set_time(self, *args, **kwargs):
+    def set_time(self, time, *args, **kwargs):
         """
         Set the time of all the Bodies in the BodyBag.
+        
+        We can dispatch corrected times to the separate bodies here if we want
+        to correct for Roemer delays and stuff in hierarchical systems. Then
+        we need to first come up with something that retrieves the orbit for
+        each component. Then we can pass that on to keplerorbit.
         """
         for body in self.bodies:
-            body.set_time(*args, **kwargs)
+            body.set_time(time, *args, **kwargs)
+        
         if 'orbit' in self.params:
             #-- once we have the mesh, we need to place it into orbit
-            keplerorbit.place_in_binary_orbit(self, args[0])
+            #keplerorbit.place_in_binary_orbit(self, time)
+            n_comp = self.get_component()
+            component = ('primary','secondary')[n_comp]
+            orbit = self.params['orbit']
+            loc, velo, euler = keplerorbit.get_binary_orbit(time,orbit, component)
+            self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+    
+    def get_orbit(self, times):
+        """
+        Get the orbit for all Bodies.
+        """
+        raise NotImplementedError
     
     def set_label(self,label):
         try:
@@ -6179,14 +6202,14 @@ class BinaryStar(Star):
         else:
             return None
     
-    def set_time(self,*args,**kwargs):
+    def set_time(self, time, *args, **kwargs):
         self.reset_mesh()
-        super(BinaryStar,self).set_time(*args,**kwargs)
+        super(BinaryStar,self).set_time(time, *args,**kwargs)
         #keplerorbit.place_in_binary_orbit(self,*args)
         n_comp = self.get_component()
         component = ('primary','secondary')[n_comp]
         orbit = self.params['orbit']
-        loc,velo,euler = keplerorbit.get_binary_orbit(self.time,orbit,component)
+        loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
         self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
         
     

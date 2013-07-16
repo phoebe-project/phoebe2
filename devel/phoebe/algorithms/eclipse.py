@@ -88,7 +88,7 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
 
     
     
-def horizon_via_normal_old(body_list):
+def horizon_via_normal(body_list):
     """
     Detect horizon via the sign of the mu angle (no eclipses).
     
@@ -131,7 +131,7 @@ def horizon_via_normal_old(body_list):
         body_list = body_list[0]    
     #-- that's it!
 
-def horizon_via_normal(body_list):
+def horizon_via_normal_simple(body_list):
     """
     Detect horizon via the sign of the mu angle (no eclipses).
     

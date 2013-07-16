@@ -2152,6 +2152,21 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     @param algorithm: override the algorithm in the case there are no eclipses.
     @type algorithm: str, one of 'only_horizon' or 'full'
     """
+    # Perhaps we need to delegate the eclipse detection algorithm to the
+    # bodies in the system: this can happen if we observe two systems
+    # simultaneously but are diconnected in reality (e.g. they fall on the same
+    # pixels in the CCD, but one is a background, and the other is a foreground
+    # object)
+    is_bbag = hasattr(all_systems, 'bodies')
+    if is_bbag and 'compute' in all_systems.params and not all_systems.connected:
+        for system in all_systems.bodies:
+            choose_eclipse_algorithm(system, algorithm=compute['algorithm'])
+        return None
+    elif is_bbag and not all_systems.connected:
+        for system in all_systems.bodies:
+            choose_eclipse_algorithm(system, algorithm=algorithm)
+        return None
+    
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
         eclipse.horizon_via_normal(all_systems)
@@ -2270,7 +2285,7 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     easy.
     """
     # Get the thing to plot
-    if hasattr(system,'__len__'):
+    if hasattr(system,'__len__') and comp >= 0:
         system = system[comp]
     # and make the figure
     savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
