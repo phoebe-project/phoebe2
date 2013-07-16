@@ -959,6 +959,14 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     l = atm_kwargs.get('logg', 4.5)
     t = atm_kwargs.get('teff', 10000)
     p = passband
+
+    # Check the bounds; Pieter will probably modify these to array tests.
+    if l < 0.0 or l > 5.0:
+        logger.error("log(g) outside of grid: Consider using a different atmosphere model")
+    if m < -5.0 or m > 1.0:
+        logger.error("[M/H] outside of grid: Consider using a different atmosphere model")
+    if t < 3500 or t > 50000:
+        logger.error("Teff outside of grid: Consider using a different atmosphere model")
     
     # Make sure all the interpolatable quantities are arrays of the same length
     # not that some (or all) of them can be scalars
@@ -980,7 +988,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     
     # Prepare lists for interpolation
     M = [-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
-         -0.5,-0.3,-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+         -0.5, -0.3, -0.2, -0.1,  0.0,  0.1,  0.2,  0.3,  0.5, 1.0]
     L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
     P = ['STROMGREN.U', 'STROMGREN.V', 'STROMGREN.B', 'STROMGREN.Y',
          'JOHNSON.U', 'JOHNSON.B', 'JOHNSON.V', 'JOHNSON.R', 'JOHNSON.I',
@@ -996,34 +1004,33 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     P_index = P.index(p)
     
     ints = np.zeros(length)
-    for i,(m, l,t) in enumerate(zip(nm, nl, nt)):
-        # Find out where we need to be in the atmosphere table and extract that
-        # row
-        index1 = 18-np.searchsorted(M, m)
-        index2 = np.searchsorted(L, l)
-        idx = index1*len(P)*len(L)*4 + P_index*len(L)*4 + index2*4
+    for i, (m, l, t) in enumerate(zip(nm, nl, nt)):
+        # Bracket the values:
+        idx = next((i for i,v in enumerate(M) if m < v), None)
+        Mb = M[idx-1:idx+1]
+        idx = next((i for i,v in enumerate(L) if l < v), None)
+        Lb = L[idx-1:idx+1]
 
-        # if j == None, it means that the value for the temperature is
-        # out of range and exception should be raised (or black-body
-        # approximation used). That remains unhandled.
-        j = None if t < table[idx,0] else next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+        grid_pars = np.array([(mm,ll) for mm in Mb for ll in Lb]).T
+
+        grid_data = []
+        for (mm, ll) in grid_pars.T:
+            idx = 18-np.searchsorted(M, mm)*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+            j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+            Cl = table[idx+j,2:]
+            teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
+            Pl = np.array(legendre(teff))
+            grid_data.append(np.sum(Cl*Pl, axis=0))
+            print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+        grid_data = np.array([grid_data])
+
+        av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
+        p = np.array([[m], [l]])
+        val = interp_nDgrid.interpolate(p, av, pg)
+        ints[i] = val
+        print ("DEBUG: Iinterp = %12.9f" % (val))
         
-        if j is None:
-            logger.error("Parameters outside of grid: Consider using a different atmosphere model")
-
-        Cl = table[idx+j,2:]
-        
-        # calculate the Legendre temperature
-        teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
-        Pl = np.array(legendre(teff))
-
-        # and compute the flux
-        s = np.sum(Cl*Pl, axis=0)
-        ints[i] = s
-    
-    # that's it!
-    return np.array([10**ints * 1e-8])
-
+    return np.array([1e-8*10**ints])
 
 @decorators.memoized
 def _prepare_wd_grid(atm):
