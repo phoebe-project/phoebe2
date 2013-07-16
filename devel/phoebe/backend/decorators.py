@@ -263,7 +263,7 @@ def mpirun(fctn):
                 mpirun_loc = os.path.join(mpirun_loc, 'backend', 'mpirun.py')
                 
                 # Build and run the command
-                cmd = ("mpirun -np {num_proc}{hostfile}{byslot} {python} "
+                cmd = ("mpirun -np {num_proc} {hostfile} {byslot} {python} "
                        "{mpirun_loc} {fctn.__name__} {sys_file.name} "
                        "{args_file.name} {kwargs_file.name}").format(**locals())
                 
