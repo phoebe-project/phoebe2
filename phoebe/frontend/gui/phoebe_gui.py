@@ -490,7 +490,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.filename = None
                 return
             if self.sender()==self.actionLegacy_PHOEBE:
-                self.PyInterp_run('bundle = Bundle(system=create.legacy_to_phoebe(\'%s\', create_body=True))' % filename, kind='sys', thread=False)
+                self.PyInterp_run('bundle = Bundle(system=parsers.legacy_to_phoebe(\'%s\', create_body=True))' % filename, kind='sys', thread=False)
                 return
             self.PyInterp_run('bundle = phoebe.load_body(\'%s\')' % filename, kind='sys', thread=False)
             self.filename = filename
@@ -1412,7 +1412,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             'pyinterp_enabled': True, 'pyinterp_tutsys': True, \
             'pyinterp_tutplots': True, 'pyinterp_thread_on': True, \
             'pyinterp_thread_off': False, 
-            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.backend.bundle import Bundle\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.utils import utils',
+            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.backend.bundle import Bundle\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils',
             'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
             'plugins': {'keplereb': False, 'example': False},\
             
