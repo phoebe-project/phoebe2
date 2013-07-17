@@ -260,7 +260,7 @@ from scipy.stats import distributions
 try:
     import matplotlib.pyplot as plt
 except ImportError:
-    print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IF functionality")
+    pass
 #-- load self defined modules
 from phoebe.units import conversions
 from phoebe.units import constants
@@ -269,7 +269,11 @@ from phoebe.parameters import definitions as defs
 try:
     import pymc
 except ImportError:
-    print("Unable to load pymc: restricted fitting facilities")
+    pass
+try:
+    import ephem
+except:
+    pass
   
 logger = logging.getLogger("PARAMETERS")  
 
@@ -981,8 +985,13 @@ class Parameter(object):
         if args:
             if not hasattr(self,'unit'):
                 raise ValueError('Parameter {0} has no units'.format(self.qualifier))
+            # Perhaps we need to do some parsing first
+            if isinstance(self.cast_type, str):
+                value = globals()[self.cast_type](value)
+            else:
+                value = self.cast_type(value)
             try:
-                value = conversions.convert(args[0],self.unit,self.cast_type(value))
+                value = conversions.convert(args[0],self.unit,value)
             except:
                 #-- if something went wrong, try to give as much information
                 #   as possible: first, we try to find out what type of unit
@@ -3216,6 +3225,35 @@ def make_bool(value):
             return False
     #-- everything else is always true (all nonempty strings are true)
     return bool(value)
+
+def return_equatorial_ra(value):
+    """
+    Parse equatorial coordinates in whatever value
+    """
+    if not 'ephem' in globals():
+        return value
+
+    try:
+        value = float(value)
+    except:
+        value = float(ephem.Equatorial(value,0).ra)/np.pi*180
+    
+    return value
+   
+def return_equatorial_dec(value):
+    """
+    Parse equatorial coordinates in whatever value
+    """
+    if not 'ephem' in globals():
+        return value
+    
+    try:
+        value = float(value)
+    except:
+        value = float(ephem.Equatorial(0,value).dec)/np.pi*180
+    
+    return value
+   
     
 def make_upper(value):
     return str(value).upper()

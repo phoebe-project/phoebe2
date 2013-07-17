@@ -2324,7 +2324,7 @@ class Body(object):
                     counter += 1
             return None,None
     
-    def list(self, summary=None):
+    def list(self, summary=None, width=79):
         """
         List with indices all the parameterSets that are available.
         
@@ -2365,7 +2365,7 @@ class Body(object):
             |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn                    
 
         """
-        def add_summary_short(thing, text):
+        def add_summary_short(thing, text, width=79):
             """
             Add information on pbdeps, obs and syn
             """
@@ -2406,7 +2406,7 @@ class Body(object):
             text += summary
         
         
-        def add_summary_long(thing, text):
+        def add_summary_long(thing, text, width=79):
             """
             Add information on pbdeps, obs and syn
             """
@@ -2443,6 +2443,52 @@ class Body(object):
            
             text += summary
         
+        def add_summary_physical(thing, text, width=79):
+            """
+            Add information on pbdeps, obs and syn
+            """
+           
+            # Construct the  "|     |     " string that preceeds the summary info
+            # We need to have the same length as the previous line. If there
+            # is no previous line, or it is not indented, we don't need to indent
+            # this one
+            try:
+                indent = text[-1].split('+')[0] \
+                       + '|'\
+                       + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                       + '  '
+            except IndexError:
+                indent = ''
+               
+            # Collect references
+            summary = []
+            # Loop over all categories and make a string
+            for param in thing.params:
+                if param in ['pbdep', 'obs', 'syn']:
+                    continue
+                lbl = param
+                mystring = ['{}: '.format(lbl)]
+                for par in thing.params[param]:
+                    mystring.append("{}={}".format(par,thing.params[param].get_parameter(par).to_str()))
+                    if thing.params[param].get_parameter(par).has_unit():
+                        mystring[-1] += ' {}'.format(thing.params[param].get_parameter(par).get_unit())
+                mystring = mystring[0] + ', '.join(mystring[1:])
+                summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+            
+                    #ns = 0 
+                    #lbl = (category+ptype[-3:])
+                    #mystring = ['{}: '.format(lbl)]
+                    #if ptype in thing.params and lbl in thing.params[ptype]:
+                        #for ref in thing.params[ptype][lbl]:
+                            #mystring.append(ref)
+                        #ns += len(thing.params[ptype][lbl])
+                    #mystring = mystring[0] + ', '.join(mystring[1:])
+                    ## Only report if there are some
+                    #if ns > 0:
+                        #summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=79)))
+           
+            text += summary
+        
         
         def emphasize(text):
             return '\033[1m\033[4m' + text + '\033[m'    
@@ -2450,7 +2496,7 @@ class Body(object):
         if summary:
             add_summary = locals()['add_summary_'+summary]
         else:
-            add_summary = lambda thing, text: ''
+            add_summary = lambda thing, text, width: ''
         
         # Top level string: possible the BB has no label
         try:   
@@ -2461,7 +2507,7 @@ class Body(object):
         text[-1] = emphasize(text[-1])
         
         # Add the summary of the top level thing
-        add_summary(self, text)
+        add_summary(self, text, width)
 
         # Keep track of the previous label, we want to skip indentation for
         # single-body BodyBags (that is a Body(Bag) in a BodyBag just for
@@ -2482,6 +2528,12 @@ class Body(object):
                 label = '<nolabel>'
                 
             label = emphasize(label)
+            
+            # Get the parent to report if the system is connected/disconnected
+            parent = thing.get_parent()
+            if parent is not None and not parent.connected:
+                label += ' (disconnected)'
+            
                 
             # If this thing is a BodyBag, treat it as such
             if isinstance(thing, BodyBag) and previous_label != label:
@@ -2520,7 +2572,7 @@ class Body(object):
                     text.append(prefix + '> ' + label + ' ({})'.format(thing.__class__.__name__))
             
             # Add a summary for this body
-            add_summary(thing, text)
+            add_summary(thing, text, width)
             
             # Remember the label
             previous_label = label
@@ -3724,6 +3776,7 @@ class BodyBag(Body):
         # We definitely need signals and a label, even if it's empty
         self.signals = {}
         self.label = None
+        self.parent = None
         
         # Do the components belong together? This is important for the eclipse
         # detection algorithm. If they don't belong together, we don't need
