@@ -624,7 +624,6 @@ def star_from_spectral_type(spectype, create_body=False, **kwargs):
     star = parameters.ParameterSet(frame='phoebe',context='star',add_constraints=True)
     star['incl'] = 90.,'deg'
     star['shape'] = 'equipot'
-    star['distance'] = 10.,'pc'
     star['ld_func'] = 'claret'
     star['atm'] = 'kurucz'
     star['ld_coeffs'] = 'kurucz'

@@ -1036,7 +1036,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
             teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
             Pl = np.array(legendre(teff))
             grid_data.append(np.sum(Cl*Pl, axis=0))
-            print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+            #print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
 
         # Prepare the data for the interpolator:
         grid_data = np.array([grid_data])
@@ -1048,7 +1048,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
 
         # Store the result; it is in log10, per angstrom.
         ints[i] = val
-        print ("DEBUG: Iinterp = %12.9f" % (val))
+        #print ("DEBUG: Iinterp = %12.9f" % (val))
         
     return np.array([1e-8*10**ints])
 

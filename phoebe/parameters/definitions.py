@@ -142,7 +142,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
         dict(qualifier='gravblaw',description='Gravity brightening law',repr='%s',cast_type='choose',choices=['zeipel','espinosa'],value='zeipel',frame=['phoebe'],context='star'),
         dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='star'),
         dict(qualifier='long',   description='Orientation on the sky (East of North)', repr='%f',llim=-360., ulim=   360.,step=   0.01, adjust=False, cast_type=float, unit='deg',  value=0.,frame=["phoebe"],context='star'),
-        dict(qualifier='distance',description='Distance to the star',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='star'),
+        #dict(qualifier='distance',description='Distance to the star',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='star'),
         dict(qualifier='shape', description='Shape of surface',repr='%s',cast_type='choose',choices=['equipot','sphere'],value='equipot',frame=["phoebe"],context='star'),
         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='star'),
         ]
@@ -176,7 +176,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
          dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.0,llim=0,ulim=1,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='component'),
          dict(qualifier='pot',    description="Roche potential value",repr='%f',cast_type=float,value=4.75,llim=0,ulim=1e10,step=0.01,adjust=False,frame=["phoebe"],context='component'),
          dict(qualifier='teff',   description='Mean effective temperature',repr='%.0f',cast_type=float,unit='K',value=10000.,llim=0.,ulim=1e20,step=1,adjust=False,frame=["phoebe"],context='component'),         
-         dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
+         #dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
          dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context=['component','star','accretion_disk']),
          dict(qualifier='abun',description='Metallicity',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context=['component','star']),
          dict(qualifier='label',  description='Name of the body',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['component','star','accretion_disk']),
@@ -360,7 +360,7 @@ defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',c
          dict(qualifier='rout',     description='Outer radius of disk',repr='%f',cast_type=float,value=20.,unit='Rsol',frame=["phoebe"],context='accretion_disk'),
          dict(qualifier='height',   description='height of disk',repr='%f',cast_type=float,value=1e-2,unit='Rsol',frame=["phoebe"],context='accretion_disk'),
          dict(qualifier='b',        description='Host star rotation parameter',repr='%f',cast_type=float,value=1.,llim=0,ulim=1,frame=["phoebe"],context='accretion_disk'),
-         dict(qualifier='distance', description='Distance to the disk',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='accretion_disk'),
+         #dict(qualifier='distance', description='Distance to the disk',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='accretion_disk'),
         ]
 
 #    Fitting contexts        
@@ -498,8 +498,8 @@ defs += [dict(qualifier='time',                 description='Compute observables
         ] 
 
 
-defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type=float, frame=['phoebe'], context=['globals']),
-         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type=float, frame=['phoebe'], context=['globals']),
+defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['globals']),
+         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['globals']),
          dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value=2000.0, cast_type=float, frame=['phoebe'], context=['globals']),
          dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
          dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
