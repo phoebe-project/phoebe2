@@ -1005,28 +1005,48 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     
     ints = np.zeros(length)
     for i, (m, l, t) in enumerate(zip(nm, nl, nt)):
-        # Bracket the values:
+        # Bracket the values by finding the index of the first element in
+        # the respective array that is larger than passed value (or None if
+        # there is no such element):
         idx = next((i for i,v in enumerate(M) if m < v), None)
         Mb = M[idx-1:idx+1]
         idx = next((i for i,v in enumerate(L) if l < v), None)
         Lb = L[idx-1:idx+1]
 
+        # These brackets serve as our interpolation axes; we need to prepare
+        # them for the linear multi-D interpolator:
         grid_pars = np.array([(mm,ll) for mm in Mb for ll in Lb]).T
 
+        # Next we need to prepare the data. There will be 4 interpolation
+        # knots: (Mlo, Llo), (Mlo, Lhi), (Mhi, Llo) and (Mhi, Lhi). For each
+        # knot we need to take the corresponding line from the 'atmcof.dat'
+        # table, run a Legendre-powered interpolator and compute the
+        # intensity. Variable grid_data will hold all 4 intensities.
         grid_data = []
         for (mm, ll) in grid_pars.T:
+            # Get the pointer to the (P,M,L) block in the 'atmcof.dat' table:
             idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+            
+            # Bracket the temperature (much like we did above for Mb and Lb):
             j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+            
+            # Read out Legendre coefficients for the bracketed temperature and
+            # compute the intensity from the series expansion:
             Cl = table[idx+j,2:]
             teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
             Pl = np.array(legendre(teff))
             grid_data.append(np.sum(Cl*Pl, axis=0))
             print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+
+        # Prepare the data for the interpolator:
         grid_data = np.array([grid_data])
 
+        # Perform the interpolation:
         av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
         p = np.array([[m], [l]])
         val = interp_nDgrid.interpolate(p, av, pg)
+
+        # Store the result; it is in log10, per angstrom.
         ints[i] = val
         print ("DEBUG: Iinterp = %12.9f" % (val))
         
