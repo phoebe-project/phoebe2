@@ -111,15 +111,12 @@ class Bundle(object):
         struc['obj'].append(item)
         itemlabel = self.get_label(item)
         struc['label'].append(itemlabel)
+        struc['ps'].append(self.get_ps(item))
         
         # label,ps,nchild are different whether item is body or bodybag
         if hasattr(item, 'bodies'):
-            itemps = self.get_orbit(item)
-            struc['ps'].append(itemps)
             struc['nchild'].append('2') # should not be so strict
         else:
-            itemps = self.get_component(item) #problem is this uses get_system_structure
-            struc['ps'].append(itemps)
             struc['nchild'].append('0')
             
         if itemlabel in old_struclabel: #then apply previous bool from mask
@@ -371,7 +368,7 @@ class Bundle(object):
         elif return_type in ['ps','orbit','component']:
             return_ = [self.get_ps(o) for o in obj]
         elif return_type == 'mesh':
-            return = [self.get_mesh(o) for o in obj]
+            return_ = [self.get_mesh(o) for o in obj]
             
         else:
             return_ = obj
