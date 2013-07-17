@@ -580,9 +580,35 @@ def get_barycentric_orbit(bary_times, *args, **kwargs):
         pos, velo, euler = get_orbit(t, *args, **kwargs)
         z = pos[2]
         #return t + z/constants.cc/(24*3600) - t_bary
-        return t + z/constants.cc - t_bary
+        return t - z/constants.cc - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual, t_bary) for t_bary in bary_times]
+    propertimes = np.array(propertimes)
+    #-- then make an orbit with these times!
+    this_orbit = get_orbit(propertimes, *args, **kwargs)
+    return list(this_orbit) + [propertimes]
+
+def correct_barycentric_orbit(obs_times, *args, **kwargs):
+    """
+    Correct observed timings to be in the frame of reference of a component.
+    
+    This can be useful to e.g. analyse pulsations in the proper frame of
+    reference
+    
+    In a way the reverse of :py:func:`get_barycentric_orbit`.
+    
+    @param obs_times: observed time coordinates
+    @type obs_times: float or array
+    @return: position vector, velocity vector, Euler angles, proper times
+    @rtype: 3-tuple, 3-tuple, 3-tuple, array/float
+    """
+    def propertime_barytime_residual(t_bary):
+        pos, velo, euler = get_orbit(t_bary, *args, **kwargs)
+        z = pos[2]
+        #return t + z/constants.cc/(24*3600) - t_bary
+        return t_bary + z/constants.cc - t
+    #-- Finding that right time is easy with a Newton optimizer:
+    propertimes = [newton(propertime_barytime_residual, t) for t in obs_times]
     propertimes = np.array(propertimes)
     #-- then make an orbit with these times!
     this_orbit = get_orbit(propertimes, *args, **kwargs)

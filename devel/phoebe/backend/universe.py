@@ -676,6 +676,8 @@ def _parse_pbdeps(body, pbdep):
         
         # Prepare results if they were not already added by the data parser
         if not ref in body.params['syn'][res_context]:
+            if not res_context in body.params['syn']:
+                raise ValueError("Trying to add {} to syn. Are you sure you passed pbdeps?".format(context))
             body.params['syn'][res_context][ref] = \
                               result_sets[context](context=res_context, ref=ref)
             logger.debug(('Prepared results ParameterSet for context '
@@ -1031,6 +1033,10 @@ class Body(object):
         self.index = 0
         self.label = str(id(self))
         
+        # Bodies can be stacked hierarchically in BodyBags. Keep track of the
+        # parent
+        self.parent = None
+        
         # Probably upon initialisation, the mesh is unknown. But we foresee the
         # possibility to initialize a Body with a custom mesh
         if data is None:
@@ -1284,6 +1290,41 @@ class Body(object):
             # All is left is to return it
             yield path, val
     
+    def get_parent(self):
+        """
+        Return the parent of this Body.
+        
+        If it has a parent, return it. Otherwise, return None
+        """
+        return self.parent
+    
+    def set_parent(self, parent):
+        """
+        Set the parent of this Body.
+        """
+        self.parent = parent
+    
+    def get_globals(self):
+        """
+        Return the global ParameterSet if possible, otherwise return None.
+        
+        We recursively walk up the BodyBag, until we encounter a ParameterSet
+        of context ``globals``. If we find one, we return it and stop the
+        iteration process.
+        """
+        # First check if there is global parameterSet here
+        if 'globals' in self.params:
+            return self.params['globals']
+        
+        # Then walk up the parents.
+        myparent = self.get_parent()
+        if myparent is not None:
+            return myparent.get_globals()
+        
+        # Else, for clarity, explicitly return None.
+        else:
+            return None
+        
     
     def compute(self, *args, **kwargs):
         """
@@ -3695,6 +3736,10 @@ class BodyBag(Body):
             list_of_bodies = [list_of_bodies]
         self.bodies = list_of_bodies
         
+        # Put a link to this Parent in each of the children:
+        for body in self.bodies:
+            body.set_parent(self)
+        
         # The components need to be Bodies. I'm storing the "dimension" variable
         # here, but that's a left over from earlier days. It doesn't hurt to
         # have it.
@@ -3710,10 +3755,10 @@ class BodyBag(Body):
         self.subdivision = dict(orig=None)
         self.params = OrderedDict()
         
-        # Add global parameters, but only if given. DO NOT add default ones,
+        # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'global' in kwargs:
-            self.params['global'] = kwargs.pop('global')
+        if 'globals' in kwargs:
+            self.params['globals'] = kwargs.pop('globals')
         
         # Also the _plot is a leftover from earlier days, this is deprecated
         self._plot = self.bodies[0]._plot
@@ -4512,6 +4557,14 @@ class AccretionDisk(PhysicalBody):
         ld_func = idep['ld_func']
         proj_int = limbdark.projected_intensity(self,method=method,
                 ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
+        
+        # Scale the projected intensity with the distance
+        globals_parset = self.get_globals()
+        if globals_parset is not None:
+            distance = globals_parset.request_value('distance', 'Rsol')
+            proj_int /= distance**2
+        
+        
         return proj_int
     
     def set_time(self,time, ref='all'):
@@ -4630,10 +4683,10 @@ class Star(PhysicalBody):
         if 'orbit' in kwargs:
             self.params['orbit'] = kwargs.pop('orbit')
         
-        # Add global parameters, but only if given. DO NOT add default ones,
+        # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'global' in kwargs:
-            self.params['global'] = kwargs.pop('global')
+        if 'globals' in kwargs:
+            self.params['globals'] = kwargs.pop('globals')
         
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
@@ -4859,21 +4912,31 @@ class Star(PhysicalBody):
         v = sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
         
     
-    def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None,with_partial_as_half=True):
+    def projected_intensity(self, los=[0.,0.,+1], ref=0, method=None,
+                            with_partial_as_half=True):
         """
         Calculate local intensity.
         
         We can speed this up if we compute the local intensity first, keep track of the limb darkening
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         """
-        idep,ref = self.get_parset(ref=ref,type='pbdep')
+        idep, ref = self.get_parset(ref=ref, type='pbdep')
         if method is None:
             method = 'method' in idep and idep['method'] or 'numerical'
         ld_func = idep['ld_func']
-        l3 = idep.get('l3',0.)
-        pblum = idep.get('pblum',1.0)
-        proj_int = limbdark.projected_intensity(self,method=method,
-                ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
+        l3 = idep.get('l3', 0.)
+        pblum = idep.get('pblum', -1.0)
+        proj_int = limbdark.projected_intensity(self, method=method,
+                ld_func=ld_func, ref=ref,
+                with_partial_as_half=with_partial_as_half)
+        
+        # Scale the projected intensity with the distance
+        globals_parset = self.get_globals()
+        if globals_parset is not None:
+            distance = globals_parset.request_value('distance', 'Rsol')
+            proj_int /= distance**2
+            
+        # Take passband luminosity into account
         if pblum >= 0:
             return proj_int*pblum + l3
         else:
@@ -5281,10 +5344,10 @@ class BinaryRocheStar(PhysicalBody):
         #-- label the body
         self.label = self.params['component']['label']
         
-        # Add global parameters, but only if given. DO NOT add default ones,
+        # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'global' in kwargs:
-            self.params['global'] = kwargs.pop('global')
+        if 'globals' in kwargs:
+            self.params['globals'] = kwargs.pop('globals')
         
         #-- add interstellar reddening (if none is given, set to the default,
         #   this means no reddening
@@ -5660,7 +5723,14 @@ class BinaryRocheStar(PhysicalBody):
             proj_Imu += self.mesh['refl_'+ref][keep]
             logger.info("Projected intensity contains reflected light")
         proj_intens = self.mesh['size'][keep]*proj_Imu
-        distance = self.params['orbit'].request_value('distance','Rsol')
+        
+        # Scale the projected intensity with the distance
+        globals_parset = self.get_globals()
+        if globals_parset is not None:
+            distance = globals_parset.request_value('distance', 'Rsol')
+        else:
+            distance = 1.0
+        
         proj_intens = proj_intens.sum()/distance**2
         l3 = lcdep.get('l3',0.)
         pblum = lcdep.get('pblum',-1.0)
@@ -5737,7 +5807,7 @@ class BinaryRocheStar(PhysicalBody):
                     P = self.params['orbit']['period']
                     t0 = self.params['orbit']['t0']
                     crit_times = keplerorbit.calculate_critical_phases(per0,e)*P + t0
-                    print("t0 = {}, t_conserve = {}, {}".format(t0,crit_times[cvol_index], conserve_phase))
+                    logger.info("t0 = {}, t_conserve = {}, {}".format(t0,crit_times[cvol_index], conserve_phase))
                     #self.compute_mesh(crit_times[cvol_index]-P/2.0,conserve_volume=True)
                     self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
                     

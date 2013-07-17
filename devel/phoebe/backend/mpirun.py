@@ -142,8 +142,6 @@ if __name__=="__main__":
             
             update_progress((olength-len(dates))/float(olength))
             
-        # Finish off the progressbar
-        update_progress(1.1)
         
         packet = {'continue': False}
         for i in range(1, nprocs):
@@ -157,6 +155,9 @@ if __name__=="__main__":
             #res[i].wait()
             done, val = res[i].test()
             output.append(val)
+        
+        # Finish off the progressbar
+        update_progress(1.1)
         
         # Now merge the results with the first Body, and save that one to a
         # pickle.

@@ -933,7 +933,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     
     Example usage:
     
-        >>> atm_kwargs = dict(teff=6000.,logg=4.0,z=0.)
+        >>> atm_kwargs = dict(teff=6000., logg=4.0, abun=0.)
         >>> interp_ld_coeffs_wd('atmcof.dat','JOHNSON.V',atm_kwargs=atm_kwargs)
         
     Remarks:
@@ -961,11 +961,11 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     p = passband
 
     # Check the bounds; Pieter will probably modify these to array tests.
-    if l < 0.0 or l > 5.0:
+    if np.any(l < 0.0) or np.any(l > 5.0):
         logger.error("log(g) outside of grid: Consider using a different atmosphere model")
-    if m < -5.0 or m > 1.0:
+    if np.any(m < -5.0) or np.any(m > 1.0):
         logger.error("[M/H] outside of grid: Consider using a different atmosphere model")
-    if t < 3500 or t > 50000:
+    if np.any(t < 3500) or np.any(t > 50000):
         logger.error("Teff outside of grid: Consider using a different atmosphere model")
     
     # Make sure all the interpolatable quantities are arrays of the same length
@@ -1252,14 +1252,14 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     #  - Make sure the list of passbands has no duplicates
     #  - expand '*' to all passbands matching the pattern (this also removes
     #    passbands that are not defined)
-    passbands_ = sorted(list(set(list(passbands) + ['OPEN.BOL'])))
+    passbands_ = sorted(list(set(list(passbands))))
     passbands = []
     for passband in passbands_:
         these_responses = pbmod.list_response(name=passband)
         passbands += these_responses
         if not these_responses:
             logger.warning('No passbands found matching pattern {}'.format(passband))
-    passbands = sorted(set(passbands))
+    passbands = sorted(set(passbands + ['OPEN.BOL']))
     
     # If the user gave a list of files, it needs to a list of specific
     # intensities.
@@ -1320,6 +1320,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                          ")").format(overlap))
         
         passbands = sorted(list(set(passbands) - set(existing_passbands)))
+        if not passbands:
+            logger.info("Nothing to compute, all passbands are present")
+            return None
+    
         
         # Set all the parameters from the contents of this FITS file
         with pyfits.open(filename) as ff:
@@ -1967,8 +1971,8 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         proj_intens = system.mesh['size'][keep]*proj_Imu        
         #-- we compute projected and total intensity. We have to correct for solid
         #-- angle, radius of the star and distance to the star.
-        distance = body.request_value('distance','Rsol')
-        proj_intens = proj_intens.sum()/distance**2
+        #distance = body.request_value('distance','Rsol')
+        proj_intens = proj_intens.sum()#/distance**2
     #-- analytical computation
     elif method=='analytical':
         lcdep,ref = system.get_parset(ref)
