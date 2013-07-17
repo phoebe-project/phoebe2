@@ -8,7 +8,7 @@ from os import sys
 #if '/home/kmh/Stars/phoebe/phoebe2/devel/phoebe' not in sys.path: 
 #    sys.path.append('/home/kmh/Stars/phoebe/phoebe2/devel/phoebe')
 
-logger = logging.getLogger("KELLY")
+logger = logging.getLogger("PARSERS")
 
 def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
     """

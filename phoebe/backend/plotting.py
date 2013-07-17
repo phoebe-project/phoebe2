@@ -521,6 +521,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
     Plot all lcsyns as an SED.
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
+    time = kwargs.pop('time', 0.)
     include_label = kwargs.pop('label', True)
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
@@ -531,7 +532,8 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
     for j,ref in enumerate(all_lc_refs):
         # Get the pbdep (for info) and the synthetics
         dep,ref = system.get_parset(type='pbdep',ref=ref)
-        syn,ref = system.get_parset(type='syn',ref=ref)
+        syn = system.get_synthetic(category='lc',ref=ref)
+        syn = syn.asarray()
         
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
@@ -540,26 +542,29 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
             to_plot[pass_sys] = dict(x=[], y=[])
         
         # An SED means we need the effective wavelength of the passbands
+        right_time = (syn['time'] == time)
         wave = passbands.get_info([passband])['eff_wave']
-        wave = list(wave) * len(syn['flux'])
+        wave = list(wave) * len(syn['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)
-        to_plot[pass_sys]['y'].append(syn['flux'])
+        to_plot[pass_sys]['y'].append(syn['flux'][right_time])
     
     # Decide on the colors
     color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
     
     # And finally plot the points
     for key in to_plot.keys():
+        kwargs_ = kwargs.copy()
+    
         # Get data
         x = np.hstack(to_plot[key]['x'])
         y = np.hstack(to_plot[key]['y'])
         
         # Plot data
         if include_label:
-            kwargs['label'] = key
-        kwargs['color'] = color_cycle.next()
-        plt.plot(x, y, *args, **kwargs)
+            kwargs_['label'] = key
+        kwargs_.setdefault('color',color_cycle.next())
+        plt.plot(x, y, *args, **kwargs_)
 
 
 def plot_lcobs_as_sed(system, *args, **kwargs):
@@ -567,6 +572,7 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
     Plot all lcobs as an SED.
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
+    time = kwargs.pop('time', 0.)
     include_label = kwargs.pop('label', True)
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
@@ -586,18 +592,20 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
             to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
         
         # An SED means we need the effective wavelength of the passbands
+        right_time = (obs['time'] == time)
         wave = passbands.get_info([passband])['eff_wave']
-        wave = list(wave) * len(obs['flux'])
+        wave = list(wave) * len(obs['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)
-        to_plot[pass_sys]['y'].append(obs['flux'])
-        to_plot[pass_sys]['e_y'].append(obs['sigma'])
+        to_plot[pass_sys]['y'].append(obs['flux'][right_time])
+        to_plot[pass_sys]['e_y'].append(obs['sigma'][right_time])
     
     # Decide on the colors
     color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
     
     # And finally plot the points
     for key in to_plot.keys():
+        kwargs_ = kwargs.copy()
         # Get data
         x = np.hstack(to_plot[key]['x'])
         y = np.hstack(to_plot[key]['y'])
@@ -605,15 +613,16 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         
         # Plot data
         if include_label:
-            kwargs['label'] = key
-        kwargs['color'] = color_cycle.next()
-        plt.errorbar(x, y, yerr=e_y, **kwargs)
+            kwargs_['label'] = key
+        kwargs_.setdefault('color',color_cycle.next())
+        plt.errorbar(x, y, yerr=e_y, **kwargs_)
 
 def plot_lcres_as_sed(system, *args, **kwargs):
     """
     Plot all lc residuals as an SED.
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
+    time = kwargs.pop('time', 0.)
     include_label = kwargs.pop('label', True)
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
@@ -626,6 +635,7 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         dep, ref = system.get_parset(type='pbdep', ref=ref)
         obs, ref = system.get_parset(type='obs', ref=ref)
         syn, ref = system.get_parset(type='syn', ref=ref)
+        syn = syn.asarray()
         
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
@@ -634,18 +644,21 @@ def plot_lcres_as_sed(system, *args, **kwargs):
             to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
         
         # An SED means we need the effective wavelength of the passbands
+        right_time = (obs['time'] == time)
         wave = passbands.get_info([passband])['eff_wave']
-        wave = list(wave) * len(obs['flux'])
+        wave = list(wave) * len(obs['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)
-        to_plot[pass_sys]['y'].append((obs['flux']-syn['flux']) / obs['sigma'])
-        to_plot[pass_sys]['e_y'].append(np.ones(len(obs['flux'])))
+        to_plot[pass_sys]['y'].append(((obs['flux']-syn['flux']) / obs['sigma'])[right_time])
+        to_plot[pass_sys]['e_y'].append(np.ones(len(obs['flux'][right_time])))
     
     # Decide on the colors
     color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
     
+    
     # And finally plot the points
     for key in to_plot.keys():
+        kwargs_ = kwargs.copy()
         # Get data
         x = np.hstack(to_plot[key]['x'])
         y = np.hstack(to_plot[key]['y'])
@@ -653,9 +666,9 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         
         # Plot data
         if include_label:
-            kwargs['label'] = key
-        kwargs['color'] = color_cycle.next()
-        plt.errorbar(x, y, yerr=e_y, **kwargs)
+            kwargs_['label'] = key
+        kwargs_.setdefault('color',color_cycle.next())
+        plt.errorbar(x, y, yerr=e_y, **kwargs_)
 
 
 def plot_spsyn_as_profile(system, *args, **kwargs):
