@@ -164,6 +164,13 @@ class Bundle(object):
         names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
         return objects[names.index(objectname)]
         
+    def list(self,summary=None,*args):
+        """
+        List with indices all the parameterSets that are available.
+        Simply a shortcut to bundle.get_system().list(...)
+        """
+        return self.system.list(summary,*args)
+        
     def get_label(self,obj):
         """
         Get the label/name for any object (Body or BodyBag)
@@ -209,6 +216,8 @@ class Bundle(object):
         """
         if isinstance(objectname,str):
             obj = self.get_object(objectname)
+        else:
+            obj = objectname
         if hasattr(obj,'bodies'):
             return self.get_orbit(obj)
         else:
@@ -265,33 +274,38 @@ class Bundle(object):
             
         return obj.params['mesh']
                
-    def get_parent(self,objectname):
+    def get_parent(self,objectname,return_type='obj'):
         """
         retrieve the parent of an item in a hierarchical structure
         
         @param objectname: label of the child object
         @type objectname: str
-        @return: the parent bodybag
-        @rtype: ParameterSet        
+        @param return_type: what to return ('obj','str','ps','mesh')
+        @type return_type: str
+        @return: the parent
+        @rtype: defaults to object or whatever specified by return_type        
         """
-        raise NotImplementedError
-        return None
+        return self._object_to_type(self.get_object(objectname).get_parent(),return_type)
+        # TODO I'm concerned about what the parent of a BodyBag is returning
         
-    def get_children(self,objectname):
+    def get_children(self,objectname,return_type='obj'):
         """
         retrieve the children of an item in a hierarchical structure
         
         @param objectname: label of the parent object
         @type objecname: str
+        @param return_type: what to return ('obj','str','ps','mesh')
+        @type return_type: str
         @return: list of children objects
-        @rtype: list of Bodies/BodyBags
+        @rtype: defaults to object or whatever specified by return_type
         """
         obj = self.get_object(objectname)
         if hasattr(obj,'bodies'):
-            return [b.bodies[0] if hasattr(b,'bodies') else b for b in self.get_object(objectname).bodies]
+            return self._object_to_type([b.bodies[0] if hasattr(b,'bodies') else b for b in self.get_object(objectname).bodies])
+            #~ return self._object_to_type(obj.get_children()) # still throws an error 
         else:
             return []
-            
+
     def remove_item(self,objectname):
         """
         remove an item and all its children from the system
@@ -337,6 +351,37 @@ class Bundle(object):
         @type parent: Body
         """
         self.get_object(objectname).append(child)
+        
+    def _object_to_type(self,obj,return_type='obj'):
+        """
+        
+        
+        """
+        
+        # handle sending a single object or list
+        if not isinstance(obj, list):
+            return_lst = False
+            obj = [obj]
+        else:
+            return_lst = True
+            
+        # get the correct type (in a list)
+        if return_type == 'label':
+            return_ = [self.get_label(o) for o in obj]
+        elif return_type in ['ps','orbit','component']:
+            return_ = [self.get_ps(o) for o in obj]
+        elif return_type == 'mesh':
+            return = [self.get_mesh(o) for o in obj]
+            
+        else:
+            return_ = obj
+        
+        # return list or single item (same as input)
+        if return_lst:
+            return return_
+        else:
+            return return_[0]
+
         
     #}  
     
@@ -596,7 +641,10 @@ class Bundle(object):
         @return: compute parameterSet
         @rtype: parameterSet
         """
-        return self.compute[label]
+        if label in self.compute.keys():
+            return self.compute[label]
+        else:
+            return None
         
     def remove_compute(self,label):
         """
@@ -608,7 +656,7 @@ class Bundle(object):
         if label is None:    return None
         self.compute.pop(label)        
     
-    def run_compute(self,label=None,mpi=True):
+    def run_compute(self,label=None,mpi=True,im=False):
         """
         Convenience function to run observatory.observe
         
@@ -628,10 +676,14 @@ class Bundle(object):
         # clear all previous models and create new model
         self.system.clear_synthetic()
         
-        if options['time']=='auto':
+        if options['time']=='auto' and not im:
             observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
         else:
-            observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,im=True,mpi=self.mpi if mpi else None,**options)
+            observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,
+                extra_func=[observatory.ef_binary_image] if im else [],
+                extra_func_kwargs=[dict(select='teff',cmap='blackbody')] if im else [],
+                mpi=self.mpi if mpi else None,**options
+                )
 
     #}
             
@@ -665,7 +717,10 @@ class Bundle(object):
         @return: fitting parameterSet
         @rtype: parameterSet
         """
-        return self.fitting[label]
+        if label in self.fitting.keys():
+            return self.fitting[label]
+        else:
+            return None
         
     def remove_fitting(self,label):
         """
@@ -718,7 +773,10 @@ class Bundle(object):
         @return: a feedback parameter set
         @rtype: parameterSet
         """
-        return self.feedback[label]
+        if label in self.feedback.keys():
+            return self.feedback[label]
+        else:
+            return None
                
     def remove_feedback(self,label):
         """
