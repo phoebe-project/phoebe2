@@ -1015,7 +1015,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
 
         grid_data = []
         for (mm, ll) in grid_pars.T:
-            idx = 18-np.searchsorted(M, mm)*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+            idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
             j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
             Cl = table[idx+j,2:]
             teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
