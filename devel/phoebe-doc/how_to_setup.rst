@@ -254,6 +254,7 @@ Recommended:
     * pymc (2.2): required for MCMC fitting with Metropolis-Hastings algorithm
     * emcee (1.1.2): required for MCMC fitting with Affine Invariants
     * lmfit (0.7): required for nonlinear optimizers
+    * uncertainties (2.3.6): required for working with units
     
 
 Suggested:
