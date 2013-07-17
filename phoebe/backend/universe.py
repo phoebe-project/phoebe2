@@ -4055,6 +4055,12 @@ class BodyBag(Body):
                 mylist.append(body)
         return mylist
     
+    def get_children(self):
+        """
+        Return the immediate children of this object.
+        """
+        return self.bodies
+    
     def to_string(self,only_adjustable=False):
         """
         Human readable string representation of a BodyBag.
