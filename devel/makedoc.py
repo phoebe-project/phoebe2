@@ -375,6 +375,7 @@ if __name__=="__main__":
         python_to_sphinx(pythonfile,type='testsuite.',latex=False)
     python_to_sphinx('phoebe-doc/scripts/how_to_binary.py',type='',latex=False)
     python_to_sphinx('phoebe-doc/scripts/how_to_bundle.py',type='',latex=False)
+    python_to_sphinx('phoebe-doc/scripts/minimal_example.py',type='',latex=False)
     python_to_sphinx('phoebe-doc/verification/compare_atm_int.py',type='verification/',latex=False)
     
     subprocess.call('sphinx-apidoc -f -o phoebe-doc phoebe',shell=True)
