@@ -265,7 +265,7 @@ def write_bib(refs):
     __refs = [ref.lower() for ref in refs]
     
     try:
-        with open('/home/pieterd/articles/templates/complete.bib','r') as bib:
+        with open('phoebe-doc/complete.bib','r') as bib:
             whole_bib = bib.readlines()
     except IOError:
         whole_bib = []
