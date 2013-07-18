@@ -549,7 +549,7 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
         
     #   only scaling factor
     if pblum and not l3:
-        pblum = np.average(obs / model, weights=1.0/sigma**2)
+        pblum = np.average(obs / model, weights=model**2/sigma**2)
     
     #   only offset
     elif not pblum and l3:
@@ -1336,7 +1336,7 @@ class Body(object):
         observatory.compute(self,*args,**kwargs)
     
     
-    def compute_pblum_or_l3(self, link=None):
+    def compute_pblum_or_l3(self):
         """
         Compute and set passband luminosity and third light if required.
         
@@ -1346,7 +1346,7 @@ class Body(object):
         fits, where pblum is then interpreted as some kind of scaling factor
         (e.g. the angular diameter). Perhaps there are other applications.
         """
-        
+        link = None
         # We need observations of course
         if not 'obs' in self.params:
             logger.info('Cannot compute pblum or l3, no observations defined')
@@ -1357,13 +1357,9 @@ class Body(object):
         # which points represent a particular observation set. Then afterwards,
         # we compute the pblums for all the linked datasets... or for all of
         # separately if link=None.
-        if link is not None:
-            complete_refrs = []
-            complete_model = []
-            complete_obser = []
-            complete_sigma = []
-            complete_pblum = []
-            complete_l3 = []
+        
+        # Possibly some data need to be grouped
+        groups = dict()
         
         for idata in self.params['obs'].values():
             for obs in idata.values():
@@ -1395,6 +1391,24 @@ class Body(object):
                     logger.error('PBLUM/L3: skipping {}'.format(obs.context))
                     continue
                 
+                # It is possible that the pblum and l3 are linked to other
+                # datasets, e.g. to determine a scaling factor of all
+                # multicolour photometry (but not together with a possible
+                # light curve).
+                if 'group' in obs:
+                    this_group = obs['group']
+                    
+                    # Keep track of model, observations, sigma and obs dataset
+                    # itself (to fill in pblum and l3 in all of them)
+                    if not this_group in groups:
+                        groups[this_group] = [[],[],[],[]]
+                    groups[this_group][0].append(model)
+                    groups[this_group][1].append(obser)
+                    groups[this_group][2].append(sigma)
+                    groups[this_group][3].append(obs)
+                    continue
+                    
+                
                 # Determine pblum and l3 for these data if necessary. The pblum
                 # and l3 for the model, independently of the observations,
                 # should have been computed before when computing the model.
@@ -1409,21 +1423,14 @@ class Body(object):
                 if 'l3' in obs and obs.get_adjust('l3'):
                     do_l3 = True
                 
-                # Keep track of linking ====> EXPERIMENTAL <======
-                if link is not None:
-                    complete_model.append(model)
-                    complete_obser.append(obser)
-                    complete_sigma.append(sigma)
-                    complete_refrs.append([observations['ref']] * len(model))
-                    complete_pblum.append([do_pblum] * len(model))
-                    complete_l3.append([do_l3] * len(model))
-                    continue
                 
                 # Do the computations
                 if do_pblum or do_l3:
+                    
                     # We allow for negative coefficients in spectra
                     if obs.context in ['plobs','spobs']:
                         alg = 'lstsq'
+                    
                     # But not in other stuff
                     else:
                         alg = 'nnls'
@@ -1452,32 +1459,56 @@ class Body(object):
                 logger.info(msg.format(obs['ref'], pblum,\
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
-                        
-        if link is not None and link == 'all':
-            model = np.hstack(complete_model)
-            obser = np.hstack(complete_obser)
-            sigma = np.hstack(complete_sigma)
-            do_pblum = np.all(np.hstack(complete_pblum))
-            do_l3 = np.all(np.hstack(complete_l3))
-            pblum, l3 = compute_pblum_or_l3(model, obser, sigma,
-                                           pblum=do_pblum, l3=do_l3)
-            for idata in self.params['obs'].values():
-                for obs in idata.values():
-                    if not do_pblum and 'pblum' in obs:
-                        pblum = obs['pblum']
-                    elif not do_pblum:
-                        pblum = 1.0
-                    if not do_l3 and 'l3' in obs:
-                        l3 = obs['l3']
-                    elif not do_l3:
-                        l3 = 0.0
-                    # Set the values and add them to the posteriors
+        
+        # Now we can compute the pblum and l3's for all groups
+        if groups:
+            for group in groups:
+                
+                # Merge all data
+                model = np.hstack(groups[group][0])
+                obser = np.hstack(groups[group][1])
+                sigma = np.hstack(groups[group][2])
+                obs = groups[group][3][0]
+                
+                # Only first obs is checked, but they should all be the same
+                do_pblum = False
+                do_l3 = False
+                
+                if 'pblum' in obs and obs.get_adjust('pblum'):
+                    do_pblum = True
+                
+                if 'l3' in obs and obs.get_adjust('l3'):
+                    do_l3 = True
+                    
+                # Do the computations
+                if do_pblum or do_l3:
+                    
+                    # We allow for negative coefficients in spectra
+                    if obs.context in ['plobs','spobs']:
+                        alg = 'lstsq'
+                    
+                    # But not in other stuff
+                    else:
+                        alg = 'nnls'
+                    pblum, l3 = compute_pblum_or_l3(model, obser, sigma, 
+                                   pblum=do_pblum, l3=do_l3, type=alg)
+                
+                # perhaps we don't need to fit, but we still need to take it
+                # into account
+                if not do_pblum and 'pblum' in obs:
+                    pblum = obs['pblum']
+                elif not do_pblum:
+                    pblum = 1.0
+                if not do_l3 and 'l3' in obs:
+                    l3 = obs['l3']
+                elif not do_l3:
+                    l3 = 0.0
+                # Set the values for all observations
+                for obs in groups[group][3]:
                     if do_pblum:
                         obs['pblum'] = pblum
                     if do_l3:
                         obs['l3'] = l3
-            logger.critical('Linking of subsets not yet implemented')
-            raise NotImplementedError("Linking of subsets")
                             
     
     def get_logp(self):

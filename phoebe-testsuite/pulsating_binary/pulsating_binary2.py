@@ -91,7 +91,7 @@ print system
 #-- retrieve data: it consists of timestamps and flux calculations
 times = np.array(system.params['syn']['lcsyn'].values()[0]['time'])
 flux = np.array(system.params['syn']['lcsyn'].values()[0]['flux'])
-    
+
 #-- plot light curve: I ommit comments because frankly, it's just plotting
 plt.figure()
 plt.plot(times,flux,'k-',label='LTT')

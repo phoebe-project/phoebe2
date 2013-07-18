@@ -38,8 +38,9 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 **Helper functions**
 
 .. autosummary::
-
+    
     list_available_units
+    group
     add_unbounded_from_bounded
     
 """
@@ -1105,6 +1106,21 @@ def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
 
 
 #{ Other stuff
+
+def group(observations, name, pblum=True, l3=True):
+    """
+    Group a list of observations for simultaneous fitting of pblum and l3
+    """
+    for obs in observations:
+        if not 'group' in obs:
+            obs.add(parameters.Parameter(qualifier='group', value=name,
+                                         context=obs.context,
+                                         adjust=False, frame='phoebe',
+                                         cast_type=str, repr='%s',
+                                         description='Group name for simultaneous pblum and l3 fitting'))
+            obs.set_adjust('pblum', pblum)
+            obs.set_adjust('l3', l3)
+    pass
 
 def list_available_units(qualifier, context=None):
     """

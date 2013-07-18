@@ -213,6 +213,7 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     
     return artists,obs
 
+
 def plot_lcres(system,*args,**kwargs):
     """
     Plot lcsyn and lcobs as a residual light curve.
@@ -523,6 +524,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
     include_label = kwargs.pop('label', True)
+    scale = kwargs.pop('scale', 'obs')
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
     
@@ -531,10 +533,29 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
     # Collect the points per passband system, not per passband
     for j,ref in enumerate(all_lc_refs):
         # Get the pbdep (for info) and the synthetics
-        dep,ref = system.get_parset(type='pbdep',ref=ref)
+        dep, ref = system.get_parset(type='pbdep',ref=ref)
         syn = system.get_synthetic(category='lc',ref=ref)
         syn = syn.asarray()
         
+        # Try to get the observations. They don't need to be loaded, we just need
+        # the pblum and l3 values.
+        # We can scale the synthetic light curve using the observations
+        if scale == 'obs':
+            try:
+                obs = system.get_obs(category='lc', ref=ref)
+                pblum = obs['pblum']
+                l3 = obs['l3']
+            except:
+                raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
+        # or using the synthetic computations    
+        elif scale=='syn':
+            pblum = syn['pblum']
+            l3 = syn['l3']
+        # else we don't scale
+        else:
+            pblum = 1.
+            l3 = 0.
+        print ref, pblum, l3
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
         
@@ -547,7 +568,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
         wave = list(wave) * len(syn['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)
-        to_plot[pass_sys]['y'].append(syn['flux'][right_time])
+        to_plot[pass_sys]['y'].append(syn['flux'][right_time] * pblum + l3)
     
     # Decide on the colors
     color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
@@ -617,12 +638,15 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         kwargs_.setdefault('color',color_cycle.next())
         plt.errorbar(x, y, yerr=e_y, **kwargs_)
 
+
 def plot_lcres_as_sed(system, *args, **kwargs):
     """
     Plot all lc residuals as an SED.
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
+    scale = kwargs.pop('scale', 'obs')
+    units = kwargs.pop('units', 'sigma')
     include_label = kwargs.pop('label', True)
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
@@ -634,8 +658,24 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         # Get the pbdep (for info) and the synthetics
         dep, ref = system.get_parset(type='pbdep', ref=ref)
         obs, ref = system.get_parset(type='obs', ref=ref)
-        syn, ref = system.get_parset(type='syn', ref=ref)
+        syn = system.get_synthetic(category='lc', ref=ref)
         syn = syn.asarray()
+        
+        
+        # Try to get the observations. They don't need to be loaded, we just need
+        # the pblum and l3 values.
+        # We can scale the synthetic light curve using the observations
+        if scale == 'obs':
+            pblum = obs['pblum']
+            l3 = obs['l3']
+        # or using the synthetic computations    
+        elif scale=='syn':
+            pblum = syn['pblum']
+            l3 = syn['l3']
+        # else we don't scale
+        else:
+            pblum = 1.
+            l3 = 0.
         
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
@@ -649,8 +689,18 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         wave = list(wave) * len(obs['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)
-        to_plot[pass_sys]['y'].append(((obs['flux']-syn['flux']) / obs['sigma'])[right_time])
-        to_plot[pass_sys]['e_y'].append(np.ones(len(obs['flux'][right_time])))
+        if units == 'sigma':
+            to_plot[pass_sys]['y'].append(((obs['flux']-(syn['flux']*pblum+l3)) / obs['sigma'])[right_time])
+            to_plot[pass_sys]['e_y'].append(np.ones(len(obs['flux'][right_time])))
+        elif units == 'real':
+            to_plot[pass_sys]['y'].append((obs['flux']-(syn['flux']*pblum+l3))[right_time])
+            to_plot[pass_sys]['e_y'].append(obs['sigma'][right_time])
+        elif units == 'relative':
+            to_plot[pass_sys]['y'].append((obs['flux']/(syn['flux']*pblum+l3))[right_time])
+            to_plot[pass_sys]['e_y'].append((obs['sigma']/(syn['flux']*pblum+l3))[right_time])
+        else:
+            raise NotImplementedError("units = {}".format(units))
+        
     
     # Decide on the colors
     color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
