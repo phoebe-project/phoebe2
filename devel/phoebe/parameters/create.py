@@ -799,7 +799,7 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
     return comp1,comp2,orbit    
 
-def stars_from_binary(comp1,comp2,orbit):
+def stars_from_binary(comp1, comp2, orbit):
     """
     Create two stars starting from a binary system.
     """

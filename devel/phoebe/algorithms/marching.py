@@ -642,6 +642,12 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
+                
+    pot_name = potential
+    dpdx = globals()['d%sdx'%(pot_name)]
+    dpdy = globals()['d%sdy'%(pot_name)]
+    dpdz = globals()['d%sdz'%(pot_name)]
+
 
     #theta = [pi/2*(k-0.5)/N for k in range(1,N+1)]
     theta = [pi/2*(k-0.5)/N for k in range(1,2*N+1)]
@@ -654,19 +660,25 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
             r1 = (r0*sin(th-pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th-pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th-pi/4/N))
             r2 = (r0*sin(th-pi/4/N)*cos(ph+pi/2/Mk), r0*sin(th-pi/4/N)*sin(ph+pi/2/Mk), r0*cos(th-pi/4/N))
             r3 = (r0*sin(th+pi/4/N)*cos(ph+pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph+pi/2/Mk), r0*cos(th+pi/4/N))
-            r4 = (r0*sin(th+pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th+pi/4/N))
+            r4 = (r0*sin(th+pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th+pi/4/N))                      
+            
+            
             v1 = projectOntoPotential(r1, potential, *args)
             v2 = projectOntoPotential(r2, potential, *args)
             v3 = projectOntoPotential(r3, potential, *args)
             v4 = projectOntoPotential(r4, potential, *args)
+            
+            
             Ts += [(v1, v2, v4), (v2, v3, v4)]
     
     table = np.zeros((len(Ts), 16))
     for i in range(0,len(Ts)):
+        
         cx = (Ts[i][0].r[0]+Ts[i][1].r[0]+Ts[i][2].r[0])/3
         cy = (Ts[i][0].r[1]+Ts[i][1].r[1]+Ts[i][2].r[1])/3
         cz = (Ts[i][0].r[2]+Ts[i][1].r[2]+Ts[i][2].r[2])/3
         c = projectOntoPotential((cx,cy,cz), potential, *args)
+                
         side1 = sqrt((Ts[i][0].r[0]-Ts[i][1].r[0])**2+(Ts[i][0].r[1]-Ts[i][1].r[1])**2+(Ts[i][0].r[2]-Ts[i][1].r[2])**2)
         side2 = sqrt((Ts[i][0].r[0]-Ts[i][2].r[0])**2+(Ts[i][0].r[1]-Ts[i][2].r[1])**2+(Ts[i][0].r[2]-Ts[i][2].r[2])**2)
         side3 = sqrt((Ts[i][2].r[0]-Ts[i][1].r[0])**2+(Ts[i][2].r[1]-Ts[i][1].r[1])**2+(Ts[i][2].r[2]-Ts[i][1].r[2])**2)

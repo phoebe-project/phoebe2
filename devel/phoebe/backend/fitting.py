@@ -1137,6 +1137,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
         system.reset()
         system.clear_synthetic()
         system.compute(params=params,mpi=mpi)
+        
         logp, chi2, N = system.get_logp()
         return logp
     
@@ -1148,9 +1149,9 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     #-- well, that is, it can be defined as a product or a list:
     #   product of [1,2], [10,11] is [1,10],[1,11],[2,10],[2,11]
     #   list of    [1,2], [10,11] is [1,10],[2,11]
-    if fitparams['iterate']=='product':
+    if fitparams['iterate'] == 'product':
         the_iterator = itertools.product(*ranges)
-    elif fitparams['iterate']=='list':
+    elif fitparams['iterate'] == 'list':
         the_iterator = zip(*ranges)
     
     #-- now run over the whole grid
