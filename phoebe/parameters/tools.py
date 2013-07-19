@@ -1109,7 +1109,23 @@ def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
 
 def group(observations, name, pblum=True, l3=True):
     """
-    Group a list of observations for simultaneous fitting of pblum and l3
+    Group a list of observations for simultaneous fitting of pblum and l3.
+    
+    This is can be used to make multicolour photometry has the same scaling,
+    e.g. to reflect an unknown distance. Fitting SED's is an example!
+    
+    Observations are grouped by name, so you need to give one. If you call this
+    function twice on a different group of observations but you give the same
+    name, they will all be one big happy group.
+    
+    @param observations: a list of observations
+    @type observations: list of Datasets
+    @param name: name of the group
+    @type name: str
+    @param pblum: fit passband luminosity (scaling factor)
+    @type pblum: bool
+    @param l3: fit third light contribution (constant term)
+    @type l3: bool
     """
     for obs in observations:
         if not 'group' in obs:
@@ -1120,7 +1136,53 @@ def group(observations, name, pblum=True, l3=True):
                                          description='Group name for simultaneous pblum and l3 fitting'))
             obs.set_adjust('pblum', pblum)
             obs.set_adjust('l3', l3)
-    pass
+
+
+def scale_system(system, factor):
+    """
+    Make a system uniformly bigger or smaller.
+    
+    This should have minimal to no effect on the light curve, and is effectively
+    like just bringing the system closer or further. The only difference with
+    this is that the scale of the system changes while the dynamical properties
+    (period, mass) change appropriately (e.g. to still satisfy Kepler's third
+    law). So surface gravities and such will change. (and since surface
+    gravities have a minimal effect on the light curve, it will ultimately also
+    change the light curve).
+    
+    Will probably not really scale stuff if there are constraines defined for
+    certain parameters.
+    """
+    
+    ids = []
+    for parset in system.walk():
+        
+        # For each parameterSet, walk through all the parameters
+        for qual in parset:
+            
+            
+            # Ask a unique ID and check if this parameter has already been
+            # treated. If so, continue to the next one.
+            parameter = parset.get_parameter(qual)
+            myid = parameter.get_unique_label()
+            if myid in ids:
+                continue
+                            
+            # Else remember the id
+            ids.append(myid)
+            
+            # Scale if it is a scalable parameter.
+            if qual == 'radius':
+                parset[qual] = parset[qual] * factor
+            
+            elif qual == 'sma':
+                parset[qual] = parset[qual] * factor
+                
+                # Still satisfy Kepler's third law if we're in a non
+                # roche system:
+            raise NotImplementedError
+    
+
 
 def list_available_units(qualifier, context=None):
     """

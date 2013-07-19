@@ -2276,16 +2276,11 @@ def ef_binary_image(system, time, i, name='ef_binary_image',
 
 def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     """
-    Make an image of a binary system.
+    Make an image of a system.
     
-    But setting the x and y limits to sensible values, so that
-    we can always see the entire orbit. This eliminates the zoom effect in the
-    default behaviour, but of course we need to know the maximum size of the system
-    without computing through it. For binary systems, this is of course fairly
-    easy.
     """
     # Get the thing to plot
-    if hasattr(system,'__len__') and comp >= 0:
+    if hasattr(system,'__len__') and comp is not None:
         system = system[comp]
     # and make the figure
     savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
