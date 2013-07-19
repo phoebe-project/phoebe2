@@ -1695,7 +1695,7 @@ class Body(object):
         prob = scipy.stats.distributions.chi2.cdf(chi2, k)
         
         # That's it!
-        return chi2, prob, Ndata, Npar
+        return chi2, prob, n_data, n_par
         
     
     def get_data(self):
@@ -1830,7 +1830,7 @@ class Body(object):
         mylist = []
         for path, val in self.walk_all():
             path = list(path)
-            if isinstance(val,parameters.Parameter) and val.get_adjust():
+            if isinstance(val,parameters.Parameter) and val.get_adjust() and not val in mylist:
                 mylist.append(val)
         return mylist
     
