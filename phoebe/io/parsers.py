@@ -394,9 +394,9 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
             lcdep2[index]['passband'] = val
      
         if key == 'phoebe_hla.VAL':
-            lcdep1[index]['pblum'] = float(val)/(4*np.pi)
+            lcdep1[index]['pblum'] = float(val)
         if key == 'phoebe_cla.VAL': 
-            lcdep2[index]['pblum'] = float(val)/(4*np.pi)
+            lcdep2[index]['pblum'] = float(val)
         if key == 'phoebe_el3.VAL':
             lcdep1[index]['l3'] = float(val)
             lcdep2[index]['l3'] = float(val)
