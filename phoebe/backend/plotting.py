@@ -883,6 +883,93 @@ def plot_lcdeps_as_sed(system,residual=False,
         plt.ylabel("Flux [erg/s/cm$^2$/$\AA$]")
 
 
+def plot_spobs(system, *args, **kwargs):
+    """
+    Plot an observed spectrum.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    ax = kwargs.pop('ax', plt.gca())
+    normalised = kwargs.pop('normalised', True)
+    
+    # Get ParameterSets
+    obs = system.get_obs(category='sp', ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    
+    # Load observations, they need to be here
+    loaded = obs.load(force=False)
+    
+    
+    wavelength = np.ravel(np.array(obs['wavelength']))
+    wavelength = wavelength.reshape(-1,len(obs['flux'][0]))
+    wavelength = wavelength[min(index,wavelength.shape[0]-1)]
+    
+    # shift the observed wavelengths if necessary
+    if 'vgamma' in obs and obs['vgamma']!=0:
+        wavelength = tools.doppler_shift(wavelength, obs.get_value('vgamma','km/s'))
+    
+    flux = obs['flux'][index]
+    cont = obs['continuum'][index]
+    sigm = obs['sigma'][index]
+    
+    if normalised:
+        flux = flux / cont
+        sigm = sigm / cont
+    
+    artists = []
+    p = ax.errorbar(wavelength, flux, yerr=sigm, **kwargs)
+    artists.append(p)
+    
+    if loaded: obs.unload()
+    
+    return artists, obs
+    
+    
+    
+def plot_spsyn(system, *args, **kwargs):
+    """
+    Plot an observed spectrum.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    ax = kwargs.pop('ax', plt.gca())
+    normalised = kwargs.pop('normalised', True)
+    
+    # Get ParameterSets
+    try:
+        obs = system.get_obs(category='sp', ref=ref)
+        pblum = obs['pblum']
+        l3 = obs['l3']
+    except:
+        pblum = 1.0
+        l3 = 0.0
+        
+    syn = system.get_synthetic(category='sp', ref=ref)
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    # Load observations, they need to be here
+    loaded = syn.load(force=False)
+    
+    wavelength = np.ravel(np.array(syn['wavelength']))
+    wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
+    wavelength = wavelength[min(index,wavelength.shape[0]-1)]
+    
+    flux = syn['flux'][index]
+    cont = syn['continuum'][index]
+    
+    if normalised:
+        flux = flux / cont
+        
+    flux = flux*pblum + l3
+    
+    artists = []
+    p = ax.plot(wavelength, flux, *args, **kwargs)
+    artists.append(p)
+    
+    if loaded: syn.unload()
+    
+    return artists, syn
+
     
 def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
                        kwargs_obs=None,kwargs_syn=None,
@@ -917,7 +1004,7 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
         kwargs_residual = dict(fmt='ko',ecolor='0.5')
     #-- get parameterSets
     dep,ref = system.get_parset(category='sp',type='pbdep',ref=ref)
-    syn,ref = system.get_parset(category='sp',type='syn',ref=ref)
+    syn = system.get_synthetic(category='sp',ref=ref)
     obs,ref = system.get_parset(category='sp',type='obs',ref=ref)
     
     loaded_obs = obs.load(force=False)

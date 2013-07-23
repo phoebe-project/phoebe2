@@ -1135,6 +1135,9 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     vmicro = pbdep.get('vmicro', 5.0)
     depth = pbdep.get('depth', 0.4)
     
+    # System velocity
+    vgamma = the_system.get_globals().request_value('vgamma', 'km/s')
+    
     # Information on dependable set: we need the limb darkening function and
     # the method
     ld_model = pbdep['ld_func']
@@ -1211,10 +1214,8 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
         rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
         
-        if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
-            vgamma = the_system.params.values()[0].get_value('vgamma', 'km/s')
-            rad_velos += vgamma
-            logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
+        rad_velos += vgamma
+        logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
 
         total_continum = 0.
@@ -1241,10 +1242,8 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         rad_velos = -the_system.mesh['velo___bol_'][keep,2]
         rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
         
-        if hasattr(the_system,'params') and 'vgamma' in the_system.params.values()[0]:
-            vgamma = the_system.params.values()[0].get_value('vgamma','km/s')
-            rad_velos += vgamma
-            logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
+        rad_velos += vgamma
+        logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         sizes = the_system.mesh['size'][keep]
         logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
