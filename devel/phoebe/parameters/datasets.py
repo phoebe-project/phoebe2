@@ -270,7 +270,7 @@ class DataSet(parameters.ParameterSet):
         result = self.copy()
         columns = result.get_value('columns')
         for col in columns:
-            if col in ['time','weights','flag']: continue
+            if col in ['time','weights','flag','wavelength']: continue
             this_col = np.array(result[col])
             other_col = np.array(other[col])
             if col in ['sigma']:

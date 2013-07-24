@@ -680,6 +680,29 @@ def add_esinw(orbit,esinw=None,derive='ecc',**kwargs):
     logger.info("orbit '{}': '{}' constrained by 'esinw'".format(orbit['label'],derive))
 
 
+def add_esinw_ecosw(orbit):
+    """
+    Add esinw and ecosw such that they invert to a unique argument of periastron.
+    
+    If you add esinw and ecosw separately, the constraints are ambiguous against
+    the argument of periastron.
+    
+    @param orbit: orbit parameterset
+    @type orbit: ParameterSet of context star
+    """
+    if orbit.frame == 'phoebe':
+        peri = 'per0'
+    else:
+        peri = 'omega'
+    add_esinw(orbit)
+    add_ecosw(orbit)
+    orbit.pop_constraint('ecc', None)
+    orbit.pop_constraint(peri,None)
+    orbit.add_constraint('{{{peri}}} = np.arctan2({{esinw}},{{ecosw}})'.format(peri=peri))
+    orbit.add_constraint('{ecc} = np.sqrt(({ecosw})**2+({esinw})**2)')
+    
+
+
 def add_conserve(orbit,conserve='volume',**kwargs):
     """
     Add a parameter to conserve volume or equipotential value along an eccentric orbit.
@@ -1138,9 +1161,9 @@ def group(observations, name, pblum=True, l3=True):
             obs.set_adjust('l3', l3)
 
 
-def scale_system(system, factor):
+def scale_binary(system, factor):
     """
-    Make a system uniformly bigger or smaller.
+    Make a binary system uniformly bigger or smaller.
     
     This should have minimal to no effect on the light curve, and is effectively
     like just bringing the system closer or further. The only difference with
@@ -1182,6 +1205,57 @@ def scale_system(system, factor):
                 # roche system:
             raise NotImplementedError
     
+
+def summarize(system, time=0.):
+            
+    system.list(summary='physical', width=90)
+    
+    system.set_time(0.)
+    
+    params = {}
+    import phoebe
+    from phoebe import universe
+    for loc, thing in system.walk_all():
+        class_name = thing.__class__.__name__
+        if class_name in ['Star', 'BinaryRocheStar']:
+            print thing.list()
+            
+            
+            lum = phoebe.convert('erg/s','W',universe.luminosity(thing)), 'W'
+            
+            if class_name=='Star':
+                mass = thing.params['star'].get_value('mass', 'kg'), 'kg'
+                radi = thing.params['star'].get_value('radius', 'm'), 'm'
+                teff = thing.params['star'].get_value('teff', 'K'), 'K'
+            
+            elif class_name=='BinaryRocheStar':
+                
+                pot = thing.params['component']['pot']
+                q = thing.params['orbit']['q']
+                F = thing.params['component']['syncpar']
+                sma = thing.params['orbit'].get_value('sma', 'm')
+                
+                comp = thing.get_component()
+                mass = thing.params['orbit'].request_value('mass{:d}'.format(comp+1), 'kg'), 'kg'
+                radi = phoebe.atmospheres.roche.potential2radius(pot, q, d=1,
+                            F=F, component=comp+1, sma=sma, loc='pole',
+                            tol=1e-10, maxiter=50), 'm'
+                teff = thing.params['component'].get_value('teff', 'K'), 'K'
+            
+            M = phoebe.convert(mass[1],'Msol', mass[0])
+            L = phoebe.convert(lum[1],'Lsol', lum[0])
+            R = phoebe.convert(radi[1],'Rsol', radi[0])
+            T = phoebe.convert(teff[1],'K', teff[0])
+            G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
+            print("M    = {:.3f} Msol".format(M))
+            print("L    = {:.3f} Lsol".format(L))
+            print("R    = {:.3f} Rsol".format(R))
+            print("Teff = {:.3f} K   ".format(T))
+            print("logg = {:.3f} [cgs]".format(G))
+            
+            params[thing.get_label()] = dict(mass=M, luminosity=L, radius=R, teff=T, logg=G)
+
+
 
 
 def list_available_units(qualifier, context=None):
