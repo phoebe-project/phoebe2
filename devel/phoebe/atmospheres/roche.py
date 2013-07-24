@@ -124,7 +124,7 @@ def temperature_zeipel(system):
     
     body.add_constraint('{{t_pole}} = {0:.16g}'.format(Tpole))
     logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
-    
+
 
 def temperature_espinosa(system):
     r"""

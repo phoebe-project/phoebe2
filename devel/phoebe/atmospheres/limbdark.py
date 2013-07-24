@@ -309,6 +309,27 @@ def ld_quadratic(mu, coeffs):
     return 1 - coeffs[0]*(1-mu) - coeffs[1]*(1-mu)**2.0
 
 
+def ld_square_root(mu, coeffs):
+    r"""
+    Square root law.
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - c_1 (1-\mu) - c_2(1-\sqrt{\mu})
+        
+    From [Diaz-Cordoves1992]_.
+    
+    @param mu: limb angles mu=cos(theta)
+    @type mu: numpy array
+    @param coeffs: limb darkening coefficients
+    @type coeffs: list
+    @return: normalised intensity at limb angles
+    @rtype: array
+    """
+    return 1 - coeffs[0]*(1-mu) - coeffs[1]*(1-np.sqrt(mu))
+
+
+
 def ld_uniform(mu, coeffs):
     r"""
     Uniform law.
