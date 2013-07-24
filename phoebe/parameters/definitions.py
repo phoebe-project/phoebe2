@@ -33,7 +33,7 @@ defs += [dict(qualifier="hjd0",  description="Origin of time",                  
          dict(qualifier="incl",  description="Inclination angle",                               repr= "%f",     llim=  0.0, ulim= 180.0, step=   0.01, adjust=False, cast_type=float, unit='deg',  value=87.866      ,frame=["wd"],alias=['i','phoebe_incl'],context=['root'],prior=dict(distribution='uniform',lower=-180,upper=180)),
          dict(qualifier="vga",   description="Center-of-mass velocity",                   repr= "%f",     llim= -1E3, ulim=   1E3, step=    1.0, adjust=False, cast_type=float, unit='km/s', value= 0.0        ,frame=["wd"],alias=['gamma','phoebe_vga'],context='root'),
          dict(qualifier='ecc'  , description='Eccentricity'                             , repr= '%f',     llim=  0.0, ulim=   0.99,step=   0.01, adjust=False, cast_type=float,              value=0.28319     ,frame=["wd"],alias=['e','phoebe_ecc'],context='root'),
-         dict(qualifier='omega', description='Initial argument of periastron for star 1', repr= '%f',     llim=  0.0, ulim=   2*np.pi,step=   0.01, adjust=False, cast_type=float, unit='rad',  value=5.696919    ,frame=["wd"],alias=['perr0'],context='root'),
+         dict(qualifier='omega', description='Initial argument of periastron for star 1', repr= '%f',     llim= -2*np.pi, ulim=   2*np.pi,step=   0.01, adjust=False, cast_type=float, unit='rad',  value=5.696919    ,frame=["wd"],alias=['perr0'],context='root'),
          dict(qualifier='domegadt',description='First time derivative of periastron'    , repr='%f',      llim=  0.0, ulim=    1.0,step=   0.01, adjust=False, cast_type=float, unit='rad/s',value=0,           frame=["wd"],alias=['dperdt'],context='root')]
 
 #  /* ********************   Component parameters   ************************ */
@@ -207,7 +207,7 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
          ]        
         
 #    DATA contexts
-defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','rvdep']),
+defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','rvdep']),
          dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'square root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['lcdep']),
          dict(qualifier='ld_coeffs',       description='Bolometric limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),

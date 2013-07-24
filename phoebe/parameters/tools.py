@@ -835,13 +835,13 @@ def to_supconj(orbit):
             
     logger.info('Set t0type to time of superior conjunction')
 
-def critical_times(orbit_in):
+def critical_times(orbit_in, time_range=None):
     """
     Compute critical times in an orbit.
     
     They are the times of:
     
-        1. Periastron passge: when the stars are closest
+        1. Periastron passage: when the stars are closest
         2. Superior conjunction: when the primary is eclipsed (if there are eclipses)
         3. Inferior conjunction: when the secondary is eclipsed (if there are eclipses)
         4. Ascending node
@@ -866,6 +866,19 @@ def critical_times(orbit_in):
     crit_times = keplerorbit.calculate_critical_phases(per0, ecc) * P + t0
     crit_times[crit_times<t0] += P
     crit_times[crit_times>(t0+P)] -= P
+    
+    # Perhaps the user wants all the critical time points in a certain time
+    # interval
+    if time_range is not None:
+        n_period_min = int((time_range[0]-t0) / P) - 2 # to be sure
+        n_period_max = int((time_range[1]-t0) / P) + 2 # to be sure
+        n_periods = np.arange(-n_period_min, n_period_max+1)
+        crit_times = np.array([ct + n_periods*P for ct in crit_times])
+        keep = (crit_times<=time_range[1]) & (time_range[0]<=crit_times)
+        crit_times = crit_times[keep]
+        
+        
+        
     
     return crit_times
 #}
