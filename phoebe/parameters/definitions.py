@@ -208,7 +208,7 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
         
 #    DATA contexts
 defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','rvdep']),
-         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'square root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
+         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['lcdep']),
          dict(qualifier='ld_coeffs',       description='Bolometric limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='passband', description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context='lcdep'),
