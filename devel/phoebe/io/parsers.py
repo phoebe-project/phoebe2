@@ -1,16 +1,25 @@
+"""
+Parse data and parameter files.
+
+.. autosummary::
+
+    legacy_to_phoebe
+    
+"""
+
 import re
 import logging
 import numpy as np
 from phoebe.parameters import parameters
+from phoebe.parameters import tools
 from phoebe.parameters import datasets
 from phoebe.backend import universe
-from os import sys
+from phoebe.backend import observatory
+from phoebe.algorithms import marching
+from phoebe.wd import wd
 from phoebe.parameters import datasets
 from phoebe.backend.bundle import Bundle
 import matplotlib.pyplot as plt
-
-#if '/home/kmh/Stars/phoebe/phoebe2/devel/phoebe' not in sys.path: 
-#    sys.path.append('/home/kmh/Stars/phoebe/phoebe2/devel/phoebe')
 
 logger = logging.getLogger("PARSERS")
 
@@ -640,13 +649,76 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
     if create_bundle:
 
         bundle = Bundle(bodybag)
-
+        
         return bundle
     
     if create_body:
         return bodybag
 
     return body1, body2, orbit 
+
+
+
+
+
+def phoebe_to_wd(system):
+    """
+    Convert a Phoebe2.0 system to WD parameterSets.
+    
+    Not finished yet!
+    """
+    
+    ps = parameters.ParameterSet('root', frame='wd')
+    lc = parameters.ParameterSet('lc', frame='wd')
+    rv = parameters.ParameterSet('rv', frame='wd')
+    
+    orbit = system[0].params['orbit']
+    tools.to_supconj(orbit)
+    comp1 = system[0].params['component']
+    comp2 = system[1].params['component']
+    #globals = system.params['globals']
+    mesh1 = system[0].params['mesh']
+    mesh2 = system[1].params['mesh']
+    
+    ps['name'] = orbit['label']
+    ps['model'] = 'unconstrained'
+    ps['hjd0'] = orbit['t0']
+    ps['period'] = orbit['period']
+    ps['dpdt'] = orbit['dpdt']
+    ps['pshift'] = orbit['phshift']
+    ps['sma'] = orbit.request_value('sma','Rsol'), 'Rsol'
+    ps['rm'] = orbit['q']
+    ps['ecc'] = orbit['ecc']
+    ps['omega'] = orbit.request_value('per0','deg'), 'deg'
+    ps['incl'] = orbit.request_value('incl','deg'), 'deg'
+    
+    ps['teff1'] = comp1.request_value('teff','K'), 'K'
+    ps['teff2'] = comp2.request_value('teff','K'), 'K'
+    ps['f1'] = comp1['syncpar']
+    ps['f2'] = comp2['syncpar']
+    ps['alb1'] = comp1['alb']
+    ps['alb2'] = comp2['alb']
+    ps['pot1'] = comp1['pot']
+    ps['pot2'] = comp2['pot']
+    ps['grb1'] = comp1['gravb']
+    ps['grb2'] = comp2['gravb']
+    ps['n1'] = marching.delta_to_gridsize(mesh1['delta'])
+    ps['n2'] = marching.delta_to_gridsize(mesh1['delta'])
+    ps['ipb'] = 0
+    
+    #ps['vga'] = globals.request_value('vgamma', 'km/s'), 'km/s'
+    
+    # Light curve
+    params = parameters.ParameterSet('compute')
+    observatory.extract_times_and_refs(system, params, tol=1e-8)
+    lc['indep_type'] = 'time (hjd)'
+    lc['indep'] = params['time']
+    lc['hla'] = system[0].params['pbdep']['lcdep'].values()[0]['pblum']
+    lc['cla'] = system[1].params['pbdep']['lcdep'].values()[0]['pblum']
+    
+    return ps, lc, rv
+
+
 
 
 def from_supconj_to_perpass(orbit):
