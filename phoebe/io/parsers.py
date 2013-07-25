@@ -2,25 +2,31 @@ import re
 import logging
 import numpy as np
 from phoebe.parameters import parameters
+from phoebe.parameters import datasets
 from phoebe.backend import universe
 from os import sys
+from phoebe.parameters import datasets
+from phoebe.backend.bundle import Bundle
+import matplotlib.pyplot as plt
 
 #if '/home/kmh/Stars/phoebe/phoebe2/devel/phoebe' not in sys.path: 
 #    sys.path.append('/home/kmh/Stars/phoebe/phoebe2/devel/phoebe')
 
 logger = logging.getLogger("PARSERS")
 
-def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
+def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd'):
     """
     Convert a legacy PHOEBE file to the parameterSets. 
     
     Currently this file converts all values, the limits and 
-    step size for each parameter in the orbit, but only the 
-    value for all other parameters.
+    step size for each parameter in the orbit and components.
     
     Returns two components (containing a body, light curve 
     dependent parameter set and radial velocity dependent 
     parameter set.) and an orbit.
+    
+    If create_body=True then a body bag is returned or if create_bundle=True
+    then a bundel is returned in place of the parameter sets.
     
     @param inputfile: legacy phoebe parameter file
     @type inputfile: str
@@ -34,16 +40,28 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
     prim_rv = 0
     sec_rv = 0
     rv_pb = []
+    rv_pbweight = []
+    lc_pbweight = []
     ld_coeffs1 = []
     ld_coeffs2 = []
     rv_file = []
-
+    rvtime = []
+    rvsigma = []
+    obsrv1 = []
+    obsrv2 = []
+    obslc = []
+    rvfile = []
+    lcfile = []
+    rvname = []
+    
     #-- initialise the orbital and component parameter sets. 
     orbit = parameters.ParameterSet(frame='phoebe',context='orbit',add_constraints=True)
-    comp1 = parameters.ParameterSet(frame='phoebe',context='component',label='star1',
+    comp1 = parameters.ParameterSet(frame='phoebe',context='component',label='myprimary',
                                     add_constraints=True)
-    comp2 = parameters.ParameterSet(frame='phoebe',context='component',label='star2',
+    comp2 = parameters.ParameterSet(frame='phoebe',context='component',label='mysecondary',
                                     add_constraints=True)
+    globals = parameters.ParameterSet('globals')
+    
     mesh1wd = parameters.ParameterSet(frame='phoebe',context='mesh:wd',add_constraints=True)
     mesh2wd = parameters.ParameterSet(frame='phoebe',context='mesh:wd',add_constraints=True)
 
@@ -192,13 +210,13 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
             orbit.get_parameter('q').set_step(step=float(val))                     
                        
         elif key == 'phoebe_vga.VAL':
-            orbit['vgamma'] = (val,'km/s')  
+            globals['vgamma'] = (val,'km/s')  
         elif key == 'phoebe_vga.MAX':
-            orbit.get_parameter('vgamma').set_limits(ulim=float(val))
+            globals.get_parameter('vgamma').set_limits(ulim=float(val))
         elif key == 'phoebe_vga.MIN':
-            orbit.get_parameter('vgamma').set_limits(llim=float(val))
+            globals.get_parameter('vgamma').set_limits(llim=float(val))
         elif key == 'phoebe_vga.STEP':
-            orbit.get_parameter('vgamma').set_step(step=float(val))                     
+            globals.get_parameter('vgamma').set_step(step=float(val))                     
                      
         elif key == 'phoebe_sma.VAL':
             orbit['sma'] = (val,'Rsol')    
@@ -370,6 +388,7 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
             ld_ybol1 = float(val)
         if key == 'phoebe_ld_ybol2':
             ld_ybol2 = float(val)
+            
 
 
         #-- now populate the lcdep and rvdep parameters 
@@ -413,7 +432,10 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
         if key == 'phoebe_ld_rvx2':
             ld_rvx2 = float(val[1:-2]) 
      
-
+        if key == 'phoebe_rv_sigma':
+            rv_pbweight.append(float(val))
+            
+        
         if key == 'phoebe_rv_filter':
             rv_pb.append(val)
             
@@ -426,6 +448,24 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
                 
         if key == 'phoebe_rv_filename':
             rv_file.append(val[2:-2])
+            
+        if key == 'phoebe_rv_id':
+            rvname.append(val)
+        
+                     
+        if key == 'phoebe_rv_indep':
+            if val[2:6] == 'Time':
+                rvtime.append('time')
+            else:
+                rvtime.append('phase')
+            
+        if key == 'phoebe_rv_indweight':
+            if val[11:-2] == 'deviation':
+                rvsigma.append('sigma')  
+            elif val[11:-2] == 'weight':
+                rvsigma.append('weight')
+            else:
+                rvsigma.append('undefined')
                     
     orbit['long_an'] = 0.
  
@@ -451,32 +491,110 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
         
     j=0
     k=0
+    l=0
+    m=0
+    
+    obsrv1=[]
+    obsrv2=[]
+    print "rvno = ", rvno
     for i in range(rvno):
+        print rv_dep[i]
+        print "i = ", i
 
         if rv_dep[i] == 'Primary RV':
+            print "rv1dep"
             rvdep1[j]['ld_coeffs'] = ld_coeffs1[i]
             rvdep1[j]['passband'] = rv_pb[i]
-            rvdep1[j]['ref'] = rv_file[i]
+            rvdep1[j]['ref'] = "primaryrv_"+str(j)
             rvdep1[j]['atm'] = comp1['atm']
             rvdep1[j]['alb'] = comp1['alb']
             rvdep1[j]['ld_func'] = comp1['ld_func']
             if rv_file[i] != "Undefined":
-                rvdep1[j]['ref'] = rv_file[i]
-            j+=1
-            
+                if rvsigma[i] == 'undefined': 
+                    print "rv1obs"
+                    print rvsigma[i]
+                    print i
+                    if rvtime[i]=='time':
+                        col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
+                        obsrv1.append(datasets.RVDataSet(time=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
+                        ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                    else:
+                        col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
+                        obsrv1.append(datasets.RVDataSet(phase=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
+                        ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                else:
+                    if rvtime[i]=='time':
+                        if rvsigma[i]=='sigma': 
+                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            
+                    else:
+                        if rvsigma[i]=='weight': 
+                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]],
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                l+=1#counts the number of the observations for component 1
+            j+=1#counts the number of observations and synthetic rv curves for component 1
+
         else:
+            print "rv2dep"
             rvdep2[k]['ld_coeffs'] = ld_coeffs2[i] 
             rvdep2[k]['passband'] = rv_pb[i]
             rvdep2[k]['atm'] = comp2['atm']
             rvdep2[k]['alb'] = comp2['alb']
             rvdep2[k]['ld_func'] = comp2['ld_func']
+            rvdep2[k]['ref'] = "secondaryrv_"+str(k)           
             if rv_file[i] != "Undefined":
-                rvdep2[k]['ref'] = rv_file[i]            
-            k+=1
+                print "rv2obs"
+                if rvsigma[i] == 'undefined': 
+                    print rvsigma[i]
+                    print i
+                    if rvtime[i]=='time':
+                        col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
+                        obsrv2.append(datasets.RVDataSet(time=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
+                        ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                    else:
+                        col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
+                        obsrv2.append(datasets.RVDataSet(phase=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
+                        ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                else:
+                    if rvtime[i]=='time':
+                        if rvsigma[i]=='sigma': 
+                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            
+                    else:
+                        if rvsigma[i]=='weight': 
+                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+ 
+                m+=1#counts the number of the observation for component 2
+            k+=1#counts the number of observations and synthetic rv curves for component 2
+
             
     #-- copy the component labels to the orbits
     orbit['c1label'] = comp1['label']
     orbit['c2label'] = comp2['label']
+    orbit['label'] = 'myorbit'
     
     # t0 is the time of superior conjunction in Phoebe Legacy
     orbit['t0type'] = 'superior conjunction'
@@ -487,7 +605,7 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
     
     logger.info("Loaded contents from file {}".format(inputfile))
     
-    if create_body:
+    if create_bundle or create_body:
         if mesh=='marching':
             mesh1 = parameters.ParameterSet(context='mesh:marching')
             mesh2 = parameters.ParameterSet(context='mesh:marching')
@@ -498,15 +616,37 @@ def legacy_to_phoebe(inputfile, create_body=False, mesh='wd'):
         else:
             mesh1 = mesh1wd
             mesh2 = mesh2wd
-        star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1)
-        star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2)
-   
-        bbag = universe.BodyBag([star1,star2],solve_problems=True)
-        return bbag
-     
+            
+        ##need an if statement here incase no obs
+        if prim_rv !=0 and sec_rv !=0:
+            star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1,obs=obsrv1)
+            star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2,obs=obsrv2)
+        elif prim_rv == 0 and sec_rv == 0:
+            star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1)
+            star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2)
+        elif prim_rv == 0 and sec_rv !=0:
+            star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1)
+            star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2,obs=obsrv2)
+        elif prim_rv !=0 and sec_rv == 0:
+            star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1,obs=obsrv1)
+            star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2) 
+                   
+        if lcno !=0:
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)#,obs=lcobs)
+        else:
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)
+
+        
+    if create_bundle:
+
+        bundle = Bundle(bodybag)
+
+        return bundle
+    
+    if create_body:
+        return bodybag
+
     return body1, body2, orbit 
-
-
 
 
 def from_supconj_to_perpass(orbit):
