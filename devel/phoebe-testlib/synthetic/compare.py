@@ -25,7 +25,7 @@ system[0].params['component']['atm'] = 'atmcof.dat'
 system[1].params['component']['atm'] = 'atmcof.dat'
 
 # phoebe 1.0 results:
-time, flux1 = np.loadtxt("{}.lc.1.0.data".format(name), unpack=True)
+time, flux1 = np.loadtxt("{}.lc.1.0.data".format(name), unpack=True)[:2]
 
 # phoebe 2.0 results:
 try:
