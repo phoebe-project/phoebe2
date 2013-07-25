@@ -5,7 +5,7 @@ from phoebe.io import parsers
 from phoebe.parameters import datasets
 from matplotlib import pyplot as plt
 
-logger = phoebe.get_basic_logger()
+logger = phoebe.get_basic_logger(clevel=Info)
 #logger = phoebe.get_basic_logger(clevel=None,filename='detached_1.log')
 
 if sys.argv[1:]:
@@ -18,8 +18,8 @@ system.set_label("Test-suite: D1")
 
 system.list()
 
-system[0].params['mesh']['gridsize'] = 60
-system[1].params['mesh']['gridsize'] = 60
+system[0].params['mesh']['gridsize'] = 20
+system[1].params['mesh']['gridsize'] = 20
 
 system[0].params['component']['atm'] = 'atmcof.dat'
 system[1].params['component']['atm'] = 'atmcof.dat'
