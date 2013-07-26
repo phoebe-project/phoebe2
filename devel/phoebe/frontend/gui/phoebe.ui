@@ -20,7 +20,7 @@
    <string>PHOEBE</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="ui_resources.qrc">
+   <iconset>
     <normaloff>:/images/phoebe-gui.png</normaloff>:/images/phoebe-gui.png</iconset>
   </property>
   <property name="layoutDirection">
@@ -567,7 +567,9 @@ p, li { white-space: pre-wrap; }
     <addaction name="separator"/>
     <addaction name="tb_view_lpAction"/>
     <addaction name="tb_view_rpAction"/>
-    <addaction name="tb_view_bpAction"/>
+    <addaction name="tb_view_datasetsAction"/>
+    <addaction name="tb_view_versionsAction"/>
+    <addaction name="tb_view_pythonAction"/>
     <addaction name="separator"/>
     <addaction name="tb_view_sysAction"/>
     <addaction name="tb_view_glAction"/>
@@ -583,7 +585,6 @@ p, li { white-space: pre-wrap; }
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="tb_tools_pythonAction"/>
     <addaction name="tb_tools_scriptAction"/>
    </widget>
    <addaction name="tb_fileMenu"/>
@@ -1469,6 +1470,18 @@ p, li { white-space: pre-wrap; }
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_3"/>
   </widget>
+  <widget class="QDockWidget" name="bp_versionsDockWidget">
+   <property name="features">
+    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+   </property>
+   <property name="windowTitle">
+    <string>Versions</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2"/>
+  </widget>
   <action name="tb_file_newAction">
    <property name="enabled">
     <bool>true</bool>
@@ -1554,7 +1567,7 @@ p, li { white-space: pre-wrap; }
     <string>Ctrl+2</string>
    </property>
   </action>
-  <action name="tb_view_bpAction">
+  <action name="tb_view_datasetsAction">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -1667,20 +1680,6 @@ p, li { white-space: pre-wrap; }
     <string>New Objects</string>
    </property>
   </action>
-  <action name="tb_tools_pythonAction">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Python Interface</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+4</string>
-   </property>
-  </action>
   <action name="tb_edit_undoAction">
    <property name="enabled">
     <bool>true</bool>
@@ -1720,7 +1719,7 @@ p, li { white-space: pre-wrap; }
     <string>System View</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+5</string>
+    <string>Ctrl+8</string>
    </property>
   </action>
   <action name="tb_view_glAction">
@@ -1734,7 +1733,7 @@ p, li { white-space: pre-wrap; }
     <string>3D View</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+6</string>
+    <string>Ctrl+9</string>
    </property>
   </action>
   <action name="actionLegacy_PHOEBE">
@@ -1813,6 +1812,34 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Run Python Script...</string>
+   </property>
+  </action>
+  <action name="tb_view_versionsAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Versions</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+4</string>
+   </property>
+  </action>
+  <action name="tb_view_pythonAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Python Interface</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+5</string>
    </property>
   </action>
  </widget>
@@ -1968,22 +1995,6 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>134</x>
      <y>182</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>tb_tools_pythonAction</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>bp_pyDockWidget</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>1153</x>
-     <y>978</y>
     </hint>
    </hints>
   </connection>
