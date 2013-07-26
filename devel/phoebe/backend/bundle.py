@@ -5,6 +5,7 @@ import pickle
 import logging
 import numpy as np
 from collections import OrderedDict
+from datetime import datetime
 import matplotlib.pyplot as plt
 import copy
 
@@ -29,6 +30,7 @@ class Bundle(object):
         """
         #-- prepare 
         self.system = system
+        self.versions = [] #list of dictionaries
         self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
@@ -47,23 +49,38 @@ class Bundle(object):
                 self.add_axes(axes[key], key)
         self.add_compute(compute)
         
+        self.settings = {'add_version_on_compute': False}
+        
+    #{ Settings
+    def set_setting(self,key,value):
+        self.settings[key] = value
+        
+    def get_setting(self,key,value):
+        return self.settings[key]
+        
+    def load_settings(self,filename):
+        raise NotImplementedError  
+    #}    
+    
     #{ System
-    def set_system(self,system):
+    def set_system(self,system=None,version=None):
         """
         Change the system
 
         @param system: the new system
         @type system: System
         """
-        if system is None:  return None
+        if system is None and version is None:  return None
+        if system is None:
+            system = self.get_version(version)
         self.system = system 
-        
+              
     def get_system(self):
         """
         Return the system.
         
         @return: the attached system
-        @rtype: Body
+        @rtype: Body or BodyBag
         """
         return self.system      
                 
@@ -382,6 +399,73 @@ class Bundle(object):
         
     #}  
     
+    #{ Versions
+    
+    def get_version(self,version=None,by='name',set_system=False):
+        """
+        Retrieve a stored system version by one of its keys
+        
+        @param version: the key of the version
+        @type version: str
+        @param by: what key to search by (defaults to name)
+        @type by: str
+        @param set_system: whether to set this version as the current working system
+        @type set_system: bool
+        @return: system
+        @rtype: Body or BodyBag
+        """
+        
+        # create a dictionary with key defined by by and values which are the systems
+        versions = {v[by]: v['system'] for v in self.versions}
+        
+        if version is None:
+            return versions
+        else:
+            if set_system:
+                #add_version for the current version, or is the user responsible for making sure they don't lose changes?
+                self.set_system(versions[version])
+            return versions[version]
+            
+    def rename_version(self,version,newname):
+        """
+        Rename a currently existing version
+        
+        @param version: the system or name of the version that you want to edit
+        @type version: version or str
+        @param newname: the new name
+        @type newname: str        
+        """
+        key = 'name' if isinstance(version,str) else 'system'
+        # get index where this system is in self.versions
+        i = [v[key] for v in self.versions].index(version)
+        # change the name value
+        self.versions[i]['name']=newname
+            
+    def add_version(self,system=None,name=None):
+        """
+        Add the current snapshot of the system as a new version entry
+        Generally this is best to be handled by setting add_version=True in bundle.run_compute
+        
+        @param system: the system (will default to working version)
+        @type system: Body or BodyBag
+        @param name: name of the version (defaults to current timestamp)
+        @type name: str        
+        """
+        if system is None:
+            system = self.get_system()
+        # purge any signals attached to system before copying
+        callbacks.purge_signals(system)
+        system.signals={}
+        version = {'system':system.copy()} #this will probably fail if there are signals attached
+        version['date_created'] = datetime.now()
+        version['name'] = name if name is not None else str(version['date_created'])
+        
+        self.versions.append(version)
+
+    
+    #}
+    
+    
     #{ Loading Data
     def load_data(self,context,filename,passband=None,columns=None,components=None,ref=None):
         """
@@ -653,7 +737,7 @@ class Bundle(object):
         if label is None:    return None
         self.compute.pop(label)        
     
-    def run_compute(self,label=None,mpi=True,im=False):
+    def run_compute(self,label=None,mpi=True,im=False,add_version=None):
         """
         Convenience function to run observatory.observe
         
@@ -661,7 +745,14 @@ class Bundle(object):
         @type label: str
         @param mpi: whether to use mpi (will use stored options)
         @type mpi: bool
+        @param im: whether to create images at each timestamp, if None will use value from settings
+        @type im: bool or None
+        @param add_version: whether to save a snapshot of the system after compute is complete
+        @type add_version: bool or str (which will become the version's name if provided)
         """
+        if add_version is None:
+            add_version = self.settings['add_version_on_compute']
+        
         self.system.fix_mesh()
         self.system.fix_mesh()
         if label is None:
@@ -681,6 +772,9 @@ class Bundle(object):
                 extra_func_kwargs=[dict(select='teff',cmap='blackbody')] if im else [],
                 mpi=self.mpi if mpi else None,**options
                 )
+                
+        if add_version is not False:
+            self.add_version(self.system,name=None if add_version else add_version)
 
     #}
             
@@ -889,6 +983,28 @@ class Bundle(object):
         """
         self.get_axes(ident).plot(self.get_system(),mplfig=mplfig,mplaxes=mplaxes,location=location)
         
+    def plot_orbit(self,times=None):
+        """
+        
+        """
+        raise NotImplementedError
+        
+        # create times list if not given
+        if times is None:
+            times = np.linspace(self.system.get_value('t0'),self.system.get_value('t0')+self.system.get_value('period'),100)
+        
+        # create hierarchical dictionary for passing to get_hierarchical_orbits
+        
+        
+        # get orbits
+        
+        
+        # plot
+        for body in output:
+            plt.plot(body[0][0], body[0][1])
+        plt.show()
+        
+        
     #}
         
         
@@ -933,13 +1049,14 @@ class Bundle(object):
         """
         return copy.deepcopy(self)
     
-    def save(self,filename):
+    def save(self,filename,purge_signals=True):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
         """
-        #~ self_copy = self.copy()
-        self.purge_signals()
+        if purge_signals:
+            #~ self_copy = self.copy()
+            self.purge_signals()
         ff = open(filename,'w')
         pickle.dump(self,ff)
         ff.close()  

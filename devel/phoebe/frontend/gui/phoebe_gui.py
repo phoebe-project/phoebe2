@@ -722,6 +722,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.attached_plot_signals.append((po, canvas))
         #~ if (axes, canvas) not in self.attached_plot_signals:
         if not skip_axes_attach:
+            self.bundle.attach_signal(self.bundle, 'set_system', self.plot_redraw, i, canvas) #will also be called for get_version(set_system=True)
             self.bundle.attach_signal(axes.axesoptions, 'set_value', self.plot_redraw, i, canvas)
             #~ self.bundle.attach_signal(axes, 'set_value', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes, 'add_plot', self.attach_plot_signals, i, canvas, True) # so that we can add the new parameter options
