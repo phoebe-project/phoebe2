@@ -30,11 +30,14 @@ from phoebe.atmospheres import roche
 from phoebe.atmospheres import tools
 from phoebe.algorithms import marching
 from phoebe.units import conversions
+from phoebe.utils import utils
 from phoebe.parameters import parameters
 
 logger = logging.getLogger("BE.PLOT")
 
 #{ Atomic plotting functions
+
+
 
 def plot_lcsyn(system, *args, **kwargs):
     """
@@ -72,6 +75,7 @@ def plot_lcsyn(system, *args, **kwargs):
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
+    t0 = kwargs.pop('t0', 0.0)
     
     # Get parameterSets and set a default label if none is given
     syn = system.get_synthetic(category='lc', ref=ref)
@@ -118,10 +122,12 @@ def plot_lcsyn(system, *args, **kwargs):
             p, = ax.plot(time+n*period, flux, *args, **kwargs)
             artists.append(p)
     else:
-        time = (time % period) / period
+        time = ((time-t0) % period) / period
         sa = np.argsort(time)
         time, flux = time[sa], flux[sa]
         for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
             p = ax.plot(time+n, flux, *args, **kwargs)
     
     # Return the synthetic computations as an array
@@ -159,6 +165,7 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
+    t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
 
     #-- get parameterSets
@@ -193,17 +200,21 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     artists = []
     if not phased:
         for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
             if errorbars:
                 p = ax.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
             else:
                 p = ax.plot(time+n*period,flux,**kwargs)
             artists.append(p)
     else:
-        time = (time % period) / period
+        time = ((time-t0) % period) / period
         # need to sort by time (if using lines)
         o = time.argsort()
         time, flux = time[o], flux[o]
         for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
             if errorbars:
                 p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
             else:

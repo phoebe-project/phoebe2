@@ -210,7 +210,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         # parameter might not be given. Set it by default to 1 in that case:
         iters = fitparams.get('iters',1)
         feedbacks = []
-        
+
         # Cycle over all subsets if required. The system itself (i.e. the
         # observational datasets) is changed *inside* the generator function
         for flag, ref in subsets_via_flags(system, fitparams):
@@ -225,6 +225,8 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                 # taken from their prior, or add MC noise to the data
                 reinitialize_from_priors(system, fitparams)
                 monte_carlo(system, fitparams)
+                
+                system.compute()
                 
                 #  Then solve the current system
                 feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)

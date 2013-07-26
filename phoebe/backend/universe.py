@@ -5110,114 +5110,7 @@ class Star(PhysicalBody):
                 
     
     def add_pulsations(self,time=None):
-        if time is None:
-            time = self.time
-        
-        #-- relevant stellar parameters
-        rotfreq = 1./self.params['star'].request_value('rotperiod','d')
-        R = self.params['star'].request_value('radius','m')
-        M = self.params['star'].request_value('mass','kg')    
-        
-        #-- prepare extraction of pulsation parameters
-        freqs = []
-        freqs_Hz = []
-        phases = []
-        ampls = []
-        ls = []
-        ms = []
-        deltaTs = []
-        deltags = []
-        ks = []
-        spinpars = []
-        
-        #-- extract pulsation parameters, depending on their scheme
-        for i,pls in enumerate(self.params['puls']):
-            #-- extract information on the mode
-            scheme = pls.get_value('scheme')
-            l = pls.get_value('l')
-            m = pls.get_value('m')
-            k_ = pls.get_value('k')
-            freq = pls.get_value('freq','cy/d')
-            freq_Hz = freq / (24.*3600.)
-            ampl = pls.get_value('ampl')
-            deltaT = pls.get_value('amplteff')*np.exp(1j*2*pi*pls.get_value('phaseteff'))
-            deltag = pls.get_value('amplgrav')*np.exp(1j*2*pi*pls.get_value('phasegrav'))
-            phase = pls.get_value('phase')
-            omega = 2*pi*freq_Hz
-            k0 = constants.GG*M/omega**2/R**3    
-            #-- if the pulsations are defined in the scheme of the traditional
-            #   approximation, we need to expand the single frequencies into many.
-            #   indeed, the traditional approximation approximates a mode as a
-            #   linear combination of modes with different degrees.        
-            if scheme=='traditional approximation':
-                #-- extract some info on the B-vector
-                bvector = pls.get_value('trad_coeffs')
-                N = len(bvector)
-                ljs = np.arange(N)
-                for lj,Bjk in zip(ljs,bvector):
-                    if Bjk==0: continue
-                    #if lj>50: continue
-                    freqs.append(freq)
-                    freqs_Hz.append(freq_Hz)
-                    ampls.append(Bjk*ampl)
-                    phases.append(phase)
-                    ls.append(lj)
-                    ms.append(m)
-                    deltaTs.append(Bjk*deltaT)
-                    deltags.append(Bjk*deltag)
-                    ks.append(k0)
-                    spinpars.append(0.) # not applicable
-            elif scheme=='nonrotating' or scheme=='coriolis':
-                if scheme=='coriolis' and l>0:
-                    spinpar = rotfreq/freq
-                    Cnl = pls.get_value('ledoux_coeff')
-                    k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
-                    logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
-                else:
-                    spinpar = 0.
-                    k = k_#k0
-                    logger.info('puls: no Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=0'%(rotfreq,freq,l,m,k))
-                freqs.append(freq)
-                freqs_Hz.append(freq_Hz)
-                ampls.append(ampl)
-                phases.append(phase)
-                ls.append(l)
-                ms.append(m)
-                deltaTs.append(deltaT)
-                deltags.append(deltag)
-                ks.append(k)
-                spinpars.append(spinpar)
-            else:
-                raise ValueError('Pulsation scheme {} not recognised'.format(scheme))
-            
-        #-- then add displacements due to pulsations. When computing the centers,
-        #   we also add the information on teff and logg
-        #index = np.array([2,0,1])
-        #index_inv = np.array([1,2,0])
-        index = np.array([1,0,2])
-        index_inv = np.array([1,0,2])
-        puls_incl = self.params['puls'][0].get_value('incl','rad')
-        r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
-        r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
-        r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
-        r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-        r1,theta1,phi1,vr1,vth1,vphi1 = pulsations.surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls)        
-        r2,theta2,phi2,vr2,vth2,vphi2 = pulsations.surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls)
-        r3,theta3,phi3,vr3,vth3,vphi3 = pulsations.surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls)
-        r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = pulsations.observables(r4,theta4,phi4,
-                     self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
-                     spinpars,ks,ampls,deltaTs,deltags)
-        self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
-        self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
-        self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T
-        #for iref in ref:
-        #    ps,iref = self.get_parset(iref)
-        #    self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
-        self.mesh['velo___bol_'] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
-        self.mesh['center'] = np.array(coordinates.spher2cart_coord(r4,phi4,theta4))[index_inv].T
-        self.mesh['teff'] = teff
-        self.mesh['logg'] = logg
-        logger.info("puls: computed pulsational displacement, velocity and teff/logg field")
+        pulsations.add_pulsations(self, time=time)
     
     def compute_mesh(self,time=None):
         """
@@ -5723,7 +5616,10 @@ class BinaryRocheStar(PhysicalBody):
         if max_iter>1:
             logger.info("volume conservation (V=%.6f<-->Vref=%.6f): changed potential Pot_ref=%.6f-->Pot_new%.6f)"%(V2,V1,self.params['component']['pot'],oldpot))
             #-- remember the new potential value
-            self.params['component']['pot'] = oldpot
+            if not 'pot_instant' in self.params['component']:
+                self.params['component'].add(dict(qualifier='pot_instant',value=oldpot, cast_type=float, description='Instantaneous potential'))
+            else:
+                self.params['component']['pot_instant'] = oldpot
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
         
@@ -5882,6 +5778,8 @@ class BinaryRocheStar(PhysicalBody):
         #   local quantities
         e = self.params['orbit'].get_value('ecc')
         sma = self.params['orbit'].get_value('sma','Rsol')
+        has_freq = 'puls' in self.params
+        
         #-- there is a possibility to set to conserve volume or equipot
         #   IF eccentricity is zero, we never need to conserve volume, that
         #   is done automatically
@@ -5896,7 +5794,7 @@ class BinaryRocheStar(PhysicalBody):
         do_reflection = False
         #-- compute new mesh if this is the first time set_time is called, or
         #   if the eccentricity is nonzero
-        if self.time is None or e>0:
+        if self.time is None or e>0 or has_freq:
             if self.time is None:
                 #-- if we need to conserve volume, we need to know at which
                 #   time. Then we compute the mesh at that time and remember
@@ -5928,12 +5826,17 @@ class BinaryRocheStar(PhysicalBody):
                 self.reset_mesh()
                 self.conserve_volume(time,max_iter=max_iter_volume)
                 
-            #-- once we have the mesh, we need to place it into orbit
-            keplerorbit.place_in_binary_orbit(self,time)
             #-- compute polar radius and logg!
             self.surface_gravity()
             self.temperature()
+            
+            if has_freq:
+                self.add_pulsations(time=time)
+            
             self.intensity(ref=ref)
+            
+            #-- once we have the mesh, we need to place it into orbit
+            keplerorbit.place_in_binary_orbit(self,time)
             
             if do_reflection:
                 self.intensity(ref='__bol')
@@ -5944,6 +5847,25 @@ class BinaryRocheStar(PhysicalBody):
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
         
+
+
+class PulsatingBinaryRocheStar(BinaryRocheStar):
+    
+    def __init__(self, component, puls=None, **kwargs):
+        
+        # For the rest, this is a normal BinaryRocheStar    
+        super(PulsatingBinaryRocheStar,self).__init__(component, **kwargs)
+        
+        # Add pulsation parameters when applicable
+        if puls is not None:
+            if not isinstance(puls, list):
+                to_add = [puls]
+            else:
+                to_add = puls
+            self.params['puls'] = to_add
+            
+    def add_pulsations(self,time=None):
+        pulsations.add_pulsations(self, time=time)
 
 
 class MisalignedBinaryRocheStar(BinaryRocheStar):
@@ -5983,7 +5905,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         gp = self.params['component'].get_constraint('g_pole')
         F  = self.params['component'].get_value('f')
         T0 = self.params['orbit'].get_value('t0')
-        Phi = self.params['component'].get_value('pot')
+        #Phi = self.params['component'].get_value('pot')
+        Phi = self.params['component'].get('pot_instant', self.params['component']['pot'])
         scale = self.params['orbit'].get_value('sma','Rsol')
         theta = self.params['orbit'].get_value('theta','rad')
         phi = self.get_phase()        
@@ -6049,7 +5972,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         a = self.params['orbit'].get_value('sma','m')
         P = self.params['orbit'].get_value('period','s')
         F = self.params['component'].get_value('syncpar')
-        Phi = self.params['component'].get_value('pot')
+        Phi = self.params['component'].get('pot_instant', self.params['component']['pot'])
+        #Phi = self.params['component'].get_value('pot')
         com = self.params['orbit'].get_constraint('com','au') / a
         pivot = np.array([com,0,0]) # center-of-mass (should be multiplied by a!)
         T0 = self.params['orbit'].get_value('t0')
@@ -6253,7 +6177,11 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         if max_iter>1:
             logger.info("volume conservation (V=%.6f<-->Vref=%.6f): changed potential Pot_ref=%.6f-->Pot_new%.6f)"%(V2,V1,self.params['component']['pot'],oldpot))
             #-- remember the new potential value
-            self.params['component']['pot'] = oldpot
+            if not 'pot_instant' in self.params['component']:
+                self.params['component'].add(dict(qualifier='pot_instant',value=oldpot, cast_type=float, description='Instantaneous potential'))
+            else:
+                self.params['component']['pot_instant'] = oldpot
+            #self.params['component']['pot'] = oldpot
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
         
