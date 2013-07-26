@@ -1784,11 +1784,20 @@ class PyInterpThread(QThread):
             self.stderrbkp = sys.stderr        
             sys.stderr = self.buff
             
-        if 'bundle' in self.parent.comm.keys():
-            bundle = self.parent.comm['bundle']
-            bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
+        #~ if 'bundle' in self.parent.comm.keys():
+            #~ bundle = self.parent.comm['bundle']
+            #~ bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
             
     def run(self):
+        # attach signal each time a command is run, and purge afterwards
+        # this allows us to still safely pickle or deepcopy the system
+        if 'bundle' in self.parent.comm.keys():
+            bundle = self.parent.comm['bundle']
+            if 'add_version' not in self.command:
+                # don't attach signal if we know we need to pickle or deepcopy during this command
+                bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
+                
+
         try:
             code = compile(self.command, '<string>', 'single')
             exec(code)
@@ -1816,6 +1825,9 @@ class PyInterpThread(QThread):
                 bundle.attached_signals = bundle.attached_signals[:-1]
                 bundle.system.signals = {}
                 #~ print "*** after", bundle.attached_signals, bundle.system.signals
+ 
+            callbacks.purge_signals(bundle.system)
+            bundle.system.signals={}
             
     def on_set_time(self,*args):
         self.emit(SIGNAL('set_time'))
