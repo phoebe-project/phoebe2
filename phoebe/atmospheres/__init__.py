@@ -26,6 +26,7 @@ Limb darkening functions:
     limbdark.ld_nonlinear
     limbdark.ld_logarithmic
     limbdark.ld_quadratic
+    limbdark.ld_square_root
     limbdark.ld_uniform
     limbdark.ld_power
     

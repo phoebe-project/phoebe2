@@ -39,6 +39,7 @@ nonrotating case, slow rotation with first order Coriolis effects taken into
 account (and slow rotation in the traditional approximation, as these are
 just linear combinations of the nonrotating case).
 """
+import logging
 import numpy as np
 from numpy import sqrt,pi,sin,cos,exp
 from scipy.special import lpmv,legendre
@@ -47,6 +48,10 @@ from scipy.misc.common import factorial
 from scipy.integrate import dblquad,quad
 from scipy.spatial import Delaunay
 from phoebe.utils import Ylm
+from phoebe.utils import coordinates
+from phoebe.units import constants
+
+logger = logging.getLogger("PULS")
 
 #{ Helper functions
 
@@ -172,7 +177,7 @@ def orthonormal(theta,phi,l1=2,m1=1,l2=2,m2=1):
     (and yes, the first argument goes to :math:`2\pi`, this is the longitude).
  
     """
-    inside = pulsations.sph_harm(theta,phi,l1,m1)*pulsations.sph_harm(theta,phi,l2,m2).conjugate() 
+    inside = sph_harm(theta,phi,l1,m1) * sph_harm(theta,phi,l2,m2).conjugate() 
     return inside.real*np.sin(theta)
 
 def dsph_harm_dtheta(theta,phi,l=2,m=1):
@@ -481,3 +486,131 @@ def observables(radius,theta,phi,teff,logg,t,l,m,freq,phases,spin,k,asl,delta_T,
            velo_r.real,velo_theta.real,velo_phi.real,\
            (teff + ksi_teff.real),\
            np.log10(gravity+ksi_grav.real)+2
+
+
+
+
+
+
+
+
+#{ Phoebe specific interface
+
+def add_pulsations(self,time=None):
+    if time is None:
+        time = self.time
+    
+    #-- relevant stellar parameters
+    try:
+        rotfreq = 1./self.params['star'].request_value('rotperiod','d')
+        R = self.params['star'].request_value('radius','m')
+        M = self.params['star'].request_value('mass','kg')    
+    except:
+        logger.critical('Cannot figure out stellar parameters')
+        rotfreq = 20.
+        R = constants.Rsol
+        M = constants.Msol
+    
+    #-- prepare extraction of pulsation parameters
+    freqs = []
+    freqs_Hz = []
+    phases = []
+    ampls = []
+    ls = []
+    ms = []
+    deltaTs = []
+    deltags = []
+    ks = []
+    spinpars = []
+    
+    #-- extract pulsation parameters, depending on their scheme
+    for i,pls in enumerate(self.params['puls']):
+        #-- extract information on the mode
+        scheme = pls.get_value('scheme')
+        l = pls.get_value('l')
+        m = pls.get_value('m')
+        k_ = pls.get_value('k')
+        freq = pls.get_value('freq','cy/d')
+        freq_Hz = freq / (24.*3600.)
+        ampl = pls.get_value('ampl')
+        deltaT = pls.get_value('amplteff')*np.exp(1j*2*pi*pls.get_value('phaseteff'))
+        deltag = pls.get_value('amplgrav')*np.exp(1j*2*pi*pls.get_value('phasegrav'))
+        phase = pls.get_value('phase')
+        omega = 2*pi*freq_Hz
+        k0 = constants.GG*M/omega**2/R**3    
+        #-- if the pulsations are defined in the scheme of the traditional
+        #   approximation, we need to expand the single frequencies into many.
+        #   indeed, the traditional approximation approximates a mode as a
+        #   linear combination of modes with different degrees.        
+        if scheme=='traditional approximation':
+            #-- extract some info on the B-vector
+            bvector = pls.get_value('trad_coeffs')
+            N = len(bvector)
+            ljs = np.arange(N)
+            for lj,Bjk in zip(ljs,bvector):
+                if Bjk==0: continue
+                #if lj>50: continue
+                freqs.append(freq)
+                freqs_Hz.append(freq_Hz)
+                ampls.append(Bjk*ampl)
+                phases.append(phase)
+                ls.append(lj)
+                ms.append(m)
+                deltaTs.append(Bjk*deltaT)
+                deltags.append(Bjk*deltag)
+                ks.append(k0)
+                spinpars.append(0.) # not applicable
+        elif scheme=='nonrotating' or scheme=='coriolis':
+            if scheme=='coriolis' and l>0:
+                spinpar = rotfreq/freq
+                Cnl = pls.get_value('ledoux_coeff')
+                k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
+                logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
+            else:
+                spinpar = 0.
+                k = k_#k0
+                logger.info('puls: no Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=0'%(rotfreq,freq,l,m,k))
+            freqs.append(freq)
+            freqs_Hz.append(freq_Hz)
+            ampls.append(ampl)
+            phases.append(phase)
+            ls.append(l)
+            ms.append(m)
+            deltaTs.append(deltaT)
+            deltags.append(deltag)
+            ks.append(k)
+            spinpars.append(spinpar)
+        else:
+            raise ValueError('Pulsation scheme {} not recognised'.format(scheme))
+        
+    #-- then add displacements due to pulsations. When computing the centers,
+    #   we also add the information on teff and logg
+    #index = np.array([2,0,1])
+    #index_inv = np.array([1,2,0])
+    index = np.array([1,0,2])
+    index_inv = np.array([1,0,2])
+    puls_incl = self.params['puls'][0].get_value('incl','rad')
+    r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
+    r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
+    r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
+    r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
+    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls)        
+    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls)
+    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls)
+    r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = observables(r4,theta4,phi4,
+                 self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
+                 spinpars,ks,ampls,deltaTs,deltags)
+    self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
+    self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
+    self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T
+    #for iref in ref:
+    #    ps,iref = self.get_parset(iref)
+    #    self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
+    self.mesh['velo___bol_'] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
+    self.mesh['center'] = np.array(coordinates.spher2cart_coord(r4,phi4,theta4))[index_inv].T
+    self.mesh['teff'] = teff
+    self.mesh['logg'] = logg
+    logger.info("puls: computed pulsational displacement, velocity and teff/logg field")
+
+
+#}
