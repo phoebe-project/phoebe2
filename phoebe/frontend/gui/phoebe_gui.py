@@ -139,6 +139,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # tabify bottom dock widgets
         self.tabifyDockWidget(self.bp_pyDockWidget, self.bp_datasetsDockWidget)
+        self.tabifyDockWidget(self.bp_pyDockWidget, self.bp_versionsDockWidget)
         
         # set inital states for widgets
         self.tb_file_saveasAction.setEnabled(False)
@@ -214,7 +215,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.mp_splash_openPushButton, SIGNAL("clicked()"), self.on_open_clicked)
         QObject.connect(self.tb_file_saveAction, SIGNAL("activated()"), self.on_save_clicked)        
         QObject.connect(self.tb_file_saveasAction, SIGNAL("activated()"), self.on_save_clicked) 
-        QObject.connect(self.tb_view_bpAction, SIGNAL("toggled(bool)"), self.on_bp_toggled)       
+        QObject.connect(self.tb_view_pythonAction, SIGNAL("toggled(bool)"), self.on_view_python_toggled)       
+        QObject.connect(self.tb_view_datasetsAction, SIGNAL("toggled(bool)"), self.on_view_datasets_toggled)       
+        QObject.connect(self.tb_view_versionsAction, SIGNAL("toggled(bool)"), self.on_view_versions_toggled)       
         QObject.connect(self.tb_edit_prefsAction, SIGNAL("activated()"), self.on_prefsShow)
         QObject.connect(self.tb_help_aboutAction, SIGNAL("activated()"), self.on_aboutShow)
         QObject.connect(self.tb_help_helpAction, SIGNAL("activated()"), self.on_helpShow)
@@ -319,6 +322,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_DockWidget.setEnabled(False)
         self.bp_pyDockWidget.setEnabled(False)
         self.bp_datasetsDockWidget.setEnabled(False)
+        self.bp_versionsDockWidget.setEnabled(False)
         self.centralwidget.setEnabled(False)
         
         self.set_time_i = 0
@@ -342,6 +346,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_DockWidget.setEnabled(True)
         self.bp_pyDockWidget.setEnabled(True)
         self.bp_datasetsDockWidget.setEnabled(True)
+        self.bp_versionsDockWidget.setEnabled(True)
         self.centralwidget.setEnabled(True)
         
         # can't hurt to reset all
@@ -514,9 +519,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # for now we'll get around this by forcing the signals to be reconnected by redrawing all plots
         self.on_plots_changed()
             
-    def on_bp_toggled(self, truth):
+    def on_view_python_toggled(self, truth):
+        self.bp_pyDockWidget.setVisible(truth)
+        
+    def on_view_datasets_toggled(self, truth):
         self.bp_datasetsDockWidget.setVisible(truth)
-        #~ self.bp_pyDockWidget.setVisible(truth or self.tb_tools_pythonAction.isChecked())
+        
+    def on_view_versions_toggled(self, truth):
+        self.bp_versionsDockWidget.setVisible(truth)
 
     def splash_binary(self):
         """
@@ -1139,8 +1149,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.tb_file_saveasAction.setEnabled(True)
             self.lp_DockWidget.setVisible(self.tb_view_lpAction.isChecked())
             self.rp_DockWidget.setVisible(self.tb_view_rpAction.isChecked())
-            self.bp_datasetsDockWidget.setVisible(self.tb_view_bpAction.isChecked())
-            self.bp_pyDockWidget.setVisible(self.tb_tools_pythonAction.isChecked())
+            self.bp_datasetsDockWidget.setVisible(self.tb_view_datasetsAction.isChecked())
+            self.bp_versionsDockWidget.setVisible(self.tb_view_datasetsAction.isChecked())
+            self.bp_pyDockWidget.setVisible(self.tb_view_pythonAction.isChecked())
             
         else:
             if self.mp_stackedWidget.currentIndex()!=0:
@@ -1149,6 +1160,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.lp_DockWidget.setVisible(False)
             self.rp_DockWidget.setVisible(False)
             self.bp_datasetsDockWidget.setVisible(False)
+            self.bp_versionsDockWidget.setVisible(False)
             self.bp_pyDockWidget.setVisible(False)
 
         command = self.PythonEdit.prevcommand.replace(' ','')
@@ -1484,11 +1496,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.tb_view_lpAction.setChecked(p['lp'])
         self.tb_view_rpAction.setChecked(p['rp'])
-        self.tb_view_bpAction.setChecked(p['bp'])
+        self.tb_view_datasetsAction.setChecked(p['bp'])
         self.tb_view_sysAction.setChecked(p['sys'])
         self.tb_view_glAction.setChecked(p['gl'])
 
-        self.tb_tools_pythonAction.setChecked(p['pyinterp_enabled'])
+        self.tb_view_pythonAction.setChecked(p['pyinterp_enabled'])
         self.PythonEdit.thread_enabled = p['pyinterp_thread_on']
         self.PythonEdit.write_sys = p['pyinterp_tutsys']
         self.PythonEdit.write_plots = p['pyinterp_tutplots']
