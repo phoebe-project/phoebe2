@@ -2171,7 +2171,9 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
         eclipse.horizon_via_normal(all_systems)
         return None
     elif algorithm == 'full':
+        logger.info("Full E/H detection")
         eclipse.detect_eclipse_horizon(all_systems)
+        return None
         
     try:
         if hasattr(all_systems,'len') and len(all_systems)==2: # assume it's a binary
@@ -2190,7 +2192,12 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
                 if algorithm=='auto':
                     eclipse.detect_eclipse_horizon(all_systems)
                 elif algorithm=='convex':
-                    eclipse.convex_bodies([all_systems[0],all_systems[1]])
+                    try:
+                        eclipse.convex_bodies([all_systems[0],all_systems[1]])
+                    except:
+                        logger.error("CONVEX THING FAILED AGAIN!!!!")
+                        logger.error("Falling back on full detection")
+                        eclipse.detect_eclipse_horizon(all_systems)
             else:
                 logger.info("{}: predict no eclipse (simple E/H)".format(all_systems[0].time))
                 eclipse.horizon_via_normal(all_systems)
@@ -2199,7 +2206,12 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
             if algorithm=='auto':
                 eclipse.detect_eclipse_horizon(all_systems)
             elif algorithm=='convex':
-                eclipse.convex_bodies(all_systems.get_bodies())
+                try:
+                    eclipse.convex_bodies(all_systems.get_bodies())
+                except:
+                    logger.error("CONVEX THING FAILED AGAIN!!!!")
+                    logger.error("Falling back on full detection")
+                    eclipse.detect_eclipse_horizon(all_systems)
             #eclipse.detect_eclipse_horizon(all_systems)
         elif hasattr(all_systems,'params') and 'component' in all_systems.params:
             logger.warning('Perhaps (over)contact system (generic E/H)')
