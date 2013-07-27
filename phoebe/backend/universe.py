@@ -398,36 +398,36 @@ def init_mesh(self):
     ld_law = 5
     ldbol_law = 5
     
-    # If this mesh is not initialised at all (simply tested by checking 'logg')
-    # then we need to do a lot of stuff
-    if not 'logg' in self.mesh.dtype.names:
+    # We construct all the fields that are needed in this Body. Then we check
+    # which ones already exist, and remove those
         
-        # Bolometric intensities (we don't need 'bolometric' velocities because
-        # they have been added by the base class (Body) already
-        lds = [('ld___bol', 'f8', (5,)), ('proj___bol', 'f8')]
-        
-        # Velocities and passband intensities. Actually we don't need the
-        # velocities. The bolometric velocities should be combined with the
-        # passband luminosities to  compute the passband velocities. I still
-        # retain them here because I don't know if the code will crash if I
-        # remove them. That can be tested once we have an extensive automatic
-        # test suite
-        for pbdeptype in self.params['pbdep']:
-            for iobs in self.params['pbdep'][pbdeptype]:
-                iobs = self.params['pbdep'][pbdeptype][iobs]
-                lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (5,)))
-                lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
-                lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
-                lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
-        
-        # Basic info
-        dtypes = np.dtype(self.mesh.dtype.descr + \
-                 [('logg','f8'), ('teff','f8'), ('abun','f8')] + lds)
+    # Bolometric intensities (we don't need 'bolometric' velocities because
+    # they have been added by the base class (Body) already
+    lds = [('ld___bol', 'f8', (5,)), ('proj___bol', 'f8')]
     
-    # Else everything is just fine
-    else:
-        dtypes = self.mesh.dtype
+    # Velocities and passband intensities. Actually we don't need the
+    # velocities. The bolometric velocities should be combined with the
+    # passband luminosities to  compute the passband velocities. I still
+    # retain them here because I don't know if the code will crash if I
+    # remove them. That can be tested once we have an extensive automatic
+    # test suite
+    for pbdeptype in self.params['pbdep']:
+        for iobs in self.params['pbdep'][pbdeptype]:
+            iobs = self.params['pbdep'][pbdeptype][iobs]
+            lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (5,)))
+            lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
+            lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
+            lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
     
+    # Basic fields
+    lds = lds + [('logg','f8'), ('teff','f8'), ('abun','f8')]
+    
+    # Remove the ones that already exist:
+    lds = [ild for ild in lds if not ild[0] in self.mesh.dtype.names]
+    
+    # Basic info
+    dtypes = np.dtype(self.mesh.dtype.descr + lds)
+        
     # Add a magnetic field if necessary
     if 'magnetic_field' in self.params and not 'B_' in dtypes.names:
         dtypes = np.dtype(dtypes.descr + \
@@ -3340,6 +3340,9 @@ class PhysicalBody(Body):
         
         return ps
     
+    def init_mesh(self):
+        init_mesh(self)
+    
     def reset_mesh(self):
         """
         Reset the mesh to its original position
@@ -4053,9 +4056,12 @@ class BodyBag(Body):
         """
         Make sure all bodies in a list have the same mesh columns.
         """
+        # Make sure the mesh is initialised
+        self.init_mesh()
         #-- here, we check which columns are missing from each Body's
         #   mesh. If they are missing, we simply add them and copy
         #   the contents from the original mesh.
+        
         logger.info("Preparing mesh")
         names = list(self.bodies[0].mesh.dtype.names)
         descrs = self.bodies[0].mesh.dtype.descr
