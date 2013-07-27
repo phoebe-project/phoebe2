@@ -1793,7 +1793,7 @@ class PyInterpThread(QThread):
         # this allows us to still safely pickle or deepcopy the system
         if 'bundle' in self.parent.comm.keys():
             bundle = self.parent.comm['bundle']
-            if 'add_version' not in self.command:
+            if '.add_version' not in self.command:
                 # don't attach signal if we know we need to pickle or deepcopy during this command
                 bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
                 

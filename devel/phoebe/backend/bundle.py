@@ -774,7 +774,7 @@ class Bundle(object):
                 )
                 
         if add_version is not False:
-            self.add_version(self.system,name=None if add_version else add_version)
+            self.add_version(self.system,name=None if add_version==True else add_version)
 
     #}
             
