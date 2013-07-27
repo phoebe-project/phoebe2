@@ -1,4 +1,9 @@
 """
+.. contents:: Table of contents
+   :depth: 3
+
+
+
 How to use Bundle to attach datasets and plot options
 =====================================================
 
@@ -30,7 +35,8 @@ Step 2: Create the Bundle and Attach the System
 
 Once we have our system, we can initiate a bundle.  This bundle
 will allow us to also save and keep track of computing options and
-feedback, plotting options, and higher-level helper functions.
+feedback, plotting options, and will also give access to higher-level
+helper functions.
 """
 
 bundle = Bundle(system)
@@ -155,6 +161,7 @@ we can now quickly plot or replot these axes using
 the settings above with one single call
 """
 
+plt.cla()
 bundle.plot_axes('LC Plot')
 plt.show()
 plt.cla()
@@ -162,7 +169,44 @@ bundle.plot_axes('RV Plot')
 plt.show()
 
 """
-Step 6: Saving the Bundle
+Step 6: Utilizing Versions
+--------------------------
+
+Versions allow us to save a snapshot of the system - both the parameters 
+and the synthetic model.  This can be useful for reverting to a previous 
+state, or by-eye fitting by looping through a set of parameters and 
+later plotting and comparing the models.
+
+Here we'll compute models for three different inclinations, saving the 
+version after each computation.
+"""
+
+try_sma = [50,60,70]
+for sma in try_sma:
+    print "computing with sma", sma
+    bundle.get_orbit('V380Cyg').set_value('sma',sma)
+    bundle.run_compute('Preview',add_version='sma %d' % sma)
+
+"""
+We can now access the list of available versions
+"""
+
+print bundle.get_version()
+
+"""
+and can go back through each of those computed models, view the 
+resulting fit, and choose which model to accept.
+"""
+
+for sma in try_sma:
+    print "plotting model with sma", sma
+    bundle.get_version('sma %d' % sma,set_system=True)
+    plt.cla()
+    bundle.plot_axes('LC Plot')
+    plt.show()
+
+"""
+Step 7: Saving the Bundle
 -------------------------
 """
 
@@ -170,7 +214,7 @@ bundle.save('./how_to_bundle.phoebe')
 
 """
 later we can restore this bundle and everything attached
-to it
+to it - including compute options, plot options, versions, etc.
 
 """
 
