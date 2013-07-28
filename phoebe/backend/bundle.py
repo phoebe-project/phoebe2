@@ -29,8 +29,8 @@ class Bundle(object):
         always add more.
         """
         #-- prepare 
-        self.system = system
         self.versions = [] #list of dictionaries
+        self.versions_curr_i = None
         self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
@@ -39,6 +39,7 @@ class Bundle(object):
         
         self.pool = OrderedDict()
         self.attached_signals = []
+        self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
         
         self.add_fitting(fitting)
         self.axes = []
@@ -51,29 +52,63 @@ class Bundle(object):
         
         self.settings = {'add_version_on_compute': False}
         
+        self.set_system(system) # will handle all signals, etc
+        
     #{ Settings
     def set_setting(self,key,value):
         self.settings[key] = value
         
-    def get_setting(self,key,value):
+    def get_setting(self,key):
         return self.settings[key]
         
     def load_settings(self,filename):
         raise NotImplementedError  
+        
+    def set_mpi(self,mpi):
+        self.mpi = False if mpi is None else mpi
+        
+    def get_mpi(self):
+        return self.mpi
     #}    
     
     #{ System
-    def set_system(self,system=None,version=None):
+    def set_system(self,system=None):
         """
         Change the system
 
         @param system: the new system
         @type system: System
         """
-        if system is None and version is None:  return None
-        if system is None:
-            system = self.get_version(version)
+        #~ print "*** bundle.set_system"
         self.system = system 
+        if system is None:  return None
+        
+        # check to see if in versions, and if so set versions_curr_i
+        versions = [v['system'] for v in self.versions]
+        if system in versions:
+            i = [v['system'] for v in self.versions].index(system)
+        else:
+            i = None
+        self.versions_curr_i = i
+        
+        # connect signals
+        self.attached_signals_system = []
+        for label in self.get_system_structure(return_type='label',flat=True):
+            ps = self.get_ps(label)
+            for key in ps.keys():
+                #~ print "*** attaching signal %s:%s" % (label,key)
+                param = ps.get_parameter(key)
+                self.attach_signal(param,'set_value',self._on_param_changed)
+                #~ if param not in self.attached_signals_system:
+                self.attached_signals_system.append(param)
+        
+        # these might already be attached?
+        self.attach_signal(self,'load_data',self._on_param_changed)
+        self.attach_signal(self,'enable_obs',self._on_param_changed)
+        self.attach_signal(self,'disable_obs',self._on_param_changed)
+                
+    def _on_param_changed(self,param):
+        self.system.uptodate = False
               
     def get_system(self):
         """
@@ -184,6 +219,34 @@ class Bundle(object):
         Simply a shortcut to bundle.get_system().list(...)
         """
         return self.system.list(summary,*args)
+        
+    def set_time(self,time):
+        """
+        Shortcut to bundle.get_system().set_time() which insures fix_mesh
+        is called first if any data was recently attached
+        
+        @param time: time
+        @type time: float
+        """
+        
+        self.system.fix_mesh()
+        self.system.set_time(time)
+        
+    def get_uptodate(self):
+        """
+        Check whether the synthetic model is uptodate
+        
+        If any parameters in the system have changed since the latest
+        run_compute this will return False.
+        If not, this will return the label of the latest compute options
+
+        @return: uptodate
+        @rtype: bool or str
+        """
+        if isinstance(self.system.uptodate,str) or isinstance(self.system.uptodate,bool):
+            return self.system.uptodate
+        else:
+            return False
         
     def get_label(self,obj):
         """
@@ -401,31 +464,98 @@ class Bundle(object):
     
     #{ Versions
     
-    def get_version(self,version=None,by='name',set_system=False):
+    def add_version(self,name=None):
+        """
+        Add the current snapshot of the system as a new version entry
+        Generally this is best to be handled by setting add_version=True in bundle.run_compute
+        
+        @param name: name of the version (defaults to current timestamp)
+        @type name: str        
+        """
+        system = self.get_system()
+        # purge any signals attached to system before copying
+        callbacks.purge_signals(system)
+        system.signals={}
+        self.purge_signals(self.attached_signals_system)
+        version = {'system':system.copy()} #this will probably fail if there are signals attached
+        version['date_created'] = datetime.now()
+        version['name'] = name if name is not None else str(version['date_created'])
+        
+        self.versions.append(version)
+        
+        # call set_system to reattach signals and set versions_curr_i
+        self.set_system(system)
+        
+        # update versions_curr_i
+        #~ self.versions_curr_i = len(self.versions)-1
+
+
+    def get_version(self,version=None,by='name',return_type='system'):
         """
         Retrieve a stored system version by one of its keys
         
-        @param version: the key of the version
-        @type version: str
+        version can either be one of the keys (date_create, name) or
+        the amount to increment from the current version
+        
+        example:
+        bundle.get_version('teff 4500')
+        bundle.get_version(-2) # will go back 2 from the current version
+        
+        @param version: the key of the version, or index increment
+        @type version: str or int
         @param by: what key to search by (defaults to name)
         @type by: str
-        @param set_system: whether to set this version as the current working system
-        @type set_system: bool
         @return: system
         @rtype: Body or BodyBag
         """
+        if isinstance(version,int): #then easy to return from list
+            return self.versions[self.versions_curr_i+version]['system']
         
         # create a dictionary with key defined by by and values which are the systems
-        versions = {v[by]: v['system'] for v in self.versions}
+        versions = {v[by]: i if return_type=='i' else v[return_type] for i,v in enumerate(self.versions)}
         
         if version is None:
             return versions
         else:
-            if set_system:
-                #add_version for the current version, or is the user responsible for making sure they don't lose changes?
-                self.set_system(versions[version])
             return versions[version]
-            
+           
+    def restore_version(self,version,by='name'):
+        """
+        Restore a system version to be the current working system
+        This should be used instead of bundle.set_system(bundle.get_version(...))
+        
+        See bundle.get_version() for syntax examples
+        
+        @param version: the key of the version, or index increment
+        @type version: str or int
+        @param by: what key to search by (defaults to name)
+        @type by: str
+        """
+        
+        # retrieve the desired system
+        system = self.get_version(version,by=by)
+        
+        # set the current system
+        # set_system attempts to find the version and reset versions_curr_i
+        self.set_system(system)
+        
+    def remove_version(self,version,by='name'):
+        """
+        Permanently delete a stored version.
+        This will not affect the current system.
+        
+        See bundle.get_version() for syntax examples
+        
+        @param version: the key of the version, or index increment
+        @type version: str or int
+        @param by: what key to search by (defaults to name)
+        @type by: str
+        """
+
+        i = self.get_version(version,by=by,return_type='i')
+        return self.versions.pop(i)
+        
+        
     def rename_version(self,version,newname):
         """
         Rename a currently existing version
@@ -441,28 +571,7 @@ class Bundle(object):
         # change the name value
         self.versions[i]['name']=newname
             
-    def add_version(self,system=None,name=None):
-        """
-        Add the current snapshot of the system as a new version entry
-        Generally this is best to be handled by setting add_version=True in bundle.run_compute
-        
-        @param system: the system (will default to working version)
-        @type system: Body or BodyBag
-        @param name: name of the version (defaults to current timestamp)
-        @type name: str        
-        """
-        if system is None:
-            system = self.get_system()
-        # purge any signals attached to system before copying
-        callbacks.purge_signals(system)
-        system.signals={}
-        version = {'system':system.copy()} #this will probably fail if there are signals attached
-        version['date_created'] = datetime.now()
-        version['name'] = name if name is not None else str(version['date_created'])
-        
-        self.versions.append(version)
 
-    
     #}
     
     
@@ -544,35 +653,35 @@ class Bundle(object):
         elif typ=='obs':
             obj.add_obs(ds)
         
-    def get_obs(self,objectname=None,ref=None):
+    def get_obs(self,objref=None,dataref=None):
         """
         get an observables dataset by the object its attached to and its label
         if objectname and ref are given, this will return a single dataset
         if either or both are not give, this will return a list of all datasets matching the search
         
-        @param objectname: name of the object the dataset is attached to
-        @type objectname: str
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param objref: name of the object the dataset is attached to
+        @type objref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
         @return: dataset
         @rtype: parameterSet
         """
-        if objectname is None:
+        if objref is None:
             # then search the whole system
             return_ = []
             for objname in self.get_system_structure(return_type='obj',flat=True):
-                parsets = self.get_obs(objname,ref=ref)
+                parsets = self.get_obs(objname,dataref=dataref)
                 for parset in parsets:
                     if parset not in return_:
                         return_.append(parset)
             return return_
             
         # now we assume we're dealing with a single object
-        obj = self.get_object(objectname)
+        obj = self.get_object(objref)
         
-        if ref is not None:
-            # then search for the ref by name/index
-            parset = obj.get_parset(type='obs',ref=ref)
+        if dataref is not None:
+            # then search for the dataref by name/index
+            parset = obj.get_parset(type='obs',ref=dataref)
             if parset != (None, None):
                 return [parset[0]]
             return []
@@ -587,43 +696,43 @@ class Bundle(object):
                     return_.append(parset[0])
             return return_
 
-    def enable_obs(self,ref=None):
+    def enable_obs(self,dataref=None):
         """
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
         """
-        for obs in self.get_obs(ref=ref):
+        for obs in self.get_obs(dataref=dataref):
             obs.enabled=True
         return
                
-    def disable_obs(self,ref=None):
+    def disable_obs(self,dataref=None):
         """
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
         """
         
-        for obs in self.get_obs(ref=ref):
+        for obs in self.get_obs(dataref=dataref):
             obs.enabled=False
         return
         
-    def adjust_obs(self,ref=None,l3=None,pblum=None):
+    def adjust_obs(self,dataref=None,l3=None,pblum=None):
         """
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
         @param l3: whether l3 should be marked for adjustment
         @type l3: bool or None
         @param pblum: whether pblum should be marked for adjustment
         @type pblum: bool or None
         """
         
-        for obs in self.get_obs(ref=ref):
+        for obs in self.get_obs(dataref=dataref):
             if l3 is not None:
                 obs.set_adjust('l3',l3)
             if pblum is not None:
                 obs.set_adjust('pblum',pblum)
         return
         
-    def remove_data(self,ref):
+    def remove_data(self,dataref):
         """
         @param ref: ref (name) of the dataset
         @type ref: str
@@ -632,47 +741,47 @@ class Bundle(object):
         # disable any plotoptions that use this dataset
         for axes in self.axes:
             for pl in axes.plots:
-                if pl.get_value('dataref')==ref:
+                if pl.get_value('dataref')==dataref:
                     pl.set_value('active',False)
         
         # remove all obs attached to any object in the system
         for obj in self.get_system_structure(return_type='obj',flat=True):
-            obj.remove_obs(refs=[ref])
+            obj.remove_obs(refs=[dataref])
             if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
-                obj.remove_pbdeps(refs=[ref]) 
+                obj.remove_pbdeps(refs=[dataref]) 
 
         return
             
-    def get_syn(self,objectname=None,ref=None):
+    def get_syn(self,objref=None,dataref=None):
         """
         get a synthetic dataset by the object its attached to and its label
-        if objectname and ref are given, this will return a single dataset
+        if objref and dataref are given, this will return a single dataset
         if either or both are not give, this will return a list of all datasets matching the search
         
-        @param objectname: name of the object the dataset is attached to
-        @type objectname: str
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param objref: name of the object the dataset is attached to
+        @type objref: str
+        @param dataref: dataref (name) of the dataset
+        @type dataref: str
         @return: dataset
         @rtype: parameterSet
         """
-        if objectname is None:
+        if objref is None:
             # then search the whole system
             return_ = []
             for obj in self.get_system_structure(return_type='obj',flat=True):
                 #~ print "*** a", self.get_label(obj)
-                parsets = self.get_syn(obj,ref=ref)
+                parsets = self.get_syn(obj,dataref=dataref)
                 for parset in parsets:
                     if parset not in return_:
                         return_.append(parset)
             return return_
             
         # now we assume we're dealing with a single object
-        obj = self.get_object(objectname)
+        obj = self.get_object(objref)
         
-        if ref is not None:
-            # then search for the ref by name/index
-            parset = obj.get_synthetic(ref=ref, cumulative=True)
+        if dataref is not None:
+            # then search for the dataref by name/index
+            parset = obj.get_synthetic(ref=dataref, cumulative=True)
             if parset != None:
                 return [parset]
             return []
@@ -753,8 +862,13 @@ class Bundle(object):
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
         
+        #~ self.system.fix_mesh()
+        try:
+            self.system.set_time(0)
+        except:
+            pass
         self.system.fix_mesh()
-        self.system.fix_mesh()
+        
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
@@ -774,7 +888,9 @@ class Bundle(object):
                 )
                 
         if add_version is not False:
-            self.add_version(self.system,name=None if add_version==True else add_version)
+            self.add_version(name=None if add_version==True else add_version)
+            
+        self.system.uptodate = label
 
     #}
             
@@ -1061,6 +1177,9 @@ class Bundle(object):
         pickle.dump(self,ff)
         ff.close()  
         logger.info('Saved bundle to file {} (pickle)'.format(filename))
+        
+        # call set_system so that purged (internal) signals are reconnected
+        self.set_system(self.system)
     
     #}
     
@@ -1072,6 +1191,8 @@ def load(filename):
     @rtype: Bundle
     """
     ff = open(filename,'r')
-    myclass = pickle.load(ff)
+    bundle = pickle.load(ff)
     ff.close()
-    return myclass
+    # for set_system to update all signals, etc
+    bundle.set_system(bundle.system)
+    return bundle
