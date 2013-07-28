@@ -129,7 +129,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # set default visibility for docks/frames
         self.mp_addPlotButtonsWidget.setVisible(False)
         self.lp_DockWidget.setVisible(False)
-        self.rp_DockWidget.setVisible(False)
+        self.rp_fittingDockWidget.setVisible(False)
         self.bp_pyDockWidget.setVisible(False)
         self.bp_datasetsDockWidget.setVisible(False)
         self.sb_StatusBar.setVisible(False)
@@ -137,9 +137,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_observeoptionsWidget.setVisible(False)
         self.rp_stackedWidget.setCurrentIndex(0) #fit input
         
+        # tabify right dock widgets
+        self.tabifyDockWidget(self.rp_fittingDockWidget, self.rp_versionsDockWidget)
+        
         # tabify bottom dock widgets
         self.tabifyDockWidget(self.bp_pyDockWidget, self.bp_datasetsDockWidget)
-        self.tabifyDockWidget(self.bp_pyDockWidget, self.bp_versionsDockWidget)
         
         # set inital states for widgets
         self.tb_file_saveasAction.setEnabled(False)
@@ -260,6 +262,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.rp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_fittingOption_changed)
         QObject.connect(self.rp_fitPushButton, SIGNAL("clicked()"), self.on_fit_clicked)
         QObject.connect(self.rp_rejectPushButton, SIGNAL("clicked()"), self.on_feedback_reject_clicked)
+        
+        QObject.connect(self.versions_oncompute, SIGNAL("toggled(bool)"), self.on_versionsauto_toggled)
+        QObject.connect(self.versions_addnow, SIGNAL("clicked()"), self.on_versionsadd_clicked)
                 
         # bottom panel signals
         QObject.connect(self.datasetswidget_main.ds_typeComboBox, SIGNAL("currentIndexChanged(QString)"), self.update_datasets)
@@ -268,7 +273,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.datasetswidget_main.addRVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
         
         # tree view signals
-        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView]
+        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView,self.versions_treeView]
         for tv in self.paramTreeViews:
             QObject.connect(tv, SIGNAL("parameterChanged"), self.on_param_changed)
             QObject.connect(tv, SIGNAL("parameterCommand"), self.on_param_command)
@@ -319,10 +324,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.gui_locked=True
         self.current_thread=thread
         self.lp_mainWidget.setEnabled(False) #main instead of dock so progressbar is enabled
-        self.rp_DockWidget.setEnabled(False)
+        self.rp_fittingDockWidget.setEnabled(False)
         self.bp_pyDockWidget.setEnabled(False)
         self.bp_datasetsDockWidget.setEnabled(False)
-        self.bp_versionsDockWidget.setEnabled(False)
+        self.rp_versionsDockWidget.setEnabled(False)
         self.centralwidget.setEnabled(False)
         
         self.set_time_i = 0
@@ -343,10 +348,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.gui_locked=False
         self.current_thread = None
         self.lp_mainWidget.setEnabled(True)
-        self.rp_DockWidget.setEnabled(True)
+        self.rp_fittingDockWidget.setEnabled(True)
         self.bp_pyDockWidget.setEnabled(True)
         self.bp_datasetsDockWidget.setEnabled(True)
-        self.bp_versionsDockWidget.setEnabled(True)
+        self.rp_versionsDockWidget.setEnabled(True)
         self.centralwidget.setEnabled(True)
         
         # can't hurt to reset all
@@ -359,7 +364,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_progressBar.setValue(0)
         
         self.set_time_i, self.set_time_is = None, None
-        
+             
         self.PythonEdit.setFocus()
         
     def cancel_thread(self):
@@ -437,7 +442,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.mp_stackedWidget.setCurrentIndex(0)
         
             self.lp_DockWidget.setVisible(False)
-            self.rp_DockWidget.setVisible(False)
+            self.rp_fittingDockWidget.setVisible(False)
         
         else:        
             self.bundle.attach_signal(self.bundle,'add_axes',self.on_plots_add)
@@ -526,7 +531,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.bp_datasetsDockWidget.setVisible(truth)
         
     def on_view_versions_toggled(self, truth):
-        self.bp_versionsDockWidget.setVisible(truth)
+        self.rp_versionsDockWidget.setVisible(truth)
 
     def splash_binary(self):
         """
@@ -1148,19 +1153,32 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.mp_stackedWidget.setCurrentIndex(1)
             self.tb_file_saveasAction.setEnabled(True)
             self.lp_DockWidget.setVisible(self.tb_view_lpAction.isChecked())
-            self.rp_DockWidget.setVisible(self.tb_view_rpAction.isChecked())
+            self.rp_fittingDockWidget.setVisible(self.tb_view_rpAction.isChecked())
             self.bp_datasetsDockWidget.setVisible(self.tb_view_datasetsAction.isChecked())
-            self.bp_versionsDockWidget.setVisible(self.tb_view_datasetsAction.isChecked())
+            self.rp_versionsDockWidget.setVisible(self.tb_view_versionsAction.isChecked())
             self.bp_pyDockWidget.setVisible(self.tb_view_pythonAction.isChecked())
             
+            # check whether system is uptodate
+            uptodate = self.bundle.get_uptodate()
+            self.lp_previewPushButton.setEnabled(uptodate!='Preview')
+            self.lp_computePushButton.setEnabled(uptodate!='Compute')
+            
+            # update misc gui items
+            self.versions_oncompute.setEnabled(False)
+            self.versions_oncompute.setChecked(self.bundle.get_setting('add_version_on_compute'))
+            self.versions_oncompute.setEnabled(True)
+            
+            # update version - should probably move this
+            self.versions_treeView.set_data(self.bundle.versions)
+        
         else:
             if self.mp_stackedWidget.currentIndex()!=0:
                 self.mp_stackedWidget.setCurrentIndex(0)
             self.tb_file_saveasAction.setEnabled(False)
             self.lp_DockWidget.setVisible(False)
-            self.rp_DockWidget.setVisible(False)
+            self.rp_fittingDockWidget.setVisible(False)
             self.bp_datasetsDockWidget.setVisible(False)
-            self.bp_versionsDockWidget.setVisible(False)
+            self.rp_versionsDockWidget.setVisible(False)
             self.bp_pyDockWidget.setVisible(False)
 
         command = self.PythonEdit.prevcommand.replace(' ','')
@@ -1170,10 +1188,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_new_bundle()
             
         if 'run_compute' in command:
-            self.meshmpl_canvas.plot_mesh(self.bundle.system)
+            #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
         
             #should we only draw this if its visible?
-            self.mesh_widget.setMesh(self.bundle.system.get_mesh())
+            #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
             self.on_plots_changed()
             
         if 'run_fitting' in command:
@@ -1415,6 +1433,23 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
       
         self.rp_stackedWidget.setCurrentIndex(0) #fitting input
         
+    def on_versionsauto_toggled(self,state):
+        if self.versions_oncompute.isEnabled():
+            do_command = "bundle.set_setting('add_version_on_compute',%s)" % state
+            undo_command = "bundle.set_setting('add_version_on_compute',%s)" % (not state)
+            description = 'auto version set to %s' % state
+            
+            command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
+            self.undoStack.push(command)
+            
+    def on_versionsadd_clicked(self):
+        do_command = "bundle.add_version()"
+        undo_command = "bundle.remove_version(0)"
+        description = 'add version'
+        
+        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
+        self.undoStack.push(command)
+        
     @PyInterp_selfdebug
     def on_prefsLoad(self):
         '''
@@ -1496,7 +1531,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.tb_view_lpAction.setChecked(p['lp'])
         self.tb_view_rpAction.setChecked(p['rp'])
+        self.tb_view_versionsAction.setChecked(p['versions'])
         self.tb_view_datasetsAction.setChecked(p['bp'])
+        self.tb_view_pythonAction.setChecked(p['python'])
         self.tb_view_sysAction.setChecked(p['sys'])
         self.tb_view_glAction.setChecked(p['gl'])
 

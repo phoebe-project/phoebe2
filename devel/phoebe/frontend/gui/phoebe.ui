@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1193</width>
-    <height>1207</height>
+    <height>1222</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -20,7 +20,7 @@
    <string>PHOEBE</string>
   </property>
   <property name="windowIcon">
-   <iconset>
+   <iconset resource="ui_resources.qrc">
     <normaloff>:/images/phoebe-gui.png</normaloff>:/images/phoebe-gui.png</iconset>
   </property>
   <property name="layoutDirection">
@@ -567,8 +567,8 @@ p, li { white-space: pre-wrap; }
     <addaction name="separator"/>
     <addaction name="tb_view_lpAction"/>
     <addaction name="tb_view_rpAction"/>
-    <addaction name="tb_view_datasetsAction"/>
     <addaction name="tb_view_versionsAction"/>
+    <addaction name="tb_view_datasetsAction"/>
     <addaction name="tb_view_pythonAction"/>
     <addaction name="separator"/>
     <addaction name="tb_view_sysAction"/>
@@ -631,7 +631,16 @@ p, li { white-space: pre-wrap; }
      <property name="spacing">
       <number>2</number>
      </property>
-     <property name="margin">
+     <property name="leftMargin">
+      <number>2</number>
+     </property>
+     <property name="topMargin">
+      <number>2</number>
+     </property>
+     <property name="rightMargin">
+      <number>2</number>
+     </property>
+     <property name="bottomMargin">
       <number>0</number>
      </property>
      <item>
@@ -1023,7 +1032,7 @@ p, li { white-space: pre-wrap; }
     </layout>
    </widget>
   </widget>
-  <widget class="QDockWidget" name="rp_DockWidget">
+  <widget class="QDockWidget" name="rp_fittingDockWidget">
    <property name="minimumSize">
     <size>
      <width>298</width>
@@ -1051,13 +1060,13 @@ p, li { white-space: pre-wrap; }
       <number>2</number>
      </property>
      <property name="topMargin">
-      <number>6</number>
+      <number>2</number>
      </property>
      <property name="rightMargin">
-      <number>6</number>
+      <number>2</number>
      </property>
      <property name="bottomMargin">
-      <number>2</number>
+      <number>0</number>
      </property>
      <property name="spacing">
       <number>2</number>
@@ -1470,7 +1479,7 @@ p, li { white-space: pre-wrap; }
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_3"/>
   </widget>
-  <widget class="QDockWidget" name="bp_versionsDockWidget">
+  <widget class="QDockWidget" name="rp_versionsDockWidget">
    <property name="features">
     <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
    </property>
@@ -1480,7 +1489,79 @@ p, li { white-space: pre-wrap; }
    <attribute name="dockWidgetArea">
     <number>8</number>
    </attribute>
-   <widget class="QWidget" name="dockWidgetContents_2"/>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <property name="leftMargin">
+      <number>2</number>
+     </property>
+     <property name="topMargin">
+      <number>2</number>
+     </property>
+     <property name="rightMargin">
+      <number>2</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <property name="spacing">
+      <number>2</number>
+     </property>
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="versions_oncompute">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>auto add after Preview/Compute</string>
+       </property>
+       <property name="text">
+        <string>auto add</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QPushButton" name="versions_addnow">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="statusTip">
+        <string>create a backup of the current version</string>
+       </property>
+       <property name="text">
+        <string>Add Version</string>
+       </property>
+       <property name="icon">
+        <iconset resource="ui_resources.qrc">
+         <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="2">
+      <widget class="VersionsTreeWidget" name="versions_treeView">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="indentation">
+        <number>2</number>
+       </property>
+       <attribute name="headerVisible">
+        <bool>false</bool>
+       </attribute>
+       <column>
+        <property name="text">
+         <string>Version Name</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <action name="tb_file_newAction">
    <property name="enabled">
@@ -1578,7 +1659,7 @@ p, li { white-space: pre-wrap; }
     <string>Data and Plots</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+3</string>
+    <string>Ctrl+4</string>
    </property>
   </action>
   <action name="tb_help_aboutAction">
@@ -1819,13 +1900,13 @@ p, li { white-space: pre-wrap; }
     <bool>true</bool>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Versions</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+4</string>
+    <string>Ctrl+3</string>
    </property>
   </action>
   <action name="tb_view_pythonAction">
@@ -1865,6 +1946,11 @@ p, li { white-space: pre-wrap; }
    <extends>QTreeWidget</extends>
    <header>phoebe_widgets</header>
   </customwidget>
+  <customwidget>
+   <class>VersionsTreeWidget</class>
+   <extends>QTreeWidget</extends>
+   <header>phoebe_widgets</header>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="ui_resources.qrc"/>
@@ -1873,7 +1959,7 @@ p, li { white-space: pre-wrap; }
   <connection>
    <sender>tb_view_rpAction</sender>
    <signal>toggled(bool)</signal>
-   <receiver>rp_DockWidget</receiver>
+   <receiver>rp_fittingDockWidget</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">

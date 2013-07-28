@@ -200,7 +200,7 @@ resulting fit, and choose which model to accept.
 
 for sma in try_sma:
     print "plotting model with sma", sma
-    bundle.get_version('sma %d' % sma,set_system=True)
+    bundle.restore_version('sma %d' % sma)
     plt.cla()
     bundle.plot_axes('LC Plot')
     plt.show()
