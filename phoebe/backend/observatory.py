@@ -1136,7 +1136,11 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     depth = pbdep.get('depth', 0.4)
     
     # System velocity
-    vgamma = the_system.get_globals().request_value('vgamma', 'km/s')
+    globals = the_system.get_globals()
+    if globals is not None:
+        vgamma = globals.request_value('vgamma', 'km/s')
+    else:
+        vgamma = 0.0
     
     # Information on dependable set: we need the limb darkening function and
     # the method
@@ -1994,11 +1998,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         
         # Set the time of the system
         system.set_time(time, ref=ref)
-        
-        # Fix the mesh if needed:
-        if i == 0 and hasattr(system, 'bodies'):
-            system.fix_mesh()
-        
+                
         # For heating an eccentric system, we first need to reset the temperature!
         if heating is True:
             system.temperature(time)

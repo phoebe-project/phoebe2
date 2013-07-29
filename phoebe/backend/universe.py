@@ -5507,7 +5507,6 @@ class BinaryRocheStar(PhysicalBody):
         self.mesh['normal_'] = -the_grid[:,13:16]
         self.mesh['visible'] = True
         
-        
         #-- volume calculations: conserve volume if it is already calculated
         #   before, and of course if volume needs to be conserved.
         #   This is not correct: we need to adapt Omega, not just scale the
@@ -5516,6 +5515,9 @@ class BinaryRocheStar(PhysicalBody):
             if not self.params['component'].has_qualifier('volume'):
                 self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
                 logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
+        
+        print 'a',self.mesh['center']
+        print 'b',self.mesh['size']
         
     def conserve_volume(self,time,max_iter=10,tol=1e-10):
         """
