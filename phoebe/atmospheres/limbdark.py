@@ -1717,14 +1717,6 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     radius = body.request_value('radius','cm')
     abun = body['abun']
     #vrad += gravitational_redshift(body_parameter_set)
-    if body.has_qualifier('distance'):
-        distance = body.request_value('distance','cm')
-    elif body.has_qualifier('angdiam'):
-        angdiam = body.request_value('angdiam','sr')
-        distance = radius/np.sqrt(angdiam)
-    else:
-        #distance = conversions.convert('pc','cm',10.)
-        distance = 3.0856775815030002e+19
     #-- retrieve the parameters of the data
     ld_func = pbdep['ld_func']
     atm = pbdep['atm']
@@ -1742,7 +1734,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     #-- we compute projected and total intensity. We have to correct for solid
     #-- angle, radius of the star and distance to the star.
     theta1 = 2*np.pi*radius**2*4*np.pi
-    theta2 = 2*np.pi*radius**2/distance**2
+    theta2 = 2*np.pi*radius**2
     int_moment = intensity_moment(ld_coeffs,ll=0)
     #4*pi*radius**2*constants.sigma_cgs*teff**4,\
     return int_moment*theta1,\
@@ -1997,7 +1989,9 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
     #-- analytical computation
     elif method=='analytical':
         lcdep,ref = system.get_parset(ref)
-        proj_intens = sphere_intensity(body,lcdep)[1]
+        # The projected intensity is normalised with the distance in cm, we need
+        # to reconvert that into solar radii.
+        proj_intens = sphere_intensity(body,lcdep)[1]/(constants.Rsol*100)**2
     return proj_intens    
     
 
