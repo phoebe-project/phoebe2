@@ -247,7 +247,7 @@ def get_binary_orbit(self, time):
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
     
     
-def luminosity(body, ref='__bol'):
+def luminosity(body, ref='__bol', numerical=False):
     r"""
     Calculate the total luminosity of an object.
     
@@ -271,8 +271,9 @@ def luminosity(body, ref='__bol'):
     @return: luminosity of the object (erg/s)
     @rtype: float
     """
+    parset, ref = body.get_parset(ref=ref)
     # Set the intensities if they are not calculated yet
-    ld_law = body.params.values()[0]['ld_func']
+    ld_law = parset['ld_func']
     ld = body.mesh['ld_' + ref]
     if np.all(ld==0):
         body.intensity(ref=ref)
@@ -282,20 +283,26 @@ def luminosity(body, ref='__bol'):
     mesh = body.mesh
     sizes = mesh['size'] * (100*constants.Rsol)**2
     
-    # Get the function to evaluate the LD law
-    ld_law = getattr(limbdark, 'ld_'+ld_law)
     
-    # Define the function to compute the total intrinsic emergent flux
-    def _tief(gamma, coeffs):
-        """Small helper function to compute total intrinsic emergent flux"""
-        cos_gamma = cos(gamma)
-        Imu = coeffs[-1] * ld_law(cos_gamma, coeffs)
-         # sin(gamma) is for solid angle integration
-        return Imu * cos_gamma * sin(gamma)
+    if numerical:
+        # Get the function to evaluate the LD law
+        ld_law = getattr(limbdark, 'ld_'+ld_law)
+        # Define the function to compute the total intrinsic emergent flux
+        def _tief(gamma, coeffs):
+            """Small helper function to compute total intrinsic emergent flux"""
+            cos_gamma = cos(gamma)
+            Imu = coeffs[-1] * ld_law(cos_gamma, coeffs)
+            # sin(gamma) is for solid angle integration
+            return Imu * cos_gamma * sin(gamma)
     
-    # Then do integration:
-    emer_Ibolmu = 2*pi*np.array([quad(_tief, 0, pi/2, args=(ld[i],))[0] \
+        # Then do integration:
+        emer_Ibolmu = 2*pi*np.array([quad(_tief, 0, pi/2, args=(ld[i],))[0] \
                                                      for i in range(len(mesh))])
+    else:
+        # Get the function to evaluate the LD law
+        ld_disk = getattr(limbdark, 'disk_'+ld_law)
+        emer_Ibolmu = ld_disk(ld[:,:-1].T) * ld[:,-1]
+        
     return (emer_Ibolmu * sizes).sum()
     
     
@@ -5516,8 +5523,6 @@ class BinaryRocheStar(PhysicalBody):
                 self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
                 logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
         
-        print 'a',self.mesh['center']
-        print 'b',self.mesh['size']
         
     def conserve_volume(self,time,max_iter=10,tol=1e-10):
         """
