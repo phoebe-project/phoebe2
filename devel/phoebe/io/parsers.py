@@ -9,7 +9,10 @@ Parse data and parameter files.
 
 import re
 import logging
+import glob
+import logging.handlers
 import numpy as np
+import phoebe
 from phoebe.parameters import parameters
 from phoebe.parameters import tools
 from phoebe.parameters import datasets
@@ -20,8 +23,9 @@ from phoebe.wd import wd
 from phoebe.parameters import datasets
 from phoebe.backend.bundle import Bundle
 import matplotlib.pyplot as plt
+import os.path
 
-logger = logging.getLogger("PARSERS")
+logger = phoebe.get_basic_logger()
 
 def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd'):
     """
@@ -54,14 +58,18 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
     ld_coeffs1 = []
     ld_coeffs2 = []
     rv_file = []
+    lc_file = []
     rvtime = []
+    lctime = []
     rvsigma = []
+    lcsigma = []
     obsrv1 = []
     obsrv2 = []
     obslc = []
     rvfile = []
     lcfile = []
     rvname = []
+    lcname = []
     
     #-- initialise the orbital and component parameter sets. 
     orbit = parameters.ParameterSet(frame='phoebe',context='orbit',add_constraints=True)
@@ -444,7 +452,9 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
         if key == 'phoebe_rv_sigma':
             rv_pbweight.append(float(val))
             
-        
+        if key == 'phoebe_lc_sigma':
+            lc_pbweight.append(float(val))
+                    
         if key == 'phoebe_rv_filter':
             rv_pb.append(val)
             
@@ -458,9 +468,14 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
         if key == 'phoebe_rv_filename':
             rv_file.append(val[2:-2])
             
+        if key == 'phoebe_lc_filename':
+            lc_file.append(val[2:-2])        
+            
         if key == 'phoebe_rv_id':
             rvname.append(val)
-        
+            
+        if key == 'phoebe_lc_id':
+            lcname.append(val)       
                      
         if key == 'phoebe_rv_indep':
             if val[2:6] == 'Time':
@@ -468,6 +483,12 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             else:
                 rvtime.append('phase')
             
+        if key == 'phoebe_lc_indep':
+            if val[2:6] == 'Time':
+                lctime.append('time')
+            else:
+                lctime.append('phase')
+                
         if key == 'phoebe_rv_indweight':
             if val[11:-2] == 'deviation':
                 rvsigma.append('sigma')  
@@ -476,6 +497,14 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             else:
                 rvsigma.append('undefined')
                     
+        if key == 'phoebe_lc_indweight':
+            if val[11:-2] == 'deviation':
+                lcsigma.append('sigma')  
+            elif val[11:-2] == 'weight':
+                lcsigma.append('weight')
+            else:
+                lcsigma.append('undefined')
+                
     orbit['long_an'] = 0.
  
     comp1['ld_coeffs'] = [ld_xbol1,ld_ybol1]
@@ -483,16 +512,72 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
     
     #-- for all the light curves, copy the atmosphere type, albedo values and
     #-- limb darkening function. Do this for each component.
+    obslc=[]
+    i=0
+    j=0
+    l=0
     for i in range(lcno):    
         lcdep1[i]['atm'] = comp1['atm']
         lcdep1[i]['alb'] = comp1['alb'] 
         lcdep1[i]['ld_func'] = comp1['ld_func']
-    
+        lcdep1[i]['ref'] = "lightcurve_"+str(i)
         lcdep2[i]['atm'] = comp2['atm']
         lcdep2[i]['alb'] = comp2['alb'] 
         lcdep2[i]['ld_func'] = comp2['ld_func']
         #-- make sure lables are the same
         lcdep2[i]['ref'] = lcdep1[i]['ref']
+        
+        if lc_file[i] != "Undefined":
+            if lcsigma[i] == 'undefined': 
+                if lctime[i]=='time':
+                    if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                        col1lc,col2lc = np.loadtxt(lc_file[i], unpack=True)
+                        obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
+                        ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                    else:
+                        logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+                else:
+                    if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                        col1lc,col2lc = np.loadtxt(lc_file[i], unpack=True)
+                        obslc.append(datasets.LCDataSet(phase=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
+                        ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                    else:
+                        logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+            else:
+                if lctime[i]=='time':
+                    if lcsigma[i]=='sigma': 
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1lc,col2lc,col1lc = np.loadtxt(lc_file[i], unpack=True)
+                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        else:
+                            logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+                    else:
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1lc,col2lc,col1lc = np.loadtxt(lc_file[i], unpack=True)
+                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,weight=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        else:
+                            logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+                else:
+                    if lcsigma[i]=='sigma': 
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1lc,col2lc,col1lc = np.loadtxt(lc_file[i], unpack=True)
+                            obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        else:
+                            logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+                    else:
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1lc,col2lc,col1lc = np.loadtxt(lc_file[i], unpack=True)
+                            obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,weight=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        else:
+                            logger.warning("The light curve file {} cannot be located.".format(rv_file[i]))                    
+ 
+                l+=1#counts the number of the observations for component 1
+            j+=1#counts the number of observations and synthetic rv curves for component 1
+        
                
     rvdep1 = [parameters.ParameterSet(context='rvdep') for i in range(prim_rv)]
     rvdep2 = [parameters.ParameterSet(context='rvdep') for i in range(sec_rv)]
@@ -502,16 +587,12 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
     k=0
     l=0
     m=0
-    
+    i=0
     obsrv1=[]
     obsrv2=[]
-    print "rvno = ", rvno
     for i in range(rvno):
-        print rv_dep[i]
-        print "i = ", i
 
         if rv_dep[i] == 'Primary RV':
-            print "rv1dep"
             rvdep1[j]['ld_coeffs'] = ld_coeffs1[i]
             rvdep1[j]['passband'] = rv_pb[i]
             rvdep1[j]['ref'] = "primaryrv_"+str(j)
@@ -520,42 +601,55 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             rvdep1[j]['ld_func'] = comp1['ld_func']
             if rv_file[i] != "Undefined":
                 if rvsigma[i] == 'undefined': 
-                    print "rv1obs"
-                    print rvsigma[i]
-                    print i
                     if rvtime[i]=='time':
-                        col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
-                        obsrv1.append(datasets.RVDataSet(time=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
-                        ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(time=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))                    
                     else:
-                        col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
-                        obsrv1.append(datasets.RVDataSet(phase=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
-                        ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1rv1,col2rv1 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv1.append(datasets.RVDataSet(phase=col1rv1, rv=col2rv1,columns=[rvtime[i],'rv'], 
+                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))  
                 else:
                     if rvtime[i]=='time':
                         if rvsigma[i]=='sigma': 
-                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))
                         else:
-                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
-                            
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv1.append(datasets.RVDataSet(time=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))                            
                     else:
                         if rvsigma[i]=='weight': 
-                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]],
-                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,weight=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]],
+                                ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))            
                         else:
-                            col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv1,col2rv1,col3rv1 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv1.append(datasets.RVDataSet(phase=col1rv1,rv=col2rv1,sigma=col3rv1,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="primaryrv_"+str(j), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                 l+=1#counts the number of the observations for component 1
             j+=1#counts the number of observations and synthetic rv curves for component 1
 
         else:
-            print "rv2dep"
             rvdep2[k]['ld_coeffs'] = ld_coeffs2[i] 
             rvdep2[k]['passband'] = rv_pb[i]
             rvdep2[k]['atm'] = comp2['atm']
@@ -563,42 +657,57 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             rvdep2[k]['ld_func'] = comp2['ld_func']
             rvdep2[k]['ref'] = "secondaryrv_"+str(k)           
             if rv_file[i] != "Undefined":
-                print "rv2obs"
                 if rvsigma[i] == 'undefined': 
-                    print rvsigma[i]
-                    print i
                     if rvtime[i]=='time':
-                        col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
-                        obsrv2.append(datasets.RVDataSet(time=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
-                        ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(time=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                     else:
-                        col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
-                        obsrv2.append(datasets.RVDataSet(phase=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
-                        ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                            col1rv2,col2rv2 = np.loadtxt(rv_file[i], unpack=True)
+                            obsrv2.append(datasets.RVDataSet(phase=col1rv2, rv=col2rv2,columns=[rvtime[i],'rv'], 
+                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                        else:
+                            logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                 else:
                     if rvtime[i]=='time':
                         if rvsigma[i]=='sigma': 
-                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                         else:
-                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv2.append(datasets.RVDataSet(time=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                             
                     else:
                         if rvsigma[i]=='weight': 
-                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,weight=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
                         else:
-                            col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
-                            obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
-                            ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
+                                col1rv2,col2rv2,col3rv2 = np.loadtxt(rv_file[i], unpack=True)
+                                obsrv2.append(datasets.RVDataSet(phase=col1rv2,rv=col2rv2,sigma=col3rv2,columns=[rvtime[i],'rv',rvsigma[i]], 
+                                ref="secondaryrv_"+str(k), filename=str(rv_file[i]), statweight=rv_pbweight[i], user_components=rvname[i]))
+                            else:
+                                logger.warning("The radial velocity file {} cannot be located.".format(rv_file[i]))         
  
                 m+=1#counts the number of the observation for component 2
             k+=1#counts the number of observations and synthetic rv curves for component 2
-
+#love you!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
     #-- copy the component labels to the orbits
     orbit['c1label'] = comp1['label']
@@ -641,7 +750,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2) 
                    
         if lcno !=0:
-            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)#,obs=lcobs)
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals,obs=obslc)
         else:
             bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)
 
