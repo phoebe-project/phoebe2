@@ -59,12 +59,12 @@ c0 = time.time()
 # to use for the emergent fluxes (``atm``) and limb darkening coefficients.
 sun = phoebe.ParameterSet(context='star',add_constraints=True)
 sun['shape'] = 'sphere'
-sun['distance'] = 1.,'au'
 sun['atm'] = 'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
-tools.add_angdiam(sun)
-print("The Sun has an angular diameter of {:.3f}'".format(sun.get_value('angdiam','am')))
+
+globals = phoebe.ParameterSet(context='globals')
+globals['distance'] = 1.,'au'
 
 # Aside from physical parameters, we also need numerical ones. We wish to use
 # the marching method to generate the grid, with a reasonably fine marching step.
@@ -104,7 +104,7 @@ lcdep2['ref'] = 'Bolometric (analytical)'
 # ``the_sun.params['pbdep']['lcdep'].values()[0]``, and the numerical light
 # curve on its turn via ``the_sun.params['pbdep']['lcdep'].values()[1]``.
 
-the_sun = phoebe.Star(sun,sun_mesh,pbdep=[lcdep1,lcdep2])
+the_sun = phoebe.Star(sun,sun_mesh,pbdep=[lcdep1,lcdep2], globals=globals)
 
 # Computation of observables
 # --------------------------

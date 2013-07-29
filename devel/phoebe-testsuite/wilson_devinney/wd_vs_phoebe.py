@@ -132,6 +132,7 @@ P = binary['period']
 times = np.linspace(binary['t0'],binary['t0']+P,len(curve['indeps']))
 bbag = phoebe.BodyBag([star1,star2])
 
+
 phoebe.observe(bbag,times,subdiv_num=2,lc=True,rv=True,eclipse_alg='convex')#,extra_func=[phoebe.observatory.ef_binary_image],extra_func_kwargs=[dict(select='rv')])
 c3 = time.time()
 bbag.save('wdvspyphoebe.phoebe')
