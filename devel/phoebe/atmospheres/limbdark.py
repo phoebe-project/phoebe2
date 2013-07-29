@@ -73,6 +73,7 @@ Section 3. Querying specific intensities
 To query the tables of specific intensities from a file C{atm} for a certain
 effective temperature and surface gravity, use :py:func:`get_specific_intensities`:
 
+>>> atm = 'tables/spec_intens/kurucz_mu_ip00k0.fits'
 >>> mu, wavelengths, table = get_specific_intensities(atm,
 ...                                                   dict(teff=4000, logg=4.0))
 
@@ -90,13 +91,13 @@ So :py:func:`get_limbdarkening` is the passband-integrated version of
 
 ::
 
->>> atm = 'atmospheres/tables/spec_intens/kurucz_mu_ip00k0.fits'
+>>> atm = 'tables/spec_intens/kurucz_mu_ip00k0.fits'
 >>> atm_pars = dict(teff=4000, logg=4.0)
 >>> passbands = ('JOHNSON.V', '2MASS.J')
 >>> mu, intensities = get_limbdarkening(atm, atm_pars, passbands=passbands)
 
->>> plt.plot(mu, intensities[:,0], 'ko-', label=passbands[0])
->>> plt.plot(mu, intensities[:,1], 'ro-', label=passbands[1])
+>>> p = plt.plot(mu, intensities[:,0], 'ko-', label=passbands[0])
+>>> p = plt.plot(mu, intensities[:,1], 'ro-', label=passbands[1])
 
 .. image:: images/atmospheres_limbdark_query_spec_intens.png
    :height: 266px
@@ -125,6 +126,7 @@ Section 5. Querying precomputed LD coefficients
 Once an LD grid is precomputed, you can interpolate the limb darkening
 coefficients for any set of values within the grid:
 
+>>> atm = 'tables/ld_coeffs/kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits'
 >>> coeffs = interp_ld_coeffs(atm, 'JOHNSON.V',
 ...                           atm_kwargs=dict(teff=4000, logg=4.0))
 
@@ -404,6 +406,36 @@ def _mu(r_):
     """
     return np.sqrt(1.-r_**2.)
 
+
+
+def disk_linear(coeffs):
+    """
+    Disk integration.
+    
+    From Kallrath & Milone.
+    """
+    return np.pi*(1 - coeffs[0]/3.)
+
+def disk_nonlinear(coeffs):
+    return np.pi * (1 - coeffs[0]/3. + 2./9.*coeffs[1])
+
+def disk_logarithmic(coeffs):
+    return disk_nonlinear(coeffs)
+
+def disk_quadratic(coeffs):
+    p = 2.0
+    return np.pi * (1 - coeffs[0]/3. - coeffs[1] / (0.5*p**2 + 1.5*p + 1))
+
+def disk_square_root(coeffs):
+    return np.pi * (1 - coeffs[0]/3.0 - coeffs[1]/5.)
+
+def disk_claret(coeffs):
+    a1x_,a2x_,a3x_,a4x_ = coeffs
+    a0x_ = 1 - a1x_ - a2x_ - a3x_ - a4x_
+    limb_coeffs = np.array([a0x_,a1x_,a2x_,a3x_,a4x_])
+    int_moms = np.array([I_ls(0,1 + r/2.) for r in range(0,5,1)]).reshape((5,-1))
+    I_lx = 2*np.pi*(limb_coeffs * int_moms).sum(axis=0)
+    return I_lx
 
 #}
 #{ Specific intensities
@@ -1164,7 +1196,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     default settings):
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
-        >>> limbdark.compute_grid_ld_coeffs(atm_files)
+        >>> compute_grid_ld_coeffs(atm_files)
     
     **Case 1**:  You want to compute limb darkening coefficients for a Kurucz
     grid in ``teff`` and ``logg`` for solar metallicity. You want to use the
@@ -1172,10 +1204,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     them, you want to use the Levenberg-Marquardt method, with the stellar disk
     sampled equidistantly in the disk radius coordinate (:math:`r`, as opposed
     to limb angle :math:`\mu`). Finally you want to have a file written with the
-    prefix ``kurucz_p00`` to denote solar metallicity and grid type.
+    prefix ``kurucz_p00`` to denote solar metallicity and grid type:
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
-        >>> limbdark.compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
+        >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
         ...      law='claret', passbands=['2MASS.J','JOHNSON.V'],
         ...      fitmethod='equidist_r_leastsq', filetag='kurucz_p00')
         
@@ -1187,12 +1219,12 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     you simply need to do:
         
         >>> atm_file = 'kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits'
-        >>> limbdark.compute_grid_ld_coeffs(atm_file, passbands=['2MASS.J'])
+        >>> compute_grid_ld_coeffs(atm_file, passbands=['2MASS.J'])
     
     **Case 3**: Like Case 1, but with Doppler beaming included:
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
-        >>> limbdark.compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
+        >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
         ...      vgamma=[-500, -250, 0, 250, 500],
         ...      law='claret', passbands=['2MASS.J', 'JOHNSON.V'],
         ...      fitmethod='equidist_r_leastsq', filetag='kurucz_p00')
@@ -2080,6 +2112,7 @@ def add_file(filename):
     
 if __name__=="__main__":
     import doctest
+    import matplotlib.pyplot as plt
     fails,tests = doctest.testmod()
     if not fails:
         print(("All {0} tests succeeded".format(tests)))
