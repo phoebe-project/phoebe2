@@ -8,6 +8,7 @@ Parse data and parameter files.
 """
 
 import re
+import os
 import logging
 import glob
 import logging.handlers
@@ -27,7 +28,8 @@ import os.path
 
 logger = phoebe.get_basic_logger()
 
-def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd'):
+def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
+                     mesh='wd', root=None):
     """
     Convert a legacy PHOEBE file to the parameterSets. 
     
@@ -46,8 +48,12 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
     @param mesh: if set to 'marching' and C{create_body=True}, a marching mesh
     will be added to the Body. Else, a WD mesh will be added.
     @type mesh: str (one of C{wd} or C{marching})
+    @param root: use this root directory to link to data files
+    @type root: str or None. If root is ``__relative__``, the root directory
+    will be the directory of the inputfile
     """
-    
+    if root == '__relative__':
+        root = os.path.dirname(os.path.abspath(inputfile))
     #-- initialise all the variables and lists needed for the rvdep parameters
     rv_dep = []
     prim_rv = 0
@@ -466,10 +472,20 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
                 sec_rv +=1
                 
         if key == 'phoebe_rv_filename':
-            rv_file.append(val[2:-2])
+            filename = val[2:-2]
+            # If a root directory is given, set the filepath to be relative
+            # from there (but store absolute path name)
+            if root is not None:
+                filename = os.path.join(root, os.path.basename(filename))
+            rv_file.append(filename)
             
         if key == 'phoebe_lc_filename':
-            lc_file.append(val[2:-2])        
+            filename = val[2:-2]
+            # If a root directory is given, set the filepath to be relative
+            # from there (but store absolute path name)
+            if root is not None:
+                filename = os.path.join(root, os.path.basename(filename))
+            lc_file.append(filename)        
             
         if key == 'phoebe_rv_id':
             rvname.append(val)
@@ -599,7 +615,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             rvdep1[j]['atm'] = comp1['atm']
             rvdep1[j]['alb'] = comp1['alb']
             rvdep1[j]['ld_func'] = comp1['ld_func']
-            if rv_file[i] != "Undefined":
+            if os.path.isfile(rv_file[i]):
                 if rvsigma[i] == 'undefined': 
                     if rvtime[i]=='time':
                         if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
@@ -656,7 +672,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
             rvdep2[k]['alb'] = comp2['alb']
             rvdep2[k]['ld_func'] = comp2['ld_func']
             rvdep2[k]['ref'] = "secondaryrv_"+str(k)           
-            if rv_file[i] != "Undefined":
+            if os.path.isfile(rv_file[i]):
                 if rvsigma[i] == 'undefined': 
                     if rvtime[i]=='time':
                         if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(rv_file[i])):
@@ -770,7 +786,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False, mesh='wd
 
 
 
-def phoebe_to_wd(system):
+def phoebe_to_wd(system, create_body=False):
     """
     Convert a Phoebe2.0 system to WD parameterSets.
     
@@ -784,13 +800,23 @@ def phoebe_to_wd(system):
     orbit = system[0].params['orbit']
     tools.to_supconj(orbit)
     comp1 = system[0].params['component']
-    comp2 = system[1].params['component']
-    #globals = system.params['globals']
+    body1 = system[0]
+    
+    
+    if len(system.bodies)==1: # assume overcontact
+        ps['model'] = 'overcontact'
+        comp2 = comp1
+        body2 = body1
+    else:
+        ps['model'] = 'unconstrained'
+        comp2 = system[1].params['component']
+        body2 = system[1]
+    
+    
+    globals = system.params['globals']
     mesh1 = system[0].params['mesh']
-    mesh2 = system[1].params['mesh']
     
     ps['name'] = orbit['label']
-    ps['model'] = 'unconstrained'
     ps['hjd0'] = orbit['t0']
     ps['period'] = orbit['period']
     ps['dpdt'] = orbit['dpdt']
@@ -813,19 +839,52 @@ def phoebe_to_wd(system):
     ps['grb2'] = comp2['gravb']
     ps['n1'] = marching.delta_to_gridsize(mesh1['delta'])
     ps['n2'] = marching.delta_to_gridsize(mesh1['delta'])
-    ps['ipb'] = 0
+    ps['ipb'] = 1
+    ps['ld_model'] = comp1['ld_func']
+    ps['ld_xbol1'] = comp1['ld_coeffs'][0]
+    ps['ld_xbol2'] = comp2['ld_coeffs'][0]
     
-    #ps['vga'] = globals.request_value('vgamma', 'km/s'), 'km/s'
+    try:
+        ps['ld_ybol1'] = comp1['ld_coeffs'][1]
+        ps['ld_ybol2'] = comp2['ld_coeffs'][1]
+    except IndexError:
+        logger.warning("Second bolometric LD coefficients not parsed; ld_model={}".format(comp1['ld_func']))
+    
+    ps['vga'] = globals.request_value('vgamma', 'km/s')/100., 'km/s'
     
     # Light curve
     params = parameters.ParameterSet('compute')
     observatory.extract_times_and_refs(system, params, tol=1e-8)
     lc['indep_type'] = 'time (hjd)'
     lc['indep'] = params['time']
-    lc['hla'] = system[0].params['pbdep']['lcdep'].values()[0]['pblum']
-    lc['cla'] = system[1].params['pbdep']['lcdep'].values()[0]['pblum']
     
-    return ps, lc, rv
+    pblum1 = body1.params['pbdep']['lcdep'].values()[0]['pblum']
+    pblum2 = body2.params['pbdep']['lcdep'].values()[0]['pblum']
+    
+    ps['mode'] = 2
+    if pblum1>=0:
+        lc['hla'] = pblum1   
+        ps['ipb'] = 0 # think it should be the other way around, maybe legacy_to_phoebe is wrong?
+    if pblum2>=0:
+        lc['cla'] = pblum2
+        ps['ipb'] = 0
+    lc['filter'] = body1.params['pbdep']['lcdep'].values()[0]['passband']
+    lc['ld_lcx1'] = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
+    lc['ld_lcx2'] = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
+    lc['ref'] = body1.params['pbdep']['lcdep'].values()[0]['ref']
+    
+    try:
+        lc['ld_lcy1'] = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
+        lc['ld_lcy2'] = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
+    except IndexError:
+        logger.warning("Second passband LD coefficients not parsed; ld_model={}".format(comp1['ld_func']))
+    
+    if create_body:
+        obs = system.params['obs']['lcobs'].values()
+        return wd.BodyEmulator(ps,lcset=lc, rvset=rv, obs=obs)
+    
+    else:
+        return ps, lc, rv
 
 
 
