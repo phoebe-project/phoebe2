@@ -834,7 +834,6 @@ class BodyEmulator(object):
         #-- passband luminosity and third light:
         pblum_par = self.params['obs']['lcobs'].values()[0].get_parameter('pblum')
         l3_par = self.params['obs']['lcobs'].values()[0].get_parameter('l3')
-        
         pblum = pblum_par.get_adjust() and not pblum_par.has_prior()
         l3 = l3_par.get_adjust() and not l3_par.has_prior()
         

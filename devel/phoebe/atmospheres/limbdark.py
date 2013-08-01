@@ -416,6 +416,9 @@ def disk_linear(coeffs):
     """
     return np.pi*(1 - coeffs[0]/3.)
 
+def disk_uniform(coeffs):
+    return np.pi
+
 def disk_nonlinear(coeffs):
     return np.pi * (1 - coeffs[0]/3. + 2./9.*coeffs[1])
 
@@ -481,7 +484,7 @@ def iter_grid_dimensions(atm,atm_pars,other_pars):
     """
     # Special treatment for blackbodies
     if atm == 'blackbody':
-        teffs = np.logspace(3, np.log10(50000), 100)
+        teffs = np.logspace(1, np.log10(100000.), 200)
         for pars in itertools.product(*[teffs] + list(other_pars)):
             yield pars
     
@@ -1299,6 +1302,13 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     """
     overwrite = None
     
+    # Some convenience defaults for black body calculations
+    if atm_files == 'blackbody':
+        atm_files = ['blackbody']
+        law = 'uniform'
+        atm_pars = ('teff',)
+        filetag = 'blackbody'
+    
     # Let's prepare the list of passbands:
     #  - make sure 'OPEN.BOL' is always in there, this is used for bolometric
     #    intensities
@@ -1450,7 +1460,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         
         # Special case if blackbody: we need to build our atmosphere model
         if atm_file == 'blackbody':
-            wave_ = np.logspace(2, 5, 10000)
+            wave_ = np.logspace(1, 5, 10000)
         
         # Check if the file exists
         elif not os.path.isfile(atm_file):
@@ -1491,7 +1501,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             
             # Blackbodies must have a uniform LD law
             elif law == 'uniform':
-                Imu_blackbody = sed.blackbody(wave_, val[0], vrad=vgamma)
+                Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_, val[0], vrad=vgamma)
                 Imu = sed.synthetic_flux(wave_*10, Imu_blackbody, passbands)
             
             else:
@@ -1520,7 +1530,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     logger.info("{}: {}".format(pb, output[pb][-1]))
         
         # Close the atm file again if necessary
-        if atm_file == 'blackbody':
+        if atm_file != 'blackbody':
             open_atm_file.close()
         
     # Write the results to a FITS file
@@ -1911,14 +1921,15 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     # we do on the fly here, which means there are no limits on the effective
     # temperature used. Note that black bodies are not sensitive to logg.
     if atm == 'true_blackbody':
-        wave_ = np.logspace(2, 5, 10000)
+        wave_ = np.logspace(1, 5, 10000)
         log_msg += (', intens via atm=true_blackbody (this is going to take '
                    'forever...)')
         
         # But seriously, don't try to do this for every triangle! Let's hope
         # uniform_pars is true...
         if uniform_pars:
-            Imu_blackbody = sed.blackbody(wave_, atm_kwargs['teff'][0],
+            Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_,
+                                          atm_kwargs['teff'][0],
                                           vrad=vgamma)
             system.mesh[tag][:, -1] = sed.synthetic_flux(wave_*10,
                                           Imu_blackbody, [passband])[0]
@@ -1928,7 +1939,8 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         # Imagine doing this for several light curves... oh boy. 
         else:
             for i,T in enumerate(atm_kwargs['teff']):
-                Imu_blackbody = sed.blackbody(wave_, T, vrad=vgamma[i])
+                Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_, T,
+                                       vrad=vgamma[i])
                 system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
                                                  Imu_blackbody, [passband])[0]
     

@@ -5045,7 +5045,6 @@ class Star(PhysicalBody):
         if globals_parset is not None:
             distance = globals_parset.request_value('distance', 'Rsol')
             proj_int /= distance**2
-            
         # Take passband luminosity into account
         if pblum >= 0:
             return proj_int*pblum + l3
@@ -5743,7 +5742,7 @@ class BinaryRocheStar(PhysicalBody):
             # This definition of passband luminosity should mimic the definition
             # of WD
             if not 'pblum' in self._clear_when_reset:
-                passband_lum = luminosity(self,ref=ref)/ (100*constants.Rsol)**2
+                passband_lum = luminosity(self, ref=ref)/ (100*constants.Rsol)**2
                 passband_lum = passband_lum / distance**2
                 self._clear_when_reset['pblum'] = passband_lum
                 #print "PBLUM",self.time, passband_lum,ref
@@ -5831,7 +5830,7 @@ class BinaryRocheStar(PhysicalBody):
                 #-- else we still need to compute the mesh at *this* time!
                 else:
                     self.compute_mesh(time,conserve_volume=True)
-                    
+                                        
             #-- else, we have already computed the mesh once, and all we need
             #   to do is either just reset it, or conserve the volume at this
             #   new time point
@@ -5847,6 +5846,11 @@ class BinaryRocheStar(PhysicalBody):
                 self.add_pulsations(time=time)
             
             self.intensity(ref=ref)
+            
+            # Compute projected intensity if not done before, to have the
+            # passband luminosity
+            if self.time is None:
+                self.projected_intensity()
             
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)

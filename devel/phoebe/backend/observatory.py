@@ -321,7 +321,6 @@ def image(the_system, ref='__bol', context='lcdep',
                              mesh['B_'][:, 2]**2)
         else:
             values = mesh[select]
-        
         # Set the limits of the color scale, if we need to compute them
         # ourselves
         if vmin is None:
@@ -343,11 +342,11 @@ def image(the_system, ref='__bol', context='lcdep',
     if np.all(values == 0):
         logger.warning("Image quantities are all zero, it's gonna be a dark picture...")
         if ref == '__bol':
-            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
+            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done. It is also possible that the object is totally eclipsed.")
     elif np.any(np.isnan(values)):
         logger.error("Discovered nans in values, it's gonna be an empty picture!")
         if ref == '__bol':
-            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done.")
+            logger.warning("I see that the ref to be plotted is ref='__bol'. It is possible that no bolometric computations were done. Try setting ref=0 or the reference of your choice, or make sure bolometric computations are done. It is also possible that the object is totally eclipsed.")
     
     # Collect the triangle objects for plotting
     patches = []
@@ -1946,6 +1945,16 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     nreflect = params['refl_num']
     ltt = params['ltt']
     
+    if heating or reflect:
+        for loc, thing in system.walk_all():
+            if isinstance(thing, parameters.Parameter) and thing.get_qualifier() == 'irradiator':
+                if thing.get_value():
+                    # If there's at least one, it's OK
+                    break
+        else:
+            heating = False
+            reflect = False
+    
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
     if heating and circular:
@@ -1990,6 +1999,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time)
+
     for i, (time, ref, type) in enumerate(iterator):
         
         # Clear previous reflection effects if necessary (not if reflect==1!)
@@ -2000,13 +2010,13 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         system.set_time(time, ref=ref)
                 
         # For heating an eccentric system, we first need to reset the temperature!
-        if heating is True:
+        if heating is True or i == 0 and heating == 1:
             system.temperature(time)
         
         # Compute intensities
         if i == 0 or not circular or beaming:
             system.intensity(ref=ref)
-        
+                
         # Update intensity should be set to True when we're doing beaming.
         # Perhaps we need to detect which refs have "beaming=True", collect
         # those in a list and update the intensities for them anyway?

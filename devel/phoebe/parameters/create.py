@@ -881,8 +881,8 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
             tools.add_surfgrav(star,logg,derive='mass')   
     
     #-- period, ecc and q
-    comp1 = parameters.ParameterSet(context='component')
-    comp2 = parameters.ParameterSet(context='component')
+    comp1 = parameters.ParameterSet(context='component', label=star1['label'])
+    comp2 = parameters.ParameterSet(context='component', label=star2['label'])
     orbit = parameters.ParameterSet(context='orbit',c1label=comp1['label'],c2label=comp2['label'],add_constraints=True)
     orbit['period'] = period,'d'
     orbit['ecc'] = ecc
@@ -900,35 +900,41 @@ def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
         q = abs(K1/K2)
         K2_ms = conversions.convert('km/s','m/s',K2)
         star2['mass'] = q*star1['mass']
+        logger.info("Calculated q from K1/K2: q={}".format(q))
+        logger.info('Calculated secondary mass from K2 and q: M2={} Msol'.format(star2.request_value('mass','Msol')))
     else:
         q = star2['mass']/star1['mass']
         K2_ms = K1_ms/q
+        logger.info('Calculated q from stellar masses: q = {}'.format(q))
+        logger.info("Calculated K2 from q and K1: K2={} km/s".format(K2_ms/1000.))
+    
+    # Calculate system semi major axis from period and masses
+    sma = keplerorbit.third_law(period=orbit.request_value('period', 'd'),
+                                totalmass=star1.request_value('mass','Msol')+\
+                                          star2.request_value('mass','Msol'))
+    sma = conversions.convert('au', 'Rsol', sma)
+    orbit['sma'] = sma, 'Rsol'
+    
+    logger.info("Calculated system sma from period and total mass: sma={} Rsol".format(sma))
     
     orbit['q'] = q
-    logger.info('Mass ratio q = {}'.format(q))
     asini = conversions.convert('m','Rsol',keplerorbit.calculate_asini(period_sec,ecc,K1=K1_ms,K2=K2_ms))
-    tools.add_asini(orbit,asini,derive='incl',unit='Rsol')        
     
-    #-- calculate the mass function
-    fm = keplerorbit.calculate_mass_function(period_sec,ecc,K1_ms)
+    # Possibly, the binary system cannot exist. Suggest a possible solution.
+    if asini > sma:
+        #-- calculate the mass function
+        fm = keplerorbit.calculate_mass_function(period_sec,ecc,K1_ms)
+        new_mass1 = conversions.convert('kg','Msol',fm*(1+orbit['q'])**2/orbit['q']**3)
+        new_mass2 = q*new_mass1
+        raise ValueError(("Binary system cannot exist: asini={} > sma={} Rsol.\n"
+                         "Possible solution: decrease total mass or period.\n"
+                         "If you want to keep the mass ratio, you might set "
+                         "M1={} Msol, M2={} Msol").format(asini, sma, new_mass1+1e-10, new_mass2+1e-10))
     
-    #-- inclination angle from masses and mass function, but make sure it's
-    #   an allowed value
-    for i in range(2):
-        M1 = star1.request_value('mass','Msol')
-        M2 = star2.request_value('mass','Msol')
-        orbit['sma'] = keplerorbit.third_law(totalmass=M1+M2,period=orbit['period']),'au'
-        if np.isnan(orbit['incl']):
-            logger.warning("Invalid masses: sma={} but asini={}".format(orbit['sma'],orbit['asini']))
-            star1['mass'] = fm*(1+orbit['q'])**2/orbit['q']**3,'kg'
-            star2['mass'] = q*star1['mass']
-        else:
-            break
-         
-    
-    logger.info("Total mass of the system = {} Msol".format(star1['mass']+star2['mass']))
-    logger.info("Inclination of the system = {} deg".format(orbit['incl']))
-    
+    logger.info('Calculated system asini from period, ecc and semi-amplitudes: asini={} Rsol'.format(asini))
+    tools.add_asini(orbit,asini,derive='incl',unit='Rsol')
+    logger.info("Calculated incl: {} deg".format(orbit.request_value('incl','deg')))
+        
     #-- when the vsini is fixed, we can only adjust the radius or the synchronicity!
     for i,(comp,star,vsini) in enumerate(zip([comp1,comp2],[star1,star2],[vsini1,vsini2])):
         if vsini is None:

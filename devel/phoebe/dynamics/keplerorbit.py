@@ -857,6 +857,7 @@ def calculate_critical_phases(per0, ecc, phshift=0):
     """
     #-- Phase of periastron passage
     Phi_per0 = (per0 - pi/2.0)/(2.0*pi) + phshift
+    Phi_per0 = calculate_phase(0.0, ecc, per0, phshift)
     #-- Phase of inferior/superior conjunction
     Phi_conj = calculate_phase(pi/2.0-per0, ecc, per0, phshift)
     Phi_inf  = calculate_phase(3.0*pi/2.0-per0, ecc, per0, phshift)
@@ -872,9 +873,9 @@ def calculate_critical_times(per0, ecc, period, t0, phshift=0.,
     Computes critical times in the orbit.
     """
     
-    if t0 == 'superior conjunction':
+    if t0type == 'superior conjunction':
         t0 = from_supconj_to_perpass(t0, period, per0, phshift=phshift)
-    elif not t0 == 'periastron passage':
+    elif not t0type == 'periastron passage':
         raise ValueError("Do not recognize t0type='{}'".format(t0type))
     
     crit_phases = calculate_critical_phases(per0, ecc, phshift=phshift)
@@ -1527,6 +1528,9 @@ def get_binary_orbit(time,orbit,component):
     t0type = orbit.get('t0type', 'periastron passage')
     a_comp = [a1,a2][['primary','secondary'].index(component)]
     
+    if t0type == 'superior conjunction':
+        time = time - orbit['phshift'] * P
+    
     # Where in the orbit are we? We need everything in cartesian Rsol units
     loc,velo,euler = get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
                                incl=inclin,component=component, t0type=t0type)
@@ -1580,7 +1584,7 @@ def place_in_binary_orbit(self,time):
         F = 1.
         logmsg = 'could not find "syncpar"; assuming synchronisation'    
     omega_rot = F * 2*pi/P # rad/d
-    logger.info('{} for in-orbit-rotation (Omega={:.3f} rad/d,P={:.3f},e={:.3f})'.format(logmsg,omega_rot,P,e))
+    #logger.info('{} for in-orbit-rotation (Omega={:.3f} rad/d,P={:.3f},e={:.3f})'.format(logmsg,omega_rot,P,e))
     #-- if we can't get the polar direction, assume it's in the negative Z-direction
     try:
         polar_dir = -self.get_polar_direction(norm=True)
@@ -1606,8 +1610,15 @@ def place_in_binary_orbit(self,time):
     for vectr in vectrs:
         mesh[vectr] = rotate_into_orbit(mesh[vectr].T,euler).T
     mesh['mu'] = cgeometry.cos_theta(mesh['normal_'].ravel(order='F').reshape((-1,3)),np.array([0,0,+1.0],float))
+    
+    # Add systemic velocity:
+    globals = self.get_globals()
+    if globals is not None:
+        vgamma = globals.request_value('vgamma', 'Rsol/d')
+        mesh['velo___bol_'][:,2] -= vgamma
+    
     self.mesh = mesh
-    logger.info('Placed into orbit')
+    #logger.info('Placed into orbit')
     
     
     
