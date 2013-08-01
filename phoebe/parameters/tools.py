@@ -604,7 +604,7 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     if derive=='ecc':
         orbit.pop_constraint('ecc',None)
         orbit.add_constraint('{{ecc}} = {{ecosw}}/np.cos({{{peri}}})'.format(peri=peri))
-    elif derive==peri:
+    elif derive=='per0':
         orbit.pop_constraint(peri,None)
         orbit.add_constraint('{{{peri}}} = np.arccos({{ecosw}}/{{ecc}})'.format(peri=peri))
     else:
@@ -1219,11 +1219,12 @@ def scale_binary(system, factor):
             raise NotImplementedError
     
 
-def summarize(system, time=0.):
+def summarize(system, time=None):
             
     system.list(summary='physical', width=90)
     
-    system.set_time(0.)
+    if time is not None:
+        system.set_time(0.)
     
     params = {}
     import phoebe

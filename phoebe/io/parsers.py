@@ -26,7 +26,7 @@ from phoebe.backend.bundle import Bundle
 import matplotlib.pyplot as plt
 import os.path
 
-logger = phoebe.get_basic_logger()
+logger = logging.getLogger('PARSER')
 
 def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
                      mesh='wd', root=None):
@@ -271,7 +271,10 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
 
 
         elif key == 'phoebe_alb1.VAL':
-            comp1['alb'] = val   
+            comp1['alb'] = val
+            # Switch on heating in the other component
+            if comp1['alb'] > 0:
+                comp2['irradiator'] = True
         elif key == 'phoebe_alb1.MAX':
             comp1.get_parameter('alb').set_limits(ulim=float(val))
         elif key == 'phoebe_alb1.MIN':
@@ -282,6 +285,9 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         elif key == 'phoebe_alb2.VAL':
             comp2['alb'] = val   
             alb2 = comp2['alb']
+            # Switch on heating in the oterh component
+            if comp2['alb'] > 0:
+                comp1['irradiator'] = True
         elif key == 'phoebe_alb2.MAX':
             comp2.get_parameter('alb').set_limits(ulim=float(val))
         elif key == 'phoebe_alb2.MIN':
@@ -412,7 +418,9 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         if key == 'phoebe_ld_ybol2':
             ld_ybol2 = float(val)
             
-
+        #-- Global name of the system
+        if key == 'phoebe_name':
+            system_label = val[2:-2]
 
         #-- now populate the lcdep and rvdep parameters 
         if key == 'phoebe_lc_filename':
@@ -734,9 +742,6 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
     orbit['t0type'] = 'superior conjunction'
 
 
-    body1 = comp1, lcdep1, rvdep1
-    body2 = comp2, lcdep2, rvdep2  
-    
     logger.info("Loaded contents from file {}".format(inputfile))
     
     if create_bundle or create_body:
@@ -769,7 +774,9 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
             bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals,obs=obslc)
         else:
             bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)
-
+        
+        # Set the name of the thing
+        bodybag.set_label(system_label)
         
     if create_bundle:
 
@@ -779,8 +786,11 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
     
     if create_body:
         return bodybag
-
-    return body1, body2, orbit 
+    
+    body1 = comp1, mesh1, lcdep1, rvdep1, obsrv1
+    body2 = comp2, mesh2, lcdep2, rvdep2, obsrv2
+    
+    return body1, body2, orbit, globals, obslc 
 
 
 

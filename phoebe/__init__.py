@@ -64,6 +64,7 @@ from .parameters.datasets import parse_lc,parse_phot,parse_rv,\
                                  parse_spec_as_lprof,parse_vis2
 from .parameters import create
 from .utils.utils import get_basic_logger
+from phoebe.io import parsers
 
 #-- common tasks
 from .parameters.tools import add_rotfreqcrit

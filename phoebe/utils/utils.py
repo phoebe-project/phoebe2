@@ -292,4 +292,29 @@ def deriv(x,y):
     derivee[nm1]=derivee[nm1]-y[nm1]*(1./x0_x2[nm2]+1./x1_x2[nm2])
     
     return derivee
+
+
+
+def phasediagram(time, y, period, t0=0.0, repeat=0, sort=True):
+    """
+    Construct a phase diagram.
+    
+    @param y: a list of arrays to phase up.
+    @type y: list of numpy arrays
+    """
+    
+    phase = ((time-t0) % period) / period
+    
+    if sort:
+        sa = np.argsort(phase)
+        y = [iy[sa] for iy in y]
+        phase = phase[sa]
+    
+    if repeat:
+        phase = np.hstack([phase + i*period for i in range(repeat+1)])
+        y = [np.hstack([iy]*(repeat+1)) for iy in y]
+    
+    return phase, y
+
+
 #}

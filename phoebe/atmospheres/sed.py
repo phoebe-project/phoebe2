@@ -131,6 +131,8 @@ def blackbody(wl,T,vrad=0):
     @return: intensity per sterradian :math:`\mathrm{erg}\ \mathrm{s}^{-1} \mathrm{cm}^{-2}\mathrm{\AA}^{-1} \mathrm{sr}^{-1}`
     @rtype: array
     """
+    if vrad is None:
+        vrad = 0
     wl = wl*1e-9
     #-- now make the appropriate black body
     factor = 2.0 * constants.hh * constants.cc**2

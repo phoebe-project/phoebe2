@@ -52,6 +52,7 @@ from phoebe.utils import fgeometry
 from phoebe.atmospheres import limbdark
 
 logger = logging.getLogger("ALGO.REFL")
+logger.addHandler(logging.NullHandler())
 
 @decorators.parse_ref
 def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
@@ -86,7 +87,6 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     #   radiation it receives from the irradiator.
     R1 = np.ones(N) # local heating
     R2 = 1. # global heating (redistributed)
-    emer = np.ones((N,Nl)) # flux that is coming out of triangle
     inco = np.ones((N,Nl)) # total flux that is incident on the triangle
     day = np.zeros(N,bool)
     total_surface = irradiated.mesh['size'].sum()
@@ -95,13 +95,21 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     #-- we need to filter the references, because they can also contain
     #   references to parametersets that are in another body!
     ref = [ps[1] for ps in ps_irradiator if not ps[1] is None]
+    ref_ed = [ps[1] for ps in ps_irradiated if not ps[1] is None]
     ld_models = [ps[0]['ld_func'] for ps in ps_irradiator if not ps[1] is None]
+    ld_models_ed = [ps[0]['ld_func'] for ps in ps_irradiated if not ps[1] is None]
     A_irradiateds = [ps[0]['alb'] for ps in ps_irradiated if not ps[1] is None]
     P_redistrs = [(ps[0]['redist'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
     #if '__bol' in ref:
         #total_surface = irradiated.mesh['size'].sum()
-        
-        
+    
+    # Compute emergent bolometric intensities (we could perhaps speed it up a
+    # bit by only computing it for those triangles that are facing the other
+    # star (flux that is coming out of triangle)
+    ld_disk = getattr(limbdark, 'disk_'+ld_models_ed[ref_ed.index('__bol')])
+    emer = ld_disk(irradiated.mesh['ld___bol'][:,:-1].T) * irradiated.mesh['ld___bol'][:,-1]
+    
+    temp = np.zeros_like(emer)
     for i in range(N):
         #-- maybe some lines of sights are obstructed: skip those
         if third_bodies is not None and not (irradiated.label==third_bodies.label)\
@@ -136,9 +144,10 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
         #-- what are the angles between the normals and the line-of-sight on
         #   the irradiator?
         #cos_psi2 = coordinates.cos_angle(los,irradiator_mesh['normal_'],axis=-1)
-        cos_psi2 = fgeometry.cos_angle_nx3_nx3(los,irradiator_mesh['normal_'])
-        keep = (cos_psi1<1) & (cos_psi2<1) & (0<cos_psi1) & (0<cos_psi2)
-        if not np.sum(keep): continue
+        cos_psi2 = -fgeometry.cos_angle_nx3_nx3(los,irradiator_mesh['normal_'])
+        keep = (0<cos_psi1) & (0<cos_psi2) #& (cos_psi1<=1) & (cos_psi2<=1)
+        if not np.sum(keep):
+            continue
         day[i] = True
         for j, jref in enumerate(ref):
             #-- what is the bolometric flux this triangle on the irradiated object
@@ -148,8 +157,11 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             ld_law = getattr(limbdark,'ld_{}'.format(ld_models[j]))
             Imu0 = irradiator_mesh['ld_{}'.format(jref)][keep, -1]
             Ibolmu = Imu0*ld_law(cos_psi2[keep], irradiator_mesh['ld_{}'.format(jref)][keep].T)
-            Ibolmu = irradiator_mesh['size'][keep]*cos_psi2[keep]*Ibolmu
-            
+            Ibolmu = Ibolmu*irradiator_mesh['size'][keep]*cos_psi2[keep]                
+                
+            #-- what are the distances to each triangle on the irradiator?
+            distance2 = np.sum(los[keep]**2,axis=1)
+
             #-- every fluxray is emmited with an angle between the normal
             #   and the radial vector through the center of the star: not needed
             #   in our gridding approach because we know the size of the triangles
@@ -159,13 +171,13 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #-- but every fluxray is also received under a specific angle on the
             #   irradiated object. The size of the receiving triangle doesn't matter
             Ibolmu = cos_psi1[keep]*Ibolmu
-            
-            #-- what are the distances to each triangle on the irradiator?
-            distance = sqrt(np.sum(los[keep]**2,axis=1))
-            
+                
             #-- the total (summed) projected intensity on this triangle is then
             #   dependent on the distance and the albedo
-            proj_Ibolmu = np.sum(Ibolmu/distance**2)
+            proj_Ibolmu = np.sum(Ibolmu/distance2)
+            
+            if jref=='__bol':
+                temp[i] = proj_Ibolmu
             
             #-- what is the total intrinsic emergent flux from this triangle? We
             #   need to integrate over a solid angle of 2pi, that is let phi run
@@ -176,8 +188,7 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             if jref != '__bol':
                 continue
             
-            emer_Ibolmu = 2*pi*quad(_tief, 0, pi/2, args=(ld_law, irradiated.mesh['ld_{}'.format(jref)][i]))[0] # 2pi is for solid angle integration over phi
-            
+            #emer_Ibolmu = 2*pi*quad(_tief, 0, pi/2, args=(ld_law, irradiated.mesh['ld_{}'.format(jref)][i]))[0] # 2pi is for solid angle integration over phi
             #====== START CHECK FOR EMERGENT FLUX ======
             #-- in the case of a linear limb darkening law, we can easily evaluate
             #   the local emergent flux (Eq. 5.27 from Phoebe Scientific reference)
@@ -193,16 +204,59 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #   possible (uniform) redistribution here: only a fraction is used to
             #   heat this particular triangle, the rest is used to heat up the whole
             #   object
-            R1[i] = 1.0 + (1-P_redistrs[j])*A_irradiateds[j]*proj_Ibolmu/emer_Ibolmu
-            R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer_Ibolmu*irradiated.mesh['size'][i]/total_surface
-            emer[i] = emer_Ibolmu
+            R1[i] = 1.0 + (1-P_redistrs[j])*A_irradiateds[j]*proj_Ibolmu/emer[i]
+            R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer[i]*irradiated.mesh['size'][i]/total_surface
             
+    
+    #from phoebe.units import conversions
+    #from phoebe import universe
+    
+    #print (emer*irradiated.mesh['size']*(100*constants.Rsol)**2).sum()
+    #print temp.sum()
+    #for body in [irradiator, irradiated]:
+        #print ''
+        #print body.get_label()
+        #print 'from universe',universe.luminosity(body)
+        #R = body.params['star'].get_value('radius','m')
+        #T = body.params['star'].get_value('teff', 'K')
+        #print R, T
+        #print 'from law',conversions.convert('W','erg/s',4*np.pi*R**2*constants.sigma*T**4)
+    #print ''
+    #print "Mercury receives this much from the Sun:"
+    #D = 0.307499*constants.au
+    #R = 0.3829*constants.Rearth
+    #P_in = constants.Lsol/(4*np.pi*D**2)*np.pi*R**2
+    #print '{:.6e} erg/s'.format(conversions.convert('W','erg/s',P_in))
+    #print 'Solar constant = {:.6e} erg/s/cm2'.format(conversions.convert('W/m2','erg/s/cm2',P_in/(np.pi*R**2)))
+    
+    #print "Computed"
+    #print '{:.6e} erg/s'.format(np.sum(temp*((irradiated.mesh['size']*constants.Rsol*100)**2)))
+    #import matplotlib.pyplot as plt
+    #plt.figure()
+    #size = irradiated.mesh['size']*(constants.Rsol*100)**2
+    #sa = np.argsort(temp)
+    #P_in_local = conversions.convert('W','erg/s',constants.Lsol/(4*np.pi*D**2)*size[sa])
+    #plt.plot(temp,'ko')
+    #plt.plot(emer,'ro',mec='r')
+    #plt.figure()
+    #plt.scatter(irradiated.mesh['center'][:,0], irradiated.mesh['center'][:,1], edgecolors='none', c=temp, cmap=plt.cm.spectral)
+    #plt.colorbar()
+    
+    #plt.figure()
+    #plt.title(str(R2)+' '+irradiated.get_label())
+    #plt.scatter(irradiated.mesh['center'][:,0], irradiated.mesh['center'][:,1], edgecolors='none', c=(R1-1)**0.25, cmap=plt.cm.spectral)
+    #plt.colorbar()
+    
+    #plt.figure()
+    #plt.show()
+    #raise SystemExit
+    
     return R1,R2,inco,emer,ref,A_irradiateds
         
-def single_heating_reflection(irradiated,irradiator,update_temperature=True,\
-            heating=True,reflection=False,third_bodies=None):
+def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
+            heating=True, reflection=False, third_bodies=None):
     """
-    Docstring
+    Compute heating and reflection for an irradiating star on an irradiated star.
     """
     if heating and reflection:
         ref = 'all'
@@ -211,24 +265,32 @@ def single_heating_reflection(irradiated,irradiator,update_temperature=True,\
     elif reflection:
         ref = 'alldep'
     
-    R1,R2,inco,emer,refs,A_irradiateds = radiation_budget(irradiated,irradiator,ref=ref,third_bodies=third_bodies)
+    R1, R2, inco, emer, refs, A_irradiateds = radiation_budget(irradiated,
+                                                    irradiator, ref=ref,
+                                                    third_bodies=third_bodies)
     
     #-- heating part:
     if heating:
         # update luminosities and temperatures: we need to copy and replace the
         # mesh to be able to handle body bags too.
         irradiated_mesh = irradiated.mesh.copy()
-        teff_old = irradiated_mesh['teff'].copy()        
+        teff_old = irradiated_mesh['teff'].copy()
         irradiated_mesh['teff'] *= (R1+R2-1)**0.25
         irradiated.mesh = irradiated_mesh
-        limbdark.local_intensity(irradiated,irradiated.get_parset(ref='__bol')[0])
-        #logger.info("single heating effect: updated luminosity%s according to max Teff increase of %.3f%%"%((update_temperature and ' and teff' or '(no teff)'),(((R1+R2-1)**0.25).max()-1)*100))
+        irradiated.intensity(ref=['__bol'])
+        #limbdark.local_intensity(irradiated,
+        #                         irradiated.get_parset(ref='__bol')[0])
+        logger.warning(("single heating effect: updated luminosity{} of {} "
+                       "according to max "
+                       "Teff increase of {:.3f}%").format((update_temperature and ' and teff' or '(no teff)'),irradiated.get_label(), (((R1+R2-1)**0.25).max()-1)*100))
         #-- still not sure if I should include the following
-        #   If I do, I don't seem to converge... --- uh yes it does!
-        if not update_temperature:
-           irradiated_mesh = irradiated.mesh.copy()
-           irradiated_mesh['teff'] = teff_old
-           irradiated.mesh = irradiated_mesh
+        #   If I do, I don't seem to converge... --- uh yes it does! -- uh no it
+        #   doesn't... I don't know anymore
+        #if not update_temperature:
+        #  irradiated_mesh = irradiated.mesh.copy()
+        #  irradiated_mesh['teff'] = teff_old
+        #  irradiated.mesh = irradiated_mesh
+    
     #-- reflection part:
     if reflection:
         # whatever is not used for heating can be reflected, we assume isotropic
@@ -237,7 +299,9 @@ def single_heating_reflection(irradiated,irradiator,update_temperature=True,\
             refl_ref = 'refl_{}'.format(jref)
             #-- Bond albedo equals 1-A_irradiated
             try:
-                irradiated.mesh[refl_ref] += (1-A_irradiateds[j])*inco[:,j]/np.pi
+                bond_albedo = (1-A_irradiateds[j])
+                bond_albedo = max(0, bond_albedo)
+                irradiated.mesh[refl_ref] += bond_albedo*inco[:,j]/np.pi
             except ValueError:
                 raise ValueError("Did not find ref {}. Did you prepare for reflection?".format(refl_ref))
                 
