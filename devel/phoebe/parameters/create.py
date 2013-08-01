@@ -705,7 +705,7 @@ def dep_from_object(myobject,context,**kwargs):
     Extra kwargs override initialisation.
     """
     obsdep = parameters.ParameterSet(context=context,**kwargs)
-    for key in ['atm','ld_func','ld_coeffs','alb']:
+    for key in ['atm','ld_func','ld_coeffs','alb','redist']:
         if not key in kwargs:
             obsdep[key] = myobject[key]
     return obsdep
@@ -791,7 +791,7 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     for key in ['teff']:
         comp1[key] = star1.get_value_with_unit(key)
         comp2[key] = star2.get_value_with_unit(key)
-    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb']:
+    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb','redist']:
         comp1[key] = star1[key]
         comp2[key] = star2[key]
     orbit['c1label'] = comp1['label']

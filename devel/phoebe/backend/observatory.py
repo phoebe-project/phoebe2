@@ -1945,16 +1945,19 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     nreflect = params['refl_num']
     ltt = params['ltt']
     
+    # Heating and reflection are by default switched on. However, if there are
+    # no irradiators, we don't need to compute it.
     if heating or reflect:
         for loc, thing in system.walk_all():
             if isinstance(thing, parameters.Parameter) and thing.get_qualifier() == 'irradiator':
                 if thing.get_value():
-                    # If there's at least one, it's OK
+                    # If there's at least one irradiator, we need to leave it on
                     break
+        # Otherwise we can switch it off
         else:
             heating = False
             reflect = False
-    
+
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
     if heating and circular:
@@ -1997,6 +2000,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if circular:
         system.set_time(0., ref='all')
     
+    logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
+    
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time)
 
@@ -2034,12 +2039,12 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             system.intensity(ref=ref)
         
         # Detect eclipses/horizon
-        choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+        ecl = choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
         
         # If necessary, subdivide and redetect eclipses/horizon
         for k in range(params['subdiv_num']):
             system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
-            choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+            choose_eclipse_algorithm(system, algorithm=ecl)
         
         # Correct for light travel time effects
         if ltt:
@@ -2153,6 +2158,40 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
             extra_func_kwargs=extra_func_kwargs)
 
 
+
+def binary_eclipse_algorithm(all_systems, algorithm):
+    """
+    Optimize the eclipse algorithm for binaries.
+    
+    Predict when there is an eclipse. If there is, use the convex algorithm.
+    If there is none, use the "horizon_via_normal" algorithm.
+    """
+    if algorithm == 'binary':
+        # Retrieve the coordinates
+        X1 = all_systems[0].as_point_source(only_coords=True)
+        X2 = all_systems[1].as_point_source(only_coords=True)
+            
+        # Retrieve the radii of the components        
+        d1 = np.sqrt( ((all_systems[0].mesh['center'][:,:2]-X1[:2])**2).sum(axis=1))
+        d2 = np.sqrt( ((all_systems[1].mesh['center'][:,:2]-X2[:2])**2).sum(axis=1))
+        R1 = np.max(d1)
+        R2 = np.max(d2)
+        predict_eclipse = np.sqrt( (X1[0]-X2[0])**2 + (X1[1]-X2[1])**2)<=(R1+R2)
+    else:
+        predict_eclipse = None
+    
+    # If the separation between the two on the sky is smaller or equal to the 
+    # sum of the radii, there can be an eclipse.
+    if algorithm == 'binary_eclipse' or predict_eclipse:
+        logger.info("{}: predict eclipse (binary convex E/H)".format(all_systems[0].time))
+        eclipse.convex_bodies([all_systems[0],all_systems[1]])
+        return 'binary_eclipse'
+    # Else, we can treat them as simple detached stars
+    else:
+         eclipse.horizon_via_normal(all_systems)
+         return 'binary_separated'
+
+
         
 def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     """
@@ -2170,21 +2209,28 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     if is_bbag and 'compute' in all_systems.params and not all_systems.connected:
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=compute['algorithm'])
-        return None
+        return 'auto'
     elif is_bbag and not all_systems.connected:
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=algorithm)
-        return None
+        return 'auto'
     
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
         eclipse.horizon_via_normal(all_systems)
-        return None
+        return algorithm
+    
+    # Perhaps we know nothing
     elif algorithm == 'full':
         logger.info("Full E/H detection")
         eclipse.detect_eclipse_horizon(all_systems)
-        return None
+        return algorithm
+    
+    # Perhaps we know it's a binary
+    elif algorithm[:6] == 'binary':
+        return binary_eclipse_algorithm(all_systems, algorithm=algorithm)
         
+    # Perhaps we can try to be clever    
     try:
         if hasattr(all_systems,'len') and len(all_systems)==2: # assume it's a binary
             try:
@@ -2235,6 +2281,8 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
             eclipse.detect_eclipse_horizon(all_systems)
         elif algorithm=='convex':
             eclipse.convex_bodies(all_systems.get_bodies())
+        
+    return 'auto'
 
 #{ Extrafuncs for compute_dependables
 

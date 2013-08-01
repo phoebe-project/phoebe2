@@ -2285,7 +2285,7 @@ class Body(object):
         # often also contains information on the atmospheres etc.. but the
         # bolometrically
         if ref is None or ref == '__bol':
-            logger.info("Requested bolometric parameterSet")
+            logger.debug("Requested bolometric parameterSet")
             return list(self.params.values())[0], '__bol'
         
         # Next, we check if a context is given. If it is, we immediately can
@@ -2325,10 +2325,10 @@ class Body(object):
                 
                 # Else, no luck! We didn't find anything!
                 else:
-                    logger.info("Requested parset ref={}, context={} but it does not seem to exist".format(ref,context))
+                    logger.debug("Requested parset ref={}, context={} but it does not seem to exist".format(ref,context))
                     return None, None
                 
-                logger.info("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
+                logger.debug("Requested parset ref={}, context={} and found ref={}, context={}".format(ref,context,ps['ref'],ps.get_context()))
                 return ps, ps['ref']
             
             elif hasattr(self, 'bodies'):
@@ -2343,7 +2343,7 @@ class Body(object):
             
             # Elese, no luck! We didn't find anything and really tried our best
             else:
-                logger.info("Requested parset ref={}, context={} but it does not exist".format(ref,context))
+                logger.debug("Requested parset ref={}, context={} but it does not exist".format(ref,context))
                 return None, None
             
         # Else, we need to start searching for the right type and category!
@@ -2362,7 +2362,7 @@ class Body(object):
                     is_ref = ('ref' in ps) and (ps['ref']==ref)
                     is_number = counter==ref
                     if is_ref or is_number:
-                        logger.info("Requested parset ref={}, type={}, category={} and found ref={}, context={}".format(ref,type,category,ps['ref'],ps.get_context()))
+                        logger.debug("Requested parset ref={}, type={}, category={} and found ref={}, context={}".format(ref,type,category,ps['ref'],ps.get_context()))
                         return ps,ps['ref']
                     counter += 1
             return None,None
@@ -3369,7 +3369,7 @@ class PhysicalBody(Body):
         self.mesh['partial'] = False
         self.mesh['visible'] = False
         self.mesh['hidden'] = True
-        logger.info('reset mesh to original position')
+        logger.debug('reset mesh to original position')
     
     
     def update_mesh(self,subset=None):
@@ -3477,7 +3477,7 @@ class PhysicalBody(Body):
         elif subtype==2:
             threshold = 0
             prefix = ['_o_','']
-        logger.info("subdividing: type {:d} via {:s}".format(subtype,algorithm))
+        logger.debug("subdividing: type {:d} via {:s}".format(subtype,algorithm))
         #-- subidivde the partially visible triangles
         partial = self.mesh['partial']
         subdivided = subdivision.subdivide(self.mesh[partial],prefix=prefix,
@@ -3492,7 +3492,7 @@ class PhysicalBody(Body):
             if subtype==1:
                 #self.update_mesh(self.mesh['partial'])
                 self.rotate_and_translate(subset=self.mesh['partial'])
-                logger.info('rotated subdivided mesh')
+                logger.debug('rotated subdivided mesh')
         return len(subdivided)
     
     
@@ -3501,10 +3501,10 @@ class PhysicalBody(Body):
         Revert to the original, unsubdivided mesh.
         """
         if self.subdivision['orig'] is None:
-            logger.info('nothing to unsubdivide')
+            logger.debug('nothing to unsubdivide')
         else:
             self.mesh = self.subdivision['orig']
-            logger.info("restored mesh from subdivision")
+            logger.debug("restored mesh from subdivision")
         self.subdivision['orig'] = None
     
     def save_syn(self,filename,category='lc',ref=0,sigma=None,mode='w'):
