@@ -9,6 +9,7 @@ import numpy as np
 import pylab as pl
 import scipy as sp
 from phoebe.algorithms import fraytracing
+from phoebe.algorithms import ceclipse
 
 logger = logging.getLogger('ALGO.ECLIPSE')
 
@@ -86,6 +87,51 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     #-- that's it!
     
 
+def detect_eclipse_horizon_fast(body_list,tolerance=1e-6):
+    """
+    Same as above (hopefully) except faster.
+    """
+    
+    if not isinstance(body_list,list): 
+        body_list = [body_list]
+    
+    mesh_list = [body.mesh for body in body_list]
+    
+    Ns = [len(mesh) for mesh in mesh_list]
+    Ns = [0] + list(np.cumsum(Ns))
+    
+    mesh = np.hstack(mesh_list)
+    
+    tab = mesh['triangle']
+    N = len(tab)
+    
+    st = np.argsort(mesh['center'][:,2])[::-1]
+    STp = np.vstack((tab[st][:,0:3],tab[st][:,3:6],tab[st][:,6:9]))
+    STp = np.hstack((STp,np.tile(range(N),3).reshape(3*N,1),np.repeat((0,1,2),N).reshape(3*N,1)))
+    stpi = np.lexsort((STp[:,3],STp[:,0],STp[:,1],STp[:,2]))
+    sp = STp[stpi]
+    
+    v,p,h = ceclipse.decl(tab,st,sp,tolerance)
+    
+    visible = np.zeros(N,bool)
+    visible[v] = True
+    partial = np.zeros(N,bool)
+    partial[p] = True
+    hidden= np.zeros(N,bool)
+    hidden[h] = True
+    
+    if not 'hidden' in mesh.dtype.names:
+        mesh = pl.rec_append_fields(mesh,['hidden','visible','partial'],[hidden,visible,partial])
+    else:
+        mesh['hidden'] = hidden
+        mesh['visible']= visible
+        mesh['partial']= partial
+
+    mesh_list_out = [mesh[N1:N2] for N1,N2 in zip(Ns,Ns[1:])]    
+    for i in range(len(body_list)):
+        body_list[i].mesh = mesh_list_out[i]
+    if len(body_list)==1:
+        body_list = body_list[0]
     
     
 def horizon_via_normal(body_list):
