@@ -54,6 +54,8 @@ ext_modules = [
                   sources = ['phoebe/algorithms/fsubdivision.f']),
         Extension('phoebe.algorithms.fraytracing',
                   sources = ['phoebe/algorithms/fraytracing_double.f']),
+        Extension('phoebe.algorithms.ceclipse',
+                  sources = ['phoebe/algorithms/ecl.c']),
         Extension('phoebe.wd.fwd',
                   include_dirs=['phoebe/wd'],
                   sources = glob.glob('phoebe/wd/*.f')),
