@@ -168,7 +168,7 @@ defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='
          ]
 
 #    BODY CONTEXT
-defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1-alb reflected)',          repr='%f',cast_type=float,value=1.,llim=0,ulim=5,step=0.05,adjust=False,frame=["phoebe"],context=['component','star','accretion_disk']),
+defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1-alb reflected)',          repr='%f',cast_type=float,value=1.,llim=0,ulim=5,step=0.05,adjust=False,frame=["phoebe"],alias=['albedo'],context=['component','star','accretion_disk']),
          dict(qualifier='redist',description='Global redist par (1-redist) local heating, redist global heating',
               long_description="During reflection computations, a 'redist' fraction of the incoming light will be used to heat the entire object, while a fraction '1-redist' will be used to locally heat the object. If you want complete heat redistribution, set redist=1. If you only want local heating, set redist=0. Note that the incoming light is dependent on the value of the albedo ('alb') parameter. If alb=0, the 'redist' parameter has no effect since all the light will be reflected, and nothing will be used for heating. In summary, a fraction '1-alb' of the incoming light is reflected, a fraction 'redist*alb' is used for global heating, and a fraction '(1-redist)*alb' for local heating.",
               repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['component','star','accretion_disk']),
@@ -489,13 +489,13 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
 defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
-         dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
-         dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
+         dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context='compute'),
+         dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
          dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
-         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
+         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
         ] 
 
 

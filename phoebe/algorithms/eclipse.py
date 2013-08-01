@@ -13,7 +13,7 @@ from phoebe.algorithms import ceclipse
 
 logger = logging.getLogger('ALGO.ECLIPSE')
 
-def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
+def detect_eclipse_horizon_slow(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     """
     Detect (self) (partially) eclipsed triangles in a mesh.
     
@@ -87,7 +87,7 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     #-- that's it!
     
 
-def detect_eclipse_horizon_fast(body_list,tolerance=1e-6):
+def detect_eclipse_horizon(body_list,tolerance=1e-6):
     """
     Same as above (hopefully) except faster.
     """

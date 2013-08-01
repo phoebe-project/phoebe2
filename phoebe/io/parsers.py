@@ -367,13 +367,13 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         elif key == 'phoebe_teff2.STEP':
             comp2.get_parameter('teff').set_step(step=float(val))   
 
-        elif key == 'phoebe_reffect_switch':
-            if val[1:-2] == "1":
-                comp1['irradiator'] = True
-                comp2['irradiator'] = True
-            else:
-                comp1['irradiator'] = True
-                comp2['irradiator'] = True
+        #elif key == 'phoebe_reffect_switch':
+            #if val[1:-2] == "1":
+                #comp1['irradiator'] = True
+                #comp2['irradiator'] = True
+            #else:
+                #comp1['irradiator'] = True
+                #comp2['irradiator'] = True
                 #-- set this way because there is always a single reflection
                 #-- reflection performed in phoebe legacy.
     
