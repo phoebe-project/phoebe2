@@ -90,8 +90,11 @@ class Bundle(object):
         else:
             i = None
         self.versions_curr_i = i
+
+        # connect signals        
+        self.attach_system_signals()
         
-        # connect signals
+    def attach_system_signals(self):
         self.attached_signals_system = []
         for label in self.get_system_structure(return_type='label',flat=True):
             ps = self.get_ps(label)
@@ -106,6 +109,8 @@ class Bundle(object):
         self.attach_signal(self,'load_data',self._on_param_changed)
         self.attach_signal(self,'enable_obs',self._on_param_changed)
         self.attach_signal(self,'disable_obs',self._on_param_changed)
+        self.attach_signal(self,'adjust_obs',self._on_param_changed)
+        self.attach_signal(self,'restore_version',self._on_param_changed)
                 
     def _on_param_changed(self,param):
         self.system.uptodate = False
@@ -472,24 +477,24 @@ class Bundle(object):
         @param name: name of the version (defaults to current timestamp)
         @type name: str        
         """
-        system = self.get_system()
         # purge any signals attached to system before copying
-        callbacks.purge_signals(system)
-        system.signals={}
+        callbacks.purge_signals(self.system)
         self.purge_signals(self.attached_signals_system)
-        version = {'system':system.copy()} #this will probably fail if there are signals attached
+        self.system.signals={}
+        self.attached_signals_system=[]
+        
+        # create copy of self.system and save to version
+        system = self.system.copy()
+        version = {}
+        version['system'] = system
         version['date_created'] = datetime.now()
         version['name'] = name if name is not None else str(version['date_created'])
         
         self.versions.append(version)
         
-        # call set_system to reattach signals and set versions_curr_i
-        self.set_system(system)
+        # reattach signals to the system
+        self.attach_system_signals()
         
-        # update versions_curr_i
-        #~ self.versions_curr_i = len(self.versions)-1
-
-
     def get_version(self,version=None,by='name',return_type='system'):
         """
         Retrieve a stored system version by one of its keys
@@ -862,12 +867,18 @@ class Bundle(object):
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
         
+        # clear all previous models and create new model
+        self.system.clear_synthetic()
+
         #~ self.system.fix_mesh()
+        #~ try:
+            #~ self.system.set_time(0)
+        #~ except:
+            #~ pass
         try:
             self.system.set_time(0)
         except:
-            pass
-        self.system.fix_mesh()
+            self.system.fix_mesh()
         
         if label is None:
             options = parameters.ParameterSet(context='compute')
@@ -875,11 +886,11 @@ class Bundle(object):
             if label not in self.compute:
                 return KeyError
             options = self.compute[label]
-        # clear all previous models and create new model
-        self.system.clear_synthetic()
+
         
         if options['time']=='auto' and not im:
-            observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+            #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+            self.system.compute(mpi=self.mpi if mpi else None,**options)
         else:
             observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,
                 extra_func=[observatory.ef_binary_image] if im else [],
@@ -887,10 +898,11 @@ class Bundle(object):
                 mpi=self.mpi if mpi else None,**options
                 )
                 
+        self.system.uptodate = label
+
         if add_version is not False:
             self.add_version(name=None if add_version==True else add_version)
-            
-        self.system.uptodate = label
+
 
     #}
             

@@ -928,8 +928,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 
             for check in adjust_checks:
                 if check.new_value != check.orig_value:
-                    do_command = "bundle.adjust_obs(ref=\'%s\',%s=%s)" % (dataset['ref'],check.key,check.new_value)
-                    undo_command = "bundle.adjust_obs(ref=\'%s\',%s=%s)" % (dataset['ref'],check.key,check.orig_value)
+                    do_command = "bundle.adjust_obs(dataref=\'%s\',%s=%s)" % (dataset['ref'],check.key,check.new_value)
+                    undo_command = "bundle.adjust_obs(dataref=\'%s\',%s=%s)" % (dataset['ref'],check.key,check.orig_value)
                     description = "%s dataset changed adjust on %s" % (dataset['ref'],check.key)
                     self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
 
