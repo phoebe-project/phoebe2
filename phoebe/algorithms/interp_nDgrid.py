@@ -55,6 +55,7 @@ def create_pixeltypegrid(grid_pars,grid_data):
     pixelgrid[indices] = grid_data.T
     return axis_values, pixelgrid
 
+
 def interpolate(p, axis_values, pixelgrid):
     """
     Interpolates in a grid prepared by create_pixeltypegrid().
@@ -74,8 +75,8 @@ def interpolate(p, axis_values, pixelgrid):
 
 
     # interpolate
-    return np.array([ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=1, prefilter=False) \
-                for i in range(np.shape(pixelgrid)[-1])])
+    return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=1, prefilter=False) \
+                for i in range(np.shape(pixelgrid)[-1])]
 
 
 if __name__ == "__main__":

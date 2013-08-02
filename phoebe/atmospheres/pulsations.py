@@ -52,6 +52,7 @@ from phoebe.utils import coordinates
 from phoebe.units import constants
 
 logger = logging.getLogger("PULS")
+logger.addHandler(logging.NullHandler())
 
 #{ Helper functions
 
@@ -608,9 +609,11 @@ def add_pulsations(self,time=None):
     #    self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
     self.mesh['velo___bol_'] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
     self.mesh['center'] = np.array(coordinates.spher2cart_coord(r4,phi4,theta4))[index_inv].T
+    logger.info("puls: before {}<teff<{} (deltaT={})".format(self.mesh['teff'].min(), self.mesh['teff'].max(),deltaTs))
     self.mesh['teff'] = teff
     self.mesh['logg'] = logg
     logger.info("puls: computed pulsational displacement, velocity and teff/logg field")
+    logger.info("puls: after {}<teff<{}".format(self.mesh['teff'].min(), self.mesh['teff'].max()))
 
 
 #}

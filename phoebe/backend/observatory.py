@@ -2015,8 +2015,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         system.set_time(time, ref=ref)
                 
         # For heating an eccentric system, we first need to reset the temperature!
-        if heating is True or i == 0 and heating == 1:
-            system.temperature(time)
+        #if heating is True or i == 0 and heating == 1:
+        #    system.temperature(time)
         
         # Compute intensities
         if i == 0 or not circular or beaming:
@@ -2177,13 +2177,13 @@ def binary_eclipse_algorithm(all_systems, algorithm):
         R1 = np.max(d1)
         R2 = np.max(d2)
         predict_eclipse = np.sqrt( (X1[0]-X2[0])**2 + (X1[1]-X2[1])**2)<=(R1+R2)
+        logger.info("{}: predict eclipse (binary convex E/H)".format(all_systems[0].time))
     else:
         predict_eclipse = None
     
     # If the separation between the two on the sky is smaller or equal to the 
     # sum of the radii, there can be an eclipse.
     if algorithm == 'binary_eclipse' or predict_eclipse:
-        logger.info("{}: predict eclipse (binary convex E/H)".format(all_systems[0].time))
         eclipse.convex_bodies([all_systems[0],all_systems[1]])
         return 'binary_eclipse'
     # Else, we can treat them as simple detached stars
@@ -2287,6 +2287,7 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
 #{ Extrafuncs for compute_dependables
 
 def ef_binary_image(system, time, i, name='ef_binary_image',
+                    show_orbit=False,
                     axes_on=True, **kwargs):
     """
     Make an image of a binary system.
@@ -2332,9 +2333,10 @@ def ef_binary_image(system, time, i, name='ef_binary_image',
     ax = pl.axes([0,0,1,1],aspect='equal',axisbg='k')
     ax.xaxis.set_ticks([])
     ax.yaxis.set_ticks([])
-    image(system,ax=ax,**kwargs)    
-    #pl.plot(orbit1[0],orbit1[1],'r-',lw=2)
-    #pl.plot(orbit2[0],orbit2[1],'b-',lw=2)
+    image(system,ax=ax,**kwargs)
+    if show_orbit:
+        pl.plot(orbit1[0], orbit1[1], 'r-', lw=2)
+        pl.plot(orbit2[0], orbit2[1], 'b-', lw=2)
     pl.xlim(xmin,xmax)
     pl.ylim(ymin,ymax)
     if not axes_on:

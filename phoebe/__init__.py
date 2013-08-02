@@ -55,7 +55,8 @@ from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
 from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
-                              BinaryStar,BodyBag,BinaryBag,AccretionDisk
+                              BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
+                              PulsatingBinaryRocheStar
 
 #-- common input and output
 from .parameters.parameters import load as load_ps

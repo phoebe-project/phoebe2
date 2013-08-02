@@ -1083,6 +1083,10 @@ def KOI126(create_body=True,**kwargs):
     starB['ld_coeffs'] = [0.5]
     starC['label'] = 'starC'
     
+    starA['incl'] = 90.
+    starB['incl'] = 90.
+    starC['incl'] = 90.
+    
     #-- inner binary
     orbitBC = parameters.ParameterSet(frame='phoebe',context='orbit',add_constraints=True,\
               c1label=starB['label'],c2label=starC['label'])
@@ -1090,7 +1094,7 @@ def KOI126(create_body=True,**kwargs):
     orbitBC['sma'] = 0.021986,'au'
     orbitBC['ecc'] = 0.02334
     orbitBC['per0'] = 89.52,'deg'
-    orbitBC['incl'] = 96.907-92.100,'deg'
+    orbitBC['incl'] = 94.807,'deg'#96.907-92.100,'deg'
     orbitBC['long_an'] = 8.012,'deg'
     orbitBC['label'] = 'systemBC'
     

@@ -34,3 +34,20 @@ Cf2py intent(out) out
 12      end do
         return
         end
+        
+        
+        subroutine cross_nx3_3(a,b,N,out)
+Cf2py intent(in) a
+Cf2py intent(in) b
+Cf2py intent(in) N
+Cf2py intent(out) out
+        implicit real*8 (a-h,o-z)
+        dimension a(N,3), b(3), out(N,3)
+        
+        do 13 i=1,N
+          out(i,1) =  a(i,2)*b(3) - a(i,3)*b(2)
+          out(i,2) = -a(i,1)*b(3) + a(i,3)*b(1)
+          out(i,3) =  a(i,1)*b(2) - a(i,2)*b(1)
+13      end do
+        return
+        end        

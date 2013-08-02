@@ -118,6 +118,7 @@ the_sun.set_time(0)
 
 # Now compute the observables.
 the_sun.lc()
+
 """
 And finally make some check images using :py:class:`plot2D() <phoebe.backend.universe.Body.plot2D>`:
 
@@ -146,6 +147,7 @@ the_sun.plot2D(savefig='sun_rv.png',select='rv')
 # Analysis of results
 # -------------------
 print(the_sun)
+
 params = the_sun.get_parameters()
 print("\nProjected flux:")
 nflux = the_sun.params['syn']['lcsyn']['Bolometric (numerical)']['flux'][0]

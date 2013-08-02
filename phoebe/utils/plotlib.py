@@ -5,6 +5,7 @@ import os
 import glob
 import subprocess
 import numpy as np
+from scipy import ndimage
 try:
     import matplotlib as mpl
 except ImportError:
@@ -37,6 +38,30 @@ def fig2data(fig, grayscale=False):
         # have it in RGBA mode
         buf = np.roll(buf, 3, axis=2)
         return buf
+
+
+def read_bitmap(system, image_file, res=1):
+    """
+    Read a bitmap to match the coordinates of a system.
+    """
+    #-- get the coordinates in the original frame of reference.
+    r,phi,theta = system.get_coords()
+    #-- read in the data
+    data = mpl.pyplot.imread(image_file)[::res,::res]
+    #   convert color images to gray scale
+    if len(data.shape)>2:
+        data = data.mean(axis=2).T
+    else:
+        data = data.T
+    data = data[::-1]
+    #-- normalise the coordinates so that we can map the coordinates
+    PHI = (phi+np.pi)/(2*np.pi)*data.shape[0]
+    THETA = (theta)/np.pi*data.shape[1]
+    vals = np.array(ndimage.map_coordinates(data,[PHI,THETA]),float)
+    #-- fix edges of image
+    vals[PHI>0.99*PHI.max()] = 1.0
+    vals[PHI<0.01*PHI.max()] = 1.0
+    return vals
     
 
 def blackbody_cmap():

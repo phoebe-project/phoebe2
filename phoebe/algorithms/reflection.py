@@ -44,6 +44,7 @@ import logging
 from numpy import pi,sqrt,sin,cos
 from scipy.integrate import quad
 from phoebe.algorithms import eclipse
+from phoebe.algorithms import freflection
 from phoebe.units import constants
 from phoebe.backend import decorators
 from phoebe.utils import coordinates
@@ -55,7 +56,7 @@ logger = logging.getLogger("ALGO.REFL")
 logger.addHandler(logging.NullHandler())
 
 @decorators.parse_ref
-def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
+def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
     """
     Calculate the radiation budget for heating and reflection.
     
@@ -88,7 +89,7 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     R1 = np.ones(N) # local heating
     R2 = 1. # global heating (redistributed)
     inco = np.ones((N,Nl)) # total flux that is incident on the triangle
-    day = np.zeros(N,bool)
+    #day = np.zeros(N,bool)
     total_surface = irradiated.mesh['size'].sum()
     ps_irradiator = [irradiator.get_parset(ref=jref) for jref in ref]
     ps_irradiated = [irradiated.get_parset(ref=jref) for jref in ref]
@@ -109,7 +110,11 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     ld_disk = getattr(limbdark, 'disk_'+ld_models_ed[ref_ed.index('__bol')])
     emer = ld_disk(irradiated.mesh['ld___bol'][:,:-1].T) * irradiated.mesh['ld___bol'][:,-1]
     
-    temp = np.zeros_like(emer)
+    #from phoebe.utils import plotlib
+    #albmap = plotlib.read_bitmap(irradiated, '/home/pieterd/workspace/phoebe/tests/test_reflection/moon_map.png')
+    
+    #import time
+    #c0 = time.time()
     for i in range(N):
         #-- maybe some lines of sights are obstructed: skip those
         if third_bodies is not None and not (irradiated.label==third_bodies.label)\
@@ -148,7 +153,7 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
         keep = (0<cos_psi1) & (0<cos_psi2) #& (cos_psi1<=1) & (cos_psi2<=1)
         if not np.sum(keep):
             continue
-        day[i] = True
+        #day[i] = True
         for j, jref in enumerate(ref):
             #-- what is the bolometric flux this triangle on the irradiated object
             #   receives from the irradiator? The mu-angles are cos(psi2). We also
@@ -176,8 +181,8 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #   dependent on the distance and the albedo
             proj_Ibolmu = np.sum(Ibolmu/distance2)
             
-            if jref=='__bol':
-                temp[i] = proj_Ibolmu
+            #if jref=='__bol':
+            #    temp[i] = proj_Ibolmu
             
             #-- what is the total intrinsic emergent flux from this triangle? We
             #   need to integrate over a solid angle of 2pi, that is let phi run
@@ -204,10 +209,11 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
             #   possible (uniform) redistribution here: only a fraction is used to
             #   heat this particular triangle, the rest is used to heat up the whole
             #   object
+            #A_irradiateds[j] = albmap[i]
             R1[i] = 1.0 + (1-P_redistrs[j])*A_irradiateds[j]*proj_Ibolmu/emer[i]
             R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer[i]*irradiated.mesh['size'][i]/total_surface
             
-    
+    #print ("----> {}".format(time.time()-c0))
     #from phoebe.units import conversions
     #from phoebe import universe
     
@@ -252,6 +258,84 @@ def radiation_budget(irradiated,irradiator,ref=None,third_bodies=None):
     #raise SystemExit
     
     return R1,R2,inco,emer,ref,A_irradiateds
+
+
+@decorators.parse_ref
+def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
+    """
+    Calculate the radiation budget for heating and reflection.
+    
+    For all refs in C{ref}, the following is done:
+        
+        - if bolometric, the incoming radiation from all irradiator triangles
+          visbible onto each triangle of the irradiated will be calculated, as
+          well as the emergent flux coming from each triangle on irradiated. This
+          can than be used to compute local or global heating.
+        
+        - if passband dependent, only the incoming radiation will be computed.
+          Typically used for reflection effects.
+    
+    @param irradiated: star that gets irradiated. The flux or temperature of this object will be altered
+    @type irradiated: Body
+    @param irradiator: star that irradiates the C{irradated} body. The properties of this object will not be altered
+    @type irradiator: Body
+    @param ref: ref that specificies in which filter (could be bolometric) the irradiation budget needs to be calculated in
+    @type ref: string or list of strings or None
+    """
+    def _tief(gamma,ld_law,coeffs):
+        """Small helper function to compute total intrinsic emergent flux"""
+        cos_gamma = cos(gamma)
+        Imu = coeffs[-1]*ld_law(cos_gamma,coeffs)
+        return Imu*cos_gamma*sin(gamma) # sin(gamma) is for solid angle integration
+    Nl = len(ref)
+    N = len(irradiated.mesh)
+    #-- run over each triangle on the irradiated star, and compute how much
+    #   radiation it receives from the irradiator.
+    R1 = np.ones(N) # local heating
+    R2 = 1. # global heating (redistributed)
+    inco = np.ones((N,Nl)) # total flux that is incident on the triangle
+    #day = np.zeros(N,bool)
+    total_surface = irradiated.mesh['size'].sum()
+    ps_irradiator = [irradiator.get_parset(ref=jref) for jref in ref]
+    ps_irradiated = [irradiated.get_parset(ref=jref) for jref in ref]
+    #-- we need to filter the references, because they can also contain
+    #   references to parametersets that are in another body!
+    ref = [ps[1] for ps in ps_irradiator if not ps[1] is None]
+    ref_ed = [ps[1] for ps in ps_irradiated if not ps[1] is None]
+    ld_models = [ps[0]['ld_func'] for ps in ps_irradiator if not ps[1] is None]
+    ld_models_ed = [ps[0]['ld_func'] for ps in ps_irradiated if not ps[1] is None]
+    A_irradiateds = [ps[0]['alb'] for ps in ps_irradiated if not ps[1] is None]
+    P_redistrs = [(ps[0]['redist'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
+    #if '__bol' in ref:
+        #total_surface = irradiated.mesh['size'].sum()
+    
+    # Compute emergent bolometric intensities (we could perhaps speed it up a
+    # bit by only computing it for those triangles that are facing the other
+    # star (flux that is coming out of triangle)
+    ld_disk = getattr(limbdark, 'disk_'+ld_models_ed[ref_ed.index('__bol')])
+    emer = ld_disk(irradiated.mesh['ld___bol'][:,:-1].T) * irradiated.mesh['ld___bol'][:,-1]
+    
+    
+    index_bol = ref.index('__bol')
+    irrorld = [irradiator.mesh['ld___bol']] + [irradiator.mesh['ld_{}'.format(iref)] for iref in ref[:index_bol]+ref[index_bol+1:]]
+    alb = A_irradiateds[index_bol]
+    redist = P_redistrs[index_bol]
+    ld_laws_indices = ['claret', 'linear', 'nonlinear', 'logarithmic',
+                       'quadratic','square_root', 'uniform']
+    ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
+    
+    #import time
+    #c0 = time.time()
+    R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
+                           irradiator.mesh['size'],
+                           irradiator.mesh['normal_'], irrorld,
+                           irradiated.mesh['center'], irradiated.mesh['size'],
+                           irradiated.mesh['normal_'], emer, total_surface,
+                           alb, redist, ld_laws)
+    #print ("----> {}".format(time.time()-c0))                       
+    
+    return R1,R2,inco,emer,ref,A_irradiateds
+
         
 def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
             heating=True, reflection=False, third_bodies=None):
@@ -263,12 +347,11 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
     elif heating:
         ref = '__bol'        
     elif reflection:
-        ref = 'alldep'
+        ref = 'all'#'alldep'
     
-    R1, R2, inco, emer, refs, A_irradiateds = radiation_budget(irradiated,
+    R1, R2, inco, emer, refs, A_irradiateds = radiation_budget_slow(irradiated,
                                                     irradiator, ref=ref,
                                                     third_bodies=third_bodies)
-    
     #-- heating part:
     if heating:
         # update luminosities and temperatures: we need to copy and replace the

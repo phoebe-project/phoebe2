@@ -2511,10 +2511,15 @@ class Body(object):
                     continue
                 lbl = param
                 mystring = ['{}: '.format(lbl)]
-                for par in thing.params[param]:
-                    mystring.append("{}={}".format(par,thing.params[param].get_parameter(par).to_str()))
-                    if thing.params[param].get_parameter(par).has_unit():
-                        mystring[-1] += ' {}'.format(thing.params[param].get_parameter(par).get_unit())
+                if not isinstance(thing.params[param],list):
+                    iterover = [thing.params[param]]
+                else:
+                    iterover = thing.params[param]
+                for iiterover in iterover:
+                    for par in iiterover:
+                        mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                        if iiterover.get_parameter(par).has_unit():
+                            mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
                 mystring = mystring[0] + ', '.join(mystring[1:])
                 summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
             
@@ -3384,7 +3389,7 @@ class PhysicalBody(Body):
         mesh_args = self.subdivision['mesh_args']
         mesh_args,scale = mesh_args[:-1],mesh_args[-1]
         #logger.info('updating %d/%d triangles in mesh with args %s (scale=%s)'%(sum(subset),len(self.mesh),str(mesh_args),str(scale)))
-        logger.info('updating some triangles in mesh with args %s (scale=%s)'%(str(mesh_args),str(scale)))
+        #logger.info('updating some triangles in mesh with args %s (scale=%s)'%(str(mesh_args),str(scale)))
         #-- then reproject the old coordinates. We assume they are fairly
         #   close to the real values.
         
@@ -4667,7 +4672,6 @@ class AccretionDisk(PhysicalBody):
         ld_func = idep['ld_func']
         proj_int = limbdark.projected_intensity(self,method=method,
                 ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
-        
         # Scale the projected intensity with the distance
         globals_parset = self.get_globals()
         if globals_parset is not None:
@@ -5039,7 +5043,6 @@ class Star(PhysicalBody):
         proj_int = limbdark.projected_intensity(self, method=method,
                 ld_func=ld_func, ref=ref,
                 with_partial_as_half=with_partial_as_half)
-        
         # Scale the projected intensity with the distance
         globals_parset = self.get_globals()
         if globals_parset is not None:
@@ -5730,7 +5733,8 @@ class BinaryRocheStar(PhysicalBody):
         # Scale the projected intensity with the distance
         globals_parset = self.get_globals()
         if globals_parset is not None:
-            distance = globals_parset.request_value('distance', 'Rsol')
+            #distance = globals_parset.request_value('distance', 'Rsol')
+            distance = globals_parset['distance'] / 3.085677581503e+16 * constants.Rsol
         else:
             distance = 1.0
         
@@ -5789,7 +5793,7 @@ class BinaryRocheStar(PhysicalBody):
         #   For non-zero eccentricity, we need to recalculate the grid and recalculate
         #   local quantities
         e = self.params['orbit'].get_value('ecc')
-        sma = self.params['orbit'].get_value('sma','Rsol')
+        sma = self.params['orbit'].get_value('sma')#,'Rsol')
         has_freq = 'puls' in self.params
         
         #-- there is a possibility to set to conserve volume or equipot
@@ -5813,7 +5817,7 @@ class BinaryRocheStar(PhysicalBody):
                 #   the value
                 if conserve_volume and e>0:
                     cvol_index = ['periastron','sup_conj','inf_conj','asc_node','desc_node'].index(conserve_phase)
-                    per0 = self.params['orbit'].request_value('per0','rad')
+                    per0 = self.params['orbit'].request_value('per0') / 180. *np.pi#,'rad')
                     P = self.params['orbit']['period']
                     t0 = self.params['orbit']['t0']
                     phshift = self.params['orbit']['phshift']

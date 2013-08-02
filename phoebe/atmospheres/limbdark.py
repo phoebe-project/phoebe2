@@ -951,7 +951,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid)
-        if np.any(np.isnan(pars)):
+        if np.any(np.isnan(pars[-1])):
             raise IndexError
     
     # Things can go outside the grid
@@ -967,7 +967,6 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     
     # The intensities were interpolated in log, but we want them in linear scale
     pars[-1] = 10**pars[-1]
-    
     # That's it!
     return pars
 
@@ -1772,7 +1771,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     #   reference to a table. Otherwise, just use the coefficients.
     if isinstance(ld_coeffs,str):
         atm_kwargs = dict(atm=atm,ld_func=ld_func,teff=teff,logg=logg,abun=abun,ld_coeffs=ld_coeffs)
-        ld_coeffs = interp_ld_coeffs(ld_coeffs,passband,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs)[:,0]
+        ld_coeffs = np.array(interp_ld_coeffs(ld_coeffs,passband,atm_kwargs=atm_kwargs,red_kwargs=red_kwargs))[:,0]
     #-- we compute projected and total intensity. We have to correct for solid
     #-- angle, radius of the star and distance to the star.
     theta1 = 2*np.pi*radius**2*4*np.pi
@@ -1908,9 +1907,9 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         log_msg += (', LD via table ld_coeffs='
                    '{:s}').format(os.path.basename(ld_coeffs))
         coeffs = interp_ld_coeffs(ld_coeffs, passband, atm_kwargs=atm_kwargs,
-                                       red_kwargs=red_kwargs, vgamma=vgamma).T
-        system.mesh[tag][:, :coeffs.shape[1]-1] = coeffs[:, :-1]
-        system.mesh[tag][:, -1] = coeffs[:, -1]
+                                       red_kwargs=red_kwargs, vgamma=vgamma)
+        for collnr, coefcoll in enumerate(coeffs):
+            system.mesh[tag][:, collnr] = coefcoll
         
     # Else the LD coeffs are just arrays and we can fill them in
     else:
@@ -2025,7 +2024,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         if 'refl_'+ref in system.mesh.dtype.names:
             proj_Imu += system.mesh['refl_'+ref][keep]
             logger.info("Projected intensity contains reflected light")
-        proj_intens = system.mesh['size'][keep]*proj_Imu        
+        proj_intens = system.mesh['size'][keep]*proj_Imu
         #-- we compute projected and total intensity. We have to correct for solid
         #-- angle, radius of the star and distance to the star.
         #distance = body.request_value('distance','Rsol')

@@ -52,6 +52,8 @@ ext_modules = [
         #          extra_compile_args=['-fPIC']),
         Extension('phoebe.algorithms.fsubdivision',
                   sources = ['phoebe/algorithms/fsubdivision.f']),
+        Extension('phoebe.algorithms.freflection',
+                  sources = ['phoebe/algorithms/freflection.f']),
         Extension('phoebe.algorithms.fraytracing',
                   sources = ['phoebe/algorithms/fraytracing_double.f']),
         Extension('phoebe.algorithms.ceclipse',

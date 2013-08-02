@@ -744,18 +744,24 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
 
     logger.info("Loaded contents from file {}".format(inputfile))
     
+    # Mesh preparation
+    # MARCHING
+    mesh1mar = parameters.ParameterSet(context='mesh:marching')
+    mesh2mar = parameters.ParameterSet(context='mesh:marching')
+    #-- empirical calibration (conversion between gridsize from WD and
+    #   pyphoebe marching delta)
+    mesh1mar['delta'] = 10**(-0.98359345*np.log10(mesh1wd['gridsize'])+0.4713824)
+    mesh2mar['delta'] = 10**(-0.98359345*np.log10(mesh2wd['gridsize'])+0.4713824)
+    
+    if mesh == 'marching':
+        mesh1 = mesh1mar
+        mesh2 = mesh2mar
+    else:
+        mesh1 = mesh1wd
+        mesh2 = mesh2wd
+    
     if create_bundle or create_body:
-        if mesh=='marching':
-            mesh1 = parameters.ParameterSet(context='mesh:marching')
-            mesh2 = parameters.ParameterSet(context='mesh:marching')
-            #-- empirical calibration (conversion between gridsize from WD and
-            #   pyphoebe marching delta)
-            mesh1['delta'] = 10**(-0.98359345*np.log10(mesh1wd['gridsize'])+0.4713824)
-            mesh2['delta'] = 10**(-0.98359345*np.log10(mesh2wd['gridsize'])+0.4713824)
-        else:
-            mesh1 = mesh1wd
-            mesh2 = mesh2wd
-            
+        
         ##need an if statement here incase no obs
         if prim_rv !=0 and sec_rv !=0:
             star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1,obs=obsrv1)

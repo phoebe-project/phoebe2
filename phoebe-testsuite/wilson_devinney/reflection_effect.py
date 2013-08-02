@@ -44,14 +44,14 @@ ps['pot1'] = 4.75
 ps['pot2'] = 4.75
 ps['ifat1'] = 0
 ps['ifat2'] = 0
-ps['alb1'] = 1.
-ps['alb2'] = 1.
+ps['alb1'] = 1
+ps['alb2'] = 1
 ps['nref'] = 1
 ps['mref'] = 2
-ps['ipb'] = 0
+ps['ipb'] = 1
 ps['incl'] = 75.,'deg'
-ps['n1'] = 60
-ps['n2'] = 60
+ps['n1'] = 20
+ps['n2'] = 20
 ps['teff2'] = 30000.,'K'
 lc['phnorm'] = 0.0
 lc['jdstrt'] = ps['hjd0']
@@ -65,7 +65,6 @@ rv['vunit'] = 1.
 comp1,comp2,binary = wd.wd_to_phoebe(ps,lc,rv)
 star1,lcdep1,rvdep1 = comp1
 star2,lcdep2,rvdep2 = comp2
-star1['irradiator'] = False
 
 # Set the fineness of the mesh manually, there is no conversion possible between
 # a WD-type and pyphoebe-type mesh.
@@ -76,11 +75,11 @@ mesh2['delta'] = 0.25
 
 # Body setup
 #-----------
+star1['alb'] = np.sqrt(2)*star1['alb']
+star2['alb'] = np.sqrt(2)*star2['alb']
 star1 = phoebe.BinaryRocheStar(star1,binary,mesh1,pbdep=[lcdep1,rvdep1])
 star2 = phoebe.BinaryRocheStar(star2,binary,mesh2,pbdep=[lcdep2,rvdep2])
 
-print star1
-print star2
 c1 = time.time()
 
 # Computation of observables
@@ -115,14 +114,14 @@ rv2 = phoebe.convert('Rsol/d','km/s',rv2)
 
 plt.figure(figsize=(9,7))
 plt.axes([0.1,0.3,0.85,0.65])
-plt.plot(times,flux/flux.mean(),'ko-',label='pyphoebe')
-plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean(),'ro-',lw=2,label='WD')
-plt.plot(curve2['indeps'],curve2['lc']/curve2['lc'].mean(),'bo-',lw=2,label='WD (no refl)')
+plt.plot(times,flux,'ko-',label='pyphoebe')
+plt.plot(curve['indeps'],curve['lc'],'ro-',lw=2,label='WD')
+plt.plot(curve2['indeps'],curve2['lc'],'bo-',lw=2,label='WD (no refl)')
 leg = plt.legend(loc='best',fancybox=True)
 leg.get_frame().set_alpha(0.5)
 plt.ylabel('Normalized flux')
 plt.axes([0.1,0.1,0.85,0.20])
-plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean()-flux/flux.mean(),'ko-')
+plt.plot(curve['indeps'],curve['lc']-flux,'ko-')
 plt.xlabel('Phase')
 plt.savefig('03_lc_comparison')
 
