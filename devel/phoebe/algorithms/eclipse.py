@@ -222,13 +222,16 @@ def convex_bodies(body_list):
     @param body_list: list of bodies
     @type body_list: list of Bodies
     """
-    if not isinstance(body_list,list): body_list = [body_list]
+    if not isinstance(body_list,list):
+        body_list = [body_list]
+    
     # Order the bodies from front to back. Now I do a very crude approximation
     # that can break down once you have small body very near the surface
     # of the other body. I simply order them according to the location of
     # the first triangle in the mesh.
     location = np.argsort([bb.mesh['center'][0,2] for bb in body_list])[::-1] # inverted!
     body_list = [body_list[i] for i in location]
+    
     #-- do detection
     #   Plan: - first make a convex hull of all centers
     #         - then see which triangles are on the edge?
@@ -238,11 +241,11 @@ def convex_bodies(body_list):
     #           inside any of the hulls. If they are all obscured, it's
     #           completely invisible. If not all of them, probably
     #           partially visible
-    for i,front_body in enumerate(body_list[:-1]):
+    for i, front_body in enumerate(body_list[:-1]):
         keep_front = -front_body.mesh['hidden']
         if not sum(keep_front):
             continue
-        for j,ecl_body in enumerate(body_list[i+1:]):
+        for j, ecl_body in enumerate(body_list[i+1:]):
             keep_back = -ecl_body.mesh['hidden']
             front_coords = np.vstack([front_body.mesh['center'][keep_front,0:2],\
                                       front_body.mesh['triangle'][keep_front,0:2],\

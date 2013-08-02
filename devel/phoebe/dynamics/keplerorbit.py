@@ -411,6 +411,7 @@ from scipy.optimize import newton,bisect
 from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.utils import cgeometry
+from phoebe.utils import fgeometry
 
 logger = logging.getLogger('BINARY.ORBIT')
 
@@ -1548,10 +1549,13 @@ def place_in_binary_orbit(self,time):
     q = self.params['orbit']['q']
     a1 = a / (1+1.0/q)#self.params['orbit'].get_constraint('sma1', 'Rsol')
     a2 = a-a1#self.params['orbit'].get_constraint('sma2','Rsol')
-    inclin = self.params['orbit'].get_value('incl', 'rad')
-    argper = self.params['orbit'].get_value('per0', 'rad')
-    long_an = self.params['orbit'].get_value('long_an', 'rad')
-    vgamma = self.params['orbit'].get_value('vgamma', 'Rsol/d')
+    #inclin = self.params['orbit'].get_value('incl', 'rad')
+    #argper = self.params['orbit'].get_value('per0', 'rad')
+    #long_an = self.params['orbit'].get_value('long_an', 'rad')
+    #vgamma = self.params['orbit'].get_value('vgamma', 'Rsol/d')
+    inclin = self.params['orbit']['incl'] / 180.*np.pi
+    argper = self.params['orbit']['per0'] / 180.*np.pi
+    long_an = self.params['orbit']['long_an'] / 180.*np.pi
     T0 = self.params['orbit'].get_value('t0')
     n_comp = self.get_component()
     component = ('primary', 'secondary')[n_comp]
@@ -1591,7 +1595,8 @@ def place_in_binary_orbit(self,time):
     except:
         polar_dir = np.array([0,0,-1.0])
         
-    velo_rot = np.cross(mesh['_o_center'],polar_dir*omega_rot) #NX3 array
+    #velo_rot = np.cross(mesh['_o_center'],polar_dir*omega_rot) #NX3 array
+    velo_rot = fgeometry.cross_nx3_3(mesh['_o_center'], polar_dir*omega_rot)
     velo_rot = rotate_into_orbit(velo_rot.T,euler).T
     for label in mesh.dtype.names:
         if label[:4]=='velo':
@@ -1614,7 +1619,8 @@ def place_in_binary_orbit(self,time):
     # Add systemic velocity:
     globals = self.get_globals()
     if globals is not None:
-        vgamma = globals.request_value('vgamma', 'Rsol/d')
+        #vgamma = globals.request_value('vgamma', 'Rsol/d')
+        vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
         mesh['velo___bol_'][:,2] -= vgamma
     
     self.mesh = mesh
