@@ -2229,7 +2229,14 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     # Perhaps we know it's a binary
     elif algorithm[:6] == 'binary':
         return binary_eclipse_algorithm(all_systems, algorithm=algorithm)
-        
+    
+    # Perhaps we want to use the convex one
+    elif algorithm == 'convex':
+        logger.info("Convex E/H detection")
+        eclipse.convex_bodies(all_systems.bodies)
+        return algorithm
+    
+    
     # Perhaps we can try to be clever    
     try:
         if hasattr(all_systems,'len') and len(all_systems)==2: # assume it's a binary
