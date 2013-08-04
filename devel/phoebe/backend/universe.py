@@ -5174,6 +5174,7 @@ class Star(PhysicalBody):
             raise ValueError("Star goes boom! (due to rotation rate being over the critical one [{:.3f}%]".format(Omega*100.))
         
         gridstyle = self.params['mesh'].context
+        max_triangles = np.inf # not all algorithms have a limit
         if gridstyle=='mesh:marching':
             #-- marching method. Remember the arguments so that we can reproject
             #   subdivided triangles later on.
@@ -5199,6 +5200,11 @@ class Star(PhysicalBody):
         #   dependent on the pbdep parameters (note that at this point, we just
         #   prepare the array, we don't do anything with it yet):
         N = len(the_grid)
+        if N>=(max_triangles-1):
+            raise ValueError(("Maximum number of triangles reached ({}). "
+                              "Consider raising the value of the parameter "
+                              "'maxpoints' in the mesh ParameterSet, or "
+                              "decrease the mesh density").format(N))
         ld_law = 5
         ldbol_law = 5
         if not 'logg' in self.mesh.dtype.names:
@@ -5338,9 +5344,21 @@ class BinaryRocheStar(PhysicalBody):
         Component: 0 is primary 1 is secondary
         """
         super(BinaryRocheStar,self).__init__(dim=3)
-        #-- remember the values given
+        #-- remember the values given, but check their contexts!
+        if not component.get_context() == 'component':
+            raise ValueError(("First argument to BinaryRocheStar needs to be of "
+                              "context 'component', not '{}'. You can use the "
+                              "function phoebe.create.binary_from_stars to "
+                              "easily convert 'star' to 'component', if that "
+                              "helps.").format(component.get_context()))
         self.params['component'] = component
+        
+        if not orbit.get_context() == 'orbit':
+            raise ValueError(("ParameterSet of context '{}' given to keyword "
+                              "argument 'orbit'. Should be of context "
+                              "''.".format(orbit.get_context())))
         self.params['orbit'] = orbit
+        
         self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
         self.params['obs'] = OrderedDict()
@@ -5458,6 +5476,7 @@ class BinaryRocheStar(PhysicalBody):
         self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d*a))
                 
         gridstyle = self.params['mesh'].context
+        max_triangles = np.inf # not all mesh algorithms have an upper limit
         if gridstyle=='mesh:marching':
             #-- marching method. Remember the arguments so that we can reproject
             #   subidivded triangles later on.
@@ -5480,6 +5499,11 @@ class BinaryRocheStar(PhysicalBody):
         
         #-- wrap everything up in one array
         N = len(the_grid)
+        if N>=(max_triangles-1):
+            raise ValueError(("Maximum number of triangles reached ({}). "
+                              "Consider raising the value of the parameter "
+                              "'maxpoints' in the mesh ParameterSet, or "
+                              "decrease the mesh density").format(N))
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []
@@ -6031,6 +6055,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d*a))
         
         gridstyle = self.params['mesh'].context
+        max_triangles = np.inf # not all mesh algorithms have an upper limit
         if gridstyle=='mesh:marching':
             #-- marching method. Remember the arguments so that we can reproject
             #   subidivded triangles later on.
@@ -6053,6 +6078,11 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         
         #-- wrap everything up in one array
         N = len(the_grid)
+        if N>=(max_triangles-1):
+            raise ValueError(("Maximum number of triangles reached ({}). "
+                              "Consider raising the value of the parameter "
+                              "'maxpoints' in the mesh ParameterSet, or "
+                              "decrease the mesh density").format(N))
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []

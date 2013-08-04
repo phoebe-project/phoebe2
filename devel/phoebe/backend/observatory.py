@@ -2045,7 +2045,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         for k in range(params['subdiv_num']):
             system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
             choose_eclipse_algorithm(system, algorithm=ecl)
-        
+
         # Correct for light travel time effects
         if ltt:
             system.correct_time()
