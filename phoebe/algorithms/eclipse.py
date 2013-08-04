@@ -225,6 +225,9 @@ def convex_bodies(body_list):
     if not isinstance(body_list,list):
         body_list = [body_list]
     
+    # Make sure some defaults are set
+    horizon_via_normal(body_list)
+    
     # Order the bodies from front to back. Now I do a very crude approximation
     # that can break down once you have small body very near the surface
     # of the other body. I simply order them according to the location of
@@ -251,6 +254,9 @@ def convex_bodies(body_list):
                                       front_body.mesh['triangle'][keep_front,0:2],\
                                       front_body.mesh['triangle'][keep_front,3:5],\
                                       front_body.mesh['triangle'][keep_front,6:8]])
+            #front_coords = np.vstack([front_body.mesh['triangle'][keep_front,0:2],\
+                                      #front_body.mesh['triangle'][keep_front,3:5],\
+                                      #front_body.mesh['triangle'][keep_front,6:8]])
             ed = sp.spatial.Delaunay(front_coords)
             in_eclipse_c = ed.find_simplex(ecl_body.mesh['center'][keep_back,0:2])>=0
             in_eclipse_1 = ed.find_simplex(ecl_body.mesh['triangle'][keep_back,0:2])>=0
