@@ -877,6 +877,8 @@ def critical_times(orbit_in, time_range=None):
         crit_times = np.array([ct + n_periods*P for ct in crit_times])
         keep = (crit_times<=time_range[1]) & (time_range[0]<=crit_times)
         crit_times = crit_times[keep]
+    
+    return crit_times
         
         
 def make_synchronous(orbit, comp1=None, comp2=None):
