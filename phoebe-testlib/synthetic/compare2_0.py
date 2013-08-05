@@ -5,11 +5,11 @@ Usage:
 
 To do a full comparison of light curves and radial velocity curves:
 
-    $:> python compare2.0.py detached_2
+    $:> python compare2_0.py detached_2
     
 To make images of the system at a specific time:
     
-    $:> python compare2.0.py detached_2 1.75
+    $:> python compare2_0.py detached_2 1.75
     
 """
 import sys
@@ -34,22 +34,11 @@ def compare(name):
     system = parsers.legacy_to_phoebe(filename, mesh='marching',
                                     create_body=True, root=basedir)
     print(system.list(summary='long'))
+    print(system.list(summary='physical'))
     
     # Override the mesh density, we don't want to wait forever
     for body in system.bodies:
         body.params['mesh']['delta'] = DELTA
-    
-    # Add Phoebe 1.0 results as observations, but only if they exist
-    lc_file = os.path.join(basedir, "{}.lc.1.0.data".format(name))
-
-    system_obs = []
-
-    if os.path.isfile(lc_file):
-        ref_lc = system.get_refs(category='lc')[0]
-        lcobs, lcdep = datasets.parse_lc(lc_file, ref=ref_lc)
-        system_obs.append(lcobs)
-
-    system.add_obs(system_obs)
 
     # Compute Phoebe 2.0 results
     if 'overcontact' in name:
@@ -68,6 +57,7 @@ def compare(name):
     # Make comparison plots
 
     try:
+        ref_lc = system.get_refs(category='lc')[0]
         diffs = plot_lc(system, ref_lc)
         results.append([np.median(diffs), diffs.std(), diffs.min(), diffs.max()])
     except:
