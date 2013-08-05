@@ -363,7 +363,7 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         irradiated.intensity(ref=['__bol'])
         #limbdark.local_intensity(irradiated,
         #                         irradiated.get_parset(ref='__bol')[0])
-        logger.warning(("single heating effect: updated luminosity{} of {} "
+        logger.info(("single heating effect: updated luminosity{} of {} "
                        "according to max "
                        "Teff increase of {:.3f}%").format((update_temperature and ' and teff' or '(no teff)'),irradiated.get_label(), (((R1+R2-1)**0.25).max()-1)*100))
         #-- still not sure if I should include the following
