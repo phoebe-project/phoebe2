@@ -1225,7 +1225,7 @@ def calculate_total_radius_from_eclipse_duration(eclipse_duration,incl,sma=1):
     return sma*sqrt( sin(pi*eclipse_duration)**2 + cos(incl)**2)
     
     
-def truecoords_to_spherical(coords,distance=0., origin=(0.,0.)):
+def truecoords_to_spherical(coords,distance=0., origin=(0.,0.), units=None):
     """
     Convert 3D coords to spherical on-sky coordinates.
     
@@ -1241,22 +1241,26 @@ def truecoords_to_spherical(coords,distance=0., origin=(0.,0.)):
     @type distance: float
     @param origin: origin of spherical coordinate system, in radians
     @type origin: tuple of floats
-    @return: spherical coordinates
+    @return: spherical coordinates in radians
     @rtype: (float,float)
     """
     if distance is None: # then take 10 pc
-        distance = 443658100.4823813 # 10 pc in Rsol
+        #distance = 443658100.4823813 # 10 pc in Rsol
+        distance = 10*phoebe.constants.pc/phoebe.constants.Rsol
     elif isinstance(distance,tuple):
         distance = conversions.convert(distance[1],'Rsol',distance[0])
     #-- correct coords for distance
-    coords[:,2] = coords[:,2]+distance
+    z = coords[:,2]+distance
     #-- compute spherical angles
-    alpha = 2*arctan(coords[:,0]/(2*coords[:,2])) 
-    beta = 2*arctan(coords[:,1]/(2*coords[:,2]))
+    alpha = 2*arctan(coords[:,0]/(2*z)) 
+    beta = 2*arctan(coords[:,1]/(2*z))
     #-- correct spherical angles for offset
-    #ra = conversions.convert('rad',units,origin[0] + alpha)
-    #dec = conversions.convert('rad',units,origin[1] + beta)
-    return origin[0]+alpha,origin[1]+beta
+    if units is not None:
+        ra = conversions.convert('rad',units,origin[0] + alpha)
+        dec = conversions.convert('rad',units,origin[1] + beta)
+        return ra, dec, z
+    else:
+        return origin[0]+alpha,origin[1]+beta, z
 
 #}
 

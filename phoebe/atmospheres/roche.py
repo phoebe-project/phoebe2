@@ -428,7 +428,8 @@ def potential2radius(pot, q, d=1, F=1.0, component=1, sma=1.0, loc='pole',
         raise ValueError("Failed to converge, potential {} is probably too low".format(pot))
     return r_pole*sma
 
-def radius2potential(radius,q,d=1.,F=1.,component=1,sma=1.,loc='pole',tol=1e-10,maxiter=50):
+def radius2potential(radius, q, d=1., F=1., component=1, sma=1., loc='pole',
+                     tol=1e-10, maxiter=50):
     """
     Convert a radius to a potential value.
     
