@@ -90,8 +90,6 @@ def snapshot(name, time):
     # Parse the Legacy file
     system = parsers.legacy_to_phoebe("{}.phoebe".format(name), mesh='marching',
                                     create_body=True)
-    system[0].params['orbit']['q'] = 0.1
-    system[0].params['component']['pot'] = 1.9
     print(system.list(summary='physical'))
     
     # Override the mesh density, we don't want to wait forever
