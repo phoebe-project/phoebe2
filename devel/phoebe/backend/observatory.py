@@ -69,7 +69,7 @@ logger.addHandler(logging.NullHandler())
 def image(the_system, ref='__bol', context='lcdep',
             cmap=None, select='proj', background=None, vmin=None, vmax=None,
             size=800, ax=None, savefig=False, nr=0, zorder=1, dpi=80,
-            fourier=False, with_partial_as_half=True):
+            fourier=False, with_partial_as_half=True, coords='cartesian'):
     """
     Compute images of a system or make a 2D plot.
     
@@ -263,7 +263,27 @@ def image(the_system, ref='__bol', context='lcdep',
     # the right order.
     mesh = the_system.mesh
     mesh = mesh[np.argsort(mesh['center'][:, 2])]
+    
+    # Now transform the coordinates to spherical coordinates
+    # scales) if needed
+    if coords == 'angular':
+        globals = the_system.get_globals()
+        if globals is None:
+            raise ValueError('There are no global variables defined in this system: cannot compute angular coordinates.')
+        distance = globals.request_value('distance', 'Rsol')
+        origin = globals['ra'], globals['dec']
+        mesh['center'] = np.array(keplerorbit.truecoords_to_spherical(mesh['center'],
+                                         distance=distance, origin=origin, units='mas')).T
+        mesh['triangle'][:,0:3] = np.array(keplerorbit.truecoords_to_spherical(mesh['triangle'][:,0:3],
+                                         distance=distance, origin=origin, units='mas')).T
+        mesh['triangle'][:,3:6] = np.array(keplerorbit.truecoords_to_spherical(mesh['triangle'][:,3:6],
+                                         distance=distance, origin=origin, units='mas')).T
+        mesh['triangle'][:,6:9] = np.array(keplerorbit.truecoords_to_spherical(mesh['triangle'][:,6:9],
+                                         distance=distance, origin=origin, units='mas')).T
+    
     x, y = mesh['center'][:, 0],mesh['center'][:, 1]
+    
+        
     
     # Initiate the figure: if a Fourier transform needs to be computed, we'll
     # create a small figure. Else we let the user decide. If the user supplied

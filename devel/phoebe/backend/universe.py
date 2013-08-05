@@ -5204,7 +5204,9 @@ class Star(PhysicalBody):
             raise ValueError(("Maximum number of triangles reached ({}). "
                               "Consider raising the value of the parameter "
                               "'maxpoints' in the mesh ParameterSet, or "
-                              "decrease the mesh density").format(N))
+                              "decrease the mesh density. It is also "
+                              "possible that the equipotential surface is "
+                              "not closed.").format(N))
         ld_law = 5
         ldbol_law = 5
         if not 'logg' in self.mesh.dtype.names:
@@ -5339,12 +5341,15 @@ class BinaryRocheStar(PhysicalBody):
     Body representing a binary Roche surface.
     """
     
-    def __init__(self,component,orbit=None,mesh=None,reddening=None,pbdep=None,obs=None,**kwargs):
+    def __init__(self, component, orbit=None, mesh=None, reddening=None,
+                 pbdep=None, obs=None, **kwargs):
         """
         Component: 0 is primary 1 is secondary
         """
         super(BinaryRocheStar,self).__init__(dim=3)
         #-- remember the values given, but check their contexts!
+        
+        # Perform some checks on "component"
         if not component.get_context() == 'component':
             raise ValueError(("First argument to BinaryRocheStar needs to be of "
                               "context 'component', not '{}'. You can use the "
@@ -5353,6 +5358,7 @@ class BinaryRocheStar(PhysicalBody):
                               "helps.").format(component.get_context()))
         self.params['component'] = component
         
+        # Perform some checks on "orbit"
         if not orbit.get_context() == 'orbit':
             raise ValueError(("ParameterSet of context '{}' given to keyword "
                               "argument 'orbit'. Should be of context "
@@ -5467,10 +5473,12 @@ class BinaryRocheStar(PhysicalBody):
         #   important: the polar surface gravity of a rotating star is equal
         #   to that of a nonrotating star!
         omega_rot = F * 2*pi/P # rotation frequency
+        omega_orb = 2*pi/P
         r_pole = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,Phi).r
         r_pole_= np.linalg.norm(r_pole)
         r_pole = r_pole_*a
-        g_pole = roche.binary_surface_gravity(0,0,r_pole,d*a,omega_rot/F,M1,M2,normalize=True)
+            
+        g_pole = roche.binary_surface_gravity(0,0,r_pole,d*a,omega_orb,M1,M2,normalize=True)
         self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(r_pole))
         self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
         self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d*a))
@@ -5503,7 +5511,9 @@ class BinaryRocheStar(PhysicalBody):
             raise ValueError(("Maximum number of triangles reached ({}). "
                               "Consider raising the value of the parameter "
                               "'maxpoints' in the mesh ParameterSet, or "
-                              "decrease the mesh density").format(N))
+                              "decrease the mesh density. It is also "
+                              "possible that the equipotential surface is "
+                              "not closed.").format(N))
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []
@@ -5591,6 +5601,7 @@ class BinaryRocheStar(PhysicalBody):
         pos1,pos2,d = get_binary_orbit(self,time)
         d_ = d*sma
         omega_rot = F * 2*pi/P # rotation frequency
+        omega_orb = 2*pi/P
         
         #-- keep track of the potential vs volume function to compute
         #   derivatives numerically
@@ -5644,7 +5655,7 @@ class BinaryRocheStar(PhysicalBody):
                 oldpot = grad*(V1-volumes[-2])+potentials[-2]
         
         #-- keep parameters up-to-date
-        g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
+        g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_orb,M1,M2,normalize=True)
         self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol),do_run_constraints=False)
         self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole),do_run_constraints=False)
         self.params['orbit'].add_constraint('{{d}} = {0:.16g}'.format(d_*constants.Rsol))
@@ -5840,16 +5851,19 @@ class BinaryRocheStar(PhysicalBody):
                 #   time. Then we compute the mesh at that time and remember
                 #   the value
                 if conserve_volume and e>0:
-                    cvol_index = ['periastron','sup_conj','inf_conj','asc_node','desc_node'].index(conserve_phase)
-                    per0 = self.params['orbit'].request_value('per0') / 180. *np.pi#,'rad')
+                    cvol_index = ['periastron', 'sup_conj', 'inf_conj',
+                                  'asc_node', 'desc_node'].index(conserve_phase)
+                    per0 = self.params['orbit'].request_value('per0')/180.*np.pi
                     P = self.params['orbit']['period']
                     t0 = self.params['orbit']['t0']
                     phshift = self.params['orbit']['phshift']
                     t0type = self.params['orbit']['t0type']
                     crit_times = tools.critical_times(self.params['orbit'])
-                    logger.info("t0 = {}, t_conserve = {}, {}".format(t0,crit_times[cvol_index], conserve_phase))
-                    self.compute_mesh(crit_times[cvol_index],conserve_volume=True)
-                    #print("CONSERVING VOLUME AT {}".format(crit_times[cvol_index]))
+                    logger.info("t0 = {}, t_conserve = {}, {}".format(t0,
+                                        crit_times[cvol_index], conserve_phase))
+                    self.compute_mesh(crit_times[cvol_index],
+                                      conserve_volume=True)
+                    # Calculated the basic properties at this time
                     self.surface_gravity()
                     self.temperature()
                     self.intensity(ref=ref)
@@ -5910,7 +5924,31 @@ class PulsatingBinaryRocheStar(BinaryRocheStar):
             self.params['puls'] = to_add
             
     def add_pulsations(self,time=None):
-        pulsations.add_pulsations(self, time=time)
+        component = self.get_component()
+        mass = self.params['orbit']['mass{}'.format(component+1)]
+        radius = self.params['component']['r_pole']
+        F = self.params['component']['syncpar'] 
+        orbperiod = self.params['orbit']['period']
+        if F>0:
+            rotperiod = orbperiod / F
+        else:
+            rotperiod = np.inf
+        
+        # The mesh of a PulsatingBinaryRocheStar rotates along the orbit, and
+        # it is independent of the rotation of the star. Thus, we need to
+        # specifically specify in which phase the mesh is. It has an "orbital"
+        # phase, and a "rotational" phase. We add 90deg so that it has the
+        # same orientation as a single star at phase 0.
+        
+        # to match coordinate system of Star:
+        mesh_phase = np.pi / 2.0
+        # to correct for orbital phase:
+        mesh_phase+= (time % orbperiod)/orbperiod * 2*np.pi
+        # to correct for rotational phase:
+        mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
+        
+        pulsations.add_pulsations(self, time=time, mass=mass, radius=radius,
+                                  rotperiod=rotperiod, mesh_phase=mesh_phase)
 
 
 class MisalignedBinaryRocheStar(BinaryRocheStar):
@@ -6082,7 +6120,9 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             raise ValueError(("Maximum number of triangles reached ({}). "
                               "Consider raising the value of the parameter "
                               "'maxpoints' in the mesh ParameterSet, or "
-                              "decrease the mesh density").format(N))
+                              "decrease the mesh density. It is also "
+                              "possible that the equipotential surface is "
+                              "not closed.").format(N))
         ld_law = 5
         ldbol_law = 5
         new_dtypes = []

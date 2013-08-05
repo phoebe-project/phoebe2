@@ -395,7 +395,7 @@ def longitudinal(theta,phi,l,m,freq,phase,t,spin,k):
     term3 = -norm_atlm1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l-1,m)*exp(1j*2*pi*(freq*t+phase-0.25))
     return term1 + term2 + term3
 
-def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl):
+def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, mesh_phase=0):
     """
     Compute surface displacements.
     
@@ -412,17 +412,22 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl):
     velo_phi = 0.
     zero = np.zeros_like(theta,complex)
     
+    # Take care of meshes that rotate themselves (i.e. the mesh rotates
+    # independently from the rotation period, as happens e.g. in
+    # BinaryRocheStars)
+    phi_ = phi - mesh_phase
+    
     for il,im,ifreq,iphase,ispin,ik,iasl in zip(l,m,freq,phases,spin,k,asl):
         #-- radial perturbation
-        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta,phi,il,im,ifreq,iphase,t)
+        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta,phi_,il,im,ifreq,iphase,t)
         #-- add to the total perturbation of the radius and velocity
         ksi_r += ksi_r_
         velo_r += 1j*2*pi*ifreq*ksi_r_
         #-- colatitudinal and longitudonal perturbation when l>0
         norm = sqrt(4*pi)
         if il>0:
-            ksi_theta_ = iasl*norm*colatitudinal(theta,phi,il,im,ifreq,iphase,t,ispin,ik)
-            ksi_phi_   = iasl*norm* longitudinal(theta,phi,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_theta_ = iasl*norm*colatitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_phi_   = iasl*norm* longitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
@@ -438,7 +443,10 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl):
            (phi + ksi_phi.real),\
            velo_r.real,velo_theta.real,velo_phi.real
 
-def observables(radius,theta,phi,teff,logg,t,l,m,freq,phases,spin,k,asl,delta_T,delta_g):
+def observables(radius, theta, phi, teff, logg,
+                t, l, m, freq, phases,
+                spin, k, asl, delta_T, delta_g,
+                mesh_phase=0.0):
     """
     Good defaults:
     
@@ -460,15 +468,20 @@ def observables(radius,theta,phi,teff,logg,t,l,m,freq,phases,spin,k,asl,delta_T,
     ksi_teff = 0.
     zero = np.zeros_like(phi,complex)
     
+    # Take care of meshes that rotate themselves (i.e. the mesh rotates
+    # independently from the rotation period, as happens e.g. in
+    # BinaryRocheStars)
+    phi_ = phi - mesh_phase
+    
     for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g in \
        zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g):
-        rad_part = radial(theta,phi,il,im,ifreq,iphase,t)
+        rad_part = radial(theta,phi_,il,im,ifreq,iphase,t)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
         ksi_r += ksi_r_*radius
         velo_r += 1j*2*pi*ifreq*ksi_r_*radius
         if il>0:
-            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta,phi,il,im,ifreq,iphase,t,ispin,ik)
-            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta,phi,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
@@ -497,20 +510,39 @@ def observables(radius,theta,phi,teff,logg,t,l,m,freq,phases,spin,k,asl,delta_T,
 
 #{ Phoebe specific interface
 
-def add_pulsations(self,time=None):
+def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
+                   mesh_phase=0.0):
+    """
+    Add pulsations to a Body.
+    
+    Stellar parameters are only used to estimate parameters such as horizontal
+    over vertical displacement.
+    
+    @param mass: object's mass (kg)
+    @type mass: float or None
+    @param radius: object's radius (m)
+    @type radius: float or None
+    @param rotperiod: object's rotation period (d)
+    @type rotperiod: float or None
+    """
     if time is None:
         time = self.time
     
-    #-- relevant stellar parameters
-    try:
-        rotfreq = 1./self.params['star'].request_value('rotperiod','d')
+    # Relevant stellar parameters
+    if mass is None:
+        M = self.params['star'].request_value('mass','kg')
+    else:
+        M = mass
+    
+    if radius is None:
         R = self.params['star'].request_value('radius','m')
-        M = self.params['star'].request_value('mass','kg')    
-    except:
-        logger.critical('Cannot figure out stellar parameters')
-        rotfreq = 20.
-        R = constants.Rsol
-        M = constants.Msol
+    else:
+        R = radius
+        
+    if rotperiod is None:
+        rotfreq = 1./self.params['star'].request_value('rotperiod','d')
+    else:
+        rotfreq = 1./rotperiod
     
     #-- prepare extraction of pulsation parameters
     freqs = []
@@ -595,12 +627,12 @@ def add_pulsations(self,time=None):
     r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
     r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
     r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls)        
-    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls)
-    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls)
+    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)        
+    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)
+    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)
     r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = observables(r4,theta4,phi4,
                  self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
-                 spinpars,ks,ampls,deltaTs,deltags)
+                 spinpars,ks,ampls,deltaTs,deltags, mesh_phase=mesh_phase)
     self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
     self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
     self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T

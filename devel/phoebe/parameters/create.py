@@ -750,6 +750,20 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     if sma is not None and period is not None:
         raise ValueError("Give only sma or period, not both")
     
+    if star1['incl'] == star2['incl'] and not 'incl' in orbitkwargs:
+        orbitkwargs.setdefault('incl', star1['incl'])
+    elif not 'incl' in orbitkwargs:
+        logger.warning(("Cannot derive orbital inclination from stars and "
+                        "'incl' is not given in orbitkwargs, "
+                        "taking default value."))
+    if star1['long'] == star2['long'] and not 'long_an' in orbitkwargs:
+        orbitkwargs.setdefault('long_an', star1['long'])
+    elif not 'long_an' in orbitkwargs:
+        logger.warning(("Cannot derive orbital longitude orientation from "
+                        "stars and 'long_an' is not given in orbitkwargs, "
+                        "taking default value."))
+        
+    
     comp1 = parameters.ParameterSet(context='component',**kwargs1)
     comp2 = parameters.ParameterSet(context='component',**kwargs2)
     orbit = parameters.ParameterSet(context='orbit',**orbitkwargs)

@@ -835,6 +835,7 @@ def to_supconj(orbit):
             
     logger.info('Set t0type to time of superior conjunction')
 
+
 def critical_times(orbit_in, time_range=None):
     """
     Compute critical times in an orbit.
@@ -878,9 +879,39 @@ def critical_times(orbit_in, time_range=None):
         crit_times = crit_times[keep]
         
         
-        
+def make_synchronous(orbit, comp1=None, comp2=None):
+    r"""
+    Set the synchronicity parameter to match synchronous or pseudosynchronous rotation.
     
-    return crit_times
+    Synchronous rotation in the circular (:math:`e=0`) case means:
+    
+    .. math::
+    
+        P_\mathrm{rot} = P_\mathrm{orbit}
+    
+    and Pseudosynchronous rotation means that the star has an agnular rotation
+    rate equal to the orbit angular velocity at periastron. In general, the
+    orbital angular velocity is given by [Hut1981]_:
+    
+    .. math::
+        
+        \omega(t) = \frac{1}{\delta^2}\left(\frac{2\pi}{P_\mathrm{orbit}}\right)\sqrt{1-e^2}
+        
+    At periastron, :math:`\delta=1-e`, so this gives for the synchronicity
+    parameter:
+    
+    .. math::
+    
+        F = \sqrt{\frac{1+e}{(1-e)^3}}
+        
+    """
+    ecc = orbit['ecc']
+    F = np.sqrt( (1+ecc) / (1-ecc)**3)
+    if comp1 is not None:
+        comp1['syncpar'] = F
+    if comp2 is not None:
+        comp2['syncpar'] = F
+    
 #}
 
 #{ Pulsation constraints
