@@ -2148,8 +2148,8 @@ class Body(object):
         """
         Return the coordinates of the star in a convenient coordinate system.
         
-        Phi is longitude
-        theta is colatitude
+        Phi is longitude (between -PI and +PI)
+        theta is colatitude (between 0 and +PI)
         
         Can be useful for surface maps or so.
         
@@ -5404,6 +5404,11 @@ class BinaryRocheStar(PhysicalBody):
                 self.params['orbit'].add_constraint(constraint)
         
         init_mesh(self)
+        
+        # Check for leftover kwargs and report to the user
+        if kwargs:
+            logger.warning("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
+        
     
     def set_label(self,label):
         self.params['component']['label'] = label
@@ -5934,6 +5939,10 @@ class PulsatingBinaryRocheStar(BinaryRocheStar):
         else:
             rotperiod = np.inf
         
+        loc, velo, euler = keplerorbit.get_binary_orbit(time,
+                                   self.params['orbit'],
+                                   ('primary' if component==0 else 'secondary'))
+        
         # The mesh of a PulsatingBinaryRocheStar rotates along the orbit, and
         # it is independent of the rotation of the star. Thus, we need to
         # specifically specify in which phase the mesh is. It has an "orbital"
@@ -5941,9 +5950,10 @@ class PulsatingBinaryRocheStar(BinaryRocheStar):
         # same orientation as a single star at phase 0.
         
         # to match coordinate system of Star:
-        mesh_phase = np.pi / 2.0
+        mesh_phase = 0
         # to correct for orbital phase:
-        mesh_phase+= (time % orbperiod)/orbperiod * 2*np.pi
+        mesh_phase += euler[0]
+        #mesh_phase+= (time % orbperiod)/orbperiod * 2*np.pi
         # to correct for rotational phase:
         mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
         
