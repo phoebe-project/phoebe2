@@ -226,7 +226,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
                 reinitialize_from_priors(system, fitparams)
                 monte_carlo(system, fitparams)
                 
-                system.compute()
+                #system.compute()
                 
                 #  Then solve the current system
                 feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
