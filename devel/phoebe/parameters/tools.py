@@ -23,11 +23,13 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     add_esinw
     add_conserve
     make_misaligned
+    make_synchronous
     add_theta_eff
     to_supconj
     to_perpass
     
     critical_times
+    critical_phases
 
 **Constraints for oscillations**
 
@@ -879,6 +881,28 @@ def critical_times(orbit_in, time_range=None):
         crit_times = crit_times[keep]
     
     return crit_times
+
+def critical_phases(orbit_in, phase_range=None):
+    """
+    Compute critical phases in an orbit.
+    
+    The are the phases of:
+    
+        1. Periastron passage: when the stars are closest
+        2. Superior conjunction: when the primary is eclipsed (if there are eclipses)
+        3. Inferior conjunction: when the secondary is eclipsed (if there are eclipses)
+        4. Ascending node
+        5. Descending node
+    
+    @param orbit_in: parameterset of frame C{phoebe} and context C{orbit}
+    @type orbit_in: parameterset of frame C{phoebe} and context C{orbit}
+    @return: times of critical points in the orbit
+    @rtype: array
+    """
+    crit_times = critical_times(orbit_in)
+    period = orbit_in['period']
+    return (crit_times % period) / period
+    
         
         
 def make_synchronous(orbit, comp1=None, comp2=None):
@@ -1253,10 +1277,13 @@ def scale_binary(system, factor):
     
 
 def summarize(system, time=None):
+    """
+    Experimental
+    """
             
     system.list(summary='physical', width=90)
     
-    if time is not None:
+    if time is None:
         system.set_time(0.)
     
     params = {}
@@ -1264,7 +1291,7 @@ def summarize(system, time=None):
     from phoebe import universe
     for loc, thing in system.walk_all():
         class_name = thing.__class__.__name__
-        if class_name in ['Star', 'BinaryRocheStar']:
+        if class_name in ['Star', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
             print thing.list()
             
             
@@ -1275,7 +1302,7 @@ def summarize(system, time=None):
                 radi = thing.params['star'].get_value('radius', 'm'), 'm'
                 teff = thing.params['star'].get_value('teff', 'K'), 'K'
             
-            elif class_name=='BinaryRocheStar':
+            elif class_name in ['BinaryRocheStar', 'PulsatingBinaryRocheStar']:
                 
                 pot = thing.params['component']['pot']
                 q = thing.params['orbit']['q']
