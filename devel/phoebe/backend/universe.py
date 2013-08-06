@@ -34,7 +34,6 @@ Classes representing meshes and functions to handle them.
    keep_only_results
    merge_results
    init_mesh
-   check_body
    compute_pblum_or_l3
     
 Section 1. Basic meshing
@@ -442,76 +441,57 @@ def init_mesh(self):
     
     self.mesh = np.zeros(N, dtype=dtypes)
 
-
-def check_body(body):
+def check_input_ps(self, ps, contexts, narg, is_list=False):
     """
-    Check consistency of a Body.
-    
-    We do the following things:
-        - If there is only one pbdep, check if the obs have the same reference
-        - Check if type of obs is DataSet, type of pbdep is ParameterSet
-        - Check if passbands are present in atmosphere table
-        
-    Deprecated after a very short life time, functionality taken over by
-    add_pbdep and add_obs. Only the atmosphere table check needs to be
-    performed.
+    Check if a given parameterSet is of a certain context, and if not, raise
+    an error.
     """
-    # Run over the following categories, and keep track how many are added
-    categories = {'lc':[], 'rv':[], 'sp':[], 'if':[], 'pl':[]}
+    if isinstance(narg, int):
+        if narg%10 == 1:
+            name = '{}st'.format(narg)
+        elif narg%10 == 2:
+            name = '{}nd'.format(narg)
+        elif narg%10 == 3:
+            name = '{}rd'.format(narg)
+        else:
+            name = '{}th'.format(narg)
+    else:
+        name = "'"+narg+"'"
     
-    # Get all the references in the body
-    refs = body.get_refs()
-    refs = body.get_refs(per_category=True)
-    
-    message = []
-    
-    for category in refs.keys():
+    if is_list:
+        extra1 = 'list of '
+        extra2 = 's'
+        extra3 = 'found at least one'
+    else:
+        extra1 = ''
+        extra2 = ''
+        extra3 = 'not'
         
-        # Keep track of how many pbdeps and obs there are: if there is only one
-        # each and their references don't match, we can fix it
-        number_pbdeps = []
-        number_obs = []
-        
-        for ref in refs[category]:
-            # For each reference, check if the dep and obs exist. This returns
-            # the ParameterSet and the reference. If it returns Nones, it does
-            # not exist
-            ps1, rf1 = body.get_parset(ref=ref, context=category + 'dep')
-            ps2, rf2 = body.get_parset(ref=ref, context=category + 'obs')
-            
-            if rf1 is None and rf2 is not None:
-                message.append(("Found obs ({}) with ref '{}' but no pbdep to "
-                               "match it").format(category, ref))
-                number_obs.append(ps2)
-            elif rf1 is not None and rf2 is None:
-                #message.append(("Found pbdep ({}) with ref '{}' but no "
-                #                "observations to match it (in principle this "
-                #                "is OK)").format(category, ref))
-                number_pbdeps.append(ps1)
-            elif rf1 is not None and rf2 is not None:
-                number_pbdeps.append(ps1)
-                number_obs.append(ps2)
-            else:
-                raise ValueError(("Shouldn't happen. Contact a developer. If "
-                                  "you are one, contact another"))
-            
-        # There is one particular case where we can fix things automatically
-        # I think: if there is only one pbdep and one obs, they should fit
-        # together!
-        # OK, this is a little harder than I thought, since I need to fix both
-        # the reference and the key in the ordered dict, but the ordered dict
-        # can be tucked away deep inside a nested BodyBag. I can't think of an
-        # easy way to change the key...
-        # Few days later I *can* think of an easier way to solve: upon
-        # initalization. Check the "add_obs" function.
-        #if len(number_pbdeps) == 1 and len(number_obs) == 1:
-        #    old_ref = number_obs[0]['ref']
-        #    new_ref = number_pbdeps[0]['ref']
-        #    message.append("Fixed ref {} of category {}".format(ref, category))
-        #d2 = OrderedDict([(new_key, v) if k == old_key else (k, v) for k, v \
-        #                  in d.items()])
-                    
-    print("\n".join(message))
+    # Check if it is a ParameterSet
+    if not isinstance(ps, parameters.ParameterSet):
+        if len(contexts)==1:
+            context_msg = "of context '{}'".format(contexts[0])
+        elif len(contexts)==2:
+            context_msg = "of context '{}' or '{}'".format(contexts[0], contexts[1])
+        else:
+            context_msg = "of context '{}' or '{}'".format("', '".join(contexts[:-1]), contexts[-1])
+        raise ValueError(("{} argument in {} should be a {}ParameterSet{} {}, "
+                          "{} '{}'").format(name, self.__class__.__name__,
+                          extra1, extra2, context_msg, extra3,
+                          type(ps).__name__))
+    
+    # Check if it is of the right context
+    if not ps.get_context() in contexts:
+        if len(contexts)==1:
+            context_msg = "'{}'".format(contexts[0])
+        elif len(contexts)==2:
+            context_msg = "'{}' or '{}'".format(contexts[0], contexts[1])
+        else:
+            context_msg = "any of '{}' or '{}'".format("', '".join(contexts[:-1]), contexts[-1])
+        raise ValueError(("Context{} of {} argument in {} should be {}"
+                          "{}, {} '{}'").format(extra2, name, 
+                          self.__class__.__name__, extra1, context_msg, extra3,
+                          ps.get_context()))
 
 
 
@@ -4787,6 +4767,9 @@ class Star(PhysicalBody):
         super(Star, self).__init__(dim=3)
         
         # Prepare basic parameterSets and Ordered dictionaries
+        check_input_ps(self, star, ['star'], 1)
+        check_input_ps(self, mesh, ['mesh:marching', 'mesh:wd'], 2)
+        
         self.params['star'] = star
         self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
@@ -4795,17 +4778,22 @@ class Star(PhysicalBody):
         
         # Shortcut to make a binaryStar
         if 'orbit' in kwargs:
-            self.params['orbit'] = kwargs.pop('orbit')
+            myorbit = kwargs.pop('orbit')
+            check_input_ps(self, myorbit, ['orbit'], 'orbit')
+            self.params['orbit'] = myorbit
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
         if 'globals' in kwargs:
-            self.params['globals'] = kwargs.pop('globals')
+            myglobals = kwargs.pop('globals')
+            check_input_ps(self, myglobals, ['globals'], 'globals')
+            self.params['globals'] = myglobals
         
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
         if reddening is None:
             reddening = parameters.ParameterSet(context='reddening:interstellar')
+        check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
         self.params['reddening'] = reddening
         
         # Add spot parameters when applicable
@@ -4814,6 +4802,8 @@ class Star(PhysicalBody):
                 to_add = [circ_spot]
             else:
                 to_add = circ_spot
+            for ito_add in to_add:
+                check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
             self.params['circ_spot'] = to_add
             
         # Add pulsation parameters when applicable
@@ -4822,10 +4812,13 @@ class Star(PhysicalBody):
                 to_add = [puls]
             else:
                 to_add = puls
+            for ito_add in to_add:
+                check_input_ps(self, ito_add, ['puls'], 'puls', is_list=True)
             self.params['puls'] = to_add
             
         # Add magnetic field parameters when applicable
         if magnetic_field is not None:
+            check_input_ps(self, reddening, ['magnetic_field'], 'magnetic_field')
             self.params['magnetic_field'] = magnetic_field
         
         # Add the parameters to compute dependables
@@ -4838,7 +4831,7 @@ class Star(PhysicalBody):
         
         # Check for leftover kwargs and report to the user
         if kwargs:
-            logger.warning("Unused keyword arguments {} upon initialization of Star".format(kwargs.keys()))
+            raise ValueError("Unused keyword arguments {} upon initialization of Star".format(kwargs.keys()))
         
         # Initialise the mesh
         init_mesh(self)
@@ -5350,22 +5343,15 @@ class BinaryRocheStar(PhysicalBody):
         #-- remember the values given, but check their contexts!
         
         # Perform some checks on "component"
-        if not component.get_context() == 'component':
-            raise ValueError(("First argument to BinaryRocheStar needs to be of "
-                              "context 'component', not '{}'. You can use the "
-                              "function phoebe.create.binary_from_stars to "
-                              "easily convert 'star' to 'component', if that "
-                              "helps.").format(component.get_context()))
+        check_input_ps(self, component, ['component'], 1)
         self.params['component'] = component
         
-        # Perform some checks on "orbit"
-        if not orbit.get_context() == 'orbit':
-            raise ValueError(("ParameterSet of context '{}' given to keyword "
-                              "argument 'orbit'. Should be of context "
-                              "''.".format(orbit.get_context())))
+        check_input_ps(self, orbit, ['orbit'], 'orbit')
         self.params['orbit'] = orbit
         
+        check_input_ps(self, mesh, ['mesh:marching', 'mesh:wd'], 'mesh')
         self.params['mesh'] = mesh
+        
         self.params['pbdep'] = OrderedDict()
         self.params['obs'] = OrderedDict()
         self.params['syn'] = OrderedDict()
@@ -5376,17 +5362,32 @@ class BinaryRocheStar(PhysicalBody):
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
         if 'globals' in kwargs:
-            self.params['globals'] = kwargs.pop('globals')
+            myglobals = kwargs.pop('globals')
+            check_input_ps(self, myglobals, ['globals'], 'globals')
+            self.params['globals'] = myglobals
         
         #-- add interstellar reddening (if none is given, set to the default,
         #   this means no reddening
         if reddening is None:
             reddening = parameters.ParameterSet(context='reddening:interstellar')
+        
+        check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
         self.params['reddening'] = reddening
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
         if obs is not None:
             _parse_obs(self,obs)
+                
+        # Check if this star is actually a component in the orbit:
+        this_comp = self.get_component()
+        if this_comp is None:
+            raise ValueError(("Cannot figure out which component this is: the "
+                              "label in 'component' is '{}', but 'orbit' "
+                              "mentions '{}' as the primary, and '{}' as the "
+                              "secondary. Please set 'c1label' or 'c2label' "
+                              "in 'orbit' to match this components's label"
+                              ".").format(component['label'], orbit['c1label'],
+                              orbit['c2label']))
                 
         #-- add common constraints
         constraints = ['{sma1} = {sma} / (1.0 + 1.0/{q})',
@@ -5407,7 +5408,7 @@ class BinaryRocheStar(PhysicalBody):
         
         # Check for leftover kwargs and report to the user
         if kwargs:
-            logger.warning("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
+            raise ValueError("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
         
     
     def set_label(self,label):

@@ -2377,6 +2377,8 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     Make an image of a system.
     
     """
+    xlim = kwargs.pop('xlim',())
+    ylim = kwargs.pop('ylim',())
     # Get the thing to plot
     if hasattr(system,'__len__') and comp is not None:
         system = system[comp]
@@ -2385,6 +2387,8 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     image(system,**kwargs)
     if not axes_on:
         pl.gca().set_axis_off()
+    pl.xlim(xlim)
+    pl.ylim(ylim)
     pl.savefig(savefig)
     pl.close()
     
