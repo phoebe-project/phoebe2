@@ -446,6 +446,9 @@ def check_input_ps(self, ps, contexts, narg, is_list=False):
     Check if a given parameterSet is of a certain context, and if not, raise
     an error.
     """
+    if ps is None:
+        return None
+    
     if isinstance(narg, int):
         if narg%10 == 1:
             name = '{}st'.format(narg)
@@ -5379,8 +5382,12 @@ class BinaryRocheStar(PhysicalBody):
             _parse_obs(self,obs)
                 
         # Check if this star is actually a component in the orbit:
-        this_comp = self.get_component()
-        if this_comp is None:
+        try:
+            this_comp = self.get_component()
+        except TypeError:
+            this_comp = None
+            logger.warning("No orbit specified in BinaryRocheStar.")
+        if this_comp is None and orbit is not None:
             raise ValueError(("Cannot figure out which component this is: the "
                               "label in 'component' is '{}', but 'orbit' "
                               "mentions '{}' as the primary, and '{}' as the "
