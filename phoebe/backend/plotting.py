@@ -545,8 +545,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
     for j,ref in enumerate(all_lc_refs):
         # Get the pbdep (for info) and the synthetics
         dep, ref = system.get_parset(type='pbdep',ref=ref)
-        syn = system.get_synthetic(category='lc',ref=ref)
-        syn = syn.asarray()
+        syn = system.get_synthetic(category='lc',ref=ref).asarray()
         
         # Try to get the observations. They don't need to be loaded, we just need
         # the pblum and l3 values.
@@ -566,7 +565,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
         else:
             pblum = 1.
             l3 = 0.
-        print ref, pblum, l3
+        
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
         
@@ -602,6 +601,14 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
 def plot_lcobs_as_sed(system, *args, **kwargs):
     """
     Plot all lcobs as an SED.
+    
+    After plotting all photometry and showing the legend, you might find out
+    that the legend is a big part of the figure. Either make it a figure
+    legend, or try something like (it sets the text size small, and makes
+    the legend frame semi-transparent)::
+        
+        >>> leg = plt.legend(loc='best', prop=dict(size='small'))
+        >>> leg.get_frame().set_alpha(0.5)
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
@@ -669,16 +676,19 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         # Get the pbdep (for info) and the synthetics
         dep, ref = system.get_parset(type='pbdep', ref=ref)
         obs, ref = system.get_parset(type='obs', ref=ref)
-        syn = system.get_synthetic(category='lc', ref=ref)
-        syn = syn.asarray()
+        syn = system.get_synthetic(category='lc', ref=ref).asarray()
         
         
         # Try to get the observations. They don't need to be loaded, we just need
         # the pblum and l3 values.
         # We can scale the synthetic light curve using the observations
         if scale == 'obs':
-            pblum = obs['pblum']
-            l3 = obs['l3']
+            try:
+                obs = system.get_obs(category='lc', ref=ref)
+                pblum = obs['pblum']
+                l3 = obs['l3']
+            except:
+                raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
         # or using the synthetic computations    
         elif scale=='syn':
             pblum = syn['pblum']
@@ -696,6 +706,8 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         
         # An SED means we need the effective wavelength of the passbands
         right_time = (obs['time'] == time)
+        if not sum(right_time):
+            continue
         wave = passbands.get_info([passband])['eff_wave']
         wave = list(wave) * len(obs['flux'][right_time])
         
