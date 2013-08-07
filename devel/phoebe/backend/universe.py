@@ -3146,6 +3146,13 @@ class PhysicalBody(Body):
         self.time += correction
         
         logger.info('light travel time at LOS distance {:.3f} Rsol from barycentre: {:+.3g} min'.format(mydistance,correction*24*60))
+        
+    def get_barycenter(self):
+        """
+        Numerically computes the center of the body from the mesh (at the current time)
+        """
+        
+        return np.average(self.mesh['center'][:,2],weights=self.mesh['size'])
     
     
     def add_pbdeps(self,pbdep):
@@ -4322,6 +4329,33 @@ class BodyBag(Body):
             return coords
         else:
             return dict(coordinates=coords)
+            
+    def get_barycenter(self):
+        """
+        Compute the barycenter of all children bodies (at the current time) 
+        from the mesh and masses of the objects
+        
+        WARNING: still needs thorough testing   
+        """
+        
+        params = [body.params['star'] if 'star' in body.params.keys() else body.params['component'] for body in self.bodies]
+        distances = np.array([body.get_barycenter() for body in self.bodies])
+        masses = np.array([body.get_value('mass') if 'mass' in ps.keys() else body.get_mass() for body,ps in zip(self.bodies,params)])
+
+        return np.average(distances, weights=masses)
+            
+    @decorators.parse_ref
+    def etv(self,ref='alletvdep',time=None):
+        #-- don't bother if we cannot do anything...
+        if hasattr(self,'params') and 'obs' in self.params:
+            for lbl in ref:
+                etvobs,lbl = self.get_parset(type='syn',ref=lbl)
+                
+                distance = self.get_barycenter()
+                
+                etv = distance*constants.Rsol/constants.cc*1/(24*3600.)
+                etvobs['time'].append(self.time)
+                etvobs['etv'].append(etv) #in days
     
     #@decorators.parse_ref
     #def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
@@ -5738,6 +5772,13 @@ class BinaryRocheStar(PhysicalBody):
         Calculate local temperature.
         """
         roche.temperature_zeipel(self)
+        
+    def get_mass(self):
+        """
+        compute the mass from the orbit (sma, period, q)
+        returned mass will be in solar units
+        """
+        return self.params['orbit'].request_value('mass{}'.format(self.get_component()+1), 'Msol') 
     
     
     def projected_velocity(self,los=[0,0,+1],ref=0,method=None):
