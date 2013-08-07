@@ -102,7 +102,8 @@ if __name__=="__main__":
         # so the workers have less overhead.
         if params['refl']:
             system.prepare_reflection(ref='all')
-            system.fix_mesh()
+            if hasattr(system, 'fix_mesh'):
+                system.fix_mesh()
         
         update_progress(-1)
         

@@ -1504,14 +1504,19 @@ class Body(object):
                         obs['pblum'] = pblum
                     if do_l3:
                         obs['l3'] = l3
-                            
+                print pblum, obs['pblum']
+                msg = 'Group {} ({:d} members): pblum={:.6g} ({}), l3={:.6g} ({})'
+                logger.info(msg.format(group, len(groups[group][3]),pblum,\
+                            do_pblum and 'computed' or 'fixed', l3, do_l3 \
+                            and 'computed' or 'fixed'))
+                
     
     def get_logp(self):
         r"""
         Retrieve probability.
         
         If the datasets have passband luminosities C{pblum} and/or third
-        light contributions, they will be fitted if they are adjustable.
+        light contributions ``l3``, they will be fitted if they are adjustable.
         
         Every data set has a statistical weight, which is used to weigh them
         in the computation of the total probability.
@@ -1529,7 +1534,7 @@ class Body(object):
             
         Where :math:`p` gives the expected frequency of getting a value
         in an infinitesimal range around :math:`y_i` per unit :math:`dy`.
-        To retrieve the :math:`\chi_2`, one can observe that the above is
+        To retrieve the :math:`\chi^2`, one can observe that the above is
         equivalent to
         
         .. math::
@@ -1556,8 +1561,9 @@ class Body(object):
             The :math:`\log p` returned by this function is an
             **expected frequency** and not a true probability. That is, the
             :math:`p` comes from the probability density function, not the
-            probability. To get the probability itself, you can use scipy on
-            the :math:`\chi^2`:
+            probability. I think this is the key to why it is so difficult to
+            combine datasets in one statistic. To get the probability itself,
+            you can use scipy on the :math:`\chi^2`:
                 
             >>> n_data = 100
             >>> n_pars = 7
@@ -2138,19 +2144,27 @@ class Body(object):
         
         Nees some work...
         """
-        index = np.array([1,0,2])
-        r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
-        r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
-        r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
-        r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-        #r = np.hstack([r1,r2,r3,r4])
-        #phi = np.hstack([phi1,phi2,phi3,phi4])
-        #theta = np.hstack([theta1,theta2,theta3,theta4])
-        if loc=='center':
-            return r4,phi4,theta4
+        if type == 'spherical':
+            index = np.array([1,0,2])
+            r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
+            r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
+            r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
+            r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
+            #r = np.hstack([r1,r2,r3,r4])
+            #phi = np.hstack([phi1,phi2,phi3,phi4])
+            #theta = np.hstack([theta1,theta2,theta3,theta4])
+            if loc=='center':
+                return r4,phi4,theta4
+            else:
+                table = np.column_stack([phi1,theta1,r1,phi2,theta2,r2,phi3,theta3,r3])
+                return table
+        elif type == 'triangulation':
+            # Return the coordinates as an array of coordinates and an array
+            # of triangle indices
+            raise NotImplementedError
+            
         else:
-            table = np.column_stack([phi1,theta1,r1,phi2,theta2,r2,phi3,theta3,r3])
-            return table
+            raise ValueError("Don't understand type {}".format(type))
     
     def get_refs(self, category=None, per_category=False,
                  include=('obs','syn','dep')):
@@ -4195,6 +4209,23 @@ class BodyBag(Body):
         """
         raise NotImplementedError
     
+    def get_mass(self):
+        """
+        Return the total mass of the BodyBag.
+        
+        Any members that do not implement "get_mass" are assumed to have mass
+        equal to zero.
+        
+        @param return: mass (Msol)
+        @type return: float
+        """
+        total_mass = 0.
+        for body in self.bodies:
+            if hasattr(body, 'get_mass'):
+                total_mass += body.get_mass()
+        return total_mass
+        
+    
     def set_label(self,label):
         try:
             comp = self.get_component()
@@ -4914,6 +4945,15 @@ class Star(PhysicalBody):
         return self.params['star']['label']
     
     
+    def get_mass(self):
+        """
+        Return the mass of a star.
+        
+        @param return: mass (Msol)
+        @type return: float
+        """
+        return self.params['star']['mass']
+    
     def surface_gravity(self):
         """
         Calculate local surface gravity
@@ -5426,7 +5466,7 @@ class BinaryRocheStar(PhysicalBody):
                               "label in 'component' is '{}', but 'orbit' "
                               "mentions '{}' as the primary, and '{}' as the "
                               "secondary. Please set 'c1label' or 'c2label' "
-                              "in 'orbit' to match this components's label"
+                              "in 'orbit' to match this component's label"
                               ".").format(component['label'], orbit['c1label'],
                               orbit['c2label']))
                 
@@ -5775,8 +5815,11 @@ class BinaryRocheStar(PhysicalBody):
         
     def get_mass(self):
         """
-        compute the mass from the orbit (sma, period, q)
+        Compute the mass from the orbit (sma, period, q)
         returned mass will be in solar units
+        
+        @param return: mass (Msol)
+        @type return: float
         """
         return self.params['orbit'].request_value('mass{}'.format(self.get_component()+1), 'Msol') 
     

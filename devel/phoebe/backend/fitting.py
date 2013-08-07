@@ -4,7 +4,7 @@ Fitting routines, minimization, optimization.
 Section 1. Summary
 ==================
 
-The top level function you should use is :py:func`run <run>`. The fitting
+The top level function you should use is :py:func:`run <run>`. The fitting
 algorithm is determined by the context of the passed algorithm ParameterSet.
 There is also functionality to reiterate the fit, but starting from a different
 set of initial parameters and/or performing Monte Carlo simulations with the
@@ -41,6 +41,7 @@ data, or by random sampling the data.
 
    accept_fit
    summarize_fit
+   check_system
 
    
 Section 2. Details
@@ -112,7 +113,6 @@ except ImportError:
 logger = logging.getLogger("FITTING")
 
 
-
 def run(system,params=None,fitparams=None,mpi=None,accept=False):
     """
     Run a fitting routine.
@@ -142,6 +142,14 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     @return: fitting parameters and feedback (context 'fitting:xxx')
     @rtype: ParameterSet
     """
+    # Determine the type of fitting algorithm to run. If none is given, the
+    # default fitter is LMFIT with leastsq algorithm (Levenberg-Marquardt)
+    if fitparams is None:
+        fitparams = parameters.ParameterSet(frame='phoebe',
+                                            context='fitting:lmfit')
+        
+    # Zeroth we want to check stuff and give a summary of what we're going to do:
+    check_system(system, fitparams)
     # First we want to get rid of any loggers that are present; we don't want
     # to follow all the output to the screen during each single computation.
     # Only the warning get through, and this is also how the loggers communicate
@@ -159,11 +167,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         params = parameters.ParameterSet(context='compute')
         logger.info("No compute parameters given: adding default set")
     
-    # Determine the type of fitting algorithm to run. If none is given, the
-    # default fitter is LMFIT with leastsq algorithm (Levenberg-Marquardt)
-    if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',
-                                            context='fitting:lmfit')
+    
     if fitparams.context=='fitting:pymc':
         solver = run_pymc
     elif fitparams.context=='fitting:emcee':
@@ -249,7 +253,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
             system.reset()
             system.clear_synthetic()
             try:
-                system.compute(params=params,mpi=mpi)
+                system.compute(params=params, mpi=mpi)
             except Exception as msg:
                 print(system.params.values()[0])
                 logger.info("Could not accept for some reason (original message: {})".format(msg))
@@ -1575,6 +1579,46 @@ class FeedbackEmcee(Feedback):
 #}
 
 #{ Verifiers
+
+def check_system(system, fitparams):
+    """
+    Diagnose which parameters are to be fitted, and give the user feedback when
+    something is wrong.
+    """
+    pars = []
+    ids = []
+    logger.info("Fit setup in context {}:\n{}".format(fitparams.get_context(),
+                                                      str(fitparams)))
+    logger.info('Search for all parameters to be fitted:')
+    #-- walk through all the parameterSets available. This needs to be via
+    #   this utility function because we need to iteratively walk down through
+    #   all BodyBags too.
+    for parset in system.walk():
+        
+        #-- for each parameterSet, walk through all the parameters
+        for qual in parset:
+            
+            #-- extract those which need to be fitted
+            if parset.get_adjust(qual) and parset.has_prior(qual):
+                #-- ask a unique ID and check if this parameter has already
+                #   been treated. If so, continue to the next one.
+                parameter = parset.get_parameter(qual)
+                myid = parameter.get_unique_label()
+                if myid in ids:
+                    continue
+                ids.append(myid)
+                logger.info(('Parameter {} with prior {} (unique label: {}) '
+                            '').format(qual, parameter.get_prior(), myid))
+    
+    # There has to be at least one parameter to fit, otherwise it's quite silly
+    # to call the fitting routine
+    if not ids:
+        raise ValueError(('Did not find any parameters with priors to fit. '
+                          'Call "set_adjust" in the relevant ParameterSets, '
+                          'and define priors for all parameters to be '
+                          'fitted.'))
+                           
+            
 
 def summarize_fit(system,fitparams,correlations=None,savefig=False):
     """

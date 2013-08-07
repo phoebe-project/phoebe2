@@ -21,6 +21,7 @@ import logging
 import os
 import itertools
 import functools
+import difflib
 # Third party dependencies: matplotlib and pyfits are try-excepted
 import numpy as np
 from numpy import pi, sqrt, sin, cos
@@ -227,7 +228,7 @@ def image(the_system, ref='__bol', context='lcdep',
     if cmap is None and select == 'rv':
         cmap = pl.cm.RdBu_r
     elif cmap is None and select == 'teff':
-        cmap = pl.cm.hot
+        cmap = pl.cm.afmhot
         if background is None:
             background = '0.7'
     elif cmap is None and select[0] == 'B':
@@ -243,8 +244,17 @@ def image(the_system, ref='__bol', context='lcdep',
     
     # Get the parameterSet from which we need to take the intensities and other
     # information
-    if isinstance(ref, int):
-        ps, ref = the_system.get_parset(ref=ref, context=context)
+    #if isinstance(ref, int):
+    ref_ = ref
+    ps, ref = the_system.get_parset(ref=ref, context=context)
+    #else:
+    #    ps, ref = the_system.get_parset(ref=ref, context=context)
+    if ps is None:
+        possibilities = the_system.get_refs()
+        close = difflib.get_close_matches(ref_, possibilities)
+        raise ValueError(('obs with ref "{}" not found. Did you mean any of '
+                          '"{}"? All possibilities: '
+                          '{}').format(ref_,", ".join(close),", ".join(possibilities)))
     
     # We'll ask to compute the projected intensity,
     # because that is what we need for plotting. If it fails, various things
@@ -648,7 +658,7 @@ def surfmap(the_system,ref='__bol',context='lcdep',cut=0.96,
     if cmap is None and select=='rv':
         cmap = pl.cm.RdBu_r
     elif cmap is None and select=='teff':
-        cmap = pl.cm.hot
+        cmap = pl.cm.afmhot
         if background is None:
             background = '0.7'
     elif cmap is None and select[0]=='B':
@@ -2027,6 +2037,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
 
     for i, (time, ref, type) in enumerate(iterator):
         
+        # Unsubdivide to prepare for this step (if necessary)
+        if params['subdiv_num']:  
+            system.unsubdivide()
+        
         # Clear previous reflection effects if necessary (not if reflect==1!)
         if reflect is True:
             system.clear_reflection()
@@ -2085,10 +2099,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         for ef, kw in zip(extra_func, extra_func_kwargs):
             ef(system, time, i, **kw)
         
-        # Unsubdivide to prepare for next step
-        if params['subdiv_num']:  
-            system.unsubdivide()
-    
+        
     #if inside_mpi is None:
     # We can't compute pblum or l3 inside MPI, because it's this function that
     # is called for different parts of the datasets. So no thread has all the
@@ -2372,7 +2383,8 @@ def ef_binary_image(system, time, i, name='ef_binary_image',
     pl.close()
 
 
-def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
+def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,do_contour=False,
+             **kwargs):
     """
     Make an image of a system.
     
@@ -2385,10 +2397,17 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,**kwargs):
     # and make the figure
     savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
     image(system,**kwargs)
+    
+    if do_contour:
+        contour(system, select='longitude', colors='k', linewidths=2, linestyles='-')
+        contour(system, select='latitude', colors='k', linewidths=2, linestyles='-')
+        
     if not axes_on:
         pl.gca().set_axis_off()
-    pl.xlim(xlim)
-    pl.ylim(ylim)
+    if xlim:
+        pl.xlim(xlim)
+    if ylim:
+        pl.ylim(ylim)
     pl.savefig(savefig)
     pl.close()
     
