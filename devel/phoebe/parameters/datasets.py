@@ -877,7 +877,7 @@ def parse_header(filename,ext=None):
     if not ext in contexts:
         context = ext + 'dep'
     else:
-        contextx = contexts[ext]
+        context = contexts[ext]
         
     if not ext in dataset_classes:
         dataset_class = DataSet
