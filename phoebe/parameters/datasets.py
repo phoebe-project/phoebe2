@@ -874,8 +874,18 @@ def parse_header(filename,ext=None):
     # It is possible to automatically detect the type of data from the
     # extension
     ext = filename.split('.')[-1] if ext is None else ext
-    pb = parameters.ParameterSet(context=contexts[ext])
-    ds = dataset_classes[ext]()
+    if not ext in contexts:
+        context = ext + 'dep'
+    else:
+        contextx = contexts[ext]
+        
+    if not ext in dataset_classes:
+        dataset_class = DataSet
+    else:
+        dataset_class = dataset_classes[ext]
+    
+    pb = parameters.ParameterSet(context=context)
+    ds = dataset_class(context=context[:-3]+'obs')
     
     # They belong together, so they should have the same reference
     ds['ref'] = pb['ref']

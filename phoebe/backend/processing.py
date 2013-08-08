@@ -70,9 +70,7 @@ def sed_scale_to_distance(self, time, group):
     # two times closer. To ensure consistency we (should have) added a new
     # parameter to the globals. This also ensure that if we call postprocess
     # two times, we're not twice dividing by two.
-    print("Distance was {}".format(globals['distance']))
     globals['derived_distance'] = globals['distance'] / pblum
-    print("Distance is {} (pblum={})".format(globals['derived_distance'], pblum))
                 
             
                 

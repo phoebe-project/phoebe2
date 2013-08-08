@@ -673,8 +673,12 @@ def _parse_pbdeps(body, pbdep):
         if not ref in body.params['syn'][res_context]:
             if not res_context in body.params['syn']:
                 raise ValueError("Trying to add {} to syn. Are you sure you passed pbdeps?".format(context))
+            if context in result_sets:
+                result_set = result_sets[context]
+            else:
+                result_set = datasets.DataSet
             body.params['syn'][res_context][ref] = \
-                              result_sets[context](context=res_context, ref=ref)
+                              result_set(context=res_context, ref=ref)
             logger.debug(('Prepared results ParameterSet for context '
                          '{} (ref={})'.format(res_context, ref)))
         
@@ -782,8 +786,12 @@ def _parse_obs(body, data):
         # Prepare results if they were not already added by the data parser
         if not ref in body.params['syn'][res_context]:
             try:
+                if data_context in result_sets:
+                    result_set = result_sets[data_context]
+                else:
+                    result_set = datasets.DataSet
                 body.params['syn'][res_context][ref] = \
-                         result_sets[data_context](context=res_context, ref=ref)
+                         result_set(context=res_context, ref=ref)
             except KeyError:
                 raise KeyError(("Failed parsing obs {}: perhaps not "
                                 "an obs?").format(ref))
@@ -1512,7 +1520,7 @@ class Body(object):
     
     def get_logp(self, include_priors=False):
         r"""
-        Retrieve probability.
+        Retrieve probability or goodness-of-fit.
         
         If the datasets have passband luminosities C{pblum} and/or third
         light contributions ``l3``, they will be:
@@ -1549,7 +1557,7 @@ class Body(object):
         
             \log p = K -\frac{1}{2}\chi^2
             
-        with :math:`K` and 'absorbing term'. Equivalently,
+        with :math:`K` an 'absorbing term'. Equivalently,
         
         .. math::
         
@@ -1562,27 +1570,32 @@ class Body(object):
         
             \chi^2 = 2 (K - \log p )
         
-        Note that Eq. :eq:`chi2` is intuitive since :math:`p` is expected to
-        have uniform distribution, the negative natural log of a uniform
-        distribution is expected to follow an exponential distribution, so
-        scale that with a factor of two and you get a :math:`\chi^2` distributed
-        parameter.
+        Note that Eq. :eq:`chi2` is quite intuitive: since
+        
+            1. :math:`p` is expected to have a uniform distribution
+            2. the negative natural log of a uniform distribution is expected to
+               follow an exponential distribution
+            3. an exponential distribution scaled with a factor of two results
+               in a :math:`\chi^2` distributed parameter.
         
         If ``statweight=0`` (thus following the above procedure), combining
-        different datasets is naturally equivalent with `Fisher's method <http://en.wikipedia.org/wiki/Fisher's_method>`_
+        different datasets should be naturally equivalent with `Fisher's method <http://en.wikipedia.org/wiki/Fisher's_method>`_
         of combining probabilities from different (assumed independent!) tests:
         
         .. math::
         
             \chi^2 = -2 \sum_i^k\log(p_i)
             
-        With :math:`i` running over all different tests (i.e. datasets).
-        
-        If ``statweight>1`` each :math:`\log p` value will actually be the mean
-        of all :math:`\log p` within one dataset, weighted with the value of
-        ``statweight``. This an ugly hack to make some datasets more or less
-        important, but is generally not a good approach because it involves
-        a subjective determination of the ``statweight`` parameter.
+        With :math:`i` running over all different tests (i.e. datasets). However,
+        the :math:`p` from Eq. :eq:`prob` is not a real probability, merely an
+        expected frequency (or likelihood if you wish): it is a value from the
+        probability *density* function. Imagine a measurement of an absolute
+        flux in erg/s/cm2/:math:`\AA`, of the order of 1e-15 with an error of
+        1e-17. Then the value of :math:`p` will be extremely large because of
+        the appearance of the inverse :math:`\sigma` in the denominator. In
+        principle this is not a problem since they all get observed in the
+        factor :math:`K`, but it effectively makes the parameter space stretched
+        or squeezed in some directions.
         
         If ``include_priors=True``, then also the distribution of the priors
         will be taken into account in the computation of the probability in 
@@ -1601,10 +1614,17 @@ class Body(object):
         prior will be taken into account. If they are not fitted, they will not
         have an influence on the probability but for a constant term. On the
         other hand, one can exploit this property to define a parameter that
-        *derives* it's value from other parameters (e.g. distance from ``pblum``),
+        *derives* it's value from other parameters (e.g. distance from ``pblum``
+        or ``vsini`` from ``rotperiod`` and ``radius``),
         and take also that into account during fitting. One could argue about
         the statistical validity of such a procedure, but it might come in handy
         to simplify the fitting problem.
+        
+        If ``statweight>1`` each :math:`\log p` value will actually be the mean
+        of all :math:`\log p` within one dataset, weighted with the value of
+        ``statweight``. This an ugly hack to make some datasets more or less
+        important, but is generally not a good approach because it involves
+        a subjective determination of the ``statweight`` parameter.
         
         .. warning::
         
@@ -1722,6 +1742,7 @@ class Body(object):
                                                                statweight))
                 logger.debug("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
                 #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
+                logger.warning("Chi2 of {} = {}".format(obs['ref'], this_chi2))
                 log_f += this_logf
                 chi2.append(this_chi2)
                 n_data += len(obser)
@@ -1738,9 +1759,6 @@ class Body(object):
                 prior = par.get_prior()
                 value = par.get_value()
                 pdf = prior.pdf(x=value)[1]
-                print("Par {}, value {} has PDF={}".format(par.get_qualifier(),
-                                                           par.get_value(),
-                                                           pdf))
                 this_logf = np.log(pdf)
                 log_f += this_logf
                 if prior.distribution == 'normal':
@@ -1749,12 +1767,12 @@ class Body(object):
                     this_chi2 = (value - mu)**2 / sigma**2
                 else:
                     if pdf==0:
-                        this_chi2 = 1e6
+                        this_chi2 = 1e6#10*n_data
                     else:
                         this_chi2 = 0.0
                     
                 chi2.append(this_chi2)
-        
+        print chi2
         return log_f, chi2, n_data
     
     
@@ -1773,10 +1791,10 @@ class Body(object):
         # Compute the chi2 probability with n_data - n_par degrees of freedom
         k = n_data - n_par
         prob = 1-scipy.stats.distributions.chi2.cdf(chi2, k)
-        total_chi2 = -2* np.sum(np.log(prob))
+        logprob = np.log(prob)
+        logprob[np.isinf(logprob)] = -1e10
+        total_chi2 = -2* np.sum(logprob)
         total_prob = scipy.stats.distributions.chi2.cdf(total_chi2, 2*len(prob))
-        
-        print 'X2 (tX2), prob', chi2, total_chi2, total_prob
         # That's it!
         return total_chi2, total_prob, n_data, n_par
         
@@ -2523,9 +2541,8 @@ class Body(object):
                 # there are none, don't report
                 this_type = ['{}: '.format(ptype[-3:])]
                 ns = 0
-                
                 # Loop over all categories and make a string
-                for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+                for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv']:
                     lbl = (category+ptype[-3:])
                     if ptype in thing.params and lbl in thing.params[ptype]:
                         this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
@@ -2559,7 +2576,7 @@ class Body(object):
             # Collect references
             summary = []
             # Loop over all categories and make a string
-            for category in ['lc', 'rv', 'sp', 'if', 'pl']:
+            for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv']:
                
                 for ptype in ['pbdep','obs']:
                     ns = 0 
