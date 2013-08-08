@@ -285,8 +285,10 @@ def mpirun(fctn):
                 if os.path.isfile(kwargs_file.name):
                     os.unlink(kwargs_file.name)
             
-            # And compute pblum or l3
+            # And compute pblum or l3 and postprocess
             system.compute_pblum_or_l3()
+            system.postprocess(time=None)
+            
             
     return do_run
 

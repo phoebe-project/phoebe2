@@ -267,6 +267,14 @@ def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
     
     Extra C{kwargs} will be passed to the creation of the parameter if it does
     not exist yet.
+    
+    .. warning::
+    
+        Be careful when mixing this constraint with other constraints that
+        involve mass and radius. E.g. if you set the mass to be constrained
+        by the surface gravity, you better add the constraint on the rotation
+        frequency after the one on the surface gravity, so that they are
+        evaluated in the right order.
    
     @param star: star parameterset
     @type star: ParameterSet of context star
@@ -1205,11 +1213,11 @@ def group(observations, name, pblum=True, l3=True):
     Group a list of observations for simultaneous fitting of pblum and l3.
     
     This is can be used to make multicolour photometry has the same scaling,
-    e.g. to reflect an unknown distance. Fitting SED's is an example!
+    e.g. to reflect an unknown distance in SED fitting.
     
     Observations are grouped by name, so you need to give one. If you call this
     function twice on a different group of observations but you give the same
-    name, they will all be one big happy group.
+    name, they will all belong to the same big happy group.
     
     @param observations: a list of observations
     @type observations: list of Datasets
@@ -1280,7 +1288,7 @@ def summarize(system, time=None):
     """
     Experimental
     """
-            
+    text = []
     system.list(summary='physical', width=90)
     
     if time is None:
@@ -1289,10 +1297,10 @@ def summarize(system, time=None):
     params = {}
     import phoebe
     from phoebe import universe
-    for loc, thing in system.walk_all():
+    for loc, thing in phoebe.BodyBag([system]).walk_all():
         class_name = thing.__class__.__name__
         if class_name in ['Star', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
-            print thing.list()
+            text.append(thing.list(summary='physical'))
             
             
             lum = phoebe.convert('erg/s','W',universe.luminosity(thing)), 'W'
@@ -1321,14 +1329,29 @@ def summarize(system, time=None):
             R = phoebe.convert(radi[1],'Rsol', radi[0])
             T = phoebe.convert(teff[1],'K', teff[0])
             G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
-            print("M    = {:.3f} Msol".format(M))
-            print("L    = {:.3f} Lsol".format(L))
-            print("R    = {:.3f} Rsol".format(R))
-            print("Teff = {:.3f} K   ".format(T))
-            print("logg = {:.3f} [cgs]".format(G))
+            text.append("M    = {:.3f} Msol".format(M))
+            text.append("L    = {:.3f} Lsol".format(L))
+            text.append("R    = {:.3f} Rsol".format(R))
+            text.append("Teff = {:.3f} K   ".format(T))
+            text.append("logg = {:.3f} [cgs]".format(G))
             
             params[thing.get_label()] = dict(mass=M, luminosity=L, radius=R, teff=T, logg=G)
-
+        
+        elif len(loc)>=2 and isinstance(loc[-2], str) and loc[-2][-3:] == 'dep':
+            # then thing is a reference
+            ref = thing
+            proj_int = system.projected_intensity(ref=ref)
+            if proj_int==0:
+                continue
+            wflux = system.mesh['proj_'+ref]
+            wsize = system.mesh['size']
+            pteff = np.average(system.mesh['teff'], weights=wflux*wsize, axis=0)
+            plogg = np.log10(np.average(10**system.mesh['logg'], weights=wflux*wsize, axis=0))
+            text.append('\033[4m' + "{} ({})".format(thing,loc[-2][:-3]) +  '\033[m')
+            text.append('Passband Teff = {:.3f} K'.format(pteff))
+            text.append('Passband logg = {:.3f} [cgs]'.format(plogg))
+    
+    print("\n".join(text))
 
 
 

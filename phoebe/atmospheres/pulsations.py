@@ -1,14 +1,6 @@
-"""
+r"""
 Calculate the stellar surface displacements due to pulsations.
 
-Main conventions:
-
-    - :math:`\theta` is the colatitude, and runs between 0 (north pole) over
-    :math:`\pi/2` (equator) to :math:`\pi` (south pole).
-    - :math:`\phi` is the longitude, and runs between 0 and :math:`2\pi`.
-    - :math:`m` is the azimuthal order of the mode. A positive :math:`m` means
-    the mode is prograde (in the direction of the rotation), a negative
-    value means the mode is retrograde (against the direction of rotation).
 
 **Basic quantities:**
 
@@ -38,6 +30,48 @@ The surface displacements and perturbations of observables are computable in the
 nonrotating case, slow rotation with first order Coriolis effects taken into
 account (and slow rotation in the traditional approximation, as these are
 just linear combinations of the nonrotating case).
+
+**Main conventions:**
+
+    - :math:`\theta` is the colatitude, and runs between 0 (north pole) over
+      :math:`\pi/2` (equator) to :math:`\pi` (south pole).
+    - :math:`\phi` is the longitude, and runs between 0 and :math:`2\pi`.
+    - :math:`\ell` is the degree of the mode (number of nodal lines)
+    - :math:`m` is the azimuthal order of the mode (number of nodal lines going
+      through the pulsational azimuth). A positive :math:`m` means the mode is
+      prograde (in the direction of the rotation :math:`\Omega_\mathrm{rot}`), a
+      negative value means the mode is retrograde (against the direction of
+      rotation). Thus, due to purely geometrical effects, the frequency
+      :math:`f_\mathrm{obs}` that you will get out of a Fourier transform of
+      synthetically generated data is related to the input frequency
+      :math:`f_\mathrm{input}` and the stellar rotation frequency
+      :math:`\Omega_\mathrm{rot}` via:
+        
+      .. math::
+        
+         f_\mathrm{obs} = f_\mathrm{input} + m \Omega_\mathrm{rot}
+      
+      In other words, prograde modes (:math:`m>0`) on rotating stars will appear
+      to have a higher frequency to an observer, while retrograde modes will
+      appear to have a lower frequency. You can find an illustration of this
+      effect below; all images are made with the same pulsation frequency.
+      The top row shows a nonrotating star, the bottom shows a rotating star.
+      
+      Note that if the rotation period is of the order of the pulsational period,
+      one should include higher order rotational effects in the calculations.
+
++---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
+| :math:`\ell=3, m=2` (nonrotating)           | :math:`\ell=2, m=2` (nonrotating)           | :math:`\ell=2, m=-2` (nonrotating)          | :math:`\ell=1, m=0` (nonrotating)           |
++---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
+| .. image:: images/pulsations_l3m2.gif       | .. image:: images/pulsations_l2m2.gif       | .. image:: images/pulsations_l2m-2.gif      | .. image:: images/pulsations_l1m0.gif       |
++---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
+|                                             | :math:`\ell=2, m=2` (rotating)              | :math:`\ell=2, m=-2` (rotating)             |                                             |
++---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
+|                                             | .. image:: images/pulsations_l2m2_rot.gif   | .. image:: images/pulsations_l2m-2_rot.gif  |                                             |
++---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
+
+
+
 """
 import logging
 import numpy as np
@@ -349,7 +383,7 @@ def colatitudinal(theta,phi,l,m,freq,phase,t,spin,k):
     @param k: amplitude ratio of horizontal to vertical component
     @type k: float
     """
-    term1 = k * dsph_harm_dtheta(theta,phi,l,m)                                     * exp(1j*2*pi*(freq*t+phase))
+    term1 = k * dsph_harm_dtheta(theta,phi,l,m)                                    * exp(1j*2*pi*(freq*t+phase))
     term2 = norm_atlp1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l+1,m)  * exp(1j*2*pi*(freq*t+phase + 0.25))
     term3 = norm_atlm1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l-1,m)  * exp(1j*2*pi*(freq*t+phase - 0.25))
     return term1 + term2 + term3
@@ -395,7 +429,7 @@ def longitudinal(theta,phi,l,m,freq,phase,t,spin,k):
     term3 = -norm_atlm1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l-1,m)*exp(1j*2*pi*(freq*t+phase-0.25))
     return term1 + term2 + term3
 
-def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, mesh_phase=0):
+def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, mesh_phase=0):
     """
     Compute surface displacements.
     
@@ -417,17 +451,18 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, mesh_phase=0):
     # BinaryRocheStars)
     phi_ = phi - mesh_phase
     
-    for il,im,ifreq,iphase,ispin,ik,iasl in zip(l,m,freq,phases,spin,k,asl):
+    for il,im,ifreq,iphase,ispin,ik,iasl,incl in zip(l,m,freq,phases,spin,k,asl,incls):
         #-- radial perturbation
-        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta,phi_,il,im,ifreq,iphase,t)
+        theta_ = theta# - incl
+        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta_,phi_,il,im,ifreq,iphase,t)
         #-- add to the total perturbation of the radius and velocity
         ksi_r += ksi_r_
         velo_r += 1j*2*pi*ifreq*ksi_r_
         #-- colatitudinal and longitudonal perturbation when l>0
         norm = sqrt(4*pi)
         if il>0:
-            ksi_theta_ = iasl*norm*colatitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
-            ksi_phi_   = iasl*norm* longitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_theta_ = iasl*norm*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_phi_   = iasl*norm* longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
@@ -445,7 +480,7 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, mesh_phase=0):
 
 def observables(radius, theta, phi, teff, logg,
                 t, l, m, freq, phases,
-                spin, k, asl, delta_T, delta_g,
+                spin, k, asl, delta_T, delta_g, incls,
                 mesh_phase=0.0):
     """
     Good defaults:
@@ -473,16 +508,16 @@ def observables(radius, theta, phi, teff, logg,
     # BinaryRocheStars)
     phi_ = phi - mesh_phase
     
-    for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g in \
-       zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g):
-        rad_part = radial(theta,phi_,il,im,ifreq,iphase,t)
+    for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g,incl in \
+       zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g,incls):
+        theta_ = theta# - incl
+        rad_part = radial(theta_,phi_,il,im,ifreq,iphase,t)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
         ksi_r += ksi_r_*radius
         velo_r += 1j*2*pi*ifreq*ksi_r_*radius
         if il>0:
-            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
-            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta,phi_,il,im,ifreq,iphase,t,ispin,ik)
-            ksi_theta += ksi_theta_
+            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik)
+            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik)
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
             velo_phi += 1j*2*pi*ifreq*ksi_phi_
@@ -555,6 +590,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     deltags = []
     ks = []
     spinpars = []
+    incls = []
     
     #-- extract pulsation parameters, depending on their scheme
     for i,pls in enumerate(self.params['puls']):
@@ -570,6 +606,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         deltag = pls.get_value('amplgrav')*np.exp(1j*2*pi*pls.get_value('phasegrav'))
         phase = pls.get_value('phase')
         omega = 2*pi*freq_Hz
+        incl = pls.get_value('incl','rad')
         k0 = constants.GG*M/omega**2/R**3    
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.
@@ -613,6 +650,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             deltags.append(deltag)
             ks.append(k)
             spinpars.append(spinpar)
+            incls.append(incl)
         else:
             raise ValueError('Pulsation scheme {} not recognised'.format(scheme))
         
@@ -627,12 +665,12 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
     r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
     r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)        
-    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)
-    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls, mesh_phase=mesh_phase)
+    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)        
+    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)
+    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)
     r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = observables(r4,theta4,phi4,
                  self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
-                 spinpars,ks,ampls,deltaTs,deltags, mesh_phase=mesh_phase)
+                 spinpars,ks,ampls,deltaTs,deltags, incls, mesh_phase=mesh_phase)
     self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
     self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
     self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T

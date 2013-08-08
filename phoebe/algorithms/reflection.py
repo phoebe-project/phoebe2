@@ -87,7 +87,7 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
     #-- run over each triangle on the irradiated star, and compute how much
     #   radiation it receives from the irradiator.
     R1 = np.ones(N) # local heating
-    R2 = 1. # global heating (redistributed)
+    R2 = 0.0 # global heating (redistributed)
     inco = np.ones((N,Nl)) # total flux that is incident on the triangle
     #day = np.zeros(N,bool)
     total_surface = irradiated.mesh['size'].sum()
@@ -181,9 +181,6 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
             #   dependent on the distance and the albedo
             proj_Ibolmu = np.sum(Ibolmu/distance2)
             
-            #if jref=='__bol':
-            #    temp[i] = proj_Ibolmu
-            
             #-- what is the total intrinsic emergent flux from this triangle? We
             #   need to integrate over a solid angle of 2pi, that is let phi run
             #   from 0->2*pi and theta from 0->pi/2
@@ -194,15 +191,6 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
                 continue
             
             #emer_Ibolmu = 2*pi*quad(_tief, 0, pi/2, args=(ld_law, irradiated.mesh['ld_{}'.format(jref)][i]))[0] # 2pi is for solid angle integration over phi
-            #====== START CHECK FOR EMERGENT FLUX ======
-            #-- in the case of a linear limb darkening law, we can easily evaluate
-            #   the local emergent flux (Eq. 5.27 from Phoebe Scientific reference)
-            #__xbol = 0.123
-            #__Ibol = 1.543
-            #__num = 2*pi*quad(tief,0,pi/2,args=(limbdark.ld_linear,[__xbol,0,0,0,__Ibol]))[0]
-            #__ana = __Ibol*pi*(1-__xbol/3.) 
-            #print __num,__ana
-            #======   END CHECK FOR EMERGENT FLUX ======
             
             #-- compute the excess of the total irradiated flux over the flux that
             #   would be radiated in absence of heating. We need to take care of
@@ -211,51 +199,11 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
             #   object
             #A_irradiateds[j] = albmap[i]
             R1[i] = 1.0 + (1-P_redistrs[j])*A_irradiateds[j]*proj_Ibolmu/emer[i]
-            R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer[i]*irradiated.mesh['size'][i]/total_surface
-            
-    #print ("----> {}".format(time.time()-c0))
-    #from phoebe.units import conversions
-    #from phoebe import universe
+            R2 +=            P_redistrs[j] *A_irradiateds[j]*proj_Ibolmu/emer[i]\
+                                       *irradiated.mesh['size'][i]
     
-    #print (emer*irradiated.mesh['size']*(100*constants.Rsol)**2).sum()
-    #print temp.sum()
-    #for body in [irradiator, irradiated]:
-        #print ''
-        #print body.get_label()
-        #print 'from universe',universe.luminosity(body)
-        #R = body.params['star'].get_value('radius','m')
-        #T = body.params['star'].get_value('teff', 'K')
-        #print R, T
-        #print 'from law',conversions.convert('W','erg/s',4*np.pi*R**2*constants.sigma*T**4)
-    #print ''
-    #print "Mercury receives this much from the Sun:"
-    #D = 0.307499*constants.au
-    #R = 0.3829*constants.Rearth
-    #P_in = constants.Lsol/(4*np.pi*D**2)*np.pi*R**2
-    #print '{:.6e} erg/s'.format(conversions.convert('W','erg/s',P_in))
-    #print 'Solar constant = {:.6e} erg/s/cm2'.format(conversions.convert('W/m2','erg/s/cm2',P_in/(np.pi*R**2)))
-    
-    #print "Computed"
-    #print '{:.6e} erg/s'.format(np.sum(temp*((irradiated.mesh['size']*constants.Rsol*100)**2)))
-    #import matplotlib.pyplot as plt
-    #plt.figure()
-    #size = irradiated.mesh['size']*(constants.Rsol*100)**2
-    #sa = np.argsort(temp)
-    #P_in_local = conversions.convert('W','erg/s',constants.Lsol/(4*np.pi*D**2)*size[sa])
-    #plt.plot(temp,'ko')
-    #plt.plot(emer,'ro',mec='r')
-    #plt.figure()
-    #plt.scatter(irradiated.mesh['center'][:,0], irradiated.mesh['center'][:,1], edgecolors='none', c=temp, cmap=plt.cm.spectral)
-    #plt.colorbar()
-    
-    #plt.figure()
-    #plt.title(str(R2)+' '+irradiated.get_label())
-    #plt.scatter(irradiated.mesh['center'][:,0], irradiated.mesh['center'][:,1], edgecolors='none', c=(R1-1)**0.25, cmap=plt.cm.spectral)
-    #plt.colorbar()
-    
-    #plt.figure()
-    #plt.show()
-    #raise SystemExit
+    # Global redistribution factor:
+    R2 = 1.0 + R2/total_surface
     
     return R1,R2,inco,emer,ref,A_irradiateds
 
@@ -324,17 +272,37 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
                        'quadratic','square_root', 'uniform']
     ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
     
-    #import time
-    #c0 = time.time()
     R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
                            irradiator.mesh['size'],
                            irradiator.mesh['normal_'], irrorld,
                            irradiated.mesh['center'], irradiated.mesh['size'],
-                           irradiated.mesh['normal_'], emer, total_surface,
+                           irradiated.mesh['normal_'], emer,
                            alb, redist, ld_laws)
-    #print ("----> {}".format(time.time()-c0))                       
     
-    return R1,R2,inco,emer,ref,A_irradiateds
+    # Global redistribution factor:
+    R2 = 1.0 + R2/total_surface
+    
+    # To do horizontal redistribution instead of global, perhaps do something
+    # like:
+    #rad, longit, colat = irradiated.get_coords(type='spherical', loc='center')
+    #bands = np.linspace(0, np.pi, 50)
+    ## For easy reference, create a version of the mesh where all triangles are
+    ## ordered according to colatitude. Also create an array to translate back
+    ## to the original frame
+    #sort_colat = np.argsort(colat)
+    #inv_sort = np.argsort(sort_colat)
+    #indices = np.arange(len(colat))
+    #R2 = np.ones_like(R1)
+    #for i in range(len(bands)-1):
+        ## Select this band of triangles:
+        #start = np.searchsorted(colat[sort_colat], bands[i])
+        #end = np.searchsorted(colat[sort_colat], bands[i+1])
+        ##use = (bands[i] <= colat) & (colat <= bands[i+1])
+        #use = indices[sort_colat][start:end]
+        #band_total_surface = irradiated.mesh['size'][use].sum()
+        #R2[use] += ((P_redistrs[0])*A_irradiateds[0] * inco[use,0]/emer[use]*irradiated.mesh['size'][use]).sum()/band_total_surface
+    
+    return R1, R2, inco, emer, ref, A_irradiateds
 
         
 def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
@@ -349,7 +317,7 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
     elif reflection:
         ref = 'all'#'alldep'
     
-    R1, R2, inco, emer, refs, A_irradiateds = radiation_budget_slow(irradiated,
+    R1, R2, inco, emer, refs, A_irradiateds = radiation_budget_fast(irradiated,
                                                     irradiator, ref=ref,
                                                     third_bodies=third_bodies)
     #-- heating part:

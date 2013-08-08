@@ -130,7 +130,7 @@ C       Compute the cosine of the angle between two vectors
 
         
         subroutine reflection(irrorc, irrors, irrorn, irrorld,
-     +    irredc, irreds, irredn, irrede, irredsurf,
+     +    irredc, irreds, irredn, irrede,
      +    alb, redist, ldlaw, Nirror, Nirred, Nref, R1, R2, inco)
 Cf2py intent(in) irrorc
 Cf2py intent(in) irrors
@@ -140,7 +140,6 @@ Cf2py intent(in) irredc
 Cf2py intent(in) irreds
 Cf2py intent(in) irredn
 Cf2py intent(in) irrede
-Cf2py intent(in) irredsurf
 Cf2py intent(in) alb
 Cf2py intent(in) redist
 Cf2py intent(in) ldlaw
@@ -156,17 +155,19 @@ C       irredc = irradiated centers
 C       irreds = irradiated sizes
 C       irredn = irradiated normals
 C       irrede = irradiated emergent fluxes
-C       irredsurf = total surface of irradiated
 C       Nirred = length irradiated mesh
 C       alb = bolometric albedo
 C       redist = bolometric redistribution parameter
 C       emer
+C       Careful: R2 doesn't include the 1.0 term and is not divided by the total
+C                surface (for generality). To get the "true" R2, you need to do:
+C                R2 = 1.0 + R2 / total_surface
 
         
         integer i,j,k, ldlaw
         integer Nirror, Nirred, Nref
         real*8 distance2 ! Lines of sight squared distances
-        real*8 irredsurf, alb, redist, R2, Imu0, Ibolmu
+        real*8 alb, redist, R2, Imu0, Ibolmu
         real*8 los
         real*8 cos_psi1 ! Angles between normal and LOS on irred
         real*8 cos_psi2 ! Angles between normal and LOS on irror
@@ -189,7 +190,7 @@ C       emer
         dimension temp5(5)
         
         
-        R2 = 1.0
+        R2 = 0d0
         do 14 i=1,Nirred
           do 21 k=1,Nref
             proj_Ibolmu(k) = 0d0
@@ -263,7 +264,7 @@ C         Remember how much radiation enters in this triangle for this passband
 
 C         Some more work for bolometric stuff                
           R1(i) = 1d0 + (1-redist)*alb*inco(i,1)/irrede(i)
-          R2 = R2 + redist *alb*inco(i,1)/irrede(i)*irreds(i)/irredsurf
+          R2 = R2 + redist *alb*inco(i,1)/irrede(i)*irreds(i)
                 
             
 14      end do

@@ -1504,19 +1504,25 @@ class Body(object):
                         obs['pblum'] = pblum
                     if do_l3:
                         obs['l3'] = l3
-                print pblum, obs['pblum']
                 msg = 'Group {} ({:d} members): pblum={:.6g} ({}), l3={:.6g} ({})'
                 logger.info(msg.format(group, len(groups[group][3]),pblum,\
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
                 
     
-    def get_logp(self):
+    def get_logp(self, include_priors=False):
         r"""
         Retrieve probability.
         
         If the datasets have passband luminosities C{pblum} and/or third
-        light contributions ``l3``, they will be fitted if they are adjustable.
+        light contributions ``l3``, they will be:
+        
+            - included in the normal fitting process if they are adjustable
+              and have a prior
+            - linearly fitted after each model computation, but otherwise not
+              included in the fitting process if they are adjustable but do not
+              have a prior
+            - left to their original values if they are not adjustable.
         
         Every data set has a statistical weight, which is used to weigh them
         in the computation of the total probability.
@@ -1524,16 +1530,18 @@ class Body(object):
         If ``statweight==0``, then:
         
         .. math::
+            :label: prob
         
-            p = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2_{yi}}}
+            p = \prod_{i=1}^N \frac{1}{\sqrt{2\pi\sigma^2_{y_i}}}
             \exp\left(-\frac{(y_i - 
-            \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}\right)
+            \mathrm{pblum}\cdot m_i - l_3)^2}{2\sigma_{y_i}^2}\right)
             
-            \log p = \sum_{i=1}^N -\frac{1}{2}\log(2\pi) - \log(\sigma_{yi})
-            - \frac{(y_i - \mathrm{pblum}\ m_i - l_3)^2}{2\sigma_{yi}^2}
-            
-        Where :math:`p` gives the expected frequency of getting a value
-        in an infinitesimal range around :math:`y_i` per unit :math:`dy`.
+            \log p = \sum_{i=1}^N -\frac{1}{2}\log(2\pi) - \log(\sigma_{y_i})
+            - \frac{(y_i - \mathrm{pblum}\cdot m_i - l_3)^2}{2\sigma_{y_i}^2}
+        
+        With :math:`y_i, \sigma_{y_i}` the data and their errors, and :math:`m_i`
+        the model points. Here :math:`p` gives the expected frequency of getting
+        a value in an infinitesimal range around :math:`y_i` per unit :math:`dy`.
         To retrieve the :math:`\chi^2`, one can observe that the above is
         equivalent to
         
@@ -1541,14 +1549,34 @@ class Body(object):
         
             \log p = K -\frac{1}{2}\chi^2
             
-        or
+        with :math:`K` and 'absorbing term'. Equivalently,
         
         .. math::
         
             K = \log p + \frac{1}{2}\chi^2
-            
+        
+        or
+        
+        .. math::
+            :label: chi2
+        
             \chi^2 = 2 (K - \log p )
+        
+        Note that Eq. :eq:`chi2` is intuitive since :math:`p` is expected to
+        have uniform distribution, the negative natural log of a uniform
+        distribution is expected to follow an exponential distribution, so
+        scale that with a factor of two and you get a :math:`\chi^2` distributed
+        parameter.
+        
+        If ``statweight=0`` (thus following the above procedure), combining
+        different datasets is naturally equivalent with `Fisher's method <http://en.wikipedia.org/wiki/Fisher's_method>`_
+        of combining probabilities from different (assumed independent!) tests:
+        
+        .. math::
+        
+            \chi^2 = -2 \sum_i^k\log(p_i)
             
+        With :math:`i` running over all different tests (i.e. datasets).
         
         If ``statweight>1`` each :math:`\log p` value will actually be the mean
         of all :math:`\log p` within one dataset, weighted with the value of
@@ -1556,13 +1584,34 @@ class Body(object):
         important, but is generally not a good approach because it involves
         a subjective determination of the ``statweight`` parameter.
         
+        If ``include_priors=True``, then also the distribution of the priors
+        will be taken into account in the computation of the probability in 
+        Eq. :eq:`prob`:
+        
+        .. math::
+        
+            p = \prod_{i=1}^{N_\mathrm{data}} \frac{1}{\sqrt{2\pi\sigma^2_{y_i}}}
+                \exp\left(-\frac{(y_i - 
+                \mathrm{pblum}\cdot m_i - l_3)^2}{2\sigma_{y_i}^2}\right)
+                \prod_{j=1}^{N_\mathrm{pars}} P_j(s_j)
+        
+        Where :math:`P_j(s_j)` is the probability of the current value
+        :math:`s_j` of the :math:`j` th parameter  according to its prior
+        distribution. Note that even the non-fitted parameters that have a
+        prior will be taken into account. If they are not fitted, they will not
+        have an influence on the probability but for a constant term. On the
+        other hand, one can exploit this property to define a parameter that
+        *derives* it's value from other parameters (e.g. distance from ``pblum``),
+        and take also that into account during fitting. One could argue about
+        the statistical validity of such a procedure, but it might come in handy
+        to simplify the fitting problem.
+        
         .. warning::
         
             The :math:`\log p` returned by this function is an
-            **expected frequency** and not a true probability. That is, the
-            :math:`p` comes from the probability density function, not the
-            probability. I think this is the key to why it is so difficult to
-            combine datasets in one statistic. To get the probability itself,
+            **expected frequency** and not a true probability (it's value is not
+            between 0 and 1). That is, the :math:`p` comes from the probability
+            density function. To get the probability itself,
             you can use scipy on the :math:`\chi^2`:
                 
             >>> n_data = 100
@@ -1578,7 +1627,7 @@ class Body(object):
         
         .. note:: See also
             
-            :py:func:`get_chi2 <PhysicalBody.get_chi2>` to compute the
+            :py:func:`get_chi2 <Body.get_chi2>` to compute the
             :math:`\chi^2` statistic and probability
         
         References: [Hogg2009]_.
@@ -1586,9 +1635,12 @@ class Body(object):
         @return: log probability, chi square, Ndata
         @rtype: float, float, float
         """
-        logp = 0.
-        chi2 = 0.
+        log_f = 0. # expected frequency
+        log_p = 0. # probability 
+        chi2 = []  # chi squares
         n_data = 0.
+        
+        # Iterate over all datasets we have
         for idata in self.params['obs'].values():
             for obs in idata.values():
                 
@@ -1648,7 +1700,7 @@ class Body(object):
                         sigma = np.array(obs['sigma_V'])
                         term1 += - 0.5*np.log(2*pi*(sigma)**2)
                         term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
-                
+
                 # Statistical weight:
                 statweight = obs['statweight']
                 
@@ -1658,28 +1710,55 @@ class Body(object):
                 #   else, we take take the mean and multiply it with the
                 #   weight:
                 if statweight>0:
-                    this_logp = (term1 + term2).mean() * statweight
+                    this_logf = (term1 + term2).mean() * statweight
                     this_chi2 = -(2*term2).mean() * statweight
                 
                 #   if statistical weight is zero, we don't do anything:
                 else:
-                    this_logp = (term1 + term2).sum()
+                    this_logf = (term1 + term2).sum()
                     this_chi2 = -2*term2.sum()
                 
-                logger.info("Statist weight of {} = {}".format(obs['ref'],
+                logger.debug("Statist weight of {} = {}".format(obs['ref'],
                                                                statweight))
-                logger.info("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
-                logger.info("Chi2 of {}".format(obs['ref'], term2*2))
-                logp += this_logp
-                chi2 += this_chi2
+                logger.debug("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
+                #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
+                log_f += this_logf
+                chi2.append(this_chi2)
                 n_data += len(obser)
                 if loaded:
                     obs.unload()
+        
+        # Include priors if requested
+        if include_priors:
+            # Get a list of all parameters with priors
+            pars = self.get_parameters_with_priors()
+            
+            for par in pars:
+                # Get the log probability of the current value given the prior.
+                prior = par.get_prior()
+                value = par.get_value()
+                pdf = prior.pdf(x=value)[1]
+                print("Par {}, value {} has PDF={}".format(par.get_qualifier(),
+                                                           par.get_value(),
+                                                           pdf))
+                this_logf = np.log(pdf)
+                log_f += this_logf
+                if prior.distribution == 'normal':
+                    mu = prior.distr_pars['mu']
+                    sigma = prior.distr_pars['sigma']
+                    this_chi2 = (value - mu)**2 / sigma**2
+                else:
+                    if pdf==0:
+                        this_chi2 = 1e6
+                    else:
+                        this_chi2 = 0.0
                     
-        return logp, chi2, n_data
+                chi2.append(this_chi2)
+        
+        return log_f, chi2, n_data
     
     
-    def get_chi2(self):
+    def get_chi2(self, include_priors=False):
         r"""
         Return the :math:`\chi^2` and resulting probability of the model.
         
@@ -1687,16 +1766,19 @@ class Body(object):
         close to zero, it is very plausible.
         """
         # Get the necessary info
-        logp, chi2, n_data = self.get_logp()
+        logp, chi2, n_data = self.get_logp(include_priors=include_priors)
         adj = self.get_adjustable_parameters()
         n_par = len(adj)
         
         # Compute the chi2 probability with n_data - n_par degrees of freedom
         k = n_data - n_par
-        prob = scipy.stats.distributions.chi2.cdf(chi2, k)
+        prob = 1-scipy.stats.distributions.chi2.cdf(chi2, k)
+        total_chi2 = -2* np.sum(np.log(prob))
+        total_prob = scipy.stats.distributions.chi2.cdf(total_chi2, 2*len(prob))
         
+        print 'X2 (tX2), prob', chi2, total_chi2, total_prob
         # That's it!
-        return chi2, prob, n_data, n_par
+        return total_chi2, total_prob, n_data, n_par
         
     
     def get_data(self):
@@ -1836,6 +1918,17 @@ class Body(object):
         return mylist
     
     
+    def get_parameters_with_priors(self):
+        """
+        Return a list of all parameters with priors.
+        """
+        mylist = []
+        for path, val in self.walk_all():
+            path = list(path)
+            if isinstance(val,parameters.Parameter) and val.has_prior() and not val in mylist:
+                mylist.append(val)
+        return mylist
+    
     def get_label(self):
         """
         Return the label of the class instance.
@@ -1879,7 +1972,7 @@ class Body(object):
         self._postprocessing.append((func, args, kwargs))
     
         
-    def preprocess(self, time):
+    def preprocess(self, time=None):
         """
         Run the preprocessors.
         
@@ -1890,7 +1983,7 @@ class Body(object):
             getattr(processing, func)(self, time, *arg, **kwargs)
     
     
-    def postprocess(self, time):
+    def postprocess(self, time=None):
         """
         Run the postprocessors.
         """
