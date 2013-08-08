@@ -589,6 +589,7 @@ def get_barycentric_orbit(bary_times, *args, **kwargs):
     this_orbit = get_orbit(propertimes, *args, **kwargs)
     return list(this_orbit) + [propertimes]
 
+
 def correct_barycentric_orbit(obs_times, *args, **kwargs):
     """
     Correct observed timings to be in the frame of reference of a component.
@@ -1430,7 +1431,8 @@ def walk_hierarchical(o,orbits=None,components=None):
     >>> x3 = parameters.ParameterSet(context='orbit',label='sysC')
     >>> x4 = parameters.ParameterSet(context='orbit',label='sysB')
     >>> x5 = parameters.ParameterSet(context='orbit',label='sysA')
-    
+    get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
+                               incl=in
     And nest them in some way, from deepest nesting to the upper level:
     
     >>> sysA = {x5:[True,True]}
@@ -1513,11 +1515,11 @@ def walk_hierarchical(o,orbits=None,components=None):
                     yield None,orbits,components
 
 
-def get_binary_orbit(time,orbit,component):
+def get_binary_orbit(time,orbit,component, barycentric=False):
     """
     Get the binary orbit.
     
-    Careful, everything is in Phoebe units (Rsol, Rsol/d)
+    Careful, everything is in Phoebe units (Rsol, Rsol/d).
     """
     #-- get some information
     P = orbit.get_value('period','d')
@@ -1531,14 +1533,27 @@ def get_binary_orbit(time,orbit,component):
     vgamma = orbit.get_value('vgamma','Rsol/d')
     T0 = orbit.get_value('t0')
     t0type = orbit.get('t0type', 'periastron passage')
+    dpdt = orbit.get_value('dpdt')
+    dperdt = orbit.get_value('dperdt')/180.*np.pi / 365.25 # deg/yr to rad/d
+    deccdt = 0.0
     a_comp = [a1,a2][['primary','secondary'].index(component)]
     
     if t0type == 'superior conjunction':
         time = time - orbit['phshift'] * P
     
     # Where in the orbit are we? We need everything in cartesian Rsol units
-    loc,velo,euler = get_orbit(time,P,e,a_comp,T0,per0=argper,long_an=long_an,
-                               incl=inclin,component=component, t0type=t0type)
+    if not barycentric:
+        func = get_orbit
+    else:
+        func = get_barycentric_orbit
+    
+    # in the case of barycentric times, also the "proper times" are returned
+    output = func(time, P, e, a_comp, T0, per0=argper,
+                               long_an=long_an, incl=inclin, dpdt=dpdt,
+                               deccdt=deccdt, dperdt=dperdt,
+                               mass_conservation=True,
+                               component=component, t0type=t0type)
+    loc, velo, euler = output[:3]
     return loc,velo,euler
 
 
