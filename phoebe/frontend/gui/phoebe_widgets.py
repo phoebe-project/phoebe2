@@ -249,7 +249,7 @@ class AdjustableTreeWidget(GeneralParameterTreeWidget):
 
             # remove from list if check is false
             if change_value and new_check == False:
-                self.emit(SIGNAL("parameterChanged"),self,label,param,False,new_check,None,None,True)
+                self.emit(SIGNAL("parameterChanged"),self,label,param,True,new_check,None,None,True)
                 
             # reset visibility
             if new_check or not change_value: #item will have been deleted if new_check == False

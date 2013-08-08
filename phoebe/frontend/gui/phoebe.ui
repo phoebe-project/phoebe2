@@ -88,62 +88,6 @@ p, li { white-space: pre-wrap; }
             <number>0</number>
            </property>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_6">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QWidget" name="mp_systemWidget" native="true">
-               <property name="minimumSize">
-                <size>
-                 <width>0</width>
-                 <height>164</height>
-                </size>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>164</height>
-                </size>
-               </property>
-               <layout class="QGridLayout" name="gridLayout_9">
-                <item row="0" column="0">
-                 <widget class="QWidget" name="mp_systemSelectWebViewWidget" native="true">
-                  <property name="maximumSize">
-                   <size>
-                    <width>500</width>
-                    <height>16777215</height>
-                   </size>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-             <item>
-              <widget class="QWidget" name="mp_sysmplWidget" native="true">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>164</height>
-                </size>
-               </property>
-               <layout class="QGridLayout" name="gridLayout_10">
-                <property name="margin">
-                 <number>0</number>
-                </property>
-                <property name="spacing">
-                 <number>0</number>
-                </property>
-                <item row="0" column="0">
-                 <layout class="QGridLayout" name="mp_sysmplGridLayout"/>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
             <layout class="QGridLayout" name="mp_plotGridLayout">
              <property name="spacing">
               <number>3</number>
@@ -565,14 +509,12 @@ p, li { white-space: pre-wrap; }
      <string>View</string>
     </property>
     <addaction name="separator"/>
+    <addaction name="tb_view_systemAction"/>
     <addaction name="tb_view_lpAction"/>
     <addaction name="tb_view_rpAction"/>
     <addaction name="tb_view_versionsAction"/>
     <addaction name="tb_view_datasetsAction"/>
     <addaction name="tb_view_pythonAction"/>
-    <addaction name="separator"/>
-    <addaction name="tb_view_sysAction"/>
-    <addaction name="tb_view_glAction"/>
    </widget>
    <widget class="QMenu" name="tb_helpMenu">
     <property name="title">
@@ -1107,6 +1049,51 @@ p, li { white-space: pre-wrap; }
           </widget>
          </item>
          <item>
+          <widget class="QPushButton" name="rp_savedFeedbackPushButton">
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Saved Feedback</string>
+           </property>
+           <property name="icon">
+            <iconset resource="ui_resources.qrc">
+             <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="VersionsTreeWidget" name="rp_savedFeedbackTreeView">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <attribute name="headerVisible">
+            <bool>false</bool>
+           </attribute>
+           <column>
+            <property name="text">
+             <string>Feedback Name</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="rp_savedFeedbackAutoSaveCheck">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>auto save feedback</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QWidget" name="rp_fitoptionsWidget" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_8">
             <property name="spacing">
@@ -1563,6 +1550,76 @@ p, li { white-space: pre-wrap; }
     </layout>
    </widget>
   </widget>
+  <widget class="QDockWidget" name="lp_systemDockWidget">
+   <property name="features">
+    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::LeftDockWidgetArea|Qt::RightDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>System</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_4">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="spacing">
+      <number>2</number>
+     </property>
+     <property name="leftMargin">
+      <number>2</number>
+     </property>
+     <property name="topMargin">
+      <number>2</number>
+     </property>
+     <property name="rightMargin">
+      <number>2</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QWidget" name="mp_systemSelectWebViewWidget" native="true">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QWidget" name="mp_sysmplWidget" native="true">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>150</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_10">
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <item row="0" column="0">
+         <layout class="QGridLayout" name="mp_sysmplGridLayout"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
   <action name="tb_file_newAction">
    <property name="enabled">
     <bool>true</bool>
@@ -1645,7 +1702,7 @@ p, li { white-space: pre-wrap; }
     <string>Fitting</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+2</string>
+    <string>Ctrl+3</string>
    </property>
   </action>
   <action name="tb_view_datasetsAction">
@@ -1659,7 +1716,7 @@ p, li { white-space: pre-wrap; }
     <string>Data and Plots</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+4</string>
+    <string>Ctrl+5</string>
    </property>
   </action>
   <action name="tb_help_aboutAction">
@@ -1722,7 +1779,7 @@ p, li { white-space: pre-wrap; }
     <string>Parameters</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+1</string>
+    <string>Ctrl+2</string>
    </property>
   </action>
   <action name="tb_view_hierAction">
@@ -1873,7 +1930,7 @@ p, li { white-space: pre-wrap; }
     <string>Middle Pane</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+6</string>
+    <string>Ctrl+7</string>
    </property>
   </action>
   <action name="tb_view_bpPlotsAction">
@@ -1906,7 +1963,7 @@ p, li { white-space: pre-wrap; }
     <string>Versions</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+3</string>
+    <string>Ctrl+4</string>
    </property>
   </action>
   <action name="tb_view_pythonAction">
@@ -1920,7 +1977,21 @@ p, li { white-space: pre-wrap; }
     <string>Python Interface</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+5</string>
+    <string>Ctrl+6</string>
+   </property>
+  </action>
+  <action name="tb_view_systemAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>System</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
    </property>
   </action>
  </widget>
@@ -2033,22 +2104,6 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>154</x>
      <y>618</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>tb_view_sysAction</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>mp_systemWidget</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>558</x>
-     <y>386</y>
     </hint>
    </hints>
   </connection>
@@ -2177,6 +2232,70 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>1041</x>
      <y>705</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>rp_savedFeedbackPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>rp_savedFeedbackTreeView</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1043</x>
+     <y>344</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1043</x>
+     <y>496</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>rp_savedFeedbackPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>rp_savedFeedbackAutoSaveCheck</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1043</x>
+     <y>336</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1043</x>
+     <y>359</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tb_view_systemAction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lp_systemDockWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1153</x>
+     <y>1075</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tb_view_versionsAction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>rp_versionsDockWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>699</x>
+     <y>1075</y>
     </hint>
    </hints>
   </connection>
