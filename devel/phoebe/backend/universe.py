@@ -4470,6 +4470,10 @@ class BodyBag(Body):
             
     @decorators.parse_ref
     def etv(self,ref='alletvdep',time=None):
+        """
+        currently this computes the LTTE of an orbit at every time
+        does NOT handle: dynamical, apsidal, etc
+        """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'obs' in self.params:
             for lbl in ref:

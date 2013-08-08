@@ -426,7 +426,7 @@ def plot_rvobs(system,errorbars=True,**kwargs):
             if errorbars:
                 p = ax.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
             else:
-                p = ax.plot(time+n*period, rv, **kwargs)
+                p = ax.plot(time+n*period,rv, **kwargs)
             artists.append(p)
     else:
         time = (time % period) / period
@@ -525,6 +525,129 @@ def plot_rvres(system,*args,**kwargs):
     if loaded_syn: syn.unload()
     
     return artists, obs, syn, l3
+    
+def plot_etvsyn(system,*args,**kwargs):
+    """
+    Plot etvsyn as an etv curve
+    
+    All args and kwargs are passed on to matplotlib's `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+        want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+        will be used
+    
+    **Example usage:**
+    
+    >>> artists, syn = plot_etvsyn(system,'r-',lw=2)
+        
+    Returns the matplotlib objects, the plotted data and the ``pblum`` and
+    ``l3`` values
+    """
+    ref = kwargs.pop('ref',0)
+    scale = kwargs.pop('scale','obs')
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
+    ax = kwargs.pop('ax',plt.gca())
+
+    #-- get parameterSets
+    syn = system.get_synthetic(category='etv',ref=ref)
+    
+    #-- load synthetics: they need to be here
+    loaded = syn.load(force=False)
+    
+    #-- take third light and passband luminosity contributions into account
+    time = np.array(syn['time'])
+    etv = np.array(syn['etv'])
+    
+    #-- get the period to repeat the RV with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    if not phased:
+        for n in range(repeat+1):
+            p, = ax.plot(time+n*period, conversions.convert('d','s',etv), *args,**kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        # need to sort by time (if using lines)
+        o = time.argsort()
+        time, etv = time[o], etv[o]
+        for n in range(repeat+1):
+            p, = ax.plot(time+n, conversions.convert('d','s',etv), *args,**kwargs)
+            artists.append(p)
+
+    if loaded: syn.unload()
+    
+    return artists,syn
+    
+def plot_etvobs(system,errorbars=True,**kwargs):
+    """
+    Plot etvobs as a etv curve.
+    
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    
+        - ``ref=0``: the reference of the lc to plot
+        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
+          want to repeat the phase curve a couple of times.
+        - ``period=None``: period of repetition. If not given, the last time point
+          will be used
+    
+    **Example usage:**
+    
+    >>> artists, obs = plot_etvobs(system,fmt='ko-')
+    
+    Returns the matplotlib objects and the observed parameterSet
+    """
+    ref = kwargs.pop('ref',0)
+    repeat = kwargs.pop('repeat',0)
+    period = kwargs.pop('period',None)
+    phased = kwargs.pop('phased',False)
+    ax = kwargs.pop('ax',plt.gca())
+
+    #-- get parameterSets
+    obs = system.get_obs(category='etv',ref=ref)
+    
+    #-- load observations: they need to be here
+    loaded = obs.load(force=False)
+    
+    time = obs['time']
+    etv = obs['etv']
+    sigm = obs['sigma']
+    
+    #-- get the period to repeat the ETV with
+    if period is None:
+        period = max(time)
+    
+    #-- plot model
+    artists = []
+    if not phased:
+        for n in range(repeat+1):
+            if errorbars:
+                p = ax.errorbar(time+n*period,conversions.convert('d','s',etv),yerr=sigm,**kwargs)
+            else:
+                p = ax.plot(time+n*period, conversions.convert('d','s',etv), **kwargs)
+            artists.append(p)
+    else:
+        time = (time % period) / period
+        # need to sort by time (if using lines)
+        o = time.argsort()
+        time, etv = time[o], etv[o]
+        for n in range(repeat+1):
+            if errorbars:
+                p = ax.errorbar(time+n,conversions.convert('d','s',etv),yerr=sigm,**kwargs)
+            else:
+                p = ax.plot(time+n,conversions.convert('d','s',etv),**kwargs)
+            artists.append(p)
+
+    if loaded: obs.unload()
+    
+    return artists,obs
+
 
 #}
 

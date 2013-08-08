@@ -1552,6 +1552,75 @@ def parse_rv(filename, columns=None, components=None,
         return output.values()[0][0][0], output.values()[0][1][0]
     else:
         return output
+        
+def parse_etv(filename, columns=None, components=None,
+             full_output=False, dtypes=None, units=None, **kwargs):
+    """
+    Parse ETV files to ETVDataSets and etvdeps.
+    
+    See :py:func:`parse_lc` for more information.
+    
+    @param filename: filename
+    @type filename: string
+    @param columns: columns in the file. If not given, they will be
+      automatically detected or should be the default ones.
+    @type columns: None or list of strings
+    @param components: list of components for each column in the file. If not
+      given, they will be automatically detected.
+    @type components: None or list of strings
+    @param full_output: if False and there are no labels in the file, only the
+      data from the first component will be returned, instead of the OrderedDict
+    @type full_output: bool
+    @return: (list of :ref:`etvobs <parlabel-phoebe-etvobs>`, list of :ref:`etvdep <parlabel-phoebe-etvdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of etvobs and etvdeps.
+    """
+    default_column_order = ['time','etv','sigma']
+    
+    # Process the header and body of the file
+    output, \
+        (columns_in_file, columns_specs, units), \
+        (pb, ds) = process_file(filename, default_column_order, 'etv', columns, \
+                                            components, dtypes, units, **kwargs)
+    
+    
+    # Add sigma if not available:
+    myds = output.values()[0][0][-1]
+    if not 'sigma' in myds['columns']:
+        myds.estimate_noise(from_col='etv', to_col='sigma')
+        myds['columns'] = myds['columns'] + ['sigma']
+    
+    # Convert to right units
+    for col in units:
+        if col == 'etv':
+            f, e_f = conversions.convert(units[col],
+                                         myds.get_parameter(col).get_unit(), 
+                                         myds['etv'], myds['sigma'])
+            myds['etv'] = f
+            myds['sigma'] = e_f
+    
+    # Remove nans:
+    for comp in output.keys():
+        for ds in output[comp][0]:
+            columns = ds['columns']
+            keep = np.ones(len(ds[columns[0]]), bool)
+            # First look for nans in all columns
+            for col in columns:
+                keep = keep & -np.isnan(ds[col])
+            # Then throw the rows with nans out
+            for col in columns:
+                ds[col] = ds[col][keep]
+    
+    # Remember user-supplied arguments and keyword arguments for this parse
+    # function
+    # add columns, components, dtypes, units, full_output
+    
+    # NOT IMPLEMENTED YET
+    
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
+    else:
+        return output
 
 def parse_phot(filenames, columns=None, full_output=False, group=None,
                group_kwargs=None, **kwargs):
