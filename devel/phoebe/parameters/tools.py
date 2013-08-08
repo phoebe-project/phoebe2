@@ -190,13 +190,21 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     r"""
     Add the vsini to a Star.
     
-    The rotation period will then be constrained by the vsini of the star
+    If ``derive=None``, the vsini will be derived from the other parameters of
+    the stars, i.e.
+    
+    .. math::
+    
+        v_\mathrm{eq}\sin i = \frac{2\pi R}{P}
+    
+    If ``derive='rotperiod'``, the rotation period can then be constrained by
+    the vsini of the star via.
     
     .. math::
     
         \mathrm{rotperiod} = \frac{2\pi R}{v\sin i} \sin i
     
-    or the inclination angle
+    or if ``derive='incl'``, the inclination angle
     
     .. math::
     
@@ -245,6 +253,8 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     elif derive=='incl':
         star.add_constraint('{incl} = np.arcsin({rotperiod}*{vsini}/(2*np.pi*{radius}))')
         logger.info("star '{}': 'incl' constrained by 'vsini' and 'radius' and 'rotperiod'".format(star['label']))
+    elif derive == 'radius':
+        raise NotImplementedError
     else:
         star.add_constraint('{vsini} = (2*np.pi*{radius})/{rotperiod}*np.sin({incl})')
         logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
@@ -1289,10 +1299,16 @@ def summarize(system, time=None):
     Experimental
     """
     text = []
+    system = system.copy()
+    
+    for loc, thing in system.walk_all():
+        if isinstance(thing, parameters.ParameterSet) and 'extinction' in thing:
+            thing['extinction'] = 0.0
+            system.set_time(0.)
+            
     system.list(summary='physical', width=90)
     
-    if time is None:
-        system.set_time(0.)
+    
     
     params = {}
     import phoebe
