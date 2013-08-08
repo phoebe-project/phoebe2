@@ -835,8 +835,9 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         retvalue = (model - mu) / sigma
         
         #retvalue = np.array([system.get_logp(include_priors=True)[1]])
-        retvalue = np.array([system.get_chi2(include_priors=True)[0]])
+        #retvalue = np.array([system.get_chi2(include_priors=True)[0]])
         #print 'r',retvalue
+        
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
