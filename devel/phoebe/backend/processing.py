@@ -29,4 +29,50 @@ def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
         teff_non_fixed = teff_ratio * teff_fixed
     """
     self[1-fix].params['component']['teff'] = teff_ratio * self[fix].params['component']['teff']**( (-1)**fix)
+
+
+
+def sed_scale_to_distance(self, time, group):
+    """
+    Transform the SED scaling factor to a distance.
     
+    We read the "pblum" value from the photometry with name ``group`` and
+    use it to correct the distance to the object. The corrected distance in
+    stored in the ``globals`` ParameterSet as ``derived_distance``.
+    
+    This only works if ``time==None``, such that the rescaling is only done
+    after all computations are done.
+    
+    @param group: name of the photometry group to read the scaling from.
+    @type group: str
+    """
+    # Don't rescale in the middle of the computations, only do it after everyting
+    # was computed (see observatory.compute)
+    if time is not None:
+        return None
+    
+    pblum = None
+    globals = self.get_globals()
+    # Walk over everything
+    for loc, thing in self.walk_all(path_as_string=False):
+        # Look for lcobs
+        if isinstance(thing, str) and thing == 'lcobs':
+            # Look for group members
+            for ref in loc[-2]['lcobs']:
+                obs = loc[-2]['lcobs'][ref]
+                # We only need one dataset, since all pblums are the same within the
+                # group. If we found a good lcdep, we can break
+                if 'group' in obs and obs['group'] == 'sed':
+                    pblum = obs['pblum']
+                    break
+    
+    # If we needed to multiply the model with 2, we need to put the thing
+    # two times closer. To ensure consistency we (should have) added a new
+    # parameter to the globals. This also ensure that if we call postprocess
+    # two times, we're not twice dividing by two.
+    print("Distance was {}".format(globals['distance']))
+    globals['derived_distance'] = globals['distance'] / pblum
+    print("Distance is {} (pblum={})".format(globals['derived_distance'], pblum))
+                
+            
+                

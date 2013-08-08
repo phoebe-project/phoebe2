@@ -41,6 +41,7 @@ import glob
 import numpy as np
 from collections import OrderedDict
 from phoebe.parameters import parameters
+from phoebe.parameters import tools as ptools
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.io import oifits
@@ -1552,7 +1553,8 @@ def parse_rv(filename, columns=None, components=None,
     else:
         return output
 
-def parse_phot(filenames,columns=None,full_output=False,**kwargs):
+def parse_phot(filenames, columns=None, full_output=False, group=None,
+               group_kwargs=None, **kwargs):
     """
     Parse PHOT files to LCDataSets and lcdeps.
     
@@ -1814,11 +1816,16 @@ def parse_phot(filenames,columns=None,full_output=False,**kwargs):
                     components[label][1][-1]['passband'] = passband
                     #-- override values already there with extra kwarg values
                     for key in kwargs:
-                        if key in components[label][0][ref]:
+                        if key in components[label][0][-1]:
                             components[label][0][-1][key] = kwargs[key]
-                        if key in components[label][1][ref]:
+                        if key in components[label][1][-1]:
                             components[label][1][-1][key] = kwargs[key]
-                        
+    
+    if group is not None:
+        if group_kwargs is None:
+            group_kwargs = dict()
+        ptools.group(components.values()[0][0], group, **group_kwargs)
+    
     #-- If the user didn't provide any labels (either as an argument or in the
     #   file), we don't bother the user with it:
     if not 'label' in columns_in_file and not full_output:

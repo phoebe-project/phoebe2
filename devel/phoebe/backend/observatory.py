@@ -1948,6 +1948,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     labl_per_time = params['refs']
     type_per_time = params['types'] 
     
+    # Some preprocessing steps
+    system.preprocess(time=None)
+    
     # Some simplifications: try to detect whether a system is circular is not
     if hasattr(system, 'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
         circular = (system.bodies[0].params['orbit']['ecc'] == 0)
@@ -2041,6 +2044,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         if params['subdiv_num']:  
             system.unsubdivide()
         
+        # Execute some pre-processing steps if necessary
+        system.preprocess(time)
+        
         # Clear previous reflection effects if necessary (not if reflect==1!)
         if reflect is True:
             system.clear_reflection()
@@ -2099,6 +2105,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         for ef, kw in zip(extra_func, extra_func_kwargs):
             ef(system, time, i, **kw)
         
+        # Execute some post-processing steps if necessary
+        system.postprocess(time)
+        
         
     #if inside_mpi is None:
     # We can't compute pblum or l3 inside MPI, because it's this function that
@@ -2107,6 +2116,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # function after everything is merged.
     try:
         system.compute_pblum_or_l3()
+        system.postprocess(time=None)
     except:
         logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
 

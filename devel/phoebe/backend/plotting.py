@@ -733,6 +733,8 @@ def plot_lcres_as_sed(system, *args, **kwargs):
     for key in to_plot.keys():
         kwargs_ = kwargs.copy()
         # Get data
+        if not len(to_plot[key]['x']):
+            continue
         x = np.hstack(to_plot[key]['x'])
         y = np.hstack(to_plot[key]['y'])
         e_y = np.hstack(to_plot[key]['e_y'])

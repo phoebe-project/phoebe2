@@ -3146,7 +3146,8 @@ class Unit(object):
         probably not consist of only basic units, but be more readable).
         """
         # If Andrej says 1 minute it means an hour, when he says 1 day it means
-        # two months
+        # two months -- this is for laughs, if I offended anyone this, I
+        # apologize (sorry Andrej)
         if unit.lower() == 'andrej':
             return 60. * self
         

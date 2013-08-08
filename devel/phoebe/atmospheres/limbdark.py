@@ -944,10 +944,11 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
             values[i] = red_kwargs[label]
         elif label == 'vgamma':
             values[i] = vgamma
+        elif label == 'ebv':
+            values[i] = red_kwargs['extinction'] / red_kwargs['Rv']
         else:
             raise ValueError(("Somethin' wrong with the atmo table: cannot "
                               "interpret label {}").format(label))
-    
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid)
@@ -1141,7 +1142,18 @@ def _prepare_grid(passband,atm):
         try:
             available = [col.lower() for col in ff[passband].data.names]
         except Exception as msg:
-            raise KeyError("Atmosphere file {} does not contain required information ({})".format(atm,str(msg)))
+            # Give useful infor for the user
+            # derive which files where used:
+            extra_msg = "If the atmosphere files "
+            with pyfits.open(atm) as ff:
+                for key in ff[0].header:
+                    if 'C__ATMFILE' in key:
+                        extra_msg += ff[0].header[key]+', '
+            extra_msg+= 'exist in directory {}, '.format(get_paths()[1])
+            extra_msg+= 'you can add it via the command\n'
+            passband_name = ".".join(str(msg).split("\'")[-2].split('.')[:-1]) + '*'
+            extra_msg+= '>>> phoebe.atmospheres.limbdark.compute_grid_ld_coeffs("{}", passbands=("{}",))'.format(atm, passband_name)
+            raise ValueError("Atmosphere file {} does not contain required information ({:s})\n{}".format(atm,str(msg),extra_msg))
         #-- remove columns that are not available and derive which parameters
         #   need to be interpolated
         data_columns = [col for col in data_columns if col in available]

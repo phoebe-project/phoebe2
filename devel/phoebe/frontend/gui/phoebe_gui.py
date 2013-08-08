@@ -28,8 +28,8 @@ from phoebe.utils import callbacks, utils
 
 ### global options
 global _fileDialog_kwargs
-_fileDialog_kwargs = {}
-#~ _fileDialog_kwargs = {'options': QFileDialog.DontUseNativeDialog}
+#_fileDialog_kwargs = {}
+_fileDialog_kwargs = {'options': QFileDialog.DontUseNativeDialog}
 
 global _alpha_test
 _alpha_test = True

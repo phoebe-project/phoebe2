@@ -834,6 +834,9 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma
         
+        #retvalue = np.array([system.get_logp(include_priors=True)[1]])
+        retvalue = np.array([system.get_chi2(include_priors=True)[0]])
+        #print 'r',retvalue
         #-- short log message:
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
@@ -858,16 +861,20 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
     lmfit.report_errors(pars)
-    
+
     #-- extract the values to put them in the feedback
-    if not result.success:
+    if hasattr(result, 'success') and not result.success:
         logger.error("nonlinear fit with method {} failed".format(fitparams['method']))
         values = [np.nan for ipar in pars]
+        success = result.success
+        redchi = result.redchi
     else:
         values = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].value for ipar in ppars]
-    
+        success = None
+        redchi = None
+        
     #-- the same with the errors and correlation coefficients, if there are any
-    if result.errorbars:
+    if hasattr(result, 'errorbars') and result.errorbars:
         sigmas = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].stderr for ipar in ppars]
         correl = [pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].correl for ipar in ppars]
     else:
@@ -894,7 +901,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     #feedback_.save('test.fb')
     
     feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
-                    correls=correl, redchi=result.redchi, success=result.success,
+                    correls=correl, redchi=redchi, success=success,
                     traces=traces, redchis=redchis,
                     Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback

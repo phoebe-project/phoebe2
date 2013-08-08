@@ -170,7 +170,7 @@ def blackbody_cmap():
 
 
 
-def make_movie(filecode,fps=24,bitrate=None,output='output.avi',cleanup=False):
+def make_movie(filecode,fps=24,bitrate=None,resize=100,output='output.avi',cleanup=False):
     """
     Repeat last 10 frames!
     
@@ -184,7 +184,7 @@ def make_movie(filecode,fps=24,bitrate=None,output='output.avi',cleanup=False):
             cmd = 'mencoder "mf://%s" -mf fps=%d -o %s -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=%d'%(filecode,fps,output,bitrate)
     elif os.path.splitext(output)[1]=='.gif':
         delay = 100./fps
-        cmd = 'convert -delay {:.0f} -loop 0 {} {}'.format(delay,filecode,output)
+        cmd = 'convert -delay {:.0f} -resize {}% -layers optimizePlus -deconstruct -loop 0 {} {}'.format(delay,resize, filecode,output)
     print('Executing {}'.format(cmd))
     subprocess.call(cmd,shell=True)
     if cleanup:
