@@ -34,27 +34,7 @@
        <string>Interface</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_5">
-       <item row="8" column="0">
-        <widget class="QCheckBox" name="p_sys">
-         <property name="text">
-          <string>System View</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QCheckBox" name="p_lp">
-         <property name="text">
-          <string>Parameters</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <widget class="QCheckBox" name="p_versions">
          <property name="text">
           <string>Versions</string>
@@ -64,7 +44,7 @@
          </property>
         </widget>
        </item>
-       <item row="13" column="0">
+       <item row="12" column="0">
         <spacer name="verticalSpacer_3">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -77,6 +57,16 @@
          </property>
         </spacer>
        </item>
+       <item row="7" column="0">
+        <widget class="QCheckBox" name="p_python">
+         <property name="text">
+          <string>Console</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_4">
          <property name="text">
@@ -87,17 +77,14 @@
          </property>
         </widget>
        </item>
-       <item row="7" column="0">
-        <widget class="QCheckBox" name="p_gl">
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="p_system">
          <property name="text">
-          <string>3D View</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
+          <string>System</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QCheckBox" name="p_rp">
          <property name="text">
           <string>Fitting</string>
@@ -107,7 +94,7 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
+       <item row="6" column="0">
         <widget class="QCheckBox" name="p_bp">
          <property name="text">
           <string>Data and Plots</string>
@@ -117,10 +104,10 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
-        <widget class="QCheckBox" name="p_python">
+       <item row="2" column="0">
+        <widget class="QCheckBox" name="p_lp">
          <property name="text">
-          <string>Python Interface</string>
+          <string>Parameters</string>
          </property>
          <property name="checked">
           <bool>true</bool>

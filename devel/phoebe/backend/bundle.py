@@ -50,7 +50,9 @@ class Bundle(object):
                 self.add_axes(axes[key], key)
         self.add_compute(compute)
         
-        self.settings = {'add_version_on_compute': False}
+        self.settings = {}
+        self.settings['add_version_on_compute'] = False
+        self.settings['add_feedback_on_fitting'] = False
         
         self.set_system(system) # will handle all signals, etc
         
@@ -604,6 +606,8 @@ class Bundle(object):
             output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         elif 'lc' in context:
             output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'etv' in context:
+            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         else:
             print("only lc and rv currently implemented")
         
@@ -951,7 +955,7 @@ class Bundle(object):
         if label is None:    return None
         self.fitting.pop(label)        
         
-    def run_fitting(self,computelabel,fittinglabel,mpi=True):
+    def run_fitting(self,computelabel,fittinglabel,mpi=True,add_feedback=None):
         """
         Run fitting for a given fitting parameterSet
         and store the feedback
@@ -963,8 +967,13 @@ class Bundle(object):
         @param mpi: whether mpi is enabled (will use stored options)
         @type mpi: bool
         """
+        if add_feedback is None:
+            add_feedback = self.settings['add_feedback_on_fitting']
+        
         feedback = fitting.run(self.system, params=self.get_compute(computelabel), fitparams=self.get_fitting(fittinglabel), mpi=self.mpi if mpi else None)
-        self.add_feedback(feedback)
+        
+        if add_feedback:
+            self.add_feedback(feedback)
     
     def add_feedback(self,feedback):
         """
