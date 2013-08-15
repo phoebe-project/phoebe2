@@ -34,7 +34,7 @@ class Bundle(object):
         self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
-        self.feedback = OrderedDict()
+        self.feedbacks = [] #list of dictionaries
         self.figs = OrderedDict()
         
         self.pool = OrderedDict()
@@ -975,12 +975,12 @@ class Bundle(object):
         if add_feedback:
             self.add_feedback(feedback)
     
-    def add_feedback(self,feedback):
+    def add_feedback(self,feedback,name=None):
         """
         Add fitting results to the bundle.
         
         @param feedback: results from the fitting
-        @type feedback: None, parameterSet or list of ParameterSets
+        @type feedback: parameterSet
         """
         #-- if we've nothing to add, then just quit
         if feedback is None: return None
@@ -989,56 +989,98 @@ class Bundle(object):
             feedback = [feedback]
         #-- then add the results to the bundle.
         for f in feedback:
-            label = f['label']
-            self.feedback[label] = f
+            fd = {}
+            fd['feedback'] = f
+            fd['date_created'] = datetime.now()
+            fd['name'] = name if name is not None else str(fd['date_created'])
+            fd['label'] = f['label'] #original label of the feedback
+            
+            self.feedbacks.append(fd)
     
-    def get_feedback(self,label):
+          
+    def get_feedback(self,feedback=None,by='name',return_type='feedback'):
         """
-        Get fitting results by name
+        Retrieve a stored feedback by one of its keys
         
-        @param label: name of the fitting results
-        @type label: str
-        @return: a feedback parameter set
+        @param feedback: the key of the feedback, or index increment
+        @type feedback: str or int
+        @param by: what key to search by (defaults to name)
+        @type by: str
+        @return: feedback
         @rtype: parameterSet
         """
-        if label in self.feedback.keys():
-            return self.feedback[label]
-        else:
-            return None
-               
-    def remove_feedback(self,label):
-        """
-        Remove a given fitting feedback
+        if isinstance(feedback,int): #then easy to return from list
+            return self.feedbacks[feedback]['feedback']
         
-        @param label: name of the fitting results
-        @type label: str
+        # create a dictionary with key defined by by and values which are the systems
+        feedbacks = {v[by]: i if return_type=='i' else v[return_type] for i,v in enumerate(self.feedbacks)}
+        
+        if feedback is None:
+            return feedbacks
+        else:
+            return feedbacks[feedback]
+            
+    def remove_feedback(self,feedback,by='name'):
         """
-        self.feedback.pop(label)
+        Permanently delete a stored feedback.
+        This will not affect the current system.
+        
+        See bundle.get_feedback() for syntax examples
+        
+        @param feedback: the key of the feedback, or index increment
+        @type feedback: str or int
+        @param by: what key to search by (defaults to name)
+        @type by: str
+        """
+
+        i = self.get_feedback(feedback,by=by,return_type='i')
+        return self.feedbacks.pop(i)
+        
+        
+    def rename_feedback(self,feedback,newname):
+        """
+        Rename a currently existing feedback
+        
+        @param feedback: the feedback or name of the feedback that you want to edit
+        @type feedback: feedback or str
+        @param newname: the new name
+        @type newname: str        
+        """
+        key = 'name' if isinstance(feedback,str) else 'system'
+        # get index where this system is in self.feedbacks
+        i = [v[key] for v in self.feedbacks].index(feedback)
+        # change the name value
+        self.feedbacks[i]['name']=newname
+               
     
-    def accept_feedback(self,label):
+    def accept_feedback(self,feedback,by='name'):
         """
         Accept fitting results and apply to system
         
-        @param label: name of the fitting results
+        @param feedback: name of the feedback parameterSet to accept
         @type label: str
+        @param by: key to search for feedback (see get_feedback)
+        @type by: str
         """
-        fitting.accept_fit(self.system,self.feedback[label])
+        fitting.accept_fit(self.system,self.get_feedback(feedback,by))
         
-    def continue_mcmc(self,label=None,extra_iter=10):
+    def continue_mcmc(self,feedback=None,by='name',extra_iter=10):
         """
         Continue an MCMC chain.
         
         If you don't provide a label, the last MCMC run will be continued.
         
-        @param label: label of the MCMC parameterSet to continue
+        @param feedback: name of the MCMC parameterSet to continue
         @type label: str
+        @param by: key to search for feedback (see get_feedback)
+        @type by: str
         @param extra_iter: extra number of iterations
         @type extra_iter: int
         """
         if label is not None:
-            allfitparams = [self.feedback[label]]
+            allfitparams = [self.get_feedback(feedback,by)]
         else:
-            allfitparams = self.feedback.values()[::-1]
+            allfitparams = self.feedbacks.values()[::-1]
         #-- take the last fitting parameterSet that represents an mcmc
         for fitparams in allfitparams:
             if fitparams.context.split(':')[-1] in ['pymc','emcee']:
