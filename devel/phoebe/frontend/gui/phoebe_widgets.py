@@ -305,21 +305,22 @@ class AdjustableTreeWidget(GeneralParameterTreeWidget):
         else:
             return distribution[0]
             
-class VersionsTreeWidget(GeneralParameterTreeWidget):
+class DictDataTreeWidget(GeneralParameterTreeWidget):
     """
-    treeview that shows stored versions in the bundle
-    and allows restoring/renaming
+    tree view designed to show versions/feedbacks
+    simple subclassing of this will allow those two to be separate
+    
     """
-    def set_data(self,data):
+    def _set_data(self,data,kind='version'):
         '''
-        data - bundle.versions
+        data - bundle.versions or bundle.feedbacks
              - list of dicts
         '''
+        self.kind = kind
         self.clear()
         self.versions = []
         
         self.setColumnCount(1)
-        self.setHeaderLabels(['Version'])
         
         for n,version in enumerate(data):
             stackedwidget = QStackedWidget()
@@ -350,6 +351,17 @@ class VersionsTreeWidget(GeneralParameterTreeWidget):
             HBox.setMargin(2)
             frame.setLayout(HBox) 
             
+            restore_button = QPushButton()
+            restore_button.setIcon(self.eye_icon)
+            restore_button.setMaximumSize(QSize(18, 18))
+            restore_button.info = {'version': version}
+            if kind=='version':
+                restore_button.setToolTip("restore this version as the working version")
+                QObject.connect(restore_button, SIGNAL('clicked()'), self.on_restoreversion_clicked)
+            elif kind=='feedback':
+                restore_button.setToolTip("examine this feedback")
+                QObject.connect(restore_button, SIGNAL('clicked()'), self.on_examinefeedback_clicked)
+            HBox.addWidget(restore_button)
             
             label = QLabel(QString(version['name']))
             #~ font = QFont()
@@ -358,19 +370,10 @@ class VersionsTreeWidget(GeneralParameterTreeWidget):
             #~ label.setMinimumSize(QSize(400,18))
             HBox.addWidget(label)
             
-            
-            restore_button = QPushButton()
-            restore_button.setIcon(self.eye_icon)
-            restore_button.setMaximumSize(QSize(18, 18))
-            restore_button.setToolTip("restore this version as the working version")
-            restore_button.info = {'version': version}
-            QObject.connect(restore_button, SIGNAL('clicked()'), self.on_restore_clicked)
-            HBox.addWidget(restore_button)
-            
             edit_button = QPushButton()
             edit_button.setIcon(self.edit_icon)
             edit_button.setMaximumSize(QSize(18, 18))
-            edit_button.setToolTip("change name for this version")
+            edit_button.setToolTip("change name for this %s" % kind)
             edit_button.info = {'stackedwidget': stackedwidget}
             #~ edit_button.setEnabled(False) #until signals attached
             QObject.connect(edit_button, SIGNAL('clicked()'), self.on_edit_clicked)
@@ -379,7 +382,7 @@ class VersionsTreeWidget(GeneralParameterTreeWidget):
             delete_button = QPushButton()
             delete_button.setIcon(self.delete_icon)
             delete_button.setMaximumSize(QSize(18, 18))
-            delete_button.setToolTip("remove %s version" % version['name'])
+            delete_button.setToolTip("remove this %s" % (kind))
             delete_button.info = {'version': version}
             QObject.connect(delete_button, SIGNAL('clicked()'), self.on_remove_clicked) 
             HBox.addWidget(delete_button)
@@ -427,16 +430,16 @@ class VersionsTreeWidget(GeneralParameterTreeWidget):
             name_edit = item.info['name_edit']
             new_name = str(name_edit.text())
             if new_name != version['name']:
-                do_command = "bundle.rename_version('%s','%s')" % (version['name'],new_name)
-                undo_command = "bundle.rename_version('%s','%s')" % (new_name,version['name'])
-                description = "change name of version to %s" % new_name
+                do_command = "bundle.rename_%s('%s','%s')" % (self.kind,version['name'],new_name)
+                undo_command = "bundle.rename_%s('%s','%s')" % (self.kind,new_name,version['name'])
+                description = "change name of %s to %s" % (self.kind,new_name)
                 self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
                 
         # reset state
         stackedwidget.setCurrentIndex(0)
         self.selected_item = None
         
-    def on_restore_clicked(self):
+    def on_restoreversion_clicked(self):
         version = self.sender().info['version']
                 
         do_command = "bundle.restore_version('%s')" % version['name']
@@ -445,23 +448,47 @@ class VersionsTreeWidget(GeneralParameterTreeWidget):
         description = "restore %s version" % version['name']
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
  
+    def on_examinefeedback_clicked(self):
+        feedback = self.sender().info['version']
+        
+        self.emit(SIGNAL("feedbackExamine"),feedback['name'])
+        # this signal should change the stackedwidget and load this feedback in the treeview/plots
+        
     def on_remove_clicked(self):
         version = self.sender().info['version']
                 
-        do_command = "bundle.remove_version('%s')" % version['name']
+        do_command = "bundle.remove_%s('%s')" % (self.kind,version['name'])
         undo_command = "print 'undo is not available for this action'"
         # TODO - try to make this undoable
-        description = "remove %s version" % version['name']
+        description = "remove %s %s" % (version['name'],self.kind)
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
         
     def on_edit_clicked(self):
         stackedwidget = self.sender().info['stackedwidget']
         
         stackedwidget.setCurrentIndex(2)
+            
+class VersionsTreeWidget(DictDataTreeWidget):
+    """
+    treeview that shows stored versions in the bundle
+    and allows restoring/renaming
+    """
+    def set_data(self,data):
+        # we do this so that we can easily subclass this for versions and feedbacks
+        self._set_data(data,'version')
+    
+class FeedbacksTreeWidget(DictDataTreeWidget):
+    """
+    treeview that shows stored feedbacks in the bundle
+    and allows restoring/renaming
+    """
+    def set_data(self,data):
+        # we do this so that we can easily subclass this for versions and feedbacks
+        self._set_data(data,'feedback')
 
 class FittingTreeWidget(GeneralParameterTreeWidget):
     """
-    treeview that shows feedback from fitting
+    treeview that shows the results from feedback
     namely old and new values for all parameters set for adjustment
     """
     # required functions
@@ -473,26 +500,99 @@ class FittingTreeWidget(GeneralParameterTreeWidget):
         self.params = []
         self.system_ps = system_ps
         self.system_names = system_names
-
-        ncol = 3
-        self.setColumnCount(ncol)
-        self.setHeaderLabels(['Parameter','Old Value','New Value'])
         
-        for n,param in enumerate(data):
+        if len(data.keys())==0:    return
+
+        feedback = data['feedback']
+
+        ncol = 2
+        self.setColumnCount(ncol)
+        #~ self.setHeaderLabels(['Parameter','Old Value','New Value'])
+        self.setHeaderLabels(['Parameter','New Value'])
+        
+        for param,value in zip(feedback['parameters'],feedback['values']):
             parentLabel = self.get_parent_label(param)
             
-            if (parentLabel, param.get_qualifier()) in self.params:
-                continue
-                
-            self.params.append((parentLabel, param.get_qualifier()))
+            stackedwidget = QStackedWidget()
+            
+            ## normal text view
+            frame = QWidget()
+            HBox = QHBoxLayout()
+            HBox.setSpacing(0)
+            HBox.setMargin(2)
+            frame.setLayout(HBox) 
+            
+            label = QLabel(QString('%s: %s  ' % (parentLabel, param.get_qualifier())))
+            font = QFont()
+            #~ font.setBold(dataset.get_enabled() is True)
+            label.setFont(font)
+            #~ label.setMinimumSize(QSize(400,18))
+            HBox.addWidget(label)
+            
+            stackedwidget.addWidget(frame)
+            
+            
+            ## selected view with widgets
+            
+            frame = QWidget()
+            HBox = QHBoxLayout()
+            HBox.setSpacing(0)
+            HBox.setMargin(2)
+            frame.setLayout(HBox) 
+            
+            examine_button = QPushButton()
+            examine_button.setIcon(self.plot_icon)
+            examine_button.setMaximumSize(QSize(18, 18))
+            #~ examine_button.info = {}
+            examine_button.setToolTip("view correlations and fitting statistics")
+            #~ QObject.connect(examine_button, SIGNAL('clicked()'), self.on_examineversion_clicked)
+            examine_button.setEnabled(False) # until signal connected
+            HBox.addWidget(examine_button)
+            
+            label = QLabel(QString('%s: %s  ' % (parentLabel, param.get_qualifier())))
+            #~ font = QFont()
+            #~ font.setBold(dataset.get_enabled() is True)
+            #~ label.setFont(font)
+            #~ label.setMinimumSize(QSize(400,18))
+            HBox.addWidget(label)
+            
+            stackedwidget.addWidget(frame)
                 
             # create general item
-            item = QTreeWidgetItem(['%s: %s  ' % (parentLabel, param.get_qualifier()),str(param.get_value()), ''])
+            item = QTreeWidgetItem(['',''])
+            item.info = {'stackedwidget': stackedwidget}
             self.addTopLevelItem(item)
+            self.setItemWidget(item,0,stackedwidget)
+            
+            
+            # create label for second column
+            label = QLabel(QString(str(value)))
+            font = QFont()
+            #~ font.setBold(dataset.get_enabled() is True)
+            label.setFont(font)
+            #~ label.setMinimumSize(QSize(400,18))
+            self.setItemWidget(item,1,label)
             
         #~ for i in range(ncol):
             #~ self.resizeColumnToContents(i)
         self.resizeColumnToContents(0)
+        
+    def item_clicked(self, item, col):
+        self.selected_item = (item,col)
+        
+        stackedwidget = item.info['stackedwidget']
+        stackedwidget.setCurrentIndex(1)
+        
+    def item_changed(self,change_value=True):
+        if not self.selected_item:
+            return
+
+        item, col = self.selected_item            
+        stackedwidget = item.info['stackedwidget']
+        
+        # reset state
+        stackedwidget.setCurrentIndex(0)
+        self.selected_item = None
 
 class DatasetTreeWidget(GeneralParameterTreeWidget):
     """

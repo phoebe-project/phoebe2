@@ -271,6 +271,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.rp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_fittingOption_changed)
         QObject.connect(self.rp_fitPushButton, SIGNAL("clicked()"), self.on_fit_clicked)
         QObject.connect(self.rp_rejectPushButton, SIGNAL("clicked()"), self.on_feedback_reject_clicked)
+        QObject.connect(self.rp_acceptPushButton, SIGNAL("clicked()"), self.on_feedback_accept_clicked)
         
         QObject.connect(self.rp_savedFeedbackAutoSaveCheck, SIGNAL("toggled(bool)"), self.on_feedbacksaveauto_toggled)
         
@@ -284,12 +285,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.datasetswidget_main.addRVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
         
         # tree view signals
-        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView,self.versions_treeView]
+        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView,self.versions_treeView,self.rp_savedFeedbackTreeView]
         for tv in self.paramTreeViews:
             QObject.connect(tv, SIGNAL("parameterChanged"), self.on_param_changed)
             QObject.connect(tv, SIGNAL("parameterCommand"), self.on_param_command)
             QObject.connect(tv, SIGNAL("focusIn"), self.on_paramfocus_changed)
-        QObject.connect(self.rp_fitinTreeView, SIGNAL("priorChanged"), self.on_prior_changed)   
+        QObject.connect(self.rp_fitinTreeView, SIGNAL("priorChanged"), self.on_prior_changed)  
+        QObject.connect(self.rp_savedFeedbackTreeView, SIGNAL("feedbackExamine"), self.on_feedback_changed) 
 
         # pyinterp signals
         QObject.connect(self.PythonEdit, SIGNAL("command_run"), self.on_PyInterp_commandrun)
@@ -315,7 +317,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
         # disable items for alpha version
         if _alpha_test:
-            self.rp_fitPushButton.setEnabled(False)
+            #~ self.rp_fitPushButton.setEnabled(False)
             self.mp_splash_triplePushButton.setEnabled(False)
 
         # Set system to None - this will then result in a call to on_new_bundle
@@ -442,6 +444,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plot_clear_all()
         self.on_plot_add(mesh=True)
         self.set_time_i, self.set_time_is = None, None
+        self.current_feedback_name = None
         
         self.pop_i = None
 
@@ -709,10 +712,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.system is not None:
             #~ print "*** updating fitting treeviews", len(self.bundle.system.get_adjustable_parameters())
             self.rp_fitinTreeView.set_data(self.bundle.system.get_adjustable_parameters(),self.system_ps,self.system_names)
-            self.rp_fitoutTreeView.set_data(self.bundle.system.get_adjustable_parameters(),self.system_ps,self.system_names)
+            self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1),self.system_ps,self.system_names)
         else:
             self.rp_fitinTreeView.set_data([],self.system_ps,self.system_names)
-            self.rp_fitoutTreeView.set_data([],self.system_ps,self.system_names)
+            self.rp_fitoutTreeView.set_data({},self.system_ps,self.system_names)
         
     def on_sysSel_ctrl(self):
         """
@@ -1186,6 +1189,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             # update version - should probably move this
             self.versions_treeView.set_data(self.bundle.versions)
+            self.rp_savedFeedbackTreeView.set_data(self.bundle.feedbacks)
         
         else:
             if self.mp_stackedWidget.currentIndex()!=0:
@@ -1212,7 +1216,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_plots_changed()
             
         if 'run_fitting' in command:
-            self.lp_stackedWidget.setCurrentIndex(1) #compute
+            #~ self.lp_stackedWidget.setCurrentIndex(1) #compute
             self.rp_stackedWidget.setCurrentIndex(1) #feedback
             
         #### TESTING ###
@@ -1441,14 +1445,33 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
         self.PyInterp_run('bundle.run_fitting(\'Compute\', \'%s\')' % (label),thread=True,kind='sys')
         
-        # stack will change in on_gui_unlock
         #~ self.rp_stackedWidget.setCurrentIndex(1) #feedback
+        
+    def on_feedback_changed(self,feedback_name):
+        
+        self.current_feedback_name = feedback_name
+        self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(feedback_name),self.system_ps,self.system_names)
+        self.rp_stackedWidget.setCurrentIndex(1) # feedback
         
     def on_feedback_reject_clicked(self):
         #~ self.rp_fittingWidget.setVisible(True)
         #~ self.rp_feedbackWidget.setVisible(False)
       
         self.rp_stackedWidget.setCurrentIndex(0) #fitting input
+        
+    def on_feedback_accept_clicked(self):
+        
+        if self.current_feedback_name is not None:
+            do_command = "bundle.accept_feedback('%s')" % self.current_feedback_name
+        else:
+            do_command = "bundle.accept_feedback(-1)"
+        undo_command = "undo not available"
+        description = "accept feedback"
+        
+        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
+        self.undoStack.push(command)
+        
+        self.rp_stackedWidget.setCurrentIndex(0) # TODO call this automatically?
         
     def on_feedbacksaveauto_toggled(self,state):
         if self.rp_savedFeedbackAutoSaveCheck.isEnabled(): #so we can change its state while disabled
@@ -1490,13 +1513,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
             'plugins': {'keplereb': False, 'example': False},\
             
-            'compute_heating': False, 'compute_refl': False, 'compute_refl_num': 1, \
-            'compute_subdiv_alg': 'edge', 'compute_subdiv_num': 3, 'compute_eclipse_alg': 'auto',\
-            'compute_ltt': False, 'compute_mpi': False, \
-            
-            'preview_heating': False, 'preview_refl': False, 'preview_refl_num': 1, \
-            'preview_subdiv_alg': 'edge', 'preview_subdiv_num': 1, 'preview_eclipse_alg': 'auto',\
-            'preview_ltt': False, 'preview_mpi': False, \
+            #~ 'compute_heating': False, 'compute_refl': False, 'compute_refl_num': 1, \
+            #~ 'compute_subdiv_alg': 'edge', 'compute_subdiv_num': 3, 'compute_eclipse_alg': 'auto',\
+            #~ 'compute_ltt': False, 'compute_mpi': False, \
+            #~ 
+            #~ 'preview_heating': False, 'preview_refl': False, 'preview_refl_num': 1, \
+            #~ 'preview_subdiv_alg': 'edge', 'preview_subdiv_num': 1, 'preview_eclipse_alg': 'auto',\
+            #~ 'preview_ltt': False, 'preview_mpi': False, \
             
             'mpi_np': 4, 'mpi_byslot': True
             }
