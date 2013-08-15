@@ -13,6 +13,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     add_surfgrav
     add_teffpolar
     add_angdiam
+    add_radius_eq
 
 **Constraints for orbit context**
 
@@ -21,6 +22,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     add_asini
     add_ecosw
     add_esinw
+    add_esinw_ecosw
     add_conserve
     make_misaligned
     make_synchronous
@@ -36,6 +38,18 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 .. autosummary::
 
     add_amplvelo
+    
+**Constraints for reddening**
+
+.. autosummary::
+    
+    add_ebv
+
+**Constraints for global parameters**
+
+.. autosummary::
+
+    add_parallax
 
 **Helper functions**
 
@@ -1022,6 +1036,39 @@ def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
 
 
 
+#}
+
+#{ Constraints on reddening
+
+def add_ebv(reddening, ebv=None, unit='mag', derive='extinction', **kwargs):
+    r"""
+    Add extinction parameter E(B-V) to a reddening ParameterSet.
+    
+    .. math::
+    
+        A(V) = R_V \cdot E(B-V)
+    
+    """
+    kwargs.setdefault('description','Interstellar reddening E(B-V)')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',reddening.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
+    
+    # remove any constraints on the parameter
+    reddening.pop_constraint('ebv', None)
+    if not 'ebv' in reddening:
+        reddening.add(parameters.Parameter(qualifier='ebv',
+                           value=ebv if ebv is not None else 0., **kwargs))
+    else:
+        reedening['ebv'] = ebv
+        
+    
+    # Specify dependent parameter
+    if ebv is None:
+        reddening.add_constraint("{ebv} = {extinction}/{Rv}")
 #}
 
 #{ Other constraints
