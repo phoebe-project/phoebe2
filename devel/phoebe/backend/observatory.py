@@ -32,6 +32,7 @@ try:
     import pylab as pl
     from matplotlib.patches import Polygon
     from matplotlib.collections import PatchCollection,PolyCollection
+    from matplotlib import animation
     import matplotlib as mpl
 except ImportError:
     pass
@@ -56,6 +57,7 @@ from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
 from phoebe.dynamics import keplerorbit
+from phoebe.backend import plotting
 
 # Ignore warnings raised by numpy, we'll be responsible for them ourselves        
 np.seterr(all='ignore')
@@ -322,11 +324,13 @@ def image(the_system, ref='__bol', context='lcdep',
     # we can also plot other quantities like the effective temperature, radial
     # velocity etc...
     cmap_ = None
+    norm_proj = None
     if select == 'proj':
         colors = mesh['proj_'+ref] / mesh['mu']
         if 'refl_'+ref in mesh.dtype.names:
             colors += mesh['refl_'+ref]
-        colors /= colors.max()
+        norm_proj = colors.max()
+        colors /= norm_proj
         values = colors
         vmin_, vmax_ = 0, 1
         
@@ -433,9 +437,13 @@ def image(the_system, ref='__bol', context='lcdep',
     offset_y = (y.min() + y.max()) / 2.0
     margin = 0.01 * x.ptp()
     lim_max = max(x.max() - x.min(), y.max() - y.min())
-    ax.set_xlim(offset_x - margin - lim_max/2.0,offset_x + lim_max/2.0 + margin)
-    ax.set_ylim(offset_y - margin - lim_max/2.0,offset_y + lim_max/2.0 + margin)
+    
+    xlim = offset_x - margin - lim_max/2.0,offset_x + lim_max/2.0 + margin
+    ylim = offset_y - margin - lim_max/2.0,offset_y + lim_max/2.0 + margin
+    
     if axis_created:
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
         ax.set_xticks([])
         ax.set_yticks([])
         #pl.box(on=False)
@@ -464,8 +472,9 @@ def image(the_system, ref='__bol', context='lcdep',
         fig.set_facecolor(background)
         fig.set_edgecolor(background)
     
-    xlim,ylim = ax.get_xlim(),ax.get_ylim()
-    if savefig==True:
+        xlim, ylim = ax.get_xlim(),ax.get_ylim()
+    
+    if savefig == True:
         pl.savefig('image%06d.png'%(nr),facecolor='k',edgecolor='k')
         pl.close()
     elif savefig and os.path.splitext(savefig)[1]!='.fits':
@@ -506,7 +515,10 @@ def image(the_system, ref='__bol', context='lcdep',
         hdulist.writeto(savefig)
         hdulist.close()
     
-    return xlim, ylim, p
+    figure_decorations = dict(xlim=xlim, ylim=ylim)
+    artist_decorations = dict(norm_proj=norm_proj, vmin=vmin_, vmax=vmax_)
+    
+    return figure_decorations, artist_decorations, p
 
 
 def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
@@ -1839,11 +1851,113 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['types'] = type_per_time
 
 
+def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
+                          circular, heating, beaming, params, ltt, 
+                          extra_func, extra_func_kwargs):
+    """
+    Do not *ever* use this.
+    """
+    # Unsubdivide to prepare for this step (if necessary)
+    if params['subdiv_num']:  
+        system.unsubdivide()
+    
+    # Execute some pre-processing steps if necessary
+    system.preprocess(time)
+    
+    # Clear previous reflection effects if necessary (not if reflect==1!)
+    if reflect is True:
+        system.clear_reflection()
+    
+    # Set the time of the system
+    system.set_time(time, ref=ref)
+            
+    # For heating an eccentric system, we first need to reset the temperature!
+    #if heating is True or i == 0 and heating == 1:
+    #    system.temperature(time)
+    
+    # Compute intensities
+    if i == 0 or not circular or beaming:
+        system.intensity(ref=ref)
+            
+    # Update intensity should be set to True when we're doing beaming.
+    # Perhaps we need to detect which refs have "beaming=True", collect
+    # those in a list and update the intensities for them anyway?
+    update_intensity = False
+    # Compute reflection effect (maybe just once, maybe always)
+    if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
+        reflection.mutual_heating(*system.bodies, heating=heating,
+                                  reflection=reflect, niter=nreflect)
+        update_intensity = True
+    
+    # Recompute the intensities (the velocities might have changed within
+    # BodyBag operations, and temperatures might have changed due to
+    # reflection)
+    if update_intensity:
+        system.intensity(ref=ref)
+    
+    # Detect eclipses/horizon
+    ecl = choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+    
+    # If necessary, subdivide and redetect eclipses/horizon
+    for k in range(params['subdiv_num']):
+        system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
+        choose_eclipse_algorithm(system, algorithm=ecl)
+
+    # Correct for light travel time effects
+    if ltt:
+        system.correct_time()
+    
+    # Compute observables at this time step
+    had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
+    for itype,iref in zip(type, ref):
+        if itype[:-3] == 'if':
+            itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
+            if iref in had_refs:
+                continue
+            had_refs.append(iref)
+        logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
+        getattr(system, itype[:-3])(ref=iref, time=time)
+
+    # Call extra funcs if necessary
+    for ef, kw in zip(extra_func, extra_func_kwargs):
+        ef(system, time, i, **kw)
+    
+    # Execute some post-processing steps if necessary
+    system.postprocess(time)
+    
+def animate_one_time_step(i, system, times, refs, types, reflect, nreflect, circular, heating,
+            beaming, params, ltt, extra_func, extra_func_kwargs, figs):
+    
+
+    compute_one_time_step(system, i, times[i], refs[i], types[i], reflect, nreflect,
+                          circular, heating, beaming, params, ltt, extra_func,
+                          extra_func_kwargs)
+    
+    ax1 = pl.subplot(122)
+    ax1.cla()
+    figdec, artdec, p = system.plot2D(ax=ax1, with_partial_as_half=False, select='teff')
+    xlims, ylims = list(ax1.get_xlim()), list(ax1.get_ylim())
+    if xlims[0] > figdec['xlim'][0]:
+        xlims[0] = figdec['xlim'][0]
+    if xlims[1] < figdec['xlim'][1]:
+        xlims[1] = figdec['xlim'][1]
+    if ylims[0] > figdec['ylim'][0]:
+        ylims[0] = figdec['ylim'][0]
+    if ylims[1] < figdec['ylim'][1]:
+        ylims[1] = figdec['ylim'][1]
+    ax1.set_xlim(xlims)
+    ax1.set_ylim(ylims)
+    
+    ax2 = pl.subplot(121)
+    ax2.cla()
+    plotting.plot_lcsyn(system, scale=None)
+    
+    
 
 
 @decorators.mpirun
 def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
-            **kwargs):
+            animate=False, **kwargs):
     """
     Automatically compute dependables of a system to match the observations.
     
@@ -2038,77 +2152,24 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time)
 
-    for i, (time, ref, type) in enumerate(iterator):
+    if not animate:
+        for i, (time, ref, type) in enumerate(iterator):
         
-        # Unsubdivide to prepare for this step (if necessary)
-        if params['subdiv_num']:  
-            system.unsubdivide()
-        
-        # Execute some pre-processing steps if necessary
-        system.preprocess(time)
-        
-        # Clear previous reflection effects if necessary (not if reflect==1!)
-        if reflect is True:
-            system.clear_reflection()
-        
-        # Set the time of the system
-        system.set_time(time, ref=ref)
-                
-        # For heating an eccentric system, we first need to reset the temperature!
-        #if heating is True or i == 0 and heating == 1:
-        #    system.temperature(time)
-        
-        # Compute intensities
-        if i == 0 or not circular or beaming:
-            system.intensity(ref=ref)
-                
-        # Update intensity should be set to True when we're doing beaming.
-        # Perhaps we need to detect which refs have "beaming=True", collect
-        # those in a list and update the intensities for them anyway?
-        update_intensity = False
-        # Compute reflection effect (maybe just once, maybe always)
-        if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
-            reflection.mutual_heating(*system.bodies, heating=heating,
-                                      reflection=reflect, niter=nreflect)
-            update_intensity = True
-        
-        # Recompute the intensities (the velocities might have changed within
-        # BodyBag operations, and temperatures might have changed due to
-        # reflection)
-        if update_intensity:
-            system.intensity(ref=ref)
-        
-        # Detect eclipses/horizon
-        ecl = choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
-        
-        # If necessary, subdivide and redetect eclipses/horizon
-        for k in range(params['subdiv_num']):
-            system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
-            choose_eclipse_algorithm(system, algorithm=ecl)
-
-        # Correct for light travel time effects
-        if ltt:
-            system.correct_time()
-        
-        # Compute observables at this time step
-        had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
-        for itype,iref in zip(type, ref):
-            if itype[:-3] == 'if':
-                itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
-                if iref in had_refs:
-                    continue
-                had_refs.append(iref)
-            logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
-            getattr(system, itype[:-3])(ref=iref, time=time)
-
-        # Call extra funcs if necessary
-        for ef, kw in zip(extra_func, extra_func_kwargs):
-            ef(system, time, i, **kw)
-        
-        # Execute some post-processing steps if necessary
-        system.postprocess(time)
-        
-        
+            compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
+                                circular, heating, beaming, params, ltt,
+                                extra_func, extra_func_kwargs)
+    
+    else:
+        figs = []
+        ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
+                                  range(len(time_per_time)),
+                                  fargs=(system, time_per_time, labl_per_time,
+                                         type_per_time,
+                                         reflect, nreflect, circular, heating,
+                                         beaming, params, ltt, extra_func,
+                                         extra_func_kwargs, figs), interval=25)
+        pl.show()
+    
     #if inside_mpi is None:
     # We can't compute pblum or l3 inside MPI, because it's this function that
     # is called for different parts of the datasets. So no thread has all the
