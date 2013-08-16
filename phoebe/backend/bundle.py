@@ -974,6 +974,7 @@ class Bundle(object):
         
         if add_feedback:
             self.add_feedback(feedback)
+        return feedback
     
     def add_feedback(self,feedback,name=None):
         """
@@ -1009,6 +1010,9 @@ class Bundle(object):
         @return: feedback
         @rtype: parameterSet
         """
+        if len(self.feedbacks)==0:
+            return None
+            
         if isinstance(feedback,int): #then easy to return from list
             return self.feedbacks[feedback]['feedback']
         

@@ -501,7 +501,8 @@ class FittingTreeWidget(GeneralParameterTreeWidget):
         self.system_ps = system_ps
         self.system_names = system_names
         
-        if len(data.keys())==0:    return
+        
+        if data is None or len(data.keys())==0:    return
 
         feedback = data['feedback']
 
