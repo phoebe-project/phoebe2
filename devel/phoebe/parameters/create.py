@@ -784,7 +784,7 @@ def binary_from_stars(star1,star2,sma=None,period=None,\
     
     orbit['q'] = star2.get_value('mass','Msol')/star1.get_value('mass','Msol')
     
-    logger.info("Creating binary: sma={:.3g}au, period={:.3g}d, ecc={:.3g}, q={:.3g}".format(orbit['sma'],orbit['period'],orbit['ecc'],orbit['q']))
+    logger.info("Creating binary: sma={:.3g}Rsol, period={:.3g}d, ecc={:.3g}, q={:.3g}".format(orbit['sma'],orbit['period'],orbit['ecc'],orbit['q']))
     
     if not 'syncpar' in kwargs1:
         comp1['syncpar'] = orbit.request_value('period','d')/star1.request_value('rotperiod','d')

@@ -337,6 +337,10 @@ def keep_only_results(system):
             if not key == 'syn':
                 trash = system.params.pop(key)
                 del trash
+    if hasattr(system, 'parent'):
+        system.parent = None
+    if hasattr(system, 'subdivision'):
+        system.subdivision = {}
     if hasattr(system, 'bodies'):
         for body in system.bodies:
             keep_only_results(body)
@@ -4671,7 +4675,7 @@ class AccretionDisk(PhysicalBody):
                     lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
                     lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
             dtypes = np.dtype(self.mesh.dtype.descr + \
-                     [('logg','f8'),('teff','f8')] + lds)
+                     lds + [('logg','f8'),('teff','f8'),('abun','f8')])
         else:
             dtypes = self.mesh.dtype
         N = (radial-1)*(angular-1)*2*2 + 4*angular-4
@@ -4844,12 +4848,25 @@ class AccretionDisk(PhysicalBody):
         return proj_int
     
     def set_time(self,time, ref='all'):
-        self.reset_mesh()
+        
         if self.time is None:
+            self.reset_mesh()
+            
             self.compute_mesh()
             self.surface_gravity()
             self.temperature()
             self.intensity()
+            
+            incl = self.params['disk']['incl']/180.*np.pi
+            self.rotate_and_translate(incl=incl, loc=(0,0,0),los=(0,0,+1),
+                                      incremental=True)
+        else:
+            #self.reset_mesh()
+            self.temperature()
+            #incl = self.params['disk']['incl']/180.*np.pi
+            #self.rotate_and_translate(incl=incl, loc=(0,0,0),los=(0,0,+1),
+            #                          incremental=True)
+            
         self.time = time
         
         
@@ -6620,9 +6637,10 @@ class BinaryStar(Star):
         n_comp = self.get_component()
         component = ('primary','secondary')[n_comp]
         orbit = self.params['orbit']
-        loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
-        self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
-        
+        #loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
+        #self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+        #-- once we have the mesh, we need to place it into orbit
+        keplerorbit.place_in_binary_orbit(self,time)
     
     
     def projected_velocity(self,los=[0,0,+1],ref=0):

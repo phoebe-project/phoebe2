@@ -57,6 +57,8 @@ if __name__=="__main__":
     TAG_REQ = 41
     TAG_DATA = 42
     TAG_RES = 43
+    
+    max_bytesize = 100000
 
     myrank = comm.Get_rank()
     nprocs = comm.Get_size()
@@ -139,7 +141,7 @@ if __name__=="__main__":
             comm.send(packet, node, tag=TAG_DATA)
 
             # Store the results asynchronously:
-            res.append(comm.irecv(bytearray(500000), node, tag=TAG_RES))
+            res.append(comm.irecv(bytearray(max_bytesize), node, tag=TAG_RES))
             
             update_progress((olength-len(dates))/float(olength))
             
@@ -184,6 +186,8 @@ if __name__=="__main__":
             func(packet['system'], *packet['args'], **packet['kwargs'])
             
             # Send the results back to the manager:
+            
             the_result = universe.keep_only_results(packet['system'])
-            #print "BYTESIZE",sys.getsizeof(cPickle.dumps(the_result))
+
+            #print("BYTESIZE {}".format(sys.getsizeof(cPickle.dumps(the_result))))
             comm.send(the_result, 0, tag=TAG_RES)
