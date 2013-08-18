@@ -128,7 +128,8 @@ def plot_lcsyn(system, *args, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.plot(time+n, flux, *args, **kwargs)
+            p, = ax.plot(time+n, flux, *args, **kwargs)
+            artists.append(p)
     
     # Return the synthetic computations as an array
     ret_syn = syn.asarray()
@@ -755,7 +756,10 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         
         # An SED means we need the effective wavelength of the passbands
         right_time = (obs['time'] == time)
+        if not np.any(right_time):
+            continue
         wave = passbands.get_info([passband])['eff_wave']
+        
         wave = list(wave) * len(obs['flux'][right_time])
         
         to_plot[pass_sys]['x'].append(wave)

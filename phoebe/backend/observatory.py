@@ -1925,39 +1925,22 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     # Execute some post-processing steps if necessary
     system.postprocess(time)
     
-def animate_one_time_step(i, system, times, refs, types, reflect, nreflect, circular, heating,
-            beaming, params, ltt, extra_func, extra_func_kwargs, figs):
+def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
+            circular, heating, beaming, params, ltt, extra_func,
+            extra_func_kwargs, anim):
     
-
     compute_one_time_step(system, i, times[i], refs[i], types[i], reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
     
-    ax1 = pl.subplot(122)
-    ax1.cla()
-    figdec, artdec, p = system.plot2D(ax=ax1, with_partial_as_half=False, select='teff')
-    xlims, ylims = list(ax1.get_xlim()), list(ax1.get_ylim())
-    if xlims[0] > figdec['xlim'][0]:
-        xlims[0] = figdec['xlim'][0]
-    if xlims[1] < figdec['xlim'][1]:
-        xlims[1] = figdec['xlim'][1]
-    if ylims[0] > figdec['ylim'][0]:
-        ylims[0] = figdec['ylim'][0]
-    if ylims[1] < figdec['ylim'][1]:
-        ylims[1] = figdec['ylim'][1]
-    ax1.set_xlim(xlims)
-    ax1.set_ylim(ylims)
-    
-    ax2 = pl.subplot(121)
-    ax2.cla()
-    plotting.plot_lcsyn(system, scale=None)
+    anim.draw()
     
     
 
 
 @decorators.mpirun
 def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
-            animate=False, **kwargs):
+            animate=None, **kwargs):
     """
     Automatically compute dependables of a system to match the observations.
     
@@ -2135,12 +2118,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # If we include reflection, we need to reserve space in the mesh for the
     # reflected light. We need to fix the mesh afterwards because each body can
     # have different fields appended in the mesh.
-    if reflect:
+    if reflect and len(system)>1:
         system.prepare_reflection(ref='all')
         x1 = set(system[0].mesh.dtype.names)
         x2 = set(system[1].mesh.dtype.names)
         if len(x1-x2) or len(x2-x1):
             system.fix_mesh()
+    elif reflect:
+        logger.warning("System contains irradiator but no other targets")
     
     # If the system is circular, we're not recomputing stuff. Make sure to
     # have computed everything as least once:
@@ -2154,20 +2139,19 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
 
     if not animate:
         for i, (time, ref, type) in enumerate(iterator):
-        
             compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
                                 circular, heating, beaming, params, ltt,
                                 extra_func, extra_func_kwargs)
     
     else:
-        figs = []
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
                                   fargs=(system, time_per_time, labl_per_time,
                                          type_per_time,
                                          reflect, nreflect, circular, heating,
                                          beaming, params, ltt, extra_func,
-                                         extra_func_kwargs, figs), interval=25)
+                                         extra_func_kwargs, animate),
+                                  interval=25)
         pl.show()
     
     #if inside_mpi is None:
@@ -2183,7 +2167,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
 
 
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
-            extra_func=[], extra_func_kwargs=[{}], **kwargs):
+            extra_func=[], extra_func_kwargs=[{}], animate=None, **kwargs):
     """
     Customized computation of dependables of a system.
     
@@ -2257,7 +2241,7 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     
     # And run compute
     compute(system, params=params, mpi=mpi, extra_func=extra_func,
-            extra_func_kwargs=extra_func_kwargs)
+            extra_func_kwargs=extra_func_kwargs, animate=animate)
 
 
 
@@ -2311,12 +2295,13 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     if is_bbag and 'compute' in all_systems.params and not all_systems.connected:
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=compute['algorithm'])
-        return 'auto'
-    elif is_bbag and not all_systems.connected:
+        return compute['algorithm']
+    elif is_bbag and (not all_systems.connected or len(all_systems)==1):
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=algorithm)
-        return 'auto'
-    
+        
+        return algorithm
+
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
         eclipse.horizon_via_normal(all_systems)
@@ -2335,9 +2320,11 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     # Perhaps we want to use the convex one
     elif algorithm == 'convex':
         logger.info("Convex E/H detection")
-        eclipse.convex_bodies(all_systems.bodies)
+        try:
+            eclipse.convex_bodies(all_systems.bodies)
+        except AttributeError:
+            eclipse.horizon_via_normal(all_systems)
         return algorithm
-    
     
     # Perhaps we can try to be clever    
     try:

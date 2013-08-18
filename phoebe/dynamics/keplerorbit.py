@@ -1530,7 +1530,6 @@ def get_binary_orbit(time,orbit,component, barycentric=False):
     inclin = orbit.get_value('incl','rad')
     argper = orbit.get_value('per0','rad')
     long_an = orbit.get_value('long_an','rad')
-    vgamma = orbit.get_value('vgamma','Rsol/d')
     T0 = orbit.get_value('t0')
     t0type = orbit.get('t0type', 'periastron passage')
     dpdt = orbit.get_value('dpdt')
