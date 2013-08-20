@@ -275,7 +275,8 @@ try:
 except:
     pass
   
-logger = logging.getLogger("PARAMETERS")  
+logger = logging.getLogger("PARAMETERS")
+logger.addHandler(logging.NullHandler())
 
 pattern = re.compile('[\W_]+')
 default_frame = 'phoebe'
