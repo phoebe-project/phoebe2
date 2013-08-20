@@ -585,7 +585,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
                             logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
                 else:
                     if lcsigma[i]=='sigma': 
-                        if os.path.isfile(rv_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
+                        if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
                             ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
