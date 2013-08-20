@@ -705,7 +705,7 @@ def dep_from_object(myobject,context,**kwargs):
     Extra kwargs override initialisation.
     """
     obsdep = parameters.ParameterSet(context=context,**kwargs)
-    for key in ['atm','ld_func','ld_coeffs','alb','redist']:
+    for key in ['atm','ld_func','ld_coeffs','alb']:
         if not key in kwargs:
             obsdep[key] = myobject[key]
     return obsdep

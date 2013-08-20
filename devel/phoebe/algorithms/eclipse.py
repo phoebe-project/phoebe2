@@ -203,7 +203,7 @@ def horizon_via_normal(body_list):
     for body in body_list:
         # If the Body is a BodyBag, recursively compute its horizon
         if hasattr(body, 'bodies'):
-            horizon_via_normal(body_list)
+            horizon_via_normal(body.bodies)
             continue
         
         # Else we have a normal Body
@@ -212,7 +212,6 @@ def horizon_via_normal(body_list):
         mesh['hidden'] = -visible
         mesh['visible']=  visible
         mesh['partial']= 0.0
-    
     
     
 def convex_bodies(body_list):

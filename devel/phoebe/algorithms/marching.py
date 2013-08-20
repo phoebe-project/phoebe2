@@ -722,7 +722,7 @@ def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args)
         max_triangles = 0
     #print delta,max_triangles,potential,args
     table = cmarching.discretize(delta,max_triangles,potential,*args)
-    return table
+    return table[:-2]
 
 
 def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):

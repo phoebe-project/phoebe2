@@ -2163,7 +2163,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                          reflect, nreflect, circular, heating,
                                          beaming, params, ltt, extra_func,
                                          extra_func_kwargs, animate),
-                                  interval=25)
+                                  interval=25, repeat=False)
         pl.show()
     
     #if inside_mpi is None:
@@ -2334,6 +2334,7 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
         logger.info("Convex E/H detection")
         try:
             eclipse.convex_bodies(all_systems.bodies)
+        # For single bodies, it's quite trivial:
         except AttributeError:
             eclipse.horizon_via_normal(all_systems)
         return algorithm
@@ -2481,10 +2482,6 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,do_contour=False,
     pl.savefig(savefig)
     pl.close()
     
-
-
-def test():
-    print("Zie je wel dat't werkt Vincent?")
 
 
 #}
