@@ -1855,7 +1855,15 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
                           circular, heating, beaming, params, ltt, 
                           extra_func, extra_func_kwargs):
     """
-    Do not *ever* use this.
+    Compute a system on one given time step.
+    
+    Do not *ever* use this, unless you know what you're doing. The parameters
+    in this function are derived in :py:func:compute.
+    
+    You are welcome to browse through the source code though.
+    
+    Because you shouldn't use this function, I will not describe the parameters
+    in details. Muhaha.
     """
     # Unsubdivide to prepare for this step (if necessary)
     if params['subdiv_num']:  
@@ -1864,24 +1872,27 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     # Execute some pre-processing steps if necessary
     system.preprocess(time)
     
-    # Clear previous reflection effects if necessary (not if reflect==1!)
+    # Clear previous reflection effects if necessary (not if reflect==1 because
+    # might one to keep the reflection results in circular orbits or if they
+    # otherwise do not change!)
     if reflect is True:
         system.clear_reflection()
     
-    # Set the time of the system
+    # Set the time of the system: this will put everything in the right place,
+    # and compute the necessary physical quantities.
     system.set_time(time, ref=ref)
             
+    # The following step is not necessary anymore, apparently the temperatures
+    # are sufficiently set after "set_time"
     # For heating an eccentric system, we first need to reset the temperature!
     #if heating is True or i == 0 and heating == 1:
     #    system.temperature(time)
     
-    # Compute intensities
+    # Compute intensities: it is possible that this is already taken care of
+    # in set_time. It doesn't hurt to do it again, but this might be optimized.
     if i == 0 or not circular or beaming:
         system.intensity(ref=ref)
             
-    # Update intensity should be set to True when we're doing beaming.
-    # Perhaps we need to detect which refs have "beaming=True", collect
-    # those in a list and update the intensities for them anyway?
     update_intensity = False
     # Compute reflection effect (maybe just once, maybe always)
     if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
@@ -1889,13 +1900,13 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
                                   reflection=reflect, niter=nreflect)
         update_intensity = True
     
-    # Recompute the intensities (the velocities might have changed within
-    # BodyBag operations, and temperatures might have changed due to
+    # Recompute the intensities, temperatures might have changed due to
     # reflection)
     if update_intensity:
         system.intensity(ref=ref)
     
-    # Detect eclipses/horizon
+    # Detect eclipses/horizon, and remember the algorithm that was chosen. It
+    # will be re-used after subdivision
     ecl = choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
     
     # If necessary, subdivide and redetect eclipses/horizon
@@ -1909,7 +1920,7 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     
     # Compute observables at this time step
     had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
-    for itype,iref in zip(type, ref):
+    for itype, iref in zip(type, ref):
         if itype[:-3] == 'if':
             itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
             if iref in had_refs:
@@ -1928,11 +1939,12 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
 def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
             circular, heating, beaming, params, ltt, extra_func,
             extra_func_kwargs, anim):
-    
+    """
+    Compute one time step and animate it.
+    """
     compute_one_time_step(system, i, times[i], refs[i], types[i], reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
-    
     anim.draw()
     
     
@@ -2471,7 +2483,8 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,do_contour=False,
     
 
 
-
+def test():
+    print("Zie je wel dat't werkt Vincent?")
 
 
 #}
