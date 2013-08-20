@@ -86,6 +86,9 @@ def image(*args, **kwargs):
         
     
 class Animation1(Animation):
+    """
+    Only image
+    """
     def __init__(self, system, **kwargs):
         self.system = system
         ax1 = plt.subplot(111)
@@ -97,6 +100,9 @@ class Animation1(Animation):
 
 
 class Animation2(Animation):
+    """
+    Image and light curve
+    """
     def __init__(self, system, kwargs1, kwargs2):
         self.system = system
         ax1 = plt.subplot(121)
@@ -108,6 +114,9 @@ class Animation2(Animation):
         self.initialized = False
 
 class Animation3(Animation):
+    """
+    Separated images.
+    """
     def __init__(self, system, **kwargs):
         self.system = system
         ax1 = plt.subplot(121)
