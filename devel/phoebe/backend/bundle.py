@@ -119,7 +119,7 @@ class Bundle(object):
 
     def _on_param_changed(self,param,ps=None):
         if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if self.compute[self.system.uptodate] == ps:
+            if self.system.uptodate is False or self.compute[self.system.uptodate] == ps:
                 self.system.uptodate=False
         else:
             self.system.uptodate = False
