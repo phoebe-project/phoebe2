@@ -362,8 +362,8 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
         body_list = [body_list]
     
     # Make sure some defaults are set
-    if first_iteration:
-        horizon_via_normal(body_list)
+    #if first_iteration:
+    horizon_via_normal(body_list)
     
     #body_list = system.get_bodies()
     # Order the bodies from front to back. Now I do a very crude approximation
@@ -372,6 +372,7 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
     # the first triangle in the mesh.
     location = np.argsort([bb.mesh['center'][0,2] for bb in body_list])[::-1] # inverted!
     body_list = [body_list[i] for i in location]
+    min_sizes = [bb.mesh['size'].min() for bb in body_list]
     
     detected_eclipse = False
     
@@ -388,7 +389,7 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
                 continue
             
             # Determine a scale factor for the triangle
-            distance = distance_factor * 2.0/3**0.25*np.sqrt(min(star1.mesh['size']))
+            distance = distance_factor * 2.0/3**0.25*np.sqrt(min_sizes[i])
             
             # Select only those triangles that are not hidden
             front = np.vstack([star2.mesh['triangle'][visible2,0:2],
@@ -399,6 +400,8 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
                                 star1.mesh['triangle'][visible1,6:8]])
 
             # Star in front ---> star in back
+            if not front.shape[0]:
+                continue
             hull, iturn = graham_scan(front)
             inside = inside_hull(back, hull, iturn)
             
@@ -412,7 +415,7 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
             arg = np.where(visible1)[0][visible]
             star1.mesh['visible'][arg] = True
             star1.mesh['hidden'][arg] = False
-            star1.mesh['partial'][arg] = False
+            star1.mesh['partial'][arg] = False | star1.mesh['partial'][arg]
             
             # Triangles that are partially hidden are those that are not
             # completely hidden, but do have at least one vertex hidden

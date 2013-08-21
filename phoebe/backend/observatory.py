@@ -1896,7 +1896,7 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     update_intensity = False
     # Compute reflection effect (maybe just once, maybe always)
     if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
-        reflection.mutual_heating(*system.bodies, heating=heating,
+        reflection.mutual_heating(*system.get_bodies(), heating=heating,
                                   reflection=reflect, niter=nreflect)
         update_intensity = True
     
@@ -1949,6 +1949,7 @@ def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
     anim.draw()
+   
     
     
 
@@ -2035,7 +2036,6 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     @param mpi: parameters describing MPI
     @type mpi: ParameterSet of context 'mpi'
     """
-    
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...
     if extra_func is None:
@@ -2102,7 +2102,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         else:
             heating = False
             reflect = False
-
+    
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
     if heating and circular:
@@ -2135,10 +2135,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # have different fields appended in the mesh.
     if reflect and len(system)>1:
         system.prepare_reflection(ref='all')
-        x1 = set(system[0].mesh.dtype.names)
-        x2 = set(system[1].mesh.dtype.names)
-        if len(x1-x2) or len(x2-x1):
-            system.fix_mesh()
+        system.fix_mesh()
     elif reflect:
         logger.warning("System contains irradiator but no other targets")
     
@@ -2159,6 +2156,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                 extra_func, extra_func_kwargs)
     
     else:
+        def dummy():
+            pass
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
                                   fargs=(system, time_per_time, labl_per_time,
@@ -2166,6 +2165,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                          reflect, nreflect, circular, heating,
                                          beaming, params, ltt, extra_func,
                                          extra_func_kwargs, animate),
+                                  init_func=dummy,
                                   interval=25, repeat=False)
         pl.show()
     

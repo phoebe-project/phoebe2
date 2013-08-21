@@ -829,7 +829,6 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
         except ValueError:
             if not np.allclose(vgamma, 0):
                 postfix.append('vgamma')
-        
         postfix = "_".join(postfix)
         
         # If the LD is uniform or coefficients are given by the user itself,
