@@ -62,7 +62,7 @@ lc['el3'] = 0.
 rv['vunit'] = 1.
 
 # Convert to pyphoebe parameters
-comp1,comp2,binary = wd.wd_to_phoebe(ps,lc,rv)
+comp1,comp2,binary, globals = wd.wd_to_phoebe(ps,lc,rv)
 star1,lcdep1,rvdep1 = comp1
 star2,lcdep2,rvdep2 = comp2
 
@@ -70,8 +70,8 @@ star2,lcdep2,rvdep2 = comp2
 # a WD-type and pyphoebe-type mesh.
 mesh1 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
 mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
-mesh1['delta'] = 0.25
-mesh2['delta'] = 0.25
+mesh1['delta'] = 0.2
+mesh2['delta'] = 0.2
 
 # Body setup
 #-----------
@@ -97,8 +97,8 @@ c2 = time.time()
 # Compute pyphoebe light curve and radial velocity curves
 P = binary['period']
 times = np.linspace(binary['t0'],binary['t0']+P,len(curve['indeps']))
-phoebe.observe(phoebe.BodyBag([star1,star2]),times,\
-         subdiv_num=2,lc=True,rv=True,heating=True)
+phoebe.observe(phoebe.BodyBag([star1,star2], globals=globals),times,\
+         subdiv_num=2,lc=True,rv=True,heating=True, refl=False)
 
 c3 = time.time()         
 
@@ -160,7 +160,7 @@ c4 = time.time()
 print "Finished!"
 print "Initialisation:             %10.3g sec"%(c1-c0)
 print "Wilson-Devinney:            %10.3g sec"%(c2-c1)
-print "Pyphoebe:                   %10.3g min"%((c3-c2)/60.)
+print "Pyphoebe:                   %10.3g sec"%((c3-c2))
 print "Analysis:                   %10.3g sec"%(c4-c3)
 print "-----------------------------------------"
-print "Total time:                 %10.3g min"%((c4-c0)/60.)
+print "Total time:                 %10.3g sec"%((c4-c0))
