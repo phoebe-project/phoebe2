@@ -46,14 +46,14 @@ lcdep1['ref'] = 'spot'
 # Body setup
 # ----------
 # Build the Star body:
-star = phoebe.Star(sun,mesh,pbdep=[lcdep1],circ_spot=spot)
+star = phoebe.Star(sun,mesh=mesh,pbdep=[lcdep1],circ_spot=spot)
 print(star)
 
 # Computation of observables
 # --------------------------
 times = np.linspace(0,sun['rotperiod'],50)
-phoebe.observe(star,times,im='spotted_star',lc=True)
-
+phoebe.observe(star,times,lc=True, extra_func=[phoebe.observatory.ef_image],
+                                   extra_func_kwargs=[dict(ref='spot')])
 
 """
 +----------------------------------------------------------------+--------------------------------------------------------------+---------------------------------------------------------------------+

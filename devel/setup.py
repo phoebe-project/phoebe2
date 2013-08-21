@@ -56,6 +56,8 @@ ext_modules = [
                   sources = ['phoebe/algorithms/freflection.f']),
         Extension('phoebe.algorithms.fraytracing',
                   sources = ['phoebe/algorithms/fraytracing_double.f']),
+        Extension('phoebe.algorithms.fconvex',
+                  sources = ['phoebe/algorithms/fconvex.f']),
         Extension('phoebe.algorithms.ceclipse',
                   sources = ['phoebe/algorithms/ecl.c']),
         Extension('phoebe.wd.fwd',

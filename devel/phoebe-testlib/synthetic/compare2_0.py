@@ -49,7 +49,7 @@ def compare(name):
         system.bodies = system.bodies[:1]
         phoebe.compute(system, eclipse_alg='full', mpi=True)
     else:    
-        phoebe.compute(system, eclipse_alg='convex', mpi=True)
+        phoebe.compute(system, eclipse_alg='graham', mpi=None, refl=False)
 
 
     results = []
