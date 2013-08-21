@@ -272,9 +272,6 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
                        'quadratic','square_root', 'uniform']
     ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
     
-    with open('test3.pck','w') as ff:
-        for name in irradiated.mesh.dtype.names:
-            ff.write(name+' '+ str(irradiated.mesh[name])+'\n')
     R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
                            irradiator.mesh['size'],
                            irradiator.mesh['normal_'], irrorld,
