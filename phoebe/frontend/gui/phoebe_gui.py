@@ -1000,7 +1000,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ p = {key.replace(kind+"_",""): value for (key, value) in self.prefs.iteritems() if key.split('_')[0]==kind}
             #~ self.on_observeOptions_createnew(kind, p)
             self.observe_create(kind)
-        
+            
+        self.bundle.purge_signals(self.bundle.attached_signals_system)
         params = self.bundle.get_compute(kind).copy()
         observatory.extract_times_and_refs(self.bundle.get_system(),params)
         self.set_time_is = len(params.get_value('time'))
