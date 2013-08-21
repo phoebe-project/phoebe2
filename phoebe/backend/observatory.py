@@ -1907,12 +1907,15 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
-    ecl = choose_eclipse_algorithm(system, algorithm=params['eclipse_alg'])
+    ecl, found_partial = choose_eclipse_algorithm(system,
+                                       algorithm=params['eclipse_alg'])
     
     # If necessary, subdivide and redetect eclipses/horizon
     for k in range(params['subdiv_num']):
+        if found_partial is False:
+            continue
         system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
-        choose_eclipse_algorithm(system, algorithm=ecl)
+        ecl_, found_partial = choose_eclipse_algorithm(system, algorithm=ecl)
 
     # Correct for light travel time effects
     if ltt:
@@ -2282,12 +2285,12 @@ def binary_eclipse_algorithm(all_systems, algorithm):
     # If the separation between the two on the sky is smaller or equal to the 
     # sum of the radii, there can be an eclipse.
     if algorithm == 'binary_eclipse' or predict_eclipse:
-        eclipse.convex_bodies([all_systems[0],all_systems[1]])
-        return 'binary_eclipse'
+        eclipse.convex_qhull([all_systems[0],all_systems[1]])
+        return 'binary_eclipse', None
     # Else, we can treat them as simple detached stars
     else:
          eclipse.horizon_via_normal(all_systems)
-         return 'binary_separated'
+         return 'binary_separated', None
 
 
         
@@ -2298,6 +2301,7 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     @param algorithm: override the algorithm in the case there are no eclipses.
     @type algorithm: str, one of 'only_horizon' or 'full'
     """
+    found_partial = None
     # Perhaps we need to delegate the eclipse detection algorithm to the
     # bodies in the system: this can happen if we observe two systems
     # simultaneously but are diconnected in reality (e.g. they fall on the same
@@ -2307,23 +2311,23 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     if is_bbag and 'compute' in all_systems.params and not all_systems.connected:
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=compute['algorithm'])
-        return compute['algorithm']
+        return compute['algorithm'], found_partial
     elif is_bbag and (not all_systems.connected or len(all_systems)==1):
         for system in all_systems.bodies:
             choose_eclipse_algorithm(system, algorithm=algorithm)
         
-        return algorithm
+        return algorithm, found_partial
 
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
-        eclipse.horizon_via_normal(all_systems)
-        return algorithm
+        found_partial = eclipse.horizon_via_normal(all_systems)
+        return algorithm, found_partial
     
     # Perhaps we know nothing
     elif algorithm == 'full':
         logger.info("Full E/H detection")
-        eclipse.detect_eclipse_horizon(all_systems)
-        return algorithm
+        found_partial = eclipse.detect_eclipse_horizon(all_systems)
+        return algorithm, found_partial
     
     # Perhaps we know it's a binary
     elif algorithm[:6] == 'binary':
@@ -2333,11 +2337,20 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     elif algorithm == 'convex':
         logger.info("Convex E/H detection")
         try:
-            eclipse.convex_bodies(all_systems.bodies)
+            found_partial = eclipse.convex_qhull(all_systems.get_bodies())
         # For single bodies, it's quite trivial:
         except AttributeError:
-            eclipse.horizon_via_normal(all_systems)
-        return algorithm
+            found_partial = eclipse.horizon_via_normal(all_systems)
+        return algorithm, found_partial
+    
+    elif algorithm == 'graham':
+        logger.info("Graham E/H detection")
+        try:
+            found_partial = eclipse.convex_graham(all_systems.get_bodies())
+        # For single bodies, it's quite trivial:
+        except AttributeError:
+            found_partial = eclipse.horizon_via_normal(all_systems)
+        return algorithm, found_partial
     
     # Perhaps we can try to be clever    
     try:
@@ -2354,44 +2367,44 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
             R2 = np.max(d2)
             if np.sqrt( (X1[0]-X2[0])**2 + (X1[1]-X2[1])**2)<=(R1+R2):
                 logger.info("{}: predict eclipse (generic {} E/H)".format(all_systems[0].time,algorithm))
-                if algorithm=='auto':
-                    eclipse.detect_eclipse_horizon(all_systems)
+                if algorithm == 'auto':
+                    found_partial = eclipse.detect_eclipse_horizon(all_systems)
                 elif algorithm=='convex':
                     try:
-                        eclipse.convex_bodies([all_systems[0],all_systems[1]])
+                        found_partial = eclipse.convex_qhull([all_systems[0],all_systems[1]])
                     except:
                         logger.error("CONVEX THING FAILED AGAIN!!!!")
                         logger.error("Falling back on full detection")
-                        eclipse.detect_eclipse_horizon(all_systems)
+                        found_partial = eclipse.detect_eclipse_horizon(all_systems)
             else:
                 logger.info("{}: predict no eclipse (simple E/H)".format(all_systems[0].time))
-                eclipse.horizon_via_normal(all_systems)
+                found_partial = eclipse.horizon_via_normal(all_systems)
         elif hasattr(all_systems,'len') and len(all_systems)>1: # assume it's a multiple system
             logger.info("{}: predict eclipse (generic E/H)".format(all_systems[0].time))
             if algorithm=='auto':
-                eclipse.detect_eclipse_horizon(all_systems)
+                found_partial = eclipse.detect_eclipse_horizon(all_systems)
             elif algorithm=='convex':
                 try:
-                    eclipse.convex_bodies(all_systems.get_bodies())
+                    found_partial = eclipse.convex_qhull(all_systems.get_bodies())
                 except:
                     logger.error("CONVEX THING FAILED AGAIN!!!!")
                     logger.error("Falling back on full detection")
-                    eclipse.detect_eclipse_horizon(all_systems)
+                    found_partial = eclipse.detect_eclipse_horizon(all_systems)
             #eclipse.detect_eclipse_horizon(all_systems)
         elif hasattr(all_systems,'params') and 'component' in all_systems.params:
             logger.warning('Perhaps (over)contact system (generic E/H)')
-            eclipse.detect_eclipse_horizon(all_systems)
+            found_partial = eclipse.detect_eclipse_horizon(all_systems)
         else: # single star, easy detection!
             logger.info("simple E/H detection")
-            eclipse.horizon_via_normal(all_systems)
+            found_partial = eclipse.horizon_via_normal(all_systems)
     except ValueError:
         logger.info('Could not interpret system, (generic E/H)')
         if algorithm=='auto':
-            eclipse.detect_eclipse_horizon(all_systems)
+            found_partial = eclipse.detect_eclipse_horizon(all_systems)
         elif algorithm=='convex':
-            eclipse.convex_bodies(all_systems.get_bodies())
+            found_partial = eclipse.convex_qhull(all_systems.get_bodies())
         
-    return 'auto'
+    return 'auto', found_partial
 
 #{ Extrafuncs for compute_dependables
 

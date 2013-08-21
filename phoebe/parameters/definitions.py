@@ -497,7 +497,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
          dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
-         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
+         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary','graham'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
         ] 
 
 
