@@ -171,6 +171,14 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
          dict(qualifier='redist',description='Global redist par (1-redist) local heating, redist global heating',
               long_description="During reflection computations, a 'redist' fraction of the incoming light will be used to heat the entire object, while a fraction '1-redist' will be used to locally heat the object. If you want complete heat redistribution, set redist=1. If you only want local heating, set redist=0. Note that the incoming light is dependent on the value of the albedo ('alb') parameter. If alb=0, the 'redist' parameter has no effect since all the light will be reflected, and nothing will be used for heating. In summary, a fraction '1-alb' of the incoming light is reflected, a fraction 'redist*alb' is used for global heating, and a fraction '(1-redist)*alb' for local heating.",
               repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['component','star','accretion_disk']),
+         dict(qualifier='redisth',description='Horizontal redist par (redisth/redist) horizontally spread',
+              long_description=("During reflection computations, a 'redisth' "
+                                "fraction of the incoming light that is used "
+                                "for heating (i.e. a 'redisth*redist' fraction of the "
+                                "incoming light) will be used to heat the "
+                                "object horizontally, as to mimick horizontal "
+                                "winds going around the object."),
+              repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='syncpar',description='Synchronicity parameter',repr='%f',cast_type=float,value=1.,llim=0,ulim=50.,step=0.01,adjust=False,alias=['f'],frame=["phoebe"],context='component'),
          dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.0,llim=0,ulim=1,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='component'),
          dict(qualifier='pot',    description="Roche potential value",repr='%f',cast_type=float,value=4.75,llim=0,ulim=1e10,step=0.01,adjust=False,frame=["phoebe"],context='component'),
@@ -495,9 +503,14 @@ defs += [dict(qualifier='time',                 description='Compute observables
          dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),
          dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
-         dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type=str,value='edge',frame=["phoebe"],context='compute'),
+         dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type='choose',value='edge',choices=['edge'],frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
-         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary','graham'],cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
+         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary','graham'],
+                                                 long_description=("'only_horizon': labels the triangles wich a surface normal directed away from the observer as visible, otherwise they are labeled as hidden // "
+                                                                   "'convex': uses QHull in conjunction with Delaunay triangulation to detect eclipsed triangles and label the ones which are partially visible // "
+                                                                   "'graham': uses Graham scan in conjunction with binary search trees to detect eclipsed triangles and label the ones which are partially visible //"
+                                                                   "'binary': uses only_horizon outside of predicted eclipses, graham inside eclipses"
+                                                                   "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
         ] 
 
 

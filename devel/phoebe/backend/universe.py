@@ -556,7 +556,9 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
     
     #   scaling factor and offset
     elif pblum and l3:
+        print model.ravel().shape, obs.ravel().shape
         A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
+        print A.shape
         pblum, l3 = algorithm(A, obs.ravel())[0]
     
     return pblum, l3
@@ -3438,7 +3440,7 @@ class PhysicalBody(Body):
         #-- 4.  mass: try to call the function specifically designed to compute
         #       the mass, if the class implements it.
         try:
-            ps['mass'] = self.get_mass('Msol'),'Msol'
+            ps['mass'] = self.get_mass(),'Msol'
         except AttributeError:
             if 'mass' in self.params.values()[0]:
                 ps['mass'] = self.params.values()[0].get_value_with_unit('mass')
@@ -4193,9 +4195,10 @@ class BodyBag(Body):
         #   the contents from the original mesh.
         
         logger.info("Preparing mesh")
-        names = list(self.bodies[0].mesh.dtype.names)
-        descrs = self.bodies[0].mesh.dtype.descr
-        for b in self.bodies[1:]:
+        bodies = self.get_bodies()
+        names = list(bodies[0].mesh.dtype.names)
+        descrs = bodies[0].mesh.dtype.descr
+        for b in bodies[1:]:
             descrs_ = b.mesh.dtype.descr
             for descr in descrs_:
                 if descr[0] in names: continue
@@ -4211,6 +4214,12 @@ class BodyBag(Body):
                     new_mesh[col] = b.mesh[col]
                 #new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
             b.mesh = new_mesh
+        # We need to make sure to reset the body, otherwise we could be fooled
+        # into thinking that everything is still calculated! Some bodies do not
+        # recalculate anything when the time is already set (because they are
+        # time independent). This function effectively puts all values in the
+        # columns to zero!
+        self.reset()
     
     def remove_mesh(self):
         for body in self.bodies:

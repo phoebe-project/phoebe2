@@ -183,13 +183,13 @@ def mpirun(fctn):
     def do_run(system, *args, **kwargs):
         """
         Actual function to do the work for MPI.
-        """
-        
+        """        
         # Perhaps there isn't even an mpi parameter
         mpirun_par = kwargs.pop('mpi', None)
-        
+
         # In that case, just call the function
         if mpirun_par is None:
+            system.fix_mesh()
             return fctn(system, *args, **kwargs)
         
         # Else, get the compute-parameters
@@ -218,6 +218,8 @@ def mpirun(fctn):
                 
             # Now we're ready to do the actual work
             try:
+                system.fix_mesh()
+                
                 # Pickle args and kwargs in NamedTemporaryFiles, which we will
                 # delete afterwards
                 direc = os.getcwd()

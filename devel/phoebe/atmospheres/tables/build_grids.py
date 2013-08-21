@@ -53,12 +53,15 @@ def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='eq
         atm_files = sorted(glob.glob(pattern))
         print(atm_files)
         limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,
-                red_pars_fixed=dict(law=redlaw,ebv=0.,Rv=Rv),
+                red_pars_fixed=dict(law=redlaw,ebv=0.,Rv=Rv),vgamma=vgamma,
                 law=ld_func,passbands=passbands,fitmethod=fitmethod,filetag='{}_{}'.format(filetag,z))
 
 
 if __name__=="__main__":
-    build_grid(filetag='phoenix', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
-               redlaw='fitzpatrick2004', Rv=3.1, z='p00', vmic=1, ebvs=None,
-               vgamma=None)
+    #build_grid(filetag='phoenix', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
+    #           redlaw='fitzpatrick2004', Rv=3.1, z='p00', vmic=1, ebvs=None,
+    #           vgamma=None)
+    build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
+               z='p00', ebvs=None,
+               vgamma=np.linspace(-500,500,21))
     

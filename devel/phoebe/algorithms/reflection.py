@@ -5,10 +5,18 @@ One star (A) can emit radiation onto the surface of another star (B).
 Essentially two things can happen with that flux:
 
     1. The flux emmited by star A can be absorbed by star B and used to heat up
-       star B (heating)
+       star B. The heating can be local, but can in principle also be
+       redistributed over the whole star, if there is a heat transport mechanism
+       acting on the body. Here, this process is called **heating**.
        
     2. The flux emmitted by star B can be reflected on the surface of star B,
-       isotropically or aspect-dependently (reflection).
+       isotropically or aspect-dependently. Here, this process is called
+       **reflection**.
+
+Note that the **heating** process we define here is actually called the
+**reflection** effect in the Wilson-Devinney code. The general effect of flux
+rays bouncing around in a system, we dub **irradation**. Thus before being able
+to compute heating or reflection, we need to quantify the irradiation.
 
 In the next sections, some physical and programmatical details are discussed.
 For further details, please refer to the documentation of the relevant
@@ -254,6 +262,7 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
     ld_models_ed = [ps[0]['ld_func'] for ps in ps_irradiated if not ps[1] is None]
     A_irradiateds = [ps[0]['alb'] for ps in ps_irradiated if not ps[1] is None]
     P_redistrs = [(ps[0]['redist'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
+    H_redistrs = [(ps[0]['redisth'] if ps[1]=='__bol' else 0.) for ps in ps_irradiated if not ps[1] is None]
     #if '__bol' in ref:
         #total_surface = irradiated.mesh['size'].sum()
     
@@ -268,6 +277,7 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
     irrorld = [irradiator.mesh['ld___bol']] + [irradiator.mesh['ld_{}'.format(iref)] for iref in ref[:index_bol]+ref[index_bol+1:]]
     alb = A_irradiateds[index_bol]
     redist = P_redistrs[index_bol]
+    redisth = H_redistrs[index_bol]
     ld_laws_indices = ['claret', 'linear', 'nonlinear', 'logarithmic',
                        'quadratic','square_root', 'uniform']
     ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
@@ -280,28 +290,29 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
                            alb, redist, ld_laws)
     
     # Global redistribution factor:
-    R2 = 1.0 + R2/total_surface
+    R2 = 1.0 + (1-redisth)*R2/total_surface
     
     # To do horizontal redistribution instead of global, perhaps do something
     # like:
-    #rad, longit, colat = irradiated.get_coords(type='spherical', loc='center')
-    #bands = np.linspace(0, np.pi, 50)
-    ## For easy reference, create a version of the mesh where all triangles are
-    ## ordered according to colatitude. Also create an array to translate back
-    ## to the original frame
-    #sort_colat = np.argsort(colat)
-    #inv_sort = np.argsort(sort_colat)
-    #indices = np.arange(len(colat))
-    #R2 = np.ones_like(R1)
-    #for i in range(len(bands)-1):
-        ## Select this band of triangles:
-        #start = np.searchsorted(colat[sort_colat], bands[i])
-        #end = np.searchsorted(colat[sort_colat], bands[i+1])
-        ##use = (bands[i] <= colat) & (colat <= bands[i+1])
-        #use = indices[sort_colat][start:end]
-        #band_total_surface = irradiated.mesh['size'][use].sum()
-        #R2[use] += ((P_redistrs[0])*A_irradiateds[0] * inco[use,0]/emer[use]*irradiated.mesh['size'][use]).sum()/band_total_surface
-    
+    if redisth > 0:
+        logger.info("Performing latitudinal heat redistribution")
+        rad, longit, colat = irradiated.get_coords(type='spherical', loc='center')
+        bands = np.linspace(0, np.pi, 50)
+        # For easy reference, create a version of the mesh where all triangles are
+        # ordered according to colatitude. Also create an array to translate back
+        # to the original frame
+        sort_colat = np.argsort(colat)
+        inv_sort = np.argsort(sort_colat)
+        indices = np.arange(len(colat))
+        R2 = R2*np.ones_like(R1)
+        for i in range(len(bands)-1):
+            # Select this band of triangles:
+            start = np.searchsorted(colat[sort_colat], bands[i])
+            end = np.searchsorted(colat[sort_colat], bands[i+1])
+            use = indices[sort_colat][start:end]
+            band_total_surface = irradiated.mesh['size'][use].sum()
+            R2[use] += (redisth*redist*alb * inco[use,0]/emer[use]*irradiated.mesh['size'][use]).sum()/band_total_surface
+        
     return R1, R2, inco, emer, ref, A_irradiateds
 
         
