@@ -31,21 +31,24 @@ Phoebe 2.0 is a rewrite of the famous Wilson-Devinney
 code to model (eclipsing) binaries. Currently, the new implementation shares
 no code with the original model, but draws heavily from its experience. A lot
 of care has been taken to make the code accurate and extendable. Here is a
-list of features already included in the code:
+list of features already included in the code (to some extent at least):
 
 * generic surface triangulation (i.e. any shape)
 * roche deformed single, binary and multiple stars
 * misaligned binaries
 * accretion disks
 * computation of absolute fluxes (i.e. in real units)
+* Multicolour photometry (e.g. for SED fitting)
 * generic eclipse detection (i.e. any shape)
 * parametrized limb darkening
 * model atmosphere interpolation and black body atmospheres
 * interstellar reddening
 * heating and scattering (reflection effect)
+* heat redistribution processes (local, global and directional)
 * differentially rotating single stars
 * circular spots
 * spherical pulsations (nonrotating, coriolis force and traditional approximation)
+* spherical pulsations on top of Roche deformed stars
 * doppler beaming and boosting and gravitational redshifts
 * Roemer delay and light time travel effects
 * Macroturbulence

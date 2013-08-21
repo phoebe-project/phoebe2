@@ -18,20 +18,37 @@ from phoebe.parameters import parameters
 def python_to_sphinx(pythonfile,latex=False,type='testsuite.'):
     """
     Convert a Python script (*.py) to a Sphinx file (*.rst).
+    
+    The ``type`` is only important for the destination of the saved file, and
+    is put there for historical reasons.
+    
+    @param pythonfile: path to python script
+    @type pythonfile: str
+    @param latex: flag for optimizing for LaTeX output
+    @type latex: boolean
+    @param type: type of Python script
+    @type type: str
     """
+    
+    # Derive a filename for the destination *.rst file.
     myname = type+os.path.splitext(os.path.basename(pythonfile))[0]
     
+    # Simultaneously read the Pythonfile and write the RST file.
     ff = open(pythonfile,'r')
     tt = open('phoebe-doc/{}.rst'.format(myname),'w')
-
+    
+    # Define flags to specify if we're inside code or documentation while
+    # reading
     start_doc = False
     inside_code = False
     
+    # Specify download location
     if '/' in type:
         tt.write(":download:`Download this page as a python script <{}>`\n\n".format(os.path.basename(pythonfile)))
     else:
         tt.write(":download:`Download this page as a python script <../{}>`\n\n".format(pythonfile))
     
+    # Go on and read already!
     for line in ff.readlines():
         if 'time.time(' in line: continue
         if 'import time' in line: continue
