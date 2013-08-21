@@ -104,7 +104,7 @@ mpi = None#phoebe.ParameterSet(context='mpi',np=4)
 times = curve['indeps']
 
 system = phoebe.BodyBag([star1,star2], globals=globals)
-phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
+phoebe.observe(system,times,subdiv_num=0,eclipse_alg='binary',
                     lc=True,rv=True,mpi=mpi)
 
 system.set_time(0.)

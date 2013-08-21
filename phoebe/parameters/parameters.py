@@ -1089,7 +1089,7 @@ class Parameter(object):
         """
         if hasattr(self,'adjust'):
             self.adjust = adjust
-            logger.debug('set_adjust {0} to {1}'.format(self.qualifier,adjust))
+            #logger.debug('set_adjust {0} to {1}'.format(self.qualifier,adjust))
         #else:
         #    raise AttributeError,"Parameter '%s' cannot be %s"%(self.qualifier,(adjust and 'released (adjustable)' or 'locked (not adjustable)'))
     
@@ -1111,7 +1111,7 @@ class Parameter(object):
         """
         if hasattr(self,'step'):
             self.step = step
-            logger.debug('set_step {0} to {1}'.format(self.qualifier,step))
+            #logger.debug('set_step {0} to {1}'.format(self.qualifier,step))
     
     def set_prior(self,**kwargs):
         """

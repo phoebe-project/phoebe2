@@ -842,7 +842,7 @@ def convert(_from,_to,*args,**kwargs):
         else:
             kwargs_SI[key] = kwargs[key]
     #-- add some default values if necessary
-    logger.debug('Convert %s to %s, fac_from / start_value %s / %s'%(uni_from,uni_to,fac_from,start_value))
+    #logger.debug('Convert %s to %s, fac_from / start_value %s / %s'%(uni_from,uni_to,fac_from,start_value))
     
     #-- conversion is easy if same units
     ret_value = 1.
@@ -896,12 +896,12 @@ def convert(_from,_to,*args,**kwargs):
         
         #-- then we do what is left over (if anything is left over)
         if only_from or only_to:
-            logger.debug("Convert %s to %s"%(only_from,only_to))
+            #logger.debug("Convert %s to %s"%(only_from,only_to))
             
             #-- nonlinear conversions need a little tweak
             try:
                 key = '%s_to_%s'%(only_from,only_to)
-                logger.debug('Switching from %s to %s'%(only_from,only_to))
+                #logger.debug('Switching from %s to %s'%(only_from,only_to))
                 if isinstance(fac_from,NonLinearConverter):
                     ret_value *= _switch[key](fac_from(start_value,**kwargs_SI),**kwargs_SI)
                 #-- linear conversions are easy

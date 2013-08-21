@@ -49,7 +49,7 @@ def compare(name):
         system.bodies = system.bodies[:1]
         phoebe.compute(system, eclipse_alg='full', mpi=True)
     else:    
-        phoebe.compute(system, eclipse_alg='graham', mpi=None, refl=False)
+        phoebe.compute(system, eclipse_alg='binary', mpi=None, refl=False)
 
 
     results = []
@@ -131,7 +131,7 @@ def snapshot(name, time):
         system.bodies = system.bodies[:1]
         phoebe.compute(system, params=params, eclipse_alg='full')
     else:
-        phoebe.compute(system, params=params, eclipse_alg='convex')
+        phoebe.compute(system, params=params, eclipse_alg='binary')
     
     ps, lc, rv = parsers.phoebe_to_wd(system)
     index = np.searchsorted(lc['indep'],time)
