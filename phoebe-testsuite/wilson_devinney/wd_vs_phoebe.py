@@ -103,7 +103,7 @@ rv['vunit'] = 1.
 # Convert the WD-type parameterSets to pyphoebe-type parameterSets. This
 # includes two star parameterSets, two binary parameterSets, two light curve
 # and two radial velocity parameterSets.
-comp1,comp2,binary = wd.wd_to_phoebe(ps,lc,rv)
+comp1,comp2,binary,globals = wd.wd_to_phoebe(ps,lc,rv)
 star1,lcdep1,rvdep1 = comp1
 star2,lcdep2,rvdep2 = comp2
 
@@ -130,10 +130,10 @@ c2 = time.time()
 # Compute pyphoebe light curve and radial velocity curve:
 P = binary['period']
 times = np.linspace(binary['t0'],binary['t0']+P,len(curve['indeps']))
-bbag = phoebe.BodyBag([star1,star2])
+bbag = phoebe.BodyBag([star1,star2], globals=globals)
 
 
-phoebe.observe(bbag,times,subdiv_num=2,lc=True,rv=True,eclipse_alg='convex')#,extra_func=[phoebe.observatory.ef_binary_image],extra_func_kwargs=[dict(select='rv')])
+phoebe.observe(bbag,times,subdiv_num=2,lc=True,rv=True,eclipse_alg='binary')#,extra_func=[phoebe.observatory.ef_binary_image],extra_func_kwargs=[dict(select='rv')])
 c3 = time.time()
 bbag.save('wdvspyphoebe.phoebe')
 

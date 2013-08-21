@@ -76,7 +76,7 @@ rv['vunit'] = 1.
 
 
 # We can easily convert pyWD parameters to pyphoebe parameters:
-comp1,comp2,binary = wd.wd_to_phoebe(ps,lc,rv)
+comp1,comp2,binary,globals = wd.wd_to_phoebe(ps,lc,rv)
 star1,lcdep1,rvdep1 = comp1
 star2,lcdep2,rvdep2 = comp2
 
@@ -103,7 +103,7 @@ mpi = None#phoebe.ParameterSet(context='mpi',np=4)
 # Compute pyphoebe light curve
 times = curve['indeps']
 
-system = phoebe.BodyBag([star1,star2])
+system = phoebe.BodyBag([star1,star2], globals=globals)
 phoebe.observe(system,times,subdiv_num=0,eclipse_alg='convex',
                     lc=True,rv=True,mpi=mpi)
 
