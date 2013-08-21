@@ -3,17 +3,33 @@ Detection of (self-) eclipsed faces in a mesh.
 
 These algorithms handle different cases for detecting eclipses and the horizon.
 Some are general, others only handle convex hulls etc.
+
+.. autosummary::
+
+    detect_eclipse_horizon
+    detect_eclipse_horizon_fast
+    horizon_via_normal
+    convex_qhull
 """
 import logging
 import numpy as np
 import pylab as pl
 import scipy as sp
+
+try:
+    from scipy.spatial import cKDTree as KDTree
+    KDTree.query_ball_point    
+except AttributeError:
+    from scipy.spatial import KDTree
+
 from phoebe.algorithms import fraytracing
+from phoebe.algorithms import fconvex
 from phoebe.algorithms import ceclipse
+
 
 logger = logging.getLogger('ALGO.ECLIPSE')
 
-def detect_eclipse_horizon_slow(body_list,threshold=1.25*np.pi,tolerance=1e-6):
+def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     """
     Detect (self) (partially) eclipsed triangles in a mesh.
     
@@ -87,7 +103,7 @@ def detect_eclipse_horizon_slow(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     #-- that's it!
     
 
-def detect_eclipse_horizon(body_list,tolerance=1e-6):
+def detect_eclipse_horizon_fast(body_list,tolerance=1e-6):
     """
     Same as above (hopefully) except faster.
     """
@@ -212,11 +228,12 @@ def horizon_via_normal(body_list):
         mesh['hidden'] = -visible
         mesh['visible']=  visible
         mesh['partial']= 0.0
+    return False
     
     
-def convex_bodies(body_list):
+def convex_qhull(body_list):
     """
-    Assume a convex hull to detect eclipsed parts.
+    Eclipse detection via QHull and Delaunay triangulation.
     
     @param body_list: list of bodies
     @type body_list: list of Bodies
@@ -272,7 +289,173 @@ def convex_bodies(body_list):
             ecl_body.mesh['partial'][keep_back] = -hidden & -visible
     #-- that's it!
     return None
+
+
+#{ Graham scan + KDTree
+
+def turn(p, q, r):
+    """
+    Returns -1, 0, 1 if p,q,r forms a right, straight, or left turn.
+    """
+    return np.sign((q[:,0] - p[:,0])*(r[:,1] - p[:,1]) - (r[:,0] - p[:,0])*(q[:,1] - p[:,1]))
+
+def graham_scan(points):
+    """
+    Perform a Graham scan to find the convex hull.
     
+    @param points: array of N 2-D points
+    @type points: numpy array (N,2)
+    @return: points on the hull, end-index of "lower" hull.
+    @rtype: ndarray, int
+    """
+    sa = np.argsort(points[:,0], kind='heapsort')
+    myhull, index0, index1 = fconvex.convex_hull(points[sa])
+    return myhull[:index0], index1
+
+
+def inside_hull(testpoint, hull, iturn):
+    """
+    Test if points or inside a convex hull.
+    
+    @param testpoint: array of N test points in 2D.
+    @type testpoint: array of shape (N,2)
+    """
+    # If the test point is entirely to the left or entirely to the right of the
+    # hull, it's not in there
+    inside = np.ones(len(testpoint),bool)
+    ends = hull[:iturn,0].searchsorted(testpoint[:,0])
+    is_out = (ends==0) | (ends==iturn)
+    inside[is_out] = False
+    # If it is below the nearest bottom edge, it's not inside the hull
+    inside[-is_out] = turn(hull[ends-1][-is_out], hull[ends][-is_out], testpoint[-is_out])==1
+    # If it is above the nearest top edge, it's not inside the hull
+    #return inside
+    hull_ = hull[iturn-1:][::-1]
+    ends = hull_[:,0].searchsorted(testpoint[:,0])
+    is_out = (ends==0) | (ends==len(hull_))
+    inside[-is_out] = inside[-is_out] & (turn(hull_[ends-1][-is_out], hull_[ends[-is_out]], testpoint[-is_out])==-1)
+    return inside
+
+def closest_points(hull, testpoints, distance):
+    """
+    Return all points in testpoints that are closer than distance from hull.
+    
+    @param hull: the hull
+    @type hull: (k,2) numpy array
+    @param testpoints: points to select from
+    @type testpoints: (n,2) numpy array
+    @param distance: distance tolerance for selection
+    @type distance: float
+    """
+    tree = KDTree(testpoints)
+    indices = np.unique(tree.query_ball_point(hull, distance).sum(axis=0))
+    return indices
+    
+def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
+    """
+    Eclipse detection via Graham scan and binary search tree.
+    
+    @param body_list: list of bodies
+    @type body_list: list of Bodies
+    """
+    if not isinstance(body_list,list):
+        body_list = [body_list]
+    
+    # Make sure some defaults are set
+    if first_iteration:
+        horizon_via_normal(body_list)
+    
+    #body_list = system.get_bodies()
+    # Order the bodies from front to back. Now I do a very crude approximation
+    # that can break down once you have small body very near the surface
+    # of the other body. I simply order them according to the location of
+    # the first triangle in the mesh.
+    location = np.argsort([bb.mesh['center'][0,2] for bb in body_list])[::-1] # inverted!
+    body_list = [body_list[i] for i in location]
+    
+    detected_eclipse = False
+    
+    for j, star2 in enumerate(body_list[:-1]):
+        for i, star1 in enumerate(body_list[j+1:]):
+            i = i+j+1
+            # Keep track of triangles that are hidden / visible
+            visible1 = -star1.mesh['hidden']
+            visible2 = -star2.mesh['hidden']
+            
+            # If nothing is visible in the star behind, it's quite easy;
+            # we will not detect anything better!
+            if not np.any(visible1):
+                continue
+            
+            # Determine a scale factor for the triangle
+            distance = distance_factor * 2.0/3**0.25*np.sqrt(min(star1.mesh['size']))
+            
+            # Select only those triangles that are not hidden
+            front = np.vstack([star2.mesh['triangle'][visible2,0:2],
+                                star2.mesh['triangle'][visible2,3:5],
+                                star2.mesh['triangle'][visible2,6:8]])
+            back = np.vstack([star1.mesh['triangle'][visible1,0:2],
+                                star1.mesh['triangle'][visible1,3:5],
+                                star1.mesh['triangle'][visible1,6:8]])
+
+            # Star in front ---> star in back
+            hull, iturn = graham_scan(front)
+            inside = inside_hull(back, hull, iturn)
+            
+            hidden = inside.reshape(3,-1).all(axis=0)
+            arg = np.where(visible1)[0][hidden]
+            star1.mesh['hidden'][arg] = True
+            star1.mesh['visible'][arg] = False
+            star1.mesh['partial'][arg] = False
+            
+            visible = -(inside.reshape(3,-1).any(axis=0))
+            arg = np.where(visible1)[0][visible]
+            star1.mesh['visible'][arg] = True
+            star1.mesh['hidden'][arg] = False
+            star1.mesh['partial'][arg] = False
+            
+            # Triangles that are partially hidden are those that are not
+            # completely hidden, but do have at least one vertex hidden
+            partial = -hidden & -visible
+            
+            arg = np.where(visible1)[0][partial]
+            star1.mesh['visible'][arg] = False
+            star1.mesh['partial'][arg] = True
+            if np.any(partial):
+                detected_eclipse = True
+            
+            
+            # It's possible that some triangles that do not have overlapping
+            # vertices, still are partially covered (i.e. if the objects fall
+            # in between the vertices)
+            visible1 = -star1.mesh['hidden']
+            backc = star1.mesh['center'][visible1,0:2]
+            if not len(backc):
+                continue
+            
+            subset_partial = closest_points(hull, backc, distance)
+            
+            if not len(subset_partial):
+                continue
+            
+            arg = np.where(visible1)[0][subset_partial]
+            star1.mesh['visible'][arg] = False
+            star1.mesh['partial'][arg] = True
+            detected_eclipse = True
+                        
+    return True
+
+
+
+
+
+
+
+
+
+
+    
+#{ Retrieving obstructed rays    
     
 def ray_triangle_intersection(ray,triangle):
     """
@@ -366,3 +549,4 @@ def get_obstructed_los(center0,centers1,third_bodies):
                 break
     return obstructed
     
+#}

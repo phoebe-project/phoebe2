@@ -1403,7 +1403,10 @@ def summarize(system, time=None):
         elif len(loc)>=2 and isinstance(loc[-2], str) and loc[-2][-3:] == 'dep':
             # then thing is a reference
             ref = thing
-            proj_int = system.projected_intensity(ref=ref)
+            try:
+                proj_int = system.projected_intensity(ref=ref)
+            except TypeError:
+                continue
             if proj_int==0:
                 continue
             wflux = system.mesh['proj_'+ref]
