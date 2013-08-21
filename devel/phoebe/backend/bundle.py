@@ -98,14 +98,8 @@ class Bundle(object):
         
     def attach_system_signals(self):
         self.attached_signals_system = []
-        for label in self.get_system_structure(return_type='label',flat=True):
-            ps = self.get_ps(label)
-            for key in ps.keys():
-                #~ print "*** attaching signal %s:%s" % (label,key)
-                param = ps.get_parameter(key)
-                self.attach_signal(param,'set_value',self._on_param_changed)
-                #~ if param not in self.attached_signals_system:
-                self.attached_signals_system.append(param)
+        for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute.values():
+            self._attach_set_value_signals(ps)
         
         # these might already be attached?
         self.attach_signal(self,'load_data',self._on_param_changed)
@@ -113,9 +107,22 @@ class Bundle(object):
         self.attach_signal(self,'disable_obs',self._on_param_changed)
         self.attach_signal(self,'adjust_obs',self._on_param_changed)
         self.attach_signal(self,'restore_version',self._on_param_changed)
-                
-    def _on_param_changed(self,param):
-        self.system.uptodate = False
+        
+    def _attach_set_value_signals(self,ps):
+        #~ print "* attaching", ps.context
+        for key in ps.keys():
+            #~ print "*** attaching signal %s:%s" % (label,key)
+            param = ps.get_parameter(key)
+            self.attach_signal(param,'set_value',self._on_param_changed,ps)
+            #~ if param not in self.attached_signals_system:
+            self.attached_signals_system.append(param)
+
+    def _on_param_changed(self,param,ps=None):
+        if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
+            if self.compute[self.system.uptodate] == ps:
+                self.system.uptodate=False
+        else:
+            self.system.uptodate = False
               
     def get_system(self):
         """
@@ -831,6 +838,8 @@ class Bundle(object):
                 name = c['label']
             self.compute[name] = c
             
+        self._attach_set_value_signals(self.compute[name])
+            
     def get_compute(self,label):
         """
         Get a compute parameterSet by name
@@ -870,6 +879,8 @@ class Bundle(object):
         """
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
+            
+        self.purge_signals(self.attached_signals_system)
         
         # clear all previous models and create new model
         self.system.clear_synthetic()
@@ -903,6 +914,8 @@ class Bundle(object):
                 )
                 
         self.system.uptodate = label
+        
+        self.attach_system_signals()
 
         if add_version is not False:
             self.add_version(name=None if add_version==True else add_version)
