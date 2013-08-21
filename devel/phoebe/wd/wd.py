@@ -558,7 +558,7 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     #   noise, seed, ipb, ifat, n1, n2, the, mzero, factor, wla, atmtab, model
     #   plttab, ifsmv, xlat, xlong, radsp, tempsp
     translate2binary = dict(name='label',hjd0='t0',period='period',dpdt='dpdt',
-        pshift='phshift',sma='sma',rm='q',incl='incl',vga='vgamma',ecc='ecc',
+        pshift='phshift',sma='sma',rm='q',incl='incl',ecc='ecc',
         omega='per0',domegadt='dperdt')
     translate2body = dict(f='syncpar',teff='teff',pot='pot',alb='alb',grb='gravb')
     translate2lc = dict(ld_model='ld_func',filter='passband')
@@ -662,9 +662,10 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     
     orbit['t0type'] = 'superior conjunction'
     #-- gamma velocity needs to be corrected
-    orbit['vgamma'] = orbit['vgamma']*100.
+    globals = pars.ParameterSet('globals', vgamma=ps_wd.get_value('vga','km/s'))
+    #orbit['vgamma'] = orbit['vgamma']*100.
     
-    return comp1,comp2,orbit
+    return comp1,comp2,orbit, globals
 
 
 class BodyEmulator(object):

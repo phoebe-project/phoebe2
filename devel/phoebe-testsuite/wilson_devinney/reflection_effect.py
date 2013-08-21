@@ -98,7 +98,7 @@ c2 = time.time()
 P = binary['period']
 times = np.linspace(binary['t0'],binary['t0']+P,len(curve['indeps']))
 phoebe.observe(phoebe.BodyBag([star1,star2], globals=globals),times,\
-         subdiv_num=2,lc=True,rv=True,heating=True, refl=False)
+         subdiv_num=2,lc=True,rv=True,heating=True, refl=False, eclipse_alg='binary')
 
 c3 = time.time()         
 
