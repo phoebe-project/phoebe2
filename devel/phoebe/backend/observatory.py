@@ -1949,6 +1949,11 @@ def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
     anim.draw()
+    
+    # Close the window once the animation has finished.
+    if i==(len(times)-1) and not anim.repeat and anim.close_after_finish:
+        logger.info("Animation finished; closing window")
+        pl.close()
    
     
     
@@ -2129,6 +2134,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         if 'beaming' in parset and parset['beaming']:
             beaming = True
             logger.info("Figured out that the system requires beaming")
+            break
     
     # If we include reflection, we need to reserve space in the mesh for the
     # reflected light. We need to fix the mesh afterwards because each body can
@@ -2155,9 +2161,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                 circular, heating, beaming, params, ltt,
                                 extra_func, extra_func_kwargs)
     
-    else:
-        def dummy():
-            pass
+    else:        
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
                                   fargs=(system, time_per_time, labl_per_time,
@@ -2165,8 +2169,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                          reflect, nreflect, circular, heating,
                                          beaming, params, ltt, extra_func,
                                          extra_func_kwargs, animate),
-                                  init_func=dummy,
-                                  interval=25, repeat=False)
+                                  init_func=animate.init_func,
+                                  interval=25, repeat=animate.repeat)
         pl.show()
     
     #if inside_mpi is None:
