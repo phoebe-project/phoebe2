@@ -17,6 +17,8 @@ class Animation(object):
         self.draw_funcs = []
         self.draw_args = []
         self.draw_kwargs = []
+        self.close_after_finish = True
+        self.repeat = False
         return None
     
     def draw(self):
@@ -41,7 +43,9 @@ class Animation(object):
         self.initialized = True
         
         return artists
-            
+    
+    def init_func(self):
+        return None
         
 def image(*args, **kwargs):
     """
@@ -91,12 +95,15 @@ class Animation1(Animation):
     """
     def __init__(self, system, **kwargs):
         self.system = system
+        self.repeat = kwargs.pop('repeat', False)
+        self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(111)
         self.axes = [ax1]
         self.draw_funcs = [image]
         self.draw_args = [(system,)]
         self.draw_kwargs = [kwargs]
-        self.initialized = False    
+        self.initialized = False
+        
 
 
 class Animation2(Animation):
@@ -105,6 +112,8 @@ class Animation2(Animation):
     """
     def __init__(self, system, kwargs1, kwargs2):
         self.system = system
+        self.repeat = kwargs.pop('repeat', False)
+        self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
         self.axes = [ax1, ax2]
@@ -119,6 +128,8 @@ class Animation3(Animation):
     """
     def __init__(self, system, **kwargs):
         self.system = system
+        self.repeat = kwargs.pop('repeat', False)
+        self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
         self.axes = [ax1, ax2]

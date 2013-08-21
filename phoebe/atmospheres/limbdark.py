@@ -961,7 +961,8 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
         msg = ("Parameters outside of grid {}: {}. Consider using a different "
                "atmosphere/limbdarkening grid, or use the black body "
                "approximation.").format(atm, msg)
-        logger.error(msg)
+        raise ValueError(msg)
+        #logger.error(msg)
         
         pars = np.zeros((pixelgrid.shape[-1], len(values[0])))
     
