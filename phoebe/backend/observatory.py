@@ -2285,7 +2285,7 @@ def binary_eclipse_algorithm(all_systems, algorithm):
     # If the separation between the two on the sky is smaller or equal to the 
     # sum of the radii, there can be an eclipse.
     if algorithm == 'binary_eclipse' or predict_eclipse:
-        eclipse.convex_qhull([all_systems[0],all_systems[1]])
+        eclipse.convex_graham([all_systems[0],all_systems[1]])
         return 'binary_eclipse', None
     # Else, we can treat them as simple detached stars
     else:
