@@ -414,7 +414,7 @@ def plot_rvobs(system,errorbars=True,**kwargs):
     
     time = obs['time']
     rv = obs['rv']
-    sigm = obs['sigma']
+    sigm = obs['sigma'] if 'sigma' in obs.keys() else [0]*len(rv) # or can we handle weights instead of sigma?
     
     #-- get the period to repeat the RV with
     if period is None:

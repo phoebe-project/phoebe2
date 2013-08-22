@@ -752,6 +752,66 @@ p, li { white-space: pre-wrap; }
                </column>
               </widget>
              </item>
+             <item>
+              <widget class="QWidget" name="lp_observeoptionsWidget" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>100</height>
+                </size>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_10">
+                <property name="spacing">
+                 <number>2</number>
+                </property>
+                <property name="margin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QPushButton" name="lp_optionsPushButton2">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Compute Options</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="ui_resources.qrc">
+                    <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="ParameterTreeWidget" name="lp_observeoptionsTreeView">
+                  <property name="indentation">
+                   <number>2</number>
+                  </property>
+                  <column>
+                   <property name="text">
+                    <string>Parameter</string>
+                   </property>
+                  </column>
+                  <column>
+                   <property name="text">
+                    <string>Preview</string>
+                   </property>
+                  </column>
+                  <column>
+                   <property name="text">
+                    <string>Compute</string>
+                   </property>
+                  </column>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
             </layout>
            </widget>
           </item>
@@ -760,66 +820,6 @@ p, li { white-space: pre-wrap; }
        </item>
        <item>
         <widget class="QWidget" name="lp_spacerWidget" native="true"/>
-       </item>
-       <item>
-        <widget class="QWidget" name="lp_observeoptionsWidget" native="true">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>100</height>
-          </size>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_10">
-          <property name="spacing">
-           <number>2</number>
-          </property>
-          <property name="margin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QPushButton" name="lp_optionsPushButton2">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Compute Options</string>
-            </property>
-            <property name="icon">
-             <iconset resource="ui_resources.qrc">
-              <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="ParameterTreeWidget" name="lp_observeoptionsTreeView">
-            <property name="indentation">
-             <number>2</number>
-            </property>
-            <column>
-             <property name="text">
-              <string>Parameter</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>Preview</string>
-             </property>
-            </column>
-            <column>
-             <property name="text">
-              <string>Compute</string>
-             </property>
-            </column>
-           </widget>
-          </item>
-         </layout>
-        </widget>
        </item>
        <item>
         <widget class="QStackedWidget" name="lp_progressStackedWidget">

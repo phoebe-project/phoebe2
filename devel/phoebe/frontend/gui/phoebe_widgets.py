@@ -673,6 +673,11 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             label.setMinimumSize(QSize(400,18))
             HBox.addWidget(label)
             
+            for key in ['l3','pblum']:
+                label = QLabel(key[:2] if key in dataset.keys() and dataset.get_adjust(key) else '')
+                label.setMinimumSize(QSize(18,18))
+                HBox.addWidget(label)
+            
             leftstackedwidget.addWidget(frame)
             
             # edit mode
@@ -696,8 +701,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             adjust_checks = []
             for key in ['l3','pblum']:  # move these to the edit window?
                 if key in dataset.keys():
-                    check = EnabledCheck(dataset.get_adjust(key))
-                    check.setText(key)
+                    check = EnabledButton(dataset.get_adjust(key))
+                    check.setText(key[:2])
                     check.key = key
                     check.setToolTip("toggle whether %s is marked for adjustment/fitting" % key)
                     adjust_checks.append(check)
@@ -1119,6 +1124,28 @@ class EnabledCheck(QCheckBox):
         super(EnabledCheck, self).__init__()
         
         self.setMaximumSize(QSize(18,18))
+        
+        self.setChecked(enabled)
+        self.set_enabled(enabled,True)
+        
+        QObject.connect(self, SIGNAL("toggled(bool)"), self.set_enabled)
+        
+    def set_enabled(self,enabled,orig=False):
+        if orig:
+            self.orig_value = enabled
+        self.new_value = enabled
+        
+class EnabledButton(QPushButton):
+    """
+    check box to handle enabling/disabling dataset
+    check.orig_value and check.new_value are available for comparison and necessary system calls
+    """
+    def __init__(self,enabled=False):
+        super(EnabledButton, self).__init__()
+        
+        self.setMaximumSize(QSize(18,18))
+        
+        self.setCheckable(True)
         
         self.setChecked(enabled)
         self.set_enabled(enabled,True)
