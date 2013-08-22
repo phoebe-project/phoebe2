@@ -1230,11 +1230,16 @@ class Bundle(object):
         @type signals: list
         """
         if signals is None:
-            signals = self.attached_signals
+            signals = self.attached_signals + self.attached_signals_system
         for param in signals:
             callbacks.purge_signals(param)
         if signals == self.attached_signals:
             self.attached_signals = []
+        elif signals == self.attached_signals_system:
+            self.attached_signals_system = []
+        elif signals == self.attached_signals + self.attached_signals_system:
+            self.attached_signals = []
+            self.attached_signals_system = []
             
     #}
     

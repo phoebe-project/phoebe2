@@ -25,6 +25,16 @@ from phoebe.backend import universe, observatory
 from phoebe.utils import callbacks, utils
 #~ logger = utils.get_basic_logger(clevel='DEBUG',filename='phoebe_gui.log')
 
+### unity launcher
+global _unityImport
+try:
+    from gi.repository import Unity
+except ImportError:
+    _unityImport = False
+else:
+    _unityImport = True
+    
+
 
 ### global options
 global _fileDialog_kwargs
@@ -124,6 +134,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.resize(1220, 768)  # have to set size manually because the hidden widgets won't allow setting the vertical size this small
         self.mp_stackedWidget.setCurrentIndex(0) # just in case was changed in ui file
+        
+        if _unityImport:
+            self.launcher = Unity.LauncherEntry.get_for_desktop_id("phoebe_gui.desktop")
+        else:
+            self.launcher = None
         
         # hide float and close buttons on dock widgets
         #~ self.bp_pyDockWidget.setTitleBarWidget(QWidget())
@@ -377,6 +392,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_progressBar.setValue(0)
         
         self.set_time_i, self.set_time_is = None, None
+        
+        if self.launcher is not None:
+            self.launcher.set_property("progress_visible", False)
              
         self.PythonEdit.setFocus()
         
@@ -1323,10 +1341,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_set_time(self,*args):
         #~ print "*** on_set_time", self.set_time_i, self.set_time_is
         if self.set_time_i is not None and self.set_time_is is not None:
+            if self.launcher is not None:
+                self.launcher.set_property("progress", float(self.set_time_i)/self.set_time_is)
+                self.launcher.set_property("progress_visible", True)
+                
             #~ self.mp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.lp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             #~ self.rp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.set_time_i += 1
+            
+
         
         #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
         
