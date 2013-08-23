@@ -325,10 +325,10 @@ defs += [dict(qualifier='eclx', description='Ecliptic Cartesian x-coordinates of
          dict(qualifier='eclz', description='Ecliptic Cartesian z-coordinates of observer', repr='%s', cast_type=np.array, value=[], unit='au',frame='phoebe', context='amobs'),
          dict(qualifier='delta_ra', description='Right ascension offset coordinate', repr='%s', value=[],frame=['phoebe'], context=['amsyn','amobs']),
          dict(qualifier='delta_dec', description='Declination offset coordinate', repr='%s', value=[],frame=['phoebe'], context=['amsyn','amobs']),
-         dict(qualifier='par_lambda', description='Longitude of parallax circle in ecliptic coordinates', repr='%s', value=[],frame=['phoebe'], context=['amsyn']),
-         dict(qualifier='par_beta', description='Latitude of parallax circle in ecliptic coordinates', repr='%s', value=[],frame=['phoebe'], context=['amsyn']),
+         dict(qualifier='plx_lambda', description='Longitude of parallax circle in ecliptic coordinates', repr='%s', value=[],frame=['phoebe'], context=['amsyn']),
+         dict(qualifier='plx_beta', description='Latitude of parallax circle in ecliptic coordinates', repr='%s', value=[],frame=['phoebe'], context=['amsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','delta_ra','delta_dec','eclx','ecly','eclz'],cast_type='return_list_of_strings',frame=["phoebe"],context=['amobs']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','delta_ra','delta_dec'],cast_type='return_list_of_strings',frame=["phoebe"],context=['amsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','delta_ra','delta_dec','plx_lambda','plx_beta'],cast_type='return_list_of_strings',frame=["phoebe"],context=['amsyn']),
          ] 
          
 
@@ -528,7 +528,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
 
 defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['globals']),
          dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['globals']),
-         dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value=2000.0, cast_type=float, frame=['phoebe'], context=['globals']),
+         dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value='J2000', cast_type=str, frame=['phoebe'], context=['globals']),
          dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
          dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
          dict(qualifier='distance',description='Distance to the object',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='globals'),

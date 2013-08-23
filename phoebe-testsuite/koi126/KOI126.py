@@ -49,7 +49,7 @@ for i,time in enumerate(times):
     system.reset()
     times_ = np.linspace(time-window/2.,time+window/2.,250)
     # Compute the light curve and retrieve the results
-    phoebe.observe(system,times_,lc=True,eclipse_alg='auto')
+    phoebe.observe(system,times_,lc=True,eclipse_alg='graham')
     mylc = system.get_synthetic(category='lc', ref='light curve').asarray()
     times, signal = mylc['time'], mylc['flux']
     # Make an image at the center time, make a high quality image of the final
@@ -58,12 +58,12 @@ for i,time in enumerate(times):
     if i==(len(times)-1):
         system[0].params['mesh']['delta']=0.05
     system.set_time(time)
-    observatory.choose_eclipse_algorithm(system)
+    observatory.choose_eclipse_algorithm(system, algorithm='graham')
     #-- if necessary, subdivide and redetect eclipses/horizon
     for k in range(3):
         #for isystem in the_system:
         system.subdivide(threshold=0,algorithm='edge')
-        observatory.choose_eclipse_algorithm(system)
+        observatory.choose_eclipse_algorithm(system, algorithm='graham')
     
     phoebe.image(system,select='teff',cmap='blackbody',ref='light curve')
     plt.twinx(plt.gca())
