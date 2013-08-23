@@ -6,6 +6,7 @@ import glob
 import subprocess
 import numpy as np
 from scipy import ndimage
+from phoebe.utils import decorators
 try:
     import matplotlib as mpl
 except ImportError:
@@ -40,7 +41,8 @@ def fig2data(fig, grayscale=False):
         return buf
 
 
-def read_bitmap(system, image_file, res=1):
+@decorators.memoized
+def read_bitmap(system, image_file, res=1, scale=None, invert=False):
     """
     Read a bitmap to match the coordinates of a system.
     """
@@ -54,13 +56,21 @@ def read_bitmap(system, image_file, res=1):
     else:
         data = data.T
     data = data[::-1]
+    
+    # Rescale data if necessary:
+    if invert:
+        data = 1 - data
+    if scale is not None:
+        dvmin = data.min()
+        dvmax = data.max()
+        data = (data-dvmin)/(dvmax-dvmin)*(scale[1]-scale[0]) + scale[0]
     #-- normalise the coordinates so that we can map the coordinates
     PHI = (phi+np.pi)/(2*np.pi)*data.shape[0]
     THETA = (theta)/np.pi*data.shape[1]
-    vals = np.array(ndimage.map_coordinates(data,[PHI,THETA]),float)
+    vals = np.array(ndimage.map_coordinates(data,[PHI,THETA], mode='nearest', order=1),float)
     #-- fix edges of image
-    vals[PHI>0.99*PHI.max()] = 1.0
-    vals[PHI<0.01*PHI.max()] = 1.0
+    #vals[PHI>0.99*PHI.max()] = 1.0
+    #vals[PHI<0.01*PHI.max()] = 1.0
     return vals
     
 

@@ -265,6 +265,7 @@ except ImportError:
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import decorators
+from phoebe.utils import plotlib
 from phoebe.parameters import definitions as defs
 try:
     import pymc

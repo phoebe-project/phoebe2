@@ -19,3 +19,15 @@ abun = -0.5                #  Metallicity
 long = 11.4                #  PA
 
 surfgrav ~  constants.GG*{mass}/{radius}**2
+
+
+[phoebe--globals--4e4f5a58-6dcf-46b3-9766-bbf98a9ec56c]
+ra         = 279.234734792 # (deg) Right ascension
+dec        = 38.7836888889 # (deg) Declination
+epoch      = 2000.0     #  Epoch of coordinates
+pmra       = 200.94     # (mas/yr) Proper motion in right ascension
+pmdec      = 286.23     # (mas/yr) Proper motion in declination
+distance   = 7.67872226062 # (pc) Distance to the object
+vgamma     = -13.9      # (km/s) Systemic velocity
+
+

@@ -189,7 +189,10 @@ def mpirun(fctn):
 
         # In that case, just call the function
         if mpirun_par is None:
-            system.fix_mesh()
+            if hasattr(system,'fix_mesh'):
+                system.fix_mesh()
+            else:
+                system.init_mesh()
             return fctn(system, *args, **kwargs)
         
         # Else, get the compute-parameters
@@ -218,7 +221,10 @@ def mpirun(fctn):
                 
             # Now we're ready to do the actual work
             try:
-                system.fix_mesh()
+                if hasattr(system,'fix_mesh'):
+                    system.fix_mesh()
+                else:
+                    system.init_mesh()
                 
                 # Pickle args and kwargs in NamedTemporaryFiles, which we will
                 # delete afterwards

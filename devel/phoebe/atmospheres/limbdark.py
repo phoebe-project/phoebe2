@@ -2034,7 +2034,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         system.mesh['proj_'+ref][keep] = proj_Imu
         #-- take care of reflected light
         if 'refl_'+ref in system.mesh.dtype.names:
-            proj_Imu += system.mesh['refl_'+ref][keep]
+            proj_Imu += system.mesh['refl_'+ref][keep]            
             logger.info("Projected intensity contains reflected light")
         proj_intens = system.mesh['size'][keep]*proj_Imu
         #-- we compute projected and total intensity. We have to correct for solid
