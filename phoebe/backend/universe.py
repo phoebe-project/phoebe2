@@ -444,6 +444,12 @@ def init_mesh(self):
                  [('B_', 'f8', (3,)), ('_o_B_','f8', (3,))])
     
     self.mesh = np.zeros(N, dtype=dtypes)
+    # We need to make sure to reset the body, otherwise we could be fooled
+    # into thinking that everything is still calculated! Some bodies do not
+    # recalculate anything when the time is already set (because they are
+    # time independent). This function effectively puts all values in the
+    # columns to zero!
+    self.reset()
 
 def check_input_ps(self, ps, contexts, narg, is_list=False):
     """
@@ -757,6 +763,8 @@ def _parse_obs(body, data):
         
         # Check if the reference is present in the Body. There should be a
         # corresponding pbdep somewhere!
+        if not context in pbdep_refs:
+            raise ValueError("You can't add observations without adding pbdeps. Add a pbdep of type {} first".format(context))
         if not ref in pbdep_refs[context]:
             logger.warning(("Adding obs with ref='{}', but no corresponding "
                             "pbdeps found. Attempting fix.").format(ref))
@@ -806,9 +814,9 @@ def _parse_obs(body, data):
         
         # This might be a little over the top, but I'll also check if the thing
         # that is added is really a ParameterSet
-        if not isinstance(parset, parameters.ParameterSet):
+        if not isinstance(parset, datasets.DataSet):
             raise ValueError(("Trying to add obs with ref={} but it's "
-                             "not a DataSet (it's a {}").format(ref, 
+                             "not a DataSet (it's a {})").format(ref, 
                                                      parset.__class__.__name__))
         body.params['obs'][data_context][ref] = parset
         
@@ -2548,7 +2556,7 @@ class Body(object):
                 this_type = ['{}: '.format(ptype[-3:])]
                 ns = 0
                 # Loop over all categories and make a string
-                for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv']:
+                for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv', 'am']:
                     lbl = (category+ptype[-3:])
                     if ptype in thing.params and lbl in thing.params[ptype]:
                         this_type.append('{} {}'.format(len(thing.params[ptype][lbl]),lbl))
@@ -2582,7 +2590,7 @@ class Body(object):
             # Collect references
             summary = []
             # Loop over all categories and make a string
-            for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv']:
+            for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv', 'am']:
                
                 for ptype in ['pbdep','obs']:
                     ns = 0 
@@ -3227,6 +3235,74 @@ class Body(object):
             base['wavelength'].append(wavelengths_ / 10.)
             base['flux'].append(I)
             base['continuum'].append(cont)
+    
+    @decorators.parse_ref
+    def am(self, ref='allamdep', time=None, obs=None):
+        """
+        Compute astrometry and add results to the pbdep ParameterSet
+        """
+        # We need to get the observation ParameterSet so that we know all the
+        # required info on **what** exactly to compute (**how** to compute it
+        # is contained in the pbdep)
+        if obs is None and hasattr(self,'params') and 'obs' in self.params \
+                                    and 'amobs' in self.params['obs']:
+            # Compute the apparent position
+            for lbl in ref:
+                # Get the observations if they are not given already
+                if obs is None:
+                    amobs, lbl = self.get_parset(type='obs', ref=lbl)
+                    if lbl is None:
+                        continue
+                else:
+                    amobs = obs
+                
+                # Compute the Astrometry for this reference
+                self.am(ref=lbl, time=time, obs=amobs)
+        
+        # If no obs are given and there are no obs attached, assume we're a
+        # BodyBag and descend into ourselves:
+        elif obs is None:
+            try:
+                for body in self.bodies:
+                    body.am(ref=ref, time=time, obs=obs)
+            except AttributeError:
+                pass
+        
+        # If obs are given, there is no need to look for the references, and we
+        # can readily compute the astrometry
+        else:
+            ref = obs['ref']
+            
+            # Well, that is, we will only compute the astrometry if there are
+            # pbdeps on this body. If not, we assume it's a BodyBag and descend
+            # into the bodies.
+            if not (hasattr(self,'params') and 'pbdep' in self.params \
+                                    and 'amdep' in self.params['pbdep']):
+                try:
+                    for body in self.bodies:
+                        body.am(ref=ref, time=time, obs=obs)
+                except AttributeError:
+                    pass
+                
+                # Quit here!
+                return None
+            else:
+                pbdep = self.params['pbdep']['amdep'][ref]
+                        
+            # Else, we have found the observations (from somewhere), and this
+            # Body has amdeps attached: so we can finally compute the astrometry
+            base, ref = self.get_parset(ref=ref, type='syn')
+            if obs['ref'] != pbdep['ref']:
+                raise ValueError("AM: Something went wrong here! The obs don't match the pbdep...")
+            output = observatory.astrometry(self, obs, pbdep)
+                
+            # Save output to the synthetic thing
+            base['time'].append(self.time)
+            base['delta_ra'].append(output['delta_ra'][0])
+            base['delta_dec'].append(output['delta_dec'][0])
+            base['par_lambda'].append(output['par_lam'][0])
+            base['par_beta'].append(output['par_bet'][0])
+    
     #}
     
     
@@ -3409,28 +3485,12 @@ class PhysicalBody(Body):
         
         ps = parameters.ParameterSet(context='point_source')
         #-- distance of axes origin
-        try:
-            deltaz = self.get_distance('Rsol')
-        except AttributeError:
-            if len(self.params.values()) and 'distance' in self.params.values()[0]:
-                deltaz = self.params.values()[0].request_value('distance','Rsol')
-                #ps['angular_coordinates'] =
-                #d = conversions.convert(distance[1],'m',distance[0]) 
-                #x = 2*np.arctan(x/(2*d))/pi*180*3600 
-                #y = 2*np.arctan(y/(2*d))/pi*180*3600 
-                #z = 2*np.arctan(z/(2*d))/pi*180*3600 
-            else:
-                deltaz = 0.
+        myglobals = self.get_globals()
+        if myglobals is not None:
+            deltaz = myglobals.request_value('distance', 'Rsol')
+        else:
+            deltaz = 0.
         origin = np.array([0,0,deltaz])
-        
-        #-- on-sky-coordinates
-        if deltaz>0:
-            try:
-                #coords = self.get_sky_coordinates()
-                coords = 0.,0.
-            except AttributeError:
-                pass
-        
         
         #-- 1-3.  Geometric barycentre and photocentric barycentre
         ps['coordinates'] = np.average(self.mesh['center'],weights=wsize,axis=0)+origin,'Rsol'
@@ -4955,6 +5015,7 @@ class Star(PhysicalBody):
     """
     def __init__(self, star, mesh, reddening=None, circ_spot=None,
                  puls=None, magnetic_field=None, pbdep=None, obs=None,
+                 globals=None,
                  **kwargs):
         """
         Initialize a star.
@@ -4992,10 +5053,9 @@ class Star(PhysicalBody):
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'globals' in kwargs:
-            myglobals = kwargs.pop('globals')
-            check_input_ps(self, myglobals, ['globals'], 'globals')
-            self.params['globals'] = myglobals
+        if globals is not None:
+            check_input_ps(self, globals, ['globals'], 'globals')
+            self.params['globals'] = globals
         
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
@@ -6646,10 +6706,11 @@ class BinaryStar(Star):
         n_comp = self.get_component()
         component = ('primary','secondary')[n_comp]
         orbit = self.params['orbit']
-        #loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
-        #self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+        loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
+        self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+        self.mesh['velo___bol_'] = self.mesh['velo___bol_'] + velo
         #-- once we have the mesh, we need to place it into orbit
-        keplerorbit.place_in_binary_orbit(self,time)
+        #keplerorbit.place_in_binary_orbit(self,time)
     
     
     def projected_velocity(self,los=[0,0,+1],ref=0):

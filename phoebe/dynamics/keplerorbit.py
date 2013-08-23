@@ -742,6 +742,147 @@ def rotate_into_orbit(obj,euler,loc=(0,0,0)):
     return X_Y_Z
 
 
+
+def apparent_coordinates(distance, ra, dec, pmra, pmdec,
+                         observer_position, target_position=None,
+                         epoch='J2000'):
+    r"""
+    Compute apparent coordinates on the sky wrt to an observer.
+    
+    Observer position needs to be in ecliptic coordinates with respect to the
+    Sun and need to span the total time span of the required times.
+    (time, x, y, z).
+    
+    Method description:
+    
+        1. Compute ecliptic coordinates of the system at distance :math:`d_\odot`,
+           centered on the Sun. This gives coordinates
+           
+           .. math::
+           
+                (d_\odot, \lambda_\odot, \beta_\odot)
+           
+           and in Cartesian coordinates:
+           
+           .. math::
+           
+                x_\odot & = d_\odot \sin\left(\frac{\pi}{2}-\beta_\odot\right) \cos(\lambda_\odot)\\
+                y_\odot & = d_\odot \sin\left(\frac{\pi}{2}-\beta_\odot\right) \sin(\lambda_\odot)\\
+                z_\odot & = d_\odot \cos\left(\frac{\pi}{2}-\beta_\odot\right)
+          
+        2. Next, compute the ecliptic coordinates centered on the observer
+           (denoted with symbol :math:`\odot`). First,
+           compute the positions of the observer :math:`(X,Y,Z)` relative to the
+           Solar System barycentre at each time point :math`t_i` (e.g. via
+           JPL Horizons interface). Then convert the heliocentric ecliptic
+           coordinates to observer-centric ones:
+           
+           .. math::
+                
+                x_\oplus(t_i) & = x_\odot - X(t_i)\\
+                y_\oplus(t_i) & = y_\odot - Y(t_i)\\
+                z_\oplus(t_i) & = z_\odot - Z(t_i)\\
+          
+           and convert to geocentric spherical coordinates:
+           
+           .. math::
+           
+                d_\oplus(t_i)        & = \sqrt{x_\oplus^2 + y_\oplus^2 + z_\oplus^2}\\
+                \lambda_\oplus(t_i)  & = \frac{\pi}{2} - \arccos\left(\frac{z_\oplus}{d_\oplus}\right)\\
+                \beta_\oplus(t_i)    & = \arctan(y,x)\\
+                
+        Now we have the apparent ecliptic coordinates as observed by the observer.
+        This is the parallactic motion in ecliptic coordinates. It will be flat
+        near the equator, circular around the pole. To make it angular, you have
+        to correct for the declination.
+    
+    To test, try Vega (large parallax), Eta Dra (near ecliptic pole) and
+    lambda Aqr (near ecliptic plane)
+        
+    @param distance: distance to the object (parsec)
+    @type distance: float
+    @param ra: object's right ascension (degrees)
+    @type ra: float
+    @param dec: object's declination (degrees)
+    @type dec: float
+    @param pmra: right ascension proper motion (mas/yr)
+    @type pmra: float
+    @param pmdec: declination proper motion (mas/yr)
+    @type pmdec: float
+    @param observer_position: observer times (JD), ecliptic X,Y,Z coordinates (au)
+    @type observer_position: 4-tuple arrays of length N
+    @param target_position: target position, (x, y, z (Rsol))
+    @type target_position: 3-tuple arrays of length N
+    @param epoch: epoch for ra and pmra (e.g. J2000, B1950, J1991.25)
+    @type epoch: str
+    """
+    # What's our reference time?
+    t0 = conversions.convert('epoch','JD',epoch)
+    
+    # Get the apparent position of the star wrt the earth.
+    # Earth's position in ecliptic coordinates wrt solar system barycentre (SSB)
+    times, x_earth, y_earth, z_earth = observer_position
+    times = times - t0
+    
+    # What's our target's position?
+    if target_position is None:
+        target_position = np.zeros((3,1))
+    target_position = np.asarray(target_position).T
+    ra_target, dec_target, d_target = truecoords_to_spherical(target_position,
+                      distance=(distance,'pc'), origin=(ra/180.*pi,dec/180.*pi))
+    
+    # Retrieve info on proper motions
+    pmra = conversions.convert('mas/yr','deg/d', pmra)
+    pmdec = conversions.convert('mas/yr','deg/d', pmdec)
+    lamref, betref = conversions.convert('equatorial','ecliptic',(ra/180.*pi,
+                                          dec/180.*pi), epoch=epoch[1:])
+    
+    
+    # Get the coordinates of the system in ecliptic coordinates
+    lam, bet = np.array([list(conversions.convert('equatorial','ecliptic',\
+                         (ira,idec), epoch=epoch[1:])) \
+                         for ira,idec in zip(ra_target,dec_target)]).T
+    
+    #   Spherical coordinate position of star wrt the SSB
+    d = d_target*constants.Rsol/constants.au*np.ones_like(times)
+    
+    #   Cartesian position of star wrt the SSB
+    x = d * sin(pi/2-bet) * cos(lam)
+    y = d * sin(pi/2-bet) * sin(lam)
+    z = d * cos(pi/2-bet)
+    
+    #   Cartesian position of star wrt the Earth
+    x_ = x - x_earth
+    y_ = y - y_earth
+    z_ = z - z_earth
+
+    #   Spherical coordinate position of star wrt the Earth (apparent coordinates)
+    r_ = np.sqrt(x_**2 + y_**2 + z_**2)
+    app_beta = pi/2 - np.arccos(z_/r_)
+    app_lambda = np.arctan2(y_, x_)
+        
+    ras, decs = np.zeros_like(app_lambda),np.zeros_like(app_lambda)
+    for i,(ilam, ibet) in enumerate(zip(app_lambda, app_beta)):
+        ras[i], decs[i] = conversions.convert('ecliptic','equatorial',(ilam, ibet),
+                                              epoch=epoch[1:])
+    
+    # Account for proper motions
+    ras = ras/pi*180 + pmra*times
+    decs = decs/pi*180 + pmdec*times 
+    
+    # Construct parallax circle:
+    lam_ = lam if lam<np.pi else lam-2*np.pi
+    par_circ_lam = (app_lambda)/pi*180 * cos(bet) - lam_/pi*180*cos(bet)
+    par_circ_bet = (app_beta)/pi*180 - bet/pi*180
+    
+    #parallax = np.abs((par_circ_lam).min()-(par_circ_lam).max())/2.0*3600*1000
+    #print("Parallax = {}".format(parallax))    
+    
+    # all output is in degrees
+    output = dict(ra=ra, dec=dec, delta_ra=ras-ra, delta_dec=decs-dec,
+                  par_lam=par_circ_lam, par_bet=par_circ_bet)
+    return output
+
 #}
 
 #{ Time and phases
@@ -1646,6 +1787,7 @@ def place_in_binary_orbit(self,time):
     
     
     
+
     
 #}
 

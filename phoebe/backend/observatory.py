@@ -8,6 +8,8 @@ Convert a Body to an observable quantity.
     ifm
     spectrum
     stokes
+    astrometry
+
     
 .. autosummary::
     
@@ -1346,7 +1348,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
 
 def stokes(the_system, obs, pbdep, rv_grav=True):
     r"""
-    Calculate the Stokes profiles of a system.
+    Compute the Stokes profiles of a system.
     
     What you need to do is to calculate the Zeeman effect, i.e. the shift
     between the right circularly polarised line and the left circularly
@@ -1659,6 +1661,25 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
+def astrometry(system, obs, pbdep):
+    """
+    Compute a body's apparent coordinates on the sky.
+    """
+    myglobals = system.get_globals()
+    ra = myglobals['ra']
+    dec = myglobals['dec']
+    pmra = myglobals['pmra']
+    pmdec = myglobals['pmdec']
+    distance = myglobals['distance']
+    target_position = system.as_point_source(ref=pbdep['ref'])['photocenter']
+    observer_position = obs['time'], obs['eclx'], obs['ecly'], obs['eclz']
+    return keplerorbit.apparent_coordinates(distance, ra, dec, pmra, pmdec,
+                                target_position, observer_position,
+                                epoch=myglobals['epoch'])
+
+
+
+
 #}
 #{ Input/output
 
@@ -1735,6 +1756,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     types = [] # types
     refs  = [] # references
     
+    found_obs = False
     # Collect the times of the data, the types and refs of the data: walk
     # through all the parameterSets, if they represent observations, load the
     # dataset and collect the times. The reference and type for each
@@ -1750,6 +1772,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
         # synthetics)
         if not parset.context[-3:] == 'obs':
             continue
+        found_obs = True
         
         # If the dataset is not enabled, forget about it (if dates == 'auto')
         if dates == 'auto' and not parset.get_enabled():
@@ -1812,8 +1835,16 @@ def extract_times_and_refs(system, params, tol=1e-8):
                          "to be computed. Perhaps the obs are not DataSets? "
                          "(original message: {})").format(str(msg)))
     except IndexError as msg:
-        raise ValueError(("Failed to derive at which points the system needs "
-                          "to be computed. Perhaps there are no obs attached? "
+        if not found_obs:
+            raise ValueError(("Failed to derive at which points the system needs "
+                          "to be computed. I can't find any obs attached to "
+                          "the system, check if they are added properly. "
+                          "(original message: {})").format(str(msg)))
+        else:
+            raise ValueError(("Failed to derive at which points the system needs "
+                          "to be computed. I found obs attached to the system, "
+                          "but perhaps they contain no time information (or an "
+                          "empty time column)? "
                           "(original message: {})").format(str(msg)))
     
     sa    = np.argsort(times)
@@ -1949,11 +1980,11 @@ def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
     anim.draw()
-    
     # Close the window once the animation has finished.
     if i==(len(times)-1) and not anim.repeat and anim.close_after_finish:
         logger.info("Animation finished; closing window")
         pl.close()
+    
    
     
     
@@ -2171,7 +2202,11 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                          extra_func_kwargs, animate),
                                   init_func=animate.init_func,
                                   interval=25, repeat=animate.repeat)
-        pl.show()
+        if animate.save:
+            ani.save(*animate.save[0], **animate.save[1])
+        else:
+            pl.show()
+            
     
     #if inside_mpi is None:
     # We can't compute pblum or l3 inside MPI, because it's this function that

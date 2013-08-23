@@ -61,6 +61,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     
 """
 import logging
+import os
 import numpy as np
 import textwrap
 from phoebe.units import constants
@@ -1072,6 +1073,55 @@ def add_ebv(reddening, ebv=None, unit='mag', derive='extinction', **kwargs):
 #}
 
 #{ Other constraints
+
+def add_albmap(star, image, scale=None, invert=False, **kwargs):
+    """
+    Add an albedo surface map.
+    """
+    if kwargs and 'albmap' in star:
+        raise ValueError("You cannot give extra kwargs to add_albmap if albmap already exist")
+    
+    kwargs.setdefault('description','Albedo surface map')
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',str)
+    kwargs.setdefault('repr','%s')
+    
+    #-- remove any constraints on albmap and add the parameter
+    star.pop_constraint('albmap',None)
+    if not 'albmap' in star:
+        star.add(parameters.Parameter(qualifier='albmap', value=os.path.abspath(image),**kwargs))
+    else:
+        star['albmap'] = albmap
+        
+    star.add_constraint('{{albmap_min}} = {:.16e}'.format(scale[0]))
+    star.add_constraint('{{albmap_max}} = {:.16e}'.format(scale[1]))
+    star.add_constraint('{{albmap_inv}} = {}'.format(invert))
+
+def add_redistmap(star, image, scale=None, invert=False, **kwargs):
+    """
+    Add a global heat redistribution surface map.
+    """
+    if kwargs and 'redistmap' in star:
+        raise ValueError("You cannot give extra kwargs to add_redistmap if redistmap already exist")
+    
+    kwargs.setdefault('description','Albedo surface map')
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',str)
+    kwargs.setdefault('repr','%s')
+    
+    #-- remove any constraints on albmap and add the parameter
+    star.pop_constraint('redistmap',None)
+    if not 'redistmap' in star:
+        star.add(parameters.Parameter(qualifier='redistmap', value=os.path.abspath(image),**kwargs))
+    else:
+        star['redistmap'] = redistmap
+        
+    star.add_constraint('{{redistmap_min}} = {:.16e}'.format(scale[0]))
+    star.add_constraint('{{redistmap_max}} = {:.16e}'.format(scale[1]))
+    star.add_constraint('{{redistmap_inv}} = {}'.format(invert))
+
 
 def add_parallax(star,parallax=None,unit='mas',**kwargs):
     """

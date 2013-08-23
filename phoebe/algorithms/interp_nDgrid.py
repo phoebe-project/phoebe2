@@ -5,6 +5,7 @@ import time
 import itertools
 import numpy as np
 from scipy import ndimage
+from scipy.ndimage import _nd_image, _ni_support
 try:
     import pyfits as pf
 except ImportError:
@@ -68,15 +69,15 @@ def interpolate(p, axis_values, pixelgrid):
     @rtype: array
     """
     # convert requested parameter combination into a coordinate
-    p_ = [np.searchsorted(av_,val) for av_, val in zip(axis_values,p)]
+    p_ = np.array([np.searchsorted(av_,val) for av_, val in zip(axis_values,p)])
     lowervals_stepsize = np.array([[av_[p__-1], av_[p__]-av_[p__-1]] \
                          for av_, p__ in zip(axis_values,p_)])
-    p_coord = (p-lowervals_stepsize[:,0])/lowervals_stepsize[:,1] + np.array(p_)-1
-
+    p_coord = (p-lowervals_stepsize[:,0])/lowervals_stepsize[:,1] + p_-1
 
     # interpolate
     return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=1, prefilter=False) \
                 for i in range(np.shape(pixelgrid)[-1])]
+    
 
 
 if __name__ == "__main__":

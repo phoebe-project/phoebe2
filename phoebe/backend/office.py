@@ -1,3 +1,6 @@
+"""
+Animate Phoebe computations interactively, or save them to a movie file.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
@@ -19,6 +22,7 @@ class Animation(object):
         self.draw_kwargs = []
         self.close_after_finish = True
         self.repeat = False
+        self.save = None
         return None
     
     def draw(self):
@@ -103,6 +107,7 @@ class Animation1(Animation):
         self.draw_args = [(system,)]
         self.draw_kwargs = [kwargs]
         self.initialized = False
+        self.save = None
         
 
 

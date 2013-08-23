@@ -20,6 +20,7 @@ Functions governing the motion of objects in the Universe
 
 .. autosummary::
     
+    keplerorbit.apparent_coordinates
     keplerorbit.mean_anomaly_to_time
     keplerorbit.calculate_phase
     keplerorbit.calculate_critical_phases

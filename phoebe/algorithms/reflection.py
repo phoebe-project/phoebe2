@@ -58,6 +58,7 @@ from phoebe.backend import decorators
 from phoebe.utils import coordinates
 from phoebe.utils import cgeometry
 from phoebe.utils import fgeometry
+from phoebe.utils import plotlib
 from phoebe.atmospheres import limbdark
 
 logger = logging.getLogger("ALGO.REFL")
@@ -282,12 +283,56 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
                        'quadratic','square_root', 'uniform']
     ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
     
-    R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
+    # Add surface map information if needed: we're walking over all parameterSets
+    # here, although only the bolometric ones are used in this function. The
+    # others are returned, and other functions can use them.
+    albmap = None
+    redistmap = None
+    for iindex, ps in enumerate(ps_irradiated):
+        if 'albmap' in ps[0]:
+            scale = (ps[0]['albmap_min'], ps[0]['albmap_max'])
+            invert = ps[0]['albmap_inv']
+            A_irradiateds[iindex] = plotlib.read_bitmap(irradiated, ps[0]['albmap'],
+                                                        scale=scale, invert=invert)
+            if iindex == index_bol:
+                albmap = A_irradiateds[iindex]
+            logger.info("Albedo {} via surface map {}".format(ps[1], ps[0]['albmap']))
+        
+        if (iindex == index_bol) and 'redistmap' in ps[0]:
+            scale = (ps[0]['redistmap_min'], ps[0]['redistmap_max'])
+            invert = ps[0]['redistmap_inv']
+            redistmap = plotlib.read_bitmap(irradiated, ps[0]['redistmap'],
+                                        scale=scale, invert=invert)
+            logger.info("Global redistribution {} via surface map {}".format(ps[1], ps[0]['albmap']))
+    
+    # If at least one surface map is given, we need to make sure everything is
+    # an array
+    if albmap is not None or redistmap is not None:
+        if albmap is None:
+            albmap = alb*np.ones_like(redistmap)
+            logger.info("Albedo via single value")
+        elif redistmap is None:
+            redistmap = redist*np.ones_like(albmap)
+            logger.info("Global redistribution via single value")
+        redist = redistmap
+        alb = albmap
+        
+        R1, R2, inco = freflection.reflectionarray(irradiator.mesh['center'],
+                           irradiator.mesh['size'],
+                           irradiator.mesh['normal_'], irrorld,
+                           irradiated.mesh['center'], irradiated.mesh['size'],
+                           irradiated.mesh['normal_'], emer,
+                           albmap, redistmap, ld_laws)
+    else:
+        
+        R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
                            irradiator.mesh['size'],
                            irradiator.mesh['normal_'], irrorld,
                            irradiated.mesh['center'], irradiated.mesh['size'],
                            irradiated.mesh['normal_'], emer,
                            alb, redist, ld_laws)
+    
+    
     
     # Global redistribution factor:
     R2 = 1.0 + (1-redisth)*R2/total_surface
@@ -311,7 +356,11 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
             end = np.searchsorted(colat[sort_colat], bands[i+1])
             use = indices[sort_colat][start:end]
             band_total_surface = irradiated.mesh['size'][use].sum()
-            R2[use] += (redisth*redist*alb * inco[use,0]/emer[use]*irradiated.mesh['size'][use]).sum()/band_total_surface
+            if not np.isscalar(redist):
+                factor = (redist[use]*alb[use])
+            else:
+                factor = redist*alb
+            R2[use] += (redisth*factor * inco[use,0]/emer[use]*irradiated.mesh['size'][use]).sum()/band_total_surface
         
     return R1, R2, inco, emer, ref, A_irradiateds
 
@@ -362,7 +411,10 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
             #-- Bond albedo equals 1-A_irradiated
             try:
                 bond_albedo = (1-A_irradiateds[j])
-                bond_albedo = max(0, bond_albedo)
+                if np.isscalar(A_irradiateds[j]):
+                    bond_albedo = max(0, bond_albedo)
+                else:
+                    bond_albedo[bond_albedo<0] = 0.
                 irradiated.mesh[refl_ref] += bond_albedo*inco[:,j]/np.pi
             except ValueError:
                 raise ValueError("Did not find ref {}. Did you prepare for reflection?".format(refl_ref))
