@@ -38,13 +38,16 @@ lcdep1 = create.dep_from_object(sun,context='lcdep', passband='JOHNSON.V',
 lcdep2 = create.dep_from_object(venus,context='lcdep', passband='JOHNSON.V',
                                 ref='Visual')
 
+globals = phoebe.ParameterSet('globals', distance=(4.84813681108e-06,'pc'))
+
 # Body setup
 # ----------
 
 # Then the Sun and Venus are easily created as ``BinaryStars``.
 bsun = phoebe.BinaryStar(sun, orbit, mesh, pbdep=lcdep1)
 bvenus = phoebe.BinaryStar(venus, orbit, mesh, pbdep=lcdep2)
-system = phoebe.BodyBag([bsun, bvenus])
+
+system = phoebe.BodyBag([bsun, bvenus], globals=globals)
 
 # Computation of observables
 # --------------------------

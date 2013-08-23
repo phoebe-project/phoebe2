@@ -3294,14 +3294,18 @@ class Body(object):
             base, ref = self.get_parset(ref=ref, type='syn')
             if obs['ref'] != pbdep['ref']:
                 raise ValueError("AM: Something went wrong here! The obs don't match the pbdep...")
-            output = observatory.astrometry(self, obs, pbdep)
+            index = np.argmin(np.abs(obs['time']-time))
+            if not obs['time'][index]==time:
+                raise ValueError(("Cannot compute astrometry at time {}, not "
+                                  "given in obs"))
+            output = observatory.astrometry(self, obs, pbdep, index)
                 
             # Save output to the synthetic thing
             base['time'].append(self.time)
             base['delta_ra'].append(output['delta_ra'][0])
             base['delta_dec'].append(output['delta_dec'][0])
-            base['par_lambda'].append(output['par_lam'][0])
-            base['par_beta'].append(output['par_bet'][0])
+            base['plx_lambda'].append(output['plx_lambda'][0])
+            base['plx_beta'].append(output['plx_beta'][0])
     
     #}
     

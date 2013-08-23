@@ -1661,9 +1661,11 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
-def astrometry(system, obs, pbdep):
+def astrometry(system, obs, pbdep, index):
     """
     Compute a body's apparent coordinates on the sky.
+    
+    For more information, see :py:func:`phoebe.keplerorbit.apparent_coordinates`.
     """
     myglobals = system.get_globals()
     ra = myglobals['ra']
@@ -1671,11 +1673,19 @@ def astrometry(system, obs, pbdep):
     pmra = myglobals['pmra']
     pmdec = myglobals['pmdec']
     distance = myglobals['distance']
-    target_position = system.as_point_source(ref=pbdep['ref'])['photocenter']
-    observer_position = obs['time'], obs['eclx'], obs['ecly'], obs['eclz']
-    return keplerorbit.apparent_coordinates(distance, ra, dec, pmra, pmdec,
-                                target_position, observer_position,
-                                epoch=myglobals['epoch'])
+    distance_Rsol = distance*constants.pc/constants.Rsol
+    epoch = myglobals['epoch']
+    
+    # Get photocenter of the system, but remove the distance (this is taken
+    # care of inside apparent_coordinates
+    target_position = system.as_point_source(ref=pbdep['ref'])['photocenter'].reshape((3,1))
+    target_position[2] -= distance_Rsol
+    observer_position = obs['time'][index], obs['eclx'][index],\
+                        obs['ecly'][index], obs['eclz'][index]
+    output = keplerorbit.apparent_coordinates(distance, ra, dec, pmra, pmdec,
+                                observer_position,target_position,
+                                epoch=epoch)
+    return output
 
 
 

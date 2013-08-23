@@ -759,10 +759,27 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
            centered on the Sun. This gives coordinates
            
            .. math::
+              :label: ecl_coords
            
-                (d_\odot, \lambda_\odot, \beta_\odot)
+                (d_\odot, \lambda_\odot, \beta_\odot).
            
-           and in Cartesian coordinates:
+           It is possible that these coordinates are time dependent, e.g. in a
+           binary system. If so, the argument ``target_position`` should contain
+           the Cartesian coordinates of the object in its own barycentric
+           coordinates, in units of solar radii (i.e. the natural units of Phoebe).
+           Then these coordinates will be converted to spherical coordinates via
+           :py:func:`truecoords_to_spherical`, and used as the RA and DEC for
+           the object different times :math:`t_i`,
+           
+           .. math::
+           
+                (d_\odot(t_i), \lambda_\odot(t_i), \beta_\odot(t_i)).
+           
+           If only one coordinate tuple is given,
+           ``target_position`` is effectively a constant offset from the system's
+           RA and DEC.
+           
+           In Cartesian coordinates, coordinates :eq:`ecl_coords` become:
            
            .. math::
            
@@ -771,19 +788,28 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
                 z_\odot & = d_\odot \cos\left(\frac{\pi}{2}-\beta_\odot\right)
           
         2. Next, compute the ecliptic coordinates centered on the observer
-           (denoted with symbol :math:`\odot`). First,
+           (denoted with symbol :math:`\oplus`). First,
            compute the positions of the observer :math:`(X,Y,Z)` relative to the
-           Solar System barycentre at each time point :math`t_i` (e.g. via
-           JPL Horizons interface). Then convert the heliocentric ecliptic
+           Solar System barycentre at each time point :math:`t_i` (e.g. via the
+           :ref:`JPL Horizons interface <label-jpl>`). Then convert the heliocentric ecliptic
            coordinates to observer-centric ones:
            
            .. math::
                 
                 x_\oplus(t_i) & = x_\odot - X(t_i)\\
                 y_\oplus(t_i) & = y_\odot - Y(t_i)\\
-                z_\oplus(t_i) & = z_\odot - Z(t_i)\\
+                z_\oplus(t_i) & = z_\odot - Z(t_i).
+                
+           Note that also the :math:`\odot` coordinates might be time dependent,
+           in which case:
+           
+           .. math::
+                
+                x_\oplus(t_i) & = x_\odot(t_i) - X(t_i)\\
+                y_\oplus(t_i) & = y_\odot(t_i) - Y(t_i)\\
+                z_\oplus(t_i) & = z_\odot(t_i) - Z(t_i).
           
-           and convert to geocentric spherical coordinates:
+           In observer-centric spherical coordinates this becomes:
            
            .. math::
            
@@ -793,11 +819,26 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
                 
         Now we have the apparent ecliptic coordinates as observed by the observer.
         This is the parallactic motion in ecliptic coordinates. It will be flat
-        near the equator, circular around the pole. To make it angular, you have
-        to correct for the declination.
+        near the equator and circular around the pole if the observer is located
+        in the ecliptic plane (like the earth is). To make it angular, you have
+        to correct for the declination:
+        
+            .. math::
+            
+                \lambda_{\oplus,P}(t_i) & = \lambda_\oplus(t_i)\cos(\beta_\oplus(t_i)) \\
+                \beta_{\oplus,P}(t_i) & = \beta_\oplus(t_i)
     
     To test, try Vega (large parallax), Eta Dra (near ecliptic pole) and
-    lambda Aqr (near ecliptic plane)
+    lambda Aqr (near ecliptic plane).
+    
+    .. _label-jpl:
+    
+    .. note:: JPL Horizons interface
+    
+        The JPL Horizons interface can give you the location of the observer,
+        being a spacecraft or solar system body, in time.
+    
+    
         
     @param distance: distance to the object (parsec)
     @type distance: float
@@ -872,7 +913,7 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     
     # Construct parallax circle:
     lam_ = lam if lam<np.pi else lam-2*np.pi
-    par_circ_lam = (app_lambda)/pi*180 * cos(bet) - lam_/pi*180*cos(bet)
+    par_circ_lam = (app_lambda)/pi*180 * cos(app_beta) - lam_/pi*180*cos(app_beta)
     par_circ_bet = (app_beta)/pi*180 - bet/pi*180
     
     #parallax = np.abs((par_circ_lam).min()-(par_circ_lam).max())/2.0*3600*1000
@@ -880,7 +921,7 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     
     # all output is in degrees
     output = dict(ra=ra, dec=dec, delta_ra=ras-ra, delta_dec=decs-dec,
-                  par_lam=par_circ_lam, par_bet=par_circ_bet)
+                  plx_lambda=par_circ_lam, plx_beta=par_circ_bet)
     return output
 
 #}

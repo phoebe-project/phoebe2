@@ -59,7 +59,7 @@ t0 = system1[0].params['orbit']['t0']
 times = np.linspace(t0,t0+period,150)
 
 phoebe.observe(system1,times,lc=True,heating=False,refl=False,
-               eclipse_alg='binary')#,animate=office.Animation1(system1, select='teff'))#,mpi=mpi)
+               eclipse_alg='binary',animate=office.Animation1(system1, select='teff'))#,mpi=mpi)
 phoebe.observe(system2,times,lc=True,heating=False,refl=False,eclipse_alg='binary')
 
 
