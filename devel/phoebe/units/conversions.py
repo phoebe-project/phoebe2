@@ -2841,6 +2841,39 @@ class ModJulianDay(NonLinearConverter):
         else:
             return meas+self.ZP[jtype.upper()]*(24*3600.)
 
+class Epoch(NonLinearConverter):
+    """
+    Convert an Epoch to Julian Day and back.
+    
+    Julian Epoch:
+    
+    J = 2000.0 + (Julian date − 2451545.0)/365.25
+    JD = (J - 2000.0) * 365.25 + 2451545.0
+    
+    Besselian Epoch:
+    
+    B = 1900.0 + (Julian date − 2415020.31352) / 365.242198781
+    JD = (B - 1900.0) *365.242198781 + 2415020.31352
+    """
+    def __call__(self,meas,inv=False):
+        if not inv:
+            if meas[0]=='J':
+                retval = (float(meas[1:]) - 2000.0) *365.25 + 2451545.0
+            elif meas[0] == 'B':
+                retval = (float(meas[1:]) - 1900.0) *365.242198781 + 2415020.31352
+            else:
+                raise ValueError("Don't recognise epoch prefix '{}'".format(meas[0]))
+            return retval*24*3600
+        else:
+            if meas[0]=='J':
+                retval = 2000.0 + (meas - 2451545.0) /365.25
+            elif meas[0] == 'B':
+                retval = (meas - 2415020.31352) /365.242198781 
+            else:
+                raise ValueError("Don't recognise epoch prefix '{}'".format(meas[0]))
+            return retval*24*3600
+
+
 class GalCoords(NonLinearConverter):
     """
     Convert Galactic coords to complex coords and back
@@ -2880,7 +2913,7 @@ class EclCoords(NonLinearConverter):
             x,y = mycoord.real,mycoord.imag
             equ = ephem.Equatorial(x,y,epoch=epoch)
             ecl = ephem.Ecliptic(equ,epoch=epoch)
-            return ecl.long,ecl.lat
+            return ecl.lon,ecl.lat
         else:
             x,y = mycoord
             ecl = ephem.Ecliptic(x,y,epoch=epoch)
@@ -3026,6 +3059,7 @@ class Unit(object):
     
     B{Example 3}: The speed of light in vacuum:
     
+    - Tidally induced pulsations
     >>> eps0 = Unit('eps0')
     >>> mu0 = Unit('mu0')
     >>> cc = Unit('cc')
@@ -3448,6 +3482,7 @@ _factors = collections.OrderedDict([
            ('JD',    (24*3600,         's','time','Julian day')), # Julian Day
            ('CD',    (JulianDay,     'JD','calendar date','calender day')), # Calender Day
            ('MJD',   (ModJulianDay,  'JD','date','modified Julian day')), # Modified Julian Day
+           ('epoch', (Epoch,         'JD','date','Epoch')), # Epoch
            ('j',     (1/60.,         's','time','jiffy')),  # jiffy
            ('fortnight',(1209600.,    's','second','fortnight')),
 
