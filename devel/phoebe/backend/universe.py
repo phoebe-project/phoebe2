@@ -562,9 +562,9 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
     
     #   scaling factor and offset
     elif pblum and l3:
-        print model.ravel().shape, obs.ravel().shape
+        #~ print model.ravel().shape, obs.ravel().shape
         A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
-        print A.shape
+        #~ print A.shape
         pblum, l3 = algorithm(A, obs.ravel())[0]
     
     return pblum, l3
