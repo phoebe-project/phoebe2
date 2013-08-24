@@ -86,6 +86,9 @@ class Bundle(object):
         self.system = system 
         if system is None:  return None
         
+        # connect signals
+        self.attach_system_signals()
+        
         # check to see if in versions, and if so set versions_curr_i
         versions = [v['system'] for v in self.versions]
         if system in versions:
@@ -94,10 +97,11 @@ class Bundle(object):
             i = None
         self.versions_curr_i = i
 
-        # connect signals        
-        self.attach_system_signals()
+
         
     def attach_system_signals(self):
+        #~ print "* attach_system_signals"
+
         self.purge_signals(self.attached_signals_system) # this will also clear the list
         #~ self.attached_signals_system = []
         for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute.values():
@@ -116,12 +120,11 @@ class Bundle(object):
             #~ print "*** attaching signal %s:%s" % (label,key)
             param = ps.get_parameter(key)
             self.attach_signal(param,'set_value',self._on_param_changed,ps)
-            #~ if param not in self.attached_signals_system:
             self.attached_signals_system.append(param)
 
     def _on_param_changed(self,param,ps=None):
         if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if self.system.uptodate is False or self.compute[self.system.uptodate] == ps:
+            if self.compute[self.system.uptodate] == ps:
                 self.system.uptodate=False
         else:
             self.system.uptodate = False
