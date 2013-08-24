@@ -2106,13 +2106,16 @@ class PyInterpThread(QThread):
             bundle = self.parent.comm['bundle']
             if len(bundle.attached_signals) > 0:
                 #~ print "*** before", bundle.attached_signals, bundle.system.signals
-                bundle.purge_signals([bundle.attached_signals[-1]]) # just remove the latest created
-                bundle.attached_signals = bundle.attached_signals[:-1]
-                bundle.system.signals = {}
+                bundle.purge_signals([bundle.system]) 
+                # just remove the set_time signal
+                # note: this will still result in duplicates in bundle.attached_signals
+                # but should be cleared soon enough through an entire purge
+                
+                #~ bundle.system.signals = {}
                 #~ print "*** after", bundle.attached_signals, bundle.system.signals
  
-            callbacks.purge_signals(bundle.system)
-            bundle.system.signals={}
+            #~ callbacks.purge_signals(bundle.system)
+            #~ bundle.system.signals={}
             
     def on_set_time(self,*args):
         self.emit(SIGNAL('set_time'))
