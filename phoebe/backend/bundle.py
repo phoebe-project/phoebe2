@@ -38,6 +38,7 @@ class Bundle(object):
         self.figs = OrderedDict()
         
         self.pool = OrderedDict()
+        self.signals = {}
         self.attached_signals = []
         self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
         
@@ -97,7 +98,8 @@ class Bundle(object):
         self.attach_system_signals()
         
     def attach_system_signals(self):
-        self.attached_signals_system = []
+        self.purge_signals(self.attached_signals_system) # this will also clear the list
+        #~ self.attached_signals_system = []
         for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute.values():
             self._attach_set_value_signals(ps)
         
@@ -1219,6 +1221,13 @@ class Bundle(object):
         @param callbackfunc: the callback function
         @type callbackfunc: callable function
         """
+        
+        # for some reason system.signals is becoming an 'instance' and 
+        # is giving the error that it is not iterable
+        # for now this will get around that, until we can find the source of the problem
+        if self.system is not None and not isinstance(self.system.signals, dict):
+            #~ print "*system.signals not dict"
+            self.system.signals = {}
         callbacks.attach_signal(param,funcname,callbackfunc,*args)
         self.attached_signals.append(param)
         
@@ -1229,17 +1238,19 @@ class Bundle(object):
         @param signals: a list of signals to purge
         @type signals: list
         """
+        
         if signals is None:
-            signals = self.attached_signals + self.attached_signals_system
+            signals = self.attached_signals
+        #~ print "* purge_signals", signals
         for param in signals:
             callbacks.purge_signals(param)
         if signals == self.attached_signals:
             self.attached_signals = []
         elif signals == self.attached_signals_system:
             self.attached_signals_system = []
-        elif signals == self.attached_signals + self.attached_signals_system:
-            self.attached_signals = []
-            self.attached_signals_system = []
+        #~ elif signals == self.attached_signals + self.attached_signals_system:
+            #~ self.attached_signals = []
+            #~ self.attached_signals_system = []
             
     #}
     

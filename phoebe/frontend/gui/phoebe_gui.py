@@ -136,9 +136,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.mp_stackedWidget.setCurrentIndex(0) # just in case was changed in ui file
         
         if _unityImport:
-            self.launcher = Unity.LauncherEntry.get_for_desktop_id("phoebe_gui.desktop")
+            self.unity_launcher = Unity.LauncherEntry.get_for_desktop_id("phoebe_gui.desktop")
         else:
-            self.launcher = None
+            self.unity_launcher = None
         
         # hide float and close buttons on dock widgets
         #~ self.bp_pyDockWidget.setTitleBarWidget(QWidget())
@@ -391,10 +391,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_progressBar.setValue(0)
         self.rp_progressBar.setValue(0)
         
-        self.set_time_i, self.set_time_is = None, None
+        if self.unity_launcher is not None:
+            self.unity_launcher.set_property("progress_visible", False)
+            #~ if self.set_time_is is not None: #then we were running a computation
+                #~ self.unity_launcher.set_property("urgent", True)
         
-        if self.launcher is not None:
-            self.launcher.set_property("progress_visible", False)
+        self.set_time_i, self.set_time_is = None, None
              
         self.PythonEdit.setFocus()
         
@@ -1341,9 +1343,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_set_time(self,*args):
         #~ print "*** on_set_time", self.set_time_i, self.set_time_is
         if self.set_time_i is not None and self.set_time_is is not None:
-            if self.launcher is not None:
-                self.launcher.set_property("progress", float(self.set_time_i)/self.set_time_is)
-                self.launcher.set_property("progress_visible", True)
+            if self.unity_launcher is not None:
+                self.unity_launcher.set_property("progress", float(self.set_time_i)/self.set_time_is)
+                self.unity_launcher.set_property("progress_visible", True)
                 
             #~ self.mp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.lp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
