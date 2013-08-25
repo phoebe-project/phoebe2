@@ -8,22 +8,18 @@ import sys, json, imp, inspect, functools
 
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg
 
-import ui_phoebe_pyqt4 as gui
+from phoebe.frontend.gui import ui_phoebe_pyqt4 as gui
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
 
 #phoebe modules
-import phoebe_plotting
-import phoebe_widgets
-
-
+from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets
 
 #~ from phoebe.backend.bundle import Bundle # can remove this after getting triple working in backend
 from phoebe.parameters import parameters, datasets
 from phoebe.backend import universe, observatory
 from phoebe.utils import callbacks, utils
-#~ logger = utils.get_basic_logger(clevel='DEBUG',filename='phoebe_gui.log')
 
 ### unity launcher
 global _unityImport
@@ -33,8 +29,6 @@ except ImportError:
     _unityImport = False
 else:
     _unityImport = True
-    
-
 
 ### global options
 global _fileDialog_kwargs
@@ -128,6 +122,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         super(PhoebeGUI, self).__init__(parent)
         self.setupUi(self)
         
+        self.gui_dir = os.path.abspath(os.path.dirname(gui.__file__)) 
+        
         self.debug = selfdebug
         self.font = font
         self.palette = palette
@@ -214,8 +210,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # set font to match qt
         #~ self.mp_sysSelWebView.page().mainFrame().evaluateJavaScript("$('li').css('font-family',%s)" % str(font.family()))
         
-        self.mp_sysSelWebView.load(QUrl("html/phoebe_sysselect.html"))
-        self.mp_sysEditWebView.load(QUrl("html/phoebe_sysedit.html"))
+        self.mp_sysSelWebView.load(QUrl(os.path.join(self.gui_dir, "html/phoebe_sysselect.html")))
+        self.mp_sysEditWebView.load(QUrl(os.path.join(self.gui_dir, "html/phoebe_sysedit.html")))
         
         # Create canvas for expanded plot
         self.expanded_plot_widget, self.expanded_canvas = self.create_plot_widget()

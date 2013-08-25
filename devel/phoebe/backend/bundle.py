@@ -492,10 +492,7 @@ class Bundle(object):
         @type name: str        
         """
         # purge any signals attached to system before copying
-        callbacks.purge_signals(self.system)
-        self.purge_signals(self.attached_signals_system)
-        self.system.signals={}
-        self.attached_signals_system=[]
+        self.purge_signals()
         
         # create copy of self.system and save to version
         system = self.system.copy()
@@ -920,10 +917,12 @@ class Bundle(object):
                 
         self.system.uptodate = label
         
-        self.attach_system_signals()
-
         if add_version is not False:
             self.add_version(name=None if add_version==True else add_version)
+
+        self.attach_system_signals()
+
+
 
 
     #}
