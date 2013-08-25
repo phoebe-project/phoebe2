@@ -91,11 +91,16 @@ setup(
     
     packages=['phoebe','phoebe.wd','phoebe.units','phoebe.backend',
               'phoebe.utils','phoebe.atmospheres','phoebe.algorithms',
-              'phoebe.parameters','phoebe.io','phoebe.dynamics'],
+              'phoebe.parameters','phoebe.io','phoebe.dynamics',
+              'phoebe.frontend','phoebe.frontend.gui'],
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*','tables/ld_coeffs/*.fits'],
                   'phoebe.parameters':['catalogs/*.dat','library/*.par'],
-                  'phoebe.wd':['*.dat']},
+                  'phoebe.wd':['*.dat'],
+                  'phoebe.frontend.gui':['icons/*','html/*']},
+                  
+    #~ entry_points = {
+        #~ "gui_scripts": ["phoebe_gui = phoebe.frontend.phoebe_gui"]},
 
     ext_modules = ext_modules,
 )
