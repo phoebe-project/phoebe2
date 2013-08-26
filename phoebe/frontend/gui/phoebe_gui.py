@@ -546,7 +546,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             filename = QFileDialog.getSaveFileName(self, 'Save File', self.latest_dir if self.latest_dir is not None else './', ".phoebe(*.phoebe)", **_fileDialog_kwargs)
         if len(filename) > 0:
             self.latest_dir = os.path.dirname(str(filename))
-            self.PyInterp_run('bundle.save(\'%s\')' % filename, kind='sys', thread=True)
+            self.PyInterp_run('bundle.save(\'%s\')' % filename, kind='sys', thread=False)
             self.filename = filename
             #~ self.tb_file_saveAction.setEnabled(True)
             
