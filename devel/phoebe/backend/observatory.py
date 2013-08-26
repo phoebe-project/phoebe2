@@ -1959,8 +1959,8 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
         ecl_, found_partial = choose_eclipse_algorithm(system, algorithm=ecl)
 
     # Correct for light travel time effects
-    if ltt:
-        system.correct_time()
+    #if ltt:
+    #    system.correct_time()
     
     # Compute observables at this time step
     had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
@@ -2168,7 +2168,35 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     elif reflect and not heating:
         for labl in labl_per_time:
             labl.append('__bol')
+    
+    # Next up: Light time travel effects. Compute for all bodies the conversion
+    # between proper time and barycentric time. We need to do two things:
+    # first compute the conversions, and then add those arrays to the 'orbsyn'
+    # parameterSets, such that 'get_proper_time' knows what to do.
+    if ltt:
+        # First get a flat list of the bodies
+        bodies = system.get_bodies()
+        
+        # Then cycle through all the bodies, and retrieve their full
+        # hierarchical orbit
+        for body in bodies:
+            out = body.get_orbits()
             
+            # Once we have the complete orbit for this body, we can compute
+            # the proper times from the barycentric times
+            objs, vels, prop_times = \
+                keplerorbit.get_barycentric_hierarchical_orbit(time_per_time,
+                                out[0], out[1], barycentric=True)
+            
+            # Store the results in an "orbsyn" parameterSet
+            orbsyn = parameters.ParameterSet('orbsyn', bary_time=time_per_time,
+                                             prop_time=prop_times)
+            
+            # We need to keep the same hierarchy as with lcsyns and such
+            if not 'orbsyn' in body.params['syn']:
+                body.params['syn']['orbsyn'] = OrderedDict()
+            body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
+    
     # And don't forget beaming!
     beaming = False
     for parset in system.walk():
@@ -2277,6 +2305,9 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     with other types.
     
     """
+    if not hasattr(times,'__len__'):
+        raise ValueError(("Argument 'times' to observatory.observe needs to be "
+                          "a list or an array"))
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...
     params = parameters.ParameterSet(context='compute', **kwargs)

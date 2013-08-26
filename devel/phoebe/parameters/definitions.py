@@ -230,7 +230,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='filename', description='Name of the file containing the data',repr='%s',cast_type=str,value='',adjust=False,frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs','amobs','lcsyn','ifsyn','rvsyn','spsyn','ifobs','ifsyn','plsyn','etvsyn','amsyn']),
-         dict(qualifier='ref',    description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcobs','rvobs','spobs','ifobs','etvobs','psdep','lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','plobs','etvsyn','amobs']),
+         dict(qualifier='ref',    description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcobs','rvobs','spobs','ifobs','etvobs','psdep','lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','plobs','etvsyn','amobs','orbsyn']),
          dict(qualifier='time',     description='Timepoints of the data',repr='%s',cast_type=np.array,value=[],unit='JD',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs','amobs']),
          dict(qualifier='phase',     description='Phasepoints of the data',repr='%s',cast_type=np.array,value=[],unit='JD',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs']),
          dict(qualifier='flux',   description='Observed signal',repr='%s',cast_type=np.array,value=[],unit='erg/s/cm2/AA',frame=["phoebe"],context='lcobs'),
@@ -253,6 +253,11 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='user_components', description='Component names given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
          dict(qualifier='user_dtypes', description='Data types given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
          dict(qualifier='user_units', description='Units given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
+        ]
+
+# Orbsyn context
+defs += [dict(qualifier='bary_time', description='Barycentric times', repr='%s', value=[], context='orbsyn', frame='phoebe'),
+         dict(qualifier='prop_time', description='Proper times', repr='%s', value=[], context='orbsyn', frame='phoebe'),
         ]
 
 defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context='spobs'),

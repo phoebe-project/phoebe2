@@ -1341,7 +1341,46 @@ class Body(object):
         # Else, for clarity, explicitly return None.
         else:
             return None
+    
+    def get_orbits(self, orbits=[], components=[]):
+        """
+        Return a list of all orbits this Body is in, and which components.
         
+        A Body nested in a hierarchical system can be a member of many orbits,
+        and for each orbit it could be the primary or secondary component.
+        
+        This function returns a list of the orbits, and a list of which
+        components this body is in each of them. It is called hierarchically,
+        return the inner most orbit first.
+        """
+        # Perhaps there is no orbit defined here: then do nothing
+        if 'orbit' in self.params:
+            orbit = self.params['orbit']
+            # Perhaps orbit is None; then do nothing. Else, get the component,
+            # and add the orbit and component to the function's attribute
+            if orbit is not None:
+                orbits.append(orbit)
+                components.append(self.get_component())
+                
+        # After figuring out this orbit/component, go up to the parent and
+        # do the same.
+        myparent = self.get_parent()
+        # Well, that is, if there is a parent!
+        if myparent is not None:
+            return myparent.get_orbits()
+        
+        # Else, return the orbit and component list, but make sure to clean
+        # the function attributes for the next use of this function.
+        else:
+            # Return copies!
+            retvalue = orbits[:], components[:]
+            # And clear the function arguments
+            while orbits:
+                orbits.pop()
+            while components:
+                components.pop()
+            return retvalue
+            
     
     def compute(self, *args, **kwargs):
         """
@@ -3356,7 +3395,33 @@ class PhysicalBody(Body):
         self.time += correction
         
         logger.info('light travel time at LOS distance {:.3f} Rsol from barycentre: {:+.3g} min'.format(mydistance,correction*24*60))
+    
+    
+    def get_proper_time(self, time):
+        """
+        Convert barycentric time to proper time for this object.
         
+        The proper times need to be precomputed and stored in the ``orbsyn``
+        parameterSet in the ``syn`` section of the ``params`` attribute.
+        
+        @param time: barycentric time
+        @type time: float
+        @return: proper time
+        @rtype: float
+        """
+        if hasattr(self, 'params') and 'syn' in self.params and 'orbsyn' in self.params['syn']:
+            bary_time = self.params['syn']['orbsyn'].values()[0]['bary_time']
+            prop_time = self.params['syn']['orbsyn'].values()[0]['prop_time']
+            index = np.searchsorted(bary_time, time)
+            if bary_time[index] == time:
+                logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
+                return prop_time[index]
+            else:
+                raise ValueError('Proper time corresponding to barycentric time {} not found'.format(time))
+        else:
+            return time
+    
+    
     def get_barycenter(self):
         """
         Numerically computes the center of the body from the mesh (at the current time)
@@ -4382,6 +4447,11 @@ class BodyBag(Body):
             body.set_time(time, *args, **kwargs)
         
         if 'orbit' in self.params:
+            # If we need to put this bodybag in an orbit and we need to correct
+            # for ltt's, we can only ask for one of it's members to return their
+            # proper time. But if you do this you assume the proper time of the
+            # members of the bodybag is the same anyway. So this should be fine!
+            time = self.get_proper_time()[0]
             #-- once we have the mesh, we need to place it into orbit
             #keplerorbit.place_in_binary_orbit(self, time)
             n_comp = self.get_component()
@@ -4393,6 +4463,8 @@ class BodyBag(Body):
     def get_orbit(self, times):
         """
         Get the orbit for all Bodies.
+        
+        Implemented by "get_orbits"
         """
         raise NotImplementedError
     
@@ -5552,6 +5624,8 @@ class Star(PhysicalBody):
         @type label: str
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))
+        # Convert the barycentric time to propertime
+        time = self.get_proper_time(time)
         #-- first execute any external constraints:
         self.preprocess(time)
         #-- this mesh is mostly independent of time! We collect some values
@@ -6122,6 +6196,9 @@ class BinaryRocheStar(PhysicalBody):
         @type ref: string (ref) or list of strings
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))
+        # Convert the barycentric time to propertime
+        time = self.get_proper_time(time)
+        
         #-- rotate in 3D in orbital plane
         #   for zero-eccentricity, we don't have to recompute local quantities, and not
         #   even projected quantities (this should be taken care of on a higher level
