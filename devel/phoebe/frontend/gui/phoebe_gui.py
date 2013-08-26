@@ -779,7 +779,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
     def update_plot_widgets(self, i, canvas):
         if not hasattr(canvas,'info'):
-            print '* update_plot_widgets exiting'
+            #~ print '* update_plot_widgets exiting'
             return
         canvas.info['xaxisCombo'].setEnabled(False)
         canvas.info['xaxisCombo'].clear()
