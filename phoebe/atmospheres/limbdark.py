@@ -1920,8 +1920,11 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
                    '{:s}').format(os.path.basename(ld_coeffs))
         coeffs = interp_ld_coeffs(ld_coeffs, passband, atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs, vgamma=vgamma)
-        for collnr, coefcoll in enumerate(coeffs):
+        # Fill in the LD coefficients, but put the intensities in the last
+        # column
+        for collnr, coefcoll in enumerate(coeffs[:-1]):
             system.mesh[tag][:, collnr] = coefcoll
+        system.mesh[tag][:, -1] = coeffs[-1]
         
     # Else the LD coeffs are just arrays and we can fill them in
     else:

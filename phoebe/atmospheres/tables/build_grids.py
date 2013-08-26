@@ -26,17 +26,21 @@ def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='eq
              'KRON.R','KRON.I','TD1.1565','TD1.1965','TD1.2365','TD1.2740'
              )
     
-    if ebvs is None:
-        ebvs = np.arange(0,0.51,0.01)
-    if vgamma is None:
-        vgamma = np.arange(-500,501,100.)
+    #if ebvs is None:
+    #    ebvs = np.arange(0,0.51,0.01)
+    #if vgamma is None:
+    #    vgamma = np.arange(-500,501,100.)
 
     atm_pars = ['teff', 'logg']
     if z=='*':
         atm_pars.append('abun')
     
     atm_pars = tuple(atm_pars)
-        
+    
+    if redlaw is not None:
+        red_pars_fixed = dict(law=redlaw,ebv=0.,Rv=Rv)
+    else:
+        red_pars_fixed = dict()
 
     #-- if we need to interpolate in abun, we need a grid of specific intensities
     #   that is uniform in grid points over all abuns, this is exactly what I put
@@ -53,7 +57,7 @@ def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='eq
         atm_files = sorted(glob.glob(pattern))
         print(atm_files)
         limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,
-                red_pars_fixed=dict(law=redlaw,ebv=0.,Rv=Rv),vgamma=vgamma,
+                red_pars_fixed=red_pars_fixed,vgamma=vgamma,
                 law=ld_func,passbands=passbands,fitmethod=fitmethod,filetag='{}_{}'.format(filetag,z))
 
 
@@ -61,7 +65,7 @@ if __name__=="__main__":
     #build_grid(filetag='phoenix', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
     #           redlaw='fitzpatrick2004', Rv=3.1, z='p00', vmic=1, ebvs=None,
     #           vgamma=None)
-    build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
-               z='p00', ebvs=None,
+    build_grid(filetag='kurucz', passbands=('JOHNSON.V',), ld_func='linear', fitmethod='equidist_r_leastsq',
+               z='p00', ebvs=None, redlaw=None, 
                vgamma=np.linspace(-500,500,21))
     

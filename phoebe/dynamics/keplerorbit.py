@@ -634,16 +634,24 @@ def get_hierarchical_orbit(times,orbits,comps):
     @return: position vectors, velocity vectors
     @rtype: 3-tuple, 3-tuple
     """
-    obj = np.array((0,0,0)).reshape((3,1))
-    vel = np.array((0,0,0)).reshape((3,1))
+    if np.isscalar(times):
+        obj = np.zeros((1,3))
+        vel = np.zeros((1,3))
+    else:
+        obj = np.zeros((len(times),3))
+        vel = np.zeros((len(times),3))
     for i,(orbit,comp) in enumerate(list(zip(orbits,comps))):
         #-- retrieve the coordinates and euler angles for this orbit
         comp = ['primary','secondary'][comp]
         loc,velo,euler = parse_ps(get_orbit,orbit,times,component=comp)        
         #-- and incrementally add it to the present object
-        obj = obj+np.array(loc)
-        vel = vel+np.array(velo)
-    return obj,vel
+        obj[:,0] += loc[0].ravel()
+        obj[:,1] += loc[1].ravel()
+        obj[:,2] += loc[2].ravel()
+        vel[:,0] += velo[0].ravel()
+        vel[:,1] += velo[1].ravel()
+        vel[:,2] += velo[2].ravel()
+    return obj.T,vel.T
     
 
 def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False):
@@ -667,15 +675,15 @@ def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False
     #   need it to be t_bary. Thus, we need to optimize it's location (i.e.
     #   proper time) until the observed time is the barycentric time.
     def propertime_barytime_residual(t):
-        obj,vel = get_hierarchical_orbit(t,orbits,comps)
+        obj,vel = get_hierarchical_orbit_phoebe(t,orbits,comps)
         z = obj[2]
         #return t+z/constants.cc/(24*3600.)-t_bary
         return t + z/constants.cc - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual,t_bary) for t_bary in bary_times]
-    propertimes = np.array(propertimes)
+    propertimes = np.array(propertimes).ravel()
     #-- then make an orbit with these times!
-    this_orbit = get_hierarchical_orbit(propertimes,orbits,comps)
+    this_orbit = get_hierarchical_orbit_phoebe(propertimes,orbits,comps)
     return list(this_orbit) + [propertimes]
     
 
@@ -1827,7 +1835,59 @@ def place_in_binary_orbit(self,time):
     #logger.info('Placed into orbit')
     
     
+def get_hierarchical_orbit_phoebe(times, orbits, comps):
+    """
+    Retrieve the orbit of one components in a hierarchical system.
     
+    Is velocity wrong?
+    
+    @param times: time array
+    @type times: array
+    @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit}
+    context
+    @type orbits: list of ParameterSets of length N
+    @param comps: list of integers denoting which component (0 for primary,
+    1 for secondary) the object is for each orbit
+    @type comps: list of integers
+    @return: position vectors, velocity vectors
+    @rtype: 3-tuple, 3-tuple
+    """
+    if np.isscalar(times):
+        obj = np.zeros((1,3))
+        vel = np.zeros((1,3))
+    else:
+        obj = np.zeros((len(times),3))
+        vel = np.zeros((len(times),3))
+    for i,(orbit,comp) in enumerate(list(zip(orbits,comps))):
+        #-- retrieve the coordinates and euler angles for this orbit
+        #-- get some information
+        P = orbit['period']#get_value('period', 'd')
+        e = orbit['ecc']#.get_value('ecc')
+        a = orbit['sma']#.get_value('sma', 'Rsol')
+        q = orbit['q']
+        a1 = a / (1+1.0/q)
+        a2 = a-a1
+        inclin = orbit['incl'] / 180.*np.pi
+        argper = orbit['per0'] / 180.*np.pi
+        long_an = orbit['long_an'] / 180.*np.pi
+        T0 = orbit['t0']
+        component = ('primary', 'secondary')[comp]
+        t0type = orbit['t0type']
+        if t0type == 'superior conjunction':
+            time = time - orbit['phshift'] * P
+        a_comp = [a1, a2][comp]
+        loc, velo, euler = get_orbit(times, P, e, a_comp, T0, per0=argper, 
+                                 long_an=long_an, incl=inclin,
+                                 component=component, t0type=t0type)
+    
+        #-- and incrementally add it to the present object
+        obj[:,0] += loc[0].ravel()
+        obj[:,1] += loc[1].ravel()
+        obj[:,2] += loc[2].ravel()
+        vel[:,0] += velo[0].ravel()
+        vel[:,1] += velo[1].ravel()
+        vel[:,2] += velo[2].ravel()
+    return obj.T,vel.T    
 
     
 #}
