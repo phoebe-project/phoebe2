@@ -1737,15 +1737,7 @@ class Axes(object):
         xaxis = self.axesoptions.get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
         
-        if phased and len(xaxis.split(':')) > 1:
-            orbit = self._get_orbit(xaxis.split(':')[1],system) 
-        elif hasattr(obj,'params') and 'orbit' in obj.params.keys():
-            orbit = obj.params['orbit']
-        else:
-            orbit = self._get_orbit(plotoptions['objref'],system)
-        period = orbit.get_value('period')
-        #~ print "** period", period
-        #~ print "** phased", phased
+
                 
         # now loop through individual plot commands
         for plotoptions in self.plots:
@@ -1780,7 +1772,16 @@ class Axes(object):
             for key in po.keys():
                 if po[key]=='auto':
                     po.pop(key)
-                    
+           
+            if phased and len(xaxis.split(':')) > 1:
+                orbit = self._get_orbit(xaxis.split(':')[1],system) 
+            elif hasattr(obj,'params') and 'orbit' in obj.params.keys():
+                orbit = obj.params['orbit']
+            else:
+                orbit = self._get_orbit(plotoptions['objref'],system)
+            period = orbit.get_value('period')
+            #~ print "** period", period
+            #~ print "** phased", phased     
             #~ print "** type", plotoptions['type']
 
             # call appropriate plotting command
