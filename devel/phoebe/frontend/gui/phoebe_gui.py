@@ -546,7 +546,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             filename = QFileDialog.getSaveFileName(self, 'Save File', self.latest_dir if self.latest_dir is not None else './', ".phoebe(*.phoebe)", **_fileDialog_kwargs)
         if len(filename) > 0:
             self.latest_dir = os.path.dirname(str(filename))
-            self.PyInterp_run('bundle.save(\'%s\')' % filename, kind='sys')
+            self.PyInterp_run('bundle.save(\'%s\')' % filename, kind='sys', thread=True)
             self.filename = filename
             #~ self.tb_file_saveAction.setEnabled(True)
             
@@ -777,6 +777,25 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         else: # then we're coming from add_plot
             self.plot_redraw(None, i, canvas)
             
+    def update_plot_widgets(self, i, canvas):
+        if not hasattr(canvas,'info'):
+            print '* update_plot_widgets exiting'
+            return
+        canvas.info['xaxisCombo'].setEnabled(False)
+        canvas.info['xaxisCombo'].clear()
+        items = ['time']
+        for name in self.bundle.get_system_structure(flat=True):
+            ps = self.bundle.get_ps(name)
+            if ps.context=='orbit':
+                items.append('phase:%s' % name)
+        canvas.info['xaxisCombo'].addItems(items)
+        canvas.info['xaxisCombo'].setCurrentIndex(items.index(self.bundle.axes[i].get_value('xaxis')) if self.bundle.axes[i].get_value('xaxis') in items else 0)
+        canvas.info['xaxisCombo'].setEnabled(True)
+        
+        #~ canvas.info['yaxisCombo'].setCurrentIndex()
+
+        canvas.info['titleLinkButton'].setText(self.bundle.axes[i].get_value('title'))
+            
     def plot_redraw(self, param=None, i=0, canvas=None):
         #~ print "*** redraw plot", i
         if param is not None and len(self.plot_canvases) != len(self.bundle.axes):
@@ -786,6 +805,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         else:
             if canvas is None:
                 canvas = self.plot_canvases[i]
+            else: # not a thumbnail
+                # update widgets corresponding to this canvas
+                self.update_plot_widgets(i, canvas)
             
             canvas.cla()
             canvas.plot(self.bundle.get_system(), self.bundle.axes[i])
@@ -843,13 +865,17 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.plot_canvases = []   
         
     def on_plot_xaxis_changed(self, value, *args):
-        self.on_plot_axis_changed(value, 'x')
+        if self.sender().isEnabled(): #so we don't call while changing combo contents
+            self.on_plot_axis_changed(value, 'x')
         
     def on_plot_yaxis_changed(self, value, *args):
-        self.on_plot_axis_changed(value, 'y')
+        if self.sender().isEnabled():
+            self.on_plot_axis_changed(value, 'y')
         
     def on_plot_axis_changed(self, value, axis='x', sender=None):
         axes_i = self.pop_i if self.sender().axes_i is 'expanded' else self.sender().axes_i
+        
+        #~ print "* on_plot_axis_changed", axes_i, self.pop_i
         axesname = self.bundle.get_axes(axes_i).get_value('title')
         
         do_command = "bundle.get_axes('%s').set_value('%saxis', '%s')" % (axesname, axis, value)
@@ -895,13 +921,19 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
     @PyInterp_selfdebug
     def on_plot_expand_toggle(self, plot=None):
+        #~ print "* on_plot_expand_toggle"
         #plot expanded from gui
         if self.sender() == self.meshmpl_canvas:
             self.mp_stackedWidget.setCurrentIndex(3)
             return
-        if self.mp_stackedWidget.currentIndex()==1: #then we need to expand
+        if self.mp_stackedWidget.currentIndex()==1: #then we need to expand            
             # this should intelligently raise if on data tab (and then return on collapse)
             i = self.plot_canvases.index(self.sender())
+            
+            # make title and axes options available from canvas
+            self.expanded_canvas.info = {'xaxisCombo': self.expanded_plot.xaxisCombo, 'yaxisCombo': self.expanded_plot.yaxisCombo, 'titleLinkButton': self.expanded_plot.titleLinkButton}
+            self.update_plot_widgets(i,self.expanded_canvas)
+            
             if i!= self.pop_i: # then we've changed plots and need to force a redraw
                 self.plot_redraw(None, i, self.expanded_canvas)
                 self.pop_i = i #to track this in case pop is clicked
@@ -921,6 +953,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.expanded_canvas.cla()
             self.expanded_canvas.plot(self.bundle.get_system(), self.bundle.axes[i])
             
+
             # instead of dealing with attaching and destroying signals for the expanded plot
             # let's always check to see if the expanded plot is the same plot as a plot that is being asked to be redrawn
             # we can access this info in plot_redraw() through self.pop_i
@@ -941,14 +974,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     @PyInterp_selfdebug
     def on_plot_pop(self):
         #plot popped from gui
+        i = self.pop_i
+        
         self.on_plot_expand_toggle() #to reset to grid view
 
         new_plot_widget, canvas = self.create_plot_widget()
        
-        i = self.pop_i
-        self.plot_redraw(None, i, canvas)
- 
-        self.attach_plot_signals(self.bundle.axes[i], i, canvas)
         #~ self.bundle.attach_signal(self.bundle.axes[i], 'add_plot', self.plot_redraw, i, canvas)
         #~ self.bundle.attach_signal(self.bundle.axes[i], 'remove_plot', self.plot_redraw, i, canvas)       
         #~ for po in self.bundle.axes[i].plots:
@@ -975,6 +1006,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(pop.title_cancelButton, SIGNAL("clicked()"), self.on_plot_title_cancel)
         QObject.connect(pop.title_saveButton, SIGNAL("clicked()"), self.on_plot_title_save)  
         
+        # make title and axes options available from canvas
+        canvas.info = {'xaxisCombo': pop.xaxisCombo, 'yaxisCombo': pop.yaxisCombo, 'titleLinkButton': pop.titleLinkButton}
+        
         plotEntryWidget = CreateDatasetWidget()
         plotEntryWidget.datasetTreeView.plotindex = i
         plotEntryWidget.selectorWidget.setVisible(False)
@@ -983,6 +1017,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(plotEntryWidget.datasetTreeView, SIGNAL("focusIn"), self.on_paramfocus_changed)
         
         pop.treeviewLayout.addWidget(plotEntryWidget)        
+        
+        self.plot_redraw(None, i, canvas)
+ 
+        self.attach_plot_signals(self.bundle.axes[i], i, canvas)
         
         pop.show()
         
@@ -1086,7 +1124,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if is_adjust:
             command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').set_adjust(\'%s\', %s)' % (kind,label,parname,newvalue), 'bundle.get_%s(\'%s\').set_adjust(\'%s\', %s)' % (kind,label,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
         else:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % newvalue if 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % oldvalue if 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
         
         # change/add constraint
         if is_constraint:
