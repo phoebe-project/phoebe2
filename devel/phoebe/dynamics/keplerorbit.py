@@ -753,7 +753,7 @@ def rotate_into_orbit(obj,euler,loc=(0,0,0)):
 
 def apparent_coordinates(distance, ra, dec, pmra, pmdec,
                          observer_position, target_position=None,
-                         epoch='J2000'):
+                         epoch='J2000', t0=None):
     r"""
     Compute apparent coordinates on the sky wrt to an observer.
     
@@ -795,10 +795,10 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
                 y_\odot & = d_\odot \sin\left(\frac{\pi}{2}-\beta_\odot\right) \sin(\lambda_\odot)\\
                 z_\odot & = d_\odot \cos\left(\frac{\pi}{2}-\beta_\odot\right)
           
-        2. Next, compute the ecliptic coordinates centered on the observer
+        2. Next, compute the ecliptic coordinates centered of the observer
            (denoted with symbol :math:`\oplus`). First,
            compute the positions of the observer :math:`(X,Y,Z)` relative to the
-           Solar System barycentre at each time point :math:`t_i` (e.g. via the
+           Sun at each time point :math:`t_i` (e.g. via the
            :ref:`JPL Horizons interface <label-jpl>`). Then convert the heliocentric ecliptic
            coordinates to observer-centric ones:
            
@@ -843,8 +843,25 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     
     .. note:: JPL Horizons interface
     
-        The JPL Horizons interface can give you the location of the observer,
-        being a spacecraft or solar system body, in time.
+        The `JPL Horizons interface <http://ssd.jpl.nasa.gov/horizons.cgi>`_ can
+        give you the location of the observer,
+        being a spacecraft or solar system body, in time. For example for an
+        Earth orbiting observer (e.g. the Hipparcos satellite), the following
+        settings might be of some use::
+        
+            Ephemeris Type [change] :    VECTORS
+            Target Body [change] :       Earth [Geocenter] [399]
+            Coordinate Origin [change] : Sun (body center) [500@10]
+            Time Span [change] :         Start=1990-08-22, Stop=2013-09-21, Step=1 d
+            Table Settings [change] :    quantities code=1; CSV format=YES
+            Display/Output [change] :    plain text
+        
+        You can read in the output text file, assumed it is saved to a file
+        called ``observer.dat``, with something like::
+        
+            >>> times, X, Y, Z = np.genfromtxt('observer.dat',
+                     delimiter=',', skip_header=53, skip_footer=32,
+                     usecols=(0,2,3,4), unpack=True)
     
     
         
@@ -866,10 +883,11 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     @type epoch: str
     """
     # What's our reference time?
-    t0 = conversions.convert('epoch','JD',epoch)
+    if t0 is None:
+        t0 = conversions.convert('epoch','JD',epoch)
     
     # Get the apparent position of the star wrt the earth.
-    # Earth's position in ecliptic coordinates wrt solar system barycentre (SSB)
+    # Earth's position in ecliptic coordinates wrt Sun
     times, x_earth, y_earth, z_earth = observer_position
     times = times - t0
     
@@ -892,10 +910,10 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
                          (ira,idec), epoch=epoch[1:])) \
                          for ira,idec in zip(ra_target,dec_target)]).T
     
-    #   Spherical coordinate position of star wrt the SSB
+    #   Spherical coordinate position of star wrt the Sun
     d = d_target*constants.Rsol/constants.au*np.ones_like(times)
     
-    #   Cartesian position of star wrt the SSB
+    #   Cartesian position of star wrt the Sun
     x = d * sin(pi/2-bet) * cos(lam)
     y = d * sin(pi/2-bet) * sin(lam)
     z = d * cos(pi/2-bet)
@@ -914,10 +932,10 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     for i,(ilam, ibet) in enumerate(zip(app_lambda, app_beta)):
         ras[i], decs[i] = conversions.convert('ecliptic','equatorial',(ilam, ibet),
                                               epoch=epoch[1:])
-    
+
     # Account for proper motions
-    ras = ras/pi*180 + pmra*times
     decs = decs/pi*180 + pmdec*times 
+    ras = ras/pi*180 + pmra*times/cos(decs/180.*pi) 
     
     # Construct parallax circle:
     lam_ = lam if lam<np.pi else lam-2*np.pi
@@ -925,10 +943,12 @@ def apparent_coordinates(distance, ra, dec, pmra, pmdec,
     par_circ_bet = (app_beta)/pi*180 - bet/pi*180
     
     #parallax = np.abs((par_circ_lam).min()-(par_circ_lam).max())/2.0*3600*1000
-    #print("Parallax = {}".format(parallax))    
+    #print("Parallax = {:e}".format(parallax))    
     
-    # all output is in degrees
-    output = dict(ra=ra, dec=dec, delta_ra=ras-ra, delta_dec=decs-dec,
+    # all output is in degrees    
+    delta_ra = ras - ra
+    delta_ra = delta_ra*cos(decs/180.*pi) 
+    output = dict(ra=ra, dec=dec, delta_ra=delta_ra, delta_dec=decs-dec,
                   plx_lambda=par_circ_lam, plx_beta=par_circ_bet)
     return output
 

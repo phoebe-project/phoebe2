@@ -202,7 +202,7 @@ def image(the_system, ref='__bol', context='lcdep',
     >>> xlims, ylims, patch = image(vega,fourier=True)
     
     .. image:: images/backend_observatory_image10.png 
-       :width: 233px                                   
+       :width: 233px
        :align: center                                 
     
     @param the_system: the Body to plot
@@ -1682,9 +1682,11 @@ def astrometry(system, obs, pbdep, index):
     target_position[2] -= distance_Rsol
     observer_position = obs['time'][index], obs['eclx'][index],\
                         obs['ecly'][index], obs['eclz'][index]
+    t0 = None#obs['t0']
+    
     output = keplerorbit.apparent_coordinates(distance, ra, dec, pmra, pmdec,
                                 observer_position,target_position,
-                                epoch=epoch)
+                                epoch=epoch, t0=t0)
     return output
 
 
