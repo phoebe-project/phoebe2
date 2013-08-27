@@ -511,9 +511,12 @@ def get_orbit(times, period, ecc, sma, t0, per0=0., long_an=0., incl=0.,
     #   major axis changes to match Kepler's third law (unless
     #   `mass_conservation` is set to False)
     if dpdt!=0:
-        period = dpdt*(times-t0) + period
-        if mass_conservation:
+        period_ = period
+        period = dpdt*(times-t0) + period_
+        if mass_conservation and not np.isscalar(period):
              sma = sma/period[0]**2*period**2
+        elif mass_conservation:
+             sma = sma/period**2*period_**2
     #-- if dperdt is non-zero, the argument of periastron is actually an
     #   array
     if dperdt!=0.:
@@ -674,11 +677,11 @@ def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False
     #   time which we thus see the light from that object is t+z/cc, but we
     #   need it to be t_bary. Thus, we need to optimize it's location (i.e.
     #   proper time) until the observed time is the barycentric time.
+    scale_factor = 1.0/constants.cc*constants.Rsol/(24*3600.)
     def propertime_barytime_residual(t):
         obj,vel = get_hierarchical_orbit_phoebe(t,orbits,comps)
         z = obj[2]
-        #return t+z/constants.cc/(24*3600.)-t_bary
-        return t + z/constants.cc - t_bary
+        return t + z*scale_factor - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual,t_bary) for t_bary in bary_times]
     propertimes = np.array(propertimes).ravel()
@@ -1884,6 +1887,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
         P = orbit['period']#get_value('period', 'd')
         e = orbit['ecc']#.get_value('ecc')
         a = orbit['sma']#.get_value('sma', 'Rsol')
+        dpdt = orbit['dpdt']/(365.25*24*3600)
         q = orbit['q']
         a1 = a / (1+1.0/q)
         a2 = a-a1
@@ -1897,7 +1901,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
             time = time - orbit['phshift'] * P
         a_comp = [a1, a2][comp]
         loc, velo, euler = get_orbit(times, P, e, a_comp, T0, per0=argper, 
-                                 long_an=long_an, incl=inclin,
+                                 long_an=long_an, incl=inclin, dpdt=dpdt,
                                  component=component, t0type=t0type)
     
         #-- and incrementally add it to the present object
