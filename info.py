@@ -3,7 +3,7 @@ import os
 
 #-- these are the packages that need to be tested
 version_IPython = '0.11.0'
-version_numpy = '1.6.0'
+version_numpy = '1.7.1'
 version_matplotlib = '1.2.0'
 version_scipy = '0.9.0'
 version_pyfits = '3.1.0'
@@ -61,7 +61,7 @@ for version_package in locals().keys():
         print("Package {:s} is not installed".format(package))
 
 try:
-    from phoebe.algorithms import marching2FLib
+    from phoebe.algorithms import cmarching
     print("C-marching installed")
 except ImportError:
     print("Non-fatal warning: C-marching not available")

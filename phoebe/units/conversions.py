@@ -517,12 +517,17 @@ except ImportError:
     pass
     #print("Unable to load pyephem, stellar coordinate transformations unavailable")
 
-#-- from IVS repository
 from phoebe.units import constants
-from uncertainties import unumpy,AffineScalarFunc,ufloat
-from uncertainties.unumpy import log10,log,exp,sqrt
-from uncertainties.unumpy import sin,cos,tan
-from uncertainties.unumpy import arcsin,arccos,arctan
+try:
+    from uncertainties import unumpy,AffineScalarFunc,ufloat
+    from uncertainties.unumpy import log10,log,exp,sqrt
+    from uncertainties.unumpy import sin,cos,tan
+    from uncertainties.unumpy import arcsin,arccos,arctan
+except ImportError:
+    # Assign a dummy class to AffineScalarfunc
+    class AffineScalarFunc:
+        pass
+    from numpy import log10, log, exp, sqrt, sin, cos, tan, arcsin, arccos, arctan
 from phoebe.utils.decorators import memoized
 from phoebe.atmospheres import passbands
 
