@@ -1,6 +1,12 @@
 r"""
 Calculate the stellar surface displacements due to pulsations.
 
+**Phoebe specific:**
+
+.. autosummary::
+
+    add_pulsations
+
 
 **Basic quantities:**
 
@@ -11,6 +17,7 @@ Calculate the stellar surface displacements due to pulsations.
     longitudinal
     surface
     observables
+    
     
 **Helper functions:**
 
@@ -547,11 +554,32 @@ def observables(radius, theta, phi, teff, logg,
 
 def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                    mesh_phase=0.0):
-    """
+    r"""
     Add pulsations to a Body.
     
     Stellar parameters are only used to estimate parameters such as horizontal
     over vertical displacement.
+    
+    **Traditional approximation**
+    
+    See [Townsend2003]_ for a full description. The notes below are excerpts
+    from that paper.
+    
+    The eigenfunction :math:`k` is written as (Eq. 20)
+    
+    .. math::
+    
+         \tilde{Y}_{\ell_k}^m(\theta,\phi;\nu) = \sum_{j=0}^\infty \mathbf{B}_{j,k} Y_{\ell_j}^m (\theta,\phi)
+        
+    where
+    
+    .. math::
+    
+          \ell_j = \left\{\begin{array}{l}|m|+ 2j \quad \mbox{even-parity modes}\\|m|+2j+1 \quad \mbox{odd-parity modes}\end{array}\right.
+    
+    Parity is the latitudinal parity about the equator [Zahn1966]_. Note that
+    the expansion only combines harmonics of the same azimuthal order :math:`m`
+    and parity.
     
     @param mass: object's mass (kg)
     @type mass: float or None
@@ -616,16 +644,18 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             #-- extract some info on the B-vector
             bvector = pls.get_value('trad_coeffs')
             N = len(bvector)
-            ljs = np.arange(N)
-            for lj,Bjk in zip(ljs,bvector):
+            j = np.arange(N)
+            for j,Bjk in zip(j,bvector):
                 if Bjk==0:
                     continue
-                if lj>50: continue
+                if j>50: continue
+                # See Eq. (21) in Townsend 2003.
+                lj = np.abs(m) + 2*j + (l-abs(m))%2
                 freqs.append(freq)
                 freqs_Hz.append(freq_Hz)
                 ampls.append(Bjk*ampl)
                 phases.append(phase)
-                ls.append(lj)
+                ls.append(j) # do j, not lj! This seems OK with what MAD produces
                 ms.append(m)
                 deltaTs.append(Bjk*deltaT)
                 deltags.append(Bjk*deltag)

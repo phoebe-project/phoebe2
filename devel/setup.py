@@ -98,7 +98,7 @@ setup(
                   'phoebe.parameters':['catalogs/*.dat','library/*.par'],
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
-    scripts=['phoebe/frontend/phoebe_gui.py'],
+    scripts=['phoebe/frontend/gui/phoebe_gui.py'],
     #~ entry_points = {
         #~ "gui_scripts": ["phoebe_gui = phoebe.frontend.phoebe_gui"]},
 
