@@ -830,6 +830,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
                     
         system.reset()
         system.clear_synthetic()
+        
         system.compute(params=params, mpi=mpi)
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma

@@ -371,8 +371,7 @@ def image(the_system, ref='__bol', context='lcdep',
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
             vmin_, vmax_ = 2000, 20000
-            colors = (values-vmin_) / (vmax_-vmin_)
-            
+            colors = (values-vmin_) / (vmax_-vmin_)        
     # Check for nans or all zeros, that usually means the user did something
     # wrong (OK, there's also a tiny chance that there's a bug somewhere)
     if np.all(values == 0):
@@ -2125,6 +2124,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 circular = False
                 logger.info("... but at least one of the components is misaligned")
                 break
+            elif hasattr(body,'bodies'):
+                circular = False
+                logger.info("... but at least one component is a BodyBag")
     else:
         circular = False
         logger.info("Cannot figure out if system is circular or not, leaving at circular={}".format(circular))
@@ -2219,6 +2221,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # If the system is circular, we're not recomputing stuff. Make sure to
     # have computed everything as least once:
     if circular:
+        logger.info('System is cicular, pre-computing system')
         system.set_time(0., ref='all')
     
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
@@ -2335,7 +2338,6 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     params['time'] = times
     params['refs'] = [refs] * len(times)
     params['types'] = [typs] * len(times)  
-    
     # And run compute
     compute(system, params=params, mpi=mpi, extra_func=extra_func,
             extra_func_kwargs=extra_func_kwargs, animate=animate)

@@ -3305,7 +3305,17 @@ def match_string(choice,possible_values):
     elif len(matches)>1:
         raise ValueError('ambiguous identification of parameter %s'%(choice))
 
+def arcsin2(x, y):
+    if y!=0:
+        return np.arcsin(x/y)
+    else:
+        return np.pi/2.0
 
+def arccos2(x, y):
+    if y!=0:
+        return np.arccos(x/y)
+    else:
+        return np.pi/2.0    
 #}
 
 

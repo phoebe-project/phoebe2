@@ -149,7 +149,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
 
 #  /* ********************* PHOEBE ********************************* */
 #   BINARY CONTEXT
-defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='%f',llim=-10,ulim=10,step=1e-5,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
+defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='%f',llim=-1e8,ulim=1e8,step=1e-5,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
          dict(qualifier='dperdt', description='Periastron change',unit='deg/yr',repr='%f',llim=-1000,ulim=1000,step=1e-5,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
          dict(qualifier='ecc',    description='Eccentricity',repr='%f',llim=0,ulim=1.,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='orbit'),
          dict(qualifier='t0',     description='Zeropoint date',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='orbit'),

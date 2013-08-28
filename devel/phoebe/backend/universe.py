@@ -764,7 +764,10 @@ def _parse_obs(body, data):
         # Check if the reference is present in the Body. There should be a
         # corresponding pbdep somewhere!
         if not context in pbdep_refs:
-            raise ValueError("You can't add observations without adding pbdeps. Add a pbdep of type {} first".format(context))
+            raise ValueError(("You can't add observations of type {} (with "
+                              "reference {}) without adding pbdeps. Add a "
+                              "pbdep of type {} with that reference "
+                              "first").format(context, ref, context))
         if not ref in pbdep_refs[context]:
             logger.warning(("Adding obs with ref='{}', but no corresponding "
                             "pbdeps found. Attempting fix.").format(ref))
@@ -4319,22 +4322,32 @@ class BodyBag(Body):
         """
         # Make sure the mesh is initialised
         self.init_mesh()
-        #-- here, we check which columns are missing from each Body's
-        #   mesh. If they are missing, we simply add them and copy
-        #   the contents from the original mesh.
         
+        # here, we check which columns are missing from each Body's mesh. If
+        # they are missing, we simply add them and copy the contents from the
+        # original mesh.
         logger.info("Preparing mesh")
+        
+        # Get a flattened list of all the bodies
         bodies = self.get_bodies()
+        
+        # Retrieve all the column names and column types from the individual
+        # meshes. Start with the first Body
         names = list(bodies[0].mesh.dtype.names)
         descrs = bodies[0].mesh.dtype.descr
+        
+        # and then append the rest
         for b in bodies[1:]:
             descrs_ = b.mesh.dtype.descr
             for descr in descrs_:
                 if descr[0] in names: continue
                 descrs.append(descr)                    
                 names.append(descr[0])
+        
+        # For each Body, now reinitialize the mesh with a new mesh containing
+        # all the columns from all the components
         dtypes = np.dtype(descrs)
-        for b in self.bodies:
+        for b in bodies:
             N = len(b.mesh)
             new_mesh = np.zeros(N,dtype=dtypes)
             if N:
@@ -4343,6 +4356,7 @@ class BodyBag(Body):
                     new_mesh[col] = b.mesh[col]
                 #new_mesh[cols_to_copy] = b.mesh[cols_to_copy]
             b.mesh = new_mesh
+            
         # We need to make sure to reset the body, otherwise we could be fooled
         # into thinking that everything is still calculated! Some bodies do not
         # recalculate anything when the time is already set (because they are
@@ -4350,9 +4364,11 @@ class BodyBag(Body):
         # columns to zero!
         self.reset()
     
+    
     def remove_mesh(self):
         for body in self.bodies:
             body.remove_mesh()
+        
         
     def get_bodies(self):
         """
@@ -4451,7 +4467,7 @@ class BodyBag(Body):
             # for ltt's, we can only ask for one of it's members to return their
             # proper time. But if you do this you assume the proper time of the
             # members of the bodybag is the same anyway. So this should be fine!
-            time = self.get_proper_time()[0]
+            #time = self.get_proper_time(time)[0]
             #-- once we have the mesh, we need to place it into orbit
             #keplerorbit.place_in_binary_orbit(self, time)
             n_comp = self.get_component()
