@@ -731,6 +731,7 @@ def add_esinw_ecosw(orbit):
         peri = 'omega'
     add_esinw(orbit)
     add_ecosw(orbit)
+    return None
     orbit.pop_constraint('ecc', None)
     orbit.pop_constraint(peri,None)
     orbit.add_constraint('{{{peri}}} = np.arctan2({{esinw}},{{ecosw}})'.format(peri=peri))

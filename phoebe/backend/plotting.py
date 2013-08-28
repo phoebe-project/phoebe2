@@ -880,6 +880,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     scale = kwargs.pop('scale', 'obs')
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
+    ax = kwargs.pop('ax',plt.gca())
     
     syn, ref = system.get_parset(category='sp', type='syn', ref=ref)
     loaded = syn.load(force=False)
@@ -889,7 +890,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     
     x = syn['wavelength'][index]
     y = syn['flux'][index] / syn['continuum'][index]
-    
+
     try:
         obs = system.get_obs(category='sp', ref=ref)
         pblum = obs['pblum']
@@ -906,10 +907,12 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     
     y = y * pblum + l3
     
-    plt.plot(x, y, *args, **kwargs)
+    p, = ax.plot(x, y, *args, **kwargs)
     
     if loaded:
         syn.unload()
+    
+    return [p], syn, pblum, l3
     
     
 def plot_spobs_as_profile(system, *args, **kwargs):

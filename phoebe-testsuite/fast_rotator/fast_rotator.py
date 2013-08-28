@@ -117,6 +117,7 @@ plt.xlabel('Wavelength [A]')
 plt.ylabel('Normalized flux')
 plt.legend(loc='best')
 plt.savefig('fast_rotator_spectrum')
+plt.show()
 
 """
 .. figure:: images_tut/fast_rotator_spectrum.png

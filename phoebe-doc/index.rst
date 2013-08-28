@@ -224,6 +224,7 @@ Binary Stars
 .. toctree::
    :maxdepth: 1
     
+   testsuite.simple_binary01
    testsuite.occulting_dark_sphere
    testsuite.transit_colors
    testsuite.binary_spheres

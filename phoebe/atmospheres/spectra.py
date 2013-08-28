@@ -97,6 +97,7 @@ def interp_spectable(gridfile,teff,logg,wrange):
         #print("DEBUG INFO: {}".format(axis_values))
         #pl.show()
         raise IndexError('Outside of grid: {:.1f}<teff<{:.1f}, {:.2f}<logg<{:.2f}'.format(10**values[0].min(),10**values[0].max(),values[1].min(),values[1].max()))
+    pars = np.array(pars)
     pars[N:] = 10**pars[N:]
     pars = pars.reshape((2,len(wrange),-1))
     return pars

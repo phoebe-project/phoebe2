@@ -250,9 +250,6 @@ def skip_modules(app, what, name, obj, skip, options):
         if obj.__module__ in ignore_list:
             print("Skipping {}".format(name))
             return True
-        if 'uncertainties' in obj.__module__:
-            print("Skipping {}".format(name))
-            return True
 
         
 
