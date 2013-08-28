@@ -607,7 +607,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         phase = pls.get_value('phase')
         omega = 2*pi*freq_Hz
         incl = pls.get_value('incl','rad')
-        k0 = constants.GG*M/omega**2/R**3    
+        k0 = k_#constants.GG*M/omega**2/R**3    
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.
         #   indeed, the traditional approximation approximates a mode as a
@@ -618,8 +618,9 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             N = len(bvector)
             ljs = np.arange(N)
             for lj,Bjk in zip(ljs,bvector):
-                if Bjk==0: continue
-                #if lj>50: continue
+                if Bjk==0:
+                    continue
+                if lj>50: continue
                 freqs.append(freq)
                 freqs_Hz.append(freq_Hz)
                 ampls.append(Bjk*ampl)
@@ -629,7 +630,9 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                 deltaTs.append(Bjk*deltaT)
                 deltags.append(Bjk*deltag)
                 ks.append(k0)
-                spinpars.append(0.) # not applicable
+                #spinpars.append(0.5)
+                spinpars.append(0.) # not applicable, this is for coriolis (?)
+                incls.append(incl)
         elif scheme=='nonrotating' or scheme=='coriolis':
             if scheme=='coriolis' and l>0:
                 spinpar = rotfreq/freq
@@ -653,7 +656,6 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             incls.append(incl)
         else:
             raise ValueError('Pulsation scheme {} not recognised'.format(scheme))
-        
     #-- then add displacements due to pulsations. When computing the centers,
     #   we also add the information on teff and logg
     #index = np.array([2,0,1])
@@ -679,7 +681,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     #    self.mesh['velo_%s_'%(iref)] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
     self.mesh['velo___bol_'] += np.array(coordinates.spher2cart((r4,phi4,theta4),(vr4,vphi4,vth4)))[index_inv].T
     self.mesh['center'] = np.array(coordinates.spher2cart_coord(r4,phi4,theta4))[index_inv].T
-    logger.info("puls: before {}<teff<{} (deltaT={})".format(self.mesh['teff'].min(), self.mesh['teff'].max(),deltaTs))
+    logger.info("puls: before {}<teff<{}".format(self.mesh['teff'].min(), self.mesh['teff'].max()))
     self.mesh['teff'] = teff
     self.mesh['logg'] = logg
     logger.info("puls: computed pulsational displacement, velocity and teff/logg field")

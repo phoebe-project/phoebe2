@@ -38,6 +38,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 .. autosummary::
 
     add_amplvelo
+    add_nonadiabatic_coefficients
     
 **Constraints for reddening**
 
@@ -1037,6 +1038,53 @@ def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
     
 
 
+
+
+def add_nonadiabatic_coefficients(puls, fT=0, psiT=180., fg=0, psig=180.):
+    r"""
+    Add nonadiabatic coefficients to the pulsation parameters.
+    
+    Then the only independent variable that you can set is the amplitude and
+    phase of the radial displacement. The amplitude and phase of
+    :math:`T_\mathrm{eff}` and :math:`\log g` will be derived from that via
+    the given coefficients:
+    
+    
+        
+        
+    """
+    pardict = dict(frame='phoebe', cast_type=float, repr='%f', adjust=False,
+                 context=puls.context)
+    
+    puls.pop_constraint('fT',None)
+    puls.pop_constraint('psiT',None)
+    puls.pop_constraint('fg',None)
+    puls.pop_constraint('psig',None)
+    puls.pop('fT',None)
+    puls.pop('psiT',None)
+    puls.pop('fg',None)
+    puls.pop('psig',None)
+    
+    pardict['description'] = 'Amplitude of temperature perturbation relative to radius perturbation'
+    pardict.pop('unit',None)
+    puls.add(parameters.Parameter(qualifier='fT', value=fT, **pardict))
+    pardict['description'] = 'Amplitude of gravity perturbation relative to radius perturbation'
+    pardict.pop('unit',None)
+    puls.add(parameters.Parameter(qualifier='fg', value=fg, **pardict))
+    pardict['description'] = 'Phase of temperature perturbation relative to radius perturbation'
+    pardict.pop('unit','deg')
+    puls.add(parameters.Parameter(qualifier='psiT', value=psiT, **pardict))
+    pardict['description'] = 'Phase of gravity perturbation relative to radius perturbation'
+    pardict.pop('unit','deg')
+    puls.add(parameters.Parameter(qualifier='psig', value=psig, **pardict))
+             
+    puls.add_constraint('{amplteff} = {fT}*{ampl}')
+    puls.add_constraint('{phaseteff} = {psiT}/180.*pi - 2*pi*{phase}')
+    puls.add_constraint('{amplgrav} = {fg}*{ampl}')
+    puls.add_constraint('{phasegrav} = {psig}/180.*pi - 2*pi*{phase}')
+    
+    
+    
 
 #}
 

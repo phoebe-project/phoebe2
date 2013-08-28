@@ -407,7 +407,7 @@ import inspect
 import logging
 import numpy as np
 from numpy import pi,sqrt,cos,sin,tan,arctan
-from scipy.optimize import newton,bisect
+from scipy.optimize import newton,bisect, fmin, brentq
 from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.utils import cgeometry
@@ -516,7 +516,7 @@ def get_orbit(times, period, ecc, sma, t0, per0=0., long_an=0., incl=0.,
         if mass_conservation and not np.isscalar(period):
              sma = sma/period[0]**2*period**2
         elif mass_conservation:
-             sma = sma/period**2*period_**2
+             sma = sma/period_**2*period**2
     #-- if dperdt is non-zero, the argument of periastron is actually an
     #   array
     if dperdt!=0.:
@@ -680,13 +680,14 @@ def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False
     scale_factor = 1.0/constants.cc*constants.Rsol/(24*3600.)
     def propertime_barytime_residual(t):
         obj,vel = get_hierarchical_orbit_phoebe(t,orbits,comps)
-        z = obj[2]
+        z = obj[2,0]
         return t + z*scale_factor - t_bary
     #-- Finding that right time is easy with a Newton optimizer:
-    propertimes = [newton(propertime_barytime_residual,t_bary) for t_bary in bary_times]
+    propertimes = [newton(propertime_barytime_residual,t_bary) for \
+                       t_bary in bary_times]
     propertimes = np.array(propertimes).ravel()
     #-- then make an orbit with these times!
-    this_orbit = get_hierarchical_orbit_phoebe(propertimes,orbits,comps)
+    this_orbit = get_hierarchical_orbit_phoebe(bary_times,orbits,comps)
     return list(this_orbit) + [propertimes]
     
 
@@ -1898,7 +1899,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
         component = ('primary', 'secondary')[comp]
         t0type = orbit['t0type']
         if t0type == 'superior conjunction':
-            time = time - orbit['phshift'] * P
+            times = times - orbit['phshift'] * P
         a_comp = [a1, a2][comp]
         loc, velo, euler = get_orbit(times, P, e, a_comp, T0, per0=argper, 
                                  long_an=long_an, incl=inclin, dpdt=dpdt,
@@ -1911,7 +1912,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
         vel[:,0] += velo[0].ravel()
         vel[:,1] += velo[1].ravel()
         vel[:,2] += velo[2].ravel()
-    return obj.T,vel.T    
+    return obj.T, vel.T    
 
     
 #}

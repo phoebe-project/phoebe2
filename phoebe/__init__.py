@@ -81,6 +81,4 @@ from .wd import wd
 from .units import constants
 from .units.conversions import convert,Unit
 
-def test():
-    print("Karsten, it works!")
     

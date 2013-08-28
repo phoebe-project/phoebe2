@@ -32,6 +32,7 @@ To unistall, simply remove the directory::
 import urllib
 import sys
 import os
+import shutil
 import subprocess
 
 class InstallationError(Exception):
@@ -58,20 +59,26 @@ if len(sys.argv)==1:
     
 
 
-base_dir = sys.argv[-1]
+base_dir = os.path.abspath(sys.argv[-1])
+sys.argv[-1] = base_dir
 
 #-- make sure the virtualenv starts with a clean slate
 if not '--no-site-packages' in sys.argv:
     sys.argv.append('--no-site-packages')
 
+virtual_dir = None
 if os.path.isdir(base_dir):
     print("Virtual environment already exists")
 else:
     #-- download the virtualenv.py script
-    urllib.urlretrieve('https://raw.github.com/pypa/virtualenv/master/virtualenv.py', "virtualenv.py")
-   
-    #-- install the virtualenv    
-    import virtualenv
+    #urllib.urlretrieve('https://raw.github.com/pypa/virtualenv/master/virtualenv.py', "virtualenv.py")
+    urllib.urlretrieve('https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz',
+                       'virtualenv-1.10.tar.gz')
+    p1 = subprocess.call('tar xvfz virtualenv-1.10.tar.gz', shell=True)
+    curdir = os.path.abspath(os.curdir)
+    virtual_dir = os.path.abspath(os.path.join(curdir,'virtualenv-1.10'))
+    import imp
+    virtualenv = imp.load_source('virtualenv','virtualenv-1.10/virtualenv.py')
     virtualenv.main()
 
 #-- download the requirement files
@@ -153,6 +160,10 @@ with open('install.log','w') as log:
 #-- finally download the atmosphere files:
 files = ['kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits',
          'blackbody_uniform_none_teff.fits']
+
+if virtual_dir is not None:
+    os.rmtree(virtual_dir)
+
 
 for ff in files:
     source = 'http://www.phoebe-project.org/2.0/docs/_downloads/'+ff

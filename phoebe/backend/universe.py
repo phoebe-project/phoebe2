@@ -1828,7 +1828,6 @@ class Body(object):
                         this_chi2 = 0.0
                     
                 chi2.append(this_chi2)
-        print chi2
         return log_f, chi2, n_data
     
     
@@ -3633,6 +3632,7 @@ class PhysicalBody(Body):
         """
         Update the mesh for a subset of triangles or the whole mesh
         """
+
         if subset is None:
             subset = np.ones(len(self.mesh),bool)
         #-- cut out the part that needs to be updated
@@ -3652,7 +3652,6 @@ class PhysicalBody(Body):
             select = ['_o_center','_o_size','_o_triangle','_o_normal_']
             old_mesh_table = np.column_stack([old_mesh[x] for x in select])/scale
             old_mesh_table = marching.creproject(old_mesh_table,*mesh_args)*scale
-            
             # Check direction of normal
             #cosangle = coordinates.cos_angle(old_mesh['_o_center'],
             #                                 old_mesh_table[:,13:16],axis=1)
@@ -6001,7 +6000,6 @@ class BinaryRocheStar(PhysicalBody):
             V1 = 1.
         
         for n_iter in range(max_iter):
-            
             #-- compute polar radius
             #R = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,oldpot).r
             r = [0,0,1e-5]
@@ -6627,7 +6625,6 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])*1e-5
         
         for n_iter in range(max_iter):
-            
             #-- compute polar radius
             R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
             R_ = R_*sma
