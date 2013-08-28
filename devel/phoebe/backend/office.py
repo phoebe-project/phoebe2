@@ -160,11 +160,6 @@ def plot_lcsyn(*args, **kwargs):
         plt.xlabel("Time")
         plt.ylabel("Flux")
     
-    
-    
-    ax.set_xlim(xlims)
-    ax.set_ylim(ylims)
-    
     return out[0],
 
 
@@ -195,10 +190,7 @@ def plot_spsyn(*args, **kwargs):
     if do_init:
         plt.xlabel("Wavelength")
         plt.ylabel("Flux")
-    
-    ax.set_xlim(xlims)
-    ax.set_ylim(ylims)
-    
+        
     return out[0],
 
 
@@ -212,6 +204,7 @@ class Animation1(Animation):
     def __init__(self, system, **kwargs):
         self.system = system
         self.repeat = kwargs.pop('repeat', False)
+        self.save = kwargs.pop('save', None)
         self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(111)
         self.axes = [ax1]
@@ -219,7 +212,7 @@ class Animation1(Animation):
         self.draw_args = [(system,)]
         self.draw_kwargs = [kwargs]
         self.initialized = False
-        self.save = None
+        
         
 
 
@@ -235,6 +228,7 @@ class Animation2(Animation):
         
         self.system = system
         self.repeat = kwargs.pop('repeat', False)
+        self.save = kwargs.pop('save', None)
         self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
@@ -243,7 +237,7 @@ class Animation2(Animation):
         self.draw_args = [(system,),(system,)]
         self.draw_kwargs = [kwargs1, kwargs2]
         self.initialized = False
-        self.save = None
+
 
 class Animation3(Animation2):
     """
@@ -262,6 +256,7 @@ class Animation4(Animation):
     def __init__(self, system, **kwargs):
         self.system = system
         self.repeat = kwargs.pop('repeat', False)
+        self.save = kwargs.pop('save', None)
         self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
