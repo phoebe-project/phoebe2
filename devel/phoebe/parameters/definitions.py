@@ -134,8 +134,17 @@ defs += [dict(qualifier='ifsmv1', description='Spots on star 1 co-rotate with th
 defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr='%.0f',llim=  0,ulim=  1e20,step=   100., adjust=False,cast_type=float,value=5777.,unit='K',frame=["phoebe"],alias=[],context='star'),
         dict(qualifier='radius', description='Radius',repr='%f', cast_type=float,   value=1., unit='Rsol', adjust=False,frame=["phoebe"],context='star'),
         dict(qualifier='mass', description='Stellar mass',repr='%g',cast_type=float,value=1., unit='Msol', adjust=False,frame=["phoebe"],context='star'),
-        dict(qualifier='atm',    description='Atmosphere model',repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['lcdep','rvdep','ifdep','spdep','pldep','amdep']),
-        dict(qualifier='atm',    description='Bolometric Atmosphere model',repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['star','component','accretion_disk']),
+        dict(qualifier='atm',    description='Atmosphere model',long_description=("Atmosphere models can be given in three ways: (1) using a short alias (e.g. 'kurucz') in which "
+                                                                                  "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
+                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
+                                                                                  " or (3) via an absolute filename"), repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['lcdep','rvdep','ifdep','spdep','pldep','amdep']),
+        dict(qualifier='atm',    description='Bolometric Atmosphere model',long_description=("The bolometric atmosphere table is used to look up the bolometric intensities, which are "
+                                                                                             "typically used for heating processes. Atmosphere models can be given in three ways: (1) using a short alias (e.g. 'kurucz') in which "
+                                                                                             "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
+                                                                                             "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                             "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"   
+                                                                                             " or (3) via an absolute filename"),repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['star','component','accretion_disk']),
         dict(qualifier='rotperiod', description='Polar rotation period',repr='%f',cast_type=float,value=22.,adjust=False,frame=["phoebe"],unit='d',context='star'),
         dict(qualifier='diffrot', description='(Eq - Polar) rotation period (<0 is solar-like)',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],unit='d',context='star'),
         dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.,llim=0,ulim=1.,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='star'),
@@ -216,8 +225,18 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
 #    DATA contexts
 defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','amdep','rvdep']),
          dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
-         dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['lcdep','amdep']),
-         dict(qualifier='ld_coeffs',       description='Bolometric limb darkening coefficients',repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),
+         dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',long_description=("Limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
+                                                                                  "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
+                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
+                                                                                  " (3) via an absolute filename or (4) via a list of user-specified floats. In the latter case, "
+                                                                                  "you need to have as many coefficients as the 'ld_func' requires"),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['lcdep','amdep']),
+         dict(qualifier='ld_coeffs',       description='Bolometric limb darkening coefficients',long_description=("Bolometric limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
+                                                                                  "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
+                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
+                                                                                  " (3) via an absolute filename or (4) via a list of user-specified floats. In the latter case, "
+                                                                                  "you need to have as many coefficients as the 'ld_func' requires"),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='passband', description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context=['lcdep','amdep']),
          dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=-1.0,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
          dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),

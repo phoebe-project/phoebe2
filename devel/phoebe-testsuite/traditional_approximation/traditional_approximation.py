@@ -66,7 +66,8 @@ freq_pars['k'] =  0.
 freq_pars['trad_coeffs'] = bvector
 freq_pars['amplteff'] = 0.2
 freq_pars['scheme'] = 'traditional approximation'
-
+print freq_pars
+raise SystemExit
 # Create a ParameterSet with parameters for the light curve
 lcdep1 = phoebe.ParameterSet(frame='phoebe',context='lcdep')
 lcdep1['ld_func'] = 'claret'
@@ -83,7 +84,8 @@ star = phoebe.Star(lac,mesh,puls=[freq_pars],pbdep=[lcdep1])
         
 tn = 1./freq_pars['freq']
 times = np.linspace(0,tn,100)
-phoebe.observe(star,times,subdiv_num=0,lc=True,im=True)
+phoebe.observe(star,times,subdiv_num=0,lc=True, extra_func=[phoebe.observatory.ef_image],
+               extra_func_kwargs=[dict(select='teff',ref=0)])
 
 # Analysis of results
 # -------------------
