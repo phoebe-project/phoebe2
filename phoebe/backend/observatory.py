@@ -2246,7 +2246,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                   init_func=animate.init_func,
                                   interval=25, repeat=animate.repeat)
         if animate.save:
-            ani.save(*animate.save[0], **animate.save[1])
+            ani.save(animate.save[0], **animate.save[1])
         else:
             pl.show()
             
