@@ -191,7 +191,6 @@ np.seterr(all='ignore')
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
 
-
 #{ Functions of general interest    
 
 def get_binary_orbit(self, time):
@@ -5284,10 +5283,7 @@ class Star(PhysicalBody):
         Calculate local temperature.
         """
         # If the gravity brightening law is not specified, use 'Zeipel's
-        if 'gravblaw' in self.params['star']:
-            gravblaw = self.params['star']['gravblaw']
-        else:
-            gravblaw = 'zeipel'
+        gravblaw = self.params['star'].get('gravblaw', 'zeipel')
         
         # Compute temperature
         getattr(roche,'temperature_{}'.format(gravblaw))(self)
@@ -6102,7 +6098,35 @@ class BinaryRocheStar(PhysicalBody):
     def temperature(self,time=None):
         """
         Calculate local temperature.
+        
+        If the law of [Espinosa2012]_ is used, some approximations are made:
+            
+            - Since the law itself is too complicated too solve during the
+              computations, the table with approximate von Zeipel exponents from
+              [Espinosa2012]_ is used.
+            - The two parameters in the table are mass ratio :math:`q` and 
+              filling factor :math:`\rho`. The latter is defined as the ratio
+              between the radius at the tip, and the first Lagrangian point.
+              As the Langrangian points can be badly defined for weird 
+              configurations, we approximate the Lagrangian point as 3/2 of the
+              polar radius (inspired by break up radius in fast rotating stars).
+              This is subject to improvement!
         """
+        gravblaw = self.params['component'].get('gravblaw', 'zeipel')
+        
+        if gravblaw == 'espinosa':
+            q = self.params['orbit']['q']
+            # To compute the filling factor, we're gonna cheat a little beat: we
+            # should compute the ratio of the tip radius to the first Lagrangian
+            # point. However, L1 might be poorly defined for weird geometries
+            # so we approximate it as 1.5 times the polar radius.
+            rp = self.params['component'].request_value('r_pole','Rsol')
+            maxr = coordinates.norm(self.mesh['_o_center'],axis=1).max()
+            rho = maxr / (1.5*rp)
+            logger.info("q = {}, filling factor = {}".format(q, rho))
+            self.params['component']['gravb'] = roche.zeipel_gravb_binary()(np.log10(q), rho)
+            
+        # In any case call the Zeipel law.
         roche.temperature_zeipel(self)
         
     def get_mass(self):

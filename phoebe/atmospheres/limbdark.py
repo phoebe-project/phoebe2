@@ -1801,6 +1801,8 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     """
     Calculate local intensity.
     
+    This is the work horse for Phoebe concerning atmospheres.
+    
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
     """
@@ -1811,29 +1813,21 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     
     # Passband: if it's not available (e.g. in the "Star" parset), we need to
     # take the bolometric passband
-    if 'passband' in parset_pbdep:
-        passband = parset_pbdep['passband']
-    else:
-        passband = 'OPEN.BOL'
+    passband = parset_pbdep.get('passband', 'OPEN.BOL')
     
     # Doppler beaming: include it if there is such a keyword and it is turned on
-    if 'beaming' in parset_pbdep and parset_pbdep['beaming']:
-        include_vgamma = True
-    else:
-        include_vgamma = False
+    include_vgamma = parset_pbdep.get('beaming', False)
     
     # The reference we need to take to compute stuff (if not available, it's
     # bolometric)
-    if 'ref' in parset_pbdep:
-        ref = parset_pbdep['ref']
-    else:
-        ref = '__bol'
+    ref = parset_pbdep.get('ref', '__bol')
     
     # Radial velocity needs to be in km/s, while the natural units in the 
     # Universe are Rsol/d. If vrad needs to be computed, we'll also include
     # gravitational redshift
     #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
-    vrad = 8.04986111111111*system.mesh['velo___bol_'][:,2]
+    Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
+    vrad = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
     
     if include_vgamma:
         vrad += 0. # tools.gravitational_redshift

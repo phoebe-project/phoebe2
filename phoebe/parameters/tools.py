@@ -833,7 +833,7 @@ def to_perpass(orbit):
         per0 = orbit.get_value('per0','rad')
         t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
         orbit['t0'] = t0
-        orbit['t0type'] = 'periastron passage'           
+        orbit['t0type'] = 'periastron passage'
         logger.info('Set t0type to time of periastron passage')
     elif t0type == 'periastron passage':
         logger.info('t0type was already time of periastron passage')
