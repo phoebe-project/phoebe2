@@ -1695,8 +1695,10 @@ class Axes(object):
         if yaxis == 'auto':
             if self.axesoptions['category'] == 'lc':
                 yaxis = 'flux'
-            if self.axesoptions['category'] == 'rv':
+            elif self.axesoptions['category'] == 'rv':
                 yaxis = 'rv'
+            elif self.axesoptions['category'] == 'sp':
+                yaxis = 'wavelength'
         if ao['xlabel'] == 'auto':
             ao['xlabel'] = xaxis
         if ao['ylabel'] == 'auto':
