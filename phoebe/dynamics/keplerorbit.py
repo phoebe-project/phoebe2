@@ -1849,11 +1849,11 @@ def place_in_binary_orbit(self,time):
     mesh['mu'] = cgeometry.cos_theta(mesh['normal_'].ravel(order='F').reshape((-1,3)),np.array([0,0,+1.0],float))
     
     # Add systemic velocity:
-    globals = self.get_globals()
-    if globals is not None:
-        #vgamma = globals.request_value('vgamma', 'Rsol/d')
-        vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
-        mesh['velo___bol_'][:,2] -= vgamma
+    #globals = self.get_globals()
+    #if globals is not None:
+        ##vgamma = globals.request_value('vgamma', 'Rsol/d')
+        #vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
+        #mesh['velo___bol_'][:,2] -= vgamma
     
     self.mesh = mesh
     #logger.info('Placed into orbit')

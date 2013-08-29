@@ -3762,9 +3762,10 @@ class PhysicalBody(Body):
             logger.debug("restored mesh from subdivision")
         self.subdivision['orig'] = None
     
-    def add_systemic_velocity(self):
+    def add_systemic_velocity(self, grav=False):
         """
-        Add the systemic velocity component to the system.
+        Add the systemic velocity component and gravitational redshift to the
+        system.
         
         Notice that vgamma is in the opposite direction of our definition!
         """
@@ -3774,15 +3775,30 @@ class PhysicalBody(Body):
             #vgamma = globals.request_value('vgamma', 'Rsol/d')
             vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
             self.mesh['velo___bol_'][:,2] -= vgamma
+        # Gravitational redshift
+        if grav:
+            radius = coordinates.norm(self.mesh['center'], axis=1)*constants.Rsol
+            rv_grav = constants.GG*self.get_mass()*constants.Msol/radius/constants.cc / constants.Rsol*24*3600.
+            self.mesh['velo___bol_'][:,2] += rv_grav
+        
+        
     
-    def remove_systemic_velocity(self):
+    def remove_systemic_velocity(self, grav=False):
+        """
+        Remove the systemic velocity component and gravitational redshift from
+        the system.
+        """
         # Remove systemic velocity:
         globals = self.get_globals()
         if globals is not None:
             #vgamma = globals.request_value('vgamma', 'Rsol/d')
             vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
             self.mesh['velo___bol_'][:,2] += vgamma
-    
+        # Gravitational redshift
+        if grav:
+            radius = coordinates.norm(self.mesh['center'], axis=1)*constants.Rsol
+            rv_grav = constants.GG*self.get_mass()*constants.Msol/radius/constants.cc / constants.Rsol*24*3600.
+            self.mesh['velo___bol_'][:,2] += rv_grav
     
     def save_syn(self,filename,category='lc',ref=0,sigma=None,mode='w'):
         """
@@ -6344,6 +6360,7 @@ class BinaryRocheStar(PhysicalBody):
             self.reset_mesh()
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)
+        self.add_systemic_velocity()
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
         
