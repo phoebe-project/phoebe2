@@ -294,6 +294,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.datasetswidget_main.ds_plotComboBox, SIGNAL("currentIndexChanged(QString)"), self.update_datasets)
         QObject.connect(self.datasetswidget_main.addLCButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
         QObject.connect(self.datasetswidget_main.addRVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        QObject.connect(self.datasetswidget_main.addSPButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        QObject.connect(self.datasetswidget_main.addETVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        self.datasetswidget_main.addETVButton.setEnabled(False)
         
         # tree view signals
         self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView,self.versions_treeView,self.rp_savedFeedbackTreeView]
@@ -1780,12 +1783,18 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 pop.datatypes = ['--Data Type--', 'time', 'rv', 'sigma', 'component', 'ignore']
             pop.context = 'rvobs'
             pop.setWindowTitle('PHOEBE - Import RV Data')
-        elif False:
-            pop.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma', 'component', 'ignore']
+        elif sender==self.datasetswidget_main.addETVButton:
+            if _alpha_test:
+                pop.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma']
+            else:
+                pop.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma', 'component', 'ignore']
             pop.context = 'etvobs'
             pop.setWindowTitle('PHOEBE - Import ETV Data')
-        elif False:
-            pop.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma', 'component', 'ignore']
+        elif sender==self.datasetswidget_main.addSPButton:
+            if _alpha_test:
+                pop.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma']
+            else:
+                pop.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma', 'component', 'ignore']
             pop.context = 'spobs'
             pop.setWindowTitle('PHOEBE - Import Spectral Data')
         pop.filtertypes = ['JOHNSON.V','JOHNSON.R']

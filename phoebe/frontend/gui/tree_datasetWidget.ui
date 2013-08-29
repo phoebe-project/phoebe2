@@ -37,6 +37,16 @@
           <string>rv</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>sp</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>etv</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item>
@@ -114,6 +124,40 @@
           </property>
           <property name="text">
            <string>RV</string>
+          </property>
+          <property name="icon">
+           <iconset resource="ui_resources.qrc">
+            <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCommandLinkButton" name="addSPButton">
+          <property name="maximumSize">
+           <size>
+            <width>64</width>
+            <height>40</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>SP</string>
+          </property>
+          <property name="icon">
+           <iconset resource="ui_resources.qrc">
+            <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCommandLinkButton" name="addETVButton">
+          <property name="maximumSize">
+           <size>
+            <width>64</width>
+            <height>40</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>ETV</string>
           </property>
           <property name="icon">
            <iconset resource="ui_resources.qrc">
