@@ -16,12 +16,12 @@ def gravitational_redshift(the_system):
     """
     Compute the gravitional redshift of an object
     
-    @param system: object to compute temperature of
-    @type system: Body
+    @param the_system: object
+    @type the_system: Body
     """
-    #-- for systems that we cannot compute the gravitional redshift, there will
-    #   effectively be none: therefor, we assume mass and radius such that the
-    #   gravitional redshift is zero
+    # For systems for which we cannot compute the gravitional redshift, there
+    # will effectively be none: therefore, we assume mass and radius such that
+    # the gravitional redshift is zero
     M = 0
     R = 1.
     #-- try to get information of the mass and radius of the system

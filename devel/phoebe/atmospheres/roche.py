@@ -37,16 +37,19 @@ Most of these parameters are local atmospheric parameters.
 
 """
 import logging
+import os
 import numpy as np
 from numpy import cos,sin,sqrt,pi,log,tan
 from scipy.optimize import newton
+from scipy.interpolate import RectBivariateSpline
 from phoebe.algorithms import marching
 from phoebe.units import constants
 from phoebe.utils import coordinates
+from phoebe.utils import decorators
 import froche
 
 logger = logging.getLogger('ATM.ROCHE')
-
+basedir = os.path.dirname(os.path.abspath(__file__))
 
 #{ General
 
@@ -84,10 +87,10 @@ def temperature_zeipel(system):
     # Ordered dictionary
     body = list(system.params.values())[0]
     if body.has_qualifier('teffpolar'):
-        Teff = body.request_value('teffpolar', 'K')
+        Teff = body['teffpolar']
         type = 'polar'
     else:
-        Teff = body.request_value('teff', 'K')
+        Teff = body['teff']
         type = 'mean'
     
     # We need the gravity brightening parameter and the polar surface gravity
@@ -210,6 +213,19 @@ def temperature_espinosa(system):
     
     logger.info("derived effective temperature (Espinosa) (%.3f <= teff <= %.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max()))
 
+@decorators.memoized
+def zeipel_gravb_binary():
+    """
+    Return an interpolator to derive the approximate Zeipel gravity brightening.
+    
+    See [Espinosa2012]_.
+    
+    """
+    data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'espinosa.dat'))
+    x, y = np.log10(data[1:,0]), data[0,1:]
+    z = data[1:,1:]
+    return RectBivariateSpline(x, y, z)
+    
 
     
 def approximate_lagrangian_points(q, sma=1.):

@@ -18,9 +18,10 @@ def create_pixeltypegrid(grid_pars,grid_data):
     
     Starting from:
     
-        - grid_pars: 2D numpy array, 1 column per parameter, unlimited number of cols
-        
-        - grid_data: 2D numpy array, 1 column per variable, data corresponding to the rows in grid_pars
+        - grid_pars: 2D numpy array, 1 column per parameter, unlimited number of
+          cols
+        - grid_data: 2D numpy array, 1 column per variable, data corresponding
+          to the rows in grid_pars
     
     
     The grid should be rectangular and complete, i.e. every combination of the unique values in the 
