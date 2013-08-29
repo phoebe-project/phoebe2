@@ -4473,6 +4473,9 @@ class BodyBag(Body):
             orbit = self.params['orbit']
             loc, velo, euler = keplerorbit.get_binary_orbit(time,orbit, component)
             self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+            mesh = self.mesh
+            mesh['velo___bol_'] = mesh['velo___bol_'] + velo
+            self.mesh = mesh
     
     def get_orbit(self, times):
         """
@@ -6822,6 +6825,14 @@ class BinaryStar(Star):
         super(BinaryStar,self).set_time(time, *args,**kwargs)
         #keplerorbit.place_in_binary_orbit(self,*args)
         n_comp = self.get_component()
+        if n_comp is None:
+            raise ValueError(("Cannot figure out which component this is: Body has "
+                              "label '{}' while the orbit claims the primary "
+                              "has label '{}' and the secondary '{}'. Check "
+                              "the labels carefully!").format(self.get_label(),
+                                self.params['orbit']['c1label'],
+                                self.params['orbit']['c2label']))
+        
         component = ('primary','secondary')[n_comp]
         orbit = self.params['orbit']
         loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
