@@ -1834,6 +1834,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     else:
         vrad *= 0.
     
+
     # In the following we need to take care of a lot of possible inputs by the
     # user, and some possible simplifications for the calculations.
     #
@@ -1902,7 +1903,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
             atm_kwargs['abun'] = 0.
         vgamma = vrad
         log_msg += '(multiple faces) (vgamma_mean={})'.format(vgamma.mean())
-    
+        
     # What kind of atmosphere is used to compute the limbdarkening coefficients?
     # They come from a model atmosphere (ld_coeffs is a filename), or they are a
     # list of LD coeffs, assumed to be constant over the surface. If a filename

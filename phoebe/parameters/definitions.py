@@ -547,7 +547,7 @@ defs += [dict(qualifier='time',                 description='Compute observables
                                                                    "'convex': uses QHull in conjunction with Delaunay triangulation to detect eclipsed triangles and label the ones which are partially visible // "
                                                                    "'graham': uses Graham scan in conjunction with binary search trees to detect eclipsed triangles and label the ones which are partially visible //"
                                                                    "'binary': uses only_horizon outside of predicted eclipses, graham inside eclipses"
-                                                                   "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='auto',frame=['phoebe'],context='compute'),
+                                                                   "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='graham',frame=['phoebe'],context='compute'),
         ] 
 
 

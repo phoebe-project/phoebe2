@@ -43,7 +43,6 @@ try:
 except ImportError:
     pass
 # Phoebe modules
-from phoebe.backend import decorators
 from phoebe.utils import plotlib
 from phoebe.utils import pergrams
 from phoebe.utils import coordinates
@@ -59,6 +58,8 @@ from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spectra as modspectra
 from phoebe.dynamics import keplerorbit
+from phoebe.backend import decorators
+from phoebe.backend import office
 from phoebe.backend import plotting
 
 # Ignore warnings raised by numpy, we'll be responsible for them ourselves        
@@ -2235,7 +2236,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                 circular, heating, beaming, params, ltt,
                                 extra_func, extra_func_kwargs)
     
-    else:        
+    else:
+        if animate is True:
+            animate = office.Animation1(system, select='teff')
+            
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
                                   fargs=(system, time_per_time, labl_per_time,
