@@ -2052,6 +2052,9 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
     """
     Calculate mean local projected velocity.
     
+    The sign of the Z-component is reversed to get negative rv for blueshifted
+    objects!
+    
     @param system: object to compute temperature of
     @type system: Body or derivative class
     @param los: line-of-sight vector. Best leave it at the default

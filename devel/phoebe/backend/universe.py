@@ -3762,6 +3762,28 @@ class PhysicalBody(Body):
             logger.debug("restored mesh from subdivision")
         self.subdivision['orig'] = None
     
+    def add_systemic_velocity(self):
+        """
+        Add the systemic velocity component to the system.
+        
+        Notice that vgamma is in the opposite direction of our definition!
+        """
+        # Add systemic velocity:
+        globals = self.get_globals()
+        if globals is not None:
+            #vgamma = globals.request_value('vgamma', 'Rsol/d')
+            vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
+            self.mesh['velo___bol_'][:,2] -= vgamma
+    
+    def remove_systemic_velocity(self):
+        # Remove systemic velocity:
+        globals = self.get_globals()
+        if globals is not None:
+            #vgamma = globals.request_value('vgamma', 'Rsol/d')
+            vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
+            self.mesh['velo___bol_'][:,2] += vgamma
+    
+    
     def save_syn(self,filename,category='lc',ref=0,sigma=None,mode='w'):
         """
         Save synthetic data.
@@ -5377,13 +5399,11 @@ class Star(PhysicalBody):
         #-- We need to rotate the velocities so that they are in line with the
         #   current configuration
         #velo_rot_ = fgeometry.rotate3d_orbit_conv(velo_rot,(0,inclin,0),[0,0,0],'YXZ')
-        for iref in ['__bol']:#ref:
-            ps,iref = self.get_parset(iref)
-            self.mesh['_o_velo_'+iref+'_'] = velo_rot
-            self.mesh['velo_'+iref+'_'] = velo_rot#_
+        self.mesh['_o_velo___bol_'] = velo_rot
+        self.mesh['velo___bol_'] = velo_rot
         #-- and we need the systemic velocity too...
-        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] #+ self.params['star'].request_value('vgamma','Rsol/d')
-        v = sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
+        #self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] #+ self.params['star'].request_value('vgamma','Rsol/d')
+        #v = sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
         
     
     def projected_intensity(self, los=[0.,0.,+1], ref=0, method=None,
@@ -5690,9 +5710,11 @@ class Star(PhysicalBody):
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=False)
             self.detect_eclipse_horizon(eclipse_detection='simple')
         
-        self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
+        #self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
+        self.add_systemic_velocity()
         if self.time is None or has_freq or has_spot:
             self.intensity(ref=ref)
+        
         #-- remember the time... 
         self.time = time
         self.postprocess(time)
@@ -6837,7 +6859,9 @@ class BinaryStar(Star):
         orbit = self.params['orbit']
         loc, velo, euler = keplerorbit.get_binary_orbit(self.time,orbit, component)
         self.rotate_and_translate(loc=loc,los=(0,0,+1),incremental=True)
+        self.remove_systemic_velocity()
         self.mesh['velo___bol_'] = self.mesh['velo___bol_'] + velo
+        self.add_systemic_velocity()
         #-- once we have the mesh, we need to place it into orbit
         #keplerorbit.place_in_binary_orbit(self,time)
     
