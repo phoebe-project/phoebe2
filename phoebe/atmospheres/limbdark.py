@@ -831,11 +831,14 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                 postfix.append('vgamma')
         postfix = "_".join(postfix)
         
-        # If the LD is uniform or coefficients are given by the user itself,
-        # we're only interested in the center intensities, so we can use the
-        # default grid to get the intensties. That'll be the claret one.
-        if ld_func == 'uniform' or not isinstance(ld_coeffs, str):
-            ld_func = 'claret'
+        #vvvvvv RUBBISH vvvvvvv
+        ## If the LD is uniform or coefficients are given by the user itself,
+        ## we're only interested in the center intensities, so we can use the
+        ## default grid to get the intensties. That'll be the claret one.
+        #print ld_coeffs
+        #if ld_func == 'uniform' or not isinstance(ld_coeffs, str):
+            #ld_func = 'claret'
+        #^^^^^^^ RUBBISH ^^^^^^^
         
         # Do we need to interpolate in abundance?
         # Perhaps the abundances are an array, i.e. they are different for every
@@ -1319,6 +1322,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         law = 'uniform'
         atm_pars = ('teff',)
         filetag = 'blackbody'
+        fitmethod = 'none'
     
     # Let's prepare the list of passbands:
     #  - make sure 'OPEN.BOL' is always in there, this is used for bolometric
@@ -1512,7 +1516,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             
             # Blackbodies must have a uniform LD law
             elif law == 'uniform':
-                Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_, val[0], vrad=vgamma)
+                Imu_blackbody = sed.blackbody(wave_, val[0], vrad=vgamma)
                 Imu = sed.synthetic_flux(wave_*10, Imu_blackbody, passbands)
             
             else:
@@ -1806,7 +1810,8 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
     """
-    # Get the arguments we need
+    # Get the arguments we need concerning normal emergent intensities (atm),
+    # LD coefficients and the LD function.
     atm = parset_pbdep['atm']
     ld_coeffs = parset_pbdep['ld_coeffs']
     ld_func = parset_pbdep['ld_func']
@@ -1926,18 +1931,19 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         log_msg += ', LD via coeffs {}'.format(str(ld_coeffs))
         system.mesh[tag][:,:len(ld_coeffs)] = np.array(ld_coeffs)
         
-    # What kind of atmosphere is used to compute the intensities? Black bodies
-    # we do on the fly here, which means there are no limits on the effective
-    # temperature used. Note that black bodies are not sensitive to logg.
+    # What kind of atmosphere is used to compute the intensities? True black
+    # bodies we do on the fly here, which means there are no limits on the
+    # effective temperature used. Note that black bodies are not sensitive to
+    # logg.
     if atm == 'true_blackbody':
         wave_ = np.logspace(1, 5, 10000)
         log_msg += (', intens via atm=true_blackbody (this is going to take '
                    'forever...)')
         
-        # But seriously, don't try to do this for every triangle! Let's hope
+        # Seriously, don't try to do this for every triangle! Let's hope
         # uniform_pars is true...
         if uniform_pars:
-            Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_,
+            Imu_blackbody = sed.blackbody(wave_,
                                           atm_kwargs['teff'][0],
                                           vrad=vgamma)
             system.mesh[tag][:, -1] = sed.synthetic_flux(wave_*10,
@@ -1945,10 +1951,10 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         
         # What the frack? You must be kidding... OK, here we go, creating
         # black bodies and integrating them over the passband as we go...
-        # Imagine doing this for several light curves... oh boy. 
+        # Imagine doing this for several light curves... Djeez.
         else:
             for i,T in enumerate(atm_kwargs['teff']):
-                Imu_blackbody = np.sqrt(np.pi/2.0) * sed.blackbody(wave_, T,
+                Imu_blackbody = sed.blackbody(wave_, T,
                                        vrad=vgamma[i])
                 system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
                                                  Imu_blackbody, [passband])[0]
@@ -1967,9 +1973,17 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         
         # Phoebe layer
         else:
-            system.mesh[tag][:,-1] = interp_ld_coeffs(atm,passband,
-                                       atm_kwargs=atm_kwargs,
-                                       red_kwargs=red_kwargs, vgamma=vgamma)[-1]
+            coeffs = interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs,
+                                       red_kwargs=red_kwargs, vgamma=vgamma)
+            # We need to rescale the intensity so that the emergent luminosity
+            # is the same:
+            if atm == 'blackbody':
+                disk_integral_grid = disk_uniform(coeffs)
+            else:
+                disk_integral_grid = globals()['disk_'+atm_kwargs['ld_func']](coeffs)
+            disk_integral_user = globals()['disk_'+atm_kwargs['ld_func']](atm_kwargs['ld_coeffs'])
+            factor = disk_integral_grid / disk_integral_user
+            system.mesh[tag][:,-1] = coeffs[-1] * factor
     
     # Else, we did everything already in the "if ld_coeffs_from_grid" part
     logger.info(log_msg)

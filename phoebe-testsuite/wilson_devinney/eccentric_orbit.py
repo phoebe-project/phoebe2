@@ -149,9 +149,10 @@ crit_times = tools.critical_times(system[0].params['orbit'])
 for ct in crit_times:
     plt.axvline(ct,color='b',lw=2)
     plt.axvline(ct+P,color='b',lw=2)
-
+plt.xlim(curve['indeps'][0],curve['indeps'][-1])
 plt.axes([0.1,0.1,0.85,0.20])
 plt.plot(curve['indeps'],curve['lc']/curve['lc'].mean()-flux/flux.mean(),'ko-')
+plt.xlim(curve['indeps'][0],curve['indeps'][-1])
 plt.xlabel('Phase')
 plt.savefig('02_lc_comparison')
 
