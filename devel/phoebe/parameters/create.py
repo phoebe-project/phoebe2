@@ -713,7 +713,7 @@ def dep_from_object(myobject,context,**kwargs):
 @make_body
 def binary_from_stars(star1,star2,sma=None,period=None,\
                       kwargs1=None,kwargs2=None,orbitkwargs=None,\
-                      create_body=False,**kwargs):
+                      create_body=False):
     """
     Create a binary system from two separate stars.
     

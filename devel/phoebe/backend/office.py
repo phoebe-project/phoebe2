@@ -145,16 +145,17 @@ def plot_lcsyn(*args, **kwargs):
     system = args[0]
     
     out = phoebe.plotting.plot_lcsyn(system, ax=ax,**kwargs)
-    
     if xlims is None:
         xlims = out[1]['time'].min(),out[1]['time'].max()
-    xlims_ = plt.xlim()
-    ax.set_xlim(min(xlims_[0], xlims[0]), max(xlims_[1], xlims[1]))
+    #xlims_ = plt.xlim()
+    #ax.set_xlim(min(xlims_[0], xlims[0]), max(xlims_[1], xlims[1]))
+    ax.set_xlim(xlims)
     
     if ylims is None:
         ylims = out[1]['flux'].min(),out[1]['flux'].max()
-    ylims_ = plt.ylim()
-    ax.set_ylim(min(ylims_[0], ylims[0]), max(ylims_[1], ylims[1]))
+    #ylims_ = plt.ylim()
+    #ax.set_ylim(min(ylims_[0], ylims[0]), max(ylims_[1], ylims[1]))
+    ax.set_ylim(ylims)
     
     if do_init:
         plt.xlabel("Time")

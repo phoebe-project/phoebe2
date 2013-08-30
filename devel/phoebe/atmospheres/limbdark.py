@@ -2036,12 +2036,14 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         #-- negating the next array gives the partially visible things, that is
         #   the only reason for defining it.
         visible = system.mesh['visible'][keep]
+        partial = system.mesh['partial'][keep]
         #-- compute intensity using the already calculated limb darkening coefficents
         logger.info('using limbdarkening law %s'%(ld_func))
         Imu = globals()['ld_{}'.format(ld_func)](mus,system.mesh['ld_'+ref][keep].T)*system.mesh['ld_'+ref][keep,4]
         proj_Imu = mus*Imu
+            
         if with_partial_as_half:
-            proj_Imu[-visible] /= 2.0
+            proj_Imu[partial] /= 2.0
         system.mesh['proj_'+ref] = 0.
         system.mesh['proj_'+ref][keep] = proj_Imu
         #-- take care of reflected light

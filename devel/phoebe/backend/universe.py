@@ -5436,6 +5436,7 @@ class Star(PhysicalBody):
         ld_func = idep['ld_func']
         l3 = idep.get('l3', 0.)
         pblum = idep.get('pblum', -1.0)
+        
         proj_int = limbdark.projected_intensity(self, method=method,
                 ld_func=ld_func, ref=ref,
                 with_partial_as_half=with_partial_as_half)

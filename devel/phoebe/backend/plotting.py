@@ -90,21 +90,22 @@ def plot_lcsyn(system, *args, **kwargs):
     # Try to get the observations. They don't need to be loaded, we just need
     # the pblum and l3 values.
     # We can scale the synthetic light curve using the observations
+    pblum = 1.0
+    l3 = 0.0
     if scale == 'obs':
         try:
             obs = system.get_obs(category='lc', ref=ref)
             pblum = obs['pblum']
             l3 = obs['l3']
-        except:
-            raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
+        except ValueError:
+            pass
+        #    raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
     # or using the synthetic computations    
     elif scale=='syn':
         pblum = syn['pblum']
         l3 = syn['l3']
     # else we don't scale
-    else:
-        pblum = 1.
-        l3 = 0.
+
     
     # Now take third light and passband luminosity contributions into account
     time = np.array(syn['time'])
