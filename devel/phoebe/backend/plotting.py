@@ -893,17 +893,21 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     x = syn['wavelength'][index]
     y = syn['flux'][index] / syn['continuum'][index]
 
-    try:
-        obs = system.get_obs(category='sp', ref=ref)
-        pblum = obs['pblum']
-        l3 = obs['l3']
+    pblum = 1.0
+    l3 = 0.0
+    if scale == 'obs':
+        try:
+            obs = system.get_obs(category='sp', ref=ref)
+            pblum = obs['pblum']
+            l3 = obs['l3']
         
-        # Shift the synthetic wavelengths if necessary
-        if 'vgamma' in obs and obs['vgamma']!=0:
-            x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
-    except:
-        raise ValueError(("No observations in this system or component, "
-                         "so no scalings available: set keyword `scale=None`"))
+            # Shift the synthetic wavelengths if necessary
+            if 'vgamma' in obs and obs['vgamma']!=0:
+                x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
+        except ValueError:
+            pass
+            #raise ValueError(("No observations in this system or component, "
+            #             "so no scalings available: set keyword `scale=None`"))
     
     if velocity is not None:
         x = conversions.convert('nm','km/s', x, wave=velocity)

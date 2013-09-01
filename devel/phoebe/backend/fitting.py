@@ -860,8 +860,39 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     extra_kwargs = {}
     if fitparams['method'] == 'leastsq':
         extra_kwargs['epsfcn'] = 1e-3
-    result = lmfit.minimize(model_eval, pars, args=(system,),
+    
+    if True:
+        result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
+    else:
+        minimizer = lmfit.Minimizer(model_eval, pars, fcn_args=(system,),
+                                    scale_covar=True)
+        
+        _methods = {'anneal': 'anneal',
+               'nelder': 'fmin',
+               'lbfgsb': 'lbfgsb',
+               'leastsq': 'leastsq'}
+        
+        _scalar_methods = {'nelder': 'Nelder-Mead',
+                       'powell': 'Powell',
+                       'cg': 'CG ',
+                       'bfgs': 'BFGS',
+                       'newton': 'Newton-CG',
+                       'anneal': 'Anneal',
+                       'lbfgs': 'L-BFGS-B',
+                       'l-bfgs': 'L-BFGS-B',
+                       'tnc': 'TNC',
+                       'cobyla': 'COBYLA',
+                       'slsqp': 'SLSQP'}
+        method = fitparams['method'].lower()
+        if method in _methods:
+            getattr(minimizer, _methods[method])(**fitparams['fitoptions'])
+        elif method in _scalar_methods:
+            getattr(minimizer, _methods[method])(**fitparams['fitoptions'])
+        else:
+            raise ValueError("Unknown method '{}'".format(method))
+        
+    
     lmfit.report_errors(pars)
 
     #-- extract the values to put them in the feedback
