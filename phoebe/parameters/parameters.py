@@ -1488,7 +1488,76 @@ class ParameterSet(object):
     """
     Class holding a list of parameters.
     
-    B{Section 0. Overview}
+    **Quickstart**
+    
+    Initialize a parameterSet by giving a context::
+    
+        >>> star = phoebe.ParameterSet('star')
+    
+    Default parameters are then set::
+    
+        >>> print(star)
+              mass 1.0                                  Msol - phoebe Stellar mass
+              teff 5777.0                                  K - phoebe Effective temperature
+            radius 1.0                                  Rsol - phoebe Radius
+               atm blackbody                              --   phoebe Bolometric Atmosphere model
+         rotperiod 22.0                                    d - phoebe Polar rotation period
+           diffrot 0.0                                     d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+             gravb 1.0                                    -- - phoebe Bolometric gravity brightening
+          gravblaw zeipel                                 --   phoebe Gravity brightening law
+              incl 90.0                                  deg - phoebe Inclination angle
+              long 0.0                                   deg - phoebe Orientation on the sky (East of North)
+             shape equipot                                --   phoebe Shape of surface
+            vgamma 0.0                                  km/s - phoebe Systemic velocity
+               alb 1.0                                    -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+            redist 0.0                                    -- - phoebe Global redist par (1-redist) local heating, redist global heating
+           redisth 0.0                                    -- - phoebe Horizontal redist par (redisth/redist) horizontally spread
+        irradiator False                                  --   phoebe Treat body as irradiator of other objects
+              abun 0.0                                    --   phoebe Metallicity
+             label d7ae1b89-ba92-4691-ac45-41ee5946fa48   --   phoebe Name of the body
+           ld_func uniform                                --   phoebe Bolometric limb darkening model
+         ld_coeffs [1.0]                                  --   phoebe Bolometric limb darkening coefficients
+          surfgrav 274.351532944                         n/a   constr constants.GG*{mass}/{radius}**2
+    
+    You can change parameter values upon initialization, with or without
+    explicitly giving the units. In the following example we change the value
+    of the mass (without explicit units) and the value of the radius (with
+    explicit units). Note that not all parameters have units, not all parameters
+    expect floats (some expect a string, a boolean, an array...)::
+    
+        >>> star = phoebe.ParameterSet('star', mass=1.2, radius=(700000., 'km'))
+        >>> print(star)
+              teff 5777.0                                  K - phoebe Effective temperature
+            radius 1.00645858854                        Rsol - phoebe Radius
+              mass 1.2                                  Msol - phoebe Stellar mass
+               atm blackbody                              --   phoebe Bolometric Atmosphere model
+         rotperiod 22.0                                    d - phoebe Polar rotation period
+           diffrot 0.0                                     d - phoebe (Eq - Polar) rotation period (<0 is solar-like)
+             gravb 1.0                                    -- - phoebe Bolometric gravity brightening
+          gravblaw zeipel                                 --   phoebe Gravity brightening law
+              incl 90.0                                  deg - phoebe Inclination angle
+              long 0.0                                   deg - phoebe Orientation on the sky (East of North)
+             shape equipot                                --   phoebe Shape of surface
+            vgamma 0.0                                  km/s - phoebe Systemic velocity
+               alb 1.0                                    -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+            redist 0.0                                    -- - phoebe Global redist par (1-redist) local heating, redist global heating
+           redisth 0.0                                    -- - phoebe Horizontal redist par (redisth/redist) horizontally spread
+        irradiator False                                  --   phoebe Treat body as irradiator of other objects
+              abun 0.0                                    --   phoebe Metallicity
+             label 251eb796-87d2-4a06-b085-d9e2a86ecbe3   --   phoebe Name of the body
+           ld_func uniform                                --   phoebe Bolometric limb darkening model
+         ld_coeffs [1.0]                                  --   phoebe Bolometric limb darkening coefficients
+          surfgrav 325.010069644                         n/a   constr constants.GG*{mass}/{radius}**2
+    
+    After a parameterSet has been created, you can still change the values using
+    a dictionary-style interface::
+    
+        >>> star['mass'] = 1.3
+        >>> star['radius'] = 950000., 'km'
+    
+    
+    
+    B{Section 1. Overview}
     
     **Retrieve Parameter information**
     
@@ -1544,7 +1613,7 @@ class ParameterSet(object):
 
     
     
-    B{Section 1. Description}
+    B{Section 2. Description}
     
     The parameters can be accessed and changed dictionary-wise via their
     qualifier or one of the aliases. When accessed, they will automatically be
