@@ -6224,7 +6224,7 @@ class BinaryRocheStar(PhysicalBody):
         globals_parset = self.get_globals()
         if globals_parset is not None:
             #distance = globals_parset.request_value('distance', 'Rsol')
-            distance = globals_parset['distance'] / 3.085677581503e+16 * constants.Rsol
+            distance = globals_parset['distance'] * 3.085677581503e+16 / constants.Rsol
         else:
             distance = 1.0
         
