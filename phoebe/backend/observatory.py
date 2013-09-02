@@ -2433,6 +2433,8 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     
     elif algorithm == 'graham':
         logger.info("Graham E/H detection")
+        
+       
         try:
             found_partial = eclipse.convex_graham(all_systems.get_bodies())
         # For single bodies, it's quite trivial:
