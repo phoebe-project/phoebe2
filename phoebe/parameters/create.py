@@ -711,35 +711,38 @@ def dep_from_object(myobject,context,**kwargs):
     return obsdep
 
 @make_body
-def binary_from_stars(star1,star2,sma=None,period=None,\
-                      kwargs1=None,kwargs2=None,orbitkwargs=None,\
-                      create_body=False):
+def binary_from_stars(star1, star2, sma=None, period=None,\
+                      kwargs1=None, kwargs2=None, orbitkwargs=None,\
+                      create_body=False, **kwargs):
     """
     Create a binary system from two separate stars.
     
     Extra information given is the separation (C{sma}) between the two objects
     or the orbital period. You should give one of them (and only one) as a
-    tuple (value,unit).
+    tuple (value,unit). The other one will be derived using
+    :py:func:`Kepler's third law <phoebe.dynamics.keplerorbit.third_law>`.
     
-    Extra ``kwargs1`` override defaults in the creation of the primary, extra
-    ``kwargs2`` for the secondary, and ``orbitkwargs`` does the same for the
-    creation of the orbit.
+    Extra ``kwargs1`` override defaults in the creation of the primary
+    :ref:`component <parlabel-phoebe-component>`, extra
+    ``kwargs2`` for the secondary :ref:`component <parlabel-phoebe-component>`,
+    and ``orbitkwargs`` does the same for the creation of the
+    :ref:`orbit <parlabel-phoebe-orbit>`.
     
     Extra kwargs are used to create observables if C{create_body=True}. Else,
     they are ignored.
     
-    @param star1: ParameterSet representing star 1
+    @param star1: ParameterSet of context 'star' representing star 1
     @type star1: ParameterSet
-    @param star2: ParameterSet representing star 2
+    @param star2: ParameterSet of context 'star' representing star 2
     @type star2: ParameterSet
     @param sma: sma between the two components, and its unit
     @type sma: (float,string)
     @param period: period of the system
-    @type period: float
+    @type period: (float, string)
     @param create_body: create a BodyBag containing both objects
     @type create_body: bool
     @return: parameterSets component 1, component 2 and orbit, or BodyBag instance
-    @rtype: ParameterSet,ParameterSet,ParameterSet or BodyBag
+    @rtype: (ParameterSet, ParameterSet, ParameterSet) or BodyBag
     """
     if kwargs1 is None:
         kwargs1 = {}

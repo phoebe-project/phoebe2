@@ -3286,6 +3286,20 @@ def return_list_of_strings(x):
     else:
         return x
 
+def return_none_or_float(x):
+    """
+    Return the None value or a float.
+    """
+    if isinstance(x,str):
+        if x == 'None':
+            return None
+        else:
+            return float(x)
+    elif x is None:
+        return x
+    else:
+        return float(x)
+
 def make_bool(value):
     """
     Make something into a boolean, but also return string 'True' as True and
