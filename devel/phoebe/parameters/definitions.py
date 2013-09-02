@@ -439,10 +439,10 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='iters',     description='Number of iterations',long_description='If iters=n, then n number of iterations will be done. With `init_from_prior=True`, you can randomize the starting point for the fit.',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='init_from_prior', description='Randomly draw the initial position from the priors', repr='%s',cast_type='make_bool', value=False, frame=['phoebe'], context=['fitting:lmfit']),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='fitting:lmfit'),
+         dict(qualifier='iters',     description='Number of iterations',long_description='If iters=n, then n number of iterations will be done. With `init_from_prior=True`, you can randomize the starting point for the fit.',repr='%d',cast_type=int,value=1,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='init_from_prior', description='Randomly draw the initial position from the priors', repr='%s',cast_type='make_bool', value=False, frame=['phoebe'], context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='bounded',   description='Include boundaries in fit',
                                      long_description=('This float allows you to constrain the fit '
                                                        'parameters to a certain interval. The interval '
@@ -474,9 +474,24 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
                                                        'instabilities, as the range of acceptable parameter values '
                                                        'is not fully explored. On the other hand, prelminary tests '
                                                        'suggest that using max and min to set clearly outlandish '
-                                                       'bounds does not greatly affect performance or results.'),repr='',cast_type=float,value=True,frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:lmfit'),
+                                                       'bounds does not greatly affect performance or results.'),repr='',cast_type=float,value=True,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+        dict(qualifier='xtol',     description='Relative error in parameter values acceptable for convergence',repr='%f',cast_type=float,value=0.0001,frame=["phoebe"],context=['fitting:lmfit:nelder']),
+        dict(qualifier='ftol',     description='Relative error in model acceptable for convergence',repr='%f',cast_type=float,value=0.0001,frame=["phoebe"],context=['fitting:lmfit:nelder']),
+        dict(qualifier='maxfun',     description='Maximum number of function evaluations to make',repr='%s',cast_type='return_none_or_float',value=None,frame=["phoebe"],context=['fitting:lmfit:nelder']),
+        dict(qualifier='xtol',     description='Relative error desired in the approximate solution',repr='%f',cast_type=float,value=1.49012e-8,frame=["phoebe"],context=['fitting:lmfit:leastsq']),
+        dict(qualifier='ftol',     description='Relative error desired in the sum of squares',repr='%f',cast_type=float,value=1.49012e-8,frame=["phoebe"],context=['fitting:lmfit:leastsq']),
+        dict(qualifier='gtol',     description='Orthogonality desired between the function vector and the columns of the Jacobian',repr='%f',cast_type=float,value=0.0,frame=["phoebe"],context=['fitting:lmfit:leastsq']),
+        dict(qualifier='epsfcn',     description='Step length for the numerical estimation of the Jacobian',
+                                long_description=("A suitable step length for the forward-difference approximation"
+                                                  " of the Jacobian. If epsfcn is less than the machine precision, "
+                                                  "it is assumed that the relative errors in the function are of the"
+                                                  " order of the machine precision."), repr='%f',cast_type=float,value=0.001,frame=["phoebe"],context=['fitting:lmfit:leastsq']),
+        dict(qualifier='maxfev',     description='Maximum number of function evaluations to make',
+                                long_description=("The maximum number of calls to the function, If None or zero, then"
+                                                  " 100*(N+1) is the maximum where N is the number of free parameters"), repr='%s',cast_type='return_none_or_float',value=None,frame=["phoebe"],context=['fitting:lmfit:leastsq']),
         ]
+        
 
 defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:minuit'),

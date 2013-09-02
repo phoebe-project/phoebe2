@@ -5078,16 +5078,14 @@ class Star(PhysicalBody):
     Construct a simple star with the default parameters representing the Sun
     (sort of, don't start nitpicking):
     
-    >>> star_pars = parameters.ParameterSet(frame='phoebe', context='star',
-    ...     add_constraints=True, label='mystar')
-    >>> lcdep1 = parameters.ParameterSet(frame='phoebe', context='lcdep',
-    ...     ref='mylc')
-    >>> mesh = parameters.ParameterSet(frame='phoebe', context='mesh:marching')
+    >>> star_pars = parameters.ParameterSet('star', label='mystar')
+    >>> lcdep1 = parameters.ParameterSet('lcdep', ref='mylc')
+    >>> mesh = parameters.ParameterSet('mesh:marching')
     >>> star = Star(star_pars, mesh, pbdep=[lcdep1])
     
     We initialized the star with these parameters::
     
-        # print star_pars
+        >>> print(star_pars)
               teff 5777.0           K phoebe Effective temperature
             radius 1.0           Rsol phoebe Radius
               mass 1.0           Msol phoebe Stellar mass
@@ -5095,19 +5093,21 @@ class Star(PhysicalBody):
          rotperiod 22.0             d phoebe Equatorial rotation period
              gravb 1.0             -- phoebe Bolometric gravity brightening
               incl 90.0           deg phoebe Inclination angle
-          distance 10.0            pc phoebe Distance to the star
            surface roche           -- phoebe Type of surface
         irradiator False           -- phoebe Treat body as irradiator of other objects
              label mystar          -- phoebe Name of the body
-          ld_func uniform         -- phoebe Bolometric limb darkening model
-                cl [1.0]           -- phoebe Bolometric limb darkening coefficients
+           ld_func uniform         -- phoebe Bolometric limb darkening model
+         ld_coeffs [1.0]           -- phoebe Bolometric limb darkening coefficients
           surfgrav 274.351532944  n/a constr constants.GG*{mass}/{radius}**2    
     
     
     Upon initialisation, only the basic parameters are set, nothing is computed.
-    We need to compute the mesh. We can do this manually through the function
-    L{Star.compute_mesh}, but it is easiest just to set the time, and let the
-    Body take care of itself:
+    This is fine for passing Stars on to automatic computing functions like
+    :py:func:`observatory.compute <phoebe.backend.observatory.compute>`. If you
+    want to do some manual work with the Star class, you probably first need
+    to compute the mesh. This can be done at the most basic level with the
+    function :py:func:`Star.compute_mesh`, but it is easiest just to set the
+    time via :py:func:`Star.set_time`, and let the Body take care of itself:
     
     >>> star.set_time(0)
     
@@ -5131,7 +5131,7 @@ class Star(PhysicalBody):
     >>> star = Star(star_pars,mesh,pbdep=[lcdep1])
     >>> star.set_time(0)
     
-    Again with the plots:
+    Again with the plots of any quantity that has been set:
     
     >>> p = mlab.figure(bgcolor=(0.5,0.5,0.5))
     >>> p = star.plot3D(select='teff',colormap='spectral')

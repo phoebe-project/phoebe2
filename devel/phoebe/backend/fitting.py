@@ -117,7 +117,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     """
     Run a fitting routine.
     
-    The type of code to use is defined by the context of C{fitparams}:
+    The type of algorithm to use is defined by the context of C{fitparams}:
     
         1. :ref:`fitting:pymc <parlabel-phoebe-fitting:pymc>`: Metropolis-Hastings MCMC via pymc
         2. :ref:`fitting:emcee <parlabel-phoebe-fitting:emcee>`: Affine Invariant MCMC via emcee
@@ -125,11 +125,60 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         4. :ref:`fitting:minuit <parlabel-phoebe-fitting:minuit>`: nonlinear optimizers via MINUIT
         5. :ref:`fitting:grid <parlabel-phoebe-fitting:grid>`: grid computations
     
-    The parameters determining how the system is computed are defined by the
-    ParameterSet :ref:`params <parlabel-phoebe-compute>`.
+    Some fitting contexts have specific subcontexts that allow better control
+    of the algorithms used:
+    
+        1. :ref:`fitting:lmfit:nelder <parlabel-phoebe-fitting:lmfit:nelder>`: Nelder-Mead simplex method
+        2. :ref:`fitting:lmfit:leastsq <parlabel-phoebe-fitting:lmfit:leastsq>`: Levenberg-Marquardt method
+    
+    The parameters determining how the system is computed (in the sense of
+    numerics and customized algorithms for the specific problem) are defined by
+    the ParameterSet :ref:`params <parlabel-phoebe-compute>`.
     
     The computations can be threaded if an :ref:`mpi <parlabel-phoebe-mpi>`
-    ParameterSet is supplied.
+    ParameterSet is given.
+    
+    Naturally, only systems with observations attached to them can be fitted.
+    
+    Only those parameters that have priors and are set to be adjusted are
+    included in the fit.
+    
+    The logging facilities will be temporarily altered but restored to their
+    original state after the fit. Specifically, only messages of level ``WARNING``
+    will be shown to the screen, the lower levels will be redirected to log
+    files, saved in the current directory. There will be one log file per
+    MPI thread.
+    
+    **Example usage**
+    
+    Suppose you have a spectrum in file ``myspectrum.dat``,
+    and you want to fit a Body of type to it, only varying the temperature. Then
+    you would first create the ParameterSets::
+    
+        >>> starpars = phoebe.ParameterSet('star')
+        >>> mesh = phoebe.ParameterSet('mesh:marching')
+        >>> spobs, spbdep = phoebe.parse_spectrum_as_lprofile('myspectrum.dat')
+    
+    Then create the Body and attach the observations::
+    
+        >>> star = phoebe.Star(starpars, mesh=mesh, pbdep=[spdep], obs=[spobs])
+    
+    Next, you define which parameters you want to fit. For each parameter, set
+    the prior and mark it to be adjust in the fit::
+    
+        >>> teff = starpars.get_parameter('teff')
+        >>> teff.set_prior('uniform', lower=5000., upper=7000.)
+        >>> teff.set_adjust(True)
+    
+    You also need to define the fit algorithm you want to use::
+    
+        >>> fitparams = phoebe.ParameterSet('fitting:lmfit:nelder')
+    
+    and you can finally start fitting::
+    
+        >>> fitting.run(star, fitparams=fitparams, mpi=True, accept=True)
+    
+    
     
     @param system: the system to fit
     @type system: Body
@@ -167,16 +216,16 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         params = parameters.ParameterSet(context='compute')
         logger.info("No compute parameters given: adding default set")
     
-    
-    if fitparams.context=='fitting:pymc':
+    context_hierarchy = fitparams.get_context().split(':')
+    if context_hierarchy[1]=='pymc':
         solver = run_pymc
-    elif fitparams.context=='fitting:emcee':
+    elif context_hierarchy[1]=='emcee':
         solver = run_emcee
-    elif fitparams.context=='fitting:lmfit':
+    elif context_hierarchy[1]=='lmfit':
         solver = run_lmfit
-    elif fitparams.context=='fitting:minuit':
+    elif context_hierarchy[1]=='minuit':
         solver = run_minuit
-    elif fitparams.context=='fitting:grid':
+    elif context_hierarchy[1]=='grid':
         solver = run_grid
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
@@ -522,7 +571,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     * Have a look at the C{acortime}, it is good practice to let the sampler
       run at least 10 times the C{acortime}. If ``acortime = np.nan``, you
       probably need to take more iterations!
-    * Use as many walkers as possible (hundreds for such a handful of
+    * Use as many walkers as possible (hundreds for a handful of
       parameters)
     * Beware of a burn in period. The most conservative you can get is making
       a histogram of only the final states of all walkers.
@@ -851,21 +900,36 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         Nmodel['Np'] = len(pars)
         return retvalue
     
+    # The user can give fine tuning parameters if the fitting parameterSet is a
+    # subcontext of fitting:lmfit
+    context_hierarchy = fitparams.get_context().split(':')
+        
     #-- do the fit and report on the errors to the screen
-    #   we suffer quite drastically from numerical effects, i.e. that for
-    #   example the total integrated flux changes relatively drastically for
-    #   very small inclination changes. This messes up the leastsq algorithm,
-    #   so we need to tell it that it has to take wide steps for the computation
-    #   of its derivatives.
-    extra_kwargs = {}
-    if fitparams['method'] == 'leastsq':
-        extra_kwargs['epsfcn'] = 1e-3
     
-    if True:
+    if len(context_hierarchy) == 2:
+        
+        #   we suffer quite drastically from numerical effects, i.e. that for
+        #   example the total integrated flux changes relatively drastically for
+        #   very small inclination changes. This messes up the leastsq algorithm,
+        #   so we need to tell it that it has to take wide steps for the computation
+        #   of its derivatives.
+    
+        extra_kwargs = {}
+        if fitparams['method'] == 'leastsq':
+            extra_kwargs['epsfcn'] = 1e-3
+    
+
         result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
+    
+    # In this case we have fine tuning parameters
     else:
-        minimizer = lmfit.Minimizer(model_eval, pars, fcn_args=(system,),
+        # Few things to do:
+        # 1. Construct a general "Minimizer" object
+        # 2. Extract extra fit fine tuning parameters from ParameterSet
+        # 3. Run the algorithm
+        method = context_hierarchy[-1].lower()
+        result = lmfit.Minimizer(model_eval, pars, fcn_args=(system,),
                                     scale_covar=True)
         
         _methods = {'anneal': 'anneal',
@@ -884,15 +948,27 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
                        'tnc': 'TNC',
                        'cobyla': 'COBYLA',
                        'slsqp': 'SLSQP'}
-        method = fitparams['method'].lower()
+        
+        # Specify fine-tuning parameters
+        _allowed_kwargs = {'nelder': ['ftol', 'xtol', 'maxfun'],
+                           'leastsq': ['ftol', 'xtol', 'gtol', 'maxfev','epsfcn']}
+        
+        fitoptions = dict()
+        for key in _allowed_kwargs[method]:
+            # only override when value is not None
+            if fitparams[key] is not None:
+                fitoptions[key] = fitparams[key]
         if method in _methods:
-            getattr(minimizer, _methods[method])(**fitparams['fitoptions'])
+            getattr(result, _methods[method])(**fitoptions)
         elif method in _scalar_methods:
-            getattr(minimizer, _methods[method])(**fitparams['fitoptions'])
+            getattr(result, _scalar_methods[method])(**fitoptions)
         else:
             raise ValueError("Unknown method '{}'".format(method))
         
-    
+    fmin_kws = dict(full_output=True, disp=False, retall=True,
+                        ftol=1.e-4, xtol=1.e-4,
+                        maxfun = 5000 * (self.nvarys + 1))
+
     lmfit.report_errors(pars)
 
     #-- extract the values to put them in the feedback
