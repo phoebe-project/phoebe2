@@ -434,6 +434,37 @@ class LCDataSet(DataSet):
         ax.set_ylabel("Flux")
         if loaded:
             self.unload()
+    
+    def bin_oversampling(self):
+        """
+        Bin synthetics according to the desired oversampling rate.
+        """
+        new_flux = []
+        new_time = []
+        new_samprate = []
+        
+        old_flux = np.array(self['flux'])
+        old_time = np.array(self['time'])
+        old_samprate = np.array(self['samprate'])
+        sa = np.argsort(old_time)
+        old_flux = old_flux[sa]
+        old_time = old_time[sa]
+        old_samprate = old_samprate[sa]
+        
+        seek = 0
+        
+        while seek<len(old_flux):
+            samprate = old_samprate[seek]
+            new_flux.append(np.mean(old_flux[seek:seek+samprate]))
+            new_time.append(np.mean(old_time[seek:seek+samprate]))
+            new_samprate.append(1)
+            seek += samprate
+        
+        self['flux'] = new_flux
+        self['time'] = new_time
+        self['samprate'] = new_samprate
+        logger.info("Binned data according to oversampling rate")
+    
         
 class RVDataSet(DataSet):
     """
@@ -496,11 +527,17 @@ class SPDataSet(DataSet):
                 else:
                     self[col] = value
             #logger.info("Loaded contents of {} to spectrum".format(filename))
-        elif self.has_qualifier('filename') and len(self[self['columns'][0]])==0:
-            raise IOError("File {} does not exist or no calculations were performed".format(self.get_value('filename')))
+        elif self.has_qualifier('filename') and self['filename']:
+            
+            if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
+                logger.warning("File {} does not exist, but observations are already loaded. Force reload won't work!".format(self.get_value('filename')))
+                return False
+            else:
+                raise IOError("File {} does not exist".format(self.get_value('filename')))
+        elif self.has_qualifier('filename'):
+            return False
         else:
             logger.info("No file to reload")
-            return False
         return True
                 
                 
