@@ -3,6 +3,7 @@
 import numpy as np
 from glob import glob
 from copy import deepcopy
+from collections import OrderedDict
 import os
 import sys, json, imp, inspect, functools
 
@@ -1425,11 +1426,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     
     def update_fittingOptions(self, *args):
         #~ print "*** update_fittingOptions"
-        default = {}
+        default = OrderedDict()
         
         default['grid'] = parameters.ParameterSet(context='fitting:grid')
         default['minuit'] = parameters.ParameterSet(context='fitting:minuit')
         default['lmfit'] = parameters.ParameterSet(context='fitting:lmfit')
+        default['lmfit:leastsq'] = parameters.ParameterSet(context='fitting:lmfit:leastsq')
+        default['lmfit:nelder'] = parameters.ParameterSet(context='fitting:lmfit:nelder')
         default['emcee'] = parameters.ParameterSet(context='fitting:emcee')
         default['pymc'] = parameters.ParameterSet(context='fitting:pymc')
         
