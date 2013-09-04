@@ -1447,7 +1447,7 @@ class Body(object):
             model = subsystem.get_synthetic(category=obs.context[:-3],
                                        ref=obs['ref'],
                                        cumulative=True)
-            
+
             # Make sure to have loaded the observations from a file
             loaded = obs.load(force=False)
             
@@ -1606,7 +1606,6 @@ class Body(object):
                 subsystem = self
             
             # Make sure to have loaded the observations from a file
-            print syn
             loaded = syn.load(force=False)
             
             if hasattr(syn, 'bin_oversampling'):

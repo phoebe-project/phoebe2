@@ -2268,7 +2268,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             ani.save(animate.save[0], **animate.save[1])
         else:
             pl.show()
-            
+    
     if inside_mpi is None:
         system.bin_oversampling()
         # We can't compute pblum or l3 inside MPI, because it's this function that

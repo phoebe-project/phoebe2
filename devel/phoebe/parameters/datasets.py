@@ -452,14 +452,12 @@ class LCDataSet(DataSet):
         old_samprate = old_samprate[sa]
         
         seek = 0
-        
         while seek<len(old_flux):
             samprate = old_samprate[seek]
             new_flux.append(np.mean(old_flux[seek:seek+samprate]))
             new_time.append(np.mean(old_time[seek:seek+samprate]))
             new_samprate.append(1)
             seek += samprate
-        
         self['flux'] = new_flux
         self['time'] = new_time
         self['samprate'] = new_samprate

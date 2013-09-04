@@ -184,6 +184,7 @@ def mpirun(fctn):
         """
         Actual function to do the work for MPI.
         """        
+            
         # Perhaps there isn't even an mpi parameter
         mpirun_par = kwargs.pop('mpi', None)
 
@@ -193,7 +194,9 @@ def mpirun(fctn):
                 system.fix_mesh()
             else:
                 system.init_mesh()
-            return fctn(system, *args, **kwargs)
+            kwargs['inside_mpi'] = True
+            output = fctn(system, *args, **kwargs)
+            return output
         
         # Else, get the compute-parameters
         else:
