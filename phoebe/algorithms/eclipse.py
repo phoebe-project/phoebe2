@@ -54,7 +54,7 @@ def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     #-- identify components before merging
     Ns = [len(mesh) for mesh in mesh_list]
     Ns = [0] + list(np.cumsum(Ns))
-        
+    
     #-- merge mesh
     mesh = np.hstack(mesh_list)
     #-- sort from front to back, and remember the inverse sorting to return the

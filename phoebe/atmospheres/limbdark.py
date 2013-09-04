@@ -2041,7 +2041,6 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         logger.info('using limbdarkening law %s'%(ld_func))
         Imu = globals()['ld_{}'.format(ld_func)](mus,system.mesh['ld_'+ref][keep].T)*system.mesh['ld_'+ref][keep,4]
         proj_Imu = mus*Imu
-            
         if with_partial_as_half:
             proj_Imu[partial] /= 2.0
         system.mesh['proj_'+ref] = 0.
@@ -2051,6 +2050,15 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
             proj_Imu += system.mesh['refl_'+ref][keep]            
             logger.info("Projected intensity contains reflected light")
         proj_intens = system.mesh['size'][keep]*proj_Imu
+        #print system.get_label(),'partial:', sum(partial),sum(visible),len(partial)
+        #print proj_Imu
+        #print proj_intens.sum()
+        #print np.isnan(proj_Imu).sum()
+        #from mayavi import mlab
+        #system.plot3D()
+        #mlab.title(system.get_label())
+        #mlab.show()
+        
         #-- we compute projected and total intensity. We have to correct for solid
         #-- angle, radius of the star and distance to the star.
         #distance = body.request_value('distance','Rsol')

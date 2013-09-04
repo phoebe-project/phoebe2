@@ -1266,6 +1266,18 @@ class Body(object):
                 for key in param.values():
                     yield key
     
+    def walk_dataset(self, type='syn'):
+        for val,path in utils.traverse_memory(self,
+                                     list_types=(Body, list,tuple),
+                                     dict_types=(dict, )):
+            if not isinstance(val, datasets.DataSet):
+                continue
+            # Only remember bodies
+            path = [entry for entry in path if isinstance(entry, Body)]
+                        
+            # All is left is to return it
+            yield path, val
+    
     def walk_all(self,path_as_string=True):
         """
         Walk through all Bodies/ParameterSets/Parameters in nested Body(Bag).
@@ -1419,104 +1431,114 @@ class Body(object):
         # Possibly some data need to be grouped
         groups = dict()
         
-        for idata in self.params['obs'].values():
-            for obs in idata.values():
+        for path, obs in self.walk_dataset():
+            if not obs.get_context()[-3:] == 'obs':
+                continue
+            
+            if len(path):
+                subsystem = path[-1]
+            else:
+                subsystem = self
+            # Ignore disabled datasets
+            if not obs.get_enabled():
+                continue
+            
+            # Get the model corresponding to this observation
+            model = subsystem.get_synthetic(category=obs.context[:-3],
+                                       ref=obs['ref'],
+                                       cumulative=True)
+            
+            # Make sure to have loaded the observations from a file
+            loaded = obs.load(force=False)
+            
+            # Get the "model" and "observations" and their error.
+            if obs.context in ['spobs','plobs'] and 'flux' in obs:
+                model = np.array(model['flux'])/np.array(model['continuum'])
+                obser = np.array(obs['flux']) / np.array(obs['continuum'])
+                sigma = np.array(obs['sigma'])
+            
+            elif obs.context == 'lcobs' and 'flux' in obs:
+                model = np.array(model['flux'])
+                obser = np.array(obs['flux'])
+                sigma = np.array(obs['sigma'])
+            
+            elif obs.context == 'rvobs' and 'rv' in obs and 'sigma' in obs:
+                model = np.array(model['rv'])
+                obser = np.array(obs['rv']/constants.Rsol*(24*3.6e6))
+                sigma = np.array(obs['sigma']/constants.Rsol*(24*3.6e6))
+            
+            else:
+                logger.error('PBLUM/L3: skipping {}'.format(obs.context))
+                continue
+            
+            # It is possible that the pblum and l3 are linked to other
+            # datasets, e.g. to determine a scaling factor of all
+            # multicolour photometry (but not together with a possible
+            # light curve).
+            if 'group' in obs:
+                this_group = obs['group']
                 
-                # Ignore disabled datasets
-                if not obs.get_enabled():
-                    continue
+                # Keep track of model, observations, sigma and obs dataset
+                # itself (to fill in pblum and l3 in all of them)
+                if not this_group in groups:
+                    groups[this_group] = [[],[],[],[]]
+                groups[this_group][0].append(model)
+                groups[this_group][1].append(obser)
+                groups[this_group][2].append(sigma)
+                groups[this_group][3].append(obs)
+                continue
                 
-                # Get the model corresponding to this observation
-                model = self.get_synthetic(category=obs.context[:-3],
-                                           ref=obs['ref'],
-                                           cumulative=True)
+            
+            # Determine pblum and l3 for these data if necessary. The pblum
+            # and l3 for the model, independently of the observations,
+            # should have been computed before when computing the model.
+            # Only fit the pblum and l3 here if these parameters are
+            # available in the dataset, and they are set to be adjustable
+            do_pblum = False
+            do_l3 = False
+            
+            if 'pblum' in obs and obs.get_adjust('pblum'):
+                do_pblum = True
+            
+            if 'l3' in obs and obs.get_adjust('l3'):
+                do_l3 = True
+            
+            
+            # Do the computations
+            if do_pblum or do_l3:
                 
-                # Make sure to have loaded the observations from a file
-                loaded = obs.load(force=False)
+                # We allow for negative coefficients in spectra
+                if obs.context in ['plobs','spobs', 'rvobs']:
+                    alg = 'lstsq'
                 
-                # Get the "model" and "observations" and their error.
-                if obs.context in ['spobs','plobs'] and 'flux' in obs:
-                    model = np.array(model['flux'])/np.array(model['continuum'])
-                    obser = np.array(obs['flux']) / np.array(obs['continuum'])
-                    sigma = np.array(obs['sigma'])
-                
-                elif obs.context == 'lcobs' and 'flux' in obs:
-                    model = np.array(model['flux'])
-                    obser = np.array(obs['flux'])
-                    sigma = np.array(obs['sigma'])
-                
+                # But not in other stuff
                 else:
-                    logger.error('PBLUM/L3: skipping {}'.format(obs.context))
-                    continue
-                
-                # It is possible that the pblum and l3 are linked to other
-                # datasets, e.g. to determine a scaling factor of all
-                # multicolour photometry (but not together with a possible
-                # light curve).
-                if 'group' in obs:
-                    this_group = obs['group']
-                    
-                    # Keep track of model, observations, sigma and obs dataset
-                    # itself (to fill in pblum and l3 in all of them)
-                    if not this_group in groups:
-                        groups[this_group] = [[],[],[],[]]
-                    groups[this_group][0].append(model)
-                    groups[this_group][1].append(obser)
-                    groups[this_group][2].append(sigma)
-                    groups[this_group][3].append(obs)
-                    continue
-                    
-                
-                # Determine pblum and l3 for these data if necessary. The pblum
-                # and l3 for the model, independently of the observations,
-                # should have been computed before when computing the model.
-                # Only fit the pblum and l3 here if these parameters are
-                # available in the dataset, and they are set to be adjustable
-                do_pblum = False
-                do_l3 = False
-                
-                if 'pblum' in obs and obs.get_adjust('pblum'):
-                    do_pblum = True
-                
-                if 'l3' in obs and obs.get_adjust('l3'):
-                    do_l3 = True
-                
-                
-                # Do the computations
-                if do_pblum or do_l3:
-                    
-                    # We allow for negative coefficients in spectra
-                    if obs.context in ['plobs','spobs']:
-                        alg = 'lstsq'
-                    
-                    # But not in other stuff
-                    else:
-                        alg = 'nnls'
-                    pblum,l3 = compute_pblum_or_l3(model, obser, sigma, 
-                                   pblum=do_pblum, l3=do_l3, type=alg)
-                
-                #   perhaps we don't need to fit, but we still need to
-                #   take it into account
-                if not do_pblum and 'pblum' in obs:
-                    pblum = obs['pblum']
-                elif not do_pblum:
-                    pblum = 1.0
-                if not do_l3 and 'l3' in obs:
-                    l3 = obs['l3']
-                elif not do_l3:
-                    l3 = 0.0
-                #-- set the values and add them to the posteriors
-                if do_pblum:
-                    obs['pblum'] = pblum
-                if do_l3:
-                    obs['l3'] = l3
-                if loaded:
-                    obs.unload()
-                
-                msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
-                logger.info(msg.format(obs['ref'], pblum,\
-                            do_pblum and 'computed' or 'fixed', l3, do_l3 \
-                            and 'computed' or 'fixed'))
+                    alg = 'nnls'
+                pblum,l3 = compute_pblum_or_l3(model, obser, sigma, 
+                               pblum=do_pblum, l3=do_l3, type=alg)
+            
+            #   perhaps we don't need to fit, but we still need to
+            #   take it into account
+            if not do_pblum and 'pblum' in obs:
+                pblum = obs['pblum']
+            elif not do_pblum:
+                pblum = 1.0
+            if not do_l3 and 'l3' in obs:
+                l3 = obs['l3']
+            elif not do_l3:
+                l3 = 0.0
+            #-- set the values and add them to the posteriors
+            if do_pblum:
+                obs['pblum'] = pblum
+            if do_l3:
+                obs['l3'] = l3
+            if loaded:
+                obs.unload()
+            
+            msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
+            logger.info(msg.format(obs['ref'], pblum,\
+                        do_pblum and 'computed' or 'fixed', l3, do_l3 \
+                        and 'computed' or 'fixed'))
         
         # Now we can compute the pblum and l3's for all groups
         if groups:
@@ -1571,7 +1593,7 @@ class Body(object):
                 logger.info(msg.format(group, len(groups[group][3]),pblum,\
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
-                
+                        
     
     def get_logp(self, include_priors=False):
         r"""
@@ -1716,93 +1738,97 @@ class Body(object):
         n_data = 0.
         
         # Iterate over all datasets we have
-        for idata in self.params['obs'].values():
-            for obs in idata.values():
+        for path, obs in self.walk_dataset():
+            if not obs.get_context()[-3:] == 'obs':
+                continue
+            
+            if len(path):
+                subsystem = path[-1]
+            else:
+                subsystem = self
+            
+            # Ignore disabled datasets
+            if not obs.get_enabled():
+                continue
+            
+            # Get the model corresponding to this observation
+            modelset = subsystem.get_synthetic(category=obs.context[:-3],
+                                          ref=obs['ref'],
+                                          cumulative=True)
+            
+            # Make sure to have loaded the observations from a file
+            loaded = obs.load(force=False)
+            
+            # Get the "model" and "observations" and their error.
+            if obs.context in ['spobs','plobs']:
+                model = np.array(modelset['flux']) / np.array(modelset['continuum'])
+                obser = np.array(obs['flux']) / np.array(obs['continuum'])
+                sigma = np.array(obs['sigma'])
+            
+            elif obs.context == 'lcobs':
+                model = np.array(modelset['flux'])
+                obser = np.array(obs['flux'])
+                sigma = np.array(obs['sigma'])
+            
+            elif obs.context == 'ifobs':
+                model = np.array(modelset['vis2'])
+                obser = np.array(obs['vis2'])
+                sigma = np.array(obs['sigma_vis2'])
+            
+            elif obs.context == 'rvobs':
+                model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
+                obser = np.array(obs['rv'])
+                sigma = np.array(obs['sigma'])
                 
-                # Ignore disabled datasets
-                if not obs.get_enabled():
-                    continue
+            else:
+                raise NotImplementedError(("probability for "
+                             "{}").format(obs.context))
                 
-                # Get the model corresponding to this observation
-                modelset = self.get_synthetic(category=obs.context[:-3],
-                                              ref=obs['ref'],
-                                              cumulative=True)
-                
-                # Make sure to have loaded the observations from a file
-                loaded = obs.load(force=False)
-                
-                # Get the "model" and "observations" and their error.
-                if obs.context in ['spobs','plobs']:
-                    model = np.array(modelset['flux']) / np.array(modelset['continuum'])
-                    obser = np.array(obs['flux']) / np.array(obs['continuum'])
-                    sigma = np.array(obs['sigma'])
-                
-                elif obs.context == 'lcobs':
-                    model = np.array(modelset['flux'])
-                    obser = np.array(obs['flux'])
-                    sigma = np.array(obs['sigma'])
-                
-                elif obs.context == 'ifobs':
-                    model = np.array(modelset['vis2'])
-                    obser = np.array(obs['vis2'])
-                    sigma = np.array(obs['sigma_vis2'])
-                
-                elif obs.context == 'rvobs':
-                    model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
-                    obser = np.array(obs['rv'])
-                    sigma = np.array(obs['sigma'])
-                    
-                else:
-                    raise NotImplementedError(("probability for "
-                                 "{}").format(obs.context))
-                    
-                # Take pblum and l3 into account:
-                pblum = obs['pblum'] if ('pblum' in obs) else 1.0
-                l3 = obs['l3'] if ('l3' in obs) else 0.0
-                
-                # Compute the log probability ---> not sure that I need to do
-                #                                  sigma*pblum, I'm not touching
-                #                                  the observations!
-                term1 = - 0.5*np.log(2*pi*(sigma)**2)
-                term2 = - (obser-model*pblum-l3)**2 / (2.*(sigma)**2)
-                
-                # Do also the Stokes V profiles. Because they contain the
-                # derivative of the intensity profile, the l3 factor disappears
-                if obs.context == 'plobs':
-                    if 'V' in obs['columns']:
-                        model = np.array(modelset['V']) / np.array(modelset['continuum'])
-                        obser = np.array(obs['V']) / np.array(obs['continuum'])
-                        sigma = np.array(obs['sigma_V'])
-                        term1 += - 0.5*np.log(2*pi*(sigma)**2)
-                        term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
+            # Take pblum and l3 into account:
+            pblum = obs['pblum'] if ('pblum' in obs) else 1.0
+            l3 = obs['l3'] if ('l3' in obs) else 0.0
+            
+            # Compute the log probability ---> not sure that I need to do
+            #                                  sigma*pblum, I'm not touching
+            #                                  the observations!
+            term1 = - 0.5*np.log(2*pi*(sigma)**2)
+            term2 = - (obser-model*pblum-l3)**2 / (2.*(sigma)**2)
+            
+            # Do also the Stokes V profiles. Because they contain the
+            # derivative of the intensity profile, the l3 factor disappears
+            if obs.context == 'plobs':
+                if 'V' in obs['columns']:
+                    model = np.array(modelset['V']) / np.array(modelset['continuum'])
+                    obser = np.array(obs['V']) / np.array(obs['continuum'])
+                    sigma = np.array(obs['sigma_V'])
+                    term1 += - 0.5*np.log(2*pi*(sigma)**2)
+                    term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
 
-                # Statistical weight:
-                statweight = obs['statweight']
-                
-                #   if stat_weight is negative, we try to determine the
-                #   effective number of points:
-                # ... not implemented yet ...
-                #   else, we take take the mean and multiply it with the
-                #   weight:
-                if statweight>0:
-                    this_logf = (term1 + term2).mean() * statweight
-                    this_chi2 = -(2*term2).mean() * statweight
-                
-                #   if statistical weight is zero, we don't do anything:
-                else:
-                    this_logf = (term1 + term2).sum()
-                    this_chi2 = -2*term2.sum()
-                
-                logger.debug("Statist weight of {} = {}".format(obs['ref'],
-                                                               statweight))
-                logger.debug("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
-                #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
-                logger.warning("Chi2 of {} = {}".format(obs['ref'], this_chi2))
-                log_f += this_logf
-                chi2.append(this_chi2)
-                n_data += len(obser)
-                if loaded:
-                    obs.unload()
+            # Statistical weight:
+            statweight = obs['statweight']
+            
+            #   if stat_weight is negative, we try to determine the
+            #   effective number of points:
+            # ... not implemented yet ...
+            #   else, we take take the mean and multiply it with the
+            #   weight:
+            if statweight>0:
+                this_logf = (term1 + term2).mean() * statweight
+                this_chi2 = -(2*term2).mean() * statweight
+            
+            #   if statistical weight is zero, we don't do anything:
+            else:
+                this_logf = (term1 + term2).sum()
+                this_chi2 = -2*term2.sum()
+            
+            logger.debug("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
+            #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
+            logger.warning("Chi2 of {} = {} (statweight {})".format(obs['ref'], this_chi2, statweight))
+            log_f += this_logf
+            chi2.append(this_chi2)
+            n_data += len(obser)
+            if loaded:
+                obs.unload()
         
         # Include priors if requested
         if include_priors:
@@ -2044,7 +2070,7 @@ class Body(object):
         self._postprocessing.append((func, args, kwargs))
     
         
-    def preprocess(self, time=None):
+    def preprocess(self, time=None, **kwargs):
         """
         Run the preprocessors.
         
@@ -2366,6 +2392,11 @@ class Body(object):
         
         # Run over all parameterSets
         for ps in self.walk():
+            
+            # Possible we encounter "orbit" or another parameterSet that has
+            # not been set yet
+            if ps is None:
+                continue
             
             # Get the context and category: (perhaps we had "lcdep:bla"; this
             # is not implemented yet, but we foresee its future implementation)
@@ -3050,7 +3081,7 @@ class Body(object):
     
     
     @decorators.parse_ref
-    def ifm(self, ref='allifdep', time=None):
+    def ifm(self, ref='allifdep', time=None, correct_oversampling=1):
         """
         You can only do this if you have observations attached.
         """
@@ -3099,7 +3130,7 @@ class Body(object):
                 pass
     
     @decorators.parse_ref
-    def pl(self, ref='allpldep', time=None, obs=None):
+    def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1):
         """
         Compute Stokes profiles and add results to the pbdep ParameterSet.
         
@@ -3181,7 +3212,7 @@ class Body(object):
             # Expand output and save it to the synthetic thing
             wavelengths_, I, V, Q , U, cont = output
             
-            base['time'].append(self.time)
+            base['time'].append(time)
             base['wavelength'].append(wavelengths_ / 10.)
             base['flux'].append(I)
             base['V'].append(V)
@@ -3190,7 +3221,7 @@ class Body(object):
             base['continuum'].append(cont)
     
     @decorators.parse_ref
-    def sp(self, ref='allspdep', time=None, obs=None):
+    def sp(self, ref='allspdep', time=None, obs=None, correct_oversampling=1):
         """
         Compute spectrum and add results to the pbdep ParameterSet.
         
@@ -3271,13 +3302,13 @@ class Body(object):
             # Expand output and save it to the synthetic thing
             wavelengths_, I, cont = output
             
-            base['time'].append(self.time)
+            base['time'].append(time)
             base['wavelength'].append(wavelengths_ / 10.)
             base['flux'].append(I)
             base['continuum'].append(cont)
     
     @decorators.parse_ref
-    def am(self, ref='allamdep', time=None, obs=None):
+    def am(self, ref='allamdep', time=None, obs=None, correct_oversampling=1):
         """
         Compute astrometry and add results to the pbdep ParameterSet
         """
@@ -3341,7 +3372,7 @@ class Body(object):
             output = observatory.astrometry(self, obs, pbdep, index)
                 
             # Save output to the synthetic thing
-            base['time'].append(self.time)
+            base['time'].append(time)
             base['delta_ra'].append(output['delta_ra'][0])
             base['delta_dec'].append(output['delta_dec'][0])
             base['plx_lambda'].append(output['plx_lambda'][0])
@@ -3415,7 +3446,7 @@ class PhysicalBody(Body):
             prop_time = self.params['syn']['orbsyn'].values()[0]['prop_time']
             index = np.searchsorted(bary_time, time)
             if bary_time[index] == time:
-                logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
+                logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({:.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
                 return prop_time[index]
             else:
                 raise ValueError('Proper time corresponding to barycentric time {} not found'.format(time))
@@ -3899,18 +3930,29 @@ class PhysicalBody(Body):
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
                 proj_intens = self.projected_intensity(ref=lbl)
-                base['time'].append(self.time)
-                base['flux'].append(proj_intens)
-                #-- correct for oversampling
-                if correct_oversampling>1:
-                    #-- the timestamps (should just be the middle value but anyway)
-                    mytime = np.mean(base['time'][-correct_oversampling:])
-                    base['time'] = base['obs'][:-correct_oversampling:]
-                    base['time'].append(mytime)
-                    #-- the fluxes should be averaged
-                    myintens = np.mean(base['flux'][-correct_oversampling:])
-                    base['flux'] = base['flux'][:-correct_oversampling]
-                    base['flux'].append(myintens)
+                # If we don't need to oversample or just starting a new bin, we
+                # need to make a new bin
+                if not len(base('samprate')) or base['samprate'][-1]==correct_oversampling:
+                    base['time'].append(time)
+                    base['flux'].append(proj_intens)
+                    base['samprate'].append(1)
+                # Else, if we didn't reach the oversampling rate yet, we need
+                # to add the fluxes to the previous one. We only set the time
+                # if it's the middle time
+                else:
+                    # if oversampling rate is odd, it's easy:
+                    time_bin = base['samprate'][-1] == ((correct_oversampling//2)+1)
+                    if correct_oversampling%2==1 and time_bin:
+                        base['time'][-1] = time
+                    elif time_bin:
+                        base['time'][-1] = (base['time'][-1] + time)/2.0
+                    base['flux'][-1] = base['flux'][-1] + proj_intens
+                    base['samprate'][-1] = base['samprate'][-1] + 1
+                
+                # If we did reach the oversampling rate, we need to take the
+                # average of the fluxes
+                if base['samprate'][-1] == correct_oversampling:
+                    base['flux'][-1] = base['flux'][-1] / correct_oversampling
                 
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep',time=None):
@@ -3924,11 +3966,11 @@ class PhysicalBody(Body):
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
                 proj_velo = self.projected_velocity(ref=lbl)
-                base['time'].append(self.time)
+                base['time'].append(time)
                 base['rv'].append(proj_velo)
     
     @decorators.parse_ref
-    def ps(self,ref='alllcdep',time=None):
+    def ps(self,correct_oversampling=1, ref='alllcdep',time=None):
         """
         Compute point-source representation of Body.
         """
@@ -3938,7 +3980,7 @@ class PhysicalBody(Body):
                 myps = self.as_point_source(ref=lbl)
                 #base,lbl = self.get_parset(ref=lbl,type='syn')
                 for qualifier in myps:
-                    self.params['pbdep']['psdep'][lbl]['syn']['time'].append(self.time)
+                    self.params['pbdep']['psdep'][lbl]['syn']['time'].append(time)
                     
     
     
@@ -4641,14 +4683,6 @@ class BodyBag(Body):
         for body in self.bodies:
             body.clear_synthetic(*args,**kwargs)
     
-    def get_logp(self):
-        logp,chi2,N = super(BodyBag,self).get_logp()
-        for body in self.bodies:
-            this_logp,this_chi2,this_N = body.get_logp()
-            logp = logp + this_logp
-            chi2 = chi2 + this_chi2
-            N = N + this_N
-        return logp, chi2, N
     
     def get_model(self):
         mu,sigma,model = super(BodyBag,self).get_model()
@@ -4703,7 +4737,7 @@ class BodyBag(Body):
                 distance = self.get_barycenter()
                 
                 etv = distance*constants.Rsol/constants.cc*1/(24*3600.)
-                etvobs['time'].append(self.time)
+                etvobs['time'].append(time)
                 etvobs['etv'].append(etv) #in days
     
     #@decorators.parse_ref

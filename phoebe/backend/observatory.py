@@ -24,6 +24,7 @@ import os
 import itertools
 import functools
 import difflib
+from collections import OrderedDict
 # Third party dependencies: matplotlib and pyfits are try-excepted
 import numpy as np
 from numpy import pi, sqrt, sin, cos
@@ -1767,6 +1768,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     times = [] # time points
     types = [] # types
     refs  = [] # references
+    samps = [] # sampling rates
     
     found_obs = False
     # Collect the times of the data, the types and refs of the data: walk
@@ -1792,17 +1794,17 @@ def extract_times_and_refs(system, params, tol=1e-8):
         loaded = parset.load(force=False)
         
         # Retrieve exposure times
-        if 'exptime' in parset:
+        if 'exptime' in parset and len(parset['exptime']):
             exps = parset['exptime']
         else:
             exps = [0] * len(parset)
         
         # Sampling rates
-        if 'samprate' in parset:
+        if 'samprate' in parset and len(parset['samprate']):
             samp = parset['samprate']
         else:
             samp = [1] * len(parset)
-            
+
         # Now the user could have given phases instead of times. I know, that
         # is incredibly annoying, but there's nothing we can do about it.
         # Believe me, I tried. Old habits die hard, they say. I don't know who
@@ -1829,7 +1831,8 @@ def extract_times_and_refs(system, params, tol=1e-8):
             times.append(np.linspace(itime - iexp/2.0, itime + iexp/2.0, isamp))
             refs.append([parset['ref']] * isamp)
             types.append([parset.context] * isamp)
-        
+            samps.append([isamp]*isamp)
+            
         # Put the parameterSet in the state we found it
         if loaded: parset.unload()
     
@@ -1862,12 +1865,14 @@ def extract_times_and_refs(system, params, tol=1e-8):
     sa    = np.argsort(times)
     types = np.hstack(types)[sa]
     refs  = np.hstack(refs)[sa]
+    samps = np.hstack(samps)[sa]
     times = times[sa]
 
     # For each time point, keep a list of stuff that needs to be computed
     labl_per_time = [] # observation ref (uuid..)
     type_per_time = [] # observation type (lcdep...)
     time_per_time = [] # times of observations
+    samp_per_time = [] # sampling rates
     
     for i, t in enumerate(times):
         
@@ -1877,24 +1882,28 @@ def extract_times_and_refs(system, params, tol=1e-8):
             time_per_time.append(times[i])
             labl_per_time.append([refs[i]])
             type_per_time.append([types[i]])
+            samp_per_time.append([samps[i]])
         
         # Else, append the refs and times to the last time point
         elif labl_per_time[-1][-1] != refs[i]:
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
+            samp_per_time[-1].append(samps[i])
         
         else:
             # Don't know what to do here: also append or continue?
             #continue
             labl_per_time[-1].append(refs[i])
             type_per_time[-1].append(types[i])
+            samp_per_time[-1].append(samps[i])
     # And fill the parameterSet!
     params['time'] = time_per_time
     params['refs']= labl_per_time
     params['types'] = type_per_time
+    params['samprate'] = samp_per_time
 
 
-def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
+def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
                           circular, heating, beaming, params, ltt, 
                           extra_func, extra_func_kwargs):
     """
@@ -1966,14 +1975,14 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     
     # Compute observables at this time step
     had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
-    for itype, iref in zip(type, ref):
+    for itype, iref, isamp in zip(type, ref, samprate):
         if itype[:-3] == 'if':
             itype = 'ifmobs' # would be obsolete if we just don't call it "if"!!!
             if iref in had_refs:
                 continue
             had_refs.append(iref)
         logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
-        getattr(system, itype[:-3])(ref=iref, time=time)
+        getattr(system, itype[:-3])(ref=iref, time=time, correct_oversampling=isamp)
 
     # Call extra funcs if necessary
     for ef, kw in zip(extra_func, extra_func_kwargs):
@@ -1982,13 +1991,14 @@ def compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
     # Execute some post-processing steps if necessary
     system.postprocess(time)
     
-def animate_one_time_step(i, system, times, refs, types, reflect, nreflect,
+    
+def animate_one_time_step(i, system, times, refs, types, samprate, reflect, nreflect,
             circular, heating, beaming, params, ltt, extra_func,
             extra_func_kwargs, anim):
     """
     Compute one time step and animate it.
     """
-    compute_one_time_step(system, i, times[i], refs[i], types[i], reflect, nreflect,
+    compute_one_time_step(system, i, times[i], refs[i], types[i], samprate[i], reflect, nreflect,
                           circular, heating, beaming, params, ltt, extra_func,
                           extra_func_kwargs)
     anim.draw()
@@ -2106,7 +2116,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     extract_times_and_refs(system, params)
     time_per_time = params['time']
     labl_per_time = params['refs']
-    type_per_time = params['types'] 
+    type_per_time = params['types']
+    samp_per_time = params['samprate']
     
     # Some preprocessing steps
     system.preprocess(time=None)
@@ -2180,7 +2191,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # parameterSets, such that 'get_proper_time' knows what to do.
     if ltt:
         # First get a flat list of the bodies
-        bodies = system.get_bodies()
+        if hasattr(system, 'get_bodies'):
+            bodies = system.get_bodies()
+        else:
+            bodies = [system]
         
         # Then cycle through all the bodies, and retrieve their full
         # hierarchical orbit
@@ -2228,11 +2242,11 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
     
     # Now we're ready to do the real stuff
-    iterator = zip(time_per_time, labl_per_time, type_per_time)
+    iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
 
     if not animate:
-        for i, (time, ref, type) in enumerate(iterator):
-            compute_one_time_step(system, i, time, ref, type, reflect, nreflect,
+        for i, (time, ref, type, samp) in enumerate(iterator):
+            compute_one_time_step(system, i, time, ref, type, samp, reflect, nreflect,
                                 circular, heating, beaming, params, ltt,
                                 extra_func, extra_func_kwargs)
     
@@ -2243,7 +2257,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
                                   fargs=(system, time_per_time, labl_per_time,
-                                         type_per_time,
+                                         type_per_time, samp_per_time,
                                          reflect, nreflect, circular, heating,
                                          beaming, params, ltt, extra_func,
                                          extra_func_kwargs, animate),
@@ -2341,7 +2355,8 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     # Fill in the parameterSet
     params['time'] = times
     params['refs'] = [refs] * len(times)
-    params['types'] = [typs] * len(times)  
+    params['types'] = [typs] * len(times)
+    params['samprate'] = [[1]] * len(times)
     # And run compute
     compute(system, params=params, mpi=mpi, extra_func=extra_func,
             extra_func_kwargs=extra_func_kwargs, animate=animate)
