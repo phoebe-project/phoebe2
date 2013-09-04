@@ -98,7 +98,7 @@ if __name__=="__main__":
         dates = params['time']
         labels = params['refs']
         types = params['types']
-        samprates = params['samprate']
+        samps = params['samprate']
         
         # This is the manager: we set the time of the system first, so that
         # the mesh gets created. This system will be distributed over the nodes,
@@ -127,11 +127,13 @@ if __name__=="__main__":
             do_dates, dates = dates[:take], dates[take:]
             do_labels, labels = labels[:take], labels[take:]
             do_types, types = types[:take], types[take:]
+            do_samps, samps = samps[:take], samps[take:]
             # Pass on the subset of dates/labels/types to compute
             kwargs['params'] = params.copy()
             kwargs['params']['time'] = do_dates
             kwargs['params']['refs'] = do_labels
             kwargs['params']['types'] = do_types
+            kwargs['params']['samprate'] = do_samps
             
             # Wait for a free worker:
             node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
