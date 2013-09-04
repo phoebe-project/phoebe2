@@ -1477,7 +1477,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                     button.info = {'param': par, 'widget': widget, 'check': None}
                     button.setMaximumSize(QSize(18,18))
                     QObject.connect(button, SIGNAL("clicked()"), self.on_editbutton_clicked)
-                    if par.get_qualifier() in ['refs','types']:
+                    if par.get_qualifier() in ['refs','types','samprate']:
                         button.setEnabled(False) # until implemented
                     HBox.addWidget(button)
                 

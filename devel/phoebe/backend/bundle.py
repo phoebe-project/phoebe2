@@ -86,6 +86,9 @@ class Bundle(object):
         self.system = system 
         if system is None:  return None
         
+        # initialize uptodate
+        self.system.uptodate = False
+        
         # connect signals
         self.attach_system_signals()
         
@@ -124,7 +127,7 @@ class Bundle(object):
 
     def _on_param_changed(self,param,ps=None):
         if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if self.compute[self.system.uptodate] == ps:
+            if self.system.uptodate is not False and self.compute[self.system.uptodate] == ps:
                 self.system.uptodate=False
         else:
             self.system.uptodate = False
