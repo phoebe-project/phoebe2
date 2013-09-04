@@ -337,9 +337,11 @@ def plot_rvsyn(system,*args,**kwargs):
     period = kwargs.pop('period',None)
     phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
+    
 
     #-- get parameterSets
     syn = system.get_synthetic(category='rv',ref=ref)
+    kwargs.setdefault('label', syn['ref'])
     
     #-- load synthetics: they need to be here
     loaded = syn.load(force=False)
@@ -409,6 +411,7 @@ def plot_rvobs(system,errorbars=True,**kwargs):
 
     #-- get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
+    kwargs.setdefault('label', obs['ref'])
     
     #-- load observations: they need to be here
     loaded = obs.load(force=False)
@@ -477,6 +480,7 @@ def plot_rvres(system,*args,**kwargs):
     #-- get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
     syn = system.get_synthetic(category='rv',ref=ref)
+    kwargs.setdefault('label', obs['ref'])
     
     #-- load observations: they need to be here
     loaded_obs = obs.load(force=False)
@@ -516,9 +520,11 @@ def plot_rvres(system,*args,**kwargs):
         syn_time = (syn_time % period) / period
         # need to sort by time (if using lines)
         o = syn_time.argsort()
-        syn_time, rv = time[o], rv[o]
+        syn_time_, syn_rv_ = syn_time[o], syn_rv[o]
+        obs_rv_ = obs_rv[o]
+        obs_sigm_ = obs_sigm[o]
         for n in range(repeat+1):
-            p = ax.errorbar(syn_time+n,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
+            p = ax.errorbar(syn_time_+n,(obs_rv_-syn_rv_)/obs_sigm_,yerr=np.ones_like(obs_sigm),**kwargs)
             artists.append(p)
 
 
@@ -752,8 +758,6 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         passband = dep['passband']
         pass_sys = os.path.splitext(passband)[0]
         
-        if not pass_sys in to_plot:
-            to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
         
         # An SED means we need the effective wavelength of the passbands
         right_time = (obs['time'] == time)
@@ -762,6 +766,10 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         wave = passbands.get_info([passband])['eff_wave']
         
         wave = list(wave) * len(obs['flux'][right_time])
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
+        
         
         to_plot[pass_sys]['x'].append(wave)
         to_plot[pass_sys]['y'].append(obs['flux'][right_time])

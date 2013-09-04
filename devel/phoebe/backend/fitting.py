@@ -965,10 +965,6 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         else:
             raise ValueError("Unknown method '{}'".format(method))
         
-    fmin_kws = dict(full_output=True, disp=False, retall=True,
-                        ftol=1.e-4, xtol=1.e-4,
-                        maxfun = 5000 * (self.nvarys + 1))
-
     lmfit.report_errors(pars)
 
     #-- extract the values to put them in the feedback

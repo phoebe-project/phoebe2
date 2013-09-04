@@ -519,6 +519,9 @@ def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
     """
     Add asini to an orbit parameterSet.
     
+    The :math:`a\sin i` is parameter that you can calculate from radial velocity
+    data, e.g. via :py:func:`calculate_asini <phoebe.dynamics.keplerorbit.calculate_asini>`.
+    
     Only two parameters out of C{asini}, C{sma} and C{incl} are
     independent. If you add C{asini}, you have to choose to derive
     either C{sma} or C{incl} from the other two:
@@ -528,14 +531,15 @@ def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
         \mathrm{asini} = \mathrm{sma} \sin(\mathrm{incl})
     
     This is a list of stuff that happens:
+    
     - A I{parameter} C{asini} will be added if it does not exist yet
     - A I{constraint} to derive the parameter C{derive} will be added.
     - If C{asini} already exists as a constraint, it will be removed
     - If there are any other constraints on the parameter C{derive}, they
       will be removed
     
-    Extra C{kwargs} will be passed to the creation of C{asini} if it does
-    not exist yet.
+    Extra C{kwargs} will be passed to the creation of the Parameter C{asini} if
+    it does not exist yet.
    
     @param orbit: orbit parameterset
     @type orbit: ParameterSet of context star
@@ -613,7 +617,7 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     @type unit: str
     """
     if orbit.frame=='phoebe':
-        peri = 'per0'
+        peri = 'per0'    
     else:
         peri = 'omega'
     if kwargs and 'ecosw' in orbit:
@@ -716,12 +720,18 @@ def add_esinw(orbit,esinw=None,derive='ecc',**kwargs):
     logger.info("orbit '{}': '{}' constrained by 'esinw'".format(orbit['label'],derive))
 
 
-def add_esinw_ecosw(orbit):
-    """
+def add_esinw_ecosw(orbit, esinw=None, ecosw=None):
+    r"""
     Add esinw and ecosw such that they invert to a unique argument of periastron.
     
-    If you add esinw and ecosw separately, the constraints are ambiguous against
+    If you add esinw and ecosw separately (via :py:func:`add_esinw` and
+    :py:func:`add_ecosw`), the constraints are ambiguous against
     the argument of periastron.
+    
+    .. math::
+    
+        \omega & = \arctan\left(\frac{e\sin\omega}{e\cos\omega}\right)\\
+        e      & = \sqrt{(e\cos\omega)^2 + (e\sin\omega)^2)}
     
     @param orbit: orbit parameterset
     @type orbit: ParameterSet of context star
@@ -736,6 +746,10 @@ def add_esinw_ecosw(orbit):
     orbit.pop_constraint(peri,None)
     orbit.add_constraint('{{{peri}}} = np.arctan2({{esinw}},{{ecosw}})'.format(peri=peri))
     orbit.add_constraint('{ecc} = np.sqrt(({ecosw})**2+({esinw})**2)')
+    if esinw is not None:
+        orbit['esinw'] = esinw
+    if ecosw is not None:
+        orbit['ecosw'] = ecosw
     
 
 
@@ -1390,7 +1404,10 @@ def group(observations, name, pblum=True, l3=True):
                                          adjust=False, frame='phoebe',
                                          cast_type=str, repr='%s',
                                          description='Group name for simultaneous pblum and l3 fitting'))
-            obs.set_adjust('pblum', pblum)
+            if 'pblum' in obs:
+                obs.set_adjust('pblum', pblum)
+            elif pblum:
+                raise ValueError('Observations of context {} have no pblum, set it to False when grouping'.format(obs.context))
             obs.set_adjust('l3', l3)
 
 

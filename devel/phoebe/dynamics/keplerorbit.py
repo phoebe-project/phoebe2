@@ -1271,7 +1271,7 @@ def third_law(totalmass=None,sma=None,period=None):
         return sqrt(4*pi**2*sma**3/(constants.GG*totalmass))/(24*3600.)    
 
         
-def calculate_asini(period,ecc,K1=0,K2=0):
+def calculate_asini(period, ecc, K1=0, K2=0):
     r"""
     Calculate projected semi-major axis of a component or the system (asini).
     
@@ -1292,7 +1292,11 @@ def calculate_asini(period,ecc,K1=0,K2=0):
     
     For a doubled line binary, the system asini is obtained via::
     
-        asini = calculate_asini(P,e,K1)+calculate_asini(P,e,K2)
+        asini = calculate_asini(P,e,K1)+calculate_asini(P, e, K2)
+    
+    or in one go via::
+    
+        asini = calculate_asini(P, e, K1, K2)
     
     @param period: period (s)
     @type period: float
