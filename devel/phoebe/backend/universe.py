@@ -1594,6 +1594,26 @@ class Body(object):
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
                         
+    def bin_oversampling(self):
+        # Iterate over all datasets we have
+        for path, syn in self.walk_dataset():
+            if not syn.get_context()[-3:] == 'syn':
+                continue
+            
+            if len(path):
+                subsystem = path[-1]
+            else:
+                subsystem = self
+            
+            # Make sure to have loaded the observations from a file
+            print syn
+            loaded = syn.load(force=False)
+            
+            if hasattr(syn, 'bin_oversampling'):
+                syn.bin_oversampling()
+            
+            if loaded:
+                syn.unload()
     
     def get_logp(self, include_priors=False):
         r"""
@@ -3930,29 +3950,34 @@ class PhysicalBody(Body):
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
                 proj_intens = self.projected_intensity(ref=lbl)
+                base['time'].append(time)
+                base['flux'].append(proj_intens)
+                base['samprate'].append(correct_oversampling)
+                
                 # If we don't need to oversample or just starting a new bin, we
                 # need to make a new bin
-                if not len(base('samprate')) or base['samprate'][-1]==correct_oversampling:
-                    base['time'].append(time)
-                    base['flux'].append(proj_intens)
-                    base['samprate'].append(1)
-                # Else, if we didn't reach the oversampling rate yet, we need
-                # to add the fluxes to the previous one. We only set the time
-                # if it's the middle time
-                else:
-                    # if oversampling rate is odd, it's easy:
-                    time_bin = base['samprate'][-1] == ((correct_oversampling//2)+1)
-                    if correct_oversampling%2==1 and time_bin:
-                        base['time'][-1] = time
-                    elif time_bin:
-                        base['time'][-1] = (base['time'][-1] + time)/2.0
-                    base['flux'][-1] = base['flux'][-1] + proj_intens
-                    base['samprate'][-1] = base['samprate'][-1] + 1
+                #if not len(base('samprate')) or base['samprate'][-1]==correct_oversampling:
+                    #base['time'].append(time)
+                    #base['flux'].append(proj_intens)
+                    #base['samprate'].append(1)
+                ## Else, if we didn't reach the oversampling rate yet, we need
+                ## to add the fluxes to the previous one. We only set the time
+                ## if it's the middle time
+                #else:
+                    ## if oversampling rate is odd, it's easy:
+                    #time_bin = base['samprate'][-1] == (correct_oversampling//2)
+                    #if correct_oversampling%2==1 and time_bin:
+                        #base['time'][-1] = time
+                    #elif time_bin:
+                        #base['time'][-1] = (base['time'][-1] + time)/2.0
+                    #base['flux'][-1] = base['flux'][-1] + proj_intens
+                    #base['samprate'][-1] = base['samprate'][-1] + 1
                 
-                # If we did reach the oversampling rate, we need to take the
-                # average of the fluxes
-                if base['samprate'][-1] == correct_oversampling:
-                    base['flux'][-1] = base['flux'][-1] / correct_oversampling
+                ## If we did reach the oversampling rate, we need to take the
+                ## average of the fluxes
+                #if base['samprate'][-1] == correct_oversampling:
+                    #base['flux'][-1] = base['flux'][-1] / correct_oversampling
+                
                 
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep',time=None):

@@ -262,7 +262,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          
          #dict(qualifier='fittransfo',    description='Transform variable in fit',repr='%s',cast_type=str,value='linear',frame=["phoebe"],context=['lcobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weights'],frame=["phoebe"],context=['lcobs']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma'],frame=["phoebe"],context=['lcsyn']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','samprate'],frame=["phoebe"],context=['lcsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv','sigma'],frame=["phoebe"],context=['rvobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','etv','sigma'],frame=["phoebe"],context=['etvobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','etv'],frame=["phoebe"],context=['etvsyn']),

@@ -1828,7 +1828,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
             mytimes = parset['time']
             
         for itime, iexp, isamp in zip(mytimes, exps, samp):
-            times.append(np.linspace(itime - iexp/2.0, itime + iexp/2.0, isamp))
+            times.append(np.linspace(itime - iexp/2.0/(24*3600.), itime + iexp/2.0/(24*3600.), isamp+2)[1:-1])
             refs.append([parset['ref']] * isamp)
             types.append([parset.context] * isamp)
             samps.append([isamp]*isamp)
@@ -2094,6 +2094,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     @param mpi: parameters describing MPI
     @type mpi: ParameterSet of context 'mpi'
     """
+    inside_mpi = kwargs.pop('inside_mpi', None)
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...
     if extra_func is None:
@@ -2268,18 +2269,18 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         else:
             pl.show()
             
-    
-    #if inside_mpi is None:
-    # We can't compute pblum or l3 inside MPI, because it's this function that
-    # is called for different parts of the datasets. So no thread has all the
-    # information. This is solved in the MPI decorator, which calls the
-    # function after everything is merged.
-    try:
-        system.compute_pblum_or_l3()
-        system.postprocess(time=None)
-    except:
-        logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
-
+    if inside_mpi is None:
+        system.bin_oversampling()
+        # We can't compute pblum or l3 inside MPI, because it's this function that
+        # is called for different parts of the datasets. So no thread has all the
+        # information. This is solved in the MPI decorator, which calls the
+        # function after everything is merged.
+        try:
+            system.compute_pblum_or_l3()
+            system.postprocess(time=None)
+            
+        except:
+            logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
 
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
             extra_func=[], extra_func_kwargs=[{}], animate=None, **kwargs):

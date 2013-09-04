@@ -294,9 +294,9 @@ def mpirun(fctn):
                     os.unlink(kwargs_file.name)
             
             # And compute pblum or l3 and postprocess
+            system.bin_oversampling()
             system.compute_pblum_or_l3()
             system.postprocess(time=None)
-            
             
     return do_run
 

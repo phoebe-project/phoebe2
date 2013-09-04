@@ -98,6 +98,7 @@ if __name__=="__main__":
         dates = params['time']
         labels = params['refs']
         types = params['types']
+        samprates = params['samprate']
         
         # This is the manager: we set the time of the system first, so that
         # the mesh gets created. This system will be distributed over the nodes,
@@ -183,6 +184,7 @@ if __name__=="__main__":
             
             # Do the work:
             func = getattr(observatory, function)
+            packet['kwargs']['inside_mpi'] = True
             func(packet['system'], *packet['args'], **packet['kwargs'])
             
             # Send the results back to the manager:
