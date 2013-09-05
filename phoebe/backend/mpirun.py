@@ -8,6 +8,7 @@ import cPickle
 import sys
 import os
 import time
+import traceback
 from phoebe.backend import observatory
 from phoebe.backend import universe
 from phoebe.utils import utils
@@ -109,9 +110,17 @@ if __name__=="__main__":
                 system.fix_mesh()
         
         update_progress(-1)
-        
-        system.set_time(params['time'][0])
-        
+        try:
+            system.set_time(params['time'][0])
+        except Exception as e:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+            packet = {'continue': False}
+            for i in range(1, nprocs):
+                node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
+                comm.send(packet, node, tag=TAG_DATA)
+            sys.exit(1)
+            
         
         # Instead of computing one phase per worker, we'll let each worker do
         # a few. We're conservative on the number of phases each worker should do,
@@ -175,7 +184,6 @@ if __name__=="__main__":
         
         # This is the worker.
         while True:
-            
             # Send the work request:
             comm.send(myrank, 0, tag=TAG_REQ)
             

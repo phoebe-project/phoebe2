@@ -1117,7 +1117,8 @@ def _prepare_wd_grid(atm):
     return ascii.loadtxt(atm)
 
 @decorators.memoized
-def _prepare_grid(passband,atm):
+def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
+                  nointerp_columns=None):
     """
     Read in a grid of limb darkening coefficients for one passband.
     
@@ -1133,14 +1134,17 @@ def _prepare_grid(passband,atm):
     values, pixelgrid and labels)
     @rtype: array,array,list
     """
-    #-- data columns are C{ai} columns with C{i} an integer, plus C{Imu1} that
-    #   holds the centre-of-disk intensity
-    data_columns = ['a{:d}'.format(i) for i in range(1,10)] + ['imu1']
-    #-- some columns are transformed to log for interpolation, because the
-    #   data behaves more or less linearly in log scale.
-    log_columns = ['imu1']#,'Teff']
-    #-- not all columns hold data that needs to be interpolated
-    nointerp_columns = data_columns + ['res','dflux']
+    if data_columns is None:
+        #-- data columns are C{ai} columns with C{i} an integer, plus C{Imu1} that
+        #   holds the centre-of-disk intensity
+        data_columns = ['a{:d}'.format(i) for i in range(1,10)] + ['imu1']
+    if log_columns is None:
+        #-- some columns are transformed to log for interpolation, because the
+        #   data behaves more or less linearly in log scale.
+        log_columns = ['imu1']#,'Teff']
+    if nointerp_columns is None:
+        #-- not all columns hold data that needs to be interpolated
+        nointerp_columns = data_columns + ['res','dflux']
     with pyfits.open(atm) as ff:
         try:
             available = [col.lower() for col in ff[passband].data.names]
