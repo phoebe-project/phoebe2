@@ -1834,7 +1834,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
     vrad = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
     
-    if include_vgamma:
+    if include_vgamma and ref != '__bol':
         vrad += 0. # tools.gravitational_redshift
     else:
         vrad *= 0.
