@@ -584,6 +584,54 @@ def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
 
+def add_K1_K2(orbit, K1=None, K2=None, unit='km/s',**kwargs):
+    """
+    Add primary and secondary semi-amplitudes to the fit.
+    
+    
+    """
+    kwargs.setdefault('description', 'Component semi-amplitude')
+    kwargs.setdefault('unit', unit)
+    kwargs.setdefault('context', orbit.context)
+    kwargs.setdefault('adjust', False)
+    kwargs.setdefault('frame', 'phoebe')
+    kwargs.setdefault('cast_type', float)
+    kwargs.setdefault('repr', '%f')
+    orbit.pop_constraint('q',None)
+    orbit.pop_constraint('sma', None)
+    
+    if K1 is None:
+        period = orbit.request_value('period','SI')
+        ecc = orbit['ecc']
+        q = orbit['q']
+        sma = orbit.request_value('sma','SI')
+        K1 = q*sma/(1+q)*2*np.pi/P*np.sqrt(1-e**2)
+    if K2 is None:
+        period = orbit.request_value('period','SI')
+        ecc = orbit['ecc']
+        q = orbit['q']
+        sma = orbit.request_value('sma','SI')
+        K2 = sma/(1+q)*2*np.pi/P*np.sqrt(1-e**2)
+        
+        
+    if not 'K1' in orbit:
+        orbit.add(parameters.Parameter(qualifier='K1',value=K1,
+                                      **kwargs))
+    else:
+        orbit['K1'] = K1
+    if not 'K2' in orbit:
+        orbit.add(parameters.Parameter(qualifier='K2',value=K2,
+                                      **kwargs))
+    else:
+        orbit['K2'] = K2
+    
+    orbit.add_constraint('{q} = {K1}/{K2}')
+    orbit.add_constraint('{sma} = {K2}*{period}/(2*np.pi)*np.sqrt(1-{ecc}**2)*(1+{q})')
+    
+    logger.info("orbit '{}': q and sma constrained by K1 and K2".format(orbit['label']))
+
+
+
 def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     """
     Add ecosw to an orbit parameterSet.
@@ -606,6 +654,10 @@ def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
     
     Extra C{kwargs} will be passed to the creation of C{asini} if it does
     not exist yet.
+    
+    .. warning::
+    
+        You probably want to use :py:func:`add_esinw_ecosw`.
    
     @param orbit: orbit parameterset
     @type orbit: ParameterSet of context star
@@ -674,6 +726,10 @@ def add_esinw(orbit,esinw=None,derive='ecc',**kwargs):
     
     Extra C{kwargs} will be passed to the creation of C{esinw} if it does
     not exist yet.
+    
+    .. warning::
+    
+        You probably want to use :py:func:`add_esinw_ecosw`.
    
     @param orbit: orbit parameterset
     @type orbit: ParameterSet of context star

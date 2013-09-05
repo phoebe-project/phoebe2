@@ -7,6 +7,7 @@ import cPickle
 import tempfile
 import subprocess
 import os
+import sys
 from phoebe.parameters import parameters
 
 
@@ -221,7 +222,12 @@ def mpirun(fctn):
             # the default one
             if mpirun_par is True:
                 mpirun_par = parameters.ParameterSet(context='mpi')
-                
+            
+            # For some reason mpi fails when only one node, but this is fairly
+            # useless anyway
+            if mpirun_par['np'] <= 1:
+                raise ValueError("For MPI to be useful, you need at least 2 processes (np>=2)")
+            
             # Now we're ready to do the actual work
             try:
                 if hasattr(system,'fix_mesh'):
@@ -278,7 +284,12 @@ def mpirun(fctn):
                        "{mpirun_loc} {fctn.__name__} {sys_file.name} "
                        "{args_file.name} {kwargs_file.name}").format(**locals())
                 
-                flag = subprocess.check_call(cmd, shell=True)
+                flag = subprocess.call(cmd, shell=True)
+                
+                # If something went wrong, we can exit nicely here, the traceback
+                # should be printed at the end of the MPI process
+                if flag:
+                    sys.exit(1)
                 
                 # Load the results from the function from the pickle file
                 with open(sys_file.name, 'r') as open_file:
