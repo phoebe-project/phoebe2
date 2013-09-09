@@ -65,7 +65,10 @@ if __name__=="__main__":
     #build_grid(filetag='phoenix', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
     #           redlaw='fitzpatrick2004', Rv=3.1, z='p00', vmic=1, ebvs=None,
     #           vgamma=None)
-    build_grid(filetag='kurucz', passbands=('JOHNSON.V',), ld_func='linear', fitmethod='equidist_r_leastsq',
-               z='p00', ebvs=None, redlaw=None, 
-               vgamma=np.linspace(-500,500,21))
+    #build_grid(filetag='kurucz', passbands=('JOHNSON.V',), ld_func='linear', fitmethod='equidist_r_leastsq',
+               #z='p00', ebvs=None, redlaw=None, 
+               #vgamma=np.linspace(-500,500,21))
+    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'), ld_func='quadratic', fitmethod='equidist_r_leastsq',
+               z='m01', ebvs=None, redlaw=None)#, 
+#               vgamma=np.linspace(-50,50,21))
     

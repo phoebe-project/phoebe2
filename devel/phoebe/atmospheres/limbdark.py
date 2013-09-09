@@ -1912,7 +1912,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
             atm_kwargs['abun'] = 0.
         vgamma = vrad
         log_msg += '(multiple faces) (vgamma_mean={})'.format(vgamma.mean())
-        
+    
     # What kind of atmosphere is used to compute the limbdarkening coefficients?
     # They come from a model atmosphere (ld_coeffs is a filename), or they are a
     # list of LD coeffs, assumed to be constant over the surface. If a filename
@@ -1962,6 +1962,10 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
                                        vrad=vgamma[i])
                 system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
                                                  Imu_blackbody, [passband])[0]
+    
+    elif atm == 'constant':
+        logger.info("Set intensity to constant value")
+        system.mesh[tag][:, -1] = 1.0
     
     # Remember that if the ld_coeffs was a string, we already set the
     # intensities. For the Wilson-Devinney type intensities, the user needs to

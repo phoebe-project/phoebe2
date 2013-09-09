@@ -54,3 +54,15 @@ com ~  {q}/(1.0+{q})*{sma}
 q1 ~  {q}
 q2 ~  1.0/{q}
 
+
+[phoebe--globals--V380Cyg_globals]
+ra         = 0.0        # (deg) Right ascension
+dec        = 0.0        # (deg) Declination
+epoch      = J2000      #  Epoch of coordinates
+pmra       = 0.0        # (mas/yr) Proper motion in right ascension
+pmdec      = 0.0        # (mas/yr) Proper motion in declination
+distance   = 10.0        # (pc) Distance to the object
+vgamma     = 20.0       # (km/s) Systemic velocity
+
+
+

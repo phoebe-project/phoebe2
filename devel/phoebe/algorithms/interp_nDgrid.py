@@ -12,7 +12,7 @@ except ImportError:
     print("Soft warning: pyfits could not be found on your system, you can only use black body atmospheres and Gaussian synthetic spectral profiles")    
 
 
-def create_pixeltypegrid(grid_pars,grid_data):
+def create_pixeltypegrid(grid_pars, grid_data):
     """
     Creates pixelgrid and arrays of axis values.
     
@@ -58,7 +58,7 @@ def create_pixeltypegrid(grid_pars,grid_data):
     return axis_values, pixelgrid
 
 
-def interpolate(p, axis_values, pixelgrid):
+def interpolate(p, axis_values, pixelgrid, order=1):
     """
     Interpolates in a grid prepared by create_pixeltypegrid().
     
@@ -76,7 +76,11 @@ def interpolate(p, axis_values, pixelgrid):
     p_coord = (p-lowervals_stepsize[:,0])/lowervals_stepsize[:,1] + p_-1
 
     # interpolate
-    return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=1, prefilter=False) \
+    if order > 1:
+        prefilter = True
+    else:
+        prefilter = False
+    return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=order, prefilter=prefilter) \
                 for i in range(np.shape(pixelgrid)[-1])]
     
 

@@ -1433,7 +1433,7 @@ def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
 
 #{ Other stuff
 
-def group(observations, name, pblum=True, l3=True):
+def group(observations, name, scale=True, offset=True):
     """
     Group a list of observations for simultaneous fitting of pblum and l3.
     
@@ -1448,11 +1448,14 @@ def group(observations, name, pblum=True, l3=True):
     @type observations: list of Datasets
     @param name: name of the group
     @type name: str
-    @param pblum: fit passband luminosity (scaling factor)
-    @type pblum: bool
-    @param l3: fit third light contribution (constant term)
-    @type l3: bool
+    @param scale: fit passband luminosity (scaling factor)
+    @type scale: bool
+    @param offset: fit third light contribution or systemic velocity (constant term)
+    @type offset: bool
     """
+    pblum = scale
+    l3 = offset
+    
     for obs in observations:
         if not 'group' in obs:
             obs.add(parameters.Parameter(qualifier='group', value=name,
@@ -1463,7 +1466,7 @@ def group(observations, name, pblum=True, l3=True):
             if 'pblum' in obs:
                 obs.set_adjust('pblum', pblum)
             elif pblum:
-                raise ValueError('Observations of context {} have no pblum, set it to False when grouping'.format(obs.context))
+                raise ValueError('Observations of context {} have no scaling factor, set it to False when grouping'.format(obs.context))
             obs.set_adjust('l3', l3)
 
 

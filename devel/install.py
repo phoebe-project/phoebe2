@@ -162,7 +162,7 @@ files = ['kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits',
          'blackbody_uniform_none_teff.fits']
 
 if virtual_dir is not None:
-    os.rmtree(virtual_dir)
+    shutil.rmtree(virtual_dir)
 
 
 for ff in files:

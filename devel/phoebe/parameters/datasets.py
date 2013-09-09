@@ -271,7 +271,8 @@ class DataSet(parameters.ParameterSet):
         result = self.copy()
         columns = result.get_value('columns')
         for col in columns:
-            if col in ['time','weights','flag','wavelength']: continue
+            if col in ['time','weights','flag','wavelength','samprate']:
+                continue
             this_col = np.array(result[col])
             other_col = np.array(other[col])
             if col in ['sigma']:
@@ -341,10 +342,22 @@ class DataSet(parameters.ParameterSet):
             return self_copy
     
     def take(self, index):
+        """
+        Take elements from the data arrays.
+        
+        This function does the same thing as fancy indexing (indexing arrays
+        using arrays).
+        """
         for col in self['columns']:
             self[col] = self[col][index]
     
-    def hostile_alien_takeover(self, other_ds):
+    def overwrite_values_from(self, other_ds):
+        """
+        Overwrite parameters values in this dataset with those from another.
+        
+        @param other_ds: other dataset to take the values from
+        @type other_ds: DataSet
+        """
         for key in other_ds:
             self[key] = other_ds[key]
     
@@ -1193,7 +1206,6 @@ def process_file(filename, default_column_order, ext, columns, components,\
     parsed = parse_header(filename, ext=ext)
     (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
                    (pb, ds) = parsed
-    
     # Remember user-supplied arguments and keyword arguments for this parse
     # function
     # add columns, components, dtypes, units, full_output    
@@ -1557,7 +1569,6 @@ def parse_rv(filename, columns=None, components=None,
         (pb, ds) = process_file(filename, default_column_order, 'rv', columns, \
                                             components, dtypes, units, **kwargs)
     
-    
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
@@ -1567,6 +1578,10 @@ def parse_rv(filename, columns=None, components=None,
     # Convert to right units
     for col in units:
         if col == 'rv':
+            # if sigma units and normal units are not the same, we need to
+            # probably first convert rv to sigma units, then rv&sigma to correct
+            # units, just to be safe (probably more important for mag-flux
+            # conversions)
             f, e_f = conversions.convert(units[col],
                                          myds.get_parameter(col).get_unit(), 
                                          myds['rv'], myds['sigma'])
