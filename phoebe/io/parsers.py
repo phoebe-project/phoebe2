@@ -808,7 +808,7 @@ def phoebe_to_wd(system, create_body=False):
     
     Not finished yet!
     """
-    
+    system = system.copy()
     ps = parameters.ParameterSet('root', frame='wd')
     lc = parameters.ParameterSet('lc', frame='wd')
     rv = parameters.ParameterSet('rv', frame='wd')
@@ -856,21 +856,47 @@ def phoebe_to_wd(system, create_body=False):
     ps['n1'] = marching.delta_to_gridsize(mesh1['delta'])
     ps['n2'] = marching.delta_to_gridsize(mesh1['delta'])
     ps['ipb'] = 1
-    ps['ld_model'] = comp1['ld_func']
-    ps['ld_xbol1'] = comp1['ld_coeffs'][0]
-    ps['ld_xbol2'] = comp2['ld_coeffs'][0]
     
-    try:
-        ps['ld_ybol1'] = comp1['ld_coeffs'][1]
-        ps['ld_ybol2'] = comp2['ld_coeffs'][1]
-    except IndexError:
-        logger.warning("Second bolometric LD coefficients not parsed; ld_model={}".format(comp1['ld_func']))
+    ps['ld_model'] = 'linear'#comp1['ld_func']
+    
+    if False:
+        if isinstance(comp1['ld_coeffs'],str):
+            ld_model = comp1['ld_func']
+            atm_kwargs = dict(teff=ps.request_value('teff1','K'),logg=4.4)
+            basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format('kurucz','p',0,ld_model)        
+            atm = os.path.join(limbdark.get_paths()[1],basename)
+            passband = lcset.get_parameter('filter').get_choices()[lcset['filter']-1].upper()
+            ldbol1 = limbdark.interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs)
+        else:
+            ldbol1 = comp1['ld_coeffs']
+        
+        if isinstance(comp1['ld_coeffs'],str):
+            ld_model = comp1['ld_func']
+            atm_kwargs = dict(teff=ps.request_value('teff2','K'),logg=4.4)
+            basename = '{}_{}{:02.0f}_{}_equidist_r_leastsq_teff_logg.fits'.format('kurucz','p',0,ld_model)        
+            atm = os.path.join(limbdark.get_paths()[1],basename)
+            passband = lcset.get_parameter('filter').get_choices()[lcset['filter']-1].upper()
+            ldbol1 = limbdark.interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs)
+        else:
+            ldbol1 = comp1['ld_coeffs']
+        
+        
+        # at least one ld coefficient
+        ps['ld_xbol1'] = ldbol1[0]
+        ps['ld_xbol2'] = ldbol2[0]
+        
+        if comp1['ld_func'] != 'linear':
+            ps['ld_ybol1'] = ldbol1[1]
+            ps['ld_ybol2'] = ldbol2[1]
     
     ps['vga'] = globals.request_value('vgamma', 'km/s')/100., 'km/s'
     
     # Light curve
     params = parameters.ParameterSet('compute')
-    observatory.extract_times_and_refs(system, params, tol=1e-8)
+    try:
+        observatory.extract_times_and_refs(system, params, tol=1e-8)
+    except ValueError:
+        pass
     lc['indep_type'] = 'time (hjd)'
     lc['indep'] = params['time']
     

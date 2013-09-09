@@ -401,7 +401,7 @@ def subsets_via_flags(system, fitparams):
                         parset.take(self[flag] == unique_flag)
                         yield unique_flag,parset['ref']
                         # Restore the DataSet to its original contents
-                        parset.hostile_alien_takeover(original_parset)
+                        parset.overwrite_value_from(original_parset)
     else:
         yield None,None
 

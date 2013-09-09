@@ -5391,10 +5391,11 @@ class Star(PhysicalBody):
         self.add_spots(time)
     
     
-    def abundance(self, time):
+    def abundance(self, time=None):
         """
         Set the abundance.
         """
+        print list(self.params.values())[0]['abun']
         self.mesh['abun'] = list(self.params.values())[0]['abun']
     
     
@@ -6228,7 +6229,13 @@ class BinaryRocheStar(PhysicalBody):
             
         # In any case call the Zeipel law.
         roche.temperature_zeipel(self)
-        
+    
+    def abundance(self, time=None):
+        """
+        Set the abundance.
+        """
+        self.mesh['abun'] = list(self.params.values())[0]['abun']
+    
     def get_mass(self):
         """
         Compute the mass from the orbit (sma, period, q)
@@ -6381,6 +6388,7 @@ class BinaryRocheStar(PhysicalBody):
                                       conserve_volume=True)
                     # Calculated the basic properties at this time
                     self.surface_gravity()
+                    self.abundance()
                     self.temperature()
                     self.intensity(ref=ref)
                     self.projected_intensity()
@@ -6398,11 +6406,11 @@ class BinaryRocheStar(PhysicalBody):
                 
             #-- compute polar radius and logg!
             self.surface_gravity()
+            self.abundance()
             self.temperature()
             
             if has_freq:
                 self.add_pulsations(time=time)
-            
             self.intensity(ref=ref)
             
             # Compute projected intensity if not done before, to have the

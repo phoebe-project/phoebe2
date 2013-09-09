@@ -2095,6 +2095,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     @type mpi: ParameterSet of context 'mpi'
     """
     inside_mpi = kwargs.pop('inside_mpi', None)
+
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...
     if extra_func is None:
