@@ -148,6 +148,10 @@ import os
 import itertools
 import logging
 import shutil
+import subprocess
+import urllib
+import tarfile
+import sys
 
 # Third party modules
 import numpy as np
@@ -872,12 +876,27 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
         if os.path.isfile(ret_val):
             return ret_val
         else:
-            raise ValueError(("Cannot interpret atm parameter {}: I think "
+            answer = raw_input(("Cannot interpret atm parameter {}: I think "
                               "the file that I need is {}, but it doesn't "
                               "exist. If in doubt, consult the installation "
                               "section of the documentation on how to add "
-                              "atmosphere tables.").format(atm, ret_val))
-    
+                              "atmosphere tables. Should I try to\n"
+                              "- download this atmosphere table [Y]\n"
+                              "- download all atmospheres tables [y]\n"
+                              "- abort and quit [n]?\n"
+                              "[Y/y/n] ").format(atm, ret_val))
+            executable = os.sep.join(__file__.split(os.sep)[:-3])
+            executable = os.path.join(executable, 'download.py')
+            if answer == 'Y' or not answer:
+                output = subprocess.check_output(" ".join(['python', executable,'atm']), shell=True)
+                return ret_val
+            elif answer == 'y':
+                output = subprocess.check_output(" ".join([sys.executable, executable,'atm', os.path.basename(ret_val),os.path.basename(ret_val)]), shell=True)
+                return ret_val
+            else:
+                raise ValueError(("Cannot interpret atm parameter {}, exiting "
+                                  "upon user request").format(atm))
+                    
     # Finally we're done
     return atm
     
@@ -2163,6 +2182,47 @@ def add_file(filename):
     else:
         logger.warning("No permission to write {}".format(destination))
         print("sudo cp {} {}".format(filename, destination))
+
+
+def download_atm(atm=None):
+    
+    destin_folder = get_paths()[0]
+    destin_folder = os.path.join(destin_folder,'test')
+    
+    # Perhaps we need to be sudo?
+    if not os.access(destin_folder, os.W_OK):
+        output = subprocess.check_call(['sudo']+sys.argv)
+    
+    if atm is None:
+        source = 'http://www.phoebe-project.org/2.0/docs/_downloads/ldcoeffs.tar.gz'
+        destin = os.path.join(destin_folder, 'ldcoeffs.tar.gz')
+        try:
+            urllib.urlretrieve(source, destin)
+            print("Downloaded tar archive from phoebe-project.org")
+        except IOError:
+            raise IOError(("Failed to download atmosphere file {} (you probably "
+                           "need to create on yourself starting from the specific "
+                           "intensities)").format(atm))
+            
+    
+        tar = tarfile.open(destin)
+        members = tar.getmembers()
+        tar.extractall(path=destin_folder)
+        tar.close()
+    
+    else:
+        source = 'http://www.phoebe-project.org/2.0/docs/_downloads/{}'.format(atm)
+        destin = os.path.join(destin_folder, atm)
+
+        try:
+            urllib.urlretrieve(source, destin)
+            print("Downloaded tar archive from phoebe-project.org")
+        except IOError:
+            raise IOError(("Failed to download atmosphere file {} (you probably "
+                           "need to create on yourself starting from the specific "
+                           "intensities)").format(atm))
+    
+
 
 #}
     
