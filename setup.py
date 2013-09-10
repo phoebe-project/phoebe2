@@ -74,7 +74,7 @@ setup(
     cmdclass = {'build' : Build},    
     
     name="phoebe",
-    version="2.0",
+    version="2.0.1",
     description="Physics of stars and stellar and planetary systems",
     long_description="Physics of stars and stellar and planetary systems",
     author="Pieter Degroote",
@@ -99,6 +99,7 @@ setup(
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
     scripts=['phoebe/frontend/gui/phoebe_gui.py'],
+    install_requires=['numpy','scipy','matplotlib','pyfits','uncertainties'],
     #~ entry_points = {
         #~ "gui_scripts": ["phoebe_gui = phoebe.frontend.phoebe_gui"]},
 
