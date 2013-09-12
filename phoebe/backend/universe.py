@@ -3139,7 +3139,7 @@ class Body(object):
                 ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
                 ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
                 ifsyn['vis2'] += list(output[3])
-                ifsyn['phase'] += list(output[4])
+                ifsyn['vphase'] += list(output[4])
         #-- try to descend into a bodyBag
         else:
             try:
@@ -4604,6 +4604,14 @@ class BodyBag(Body):
             if hasattr(body, 'get_mass'):
                 total_mass += body.get_mass()
         return total_mass
+    
+    def get_distance(self):
+        globals_parset = self.get_globals()
+        if globals_parset is not None:
+            distance = globals_parset.request_value('distance', 'Rsol')
+        else:
+            distance = 10*constants.pc/constants.Rsol
+        return distance
         
     
     def set_label(self,label):
@@ -5116,14 +5124,18 @@ class AccretionDisk(PhysicalBody):
             self.intensity()
             
             incl = self.params['disk']['incl']/180.*np.pi
-            self.rotate_and_translate(incl=incl, loc=(0,0,0),los=(0,0,+1),
+            Omega = self.params['disk']['long']/180.*np.pi
+            self.rotate_and_translate(incl=incl, Omega=Omega, loc=(0,0,0),
+                                      los=(0,0,+1),
                                       incremental=True)
         else:
-            #self.reset_mesh()
+            self.reset_mesh()
             self.temperature()
-            #incl = self.params['disk']['incl']/180.*np.pi
-            #self.rotate_and_translate(incl=incl, loc=(0,0,0),los=(0,0,+1),
-            #                          incremental=True)
+            Omega = self.params['disk']['long']/180.*np.pi
+            incl = self.params['disk']['incl']/180.*np.pi
+            self.rotate_and_translate(incl=incl, Omega=Omega, loc=(0,0,0),
+                                      los=(0,0,+1),
+                                      incremental=True)
             
         self.time = time
         
@@ -5275,7 +5287,7 @@ class Star(PhysicalBody):
             
         # Add magnetic field parameters when applicable
         if magnetic_field is not None:
-            check_input_ps(self, reddening, ['magnetic_field'], 'magnetic_field')
+            check_input_ps(self, magnetic_field, ['magnetic_field'], 'magnetic_field')
             self.params['magnetic_field'] = magnetic_field
         
         # Add the parameters to compute dependables
@@ -5395,7 +5407,6 @@ class Star(PhysicalBody):
         """
         Set the abundance.
         """
-        print list(self.params.values())[0]['abun']
         self.mesh['abun'] = list(self.params.values())[0]['abun']
     
     

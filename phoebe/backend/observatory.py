@@ -15,6 +15,15 @@ Convert a Body to an observable quantity.
     
     compute
     observe
+
+
+Extra functions to make plots or animations during computations:
+
+.. autosummary::
+
+    ef_binary_image
+    ef_image
+    
     
     
 """
@@ -252,7 +261,7 @@ def image(the_system, ref='__bol', context='lcdep',
     # information
     #if isinstance(ref, int):
     ref_ = ref
-    ps, ref = the_system.get_parset(ref=ref, context=context)
+    ps, ref = the_system.get_parset(ref=ref_, context=context)
     #else:
     #    ps, ref = the_system.get_parset(ref=ref, context=context)
     if ps is None:
@@ -330,13 +339,13 @@ def image(the_system, ref='__bol', context='lcdep',
     cmap_ = None
     norm_proj = None
     if select == 'proj':
-        colors = mesh['proj_'+ref] / mesh['mu']
+        colors = np.where(mesh['mu']>0, mesh['proj_'+ref] / mesh['mu'],0.0)       
         if 'refl_'+ref in mesh.dtype.names:
             colors += mesh['refl_'+ref]
         norm_proj = colors.max()
         colors /= norm_proj
         values = colors
-        vmin_, vmax_ = 0, 1
+        vmin_, vmax_ = 0, 1        
         
     else:
         if select == 'rv':
@@ -934,7 +943,6 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     
         Thanks to M. Hillen. He is not responsible for bugs or errors.
     """
-    
     # Information on what to compute
     data_pars,ref = the_system.get_parset(ref)
     passband = data_pars['passband']
@@ -969,8 +977,9 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         #xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
         #data = pl.imread(figname)[:,:,0]
         #os.unlink(figname)
-        
-        xlims,ylims,p = image(the_system,ref=ref, dpi=100)
+        figdec, artdec, p = image(the_system,ref=ref, dpi=100, context='ifdep')
+        xlims = figdec['xlim']
+        ylims = figdec['ylim']
         data = np.array(plotlib.fig2data(pl.gcf(), grayscale=True),float)
         pl.close()
     
@@ -981,7 +990,8 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
     
     #-- cycle over all baselines and position angles
-    d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
+    #d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
+    d = the_system.get_distance()
     #dpc = conversions.convert('Rsol','pc',d)
     dpc = d*2.253987922034374e-08
     
@@ -2579,14 +2589,18 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,do_contour=False,
     """
     Make an image of a system.
     
+    Set ``comp=None`` if you want an image of an entire system, set ``comp=<int>``
+    to take an image of one specific component in the system.
     """
     xlim = kwargs.pop('xlim',())
     ylim = kwargs.pop('ylim',())
     # Get the thing to plot
     if hasattr(system,'__len__') and comp is not None:
         system = system[comp]
+        savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
+    else:
+        savefig = '{}_comp_{:04d}'.format(name, i)
     # and make the figure
-    savefig = '{}_comp_{:02d}_{:04d}'.format(name, comp, i)
     image(system,**kwargs)
     
     if do_contour:
