@@ -884,7 +884,7 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                               "- download this atmosphere table [Y]\n"
                               "- download all atmospheres tables [y]\n"
                               "- abort and quit [n]?\n"
-                              "[Y/y/n] ").format(atm, ret_val))
+                              "[Y/y/n]: ").format(atm, ret_val))
             executable = os.sep.join(__file__.split(os.sep)[:-3])
             executable = os.path.join(executable, 'download.py')
             if answer == 'Y' or not answer:
@@ -921,7 +921,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     atm = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,\
                                  red_kwargs=red_kwargs, vgamma=vgamma)                         
     axis_values, pixelgrid, labels = _prepare_grid(passband, atm)
-    
+
     # Prepare input: the variable "labels" contains the name of all the
     # variables (teff, logg, ebv, etc... which can be interpolated. If all z
     # values for example are equal, we do not need to interpolate in
@@ -1898,10 +1898,10 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     # This is what I was talking about: maybe everything has the same teff and
     # logg? We'll use the 'allclose' function, which takes care of small
     # numerical machine-precision variations
-    uniform_pars = np.allclose(system.mesh['teff'], system.mesh['teff'][0]) and\
-                   np.allclose(system.mesh['logg'], system.mesh['logg'][0]) and\
-                   np.allclose(system.mesh['abun'], system.mesh['abun'][0]) and\
-                   np.allclose(vrad, vrad[0])
+    uniform_pars = np.allclose(system.mesh['teff'], system.mesh['teff'][0], rtol=1e-10, atol=1e-12) and\
+                   np.allclose(system.mesh['logg'], system.mesh['logg'][0], rtol=1e-10, atol=1e-12) and\
+                   np.allclose(system.mesh['abun'], system.mesh['abun'][0], rtol=1e-10, atol=1e-12) and\
+                   np.allclose(vrad, vrad[0], rtol=1e-10, atol=1e-12)
     
     # Possibly, the user gave LD coefficients (that is. the ld_coeffs parameter
     # is not a atring)
@@ -2010,6 +2010,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
                 disk_integral_grid = globals()['disk_'+atm_kwargs['ld_func']](coeffs)
             disk_integral_user = globals()['disk_'+atm_kwargs['ld_func']](atm_kwargs['ld_coeffs'])
             factor = disk_integral_grid / disk_integral_user
+            #factor = 1.0
             system.mesh[tag][:,-1] = coeffs[-1] * factor
     
     # Else, we did everything already in the "if ld_coeffs_from_grid" part
@@ -2190,8 +2191,10 @@ def download_atm(atm=None):
     destin_folder = os.path.join(destin_folder,'test')
     
     # Perhaps we need to be sudo?
+    print("Copying to destination folder {}".format(destin_folder))
     if not os.access(destin_folder, os.W_OK):
-        output = subprocess.check_call(['sudo']+sys.argv)
+        print("User has no write priviliges in destination folder, switching to sudo mode")
+        #output = subprocess.check_call(['sudo']+sys.argv)
     
     if atm is None:
         source = 'http://www.phoebe-project.org/2.0/docs/_downloads/ldcoeffs.tar.gz'
@@ -2202,7 +2205,7 @@ def download_atm(atm=None):
         except IOError:
             raise IOError(("Failed to download atmosphere file {} (you probably "
                            "need to create on yourself starting from the specific "
-                           "intensities)").format(atm))
+                           "intensities)").format( 'ldcoeffs.tar.gz'))
             
     
         tar = tarfile.open(destin)
