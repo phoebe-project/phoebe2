@@ -5110,7 +5110,6 @@ class AccretionDisk(PhysicalBody):
             distance = globals_parset.request_value('distance', 'Rsol')
             proj_int /= distance**2
         
-        
         return proj_int
     
     def set_time(self,time, ref='all'):
@@ -6983,6 +6982,8 @@ class BinaryStar(Star):
         idep,ref = self.get_parset(ref=ref,type='pbdep')
         if method is None:
             method = 'method' in idep and idep['method'] or 'numerical'
+            
+        
         if method=='numerical':
             return super(BinaryStar,self).projected_intensity(los=los,ref=ref,with_partial_as_half=with_partial_as_half)
         #-- analytical computation
@@ -7011,24 +7012,42 @@ class BinaryStar(Star):
             #-- assume uniform source and dark component
             if ld_func=='uniform':
                 logger.info("projected intensity with analytical uniform LD law")
-                proj_intens = (1-transit.occultuniform(z,p)[0])*total_flux
+                proj_intens = (transit.occultuniform(z,p)[0])*total_flux
              #-- assume claret limb darkening and dark component
             elif ld_func=='claret':
                 logger.info("projected intensity with analytical Claret LD law")
                 cn = self.mesh['ld_'+ref][0,:4]
                 
                 try:
-                    proj_intens = transit.occultnonlin(z,p,cn)[0]*total_flux
+                    proj_intens = (transit.occultnonlin(z,p,cn)[0])*total_flux
                 except ValueError:
                     proj_intens = total_flux
+            elif ld_func=='linear':
+                logger.info("proj. intensity with analytical linear LD law")
+                cn = self.mesh['ld_'+ref][0,0], 0.0
+                if cn[0] == 0:
+                    logger.info("proj. intensity actually uniform LD law")
+                    proj_intens = (1-transit.occultuniform(z,p)[0])*total_flux
+                else:
+                    proj_intens = transit.occultquad(z,p,cn)[0]*total_flux
             elif ld_func=='quadratic':
-                raise NotImplementedError
                 logger.info("proj. intensity with analytical quadratic LD law")
                 cn = self.mesh['ld_'+ref][0,:2]
-                proj_intens = transit.occultquad(z,p,cn)[0]
-            l3 = idep['l3']
-            pblum = idep['pblum']
-            return proj_intens*pblum + l3
+                proj_intens = transit.occultquad(z,p,cn)[0]*total_flux
+                
+            l3 = idep.get('l3', 0.)
+            pblum = idep.get('pblum', -1.0)    
+            # Scale the projected intensity with the distance
+            globals_parset = self.get_globals()
+            if globals_parset is not None:
+                distance = globals_parset.request_value('distance', 'Rsol')
+                proj_intens /= distance**2
+            # Take passband luminosity into account
+            if pblum >= 0:
+                return proj_intens*pblum + l3
+            else:
+                return proj_intens + l3
+            
 
 
 def serialize(body, description=True, color=True, only_adjust=False,

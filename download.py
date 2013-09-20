@@ -10,6 +10,7 @@ import subprocess
 if __name__ == "__main__":
     files = None
     types = 'all'
+    print(sys.argv)
     if sys.argv[1:]:
         types = sys.argv[1]
         if sys.argv[2:]:
