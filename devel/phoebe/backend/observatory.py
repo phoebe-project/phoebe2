@@ -1877,7 +1877,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     refs  = np.hstack(refs)[sa]
     samps = np.hstack(samps)[sa]
     times = times[sa]
-
+    
     # For each time point, keep a list of stuff that needs to be computed
     labl_per_time = [] # observation ref (uuid..)
     type_per_time = [] # observation type (lcdep...)
@@ -2351,24 +2351,31 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     # e.g. lc=True or lc=['mylc1','mylc2']
     refs = []
     typs = []
+    smps = []
     if not lc and not rv and not sp and not pl:
         raise ValueError("You need to compute at least one of lc, rv, sp, pl")
     
     # Derive all lc/rv/...dep parameterset references
     for type in ['lc', 'rv', 'sp', 'pl']:
         if locals()[type] is True:
-            for parset in system.walk():
-                if parset.context == type+'dep':
-                    if parset['ref'] in refs:
-                        continue
-                    refs.append(parset['ref'])
-                    typs.append(type + 'dep')
+            if hasattr(system, 'bodies'):
+                bodies = system.get_bodies()
+            else:
+                bodies = [system]
+            for body in bodies:
+                for parset in body.walk():
+                    if parset.context == type+'dep':
+                        if parset['ref'] in refs:
+                            continue
+                        refs.append(parset['ref'])
+                        typs.append(type + 'dep')
+                        smps.append(1)
     
     # Fill in the parameterSet
     params['time'] = times
     params['refs'] = [refs] * len(times)
     params['types'] = [typs] * len(times)
-    params['samprate'] = [[1]] * len(times)
+    params['samprate'] = [smps] * len(times)
     # And run compute
     compute(system, params=params, mpi=mpi, extra_func=extra_func,
             extra_func_kwargs=extra_func_kwargs, animate=animate)

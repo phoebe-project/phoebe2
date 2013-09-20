@@ -876,6 +876,11 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
         if os.path.isfile(ret_val):
             return ret_val
         else:
+            raise ValueError(("Cannot interpret atm parameter {}: I think "
+                              "the file that I need is {}, but it doesn't "
+                              "exist. If in doubt, consult the installation "
+                              "section of the documentation on how to add "
+                              "atmosphere tables.".format(atm, ret_val)))
             answer = raw_input(("Cannot interpret atm parameter {}: I think "
                               "the file that I need is {}, but it doesn't "
                               "exist. If in doubt, consult the installation "
@@ -1804,7 +1809,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     passband = pbdep['passband']
     if not ld_func=='claret':
         logger.warning('analytical computation of sphere intensity with LD model %s not implemented yet'%(ld_func))
-        return 0.,0.
+        return 1.,1.
     #-- retrieve the limbdarkening coefficients when they need to be looked up
     #   in a table: if the given coefficients are a string, assume it is a
     #   reference to a table. Otherwise, just use the coefficients.
