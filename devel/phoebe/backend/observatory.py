@@ -2623,7 +2623,8 @@ def ef_image(system,time,i,name='ef_image',comp=0,axes_on=True,do_contour=False,
     pl.savefig(savefig)
     pl.close()
     
-
+    
+   
 
 #}
 # If this module is run from a terminal as a script, execute the unit tests

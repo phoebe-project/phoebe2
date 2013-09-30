@@ -5758,6 +5758,7 @@ class Star(PhysicalBody):
         #-- check if this Star has spots or is pulsating
         has_spot = 'circ_spot' in self.params
         has_freq = 'puls' in self.params
+        
         has_magnetic_field = 'magnetic_field' in self.params
         #-- if time is not set, compute the mesh
         if self.time is None:
@@ -5812,7 +5813,7 @@ class BinaryRocheStar(PhysicalBody):
     """
     
     def __init__(self, component, orbit=None, mesh=None, reddening=None,
-                 pbdep=None, obs=None, **kwargs):
+                 circ_spot=None, pbdep=None, obs=None, **kwargs):
         """
         Component: 0 is primary 1 is secondary
         """
@@ -5850,6 +5851,17 @@ class BinaryRocheStar(PhysicalBody):
         
         check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
         self.params['reddening'] = reddening
+        
+        # Add spot parameters when applicable
+        if circ_spot is not None:
+            if not isinstance(circ_spot, list):
+                to_add = [circ_spot]
+            else:
+                to_add = circ_spot
+            for ito_add in to_add:
+                check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
+            self.params['circ_spot'] = to_add
+        
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
         if obs is not None:
@@ -6239,6 +6251,28 @@ class BinaryRocheStar(PhysicalBody):
             
         # In any case call the Zeipel law.
         roche.temperature_zeipel(self)
+        
+        # Perhaps we want to add spots.
+        self.add_spots(time)
+    
+    def add_spots(self,time):
+        """
+        Adjust the local properties for the presence of spots.
+        
+        The number of subdivisions is the maximum number of subdivisions for
+        all spots. That is, we do not allow to ubdivide one spot two times
+        and another one three times: reason: that would need some more
+        implementation time.
+        """
+        if 'circ_spot' in self.params:
+            max_subdiv = max([spot_pars['subdiv_num'] for spot_pars in self.params['circ_spot']])
+            for j in range(max_subdiv+1):
+                last_iter = (j==max_subdiv)
+                for i,spot_pars in enumerate(self.params['circ_spot']):
+                    logger.info('Spot {}'.format(i))
+                    spots.add_circular_spot(self,time,spot_pars,update_temperature=last_iter)
+                if not last_iter:
+                    self.subdivide(subtype=2)
     
     def abundance(self, time=None):
         """
@@ -6363,6 +6397,7 @@ class BinaryRocheStar(PhysicalBody):
         e = self.params['orbit'].get_value('ecc')
         sma = self.params['orbit'].get_value('sma')#,'Rsol')
         has_freq = 'puls' in self.params
+        has_spot = 'circ_spot' in self.params
         
         #-- there is a possibility to set to conserve volume or equipot
         #   IF eccentricity is zero, we never need to conserve volume, that
@@ -6378,7 +6413,7 @@ class BinaryRocheStar(PhysicalBody):
         do_reflection = False
         #-- compute new mesh if this is the first time set_time is called, or
         #   if the eccentricity is nonzero
-        if self.time is None or e>0 or has_freq:
+        if self.time is None or e>0 or has_freq or has_spot:
             if self.time is None:
                 #-- if we need to conserve volume, we need to know at which
                 #   time. Then we compute the mesh at that time and remember
