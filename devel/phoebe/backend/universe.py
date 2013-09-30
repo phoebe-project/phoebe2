@@ -5813,7 +5813,8 @@ class BinaryRocheStar(PhysicalBody):
     """
     
     def __init__(self, component, orbit=None, mesh=None, reddening=None,
-                 circ_spot=None, pbdep=None, obs=None, **kwargs):
+                 puls=None, circ_spot=None, magnetic_field=None, pbdep=None,
+                 obs=None, **kwargs):
         """
         Component: 0 is primary 1 is secondary
         """
@@ -5861,6 +5862,19 @@ class BinaryRocheStar(PhysicalBody):
             for ito_add in to_add:
                 check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
             self.params['circ_spot'] = to_add
+        
+        # Add pulsation parameters when applicable
+        if puls is not None:
+            if not isinstance(puls, list):
+                to_add = [puls]
+            else:
+                to_add = puls
+            self.params['puls'] = to_add
+        
+        # Add magnetic field parameters when applicable
+        if magnetic_field is not None:
+            check_input_ps(self, magnetic_field, ['magnetic_field'], 'magnetic_field')
+            self.params['magnetic_field'] = magnetic_field
         
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
@@ -6274,6 +6288,96 @@ class BinaryRocheStar(PhysicalBody):
                 if not last_iter:
                     self.subdivide(subtype=2)
     
+    def add_pulsations(self,time=None):
+        component = self.get_component()
+        mass = self.params['orbit']['mass{}'.format(component+1)]
+        radius = self.params['component']['r_pole']
+        F = self.params['component']['syncpar'] 
+        orbperiod = self.params['orbit']['period']
+        if F>0:
+            rotperiod = orbperiod / F
+        else:
+            rotperiod = np.inf
+        
+        loc, velo, euler = keplerorbit.get_binary_orbit(time,
+                                   self.params['orbit'],
+                                   ('primary' if component==0 else 'secondary'))
+        
+        # The mesh of a BinaryRocheStar rotates along the orbit, and it is
+        # independent of the rotation of the star. Thus, we need to specifically
+        # specify in which phase the mesh is. It has an "orbital" phase, and a
+        # "rotational" phase. We add 90deg so that it has the same orientation
+        # as a single star at phase 0.
+        
+        # to match coordinate system of Star:
+        mesh_phase = 0
+        # to correct for orbital phase:
+        mesh_phase += euler[0]
+        #mesh_phase+= (time % orbperiod)/orbperiod * 2*np.pi
+        # to correct for rotational phase:
+        mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
+        
+        pulsations.add_pulsations(self, time=time, mass=mass, radius=radius,
+                                  rotperiod=rotperiod, mesh_phase=mesh_phase)
+    
+    def magnetic_field(self):
+        """
+        Calculate the magnetic field.
+        
+        Problem: when the surface is deformed, I need to know the value of
+        the radius at the magnetic pole! Or we could just interpret the
+        polar magnetic field as the magnetic field strength in the direction
+        of the magnetic axes but at a distance of 1 polar radius....
+        """
+        # Rotational properties
+        component = self.get_component()
+        mass = self.params['orbit']['mass{}'.format(component+1)]
+        radius = self.params['component']['r_pole']
+        F = self.params['component']['syncpar'] 
+        orbperiod = self.params['orbit']['period']
+        if F>0:
+            rotperiod = orbperiod / F
+        else:
+            rotperiod = np.inf
+        
+        loc, velo, euler = keplerorbit.get_binary_orbit(time,
+                                   self.params['orbit'],
+                                   ('primary' if component==0 else 'secondary'))
+        
+        # The mesh of a BinaryRocheStar rotates along the orbit, and it is
+        # independent of the rotation of the star. Thus, we need to specifically
+        # specify in which phase the mesh is. It has an "orbital" phase, and a
+        # "rotational" phase. We add 90deg so that it has the same orientation
+        # as a single star at phase 0.
+        
+        # to match coordinate system of Star:
+        mesh_phase = 0
+        # to correct for orbital phase:
+        mesh_phase += euler[0]
+        # to correct for rotational phase:
+        mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
+        
+        
+        # Dipolar field:
+        parset = self.params['magnetic_field']
+        beta = parset.get_value('beta', 'rad')
+        phi0 = parset.get_value('phi0', 'rad')
+        Bpolar = parset.get_value('Bpolar')
+        R = self.params.values()[0].get_value('radius')
+        r_ = self.mesh['_o_center'] / R
+        
+        m_ = np.array([np.sin(beta) * np.cos(phi0) - 0.0*np.sin(phi0),
+                       np.sin(beta) * np.sin(phi0) + 0.0*np.cos(phi0),
+                       np.cos(beta)])
+        dotprod = np.dot(m_, r_.T).reshape(-1, 1)
+        B =     (3*dotprod    *r_ - m_)
+        B = B / 2.0 * Bpolar
+        self.mesh['_o_B_'] = B
+        self.mesh['B_'] = self.mesh['_o_B_']
+        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar, beta/pi*180))
+        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B, axis=1).max()))
+
+    
     def abundance(self, time=None):
         """
         Set the abundance.
@@ -6398,6 +6502,7 @@ class BinaryRocheStar(PhysicalBody):
         sma = self.params['orbit'].get_value('sma')#,'Rsol')
         has_freq = 'puls' in self.params
         has_spot = 'circ_spot' in self.params
+        has_magnetic_field = 'magnetic_field' in self.params
         
         #-- there is a possibility to set to conserve volume or equipot
         #   IF eccentricity is zero, we never need to conserve volume, that
@@ -6457,6 +6562,9 @@ class BinaryRocheStar(PhysicalBody):
             if has_freq:
                 self.add_pulsations(time=time)
             self.intensity(ref=ref)
+            
+            if has_magnetic_field:
+                self.magnetic_field()
             
             # Compute projected intensity if not done before, to have the
             # passband luminosity
