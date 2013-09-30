@@ -41,6 +41,7 @@ spot['angrad'] = 10.
 lcdep1 = phoebe.ParameterSet(context='lcdep')
 lcdep1['ld_func'] = 'claret'
 lcdep1['ld_coeffs'] = 'kurucz'
+lcdep1['atm'] = 'kurucz'
 lcdep1['ref'] = 'spot'
 
 # Body setup
