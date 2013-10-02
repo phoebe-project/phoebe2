@@ -1315,10 +1315,10 @@ class Parameter(object):
         @rtype: str,list
         """
         unit_type = conversions.get_type(self.get_unit())
-        allowed = []
+        allowed = [self.get_unit()]
         
         for fac in conversions._factors:
-            if conversions._factors[fac][2] == unit_type:
+            if conversions._factors[fac][2] == unit_type and not fac in allowed:
                 allowed.append(fac)
         return unit_type, allowed
     

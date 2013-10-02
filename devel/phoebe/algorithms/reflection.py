@@ -4,14 +4,29 @@ Algorithms related to (mutual) irradation.
 One star (A) can emit radiation onto the surface of another star (B).
 Essentially two things can happen with that flux:
 
-    1. The flux emmited by star A can be absorbed by star B and used to heat up
+    1. The flux emitted by star A can be absorbed by star B and used to heat up
        star B. The heating can be local, but can in principle also be
        redistributed over the whole star, if there is a heat transport mechanism
-       acting on the body. Here, this process is called **heating**.
+       acting on the body. Here, this process is called **heating** (confusingly
+       called the reflection effect in the binary star community).
        
-    2. The flux emmitted by star B can be reflected on the surface of star B,
+    2. The flux emitted by star B can be reflected on the surface of star B,
        isotropically or aspect-dependently. Here, this process is called
        **reflection**.
+
+It is important to note that heating is a **bolometric** effect, whereas
+reflection is a **passband dependent** effect. As such, the albedo parameter
+that is a property of a body denotes how much of the incident bolometric flux
+is used to heat up the body (albedo=1 means all bolometric flux is used for
+heating). By definition, the bolometric albedo is a value between 0 and 1.
+
+On the other hand, the albedo parameter that is a property of an observable
+(e.g. a light curve) is a wavelength dependent parameter. A value of one means
+effectively grey scattering, i.e. all incoming light is reflected in the same
+wavelengths. For grey scattering, the albedo is a value between 0 and 1
+(with 1 begin no reflection!), but when there is some kind of energy
+redistribution, this doesn't need to be the case. The albedo in our definition
+can never exceed 1, but can be negative (it is 1-Bond's albedo).
 
 Note that the **heating** process we define here is actually called the
 **reflection** effect in the Wilson-Devinney code. The general effect of flux
