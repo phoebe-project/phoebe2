@@ -6429,7 +6429,7 @@ class BinaryRocheStar(PhysicalBody):
         self.mesh['proj_'+ref][keep] = proj_Imu
         #-- take care of reflected light
         if 'refl_'+ref in self.mesh.dtype.names:
-            proj_Imu += self.mesh['refl_'+ref][keep]
+            proj_Imu += self.mesh['refl_'+ref][keep] * mus
             logger.info("Projected intensity contains reflected light")
         proj_intens = self.mesh['size'][keep]*proj_Imu
         
