@@ -518,6 +518,18 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
          dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi'),
          dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='mpi'),
          dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi'),
+         dict(qualifier='directory', description='Directory for temporary files', cast_type=str, value='',frame=['phoebe'],context='mpi'),
+        ]
+
+defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi:slurm'),
+         dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi:slurm'),
+         dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='mpi:slurm'),
+         dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi:slurm'),
+         dict(qualifier='time', description='Maximum time of one process', cast_type=float, value=0, unit='min',frame=['phoebe'],context='mpi:slurm'),
+         dict(qualifier='memory', description='Maximum amount of memory', cast_type=float, value=0, unit='MB', frame=['phoebe'],context='mpi:slurm'),
+         dict(qualifier='partition', description='SLURM partition to commit job to', cast_type=str, value='',frame=['phoebe'],context='mpi:slurm'),
+         dict(qualifier='directory', description='Directory for temporary files', cast_type=str, value='',frame=['phoebe'],context='mpi:slurm'),
+         
         ]
         
 #    Plotting context

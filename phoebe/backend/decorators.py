@@ -237,7 +237,10 @@ def mpirun(fctn):
                 
                 # Pickle args and kwargs in NamedTemporaryFiles, which we will
                 # delete afterwards
-                direc = os.getcwd()
+                if not mpirun_par['directory']:
+                    direc = os.getcwd()
+                else:
+                    direc = mpirun_par['directory']
                 
                 # The system
                 sys_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
@@ -280,10 +283,32 @@ def mpirun(fctn):
                 mpirun_loc = os.path.join(mpirun_loc, 'backend', 'mpirun.py')
                 
                 # Build and run the command
-                cmd = ("mpirun -np {num_proc} {hostfile} {byslot} {python} "
+                if mpirun_par.get_context().split(':')[-1] == 'mpi':
+                    cmd = ("mpirun -np {num_proc} {hostfile} {byslot} {python} "
                        "{mpirun_loc} {fctn.__name__} {sys_file.name} "
                        "{args_file.name} {kwargs_file.name}").format(**locals())
-                
+                elif mpirun_par.get_context().split(':')[-1] == 'slurm':
+                    
+                    if not mpirun_par['memory']:
+                        memory = ''
+                    else:
+                        memory = '--mem={:.0f}'.format(mpirun_par['memory'])
+                    
+                    if not mpirun_par['time']:
+                        time = ''
+                    else:
+                        time = '--time={:.0f}'.format(mpirun_par['time'])
+                        
+                    if not mpirun_par['partition']:
+                        partition = ''
+                    else:
+                        partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
+                        
+                    cmd = ("srun -n {num_proc} {time} {memory} {partition} "
+                           "mpirun -np {num_proc} {hostfile} {byslot} {python} "
+                       "{mpirun_loc} {fctn.__name__} {sys_file.name} "
+                       "{args_file.name} {kwargs_file.name}").format(**locals())
+
                 flag = subprocess.call(cmd, shell=True)
                 
                 # If something went wrong, we can exit nicely here, the traceback
