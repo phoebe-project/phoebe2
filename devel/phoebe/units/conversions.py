@@ -3592,7 +3592,9 @@ _factors = collections.OrderedDict([
            ('ppt',     (1e-03,         'ampl','ampl_flux','amplitude in parts per thousand')), # amplitude
            ('ppm',     (1e-06,         'ampl','ampl_flux','amplitude in parts per million')), # amplitude
 # -- currency
-           ('EUR',     (1e+00,         'EUR','currency','EURO'))
+           ('EUR',     (1e+00,         'EUR','currency','EURO')),
+# MEMORY
+           ('B', (1e+00, 'B', 'memory', 'Disk memory')),
            ])
 #-- set of conventions:
 _conventions = {'SI': dict(mass='kg',length='m', time='s',temperature='K',
@@ -3640,6 +3642,7 @@ _names = {'m1':'length',
           'kg m2 s-2 A-2':'inductance',
           'cd':'luminous flux',
           'm-2 cd':'illuminance',
+          'B':'memory',
           }
 
 #-- scaling factors for prefixes            

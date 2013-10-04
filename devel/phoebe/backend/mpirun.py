@@ -13,6 +13,8 @@ from phoebe.backend import observatory
 from phoebe.backend import universe
 from phoebe.utils import utils
 
+__bar_props = {'time':[], 'progress':[]}
+
 def update_progress(progress, width=80):
     """
     Displays or updates a console progress bar
@@ -26,9 +28,12 @@ def update_progress(progress, width=80):
     
     # What's our progress...
     progress = float(progress)
+    __bar_props['progress'].append(progress)
+    
     if progress < 0:
         progress = 0
         status = "{:20s}".format("First time point...") + "\r"
+        __bar_props['time'].append(time.time())
         
     # At the end, report and let the progressbar disappear
     elif progress > 1:
@@ -41,9 +46,13 @@ def update_progress(progress, width=80):
     elif progress <= 0.75:
         status = "{:20s}".format("Wait for it...")
     elif progress <= 1.00:
-        status = "{:20s}".format("Almost there...")    
+        status = "{:20s}".format("Almost there...")
     else:
         status = "{:20s}".format("Running...")
+    
+    # Figure out how long it takes on average
+    
+        
     block = int(round(barLength*progress))
     text = "MPIRUN: [{0}] {1:7.3f}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
     text = "\r" + text[-width:]
@@ -132,7 +141,7 @@ if __name__=="__main__":
             
             # Print some diagnostics to the user.
             N = len(dates)
-            take = max(N / (2*nprocs), 1)
+            take = max([N / (2*nprocs), 1])
             do_dates, dates = dates[:take], dates[take:]
             do_labels, labels = labels[:take], labels[take:]
             do_types, types = types[:take], types[take:]
