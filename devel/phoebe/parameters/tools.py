@@ -1192,7 +1192,7 @@ def add_ebv(reddening, ebv=None, unit='mag', derive='extinction', **kwargs):
 
 #{ Other constraints
 
-def add_albbond(ps, albbond=0.0):
+def add_albbond(ps, albbond=0.0, **kwargs):
     r"""
     Add Bond's albedo to a body or pbdep.
     
@@ -1215,7 +1215,7 @@ def add_albbond(ps, albbond=0.0):
     See, for example, [Esteves2013]_ or [Lopez-Morales2007]_ for a more detailed
     explanation.
     """
-    if kwargs and 'bondalb' in star:
+    if kwargs and 'bondalb' in ps:
         raise ValueError("You cannot give extra kwargs to add_albbond if albbond already exist")
     
     kwargs.setdefault('description',"Bond's albedo")
@@ -1225,16 +1225,16 @@ def add_albbond(ps, albbond=0.0):
     kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on albbond and add the parameter
-    star.pop_constraint('albbond',None)
+    ps.pop_constraint('albbond',None)
     if not 'albbond' in star:
-        star.add(parameters.Parameter(qualifier='albbond', value=albbond,**kwargs))
+        ps.add(parameters.Parameter(qualifier='albbond', value=albbond,**kwargs))
     else:
-        star['albbond'] = albbond
+        ps['albbond'] = albbond
         
-    star.add_constraint('{{alb}} = 1-{{albbond}}')
+    ps.add_constraint('{{alb}} = 1-{{albbond}}')
 
 
-def add_albgeom(ps, albgeom=0.0):
+def add_albgeom(ps, albgeom=0.0, **kwargs):
     r"""
     Add geometric albedo to a body or pbdep.
     
@@ -1242,7 +1242,7 @@ def add_albgeom(ps, albgeom=0.0):
     :math:`a_P` and the geometric albedo :math:`a_g` can be found in
     :py:func:`add_albbond`.
     """
-    if kwargs and 'geomalb' in star:
+    if kwargs and 'albgeom' in ps:
         raise ValueError("You cannot give extra kwargs to add_albgeom if albgeom already exist")
     
     kwargs.setdefault('description',"Geometric albedo")
@@ -1252,13 +1252,13 @@ def add_albgeom(ps, albgeom=0.0):
     kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on albgeom and add the parameter
-    star.pop_constraint('albgeom',None)
-    if not 'albgeom' in star:
-        star.add(parameters.Parameter(qualifier='albgeom', value=albgeom,**kwargs))
+    ps.pop_constraint('albgeom',None)
+    if not 'albgeom' in ps:
+        ps.add(parameters.Parameter(qualifier='albgeom', value=albgeom,**kwargs))
     else:
-        star['albgeom'] = albgeom
+        ps['albgeom'] = albgeom
         
-    star.add_constraint('{{alb}} = 1 - 1.5*{{albgeom}}')
+    ps.add_constraint('{alb} = 1 - 1.5*{albgeom}')
     
 
 def add_albmap(star, image, scale=None, invert=False, **kwargs):

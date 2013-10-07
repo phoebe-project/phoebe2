@@ -207,7 +207,6 @@ if __name__=="__main__":
             func(packet['system'], *packet['args'], **packet['kwargs'])
             
             # Send the results back to the manager:
-            
             the_result = universe.keep_only_results(packet['system'])
 
             #print("BYTESIZE {}".format(sys.getsizeof(cPickle.dumps(the_result))))
