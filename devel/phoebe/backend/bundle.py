@@ -618,8 +618,8 @@ class Bundle(object):
             output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         elif 'lc' in context:
             output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        #~ elif 'etv' in context:
-            #~ output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'etv' in context:
+            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         elif 'sp' in context:
             output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         else:

@@ -1556,8 +1556,8 @@ class Axes(object):
         #~ super(Axes, self).__init__()
         
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
+        self.mplaxes = None
         self.plots = []
-        #~ self.context = 'Axes'
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
@@ -1677,6 +1677,20 @@ class Axes(object):
             if path[-1] == 'orbit' and item['label']==objectname:
                 return item
         return None
+        
+    def savefig(self,system,fname):
+        """
+        Save the plot to a file
+        
+        @parameter system: the phoebe system
+        @type system: System
+        @parameter fname: filename of output image
+        @type fname: str
+        """
+        if self.mplaxes is None:
+            self.plot(system)
+        self.mplaxes.savefig(fname)
+        return
             
     def plot(self,system,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
         """
@@ -1714,6 +1728,8 @@ class Axes(object):
                 yaxis = 'rv'
             elif self.axesoptions['category'] == 'sp':
                 yaxis = 'wavelength'
+            elif self.axesoptions['category'] == 'etv':
+                yaxis = 'ETV'
         if ao['xlabel'] == 'auto':
             ao['xlabel'] = xaxis
         if ao['ylabel'] == 'auto':
@@ -1734,6 +1750,8 @@ class Axes(object):
         # add the axes to the figure
         if location is None:
             location = self.axesoptions['location'] # location not added in ao
+            
+        mplaxes = self.mplaxes if mplaxes is None else mplaxes
         
         if mplfig is None:
             if location == 'auto':  # then just plot to an axes
@@ -1752,6 +1770,8 @@ class Axes(object):
         else:
             if mplfig is not None:
                 axes = mplfig.add_subplot(111,**ao)
+                
+        self.mplaxes = axes
                 
         # get phasing information
         xaxis = self.axesoptions.get_value('xaxis')
@@ -1813,5 +1833,9 @@ class Axes(object):
                 artists,obs = plot_rvobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, phased=phased, period=period, **po)
             elif plotoptions['type']=='rvsyn':
                 artists,obs,l3 = plot_rvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
+            elif plotoptions['type']=='etvobs':
+                artists,obs = plot_etvobs(obj, ref=plotoptions['dataref'], ax=axes, errorbars=errorbars, phased=phased, period=period, **po)
+            elif plotoptions['type']=='etvsyn':
+                artists,obs = plot_etvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             else:
                 artists,obs = [],[]
