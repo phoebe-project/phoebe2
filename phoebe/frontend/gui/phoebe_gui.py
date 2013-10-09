@@ -814,12 +814,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.update_plot_widgets(i, canvas)
             
             canvas.cla()
-            canvas.plot(self.bundle.get_system(), self.bundle.axes[i])
+            canvas.plot(self.bundle, self.bundle.axes[i])
             canvas.draw()
             
             if i==self.pop_i: # then this plot is in the expanded plot and we should also draw that
                 self.expanded_canvas.cla()
-                self.expanded_canvas.plot(self.bundle.get_system(), self.bundle.axes[i])
+                self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
                 self.expanded_canvas.draw()
 
     def on_plot_add(self, mesh=False, plotoptions=None):
@@ -955,7 +955,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ pop.plot_gridLayout.addWidget(new_plot_widget,0,1)
 
             self.expanded_canvas.cla()
-            self.expanded_canvas.plot(self.bundle.get_system(), self.bundle.axes[i])
+            self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
             
 
             # instead of dealing with attaching and destroying signals for the expanded plot
