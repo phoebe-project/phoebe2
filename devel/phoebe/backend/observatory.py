@@ -2131,6 +2131,35 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     type_per_time = params['types']
     samp_per_time = params['samprate']
     
+    # separate times and refs for datasets that don't need to compute intensities
+    etv_time_per_time, etv_labl_per_time = [], []
+    
+    for i,t in reversed(list(enumerate(time_per_time))): #so pop doesn't change position
+        if 'etvobs' in type_per_time[i]:
+            if [typ=='etvobs' for typ in type_per_time[i]]==[True]*len(type_per_time[i]):
+                # then we want to remove this time stamp from the original list
+                etv_time_per_time.append(time_per_time.pop(i))
+                
+                labl_per_time_i = labl_per_time.pop(i)
+                type_per_time_i = type_per_time.pop(i)
+                samp_per_time_i = samp_per_time.pop(i)
+                
+            else:
+                # then there are other types so we just want to copy the time         
+                etv_time_per_time.append(time_per_time[i])
+
+                # reference so pop will remove from original
+                labl_per_time_i = labl_per_time[i]
+                type_per_time_i = type_per_time[i]
+            
+            etv_labl_per_time.append([])
+            for j,typ in enumerate(type_per_time_i):
+                if typ=='etvobs':
+                    etv_labl_per_time[-1].append(labl_per_time_i.pop(j))
+                
+    # compute ETVs
+    
+    
     # Some preprocessing steps
     system.preprocess(time=None)
     
