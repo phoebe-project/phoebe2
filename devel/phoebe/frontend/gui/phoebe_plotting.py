@@ -93,10 +93,10 @@ class MyMplCanvas(FigureCanvas):
     def cla(self):
         self.axes.cla()
     
-    def plot(self, system, axes):
+    def plot(self, bundle, axes):
         #~ self.fig = Figure(figsize=(self.width, self.height), dpi=self.dpi,facecolor='#F6F4F2')
         self.fig.clf()
-        axes.plot(system, mplfig=self.fig) 
+        axes.plot(bundle, mplfig=self.fig) 
         # note axes is not the same as self.axes
         
         #~ if not isinstance(plotoptions, list):
