@@ -10,6 +10,17 @@ import numpy as np
 
 #{ Loggers
 
+class MyFormatter(logging.Formatter):
+    width = 10
+
+    def format(self, record):
+        max_filename_width = self.width - 3 - len(str(record.lineno))
+        filename = record.filename
+        if len(record.filename) > max_filename_width:
+            filename = record.filename[:max_filename_width]
+        a = "%s:%s" % (filename, record.lineno)
+        return "[%s] %s" % (a.ljust(self.width), record.msg)
+
 def get_basic_logger(style="default",clevel='INFO',
                              flevel='DEBUG',filename=None,filemode='w'):
     """
@@ -63,6 +74,12 @@ def get_basic_logger(style="default",clevel='INFO',
     elif style=='minimal':
         format = ''
         datefmt = '%a, %d %b %Y %H:%M'
+        
+    if style=='trace':
+        formatter = MyFormatter()
+    else:
+        formatter = logging.Formatter(fmt=format,datefmt=datefmt)
+    
     
     if clevel: clevel = logging.__dict__[clevel.upper()]
     if flevel: flevel = logging.__dict__[flevel.upper()]
@@ -82,21 +99,19 @@ def get_basic_logger(style="default",clevel='INFO',
                             filename=filename,filemode=filemode)
         fh = logging.FileHandler(filename)
         fh.setLevel(flevel)
-        formatter = logging.Formatter(fmt=format,datefmt=datefmt)
         fh.setFormatter(formatter)
         logging.getLogger(name).addHandler(fh)
     if filename is not None and clevel:    
         # define a Handler which writes INFO messages or higher to the sys.stderr
         ch = logging.StreamHandler()
         ch.setLevel(clevel)
-        # set a format which is simpler for console use
-        formatter = logging.Formatter(fmt=format,datefmt=datefmt)
         # tell the handler to use this format
         ch.setFormatter(formatter)
         logging.getLogger(name).addHandler(ch)
     #-- If we only want a console:
     else:
-        logging.basicConfig(level=clevel,format=format,datefmt=datefmt,filename=filename,filemode=filemode)        
+        logging.basicConfig(level=clevel,format=format,datefmt=datefmt,
+                            filename=filename,filemode=filemode)        
     #-- fix filename logging
     if filename is not None:
         logging.getLogger(name).handlers[0].level = flevel
