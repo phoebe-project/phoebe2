@@ -692,6 +692,7 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components):
     @return: proper times, position vector, velocity vector, Euler angles
     @rtype: 3-tuple, 3-tuple, array/float
     """
+    bary_times = np.asarray(bary_times)
     # We need to set the location of the object such that it light arrives
     # simultaneously with the barycentric time. Only the direction in the
     # line-of-sight is important (z-coordinate). The time it takes for light to
