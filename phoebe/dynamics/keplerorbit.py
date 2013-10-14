@@ -657,37 +657,59 @@ def get_hierarchical_orbit(times,orbits,comps):
     return obj.T,vel.T
     
 
-def get_barycentric_hierarchical_orbit(bary_times,orbits,comps,barycentric=False):
-    """
-    Construct on hiearchical orbit corrected for light LTT effects.
+def get_barycentric_hierarchical_orbit(bary_times, orbits, components):
+    r"""
+    Construct a hiearchical orbit corrected for light LTT effects.
+    
+    Light time travel effects are included by finding the system's proper time
+    :math:`t` such that the (oberved) barycentric time :math:`t_\mathrm{bary}`
+    is equal to:
+    
+    .. math::
+    
+        t_\mathrm{bary} = t + \frac{z(t)}{c},
+        
+    with :math:`c` the velocity of light. and :math:`z(t)` the location of the
+    Body in the :math:`z` direction (radial direction) at time :math:`t`. We
+    can't determine :math:`z` from this function algebraically because :math:`z`
+    is a function of :math:`t`. The solution is to do a minimization of the function
+    
+    .. math::
+    
+        f(t) = t + \frac{z(t)}{c} - t_\mathrm{bary}
+    
+    via a simple Newton-Raphson procedure.
+    
+    Get orbits and components via :py:func:`Body.get_orbits <phoebe.backend.universe.Body.get_orbits>`
+    from the :py:mod:`phoebe.backend.universe` module.
     
     @param bary_times: barycentric time coordinates
     @type bary_times: float or array
     @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit} context
     @type orbits: list of ParameterSets of length N
-    @param comps: list of integers denoting which component (0 for primary, 1 for secondary) the object is for each orbit
-    @type comps: list of integers
+    @param components: list of integers denoting which component (0 for primary, 1 for secondary) the object is for each orbit
+    @type components: list of integers
     @return: proper times, position vector, velocity vector, Euler angles
     @rtype: 3-tuple, 3-tuple, array/float
     """
-    #-- We need to set the location of the object such that it light arrives
-    #   simultaneously with the barycentric time. Only the direction in the
-    #   line-of-sight is important (z-coordinate). The time it takes for light
-    #   to travel to us, relatively, to the barycentre, is z/cc [sec]. The
-    #   time which we thus see the light from that object is t+z/cc, but we
-    #   need it to be t_bary. Thus, we need to optimize it's location (i.e.
-    #   proper time) until the observed time is the barycentric time.
-    scale_factor = 1.0/constants.cc*constants.Rsol/(24*3600.)
+    # We need to set the location of the object such that it light arrives
+    # simultaneously with the barycentric time. Only the direction in the
+    # line-of-sight is important (z-coordinate). The time it takes for light to
+    # travel to us, relatively, to the barycentre, is z/cc [sec]. The time which
+    # we thus see the light from that object is t+z/cc, but we need it to be
+    # t_bary. Thus, we need to optimize it's location (i.e. proper time) until
+    # the observed time is the barycentric time.
+    scale_factor = 1.0/constants.cc * constants.Rsol/(24*3600.)
     def propertime_barytime_residual(t):
-        obj,vel = get_hierarchical_orbit_phoebe(t,orbits,comps)
+        obj,vel = get_hierarchical_orbit_phoebe(t, orbits, components)
         z = obj[2,0]
         return t + z*scale_factor - t_bary
-    #-- Finding that right time is easy with a Newton optimizer:
-    propertimes = [newton(propertime_barytime_residual,t_bary) for \
+    # Finding that right time is easy with a Newton optimizer:
+    propertimes = [newton(propertime_barytime_residual, t_bary) for \
                        t_bary in bary_times]
     propertimes = np.array(propertimes).ravel()
-    #-- then make an orbit with these times!
-    this_orbit = get_hierarchical_orbit_phoebe(bary_times,orbits,comps)
+    # then make an orbit with these times!
+    this_orbit = get_hierarchical_orbit_phoebe(bary_times, orbits, components)
     return list(this_orbit) + [propertimes]
     
 
@@ -717,6 +739,8 @@ def get_hierarchical_orbits(times,system,barycentric=False):
             this_out = get_hierarchical_orbit(times,myorbits,mycompon)
         output.append(this_out)
     return output
+
+
 
 def rotate_into_orbit(obj,euler,loc=(0,0,0)):
     r"""

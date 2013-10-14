@@ -18,6 +18,11 @@ defs  = [dict(qualifier="name" ,description="Common name of the binary",    repr
                                                                                                  "Semi-detached binary, primary star fills Roche lobe",
                                                                                                  "Semi-detached binary, secondary star fills Roche lobe",
                                                                                                  "Double contact binary"],
+                                                                            long_description=("X-ray binary: potential value is computed from q, F2, e, omega, i and the (eclipse duration). "
+                                                                                               "Unconstrained: Component luminosity is not required to be consistent with temperatures. "
+                                                                                               "Overcontact W Uma: Seven constraints. "
+                                                                                               "Detached binary: Consistent luminosity-temperatures (can be severed if ipb=1). "
+                                                                                               ""),
                                                                                                  cast_type='indexm',value="Unconstrained binary system",
                                                                                                  frame=["wd"],alias=['mode'],context='root')]                                                                                                 
 

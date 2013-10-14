@@ -8,6 +8,7 @@ Functionality  regarding stellar atmospheres or local intensities
     phoebe.atmospheres.limbdark
     phoebe.atmospheres.passbands
     phoebe.atmospheres.pulsations
+    phoebe.atmospheres.magfield
     phoebe.atmospheres.reddening
     phoebe.atmospheres.roche
     phoebe.atmospheres.sed
