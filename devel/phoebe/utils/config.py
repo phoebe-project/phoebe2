@@ -21,7 +21,7 @@ compute_function = {'lc':'lc',
                     'am':'am',
                     'etv':'etv'}
 
-# Correspondence between data type and pbdep (syn and obs are then simila):
+# Correspondence between data type and pbdep (syn and obs are then similar):
 pbdep_context = {'lc':'lcdep',
                  'rv':'rvdep',
                  'sp':'spdep',

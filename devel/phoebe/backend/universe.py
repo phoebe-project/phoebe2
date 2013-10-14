@@ -179,6 +179,7 @@ from phoebe.atmospheres import roche
 from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
 from phoebe.atmospheres import pulsations
+from phoebe.atmospheres import magfield
 from phoebe.dynamics import keplerorbit
 try:
     from phoebe.utils import transit
@@ -4814,7 +4815,7 @@ class BodyBag(Body):
 class BinaryBag(BodyBag):
     """
     Convenience class for making a binary out of non-binary bodies.
-    
+        
     You can use it to make a binary out of one object, or two objects.
     
     Note: some stuff needs to be set automatically, like the mass ratio q.
@@ -5409,12 +5410,12 @@ class Star(PhysicalBody):
         self.mesh['abun'] = list(self.params.values())[0]['abun']
     
     
-    def magnetic_field(self):
+    def magnetic_field(self, time=None):
         """
         Calculate the magnetic field.
         
         Problem: when the surface is deformed, I need to know the value of
-        the radius at the magnetic pole! Or we could just interpret the
+        the radius at the magnetic pole. Or we could just interpret the
         polar magnetic field as the magnetic field strength in the direction
         of the magnetic axes but at a distance of 1 polar radius....
         """
@@ -5424,14 +5425,8 @@ class Star(PhysicalBody):
         phi0 = parset.get_value('phi0', 'rad')
         Bpolar = parset.get_value('Bpolar')
         R = self.params.values()[0].get_value('radius')
-        r_ = self.mesh['_o_center'] / R
-        
-        m_ = np.array([np.sin(beta) * np.cos(phi0) - 0.0*np.sin(phi0),
-                       np.sin(beta) * np.sin(phi0) + 0.0*np.cos(phi0),
-                       np.cos(beta)])
-        dotprod = np.dot(m_, r_.T).reshape(-1, 1)
-        B =     (3*dotprod    *r_ - m_)
-        B = B / 2.0 * Bpolar
+        r_ = self.mesh['_o_center']
+        B = magfield.get_dipole(time, r_, R, beta, phi0, Bpolar)
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
         logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar, beta/pi*180))
