@@ -57,6 +57,7 @@ from phoebe.utils import plotlib
 from phoebe.utils import pergrams
 from phoebe.utils import coordinates
 from phoebe.utils import utils
+from phoebe.utils import config
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.parameters import parameters
@@ -1912,7 +1913,6 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['types'] = type_per_time
     params['samprate'] = samp_per_time
 
-
 def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
                           circular, heating, beaming, params, ltt, 
                           extra_func, extra_func_kwargs):
@@ -2131,14 +2131,17 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     type_per_time = params['types']
     samp_per_time = params['samprate']
     
-    # separate times and refs for datasets that don't need to compute intensities
-    etv_time_per_time, etv_labl_per_time = [], []
+    # separate times and refs for datasets that don't need to compute intensities 
+    # (ivo = independent_variable_other)
+    ivo_time_per_time, ivo_labl_per_time = [], []
+    ivo_labl_per_labl, ivo_time_per_labl = [], [] 
     
+    # TODO: change this to look in config.indep_var_other instead of hardcoding etvobs
     for i,t in reversed(list(enumerate(time_per_time))): #so pop doesn't change position
         if 'etvobs' in type_per_time[i]:
             if [typ=='etvobs' for typ in type_per_time[i]]==[True]*len(type_per_time[i]):
                 # then we want to remove this time stamp from the original list
-                etv_time_per_time.append(time_per_time.pop(i))
+                ivo_time_per_time.append(time_per_time.pop(i))
                 
                 labl_per_time_i = labl_per_time.pop(i)
                 type_per_time_i = type_per_time.pop(i)
@@ -2146,20 +2149,55 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 
             else:
                 # then there are other types so we just want to copy the time         
-                etv_time_per_time.append(time_per_time[i])
+                ivo_time_per_time.append(time_per_time[i])
 
                 # reference so pop will remove from original
                 labl_per_time_i = labl_per_time[i]
                 type_per_time_i = type_per_time[i]
             
-            etv_labl_per_time.append([])
+            ivo_labl_per_time.append([])
             for j,typ in enumerate(type_per_time_i):
                 if typ=='etvobs':
-                    etv_labl_per_time[-1].append(labl_per_time_i.pop(j))
-                
+                    labl = labl_per_time_i.pop(j)
+                    ivo_labl_per_time[-1].append(labl)
+                    
+                    if labl not in ivo_labl_per_labl:
+                        ivo_labl_per_labl.append(labl)
+                        ivo_time_per_labl.append([])
+                        k = -1
+                    else:
+                        k = ivo_labl_per_labl.index(labl)
+                        
+                    ivo_time_per_labl[k].append(t)
+                    
     # compute ETVs
-    
-    
+    if inside_mpi is None:
+        for i,labl in enumerate(ivo_labl_per_labl):
+            for body in system.get_bodies():
+                body.etv(ref=[labl],times=ivo_time_per_labl[i])
+
+    # compute eclipse times in range from min(etv_time_per_time) to max(etv_time_per_time) with some resolution 
+    # use special effects (apsidal, LTTE, etc) that are enabled in compute options? or etvdep?
+    # how do we decide which eclipses to look for without looping through all instances?
+    # perhaps we should have been tracking this above since it will be nice to compute whole list once and then pull required times
+
+    # for each time in etv_time_per_time: find correct eclipse time and fill synthetic with etv_time_per_time[i]-computed_time
+    # how do we then handle input of cycle?
+    # how do we handle changing a period - does that change the calculated eclipse time?
+    # do we require input to be cycle after bjd0? and then either plot this as default or derive expected from ephemeris
+    # if cycle, how is that defined for secondary eclipses?
+
+    # for all of this - keep in mind how this might work for Nbody case
+    # especially enabling/disabling effects which may not be applicable for Nbody
+
+    # should be able to provide ETVs in any of the following formats:
+    # cycle et (preferred)
+    # cycle etv XXX
+    # time et
+    # time etv
+    # et
+    # while providing eclipsing object globally or as a column
+
     # Some preprocessing steps
     system.preprocess(time=None)
     

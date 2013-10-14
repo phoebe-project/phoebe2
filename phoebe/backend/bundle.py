@@ -623,7 +623,7 @@ class Bundle(object):
         elif 'sp' in context:
             output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         else:
-            print("only lc, rv, and sp currently implemented")
+            print("only lc, rv, etv, and sp currently implemented")
         
         for objectlabel in output.keys():      
             # get the correct component (body)
@@ -711,12 +711,9 @@ class Bundle(object):
         else:
             # then loop through indices until there are none left
             return_ = []
-            parset,i = 0,0
-            while parset != (None,None):
-                parset = obj.get_parset(type='obs',ref=i)
-                i+=1
-                if parset != (None,None):
-                    return_.append(parset[0])
+            for typ in obj.params['obs']:
+                for ref in obj.params['obs'][typ]:
+                    return_.append(obj.params['obs'][typ][ref])
             return return_
 
     def enable_obs(self,dataref=None):
@@ -811,12 +808,9 @@ class Bundle(object):
         else:
             # then loop through indices until there are none left
             return_ = []
-            parset,i = 0,0
-            while parset != [] and parset != None:
-                parset = obj.get_synthetic(ref=i, cumulative=True)
-                i+=1
-                if parset != [] and parset != None:
-                    return_.append(parset)
+            for typ in obj.params['obs']:
+                for ref in obj.params['obs'][typ]:
+                    return_.append(obj.params['obs'][typ][ref])
             return return_
         
     #}
