@@ -2284,7 +2284,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             # the proper times from the barycentric times
             objs, vels, prop_times = \
                 keplerorbit.get_barycentric_hierarchical_orbit(time_per_time,
-                                out[0], out[1], barycentric=True)
+                                out[0], out[1])
             
             # Store the results in an "orbsyn" parameterSet
             orbsyn = parameters.ParameterSet('orbsyn', bary_time=time_per_time,
