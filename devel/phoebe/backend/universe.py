@@ -143,7 +143,7 @@ from collections import OrderedDict
 import numpy as np
 from numpy import sin,cos,pi,sqrt,pi
 from scipy.integrate import quad
-from scipy.optimize import nnls
+from scipy.optimize import nnls, fmin
 import scipy
 try:
     import pylab as pl
@@ -1335,6 +1335,18 @@ class Body(object):
         Set the parent of this Body.
         """
         self.parent = parent
+        
+    def get_sibling(self):
+        """
+        Return the other component in the same orbit
+        
+        If it does not have a parent, will return None
+        """
+        parent = self.get_parent()
+        if parent is None: return None
+        
+        component = self.get_component()
+        return [child for child in parent.get_children() if child.get_component()!=component][0]
     
     def get_globals(self):
         """
@@ -2566,6 +2578,7 @@ class Body(object):
             if not type in self.params:
                 return self[0].get_parset(ref=ref,type=type,context=context,category=category)
             categories = category and [category+type[-3:]] or self.params[type].keys()
+            
             for icat in categories:
                 if not icat in self.params[type]:
                     raise ValueError('No {} defined: looking in type={}, available={}'.format(icat,type,list(self.params[type].keys())))
@@ -3098,8 +3111,43 @@ class Body(object):
         Copy this instance.
         """
         return copy.deepcopy(self)
-    
-    
+                            
+    @decorators.parse_ref
+    def etv(self,ref='alletvdep',times=None):
+        """
+        IN ACTIVE DEVELOPMENT
+        """
+        #-- don't bother if we cannot do anything...
+        if hasattr(self,'params') and 'obs' in self.params and 'orbit' in self.params:
+            orbit = self.params['orbit']
+            
+            sibling = self.get_sibling()
+           
+            orbits1, components1 = self.get_orbits() 
+            orbits2, components2 = sibling.get_orbits()
+            
+            for lbl in ref:
+                etvsyn,lbl = self.get_parset(type='syn',ref=lbl)
+                etvobs,lbl = self.get_parset(type='obs',ref=lbl)
+                
+                if etvsyn is (None, None) or etvobs is (None, None):
+                    continue
+                
+                if times is None: # then default to what is in the etvobs
+                    times = etvobs['time'] # eventually change to compute from cycle number
+                    
+                # times needs to be a np.array for get_barycentric_hierarchical_orbit
+                if isinstance(times,list):
+                    times = np.array(times) 
+                
+                # get true observed times of eclipse (with LTTE, etc)
+                objs1, vels1, t1 = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits1, components1)
+                
+                # append to etvsyn
+                etvsyn['time'] = np.append(etvsyn['time'],times)
+                etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t1)
+                etvsyn['etv'] = np.append(etvsyn['etv'],t1-times)
+                
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, correct_oversampling=1):
         """
@@ -4756,23 +4804,7 @@ class BodyBag(Body):
 
         return np.average(distances, weights=masses)
             
-    @decorators.parse_ref
-    def etv(self,ref='alletvdep',time=None):
-        """
-        currently this computes the LTTE of an orbit at every time
-        does NOT handle: dynamical, apsidal, etc
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'obs' in self.params:
-            for lbl in ref:
-                etvobs,lbl = self.get_parset(type='syn',ref=lbl)
-                
-                distance = self.get_barycenter()
-                
-                etv = distance*constants.Rsol/constants.cc*1/(24*3600.)
-                etvobs['time'].append(time)
-                etvobs['etv'].append(etv) #in days
-    
+   
     #@decorators.parse_ref
     #def pl(self,wavelengths=None,ref='allpldep',sigma=5.,depth=0.4,time=None):
         #for lbl in ref:
