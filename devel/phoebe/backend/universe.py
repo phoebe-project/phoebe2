@@ -3135,11 +3135,7 @@ class Body(object):
                 
                 if times is None: # then default to what is in the etvobs
                     times = etvobs['time'] # eventually change to compute from cycle number
-                    
-                # times needs to be a np.array for get_barycentric_hierarchical_orbit
-                if isinstance(times,list):
-                    times = np.array(times) 
-                
+               
                 # get true observed times of eclipse (with LTTE, etc)
                 objs1, vels1, t1 = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits1, components1)
                 
