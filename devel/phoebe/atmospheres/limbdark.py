@@ -133,6 +133,16 @@ coefficients for any set of values within the grid:
 The output C{coeffs} contains the limb darkening coefficients (first N-1 values)
 and the center flux enabling an absolute scaling.
 
+If you don't know or care where a certain atmosphere file is located, you could
+try specifying some the properties you want the table to have, and try to let
+the library choose the atmosphere table for you:
+
+>>> atm = choose_ld_coeffs_table('kurucz',
+...                   atm_kwargs=dict(teff=4000, logg=4.0, abun=0,
+...                                   ld_func='claret', ld_coeffs='kurucz'))
+>>> coeffs = interp_ld_coeffs(atm, 'JOHNSON.V',
+...                           atm_kwargs=dict(teff=4000, logg=4.0))
+
 
 Section 6. Handling files and directories for atmosphere files
 ==============================================================
@@ -906,7 +916,8 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
     return atm
     
     
-def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
+def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
+                     order=1):
     """
     Interpolate an atmosphere table.
     
@@ -920,6 +931,8 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
     @type vgamma: float/array
     @param passband: photometric passband
     @type passband: str
+    @param order: interpolation order
+    @type order: integer
     """
     # Get the FITS-file containing the tables, and retrieve structured
     # information on the grid (memoized)
@@ -977,7 +990,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0):
                               "interpret label {}").format(label))
     # Try to interpolate
     try:
-        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid)
+        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
         if np.any(np.isnan(pars[-1])):
             raise IndexError
     
@@ -2007,13 +2020,18 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
         else:
             coeffs = interp_ld_coeffs(atm, passband, atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs, vgamma=vgamma)
+            if ld_coeffs_from_grid:
+                ld_coeffs_coeffs = interp_ld_coeffs(atm_kwargs['ld_coeffs'], passband, atm_kwargs=atm_kwargs,
+                                       red_kwargs=red_kwargs, vgamma=vgamma)[:-1]
+            else:
+                ld_coeffs_coeffs = atm_kwargs['ld_coeffs']
             # We need to rescale the intensity so that the emergent luminosity
             # is the same:
             if atm == 'blackbody':
-                disk_integral_grid = disk_uniform(coeffs)
+                disk_integral_grid = disk_uniform(coeffs[:-1])
             else:
-                disk_integral_grid = globals()['disk_'+atm_kwargs['ld_func']](coeffs)
-            disk_integral_user = globals()['disk_'+atm_kwargs['ld_func']](atm_kwargs['ld_coeffs'])
+                disk_integral_grid = globals()['disk_'+atm_kwargs['ld_func']](coeffs[:-1])
+            disk_integral_user = globals()['disk_'+atm_kwargs['ld_func']](ld_coeffs_coeffs)
             factor = disk_integral_grid / disk_integral_user
             #factor = 1.0
             system.mesh[tag][:,-1] = coeffs[-1] * factor
