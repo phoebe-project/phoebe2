@@ -2287,7 +2287,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                 out[0], out[1])
             
             # Store the results in an "orbsyn" parameterSet
-            orbsyn = parameters.ParameterSet('orbsyn', bary_time=time_per_time,
+            orbsyn = datasets.DataSet('orbsyn', bary_time=time_per_time,
                                              prop_time=prop_times)
             
             # We need to keep the same hierarchy as with lcsyns and such
