@@ -77,7 +77,7 @@ def interpolate(p, axis_values, pixelgrid, order=1):
 
     # interpolate
     if order > 1:
-        prefilter = True
+        prefilter = False
     else:
         prefilter = False
     return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=order, prefilter=prefilter) \

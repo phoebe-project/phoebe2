@@ -508,7 +508,6 @@ def check_input_ps(self, ps, contexts, narg, is_list=False):
 
 
 
-
 def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
                         type='nnls'):
     r"""
@@ -2859,11 +2858,11 @@ class Body(object):
         """
         Clear the body from all calculated results.
         """
-        result_sets = dict(lcsyn=datasets.LCDataSet,
-                       rvsyn=datasets.RVDataSet,
-                       spsyn=datasets.SPDataSet,
-                       ifsyn=datasets.IFDataSet,
-                       plsyn=datasets.PLDataSet)
+        #result_sets = dict(lcsyn=datasets.LCDataSet,
+                       #rvsyn=datasets.RVDataSet,
+                       #spsyn=datasets.SPDataSet,
+                       #ifsyn=datasets.IFDataSet,
+                       #plsyn=datasets.PLDataSet)
         if hasattr(self,'params') and 'syn' in self.params:
             for pbdeptype in self.params['syn']:
                 for ref in self.params['syn'][pbdeptype]:
@@ -3508,6 +3507,10 @@ class PhysicalBody(Body):
         if hasattr(self, 'params') and 'syn' in self.params and 'orbsyn' in self.params['syn']:
             bary_time = self.params['syn']['orbsyn'].values()[0]['bary_time']
             prop_time = self.params['syn']['orbsyn'].values()[0]['prop_time']
+            # Possibly ltt where used before, and now an empty orbsyn set is
+            # lying around
+            if len(bary_time) == 0:
+                return time
             index = np.searchsorted(bary_time, time)
             if bary_time[index] == time:
                 logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({:.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
