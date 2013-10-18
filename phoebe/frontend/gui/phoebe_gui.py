@@ -151,6 +151,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.sb_StatusBar.setVisible(False)
         self.rp_fitoptionsWidget.setVisible(False)
         self.lp_observeoptionsWidget.setVisible(False)
+        self.sys_orbitOptionsWidget.setVisible(False)
+        self.sys_meshOptionsWidget.setVisible(False)
+        self.mp_systemSelectWebViewWidget.setVisible(False) #hierarchy view
         self.rp_savedFeedbackTreeView.setVisible(False)
         self.rp_savedFeedbackAutoSaveCheck.setVisible(False)
         self.rp_stackedWidget.setCurrentIndex(0) #fit input
@@ -252,6 +255,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.lp_previewPushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_computePushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_progressQuit, SIGNAL("clicked()"), self.cancel_thread)
+        
+        QObject.connect(self.sys_meshPushButton, SIGNAL("clicked()"), self.on_mesh_update_clicked)
 
         # middle panel signals
         QObject.connect(self.mp_sysSelWebView, SIGNAL("ctrl_pressed"), self.on_sysSel_ctrl)
@@ -300,7 +305,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.datasetswidget_main.addETVButton.setEnabled(False)
         
         # tree view signals
-        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView,self.versions_treeView,self.rp_savedFeedbackTreeView]
+        self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView, self.versions_treeView, self.rp_savedFeedbackTreeView, self.sys_orbitOptionsTreeView, self.sys_meshOptionsTreeView]
         for tv in self.paramTreeViews:
             QObject.connect(tv, SIGNAL("parameterChanged"), self.on_param_changed)
             QObject.connect(tv, SIGNAL("parameterCommand"), self.on_param_command)
@@ -313,6 +318,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.PythonEdit, SIGNAL("GUILock"), self.gui_lock)
         QObject.connect(self.PythonEdit, SIGNAL("GUIUnlock"), self.gui_unlock) 
         QObject.connect(self.PythonEdit, SIGNAL("set_time"), self.on_set_time)
+        QObject.connect(self.PythonEdit, SIGNAL("set_select_time"), self.on_plots_changed)
         QObject.connect(self.PythonEdit, SIGNAL("undo"), self.on_undo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("redo"), self.on_redo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("plots_changed"), self.on_plots_changed) 
@@ -352,6 +358,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.gui_locked=True
         self.current_thread=thread
         self.lp_mainWidget.setEnabled(False) #main instead of dock so progressbar is enabled
+        self.lp_observeoptionsWidget.setEnabled(False) #outside of mainWidget
         self.rp_fittingDockWidget.setEnabled(False)
         self.bp_pyDockWidget.setEnabled(False)
         self.bp_datasetsDockWidget.setEnabled(False)
@@ -376,6 +383,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.gui_locked=False
         self.current_thread = None
         self.lp_mainWidget.setEnabled(True)
+        self.lp_observeoptionsWidget.setEnabled(True)
         self.rp_fittingDockWidget.setEnabled(True)
         self.bp_pyDockWidget.setEnabled(True)
         self.bp_datasetsDockWidget.setEnabled(True)
@@ -484,6 +492,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bundle.attach_signal(self.bundle,'load_data',self.update_datasets)
             self.bundle.attach_signal(self.bundle,'add_fitting',self.update_fittingOptions)
             self.bundle.attach_signal(self.bundle,'remove_fitting',self.update_fittingOptions)
+            self.bundle.attach_signal(self.bundle,'set_select_time',self.on_plots_changed)
             #~ print "*** attaching set_time signal"
             #~ self.bundle.attach_signal(self.bundle.system,'set_time',self.on_set_time)
 
@@ -850,6 +859,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             canvas = phoebe_plotting.MyMplCanvas(new_plot_widget, width=5, height=4, dpi=100, thumb=thumb, bg=str(self.palette.color(QPalette.Window).name()), hl=str(self.palette.color(QPalette.Highlight).name()))
         if thumb:
             QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_expand_toggle)
+        else:
+            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_expanded_plot_clicked)
         vbox = QVBoxLayout()
         vbox.addWidget(canvas)
         if not thumb:
@@ -924,11 +935,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
 
     @PyInterp_selfdebug
-    def on_plot_expand_toggle(self, plot=None):
+    def on_plot_expand_toggle(self, plot=None, *args):
         #~ print "* on_plot_expand_toggle"
         #plot expanded from gui
         if self.sender() == self.meshmpl_canvas:
             self.mp_stackedWidget.setCurrentIndex(3)
+            #~ self.on_plots_changed() # just to make sure up to date - REMOVE?
             return
         if self.mp_stackedWidget.currentIndex()==1: #then we need to expand            
             # this should intelligently raise if on data tab (and then return on collapse)
@@ -974,6 +986,25 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(0)
             
         #~ self.update_datasets()
+        
+    def on_expanded_plot_clicked(self,canvas,event):
+        t = event.xdata
+        
+        if 'phase' in canvas.xaxis:
+            if self.bundle.select_time is None:
+                return
+            period = canvas.period
+            phase_new = t
+            phase_old = (self.bundle.select_time % period) / period
+            dt = (phase_new - phase_old) * period
+            t = self.bundle.select_time + dt
+            
+        do_command = 'bundle.set_select_time(%f)' % t
+        undo_command = 'bundle.set_select_time(%s)' % self.bundle.select_time if self.bundle.select_time is not None else 'None'
+        description = 'change select time to %f' % t
+        self.on_param_command(do_command,undo_command,description='',thread=False)
+        
+        self.on_mesh_update_clicked()
 
     @PyInterp_selfdebug
     def on_plot_pop(self):
@@ -1076,6 +1107,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.add_compute(parameters.ParameterSet(context=\'compute\',%s),\'%s\')' % (args,kind),'bundle.remove_compute(\'%s\')' % (kind),kind='sys',thread=False,description='save %s options' % kind)
         self.undoStack.push(command) 
         
+    def on_mesh_update_clicked(self,*args):
+        """
+        """
+        #~ mplfig = self.meshmpl_canvas
+        #~ 
+        #~ self.bundle.plot_mesh(mplfig)
+        self.meshmpl_canvas.plot_mesh(self.bundle)
+        
     def on_paramfocus_changed(self,*args):
         """
         only allow one item across all treeviews in self.paramTreeViews to have focus
@@ -1112,34 +1151,42 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             if label not in self.bundle.fitting:
                 # need to first creat item
                 self.fitting_create(label)
+        elif treeview==self.sys_orbitOptionsTreeView:
+            kind = 'orbitplot'
+            label = 'orbitplot'
+        elif treeview==self.sys_meshOptionsTreeView:
+            kind = 'meshplot'
+            label = 'meshplot'
         else:
             #probably coming from rp_fitinTreeView and need to determine type
             i = self.system_names.index(label)
             nchild = list(utils.traverse(self.jsmessenger.sysitems_nchild))[i]
             kind = 'component' if nchild=='0' else 'orbit'
         
+        labelstr = '\'%s\'' % label if label not in ['orbitplot','meshplot'] else ''
+        
         # add prior if necessary    
         if is_adjust and newvalue == True and not param.has_prior(): #then we need to create an initial prior
             lims = param.get_limits()
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,label,parname,lims[0],lims[1]),'bundle.get_%s(\'%s\').get_parameter(\'%s\').remove_prior()' % (kind,label,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,labelstr,parname,lims[0],lims[1]),'bundle.get_%s(%s).get_parameter(\'%s\').remove_prior()' % (kind,labelstr,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
             self.undoStack.push(command)
         
         # change adjust/value if necessary
         if is_adjust:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').set_adjust(\'%s\', %s)' % (kind,label,parname,newvalue), 'bundle.get_%s(\'%s\').set_adjust(\'%s\', %s)' % (kind,label,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,newvalue), 'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
         else:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(\'%s\').set_value(\'%s\',%s)' % (kind,label,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
         
         # change/add constraint
         if is_constraint:
             if newvalue.strip() == '':
-                do_command = 'bundle.get_%s(\'%s\').remove_constraint(\'%s\')' % (kind,label,parname)
+                do_command = 'bundle.get_%s(%s).remove_constraint(\'%s\')' % (kind,labelstr,parname)
             else:
-                do_command = 'bundle.get_%s(\'%s\').add_constraint(\'{%s} = %s\')' % (kind,label,parname,newvalue)
+                do_command = 'bundle.get_%s(%s).add_constraint(\'{%s} = %s\')' % (kind,labelstr,parname,newvalue)
             if oldvalue.strip() == '':
-                undo_command = 'bundle.get_%s(\'%s\').remove_constraint(\'%s\')' % (kind,label,parname)
+                undo_command = 'bundle.get_%s(%s).remove_constraint(\'%s\')' % (kind,labelstr,parname)
             else:
-                undo_command = 'bundle.get_%s(\'%s\').add_constraint(\'{%s} = %s\')' % (kind,label,parname,oldvalue)
+                undo_command = 'bundle.get_%s(%s).add_constraint(\'{%s} = %s\')' % (kind,labelstr,parname,oldvalue)
         
             command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description="change constraint on %s:%s" % (label,parname))
             
@@ -1150,11 +1197,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,newunit),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,oldunit),thread=False,description='change value of %s:%s' % (kind,parname))
             self.undoStack.push(command)
             
-    def on_param_command(self,do_command,undo_command,description=''):
+    def on_param_command(self,do_command,undo_command,description='',thread=False):
         """
         allows more flexible/customized commands to be sent from parameter treeviews
         """
-        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
+        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=thread,description=description)
         self.undoStack.push(command)
             
         
@@ -1249,6 +1296,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # update version - should probably move this
             self.versions_treeView.set_data(self.bundle.versions)
             self.rp_savedFeedbackTreeView.set_data(self.bundle.feedbacks)
+            
+            # update plot mesh options - should probably move this
+            self.sys_meshOptionsTreeView.set_data([self.bundle.plot_meshoptions],style=['nofit'])
+            self.sys_orbitOptionsTreeView.set_data([self.bundle.plot_orbitoptions],style=['nofit'])
         
         else:
             if self.mp_stackedWidget.currentIndex()!=0:

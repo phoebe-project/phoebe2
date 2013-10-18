@@ -37,6 +37,10 @@ class Bundle(object):
         self.feedbacks = [] #list of dictionaries
         self.figs = OrderedDict()
         
+        self.select_time = None
+        self.plot_meshoptions = parameters.ParameterSet(context='plotting:mesh')
+        self.plot_orbitoptions = parameters.ParameterSet(context='plotting:orbit')
+        
         self.pool = OrderedDict()
         self.signals = {}
         self.attached_signals = []
@@ -1173,14 +1177,67 @@ class Bundle(object):
         
         @param ident: index or title of the axes
         @type ident: int or str
-        @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
+        @param mplfig: the matplotlib figure to add the axes to, if none is given one will be created
         @type mplfig: plt.Figure()
-        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig)
+        @param mplaxes: the matplotlib axes to plot to (overrides mplfig)
         @type mplaxes: plt.axes.Axes()
-        @parameter location: the location on the figure to add the axes
+        @param location: the location on the figure to add the axes
         @type location: str or tuple  
         """
         self.get_axes(ident).plot(self,mplfig=mplfig,mplaxes=mplaxes,location=location)
+        
+    def set_select_time(self,time=None):
+        """
+        Set the highlighted time to be shown in all plots
+        
+        set to None to not draw a highlighted time
+        
+        @param time: the time to highlight
+        @type time: float or None
+        """
+        self.select_time = time
+        #~ self.system.set_time(time)
+        
+    def get_meshplot(self):
+        """
+        
+        """
+        return self.plot_meshoptions
+        
+    def plot_mesh(self,mplfig=None,mplaxes=None,meshoptions=None):
+        """
+        Creates a mesh plot using the saved options if not overridden
+        
+        @param mplfig: the matplotlib figure to add the axes to, if none is given one will be created
+        @type mplfig: plt.Figure()
+        @param mplaxes: the matplotlib axes to plot to (overrides mplfig)
+        @type mplaxes: plt.axes.Axes()
+        @param meshoptions: the options for the mesh, will default to saved options
+        @type meshoptions: parameterSet
+        """
+        if self.select_time is not None:
+            self.system.set_time(self.select_time)
+        
+        if mplfig is None:
+            if mplaxes is None: # no axes provided
+                axes = plt.axes()
+            else: # use provided axes
+                axes = mplaxes
+            
+        else:
+            axes = mplfig.add_subplot(111)
+        
+        mo = self.plot_meshoptions
+        #~ print "***", mo['cmap'] if mo['cmap'] is not 'None' else None
+        lims, vrange, p = observatory.image(self.system, ref=mo['ref'], context=mo['context'], select=mo['select'], background=mo['background'], ax=axes)
+        axes.set_xlim(lims['xlim'])
+        axes.set_ylim(lims['ylim'])       
+        
+    def get_orbitplot(self):
+        """
+        
+        """
+        return self.plot_orbitoptions
         
     def plot_orbit(self,times=None):
         """
@@ -1544,6 +1601,7 @@ class Axes(object):
                 #~ orbit = self._get_orbit(plotoptions['objref'],system)
                 orbit = bundle.get_orbit(plotoptions['objref'])
             period = orbit.get_value('period')
+            self.period = period
             #~ print "** period", period
             #~ print "** phased", phased     
             #~ print "** type", plotoptions['type']
@@ -1563,6 +1621,15 @@ class Axes(object):
                 artists,obs = plotting.plot_etvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             else:
                 artists,obs = [],[]
+        
+            if bundle.select_time is not None:
+                time = bundle.select_time
+                if phased:
+                    time = (time % period) / period
+                
+                xlim = axes.get_xlim()
+                if time < xlim[1] and time > xlim[0]:
+                    axes.axvline(time, color='r')
 
     
 def load(filename):

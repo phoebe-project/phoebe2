@@ -1233,6 +1233,8 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
         meshes
         compute options
         fitting options
+        plot orbit options
+        plot mesh options
     """
      
     def set_data(self,data,style=[]):
@@ -2119,7 +2121,7 @@ class PyInterpThread(QThread):
             
     def on_set_time(self,*args):
         self.emit(SIGNAL('set_time'))
-
+        
 class PyInterp(QTextEdit):
     # modified greatly from https://github.com/JeffMGreg/PyInterp
     class InteractiveInterpreter(code.InteractiveInterpreter):
@@ -2222,7 +2224,7 @@ class PyInterp(QTextEdit):
             
     def on_set_time(self,*args):
         self.emit(SIGNAL("set_time"))
-            
+        
     def update_textfromthread(self, text):
         #~ self.insertPlainText(text)
         self.write(text)
