@@ -35,6 +35,8 @@ class MyMplCanvas(FigureCanvas):
     
         #~ if not thumb:
             #~ self.mpl_toolbar = NavigationToolbar(self, parent)
+            
+        self.mpl_connect ("button_release_event", self.on_button_released)
 
         FigureCanvas.setSizePolicy(self,
                                    QSizePolicy.Expanding,
@@ -69,25 +71,19 @@ class MyMplCanvas(FigureCanvas):
             #~ self.replot()
         # unhighlight/hide buttons
 
-    def mouseReleaseEvent(self, event):
-        super(MyMplCanvas, self).mouseReleaseEvent(event)
-        self.emit(SIGNAL("plot_clicked"),self)
+    def on_button_released(self, event):
+        self.emit(SIGNAL("plot_clicked"),self,event)
+        #~ print "***", 
+        #~ pass
 
-    def plot_LC(self, x, y, curr_x=None):
-        self.axes.cla()
-        self.axes.plot(x, y, '.')
-        if curr_x is not None:
-            self.axes.axvline(curr_x, color='r')
-        #~ print dir(self.axes)
-        #~ self.leaveEvent()
-        
-    def plot_mesh(self, system):
+    def plot_mesh(self, bundle):
         #~ self.axes.cla()
         self.fig.clf()
-        ax = self.fig.gca()
-        ax.get_xaxis().set_visible(False)
-        ax.axes.get_yaxis().set_visible(False)
-        system.plot2D(ax=ax)
+        #~ ax = self.fig.gca()
+        #~ ax.get_xaxis().set_visible(False)
+        #~ ax.axes.get_yaxis().set_visible(False)
+        #~ system.plot2D(ax=ax)
+        bundle.plot_mesh(mplfig=self.fig)
         self.draw()
 
     def cla(self):
@@ -97,6 +93,8 @@ class MyMplCanvas(FigureCanvas):
         #~ self.fig = Figure(figsize=(self.width, self.height), dpi=self.dpi,facecolor='#F6F4F2')
         self.fig.clf()
         axes.plot(bundle, mplfig=self.fig) 
+        self.xaxis = axes.get_value('xaxis')
+        self.period = axes.period
         # note axes is not the same as self.axes
         
         #~ if not isinstance(plotoptions, list):

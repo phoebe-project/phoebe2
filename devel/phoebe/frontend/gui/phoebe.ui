@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1193</width>
-    <height>1417</height>
+    <height>1827</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -1619,12 +1619,190 @@ p, li { white-space: pre-wrap; }
       <number>0</number>
      </property>
      <item>
+      <widget class="QPushButton" name="lp_sysHierarchyPushButton">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Hierarchy</string>
+       </property>
+       <property name="icon">
+        <iconset resource="ui_resources.qrc">
+         <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QWidget" name="mp_systemSelectWebViewWidget" native="true">
        <property name="maximumSize">
         <size>
          <width>16777215</width>
          <height>16777215</height>
         </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="mp_sysOrbitPushButton">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Orbit View</string>
+       </property>
+       <property name="icon">
+        <iconset resource="ui_resources.qrc">
+         <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QWidget" name="mp_sysorbitWidget" native="true">
+       <layout class="QVBoxLayout" name="verticalLayout_15">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="gridLayout_4"/>
+        </item>
+        <item>
+         <widget class="QWidget" name="sys_orbitOptionsWidget" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_17">
+           <property name="spacing">
+            <number>2</number>
+           </property>
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="sys_orbitOptionsPushButton2">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Orbit View Options</string>
+             </property>
+             <property name="icon">
+              <iconset resource="ui_resources.qrc">
+               <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="ParameterTreeWidget" name="sys_orbitOptionsTreeView">
+             <property name="indentation">
+              <number>2</number>
+             </property>
+             <column>
+              <property name="text">
+               <string notr="true">1</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <item>
+           <widget class="QPushButton" name="sys_orbitOptionsPushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="ui_resources.qrc">
+              <normaloff>:/images/icons/settings.png</normaloff>:/images/icons/settings.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_9">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Update</string>
+            </property>
+            <property name="icon">
+             <iconset resource="ui_resources.qrc">
+              <normaloff>:/images/icons/play.png</normaloff>:/images/icons/play.png</iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="mp_sysMeshPushButton">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Mesh View</string>
+       </property>
+       <property name="icon">
+        <iconset resource="ui_resources.qrc">
+         <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -1642,15 +1820,109 @@ p, li { white-space: pre-wrap; }
          <height>16777215</height>
         </size>
        </property>
-       <layout class="QGridLayout" name="gridLayout_10">
+       <layout class="QVBoxLayout" name="verticalLayout_9">
+        <property name="spacing">
+         <number>2</number>
+        </property>
         <property name="margin">
          <number>0</number>
         </property>
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <item row="0" column="0">
+        <item>
          <layout class="QGridLayout" name="mp_sysmplGridLayout"/>
+        </item>
+        <item>
+         <widget class="QWidget" name="sys_meshOptionsWidget" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_16">
+           <property name="spacing">
+            <number>2</number>
+           </property>
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="sys_meshOptionsPushButton2">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>20</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Mesh View Options</string>
+             </property>
+             <property name="icon">
+              <iconset resource="ui_resources.qrc">
+               <normaloff>:/images/icons/menu-2.png</normaloff>:/images/icons/menu-2.png</iconset>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="ParameterTreeWidget" name="sys_meshOptionsTreeView">
+             <property name="indentation">
+              <number>2</number>
+             </property>
+             <column>
+              <property name="text">
+               <string notr="true">1</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <item>
+           <widget class="QPushButton" name="sys_meshOptionsPushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="ui_resources.qrc">
+              <normaloff>:/images/icons/settings.png</normaloff>:/images/icons/settings.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="sys_meshPushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>24</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Update</string>
+            </property>
+            <property name="icon">
+             <iconset resource="ui_resources.qrc">
+              <normaloff>:/images/icons/play.png</normaloff>:/images/icons/play.png</iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
@@ -2339,6 +2611,150 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>699</x>
      <y>1075</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>lp_sysHierarchyPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mp_systemSelectWebViewWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>910</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>927</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>mp_sysOrbitPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mp_sysorbitWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>944</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>961</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>mp_sysMeshPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mp_sysmplWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>978</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>1065</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_meshOptionsPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_meshOptionsWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>14</x>
+     <y>1127</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>1053</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_meshOptionsPushButton2</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_meshOptionsPushButton</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>1004</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>14</x>
+     <y>1127</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_meshOptionsPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_meshOptionsPushButton2</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>14</x>
+     <y>1127</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>1004</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_orbitOptionsPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_orbitOptionsWidget</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>14</x>
+     <y>953</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>888</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_orbitOptionsPushButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_orbitOptionsPushButton2</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>14</x>
+     <y>953</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>172</x>
+     <y>848</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sys_orbitOptionsPushButton2</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sys_orbitOptionsPushButton</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>172</x>
+     <y>848</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>14</x>
+     <y>953</y>
     </hint>
    </hints>
   </connection>
