@@ -657,7 +657,7 @@ def get_hierarchical_orbit(times,orbits,comps):
     return obj.T,vel.T
     
 
-def get_barycentric_hierarchical_orbit(bary_times, orbits, components):
+def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentric=True):
     r"""
     Construct a hiearchical orbit corrected for light LTT effects.
     
@@ -707,7 +707,7 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components):
         return t + z*scale_factor - t_bary
     # Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual, t_bary) for \
-                       t_bary in bary_times]
+                       t_bary in bary_times] if barycentric else bary_times
     propertimes = np.array(propertimes).ravel()
     # then make an orbit with these times!
     this_orbit = get_hierarchical_orbit_phoebe(bary_times, orbits, components)
