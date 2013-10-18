@@ -3112,9 +3112,10 @@ class Body(object):
         return copy.deepcopy(self)
                             
     @decorators.parse_ref
-    def etv(self,ref='alletvdep',times=None):
+    def etv(self,ref='alletvdep',times=None,ltt=False):
         """
-        IN ACTIVE DEVELOPMENT
+        Compute eclipse timings and add results to the pbdep ParameterSet.
+        
         """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'obs' in self.params and 'orbit' in self.params:
@@ -3122,8 +3123,7 @@ class Body(object):
             
             sibling = self.get_sibling()
            
-            orbits1, components1 = self.get_orbits() 
-            orbits2, components2 = sibling.get_orbits()
+            orbits, components = self.get_orbits() 
             
             for lbl in ref:
                 etvsyn,lbl = self.get_parset(type='syn',ref=lbl)
@@ -3136,12 +3136,12 @@ class Body(object):
                     times = etvobs['time'] # eventually change to compute from cycle number
                
                 # get true observed times of eclipse (with LTTE, etc)
-                objs1, vels1, t1 = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits1, components1)
+                objs, vels, t = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits, components, barycentric=ltt)
                 
                 # append to etvsyn
                 etvsyn['time'] = np.append(etvsyn['time'],times)
-                etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t1)
-                etvsyn['etv'] = np.append(etvsyn['etv'],t1-times)
+                etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
+                etvsyn['etv'] = np.append(etvsyn['etv'],t-times)
                 
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, correct_oversampling=1):

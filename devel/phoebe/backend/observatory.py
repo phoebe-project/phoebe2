@@ -2174,7 +2174,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if inside_mpi is None:
         for i,labl in enumerate(ivo_labl_per_labl):
             for body in system.get_bodies():
-                body.etv(ref=[labl],times=ivo_time_per_labl[i])
+                body.etv(ref=[labl],times=ivo_time_per_labl[i],ltt=params['ltt'])
 
     # compute eclipse times in range from min(etv_time_per_time) to max(etv_time_per_time) with some resolution 
     # use special effects (apsidal, LTTE, etc) that are enabled in compute options? or etvdep?
