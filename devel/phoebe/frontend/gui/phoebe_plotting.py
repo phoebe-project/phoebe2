@@ -83,7 +83,12 @@ class MyMplCanvas(FigureCanvas):
         #~ ax.get_xaxis().set_visible(False)
         #~ ax.axes.get_yaxis().set_visible(False)
         #~ system.plot2D(ax=ax)
-        bundle.plot_mesh(mplfig=self.fig)
+        bundle.plot_meshview(mplfig=self.fig)
+        self.draw()
+        
+    def plot_orbit(self, bundle):
+        self.fig.clf()
+        bundle.plot_orbitview(mplfig=self.fig)
         self.draw()
 
     def cla(self):

@@ -1684,7 +1684,7 @@ p, li { white-space: pre-wrap; }
          <number>0</number>
         </property>
         <item>
-         <layout class="QGridLayout" name="gridLayout_4"/>
+         <layout class="QGridLayout" name="sys_orbitmplGridLayout"/>
         </item>
         <item>
          <widget class="QWidget" name="sys_orbitOptionsWidget" native="true">
@@ -1759,9 +1759,9 @@ p, li { white-space: pre-wrap; }
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_9">
+           <widget class="QPushButton" name="sys_orbitPushButton">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="maximumSize">
              <size>
