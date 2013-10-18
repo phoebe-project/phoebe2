@@ -1734,7 +1734,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
 
 
         elif par.cast_type == 'return_string_or_list':
-            if par.get_qualifier() in ['time']:
+            if par.get_qualifier() in ['time','times']:
                 index = 2
                 if par.get_value()=='auto':
                     pop.strlist_time_auto.setChecked(True)
