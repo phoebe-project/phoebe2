@@ -13,6 +13,7 @@ from phoebe.utils import callbacks, utils
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.backend import fitting, observatory, plotting
+from phoebe.dynamics import keplerorbit
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
@@ -38,8 +39,8 @@ class Bundle(object):
         self.figs = OrderedDict()
         
         self.select_time = None
-        self.plot_meshoptions = parameters.ParameterSet(context='plotting:mesh')
-        self.plot_orbitoptions = parameters.ParameterSet(context='plotting:orbit')
+        self.plot_meshviewoptions = parameters.ParameterSet(context='plotting:mesh')
+        self.plot_orbitviewoptions = parameters.ParameterSet(context='plotting:orbit')
         
         self.pool = OrderedDict()
         self.signals = {}
@@ -1198,13 +1199,13 @@ class Bundle(object):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshplot(self):
+    def get_meshview(self):
         """
         
         """
-        return self.plot_meshoptions
+        return self.plot_meshviewoptions
         
-    def plot_mesh(self,mplfig=None,mplaxes=None,meshoptions=None):
+    def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None):
         """
         Creates a mesh plot using the saved options if not overridden
         
@@ -1212,8 +1213,8 @@ class Bundle(object):
         @type mplfig: plt.Figure()
         @param mplaxes: the matplotlib axes to plot to (overrides mplfig)
         @type mplaxes: plt.axes.Axes()
-        @param meshoptions: the options for the mesh, will default to saved options
-        @type meshoptions: parameterSet
+        @param meshviewoptions: the options for the mesh, will default to saved options
+        @type meshviewoptions: parameterSet
         """
         if self.select_time is not None:
             self.system.set_time(self.select_time)
@@ -1227,39 +1228,72 @@ class Bundle(object):
         else:
             axes = mplfig.add_subplot(111)
         
-        mo = self.plot_meshoptions
-        #~ print "***", mo['cmap'] if mo['cmap'] is not 'None' else None
-        lims, vrange, p = observatory.image(self.system, ref=mo['ref'], context=mo['context'], select=mo['select'], background=mo['background'], ax=axes)
+        po = self.plot_meshviewoptions if meshviewoptions is None else meshviewoptions
+        #~ print "***", po['cmap'] if po['cmap'] is not 'None' else None
+        lims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
         axes.set_xlim(lims['xlim'])
         axes.set_ylim(lims['ylim'])       
         
-    def get_orbitplot(self):
+    def get_orbitview(self):
         """
         
         """
-        return self.plot_orbitoptions
+        return self.plot_orbitviewoptions
         
-    def plot_orbit(self,times=None):
+    def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
         
         """
-        raise NotImplementedError
+        if mplfig is None:
+            if mplaxes is None: # no axes provided
+                axes = plt.axes()
+            else: # use provided axes
+                axes = mplaxes
+            
+        else:
+            axes = mplfig.add_subplot(111)
+            
+        po = self.plot_orbitviewoptions if orbitviewoptions is None else orbitviewoptions
+            
+        if po['data_times']:
+            computeparams = parameters.ParameterSet(context='compute') #assume default (auto)
+            observatory.extract_times_and_refs(self.system,computeparams)
+            times_data = computeparams['time']
+        else:
+            times_data = []
         
-        # create times list if not given
-        if times is None:
-            times = np.linspace(self.system.get_value('t0'),self.system.get_value('t0')+self.system.get_value('period'),100)
-        
-        # create hierarchical dictionary for passing to get_hierarchical_orbits
-        
-        
-        # get orbits
-        
-        
-        # plot
-        for body in output:
-            plt.plot(body[0][0], body[0][1])
-        plt.show()
-        
+        top_orbit = self.get_orbit(self.get_system_structure(flat=True)[0])
+        bottom_orbit = self.get_orbit(self.get_system_structure()[-1][0])
+        if po['times'] == 'auto':
+            times_full = np.arange(top_orbit.get_value('t0'),top_orbit.get_value('t0')+top_orbit.get_value('period'),bottom_orbit.get_value('period')/20.)
+        else:
+            times_full = po['times']
+            
+        for obj in self.system.get_bodies():
+            orbits, components = obj.get_orbits()
+            
+            for times,marker in zip([times_full,times_data],['-','x']):
+                if len(times):
+                    pos, vel, t = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits, components)
+                
+                    positions = ['x','y','z']
+                    velocities = ['vx','vy','vz']
+                    if po['xaxis'] in positions:
+                        x = pos[positions.index(po['xaxis'])]
+                    elif po['xaxis'] in velocities:
+                        x = vel[positions.index(po['xaxis'])]
+                    else: # time
+                        x = t
+                    if po['yaxis'] in positions:
+                        y = pos[positions.index(po['yaxis'])]
+                    elif po['yaxis'] in positions:
+                        y = vel[positions.index(po['yaxis'])]
+                    else: # time
+                        y = t
+                        
+                    axes.plot(x,y,marker)
+                    axes.set_xlabel(po['xaxis'])
+                    axes.set_ylabel(po['yaxis'])
         
     #}
         

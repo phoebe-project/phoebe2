@@ -256,6 +256,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.lp_computePushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_progressQuit, SIGNAL("clicked()"), self.cancel_thread)
         
+        QObject.connect(self.sys_orbitPushButton, SIGNAL("clicked()"), self.on_orbit_update_clicked)
         QObject.connect(self.sys_meshPushButton, SIGNAL("clicked()"), self.on_mesh_update_clicked)
 
         # middle panel signals
@@ -469,8 +470,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.plotEntry_axes_i = [None]
         self.attached_plot_signals = [] # pairs of parameter, canvas
         self.meshmpl_widget, self.meshmpl_canvas = None, None
+        self.orbitmpl_widget, self.orbitmpl_canvas = None, None
         self.on_plot_clear_all()
         self.on_plot_add(mesh=True)
+        self.on_plot_add(orbit=True)
         self.set_time_i, self.set_time_is = None, None
         self.current_feedback_name = None
         
@@ -831,12 +834,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
                 self.expanded_canvas.draw()
 
-    def on_plot_add(self, mesh=False, plotoptions=None):
+    def on_plot_add(self, mesh=False, orbit=False, plotoptions=None):
         # add button clicked from gui
         if mesh==True and self.meshmpl_widget is None:
             self.meshmpl_widget, self.meshmpl_canvas = self.create_plot_widget(thumb=True)
             #~ self.meshmpl_widget.setMaximumWidth(self.meshmpl_widget.height())
             self.mp_sysmplGridLayout.addWidget(self.meshmpl_widget, 0,0)
+        elif orbit==True and self.orbitmpl_widget is None:
+            self.orbitmpl_widget, self.orbitmpl_canvas = self.create_plot_widget(thumb=True)
+            self.sys_orbitmplGridLayout.addWidget(self.orbitmpl_widget, 0,0)
             
         else:
             if plotoptions is None:
@@ -941,6 +947,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.sender() == self.meshmpl_canvas:
             self.mp_stackedWidget.setCurrentIndex(3)
             #~ self.on_plots_changed() # just to make sure up to date - REMOVE?
+            return
+        elif self.sender() == self.orbitmpl_canvas:
             return
         if self.mp_stackedWidget.currentIndex()==1: #then we need to expand            
             # this should intelligently raise if on data tab (and then return on collapse)
@@ -1107,6 +1115,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.add_compute(parameters.ParameterSet(context=\'compute\',%s),\'%s\')' % (args,kind),'bundle.remove_compute(\'%s\')' % (kind),kind='sys',thread=False,description='save %s options' % kind)
         self.undoStack.push(command) 
         
+    def on_orbit_update_clicked(self,*args):
+        """
+        """
+        self.orbitmpl_canvas.plot_orbit(self.bundle)
+        
     def on_mesh_update_clicked(self,*args):
         """
         """
@@ -1114,6 +1127,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ 
         #~ self.bundle.plot_mesh(mplfig)
         self.meshmpl_canvas.plot_mesh(self.bundle)
+        self.mesh_widget.setMesh(self.bundle.system.get_mesh()) # 3D view
         
     def on_paramfocus_changed(self,*args):
         """
@@ -1152,18 +1166,18 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 # need to first creat item
                 self.fitting_create(label)
         elif treeview==self.sys_orbitOptionsTreeView:
-            kind = 'orbitplot'
-            label = 'orbitplot'
+            kind = 'orbitview'
+            label = 'orbitview'
         elif treeview==self.sys_meshOptionsTreeView:
-            kind = 'meshplot'
-            label = 'meshplot'
+            kind = 'meshview'
+            label = 'meshview'
         else:
             #probably coming from rp_fitinTreeView and need to determine type
             i = self.system_names.index(label)
             nchild = list(utils.traverse(self.jsmessenger.sysitems_nchild))[i]
             kind = 'component' if nchild=='0' else 'orbit'
         
-        labelstr = '\'%s\'' % label if label not in ['orbitplot','meshplot'] else ''
+        labelstr = '\'%s\'' % label if label not in ['orbitview','meshview'] else ''
         
         # add prior if necessary    
         if is_adjust and newvalue == True and not param.has_prior(): #then we need to create an initial prior
@@ -1298,8 +1312,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.rp_savedFeedbackTreeView.set_data(self.bundle.feedbacks)
             
             # update plot mesh options - should probably move this
-            self.sys_meshOptionsTreeView.set_data([self.bundle.plot_meshoptions],style=['nofit'])
-            self.sys_orbitOptionsTreeView.set_data([self.bundle.plot_orbitoptions],style=['nofit'])
+            self.sys_meshOptionsTreeView.set_data([self.bundle.plot_meshviewoptions],style=['nofit'])
+            self.sys_orbitOptionsTreeView.set_data([self.bundle.plot_orbitviewoptions],style=['nofit'])
         
         else:
             if self.mp_stackedWidget.currentIndex()!=0:

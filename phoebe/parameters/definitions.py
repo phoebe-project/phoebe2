@@ -580,7 +580,10 @@ defs += [dict(qualifier='ref', description='ref of the dataset to get intensitie
          dict(qualifier='background',description='background color',repr='%s',cast_type=str,value='black',frame=["phoebe"],context='plotting:mesh'),
          ]
          
-defs += [dict(qualifier='times', description='which times to sample the orbit',repr='%s',cast_type='return_string_or_list',value='auto',frame=["phoebe"],context='plotting:orbit'),
+defs += [dict(qualifier='data_times', description='whether to show the times of the enabled datasets',repr='',cast_type='make_bool',value=1,frame=["phoebe"],context='plotting:orbit'),
+         dict(qualifier='times', description='time step to sample the orbit, or auto',repr='%s',cast_type='return_string_or_list',value='auto',frame=["phoebe"],context='plotting:orbit'),
+         dict(qualifier='xaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='x',frame=["phoebe"],context='plotting:orbit'),
+         dict(qualifier='yaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='z',frame=["phoebe"],context='plotting:orbit'),
          ]
 
         
