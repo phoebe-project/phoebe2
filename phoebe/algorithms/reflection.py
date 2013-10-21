@@ -399,11 +399,22 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
     if heating:
         # update luminosities and temperatures: we need to copy and replace the
         # mesh to be able to handle body bags too.
+        
+        # This would check if radiative equilibrium is still valid:
+        #before_lum = irradiated.luminosity()
+        #total_surface = irradiated.mesh['size'].sum()
+        #term1 = (R1*irradiated.mesh['size']).sum()/total_surface
+        #term2 = R2
+        #print("Predicted luminosity factor increase = {}".format(term1 + term2)) 
+        
+        
         irradiated_mesh = irradiated.mesh.copy()
         teff_old = irradiated_mesh['teff'].copy()
         irradiated_mesh['teff'] *= (R1+R2-1)**0.25
         irradiated.mesh = irradiated_mesh
         irradiated.intensity(ref=['__bol'])
+        #after_lum = irradiated.luminosity()
+        #print("Computed luminosity factor increase = {}".format(after_lum/before_lum))
         #limbdark.local_intensity(irradiated,
         #                         irradiated.get_parset(ref='__bol')[0])
         logger.info(("single heating effect: updated luminosity{} of {} "
@@ -550,6 +561,7 @@ def single_heating(irradiated,irradiator,ld_func='claret',update_temperature=Tru
     logger.info("single heating effect: updated luminosity%s according to max Teff increase of %.3f%%"%((update_temperature and ' and teff' or ' (no teff)'),((R1**0.25).max()-1)*100))
     if not update_temperature:
         irradiated.mesh['teff'] = teff_old
+
 
 def mutual_heating(*objects,**kwargs):
     """

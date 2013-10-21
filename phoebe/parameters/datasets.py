@@ -49,6 +49,7 @@ from phoebe.io import ascii
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger("PARS.DATA")
+logger.addHandler(logging.NullHandler())
 
 #{
                     
@@ -163,7 +164,7 @@ class DataSet(parameters.ParameterSet):
         elif self.has_qualifier('filename') and self['filename']:
             
             if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
-                logger.warning("File {} does not exist, but observations are already loaded. Force reload won't work!".format(self.get_value('filename')))
+                logger.debug("File {} does not exist, but observations are already loaded. Force reload won't work!".format(self.get_value('filename')))
                 return False
             else:
                 raise IOError("File {} does not exist".format(self.get_value('filename')))
@@ -541,7 +542,7 @@ class SPDataSet(DataSet):
         elif self.has_qualifier('filename') and self['filename']:
             
             if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
-                logger.warning("File {} does not exist, but observations are already loaded. Force reload won't work!".format(self.get_value('filename')))
+                logger.debug("File {} does not exist, but observations are already loaded. Force reload won't work!".format(self.get_value('filename')))
                 return False
             else:
                 raise IOError("File {} does not exist".format(self.get_value('filename')))

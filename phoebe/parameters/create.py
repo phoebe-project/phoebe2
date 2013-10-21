@@ -771,6 +771,9 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     comp2 = parameters.ParameterSet(context='component',**kwargs2)
     orbit = parameters.ParameterSet(context='orbit',**orbitkwargs)
     
+    # Separation at perioastron passage
+    d = 1.0 - orbit['ecc']
+    
     #-- get value on total mass
     M = star1.get_value('mass','Msol')+star2.get_value('mass','Msol')
     #-- get information on semi-major axis
@@ -798,12 +801,20 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     
     R1 = star1.get_value('radius','au')
     R2 = star2.get_value('radius','au')
-    R1crit = roche.calculate_critical_radius(orbit['q'],component=1,F=comp1['syncpar'])*sma
-    R2crit = roche.calculate_critical_radius(orbit['q'],component=2,F=comp2['syncpar'])*sma
+    R1crit = roche.calculate_critical_radius(orbit['q'],component=1,d=d,F=comp1['syncpar'])*sma
+    R2crit = roche.calculate_critical_radius(orbit['q'],component=2,d=d,F=comp2['syncpar'])*sma
     #if R1>R1crit: raise ValueError("Star1 radius exceeds critical radius: R/Rcrit={}".format(R1/R1crit))
     #if R2>R2crit: raise ValueError("Star2 radius exceeds critical radius: R/Rcrit={}".format(R2/R2crit))
-    comp1['pot'] = roche.radius2potential(R1/sma,orbit['q'],component=1,F=comp1['syncpar'])
-    comp2['pot'] = roche.radius2potential(R2/sma,orbit['q'],component=2,F=comp2['syncpar'])
+    logger.info('Primary   radius estimate (periastron): {:.6f} Rcrit'.format(R1/R1crit))
+    logger.info('Secondary radius estimate (periastron): {:.6f} Rcrit'.format(R2/R2crit))
+    if orbit['ecc']>0:
+        R1crit = roche.calculate_critical_radius(orbit['q'],component=1,d=1+orbit['ecc'],F=comp1['syncpar'])*sma
+        R2crit = roche.calculate_critical_radius(orbit['q'],component=2,d=1+orbit['ecc'],F=comp2['syncpar'])*sma
+        logger.info('Primary   radius estimate (apastron): {:.6f} Rcrit'.format(R1/R1crit))
+        logger.info('Secondary radius estimate (apastron): {:.6f} Rcrit'.format(R2/R2crit))
+    
+    comp1['pot'] = roche.radius2potential(R1/sma,orbit['q'],d=d,component=1,F=comp1['syncpar'])
+    comp2['pot'] = roche.radius2potential(R2/sma,orbit['q'],d=d,component=2,F=comp2['syncpar'])
     
     for key in ['teff']:
         comp1[key] = star1.get_value_with_unit(key)
