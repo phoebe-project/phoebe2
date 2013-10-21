@@ -1758,11 +1758,18 @@ def walk_hierarchical(o,orbits=None,components=None):
                     yield None,orbits,components
 
 
-def get_binary_orbit(time,orbit,component, barycentric=False):
+def get_binary_orbit(time, orbit, component, barycentric=False):
     """
     Get the binary orbit.
     
     Careful, everything is in Phoebe units (Rsol, Rsol/d).
+    
+    Barycentric thing not implemented yet.
+    
+    @param time: time array or float to compute the orbit on
+    @type time: numpy array or float
+    @param orbit: orbit ParameterSet
+    @type orbit: ParameterSet
     """
     #-- get some information
     P = orbit.get_value('period','d')

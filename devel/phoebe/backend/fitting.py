@@ -967,7 +967,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         
     lmfit.report_errors(pars)
 
-    #-- extract the values to put them in the feedback
+    # Extract the values to put them in the feedback
     if hasattr(result, 'success') and not result.success:
         logger.error("nonlinear fit with method {} failed".format(fitparams['method']))
         values = [np.nan for ipar in pars]
@@ -1000,10 +1000,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         except Exception as msg:
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
     
-    #traces = np.array(traces).T
-    #feedback_ = FeedbackLmfit(fitparams, ppars, result, pars,
-    #                          traces, redchis)
-    #feedback_.save('test.fb')
+    traces = np.array(traces).T
+    feedback_ = FeedbackLmfit(fitparams, ppars, result, pars,
+                              traces, redchis)
+    feedback_.save('test.fb')
     
     feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
                     correls=correl, redchi=redchi, success=success,
@@ -1641,14 +1641,22 @@ class FeedbackLmfit(Feedback):
         """
         String representation of a feedback.
         """
+        
+        # The feedback parameterSet
         method = self.fitparams['method']
         ref = self.fitparams['label']
         txt = "Result from lmfit ({}) {}\n".format(method, ref)
         txt+= '-'*len(txt) + '\n\n'
         txt+= str(self.fitparams) + '\n'
         
-        header = ['context','name','unit','best','std','initial','min','max']
-        fmts = ['{:10s}','{:10s}','{:10s}','{:8.3g}','{:8.3g}','{:8.3g}','{:8.3g}','{:8.3g}']
+        # Some basic info on the fit:
+        txt+= 'Number of datapoints      = {:d}\n'.format(self.n_data)
+        txt+= "Number of free parameters = {:d}\n".format(self.n_pars)
+        txt+= "Degrees of freedom        = {:d}\n".format(self.df)
+        txt+= "Best chi2                 = {:.3f}\n".format(self.get_stat())
+        
+        header = ['id','name','unit','best','std','initial','min','max']
+        fmts = ['{:10s}','{:10s}','{:10s}','{:8.6g}','{:12.6g}','{:12.6g}','{:12.6g}','{:12.6g}']
         table = [header]
         
         iters = self.parameters, self.values, self.sigmas, self.bounds
@@ -1657,7 +1665,7 @@ class FeedbackLmfit(Feedback):
                 unit = par.get_unit()
             else:
                 unit = ''
-            context = 'context'
+            context = par.get_unique_label()
             line = [context, par.get_qualifier(), unit, val, sig, 0., bound[0], bound[1]]
             line = [fmt.format(el) for fmt,el in zip(fmts,line)]
             table.append(line)
@@ -1973,6 +1981,9 @@ def accept_fit(system,fitparams):
                     logger.info("Set {} = {} (and complete posterior) from MCMC trace".format(qual,this_param.as_string()))
                 elif fitmethod in ['lmfit']:
                     this_param.set_value(feedback['values'][index])
+                    this_param.set_posterior(distribution='normal',
+                                             mu=feedback['values'][index],
+                                             sigma=feedback['sigmas'][index])
                     logger.info("Set {} = {} from {} fit".format(qual,this_param.as_string(),fitparams['method']))
                 else:
                     logger.info("Did not recognise fitting method {}".format(fitmethod))

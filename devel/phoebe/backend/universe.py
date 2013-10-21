@@ -1605,7 +1605,13 @@ class Body(object):
                 logger.info(msg.format(group, len(groups[group][3]),pblum,\
                             do_pblum and 'computed' or 'fixed', l3, do_l3 \
                             and 'computed' or 'fixed'))
-                        
+    
+    def luminosity(self, ref='__bol', numerical=False):
+        """
+        Compute the luminosity of this body.
+        """
+        return luminosity(self, ref=ref, numerical=numerical)
+    
     def bin_oversampling(self):
         # Iterate over all datasets we have
         for path, syn in self.walk_dataset():
@@ -7238,18 +7244,31 @@ def serialize(body, description=True, color=True, only_adjust=False,
     #-- if need write to a file, override the defaults
     if filename is not None:
         color = False
-        only_adjust = False
+        #only_adjust = False
         
     def par_to_str(val,color=True):
         adjust = val.get_adjust()
-        par_repr = val.to_str()
+        # If the parameter is adjustable and has been adjusted (i.e. it has been
+        # fitted, ask for it's location and scale parameters).
+        if adjust is True and val.has_posterior():
+            posterior = val.get_posterior()
+            loc, scale = posterior.get_loc(), posterior.get_scale()
+            if np.isnan(scale):
+                decimals = 6
+            else:
+                decimals = abs(min(0,int('{:.3e}'.format(scale).split('e')[-1])-3))
+            par_repr = '{{:.{:d}g}} +/- {{:.{:d}g}}'.format(decimals, decimals)
+            par_repr = par_repr.format(loc, scale)
+        else:   
+            par_repr = val.to_str()
+            
         N = len(par_repr)
         if adjust is True and color is True:
             par_repr = "\033[32m" + '\033[1m' + par_repr + '\033[m'
         elif adjust is False and color is True:
             par_repr = "\033[31m" + '\033[1m' + par_repr + '\033[m'
         elif adjust is True and color is False:
-            par_repr = '*'+par_repr
+            par_repr = ('*' if not only_adjust else '')+par_repr
             N += 1
         if adjust is True and val.is_lim():
             par_repr = "\033[4m" + par_repr + '\033[m'
