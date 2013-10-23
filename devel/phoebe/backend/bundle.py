@@ -59,6 +59,7 @@ class Bundle(object):
         self.settings = {}
         self.settings['add_version_on_compute'] = False
         self.settings['add_feedback_on_fitting'] = False
+        self.settings['update_mesh_on_select_time'] = False
         
         self.set_system(system) # will handle all signals, etc
         
@@ -1385,7 +1386,8 @@ class Axes(object):
         #~ super(Axes, self).__init__()
         
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
-        self.mplaxes = None
+        self.mplaxes = {} # mplfig as keys, data axes as values
+        self.mplaxes_sel = {} # mplfig as keys, overlay as values
         self.plots = []
         
         for key in kwargs.keys():
@@ -1558,7 +1560,16 @@ class Axes(object):
         if location is None:
             location = self.axesoptions['location'] # location not added in ao
             
-        mplaxes = self.mplaxes if mplaxes is None else mplaxes
+        if mplaxes is None and mplfig is not None and mplfig in self.mplaxes.keys():
+            # then we have a match on record to retrieve the axes
+            mplaxes = self.mplaxes[mplfig]
+        
+        #~ mplaxes = self.mplaxes if mplaxes is None else mplaxes
+        
+        # of course we may be trying to plot to a different figure
+        # so we'll override this later if that is the case 
+        # just know that self.mplaxes is just to predict which axes
+        # to use and not necessarily the correct axes
         
         if mplfig is None:
             if location == 'auto':  # then just plot to an axes
@@ -1577,9 +1588,10 @@ class Axes(object):
         else:
             if mplfig is not None:
                 axes = mplfig.add_subplot(111,**ao)
-                
-        self.mplaxes = axes
-                
+        
+        if mplfig is not None:
+            self.mplaxes[mplfig] = axes
+                       
         # get phasing information
         xaxis = self.axesoptions.get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
@@ -1636,6 +1648,7 @@ class Axes(object):
                 orbit = bundle.get_orbit(plotoptions['objref'])
             period = orbit.get_value('period')
             self.period = period
+            self.phased = phased
             #~ print "** period", period
             #~ print "** phased", phased     
             #~ print "** type", plotoptions['type']
@@ -1655,15 +1668,29 @@ class Axes(object):
                 artists,obs = plotting.plot_etvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             else:
                 artists,obs = [],[]
-        
-            if bundle.select_time is not None:
-                time = bundle.select_time
-                if phased:
-                    time = (time % period) / period
                 
-                xlim = axes.get_xlim()
-                if time < xlim[1] and time > xlim[0]:
-                    axes.axvline(time, color='r')
+        self.plot_select_time(bundle.select_time,mplfig=mplfig)
+                
+    def plot_select_time(self,time,mplfig=None,mplaxes=None):
+        if mplaxes is None:
+            mplaxes = self.mplaxes[mplfig]
+            
+        if mplfig in self.mplaxes_sel.keys():
+            mplaxes_sel = self.mplaxes_sel[mplfig]
+            mplaxes_sel.cla()
+        #~ else:
+        mplaxes_sel = mplaxes.twinx()
+        mplaxes_sel.set_yticks([])
+        self.mplaxes_sel[mplfig] = mplaxes_sel
+            
+
+        if time is not None:
+            if self.phased:
+                time = (time % self.period) / self.period
+            
+            xlim = mplaxes.get_xlim()
+            if time < xlim[1] and time > xlim[0]:
+                mplaxes_sel.axvline(time, color='r')
 
     
 def load(filename):

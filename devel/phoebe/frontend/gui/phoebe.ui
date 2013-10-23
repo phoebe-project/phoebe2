@@ -1016,7 +1016,7 @@ p, li { white-space: pre-wrap; }
      <item row="0" column="0">
       <widget class="QStackedWidget" name="rp_stackedWidget">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="page_9">
         <layout class="QVBoxLayout" name="verticalLayout_12">
@@ -1869,6 +1869,25 @@ p, li { white-space: pre-wrap; }
                <string notr="true">1</string>
               </property>
              </column>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="sys_meshAutoUpdate">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>80</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>update mesh plot whenever the select time is changed</string>
+             </property>
+             <property name="text">
+              <string>auto</string>
+             </property>
             </widget>
            </item>
           </layout>

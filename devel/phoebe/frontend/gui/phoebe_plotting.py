@@ -29,7 +29,7 @@ class MyMplCanvas(FigureCanvas):
         #~ FigureCanvas.__init__(self, self.fig)
         #~ self.setParent(parent)
         
-        self.axes = self.fig.add_subplot(111)
+        self.mplaxes = self.fig.add_subplot(111)
         # We want the axes cleared every time plot() is called
         #~ self.axes.hold(False)
     
@@ -92,20 +92,17 @@ class MyMplCanvas(FigureCanvas):
         self.draw()
 
     def cla(self):
-        self.axes.cla()
+        self.mplaxes.cla()
     
     def plot(self, bundle, axes):
-        #~ self.fig = Figure(figsize=(self.width, self.height), dpi=self.dpi,facecolor='#F6F4F2')
         self.fig.clf()
         axes.plot(bundle, mplfig=self.fig) 
         self.xaxis = axes.get_value('xaxis')
         self.period = axes.period
-        # note axes is not the same as self.axes
+        self.axes = axes # this is the bundle axes not mpl axes
+        self.draw()
         
-        #~ if not isinstance(plotoptions, list):
-            #~ plotoptions = [plotoptions]
-        #~ for po in plotoptions:
-            #~ plotting.plot(system, po, self.axes)
-            #~ bundle.plot(po, self.axes)
-            #~ plotting.plot(system, po, self.axes)
+    def update_select_time(self, bundle, axes=None):
+        axes = axes if axes is not None else self.axes # this is the bundle axes
+        axes.plot_select_time(self.fig, bundle.select_time)
         self.draw()
