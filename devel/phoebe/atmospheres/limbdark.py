@@ -991,7 +991,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
-        if np.any(np.isnan(pars[-1])):
+        if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
     # Things can go outside the grid

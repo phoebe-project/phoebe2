@@ -33,9 +33,9 @@ plane of the sky, third subplot are the radial velocity curves.
 B{Example 2}: Generate a light curve with the WD code starting from default
 parametersets:
 
->>> pset = pars.ParameterSet(frame='wd',context='root',label='myroot')
->>> lcset = pars.ParameterSet(frame='wd',context='lc',label='mylc')
->>> rvset = pars.ParameterSet(frame='wd',context='rv',label='myrv')
+>>> pset = pars.ParameterSet(frame='wd',context='root',ref='myroot')
+>>> lcset = pars.ParameterSet(frame='wd',context='lc',ref='mylc')
+>>> rvset = pars.ParameterSet(frame='wd',context='rv',ref='myrv')
 
 Calculate light curve and generate an image:
 
@@ -144,7 +144,7 @@ indep_type 2        --       wd Independent modeling variable
     phstrt 0.0      --       wd Start Phase
      phend 1.0      --       wd End phase
      phinc 0.01     --       wd Increment phase
-     label mylc     --       wd Name of the observable
+       ref mylc     --       wd Name of the observable
          
 In the C{rv} context:
 
@@ -154,7 +154,7 @@ ld_rvx2 0.5   --       wd Secondary RV passband LD coefficient x
 ld_rvy1 0.5   --       wd Primary RV passband LD coefficient y
 ld_rvy2 0.5   --       wd Secondary RV passband LD coefficient y
   vunit 1.0   --       wd Unit of radial velocity (km/s)
-  label myrv  --       wd Name of the observable
+    ref myrv  --       wd Name of the observable
 """
 #-- standard library
 import os

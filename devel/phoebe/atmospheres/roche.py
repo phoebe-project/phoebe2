@@ -35,6 +35,35 @@ Most of these parameters are local atmospheric parameters.
     temperature_zeipel
     temperature_espinosa
 
+
+**Gravity darkening**
+
+And now for some unstructured gibberish that only I understand. Mental notes
+they call it.
+
+Our definition of the gravity darkening parameter is a bolometric definition,
+and parameterized via :math:`\beta` (Eq. 4.23 in the Phoebe Scientific reference):
+
+.. math::
+    
+        T_\mathrm{eff}^4 = T_\mathrm{pole}^4  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
+        
+    with
+    
+        - :math:`\beta/\mathrm{gravb} = 1.00` for radiative atmospheres (:math:`T_\mathrm{eff}\geq 8000\,\mathrm{K}`)
+        - :math:`\beta/\mathrm{gravb} = 0.32` for convective atmpsheres (:math:`T_\mathrm{eff}\leq 5000\,\mathrm{K}`, but we're a little bit less strict and set 6600K)
+        
+More generally, gravity darkening relates effective temperature and surface gravity.
+[Espinosa2011]_ derived values bla bla. The values from [Espinosa2012]_ are
+0.25*our value.
+
+Claret defines passband surface gravities bla bla. If interpreted bolometrically
+(which is wrong), they are equal to our values (no times 4 or anything).
+        
+
+
+   
+
 """
 import logging
 import os
@@ -43,6 +72,7 @@ from numpy import cos,sin,sqrt,pi,log,tan
 from scipy.optimize import newton
 from scipy.interpolate import RectBivariateSpline
 from phoebe.algorithms import marching
+from phoebe.algorithms import interp_nDgrid
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import decorators
@@ -67,7 +97,7 @@ def temperature_zeipel(system):
     
     .. math::
     
-        T_\mathrm{eff}^4 = T_\mathrm{pole}  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
+        T_\mathrm{eff}^4 = T_\mathrm{pole}^4  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
         
     with
     
@@ -213,6 +243,9 @@ def temperature_espinosa(system):
     
     logger.info("derived effective temperature (Espinosa) (%.3f <= teff <= %.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max()))
 
+
+
+
 @decorators.memoized
 def zeipel_gravb_binary():
     """
@@ -223,9 +256,21 @@ def zeipel_gravb_binary():
     """
     data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'espinosa.dat'))
     x, y = np.log10(data[1:,0]), data[0,1:]
-    z = data[1:,1:]
+    z = 4.0*data[1:,1:]
     return RectBivariateSpline(x, y, z)
+
+
+@decorators.memoized
+def claret_gravb():
+    """
+    Return a grid to derive the Zeipel gravity brightening.
     
+    See [Claret2012]_.
+    
+    """
+    data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'claret.dat'))
+    axv, pix = interp_nDgrid.create_pixeltypegrid(data[:3], data[3:])
+    return axv, pix
 
     
 def approximate_lagrangian_points(q, sma=1.):

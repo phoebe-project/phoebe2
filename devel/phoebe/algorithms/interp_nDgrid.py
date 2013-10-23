@@ -74,7 +74,6 @@ def interpolate(p, axis_values, pixelgrid, order=1):
     lowervals_stepsize = np.array([[av_[p__-1], av_[p__]-av_[p__-1]] \
                          for av_, p__ in zip(axis_values,p_)])
     p_coord = (p-lowervals_stepsize[:,0])/lowervals_stepsize[:,1] + p_-1
-
     # interpolate
     if order > 1:
         prefilter = False

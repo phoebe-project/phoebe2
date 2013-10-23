@@ -67,6 +67,7 @@ import numpy as np
 import textwrap
 from phoebe.units import constants
 from phoebe.units import conversions
+from phoebe.utils import coordinates
 from phoebe.parameters import parameters
 from phoebe.dynamics import keplerorbit
 
@@ -1586,7 +1587,7 @@ def scale_binary(system, factor):
 
 def summarize(system, time=None):
     """
-    Experimental
+    Experimental.
     """
     text = []
     system = system.copy()
@@ -1596,20 +1597,20 @@ def summarize(system, time=None):
             thing['extinction'] = 0.0
             system.set_time(0.)
             
-    system.list(summary='physical', width=90)
-    
+    #system.list(summary='physical', width=90)
     
     
     params = {}
     import phoebe
-    from phoebe import universe
     for loc, thing in phoebe.BodyBag([system]).walk_all():
         class_name = thing.__class__.__name__
         if class_name in ['Star', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
-            text.append(thing.list(summary='physical'))
             
             
-            lum = phoebe.convert('erg/s','W',universe.luminosity(thing)), 'W'
+            
+            
+            
+            lum = phoebe.convert('erg/s','W',thing.luminosity()), 'W'
             
             if class_name=='Star':
                 mass = thing.params['star'].get_value('mass', 'kg'), 'kg'
@@ -1632,36 +1633,73 @@ def summarize(system, time=None):
             else:
                 continue
             
+            title = "Body '{}' (t={})".format(thing.get_label(), thing.time)
+            text.append("\n\n\033[32m{}\n{}\033[m".format(title,'='*len(title)))
+            text.append("\nSystem parameters\n==================\n")
+            text.append(thing.list(summary='physical'))
+            
             M = phoebe.convert(mass[1],'Msol', mass[0])
             L = phoebe.convert(lum[1],'Lsol', lum[0])
             R = phoebe.convert(radi[1],'Rsol', radi[0])
             T = phoebe.convert(teff[1],'K', teff[0])
             G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
-            text.append("M    = {:.3f} Msol".format(M))
-            text.append("L    = {:.3f} Lsol".format(L))
-            text.append("R    = {:.3f} Rsol".format(R))
-            text.append("Teff = {:.3f} K   ".format(T))
-            text.append("logg = {:.3f} [cgs]".format(G))
+            
+            teff_min, teff_max = thing.mesh['teff'].min(), thing.mesh['teff'].max()
+            logg_min, logg_max = thing.mesh['logg'].min(), thing.mesh['logg'].max()
+            radii = coordinates.norm(thing.mesh['_o_center'], axis=1)
+            radi_min, radi_max = radii.min(), radii.max()
+            
+            text.append("")
+            text.append("mass          = {:.6f} Msol".format(M))
+            text.append("luminosity    = {:.6f} Lsol".format(L))
+            text.append("radius        = {:.6f} Rsol  [{:.6f} - {:.6f}]".format(R, radi_min, radi_max))
+            text.append("Teff          = {:.6f} K     [{:.6f} - {:.6f}]".format(T, teff_min, teff_max))
+            text.append("logg          = {:.6f} [cgs] [{:.6f} - {:.6f}]".format(G, logg_min, logg_max))
             
             params[thing.get_label()] = dict(mass=M, luminosity=L, radius=R, teff=T, logg=G)
         
-        elif len(loc)>=2 and isinstance(loc[-2], str) and loc[-2][-3:] == 'dep':
-            # then thing is a reference
-            print loc
-            ref = thing
-            try:
-                proj_int = system.projected_intensity(ref=ref)
-            except TypeError:
-                continue
-            if proj_int==0:
-                continue
-            wflux = system.mesh['proj_'+ref]
-            wsize = system.mesh['size']
-            pteff = np.average(system.mesh['teff'], weights=wflux*wsize, axis=0)
-            plogg = np.log10(np.average(10**system.mesh['logg'], weights=wflux*wsize, axis=0))
-            text.append('\033[4m' + "{} ({})".format(thing,loc[-2][:-3]) +  '\033[m')
-            text.append('Passband Teff = {:.3f} K'.format(pteff))
-            text.append('Passband logg = {:.3f} [cgs]'.format(plogg))
+            ld_columns = [name[3:] for name in thing.mesh.dtype.names if (name[:3] == 'ld_')]
+            
+            text.append("\nPassband parameters\n===================\n")
+            
+            for ref in ld_columns:
+                lbl = 'ld_{}'.format(ref)
+                text.append("\n\033[33mPassband '{}':\n-------------------------\033[m".format(ref))
+                
+                parset = thing.get_parset(ref=ref)
+                text.append(str(parset[0]))
+                
+                proj_int = thing.projected_intensity(ref=ref)
+                mesh = thing.mesh
+                wflux = mesh['proj_'+ref]
+                wsize = mesh['size']
+                weights = wflux*wsize
+                pteff = np.average(mesh['teff'], weights=weights, axis=0)
+                plogg = np.log10(np.average(10**mesh['logg'], weights=weights, axis=0))
+                
+                dlnI_dlnT = np.log(mesh[lbl][:,-1]).ptp()/np.log(mesh['teff']).ptp()
+                dlnI_dlng = np.log(mesh[lbl][:,-1]).ptp()/np.log(10**mesh['logg']).ptp()
+                dlnT_dlng = np.log(mesh['teff']).ptp()/np.log(10**mesh['logg']).ptp()
+                passband_gravb = dlnI_dlng + dlnT_dlng*dlnI_dlnT
+                
+                
+                a0 = np.average(mesh[lbl][:,0], weights=weights), np.std(mesh[lbl][:,0])
+                a1 = np.average(mesh[lbl][:,1], weights=weights), np.std(mesh[lbl][:,1])
+                a2 = np.average(mesh[lbl][:,2], weights=weights), np.std(mesh[lbl][:,2])
+                a3 = np.average(mesh[lbl][:,3], weights=weights), np.std(mesh[lbl][:,3])
+                
+                text.append("Projected intensity = {:.6e}".format(proj_int))
+                text.append("Passband LD(a0) = {:8.4f} +/- {:8.4e}".format(*a0))
+                text.append("Passband LD(a1) = {:8.4f} +/- {:8.4e}".format(*a1)) 
+                text.append("Passband LD(a2) = {:8.4f} +/- {:8.4e}".format(*a2)) 
+                text.append("Passband LD(a3) = {:8.4f} +/- {:8.4e}".format(*a3)) 
+                text.append('Passband Teff = {:.3f} K'.format(pteff))
+                text.append('Passband logg = {:.3f} [cgs]'.format(plogg))
+                text.append("Passband dlnI/dlnTeff = {:.4f}".format(dlnI_dlnT))
+                text.append("Passband dlnI/dlng = {:.4f}".format(dlnI_dlng))
+                text.append("Passband gravity darkening = {:.4f}".format(passband_gravb))
+                
+                
     
     print("\n".join(text))
 
