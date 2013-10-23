@@ -258,6 +258,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         QObject.connect(self.sys_orbitPushButton, SIGNAL("clicked()"), self.on_orbit_update_clicked)
         QObject.connect(self.sys_meshPushButton, SIGNAL("clicked()"), self.on_mesh_update_clicked)
+        QObject.connect(self.sys_meshAutoUpdate, SIGNAL("toggled(bool)"), self.on_mesh_update_auto_toggled)
 
         # middle panel signals
         QObject.connect(self.mp_sysSelWebView, SIGNAL("ctrl_pressed"), self.on_sysSel_ctrl)
@@ -319,7 +320,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.PythonEdit, SIGNAL("GUILock"), self.gui_lock)
         QObject.connect(self.PythonEdit, SIGNAL("GUIUnlock"), self.gui_unlock) 
         QObject.connect(self.PythonEdit, SIGNAL("set_time"), self.on_set_time)
-        QObject.connect(self.PythonEdit, SIGNAL("set_select_time"), self.on_plots_changed)
+        #~ QObject.connect(self.PythonEdit, SIGNAL("set_select_time"), self.on_select_time_changed)
         QObject.connect(self.PythonEdit, SIGNAL("undo"), self.on_undo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("redo"), self.on_redo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("plots_changed"), self.on_plots_changed) 
@@ -495,7 +496,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bundle.attach_signal(self.bundle,'load_data',self.update_datasets)
             self.bundle.attach_signal(self.bundle,'add_fitting',self.update_fittingOptions)
             self.bundle.attach_signal(self.bundle,'remove_fitting',self.update_fittingOptions)
-            self.bundle.attach_signal(self.bundle,'set_select_time',self.on_plots_changed)
+            #~ self.bundle.attach_signal(self.bundle,'set_select_time',self.on_select_time_changed)
             #~ print "*** attaching set_time signal"
             #~ self.bundle.attach_signal(self.bundle.system,'set_time',self.on_set_time)
 
@@ -773,7 +774,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ print "*** attach_plot_signals", i
         if canvas is None:
             canvas = self.plot_canvases[i]
-            
+           
         for po in axes.plots:
             if (po, canvas) not in self.attached_plot_signals:
                 for paramname in po.keys():
@@ -783,6 +784,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.attached_plot_signals.append((po, canvas))
         #~ if (axes, canvas) not in self.attached_plot_signals:
         if not skip_axes_attach:
+            self.bundle.attach_signal(self.bundle, 'set_select_time', self.on_select_time_changed, i, canvas)
             self.bundle.attach_signal(self.bundle, 'set_system', self.plot_redraw, i, canvas) #will also be called for get_version(set_system=True)
             self.bundle.attach_signal(axes.axesoptions, 'set_value', self.plot_redraw, i, canvas)
             #~ self.bundle.attach_signal(axes, 'set_value', self.plot_redraw, i, canvas)
@@ -1012,7 +1014,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         description = 'change select time to %f' % t
         self.on_param_command(do_command,undo_command,description='',thread=False)
         
-        self.on_mesh_update_clicked()
+        if self.bundle.get_setting('update_mesh_on_select_time'):
+            self.on_mesh_update_clicked()
 
     @PyInterp_selfdebug
     def on_plot_pop(self):
@@ -1128,6 +1131,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ self.bundle.plot_mesh(mplfig)
         self.meshmpl_canvas.plot_mesh(self.bundle)
         self.mesh_widget.setMesh(self.bundle.system.get_mesh()) # 3D view
+        
+    def on_mesh_update_auto_toggled(self,state):
+        if self.versions_oncompute.isEnabled(): #so we can change its state while disabled
+            do_command = "bundle.set_setting('update_mesh_on_select_time',%s)" % state
+            undo_command = "bundle.set_setting('update_mesh_on_select_time',%s)" % (not state)
+            description = 'auto update mesh set to %s' % state
+            
+            command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
+            self.undoStack.push(command)
         
     def on_paramfocus_changed(self,*args):
         """
@@ -1307,6 +1319,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.rp_savedFeedbackAutoSaveCheck.setChecked(self.bundle.get_setting('add_feedback_on_fitting'))
             self.rp_savedFeedbackAutoSaveCheck.setEnabled(True)
             
+            self.sys_meshAutoUpdate.setEnabled(False)
+            self.sys_meshAutoUpdate.setChecked(self.bundle.get_setting('update_mesh_on_select_time'))
+            self.sys_meshAutoUpdate.setEnabled(True)
+            
             # update version - should probably move this
             self.versions_treeView.set_data(self.bundle.versions)
             self.rp_savedFeedbackTreeView.set_data(self.bundle.feedbacks)
@@ -1430,6 +1446,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         for i in range(len(self.bundle.axes)):    
             self.plot_redraw(None,i)
+            
+    def on_select_time_changed(self,param=None,i=None,canvas=None):
+        #~ print "*** on_select_time_changed",i,canvas
+        #~ print "*** len(self.plot_canvases)", len(self.plot_canvases+[self.expanded_canvas])
+            
+        self.plot_redraw(param,i,canvas)
+        #~ canvas.update_select_time(self.bundle)
+        #~ self.on_plots_changed()
+            
             
     def PyInterp_run(self, command, write=True, thread=False, kind=None):
         phoebe_widgets.PyInterp.run_from_gui(self.PythonEdit, command, write, thread, kind)
