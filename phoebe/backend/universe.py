@@ -169,6 +169,7 @@ except ImportError:
 from phoebe.algorithms import marching
 from phoebe.algorithms import subdivision
 from phoebe.algorithms import eclipse
+from phoebe.algorithms import interp_nDgrid
 from phoebe.backend import decorators
 from phoebe.backend import observatory
 from phoebe.backend import processing
@@ -6285,16 +6286,30 @@ class BinaryRocheStar(PhysicalBody):
         
         if gravblaw == 'espinosa':
             q = self.params['orbit']['q']
-            # To compute the filling factor, we're gonna cheat a little beat: we
+            F = self.params['component']['syncpar']
+            sma = self.params['orbit']['sma']
+            # To compute the filling factor, we're gonna cheat a little bit: we
             # should compute the ratio of the tip radius to the first Lagrangian
             # point. However, L1 might be poorly defined for weird geometries
             # so we approximate it as 1.5 times the polar radius.
             rp = self.params['component'].request_value('r_pole','Rsol')
             maxr = coordinates.norm(self.mesh['_o_center'],axis=1).max()
-            rho = maxr / (1.5*rp)
-            logger.info("q = {}, filling factor = {}".format(q, rho))
-            self.params['component']['gravb'] = roche.zeipel_gravb_binary()(np.log10(q), rho)
-            
+            L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
+            rho = maxr / L1
+            gravb = roche.zeipel_gravb_binary()(np.log10(q), rho)[0][0]
+            self.params['component']['gravb'] = gravb
+            logger.info("Espinosa: F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
+            if gravb>1.0 or gravb<0:
+                raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
+        
+        elif gravblaw == 'claret':
+            teff = np.log10(self.params['component']['teff'])
+            logg = np.log10(self.params['component'].request_value('g_pole')*100)
+            abun = self.params['component']['abun']
+            axv, pix = roche.claret_gravb()
+            gravb = phoebe.algorithms.interp_nDgrid.interpolate([teff, logg, abun], axv, pix)[0][0]
+            logger.info('Claret: teff = {}, logg = {}, abun = {} ---> gravb = {}'.format(teff, logg, abun, gravb))            
+        
         # In any case call the Zeipel law.
         roche.temperature_zeipel(self)
         

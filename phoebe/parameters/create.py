@@ -819,7 +819,7 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     for key in ['teff']:
         comp1[key] = star1.get_value_with_unit(key)
         comp2[key] = star2.get_value_with_unit(key)
-    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb','redist','abun']:
+    for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb','redist','abun','gravblaw']:
         comp1[key] = star1[key]
         comp2[key] = star2[key]
     orbit['c1label'] = comp1['label']

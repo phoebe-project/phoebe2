@@ -100,6 +100,7 @@ def image(*args, **kwargs):
     ylims = kwargs.pop('ylims', None)
     do_init = kwargs.pop('do_init', False)
     ax = kwargs.pop('ax')
+    incremental_axes = kwargs.pop('incremental_axes',True)
     system = args[0]
     
     figdec, artdec, p = system.plot2D(ax=ax, with_partial_as_half=False,
@@ -108,7 +109,10 @@ def image(*args, **kwargs):
     if do_init:
         plt.xlabel("On sky coordinate X ($R_\odot$)")
         plt.ylabel("On sky coordinate Y ($R_\odot$)")
-    if xlims is None and not do_init:
+    
+    if xlims is None and not incremental_axes:
+        xlims = figdec['xlim']
+    elif xlims is None and not do_init:
         xlims = list(ax.get_xlim())
         if xlims[0] > figdec['xlim'][0]:
             xlims[0] = figdec['xlim'][0]
@@ -117,7 +121,9 @@ def image(*args, **kwargs):
     elif xlims is None:
         xlims = figdec['xlim']
     
-    if ylims is None and not do_init:
+    if ylims is None and not incremental_axes:
+        ylims = figdec['ylim']
+    elif ylims is None and not do_init:
         ylims = list(ax.get_ylim())
         if ylims[0] > figdec['ylim'][0]:
             ylims[0] = figdec['ylim'][0]

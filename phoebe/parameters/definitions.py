@@ -153,7 +153,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
         dict(qualifier='rotperiod', description='Polar rotation period',repr='%f',cast_type=float,value=22.,adjust=False,frame=["phoebe"],unit='d',context='star'),
         dict(qualifier='diffrot', description='(Eq - Polar) rotation period (<0 is solar-like)',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],unit='d',context='star'),
         dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.,llim=0,ulim=1.,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='star'),
-        dict(qualifier='gravblaw',description='Gravity brightening law',repr='%s',cast_type='choose',choices=['zeipel','espinosa'],value='zeipel',frame=['phoebe'],context=['star','component']),
+        dict(qualifier='gravblaw',description='Gravity brightening law',repr='%s',cast_type='choose',choices=['zeipel','espinosa','claret'],value='zeipel',frame=['phoebe'],context=['star','component']),
         dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context=['star','accretion_disk']),
         dict(qualifier='long',   description='Orientation on the sky (East of North)', repr='%f',llim=-360., ulim=   360.,step=   0.01, adjust=False, cast_type=float, unit='deg',  value=0.,frame=["phoebe"],context=['star','accretion_disk']),
         #dict(qualifier='distance',description='Distance to the star',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='star'),

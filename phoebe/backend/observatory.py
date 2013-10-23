@@ -2315,7 +2315,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # If the system is circular, we're not recomputing stuff. Make sure to
     # have computed everything as least once:
     if circular:
-        logger.info('System is cicular, pre-computing system')
+        logger.info('System is circular, pre-computing system')
         system.set_time(0., ref='all')
     
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
