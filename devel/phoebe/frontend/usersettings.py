@@ -10,7 +10,7 @@ class Settings(object):
             'pyinterp_enabled': True, 'pyinterp_tutsys': True, \
             'pyinterp_tutplots': True, 'pyinterp_tutsettings': True,\
             'pyinterp_thread_on': True, 'pyinterp_thread_off': False,\
-            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.backend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',
+            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',
             'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
             'plugins': {'keplereb': False, 'example': False},\
             

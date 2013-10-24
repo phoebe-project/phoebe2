@@ -18,7 +18,6 @@ from PyQt4.QtWebKit import *
 from phoebe.frontend import usersettings
 from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets
 
-#~ from phoebe.backend.bundle import Bundle # can remove this after getting triple working in backend
 from phoebe.parameters import parameters, datasets
 from phoebe.backend import universe, observatory
 from phoebe.utils import callbacks, utils
