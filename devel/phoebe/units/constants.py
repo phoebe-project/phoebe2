@@ -72,6 +72,7 @@ me     = 9.1093829140e-31  # Electron mass               kg            Wikipedia
 qe     =-1.60217656535e-19 # Electron charge            C             Wikipedia
 mp     = 1.67262177774e-27 # Proton mass                 kg            Wikipedia
 qp     = 1.60217656535e-19 # Proton charge               C             Wikipedia
+z_solar= 0.02
 
 cc_units     = 'm s-1'
 cc_air_units = 'm s-1'

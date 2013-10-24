@@ -129,10 +129,10 @@ def temperature_zeipel(system):
     gp = body.request_value('g_pole')
     
     # Consistency check for gravity brightening
-    if Teff >= 8000. and beta != 1.00:
-        logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 is a better approx than gravb={:.2f}'.format(Teff,beta))
-    elif Teff <= 6600. and beta != 0.32:
-        logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 is a better approx than gravb={:.2f}'.format(Teff,beta))
+    if Teff >= 8000. and beta < 0.9:
+        logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff,beta))
+    elif Teff <= 6600. and beta >= 0.9:
+        logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff,beta))
     elif beta < 0.32 or beta > 1.00:
         logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
     
@@ -267,8 +267,18 @@ def claret_gravb():
     
     See [Claret2012]_.
     
+    You can interpolate the gravity brightening coefficients in the following way:
+    
+    >>> axis_values, pixgrid = claret_gravb()
+    >>> gravb = interp_nDgrid.interpolate([teff, logg, abun], axis_values, pixgrid)
+    >>> print(gravb)
+    
+    The variables ``teff``, ``logg`` and ``abun`` must be lists or arrays, even
+    if you only have one variable
     """
-    data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'claret.dat'))
+    data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'claret.dat')).T
+    # rescale metallicity to solar value and take logarithm
+    data[2] = np.log10(data[2]/constants.z_solar)
     axv, pix = interp_nDgrid.create_pixeltypegrid(data[:3], data[3:])
     return axv, pix
 
