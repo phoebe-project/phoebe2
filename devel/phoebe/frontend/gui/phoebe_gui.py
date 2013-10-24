@@ -15,6 +15,7 @@ from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
 
 #phoebe modules
+from phoebe.frontend import usersettings
 from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets
 
 #~ from phoebe.backend.bundle import Bundle # can remove this after getting triple working in backend
@@ -329,13 +330,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.pluginsloaded = []
         self.plugins = []
         self.guiplugins = []
-        self.on_prefsLoad()
+        self.on_prefsLoad() #load to self.prefs
+        self.on_prefsUpdate() #apply to gui
         self.latest_dir = None
         
         # send startup commands to interpreter
-        for line in self.prefs['pyinterp_startup_default'].split('\n'):
+        for line in self.prefs.get_setting('pyinterp_startup_default').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
-        for line in self.prefs['pyinterp_startup_custom'].split('\n'):
+        for line in self.prefs.get_setting('pyinterp_startup_custom').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
             
         # disable items for alpha version
@@ -1288,6 +1290,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         """
         try:
             self.bundle = self.PyInterp_get('bundle')
+            #~ self.prefs = self.PyInterp_get('settings')
         except KeyError:
             return
             
@@ -1660,48 +1663,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_prefsLoad(self):
         '''
         load settings from file and save to self.prefs
-        '''
-        self.prefsdefault = {'lp': True, 'rp': True, 'bp': True,\
-            'system': False, 'versions': False, 'python': False,\
-            'pyinterp_enabled': True, 'pyinterp_tutsys': True, \
-            'pyinterp_tutplots': True, 'pyinterp_thread_on': True, \
-            'pyinterp_thread_off': False, 
-            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.backend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils',
-            'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
-            'plugins': {'keplereb': False, 'example': False},\
-            
-            #~ 'compute_heating': False, 'compute_refl': False, 'compute_refl_num': 1, \
-            #~ 'compute_subdiv_alg': 'edge', 'compute_subdiv_num': 3, 'compute_eclipse_alg': 'auto',\
-            #~ 'compute_ltt': False, 'compute_mpi': False, \
-            #~ 
-            #~ 'preview_heating': False, 'preview_refl': False, 'preview_refl_num': 1, \
-            #~ 'preview_subdiv_alg': 'edge', 'preview_subdiv_num': 1, 'preview_eclipse_alg': 'auto',\
-            #~ 'preview_ltt': False, 'preview_mpi': False, \
-            
-            'mpi_np': 4, 'mpi_byslot': True
-            }
+        '''       
+        
+        #~ try:
+            #~ self.prefs = self.PyInterp_get('settings')
+        #~ except:
+        self.prefs = usersettings.load()
 
-        settingsfile = os.path.expanduser('~/.phoebe/guipreferences')
-        if os.path.isfile(settingsfile):
-            f = open(settingsfile, "r")
-            try:
-                self.prefs = json.loads(f.read())
-            except ValueError:
-                success = False
-            else:
-                success = True
-                
-            f.close()
-            
-            if success:
-                for key in self.prefsdefault:
-                    if key not in self.prefs:
-                        self.prefs[key] = self.prefsdefault[key]
-                self.on_prefsUpdate()
-                return
-        self.prefs = self.prefsdefault
-
-        #~ self.on_prefsShow()
 
     def on_prefsShow(self):
         '''
@@ -1710,7 +1678,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         and then run on_prefsUpdate to update gui
         '''
         pop = CreatePopPrefs(self)
-        p = self.prefs
+        p = {key: self.prefs.get_setting(key) for key in self.prefs.default_preferences.keys()}
         
         self.setpopguifromprefs(pop, p)
                           
@@ -1723,31 +1691,35 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_prefsUpdate()
     
     def on_prefsSave(self,p):
-        settingsfile = os.path.expanduser('~/.phoebe/guipreferences')
-        if not os.path.exists(os.path.expanduser('~/.phoebe')):
-            os.makedirs(os.path.expanduser('~/.phoebe'))
-        f = open(settingsfile, "w")
-        f.write(json.dumps(p))
-        f.close()
-        self.prefs = p
-
+        self.prefs.preferences = p
+        self.PyInterp_send('settings',self.prefs)
+        # TODO we should really send system calls for each of the changed settings
+        
+        command_do = "settings.save()"
+        command_undo = ""
+        
+        command = phoebe_widgets.CommandRun(self.PythonEdit,command_do, command_undo, thread=False, description='save settings', kind='settings')
+        
+        self.undoStack.push(command)        
+        
     @PyInterp_selfdebug
     def on_prefsUpdate(self):
-        p = self.prefs
+        p = {key: self.prefs.get_setting(key) for key in self.prefs.default_preferences.keys()}
         
-        self.tb_view_lpAction.setChecked(p['lp'])
-        self.tb_view_rpAction.setChecked(p['rp'])
-        self.tb_view_versionsAction.setChecked(p['versions'])
-        self.tb_view_systemAction.setChecked(p['system'])
-        self.tb_view_datasetsAction.setChecked(p['bp'])
-        self.tb_view_pythonAction.setChecked(p['python'])
-        self.tb_view_sysAction.setChecked(p['sys'])
-        self.tb_view_glAction.setChecked(p['gl'])
+        self.tb_view_lpAction.setChecked(p['panel_params'])
+        self.tb_view_rpAction.setChecked(p['panel_fitting'])
+        self.tb_view_versionsAction.setChecked(p['panel_versions'])
+        self.tb_view_systemAction.setChecked(p['panel_system'])
+        self.tb_view_datasetsAction.setChecked(p['panel_datasets'])
+        self.tb_view_pythonAction.setChecked(p['panel_python'])
+        #~ self.tb_view_sysAction.setChecked(p['sys'])
+        #~ self.tb_view_glAction.setChecked(p['gl'])
 
         self.tb_view_pythonAction.setChecked(p['pyinterp_enabled'])
         self.PythonEdit.thread_enabled = p['pyinterp_thread_on']
         self.PythonEdit.write_sys = p['pyinterp_tutsys']
         self.PythonEdit.write_plots = p['pyinterp_tutplots']
+        self.PythonEdit.write_settings = p['pyinterp_tutsettings']
         
         # THIS PROBABLY DOESN'T WORK
         for pluginpath in p['plugins'].keys():
@@ -1773,7 +1745,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
     def setpopguifromprefs(self, pop, p, pdef=None):
         if pdef is None:
-            pdef = self.prefsdefault
+            #~ pdef = self.prefsdefault
+            pdef = self.prefs
         bools = pop.findChildren(QCheckBox)
         bools += pop.findChildren(QRadioButton)
 
@@ -1811,7 +1784,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     
     def getprefsfrompopgui(self, pop, p, pdef=None):
         if pdef is None:
-            pdef = self.prefsdefault
+            #~ pdef = self.prefsdefault
+            pdef = self.prefs
         bools = pop.findChildren(QCheckBox)
         bools += pop.findChildren(QRadioButton)
         
