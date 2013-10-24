@@ -3603,7 +3603,7 @@ class PhysicalBody(Body):
             dtypes = np.dtype([(field,'f8')])
             new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
             self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
-            logger.info('added reflection column for pbdep {}'.format(iref))
+            logger.debug('added reflection column for pbdep {}'.format(iref))
     
     
     @decorators.parse_ref
@@ -4483,7 +4483,7 @@ class BodyBag(Body):
         # here, we check which columns are missing from each Body's mesh. If
         # they are missing, we simply add them and copy the contents from the
         # original mesh.
-        logger.info("Preparing mesh")
+        logger.debug("Preparing mesh")
         
         # Get a flattened list of all the bodies
         bodies = self.get_bodies()
@@ -6103,7 +6103,7 @@ class BinaryRocheStar(PhysicalBody):
         if conserve_volume:
             if not self.params['component'].has_qualifier('volume'):
                 self.params['component'].add_constraint('{{volume}} = {0:.16g}'.format(self.volume()))
-                logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
+                logger.info("volume needs to be conserved at {0}".format(self.params['component'].request_value('volume')))
         
         
     def conserve_volume(self,time,max_iter=10,tol=1e-10):
@@ -6298,7 +6298,7 @@ class BinaryRocheStar(PhysicalBody):
             rho = maxr / L1
             gravb = roche.zeipel_gravb_binary()(np.log10(q), rho)[0][0]
             self.params['component']['gravb'] = gravb
-            logger.info("Espinosa: F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
+            logger.info("gravb(Espinosa): F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
             if gravb>1.0 or gravb<0:
                 raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
         
@@ -6307,8 +6307,9 @@ class BinaryRocheStar(PhysicalBody):
             logg = np.log10(self.params['component'].request_value('g_pole')*100)
             abun = self.params['component']['abun']
             axv, pix = roche.claret_gravb()
-            gravb = phoebe.algorithms.interp_nDgrid.interpolate([teff, logg, abun], axv, pix)[0][0]
-            logger.info('Claret: teff = {}, logg = {}, abun = {} ---> gravb = {}'.format(teff, logg, abun, gravb))            
+            gravb = interp_nDgrid.interpolate([[teff], [logg], [abun]], axv, pix)[0][0]
+            logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**teff, logg, abun, gravb))            
+            self.params['component']['gravb'] = gravb
         
         # In any case call the Zeipel law.
         roche.temperature_zeipel(self)

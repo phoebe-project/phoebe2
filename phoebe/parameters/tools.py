@@ -1587,36 +1587,34 @@ def scale_binary(system, factor):
 
 def summarize(system, time=None):
     """
-    Experimental.
+    Summarize a system's parameters in human readable form.
+    
     """
     text = []
     system = system.copy()
     
-    for loc, thing in system.walk_all():
-        if isinstance(thing, parameters.ParameterSet) and 'extinction' in thing:
-            thing['extinction'] = 0.0
-            system.set_time(0.)
+    #for loc, thing in system.walk_all():
+        #if isinstance(thing, parameters.ParameterSet) and 'extinction' in thing:
+            #thing['extinction'] = 0.0
+            #system.set_time(0.)
             
-    #system.list(summary='physical', width=90)
-    
-    
     params = {}
     import phoebe
     for loc, thing in phoebe.BodyBag([system]).walk_all():
         class_name = thing.__class__.__name__
-        if class_name in ['Star', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
+        if class_name in ['Star', 'BinaryStar', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
             
+            # Compute the luminosity of the object
+            lum = phoebe.convert('erg/s', 'W', thing.luminosity()), 'W'
             
-            
-            
-            
-            lum = phoebe.convert('erg/s','W',thing.luminosity()), 'W'
-            
-            if class_name=='Star':
+            # If this thing is a star, we can immediately derive mass, radius,
+            # and effective temperature
+            if class_name in ['Star', 'BinaryStar']:
                 mass = thing.params['star'].get_value('mass', 'kg'), 'kg'
                 radi = thing.params['star'].get_value('radius', 'm'), 'm'
                 teff = thing.params['star'].get_value('teff', 'K'), 'K'
             
+            # Actually we can also do that for BinaryRocheStars
             elif class_name in ['BinaryRocheStar', 'PulsatingBinaryRocheStar']:
                 
                 pot = thing.params['component']['pot']
@@ -1630,6 +1628,8 @@ def summarize(system, time=None):
                             F=F, component=comp+1, sma=sma, loc='pole',
                             tol=1e-10, maxiter=50), 'm'
                 teff = thing.params['component'].get_value('teff', 'K'), 'K'
+            
+            # Else, we can't do it.
             else:
                 continue
             
@@ -1688,7 +1688,17 @@ def summarize(system, time=None):
                 a2 = np.average(mesh[lbl][:,2], weights=weights), np.std(mesh[lbl][:,2])
                 a3 = np.average(mesh[lbl][:,3], weights=weights), np.std(mesh[lbl][:,3])
                 
-                text.append("Projected intensity = {:.6e}".format(proj_int))
+                text.append("Projected intensity = {:.6e} erg/s/cm2/AA".format(proj_int))
+                if ref=='__bol':
+                    passband = 'BOL'
+                    app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                                                    proj_int, passband='OPEN.BOL')
+                else:
+                    passband = passband=parset[0]['passband']
+                    app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                                                    proj_int, passband=parset[0]['passband'])
+                if not np.isnan(app_mag):
+                    text.append("Apparent mag({}) = {:.3f}".format(passband, app_mag))
                 text.append("Passband LD(a0) = {:8.4f} +/- {:8.4e}".format(*a0))
                 text.append("Passband LD(a1) = {:8.4f} +/- {:8.4e}".format(*a1)) 
                 text.append("Passband LD(a2) = {:8.4f} +/- {:8.4e}".format(*a2)) 
@@ -1699,8 +1709,6 @@ def summarize(system, time=None):
                 text.append("Passband dlnI/dlng = {:.4f}".format(dlnI_dlng))
                 text.append("Passband gravity darkening = {:.4f}".format(passband_gravb))
                 
-                
-    
     print("\n".join(text))
 
 
