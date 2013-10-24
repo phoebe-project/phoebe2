@@ -2042,6 +2042,8 @@ class CommandRun(QUndoCommand):
             write = self.PythonEdit.write_sys
         if kind=='plots':
             write = self.PythonEdit.write_plots
+        if kind=='settings':
+            write = self.PythonEdit.write_settings
         if write:
             PyInterp.write(self.PythonEdit, command+"\n")
         PyInterp.run(self.PythonEdit, command, write=write, thread=thread)
@@ -2146,6 +2148,7 @@ class PyInterp(QTextEdit):
         self.thread_enabled     = True
         self.write_sys          = True
         self.write_plots        = True
+        self.write_settings     = True
         
         self.refreshMarker      = False # to change back to >>> from ...
         self.multiLine          = False # code spans more than one line
@@ -2177,6 +2180,8 @@ class PyInterp(QTextEdit):
             write = write and self.write_sys
         if kind=='plots':
             write = write and self.write_plots
+        if kind=='settings':
+            write = write and self.write_settings
         if write:
             self.write(command+"\n")
         if self.customCommands(command):

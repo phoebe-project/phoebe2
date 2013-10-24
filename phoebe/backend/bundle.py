@@ -3,6 +3,8 @@ Top level class of Phoebe.
 """
 import pickle
 import logging
+import functools
+import inspect
 import numpy as np
 from collections import OrderedDict
 from datetime import datetime
@@ -14,9 +16,52 @@ from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.backend import fitting, observatory, plotting
 from phoebe.dynamics import keplerorbit
+from phoebe.frontend import usersettings
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
+
+
+def run_on_server(fctn):
+    """
+    Parse usersettings to determine whether to run a function locally
+    or submit it to a server
+        
+    """
+    @functools.wraps(fctn)
+    def parse(bundle,*args,**kwargs):
+        """
+
+        """
+        if fctn.func_name == 'run_fitting':
+            fctn_type = 'fitting'
+        elif fctn.func_name == 'run_compute':
+            fctn_type = 'preview' if args[0] == 'Preview' else 'compute'
+            
+        servername = kwargs.pop('server', None)
+        
+        if servername is None:
+            # then we need to determine which system based on preferences
+            servername = bundle.usersettings.get_setting('use_server_on_%s' % (fctn_type))
+            
+            # allow for option to search for available or by priority
+            servername = False # until implemented
+            
+            
+            
+        if servername is not False:
+            server =  bundle.usersettings.get_server(servername)
+            if server.check_connection():
+                # create job and submit
+                # either lock bundle or loop to check progress
+                print "running on servers not yet supported (%s)" % servername
+            else:
+                logger.info('{} server not available, running locally'.format(servername))
+
+        # run locally by calling the original function
+        return fctn(bundle, *args, **kwargs)
+    
+    return parse
 
 class Bundle(object):
     """
@@ -56,6 +101,8 @@ class Bundle(object):
                 self.add_axes(axes[key], key)
         self.add_compute(compute)
         
+        self.set_usersettings()
+        
         self.settings = {}
         self.settings['add_version_on_compute'] = False
         self.settings['add_feedback_on_fitting'] = False
@@ -65,13 +112,48 @@ class Bundle(object):
         
     #{ Settings
     def set_setting(self,key,value):
+        """
+        Set a bundle-level setting
+        
+        @param key: the name of the setting
+        @type key: string
+        @param value: the value of the setting
+        @type value: string, float, boolean
+        """
         self.settings[key] = value
         
     def get_setting(self,key):
+        """
+        Get the value for a setting by name
+        
+        @param key: the name of the setting
+        @type key: string
+        """
         return self.settings[key]
         
-    def load_settings(self,filename):
-        raise NotImplementedError  
+    def set_usersettings(self,settings=None):
+        """
+        Load user settings into the bundle
+        
+        These settings are not saved with the bundle, but are removed and
+        reloaded everytime the bundle is loaded or this function is called.
+        
+        @param settings: the settings (or none to load from default file)
+        @type settings: string
+        """
+        if settings is None or isinstance(settings,str):
+            settings = usersettings.load(settings)
+        # else we assume settings is already the correct type
+        self.usersettings = settings
+        
+    def get_usersettings(self):
+        """
+        Return the user settings class
+        
+        These settings are not saved with the bundle, but are removed and
+        reloaded everytime the bundle is loaded or set_usersettings is called.
+        """
+        return self.usersettings
         
     def set_mpi(self,mpi):
         self.mpi = False if mpi is None else mpi
@@ -88,7 +170,6 @@ class Bundle(object):
         @param system: the new system
         @type system: System
         """
-        #~ print "*** bundle.set_system"
         self.system = system 
         if system is None:  return None
         
@@ -105,8 +186,6 @@ class Bundle(object):
         else:
             i = None
         self.versions_curr_i = i
-
-
         
     def attach_system_signals(self):
         #~ print "* attach_system_signals"
@@ -871,7 +950,8 @@ class Bundle(object):
         if label is None:    return None
         self.compute.pop(label)        
     
-    def run_compute(self,label=None,mpi=True,im=False,add_version=None):
+    @run_on_server
+    def run_compute(self,label=None,mpi=True,im=False,add_version=None,server=None):
         """
         Convenience function to run observatory.observe
         
@@ -883,6 +963,8 @@ class Bundle(object):
         @type im: bool or None
         @param add_version: whether to save a snapshot of the system after compute is complete
         @type add_version: bool or str (which will become the version's name if provided)
+        @param server: name of server to run on, or False to run locally (will override usersettings)
+        @type server: string
         """
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
@@ -977,7 +1059,8 @@ class Bundle(object):
         if label is None:    return None
         self.fitting.pop(label)        
         
-    def run_fitting(self,computelabel,fittinglabel,mpi=True,add_feedback=None):
+    @run_on_server
+    def run_fitting(self,computelabel,fittinglabel,mpi=True,add_feedback=None,server=None):
         """
         Run fitting for a given fitting parameterSet
         and store the feedback
@@ -988,6 +1071,8 @@ class Bundle(object):
         @type fittinglabel: str
         @param mpi: whether mpi is enabled (will use stored options)
         @type mpi: bool
+        @param server: name of server to run on, or False to force locally (will override usersettings)
+        @type server: string
         """
         if add_feedback is None:
             add_feedback = self.settings['add_feedback_on_fitting']
@@ -1362,10 +1447,19 @@ class Bundle(object):
         if purge_signals:
             #~ self_copy = self.copy()
             self.purge_signals()
+            
+        # remove user settings
+        settings = self.usersettings
+        self.usersettings = None
+        
+        # pickle
         ff = open(filename,'w')
         pickle.dump(self,ff)
         ff.close()  
         logger.info('Saved bundle to file {} (pickle)'.format(filename))
+        
+        # reset user settings
+        self.usersettings = settings
         
         # call set_system so that purged (internal) signals are reconnected
         self.set_system(self.system)
@@ -1705,4 +1799,6 @@ def load(filename):
     ff.close()
     # for set_system to update all signals, etc
     bundle.set_system(bundle.system)
+    # load this users settings into the bundle
+    bundle.set_usersettings()
     return bundle
