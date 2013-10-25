@@ -1602,7 +1602,10 @@ def summarize(system, time=None):
     import phoebe
     for loc, thing in phoebe.BodyBag([system]).walk_all():
         class_name = thing.__class__.__name__
-        if class_name in ['Star', 'BinaryStar', 'BinaryRocheStar', 'PulsatingBinaryRocheStar']:
+        error = False
+        if class_name in ['Star', 'BinaryStar', 'BinaryRocheStar',
+                          'PulsatingBinaryRocheStar',
+                          'AccretionDisk']:
             
             # Compute the luminosity of the object
             lum = phoebe.convert('erg/s', 'W', thing.luminosity()), 'W'
@@ -1631,35 +1634,37 @@ def summarize(system, time=None):
             
             # Else, we can't do it.
             else:
-                continue
+                error = True
+            
             
             title = "Body '{}' (t={})".format(thing.get_label(), thing.time)
             text.append("\n\n\033[32m{}\n{}\033[m".format(title,'='*len(title)))
             text.append("\nSystem parameters\n==================\n")
             text.append(thing.list(summary='physical'))
             
-            M = phoebe.convert(mass[1],'Msol', mass[0])
-            L = phoebe.convert(lum[1],'Lsol', lum[0])
-            R = phoebe.convert(radi[1],'Rsol', radi[0])
-            T = phoebe.convert(teff[1],'K', teff[0])
-            G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
+            if not error:
+                M = phoebe.convert(mass[1],'Msol', mass[0])
+                L = phoebe.convert(lum[1],'Lsol', lum[0])
+                R = phoebe.convert(radi[1],'Rsol', radi[0])
+                T = phoebe.convert(teff[1],'K', teff[0])
+                G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
+                
+                teff_min, teff_max = thing.mesh['teff'].min(), thing.mesh['teff'].max()
+                logg_min, logg_max = thing.mesh['logg'].min(), thing.mesh['logg'].max()
+                radii = coordinates.norm(thing.mesh['_o_center'], axis=1)
+                radi_min, radi_max = radii.min(), radii.max()
+                
+                text.append("")
+                text.append("mass          = {:.6f} Msol".format(M))
+                text.append("luminosity    = {:.6f} Lsol".format(L))
+                text.append("radius        = {:.6f} Rsol  [{:.6f} - {:.6f}]".format(R, radi_min, radi_max))
+                text.append("Teff          = {:.6f} K     [{:.6f} - {:.6f}]".format(T, teff_min, teff_max))
+                text.append("logg          = {:.6f} [cgs] [{:.6f} - {:.6f}]".format(G, logg_min, logg_max))
+                
+                params[thing.get_label()] = dict(mass=M, luminosity=L, radius=R, teff=T, logg=G)
             
-            teff_min, teff_max = thing.mesh['teff'].min(), thing.mesh['teff'].max()
-            logg_min, logg_max = thing.mesh['logg'].min(), thing.mesh['logg'].max()
-            radii = coordinates.norm(thing.mesh['_o_center'], axis=1)
-            radi_min, radi_max = radii.min(), radii.max()
-            
-            text.append("")
-            text.append("mass          = {:.6f} Msol".format(M))
-            text.append("luminosity    = {:.6f} Lsol".format(L))
-            text.append("radius        = {:.6f} Rsol  [{:.6f} - {:.6f}]".format(R, radi_min, radi_max))
-            text.append("Teff          = {:.6f} K     [{:.6f} - {:.6f}]".format(T, teff_min, teff_max))
-            text.append("logg          = {:.6f} [cgs] [{:.6f} - {:.6f}]".format(G, logg_min, logg_max))
-            
-            params[thing.get_label()] = dict(mass=M, luminosity=L, radius=R, teff=T, logg=G)
-        
-            ld_columns = [name[3:] for name in thing.mesh.dtype.names if (name[:3] == 'ld_')]
-            
+                ld_columns = [name[3:] for name in thing.mesh.dtype.names if (name[:3] == 'ld_')]
+                
             text.append("\nPassband parameters\n===================\n")
             
             for ref in ld_columns:

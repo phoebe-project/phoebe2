@@ -274,7 +274,7 @@ def claret_gravb():
     >>> print(gravb)
     
     The variables ``teff``, ``logg`` and ``abun`` must be lists or arrays, even
-    if you only have one variable
+    if you only have one variable.
     """
     data = np.loadtxt(os.path.join(basedir, 'tables', 'gravb', 'claret.dat')).T
     # rescale metallicity to solar value and take logarithm

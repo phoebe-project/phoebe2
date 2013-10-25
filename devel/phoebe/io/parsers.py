@@ -91,6 +91,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
     #-- Open the parameter file and read each line
     ff = open(inputfile,'r')
     lines = ff.readlines()
+    ff.close()
     for l in lines:
         #-- ignore initial comment
         if l[0]=='#': continue
@@ -99,8 +100,8 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         try: 
             key, val = l.split('=')
         except:
-            logger.info("line " + l[:-1] + " could not be parsed")
-            continue
+            logger.error("line " + l[:-1] + " could not be parsed ('{}' probably not Phoebe legacy file)".format(inputfile))
+            raise IOError("Cannot parse phoebe file '{}': line '{}'".format(inputfile, l[:-1]))
 
         #-- if this is an rvdep or lcdep, check which index it has
         # and remove it from the string:
@@ -795,11 +796,44 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
     
     body1 = comp1, mesh1, lcdep1, rvdep1, obsrv1
     body2 = comp2, mesh2, lcdep2, rvdep2, obsrv2
-    
+    logger.info("Successfully parsed Phoebe Legacy file {}".format(inputfile))
     return body1, body2, orbit, globals, obslc 
 
 
 
+def wd_to_phoebe(filename, mesh='marching', create_body=True):
+    if not create_body:
+        raise NotImplementedError('create_body=False')
+    if not mesh=='marching':
+        raise NotImplementedError("mesh!='marching'")
+    
+    ps, lc, rv = wd.lcin_to_ps(filename, version='wd2003')
+    comp1, comp2, orbit, globals = wd.wd_to_phoebe(ps, lc, rv)
+    star1, lcdep1, rvdep1 = comp1
+    star2, lcdep2, rvdep2 = comp2
+    lcdep1['pblum'] = lc['hla']
+    lcdep2['pblum'] = lc['cla']
+    delta = 10**(-0.98359345*np.log10(ps['n1'])+0.4713824)
+    mesh1 = phoebe.ParameterSet(frame='phoebe', context='mesh:marching',
+                                delta=delta, alg='c')
+    mesh2 = phoebe.ParameterSet(frame='phoebe', context='mesh:marching',
+                                delta=delta, alg='c')
+    curve, params = wd.lc(ps, request='curve', light_curve=lc, rv_curve=rv)
+    lcobs = phoebe.LCDataSet(columns=['time','flux','sigma'], time=curve['indeps'],
+                             sigma=0.001*curve['lc'],
+                             flux=curve['lc'], ref=lcdep1['ref'])
+    rvobs1 = phoebe.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
+                             sigma=0.001*curve['rv1']*100,
+                             rv=curve['rv1']*100, ref=rvdep1['ref'])
+    rvobs2 = phoebe.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
+                             sigma=0.001*curve['rv2']*100,
+                             rv=curve['rv2']*100, ref=rvdep2['ref'])
+
+    star1 = phoebe.BinaryRocheStar(star1, orbit, mesh1, pbdep=[lcdep1, rvdep1], obs=[rvobs1])
+    star2 = phoebe.BinaryRocheStar(star2, orbit, mesh2, pbdep=[lcdep2, rvdep2], obs=[rvobs2])
+    system = phoebe.BodyBag([star1, star2], obs=[lcobs], label='system')
+    logger.info("Successfully parsed WD lcin file {}".format(filename))
+    return system
 
 
 def phoebe_to_wd(system, create_body=False):

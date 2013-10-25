@@ -39,7 +39,7 @@ defs += [dict(qualifier="hjd0",  description="Origin of time",                  
          dict(qualifier="vga",   description="Center-of-mass velocity",                   repr= "%f",     llim= -1E3, ulim=   1E3, step=    1.0, adjust=False, cast_type=float, unit='km/s', value= 0.0        ,frame=["wd"],alias=['gamma','phoebe_vga'],context='root'),
          dict(qualifier='ecc'  , description='Eccentricity'                             , repr= '%f',     llim=  0.0, ulim=   0.99,step=   0.01, adjust=False, cast_type=float,              value=0.28319     ,frame=["wd"],alias=['e','phoebe_ecc'],context='root'),
          dict(qualifier='omega', description='Initial argument of periastron for star 1', repr= '%f',     llim= -2*np.pi, ulim=   2*np.pi,step=   0.01, adjust=False, cast_type=float, unit='rad',  value=5.696919    ,frame=["wd"],alias=['perr0'],context='root'),
-         dict(qualifier='domegadt',description='First time derivative of periastron'    , repr='%f',      llim=  0.0, ulim=    1.0,step=   0.01, adjust=False, cast_type=float, unit='rad/s',value=0,           frame=["wd"],alias=['dperdt'],context='root')]
+         dict(qualifier='domegadt',description='First time derivative of periastron'    , repr='%f',      llim=  0.0, ulim=    1.0,step=   0.01, adjust=False, cast_type=float, unit='rad/d',value=0,           frame=["wd"],alias=['dperdt'],context='root')]
 
 #  /* ********************   Component parameters   ************************ */
 
