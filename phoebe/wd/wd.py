@@ -552,7 +552,7 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     lcdep1 = pars.ParameterSet(frame='phoebe',context='lcdep',add_constraints=True)
     lcdep2 = lcdep1.copy()
     rvdep1 = pars.ParameterSet(frame='phoebe',context='rvdep',add_constraints=True)
-    rvdep2 = rvdep1.copy()
+    rvdep2 = pars.ParameterSet(frame='phoebe',context='rvdep',add_constraints=True)
     
     #-- not implemented: met, mpage, mref, nref, icor, stdev,
     #   noise, seed, ipb, ifat, n1, n2, the, mzero, factor, wla, atmtab, model

@@ -69,6 +69,8 @@ if __name__=="__main__":
                #z='p00', ebvs=None, redlaw=None, 
                #vgamma=np.linspace(-500,500,21))
     build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'), ld_func='claret', fitmethod='equidist_r_leastsq',
+               z='m01', ebvs=None, redlaw=None)
+    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'), ld_func='claret', fitmethod='equidist_r_leastsq',
                z='m01', ebvs=None, redlaw=None, 
                vgamma=np.linspace(-500,500,101))
     

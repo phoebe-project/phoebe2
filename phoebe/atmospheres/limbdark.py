@@ -654,7 +654,8 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
     return mus, intensities
 
 
-def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
+def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
+            limb_zero=True):
     """
     Fit an LD law to a sampled set of limb angles/intensities.
     
@@ -677,8 +678,12 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
     - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled
        equidistantly
     
-    In my (Pieter) experience, C{fitmethod='equidist_r_leastsq'} seems
-    appropriate for the Kurucz models.
+    If ``limb_zero=False``, the last point will not be used in the fit. This
+    is most likely the :math:`\mu=0` point, or the point really at the edge.
+    
+    In my (Pieter's) experience, C{fitmethod='equidist_r_leastsq'} seems
+    appropriate for the Kurucz models, though ``limb_zero=False`` seems to
+    reproduce it better.
     
     Make sure the intensities are normalised!
     
@@ -698,6 +703,10 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq'):
      between prediction and model integrated intensity
     @rtype: array, float, float
     """
+    if not limb_zero:
+        mu = mu[:-1]
+        Imu = Imu[:-1]
+    
     def ldres_fmin(coeffs, mu, Imu, law):
         return sum((Imu - globals()['ld_{}'.format(law)](mu, coeffs))**2)
     
@@ -1230,6 +1239,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
+                           limb_zero=True,\
                            filetag='kurucz'):
     """
     Create an interpolatable grid of limb darkening coefficients.
@@ -1568,7 +1578,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 for i, pb in enumerate(passbands):
                     # Fit a limbdarkening law:
                     csol, res, dflux = fit_law(mu, Imu[:, i]/Imu[0, i],
-                                               law=law, fitmethod=fitmethod)
+                                               law=law, fitmethod=fitmethod,
+                                               limb_zero=limb_zero)
                     output[pb].append(list(val) + [res, dflux] + list(csol) + \
                                       [Imu[0, i]])
                     
@@ -1624,6 +1635,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                               'method used to fit the LD coefficients')
     filename[0].header.update('HIERARCH C__LD_FUNC', law,
                               'fitted limb darkening function')
+    filename[0].header.update('HIERARCH C__LIMBZERO', limb_zero,
+                              'point at the disk limb included or not')
     
     # Info on the fixed reddening parameters
     for key in red_pars_fixed:

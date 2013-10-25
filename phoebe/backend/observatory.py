@@ -1912,6 +1912,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['refs']= labl_per_time
     params['types'] = type_per_time
     params['samprate'] = samp_per_time
+    
 
 def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
                           circular, heating, beaming, params, ltt, 

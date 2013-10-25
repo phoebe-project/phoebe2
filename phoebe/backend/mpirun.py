@@ -14,6 +14,7 @@ from phoebe.backend import universe
 from phoebe.utils import utils
 
 __bar_props = {'time':[], 'progress':[]}
+__report_progress = True
 
 def update_progress(progress, width=80):
     """
@@ -23,6 +24,8 @@ def update_progress(progress, width=80):
     A value under 0 represents a 'halt'.
     A value at 1 or bigger represents 100%
     """
+    if not __report_progress:
+        return None
      # Modify this to change the length of the progress bar
     barLength = max(1, width-20-20)
     
