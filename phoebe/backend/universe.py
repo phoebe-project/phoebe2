@@ -3707,6 +3707,33 @@ class PhysicalBody(Body):
         
         return ps
     
+    def get_passband_gravity_brightening(self, ref=0):
+        """
+        Compute the passband gravity brightening.
+        
+        As defined in e.g. [Claret2011]_:
+        
+        .. math::
+        
+            y = \left(\frac{\partial\ln I(\lambda)}{\partial\ln g}\right)_{T_\mathrm{eff}} + \left(\frac{d\ln T_\mathrm{eff}}{d\ln g}\right)\left(\frac{\partial\ln I(\lambda)}{\partial\ln T_\mathrm{eff}}\right)_g
+        """
+        parset, ref = self.get_parset(ref=ref)
+        dlnI_dlnT = np.log(self.mesh['ld_'+ref][:,-1]).ptp()/np.log(self.mesh['teff']).ptp()
+        dlnI_dlng = np.log(self.mesh['ld_'+ref][:,-1]).ptp()/np.log(10**self.mesh['logg']).ptp()
+        dlnT_dlng = np.log(self.mesh['teff']).ptp()/np.log(10**self.mesh['logg']).ptp()
+        
+        import matplotlib.pyplot as plt
+        plt.subplot(131)
+        plt.plot(np.log(10**self.mesh['logg']),np.log(self.mesh['teff']))
+        plt.subplot(132)
+        plt.plot(np.log(self.mesh['teff']),np.log(self.mesh['ld_'+ref][:,-1]))
+        plt.subplot(133)
+        plt.plot(np.log(10**self.mesh['logg']),np.log(self.mesh['ld_'+ref][:,-1]))
+        
+        passband_gravb = dlnI_dlng + dlnT_dlng*dlnI_dlnT
+        return passband_gravb
+    
+    
     def init_mesh(self):
         init_mesh(self)
     
@@ -4935,16 +4962,27 @@ class AccretionDisk(PhysicalBody):
     
     There is no limb-darkening included yet.
     
+    Flickering:
+    
+    http://iopscience.iop.org/0004-637X/486/1/388/fulltext/
+    
     """
-    def __init__(self,accretion_disk,pbdep=None,reddening=None,**kwargs):
+    def __init__(self,accretion_disk, mesh=None, pbdep=None,reddening=None,**kwargs):
         """
         Initialize a flaring accretion disk.
         
         The only parameters need for the moment are the disk parameters.
         In the future, also the details on the mesh creation should be given.
         """
+        # Basic initialisation
         super(AccretionDisk,self).__init__(dim=3,**kwargs)
+        
+        # Prepare basic parameterSets and Ordered dictionaries
+        check_input_ps(self, accretion_disk, ['accretion_disk'], 1)
+        check_input_ps(self, mesh, ['mesh:disk'], 2)
+        
         self.params['disk'] = accretion_disk
+        self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
         #-- add interstellar reddening (if none is given, set to the default,
         #   this means no reddening
@@ -4964,7 +5002,9 @@ class AccretionDisk(PhysicalBody):
         """
         return self.params['disk']['label']
 
-    def compute_mesh(self,radial=20,angular=50):
+    def compute_mesh(self):
+        angular = self.params['mesh'].get_value('longit')
+        radial = self.params['mesh'].get_value('radial')
         Rin = self.params['disk'].get_value('rin','Rsol')
         Rout = self.params['disk'].get_value('rout','Rsol')
         height = self.params['disk'].get_value('height','Rsol')
@@ -5099,16 +5139,18 @@ class AccretionDisk(PhysicalBody):
     
     def temperature(self,time=None):
         r"""
-        Temperature is calculated according to [Wood1992]_
+        Temperature is calculated according to a scaling law.
+        
+        One model is inpsired upon [Wood1992]_ and [Copperwheat2010]_ 
         
         .. math::
         
             T_\mathrm{eff}(r)^4 = (G M_\mathrm{wd} \dot{M}) / (8\pi r^3) (1-b\sqrt{R_\mathrm{in}/r}) 
         
-        An alternative formula might be from Frank et al. 1992 (p. 78):
+        An alternative formula might be from [Frank1992]_ (p. 78):
         
         .. math::
-            T_\mathrm{eff}r)^4 = \frac{W^{0.25} 3G M_\mathrm{wd} \dot{M}}{8 \pi r^3 \sigma}  (1-\sqrt{\frac{R_*}{r}}) \left(\frac{r}{R_*}\right)^{0.25\beta}
+            T_\mathrm{eff}(r)^4 = \frac{W^{0.25} 3G M_\mathrm{wd} \dot{M}}{8 \pi r^3 \sigma}  (1-\sqrt{\frac{R_*}{r}}) \left(\frac{r}{R_*}\right)^{0.25\beta}
         
         with :math:`\beta=-0.75` and :math:`W=1.0` for the standard model.
         """

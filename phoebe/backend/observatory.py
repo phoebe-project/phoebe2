@@ -67,6 +67,7 @@ from phoebe.algorithms import reflection
 from phoebe.atmospheres import tools
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
+from phoebe.atmospheres import sed
 from phoebe.atmospheres import spectra as modspectra
 from phoebe.dynamics import keplerorbit
 from phoebe.backend import decorators
@@ -1258,15 +1259,20 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         teff, logg = the_system.mesh['teff'][keep], the_system.mesh['logg'][keep]
         
         # Interpolate (fitters can go outside of grid)
-        try:
-            spectra = modspectra.interp_spectable(profile, teff, logg, wavelengths)
-        except IndexError:
-            logger.error(("no spectrum synthesized (outside of grid "
+        if profile == 'blackbody':
+            spectra = np.ones((2,len(wavelengths),len(teff)))
+            for i,iteff in enumerate(teff):
+                spectra[1,:,i] = sed.blackbody(wavelengths/10., iteff)
+        else:
+            try:
+                spectra = modspectra.interp_spectable(profile, teff, logg, wavelengths)
+            except IndexError:
+                logger.error(("no spectrum synthesized (outside of grid "
                           "({}<=teff<={}, {}<=logg<={}), zero flux "
                           "received").format(teff.min(), teff.max(),
                                              logg.min(), logg.max()))
                           
-            return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
+                return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
         # Compute the spectrum
         proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
@@ -1354,7 +1360,15 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         wavelengths = wavelengths[keep]
         total_spectrum = total_spectrum[keep]
         total_continum = total_continum[keep]
+    
+    # Scale the projected intensity with the distance
+    globals_parset = the_system.get_globals()
+    if globals_parset is not None:
+        distance = globals_parset.request_value('distance', 'Rsol')
+        total_spectrum /= distance**2
+        total_continum /= distance**2
         
+    
     return wavelengths, total_spectrum, total_continum
 
 
