@@ -224,6 +224,8 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
          dict(qualifier='maxpoints',description='Maximum number of triangles for marching method',repr='%d',cast_type=int,value=20000,frame=['phoebe'],context=['mesh:marching']),
          dict(qualifier='gridsize', description='Number of meshpoints for WD style discretization',repr='%d',cast_type=int,value=90,frame=['phoebe'],context=['mesh:wd']),
          dict(qualifier='alg', description='Select type of algorithm',repr='%s',cast_type='choose',choices=['c','python'],value='c',frame=['phoebe'],context=['mesh:marching']),
+         dict(qualifier='radial', description='Number of meshpoints in the radial direction',repr='%d',cast_type=int,value=20,frame=['phoebe'],context=['mesh:disk']),
+         dict(qualifier='longit', description='Number of meshpoints in the longitudinal direction',repr='%d',cast_type=int,value=50,frame=['phoebe'],context=['mesh:disk']),
          #dict(qualifier='style',    description='Discretization style',repr='%s',cast_type='choose',choices=['marching','cmarching','wd'],value='marching',frame=['phoebe'],context=['mesh'])
          ]        
         
