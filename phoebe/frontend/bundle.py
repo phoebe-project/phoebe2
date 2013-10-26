@@ -31,7 +31,6 @@ def run_on_server(fctn):
     @functools.wraps(fctn)
     def parse(bundle,*args,**kwargs):
         """
-
         """
         if fctn.func_name == 'run_fitting':
             fctn_type = 'fitting'
@@ -40,23 +39,41 @@ def run_on_server(fctn):
             
         servername = kwargs.pop('server', None)
         
+        callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
+        dump = callargs.pop('self')
+        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
+
+        
         if servername is None:
             # then we need to determine which system based on preferences
-            servername = bundle.usersettings.get_setting('use_server_on_%s' % (fctn_type))
+            servername = bundle.get_usersettings().get_setting('use_server_on_%s' % (fctn_type))
             
-            # allow for option to search for available or by priority
-            servername = False # until implemented
-            
-            
+            # TODO allow for option to search for available or by priority?
             
         if servername is not False:
-            server =  bundle.usersettings.get_server(servername)
+            server =  bundle.get_server(servername)
             if server.check_connection():
+                logger.warning("running on servers not yet supported ({})".format(servername))
+                # prepare job
+                bundle.save('bundle.job.tmp') # might have a problem here if threaded
+                
+                f = open('script.job.tmp','w')
+                f.write("#!/usr/bin/python")
+                f.write("from phoebe.frontend.bundle import load")
+                f.write("bundle = load('bundle.job.tmp')")
+                f.write("bundle.%s(%s)" % (fctn.func_name, callargstr))
+                f.write("bundle.save('bundle.return.job.tmp')")
+                f.close()
+                
                 # create job and submit
+                job = Job(fctn_type,script_file='script.job.tmp',aux_files=['bundle.job.tmp'],return_files=['bundle.return.job.tmp'])
+                bundle.current_job = job
+                job.start(server)
+                
                 # either lock bundle or loop to check progress
-                print "running on servers not yet supported (%s)" % servername
+
             else:
-                logger.info('{} server not available, running locally'.format(servername))
+                logger.warning('{} server not available, running locally'.format(servername))
 
         # run locally by calling the original function
         return fctn(bundle, *args, **kwargs)
@@ -103,6 +120,8 @@ class Bundle(object):
         
         self.set_usersettings()
         
+        self.current_job = None
+        
         self.settings = {}
         self.settings['add_version_on_compute'] = False
         self.settings['add_feedback_on_fitting'] = False
@@ -146,14 +165,32 @@ class Bundle(object):
         # else we assume settings is already the correct type
         self.usersettings = settings
         
-    def get_usersettings(self):
+    def get_usersettings(self,key=None):
         """
         Return the user settings class
         
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or set_usersettings is called.
+        
+        @param key: name of the setting, or none to return the class
+        @type key: string or None
         """
-        return self.usersettings
+        if key is None:
+            return self.usersettings
+        else:
+            return self.usersettings.get_setting(key)
+            
+    def get_server(self,servername):
+        """
+        Return a server by name
+        
+        Note that this is merely a shortcut to bundle.get_usersettings().get_server()
+        The server settings are stored in the usersettings and are not kept with the bundle
+        
+        @param servername: name of the server
+        @type servername: string
+        """
+        return self.get_usersettings().get_server(servername)
         
     def set_mpi(self,mpi):
         self.mpi = False if mpi is None else mpi
@@ -1480,9 +1517,12 @@ class Axes(object):
         #~ super(Axes, self).__init__()
         
         self.axesoptions = parameters.ParameterSet(context="plotting:axes")
-        self.mplaxes = {} # mplfig as keys, data axes as values
-        self.mplaxes_sel = {} # mplfig as keys, overlay as values
+        #~ self.mplaxes = {} # mplfig as keys, data axes as values
+        #~ self.mplaxes_sel = {} # mplfig as keys, overlay as values
         self.plots = []
+        
+        self.phased = False
+        self.period = None
         
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
@@ -1654,12 +1694,6 @@ class Axes(object):
         if location is None:
             location = self.axesoptions['location'] # location not added in ao
             
-        if mplaxes is None and mplfig is not None and mplfig in self.mplaxes.keys():
-            # then we have a match on record to retrieve the axes
-            mplaxes = self.mplaxes[mplfig]
-        
-        #~ mplaxes = self.mplaxes if mplaxes is None else mplaxes
-        
         # of course we may be trying to plot to a different figure
         # so we'll override this later if that is the case 
         # just know that self.mplaxes is just to predict which axes
@@ -1683,9 +1717,6 @@ class Axes(object):
             if mplfig is not None:
                 axes = mplfig.add_subplot(111,**ao)
         
-        if mplfig is not None:
-            self.mplaxes[mplfig] = axes
-                       
         # get phasing information
         xaxis = self.axesoptions.get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
@@ -1697,17 +1728,13 @@ class Axes(object):
                 continue
 
             # copied functionality from bundle.get_object (since we don't want to import bundle)
-            #~ obj = self._get_object(plotoptions['objref'],system) # will return system if objref=='auto'
             obj = bundle.get_object(plotoptions['objref'])
             
             if plotoptions['type'][-3:]=='obs':
-                #~ print 'get_obs', plotoptions['dataref'],plotoptions['objref']
                 dataset = bundle.get_obs(objref=plotoptions['objref'],dataref=plotoptions['dataref'])[0]
             else:
-                #~ print 'get_syn', plotoptions['dataref'],plotoptions['objref']
                 dataset = bundle.get_syn(objref=plotoptions['objref'],dataref=plotoptions['dataref'])[0]
                 
-            #~ dataset = self.get_dataset(plotoptions,bundle)
             if len(dataset['time'])==0: # then empty dataset
                 continue
                 
@@ -1762,27 +1789,22 @@ class Axes(object):
                 artists,obs = plotting.plot_etvsyn(obj, ref=plotoptions['dataref'], ax=axes, phased=phased, period=period, **po)
             else:
                 artists,obs = [],[]
-                
+        
+        mplfig.data_axes = axes
+        mplfig.sel_axes = axes.twinx()
+
         self.plot_select_time(bundle.select_time,mplfig=mplfig)
                 
-    def plot_select_time(self,time,mplfig=None,mplaxes=None):
-        if mplaxes is None:
-            mplaxes = self.mplaxes[mplfig]
-            
-        if mplfig in self.mplaxes_sel.keys():
-            mplaxes_sel = self.mplaxes_sel[mplfig]
-            mplaxes_sel.cla()
-        #~ else:
-        mplaxes_sel = mplaxes.twinx()
+    def plot_select_time(self,time,mplfig):
+        mplaxes_sel = mplfig.sel_axes
+        mplaxes_sel.cla()
         mplaxes_sel.set_yticks([])
-        self.mplaxes_sel[mplfig] = mplaxes_sel
             
-
         if time is not None:
             if self.phased:
                 time = (time % self.period) / self.period
             
-            xlim = mplaxes.get_xlim()
+            xlim = mplfig.data_axes.get_xlim()
             if time < xlim[1] and time > xlim[0]:
                 mplaxes_sel.axvline(time, color='r')
 

@@ -320,7 +320,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.PythonEdit, SIGNAL("GUILock"), self.gui_lock)
         QObject.connect(self.PythonEdit, SIGNAL("GUIUnlock"), self.gui_unlock) 
         QObject.connect(self.PythonEdit, SIGNAL("set_time"), self.on_set_time)
-        #~ QObject.connect(self.PythonEdit, SIGNAL("set_select_time"), self.on_select_time_changed)
         QObject.connect(self.PythonEdit, SIGNAL("undo"), self.on_undo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("redo"), self.on_redo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("plots_changed"), self.on_plots_changed) 
@@ -497,7 +496,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bundle.attach_signal(self.bundle,'load_data',self.update_datasets)
             self.bundle.attach_signal(self.bundle,'add_fitting',self.update_fittingOptions)
             self.bundle.attach_signal(self.bundle,'remove_fitting',self.update_fittingOptions)
-            #~ self.bundle.attach_signal(self.bundle,'set_select_time',self.on_select_time_changed)
             #~ print "*** attaching set_time signal"
             #~ self.bundle.attach_signal(self.bundle.system,'set_time',self.on_set_time)
 
@@ -547,11 +545,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.PyInterp_run('bundle = Bundle(system=create.from_library(\'%s\', create_body=True))' % path, kind='sys', thread=False)
                 self.filename = None
                 return
-            if self.sender()==self.actionLegacy_PHOEBE:
+            elif self.sender()==self.actionLegacy_PHOEBE:
                 self.PyInterp_run('bundle = Bundle(system=parsers.legacy_to_phoebe(\'%s\', create_body=True))' % filename, kind='sys', thread=False)
                 return
-            self.PyInterp_run('bundle = load(\'%s\')' % filename, kind='sys', thread=False)
-            self.filename = filename
+            else:
+                self.PyInterp_run('bundle = load(\'%s\')' % filename, kind='sys', thread=False)
+                self.filename = filename
+            self.PyInterp_run('bundle.set_usersettings(settings)', kind='settings', thread=False)
                 
     def on_save_clicked(self):
         """
@@ -702,12 +702,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         sel_comps = [s for s in ps_sel if s.context in ['component','star']]
         sel_meshes = [self.bundle.get_mesh(s.get_value('label')) for s in sel_comps] # this is kind of ugly
 
-        #~ self.lp_compTreeView.setColumnCount(len(sel_comps)+1)
-        #~ self.lp_compTreeView.resizeColumnToContents(0)
-
-        #~ self.lp_orbitTreeView.setColumnCount(len(sel_orbits)+1)
-        #~ self.lp_orbitTreeView.resizeColumnToContents(0)
-        
         # Collapse unused tree views
         if len(sel_comps) == 0:
             if not skip_collapse:
@@ -898,8 +892,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_plot_axis_changed(self, value, axis='x', sender=None):
         axes_i = self.pop_i if self.sender().axes_i is 'expanded' else self.sender().axes_i
-        
-        #~ print "* on_plot_axis_changed", axes_i, self.pop_i
         axesname = self.bundle.get_axes(axes_i).get_value('title')
         
         do_command = "bundle.get_axes('%s').set_value('%saxis', '%s')" % (axesname, axis, value)
@@ -949,7 +941,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #plot expanded from gui
         if self.sender() == self.meshmpl_canvas:
             self.mp_stackedWidget.setCurrentIndex(3)
-            #~ self.on_plots_changed() # just to make sure up to date - REMOVE?
             return
         elif self.sender() == self.orbitmpl_canvas:
             return
@@ -969,28 +960,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             self.mp_stackedWidget.setCurrentIndex(2)
             
-            #~ new_plot_widget, canvas = self.create_plot_widget()
-            #~ pop = CreatePopPlot()
-            #~ self.mp_expandLayout.addWidget(pop.plot_Widget,0,0)
-            #~ QObject.connect(pop.popPlot_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle) 
-            #~ QObject.connect(pop.popPlot_popPushButton, SIGNAL("clicked()"), self.on_plot_pop)
-            #~ QObject.connect(pop.popPlot_delPushButton, SIGNAL("clicked()"), self.on_plot_del)
-            #~ pop.plot_gridLayout.addWidget(new_plot_widget,0,1)
-
             self.expanded_canvas.cla()
             self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
             
-
             # instead of dealing with attaching and destroying signals for the expanded plot
             # let's always check to see if the expanded plot is the same plot as a plot that is being asked to be redrawn
-            # we can access this info in plot_redraw() through self.pop_i
+            # we can access this info in plot_redraw() and on_select_time_changed() through self.pop_i
             
-            #~ self.attach_plot_signals(self.bundle.axes[i], i, self.expanded_canvas)
-            #~ self.bundle.attach_signal(self.bundle.axes[i], 'add_plot', self.plot_redraw, i, canvas)
-            #~ self.bundle.attach_signal(self.bundle.axes[i], 'remove_plot', self.plot_redraw, i, canvas)
-            #~ for po in self.bundle.axes[i].plots:
-                #~ self.bundle.attach_signal(po, 'set_value', self.plot_redraw, i, canvas)
-
         else: #then we need to return to grid
             self.mp_stackedWidget.setCurrentIndex(1)
             
@@ -1437,25 +1413,17 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
-            #~ self.bundle.attach_signal(axes.axesoptions, 'set_value', self.plot_redraw, i)
-            #~ self.bundle.attach_signal(axes, 'add_plot', self.plot_redraw, i)
-            #~ self.bundle.attach_signal(axes, 'remove_plot', self.plot_redraw, i)
-            #~ for po in axes.plots:
-                #~ for paramname in po.keys():
-                    #~ param = po.get_parameter(paramname)
-                    #~ self.bundle.purge_signals([param])
-                    #~ self.bundle.attach_signal(param, 'set_value', self.plot_redraw, i)
         
         for i in range(len(self.bundle.axes)):    
             self.plot_redraw(None,i)
             
     def on_select_time_changed(self,param=None,i=None,canvas=None):
-        #~ print "*** on_select_time_changed",i,canvas
-        #~ print "*** len(self.plot_canvases)", len(self.plot_canvases+[self.expanded_canvas])
-            
-        self.plot_redraw(param,i,canvas)
-        #~ canvas.update_select_time(self.bundle)
-        #~ self.on_plots_changed()
+        canvas.update_select_time(self.bundle)
+
+        # check to see if this is the same plot as the expanded plot
+        # and if so, also update that canvas
+        if i==self.pop_i:
+            self.expanded_canvas.update_select_time(self.bundle)
             
             
     def PyInterp_run(self, command, write=True, thread=False, kind=None):
@@ -1482,8 +1450,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ self.rp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.set_time_i += 1
             
-
-        
         #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
         
         #should we only draw this if its visible?

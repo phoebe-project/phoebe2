@@ -33,9 +33,9 @@ class Settings(object):
     def get_server(self,servername):
         return self.servers[servername]
         
-    def add_server(self,servername,**kwargs):
-        #~ self.servers[servername] = Server(kwargs)
-        pass
+    def add_server(self,servername,mount_location,mpi=None):
+        raise NotImplementedError
+        #~ self.servers[servername] = Server(servername,mount_location,mpi)
 
     def save(self,filename=None):
         

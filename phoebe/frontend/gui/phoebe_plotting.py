@@ -102,7 +102,6 @@ class MyMplCanvas(FigureCanvas):
         self.axes = axes # this is the bundle axes not mpl axes
         self.draw()
         
-    def update_select_time(self, bundle, axes=None):
-        axes = axes if axes is not None else self.axes # this is the bundle axes
-        axes.plot_select_time(self.fig, bundle.select_time)
+    def update_select_time(self, bundle):
+        self.axes.plot_select_time(bundle.select_time, self.fig)
         self.draw()
