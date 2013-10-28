@@ -677,6 +677,26 @@ class Bundle(object):
         param = self.get_parameter(qualifier,objref)
         param.set_value(value)
         
+    def set_adjust(self,qualifier,adjust=True,objref=None):
+        """
+        Set adjust for a parameter from the system
+        This is identical to bundle.get_parameter(qualifier,objref).set_adjust(adjust)
+        
+        If objref is not provided and there are more than one object in 
+        they system containing a parameter with the same name, this will
+        return an error and ask you to provide a valid objref
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param value: the new value for the parameter
+        @type value: (depends on parameter)
+        @param objref: label of the object
+        @type objref: str
+        """
+        
+        param = self.get_parameter(qualifier,objref)
+        param.set_adjust(adjust)
+        
     #}  
     
     #{ Versions
