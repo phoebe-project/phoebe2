@@ -602,7 +602,80 @@ class Bundle(object):
             return return_
         else:
             return return_[0]
+            
+    def get_parameter(self,qualifier,objref=None):
+        """
+        Retrieve a parameter from the system
+        If objref is not provided and there are more than one object in 
+        they system containing a parameter with the same name, this will
+        return an error and ask you to provide a valid objref
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param objref: label of the object
+        @type objref: str
+        @return: Parameter corresponding to the qualifier
+        @rtype: Parameter
+        """
+    
+        objrefs = self.get_system_structure(flat=True) if objref is None else [objref]
+        
+        return_params = []
+        return_objrefs = []
+        
+        for objref in objrefs:
+            ps = self.get_ps(objref)
+            if qualifier in ps.keys():
+                return_params.append(ps.get_parameter(qualifier))
+                return_objrefs.append(objref)
+                
+        if len(return_params) > 1:
+            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for objref:\n{}".format(qualifier,'\n'.join(["\t'%s'" % ref for ref in return_objrefs])))
 
+        elif len(return_params)==0:
+            raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
+            
+        return return_params[0]
+        
+    def get_value(self,qualifier,objref=None):
+        """
+        Retrieve the value from a parameter from the system
+        This is identical to bundle.get_parameter(qualifier,objref).get_value()
+        
+        If objref is not provided and there are more than one object in 
+        they system containing a parameter with the same name, this will
+        return an error and ask you to provide a valid objref
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param objref: label of the object
+        @type objref: str
+        @return: value of the Parameter corresponding to the qualifier
+        @rtype: (depends on the parameter)
+        """
+        
+        param = self.get_parameter(qualifier,objref)
+        return param.get_value()
+        
+    def set_value(self,qualifier,value,objref=None):
+        """
+        Set the value of a parameter from the system
+        This is identical to bundle.get_parameter(qualifier,objref).set_value(value)
+        
+        If objref is not provided and there are more than one object in 
+        they system containing a parameter with the same name, this will
+        return an error and ask you to provide a valid objref
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param value: the new value for the parameter
+        @type value: (depends on parameter)
+        @param objref: label of the object
+        @type objref: str
+        """
+        
+        param = self.get_parameter(qualifier,objref)
+        param.set_value(value)
         
     #}  
     
