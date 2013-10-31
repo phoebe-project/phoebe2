@@ -1666,9 +1666,9 @@ def unit2texlabel(unit,full=False):
     else:
         label = unit_
     #-- make TeX
-    label = label.replace('AA','$\AA$')
-    label = label.replace('mu','$\mu$')
-    label = label.replace('sol','$_\odot$')
+    label = label.replace('AA',r'$\AA$')
+    label = label.replace('mu',r'$\mu$')
+    label = label.replace('sol',r'$_\odot$')
     
     if full:
         label = '{0} [{1}]'.format(get_type(unit).title(),label.strip())

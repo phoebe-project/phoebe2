@@ -2608,6 +2608,7 @@ class ParameterSet(object):
             value = self.get_value(param)
             if isinstance(value,ParameterSet):
                 value.save_ascii(outfile,label=label+sep+param+sep)
+
     
     def to_dict(self):
         """

@@ -1,4 +1,4 @@
-"""
+r"""
 Derive parameters in the Roche approximation.
 
 Most of these parameters are local atmospheric parameters.
@@ -46,12 +46,12 @@ and parameterized via :math:`\beta` (Eq. 4.23 in the Phoebe Scientific reference
 
 .. math::
     
-        T_\mathrm{eff}^4 = T_\mathrm{pole}^4  \left(\frac{g}{g_\mathrm{pole}}\right)^{\beta}
+        T_\mathrm{eff}^4 = T_\mathrm{pole}^4  \left(\frac{g}{g_\mathrm{pole}}\right)^\beta
         
-    with
-    
-        - :math:`\beta/\mathrm{gravb} = 1.00` for radiative atmospheres (:math:`T_\mathrm{eff}\geq 8000\,\mathrm{K}`)
-        - :math:`\beta/\mathrm{gravb} = 0.32` for convective atmpsheres (:math:`T_\mathrm{eff}\leq 5000\,\mathrm{K}`, but we're a little bit less strict and set 6600K)
+with
+
+    - :math:`\beta = 1.00` for radiative atmospheres (:math:`T_\mathrm{eff}> 8000\,\mathrm{K}`)
+    - :math:`\beta = 0.32` for convective atmospheres (:math:`T_\mathrm{eff}< 5000\,\mathrm{K}`, but we're a little bit less strict and set 6600K)
         
 More generally, gravity darkening relates effective temperature and surface gravity.
 [Espinosa2011]_ derived values bla bla. The values from [Espinosa2012]_ are

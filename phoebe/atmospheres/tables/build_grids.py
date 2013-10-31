@@ -9,6 +9,7 @@ logger = phoebe.get_basic_logger()
 
 
 def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',
+               limb_zero=True,
                redlaw='fitzpatrick2004', Rv=3.1, z='p00', vmic=2, ebvs=None,
                vgamma=None):
     if passbands is None:
@@ -49,6 +50,7 @@ def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='eq
         atm_files = sorted(glob.glob('spec_intens_z/{}_mu_i*k{:.0f}.fits'.format(filetag,vmic)))
         limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,
                 red_pars_fixed=dict(law=redlaw,ebv=0.,Rv=Rv),
+                limb_zero=limb_zero,
                 law=ld_func,passbands=passbands,fitmethod=fitmethod,filetag=filetag)
         
     else:
@@ -58,6 +60,7 @@ def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='eq
         print(atm_files)
         limbdark.compute_grid_ld_coeffs(atm_files,atm_pars=atm_pars,
                 red_pars_fixed=red_pars_fixed,vgamma=vgamma,
+                limb_zero=limb_zero,
                 law=ld_func,passbands=passbands,fitmethod=fitmethod,filetag='{}_{}'.format(filetag,z))
 
 
@@ -68,9 +71,11 @@ if __name__=="__main__":
     #build_grid(filetag='kurucz', passbands=('JOHNSON.V',), ld_func='linear', fitmethod='equidist_r_leastsq',
                #z='p00', ebvs=None, redlaw=None, 
                #vgamma=np.linspace(-500,500,21))
-    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'), ld_func='claret', fitmethod='equidist_r_leastsq',
-               z='m01', ebvs=None, redlaw=None)
-    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'), ld_func='claret', fitmethod='equidist_r_leastsq',
-               z='m01', ebvs=None, redlaw=None, 
+    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+               ld_func='claret', fitmethod='equidist_r_leastsq',
+               z='m01', ebvs=None, redlaw=None, limb_zero=False)
+    build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+               ld_func='claret', fitmethod='equidist_r_leastsq',
+               z='m01', ebvs=None, redlaw=None, limb_zero=False,
                vgamma=np.linspace(-500,500,101))
     
