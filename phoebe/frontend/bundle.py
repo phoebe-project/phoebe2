@@ -10,6 +10,7 @@ from collections import OrderedDict
 from datetime import datetime
 import matplotlib.pyplot as plt
 import copy
+import os
 
 from phoebe.utils import callbacks, utils
 from phoebe.parameters import parameters
@@ -44,7 +45,7 @@ def run_on_server(fctn):
         callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
 
         
-        if servername is None:
+        if servername is None: # will be False if running locally without mpi
             # then we need to determine which system based on preferences
             servername = bundle.get_usersettings().get_setting('use_server_on_%s' % (fctn_type))
             
@@ -52,25 +53,27 @@ def run_on_server(fctn):
             
         if servername is not False:
             server =  bundle.get_server(servername)
-            if server.check_connection():
-                logger.warning("running on servers not yet supported ({})".format(servername))
+            if server.is_external() and server.check_connection():
+                #~ logger.warning("running on servers not yet supported ({})".format(servername))
                 # prepare job
-                bundle.save('bundle.job.tmp') # might have a problem here if threaded
+                bundle.save(os.path.join(server.mount_location,'bundle.job.tmp')) # might have a problem here if threaded!!
                 
-                f = open('script.job.tmp','w')
-                f.write("#!/usr/bin/python")
-                f.write("from phoebe.frontend.bundle import load")
-                f.write("bundle = load('bundle.job.tmp')")
-                f.write("bundle.%s(%s)" % (fctn.func_name, callargstr))
-                f.write("bundle.save('bundle.return.job.tmp')")
+                f = open(os.path.join(server.mount_location,'script.job.tmp'),'w')
+                f.write("#!/usr/bin/python\n")
+                f.write("print 'running from server %s'\n" % server.server)
+                f.write("from phoebe.frontend.bundle import load\n")
+                f.write("bundle = load('bundle.job.tmp')\n")
+                f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
+                f.write("bundle.save('bundle.return.job.tmp')\n")
                 f.close()
                 
                 # create job and submit
-                job = Job(fctn_type,script_file='script.job.tmp',aux_files=['bundle.job.tmp'],return_files=['bundle.return.job.tmp'])
-                bundle.current_job = job
-                job.start(server)
+                server.run_script_external('script.job.tmp')
                 
-                # either lock bundle or loop to check progress
+                # it would be nice to do this in a screen session and lock the bundle
+                # and then have an option to enter a loop to watch for it to be complete
+                
+                bundle = load(os.path.join(server.mount_location,'bundle.return.job.tmp'))
 
             else:
                 logger.warning('{} server not available, running locally'.format(servername))
