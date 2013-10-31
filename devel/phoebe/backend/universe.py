@@ -3711,26 +3711,28 @@ class PhysicalBody(Body):
         """
         Compute the passband gravity brightening.
         
-        As defined in e.g. [Claret2011]_:
+        It is defined as in e.g. [Claret2011]_:
         
         .. math::
         
             y = \left(\frac{\partial\ln I(\lambda)}{\partial\ln g}\right)_{T_\mathrm{eff}} + \left(\frac{d\ln T_\mathrm{eff}}{d\ln g}\right)\left(\frac{\partial\ln I(\lambda)}{\partial\ln T_\mathrm{eff}}\right)_g
+        
+        However, in our numerical model, we don't have the partial derivatives,
+        so we compute it as:
+        
+        .. math::
+        
+            y = \frac{\Delta \ln I}{(\Delta\ln T_\mathrm{eff})^2 + (\Delta\ln g)^2}
+            
         """
         parset, ref = self.get_parset(ref=ref)
-        dlnI_dlnT = np.log(self.mesh['ld_'+ref][:,-1]).ptp()/np.log(self.mesh['teff']).ptp()
-        dlnI_dlng = np.log(self.mesh['ld_'+ref][:,-1]).ptp()/np.log(10**self.mesh['logg']).ptp()
-        dlnT_dlng = np.log(self.mesh['teff']).ptp()/np.log(10**self.mesh['logg']).ptp()
+        dlnI = np.log(self.mesh['ld_'+ref][:,-1]).ptp()
+        dlnT = np.log(self.mesh['teff']).ptp()
+        dlng = np.log(10**self.mesh['logg']).ptp()
         
-        import matplotlib.pyplot as plt
-        plt.subplot(131)
-        plt.plot(np.log(10**self.mesh['logg']),np.log(self.mesh['teff']))
-        plt.subplot(132)
-        plt.plot(np.log(self.mesh['teff']),np.log(self.mesh['ld_'+ref][:,-1]))
-        plt.subplot(133)
-        plt.plot(np.log(10**self.mesh['logg']),np.log(self.mesh['ld_'+ref][:,-1]))
+        passband_gravb = dlnI / np.sqrt(dlnT**2 + dlng**2)
         
-        passband_gravb = dlnI_dlng + dlnT_dlng*dlnI_dlnT
+        print("passband gravity darkening, {}+{}*{}={}".format(dlnI_dlng,dlnT_dlng,dlnI_dlnT, passband_gravb))
         return passband_gravb
     
     
@@ -4966,6 +4968,9 @@ class AccretionDisk(PhysicalBody):
     
     http://iopscience.iop.org/0004-637X/486/1/388/fulltext/
     
+    Brehmstrahlung:
+    
+    http://www.google.be/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&ved=0CDcQFjAB&url=http%3A%2F%2Fwww.springer.com%2Fcda%2Fcontent%2Fdocument%2Fcda_downloaddocument%2F9783319006116-c2.pdf%3FSGWID%3D0-0-45-1398306-p175157874&ei=30JtUsDYCqqX1AWEk4GQCQ&usg=AFQjCNFImeW-EOIauLtmoNqrBw7voYJNRg&sig2=RdoxaZJletpNNkEeyiIm2w&bvm=bv.55123115,d.d2k
     """
     def __init__(self,accretion_disk, mesh=None, pbdep=None,reddening=None,**kwargs):
         """
@@ -5155,13 +5160,29 @@ class AccretionDisk(PhysicalBody):
         with :math:`\beta=-0.75` and :math:`W=1.0` for the standard model.
         """
         r = coordinates.norm(self.mesh['_o_center'],axis=1)*constants.Rsol
-        Mdot = self.params['disk'].get_value('dmdt','kg/s')
-        M_wd = self.params['disk'].get_value('mass','kg')
-        Rin = self.params['disk'].get_value('rin','m')
-        b = self.params['disk']['b']
-        sigTeff4 = constants.GG*M_wd*Mdot/(8*pi*r**3)*(1-b*sqrt(Rin/r))
-        sigTeff4[sigTeff4<0] = 1e-1 #-- numerical rounding (?) can do weird things
-        self.mesh['teff'] = (sigTeff4/constants.sigma)**0.25
+        context = self.params['disk'].get_context().split(':')
+        
+        # copperwheat
+        if len(context)==1:
+            disk_type = 'copperwheat'
+        else:
+            disk_type = context[1]
+            
+        if disk_type == 'copperwheat':    
+            Mdot = self.params['disk'].get_value('dmdt','kg/s')
+            M_wd = self.params['disk'].get_value('mass','kg')
+            Rin = self.params['disk'].get_value('rin','m')
+            b = self.params['disk']['b']
+            sigTeff4 = constants.GG*M_wd*Mdot/(8*pi*r**3)*(1-b*sqrt(Rin/r))
+            sigTeff4[sigTeff4<0] = 1e-1 #-- numerical rounding (?) can do weird things
+            self.mesh['teff'] = (sigTeff4/constants.sigma)**0.25
+        
+        elif disk_type == 'frank':
+            Mdot = self.params['disk'].get_value('dmdt','kg/s')
+            M_wd = self.params['disk'].get_value('mass','kg')
+            Rin = self.params['disk'].get_value('rin','m')
+            W = self.params['disk'].get_value('W')
+            raise NotImplementedError
         
     @decorators.parse_ref
     def intensity(self,*args,**kwargs):

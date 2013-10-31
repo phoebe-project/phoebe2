@@ -2521,7 +2521,11 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
             choose_eclipse_algorithm(system, algorithm=algorithm)
         
         return algorithm, found_partial
-
+    
+    # Perhaps we don't want eclipsed
+    if algorithm == 'none':
+        return algorithm, False
+    
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
         found_partial = eclipse.horizon_via_normal(all_systems)

@@ -22,7 +22,7 @@ from phoebe.backend import observatory
 from phoebe.algorithms import marching
 from phoebe.wd import wd
 from phoebe.parameters import datasets
-from phoebe.backend.bundle import Bundle
+from phoebe.frontend.bundle import Bundle
 import matplotlib.pyplot as plt
 import os.path
 
