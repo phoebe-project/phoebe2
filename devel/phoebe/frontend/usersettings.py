@@ -1,6 +1,6 @@
 import os
 import pickle
-#~ from client import Server
+from client import Server
 
 class Settings(object):
     def __init__(self):
@@ -34,8 +34,7 @@ class Settings(object):
         return self.servers[servername]
         
     def add_server(self,servername,mount_location,mpi=None):
-        raise NotImplementedError
-        #~ self.servers[servername] = Server(servername,mount_location,mpi)
+        self.servers[servername] = Server(servername,mount_location,mpi)
 
     def save(self,filename=None):
         
