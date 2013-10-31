@@ -1,77 +1,51 @@
 #!/usr/bin/python
 
-from glob import glob
-from time import sleep
 import os
-import json
 
-class Daemon(object):
-    # we'll currently assume this is running in the directory that is mounted
-    
-    def __init__(self,cwd=None,sleep=5):
-        # cwd needs to be same directory that is mount_location for client
-        # this directory should have all the subdirectories and server.tasks in it
+class Server(object):
+    def __init__(self,mpi,server=None,server_dir='~/',mount_location=None):
+        """
+        @param mpi: the mpi options to use for this server
+        @type mpi: ParameterSet with context 'mpi'
+        @param server: the location of the server (used for ssh - so username@servername if necessary), or None if local
+        @type server: str
+        @param server_dir: directory on the server to copy files and run scripts
+        @type server_dir: str
+        @param mount_location: local mounted location of server:server_dir, or None if local
+        @type mount_location: str or None
+        """
+        self.mpi = mpi
+        self.server = server
+        self.server_dir = server_dir
+        self.mount_location = mount_location # local path to server:server_dir
         
-        self.sleep = sleep
+    def is_external(self):
+        """
+        """
+        return self.server is not None
         
-        self.cwd = os.getcwd() if cwd is None else cwd #needs to be the 
+    def is_local(self):
+        """
+        """
+        return self.server is None
         
-        # check if tasks directory exists
-        if not os.path.exists('./server.tasks'):
-            os.makedirs('./server.tasks')
-        
-    def run(self):
-        while True:
-            for task in self.get_tasks_in_queue(status='queue'):
-                print "server running:", task
-                try:
-                    os.chdir(os.path.join(self.cwd,task['dirname']))
-                    task['status'] = 'running'
-                    self.task_update(task) # to say running
-                    os.system('python %s' % task['script_file'])
-                except:
-                    task['status'] = 'failed'
-                else:
-                    task['status'] = 'complete'
-                self.task_update(task) # to say failed or complete
-                
-            self.remove_pending_delete()
-            sleep(self.sleep)
+    def check_connection(self):
+        """
+        checks whether the server is local or, if external, whether the mount location exists
+        """
+        return self.is_local() or (os.path.exists(self.mount_location) and os.path.isdir(self.mount_location))
 
-
-    def get_tasks_in_queue(self,status='queue'):
-    
-        tasks = []
-        for fname in glob(os.path.join(self.cwd,'server.tasks','*.%s' % status)):
-            f=open(fname,'r')
-            tasks.append(json.loads(f.read()))
-            f.close()
-            
-        return tasks
+    def run_script_external(self, script):
+        """
+        run an existing script on the server remotely
         
-    def task_update(self,task):
+        @param script: filename of the script on the server (server:server_dir/script) 
+        @type script: str
+        """
+        if self.is_local():
+            print 'server is local'
+            return
         
-        oldname = glob(os.path.join(self.cwd,'server.tasks','%s.*' % (task['dirname'])))[0] #could be running or queue
-        newname = os.path.join(self.cwd,'server.tasks','%s.%s' % (task['dirname'],task['status']))
-        os.rename(oldname,newname)
-        
-        f = open(newname,'w')
-        f.write(json.dumps(task))
-        f.close()
-        
-    def remove_pending_delete(self):
-        
-        tasks = self.get_tasks_in_queue('pending_delete')
-        
-        for task in tasks:
-            # remove files from subdir
-            print "server removing", task
-            os.system('rm -r %s' % os.path.join(self.cwd,task['dirname']))
-        
-            # change status of task file
-            task['status']='deleted'
-            self.task_update(task)
-        
-        
-daemon = Daemon()
-daemon.run()
+        # files and script should already have been copied/saved to self.mount_location
+        # the user or bundle is responsible for this
+        os.system("ssh %s 'python %s/%s'" % (self.server,self.server_dir,script))

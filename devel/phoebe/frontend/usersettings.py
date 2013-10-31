@@ -1,6 +1,6 @@
 import os
 import pickle
-from client import Server
+from server import Server
 
 class Settings(object):
     def __init__(self):
@@ -33,10 +33,30 @@ class Settings(object):
     def get_server(self,servername):
         return self.servers[servername]
         
-    def add_server(self,servername,mount_location,mpi=None):
-        self.servers[servername] = Server(servername,mount_location,mpi)
+    def add_server(self,name,mpi,server=None,server_directory=None,mount_location=None):
+        """
+        add a new server
+        
+        @param name: name to refer to the server inside settings/bundle
+        @type name: str
+        @param mpi: the mpi options to use for this server
+        @type mpi: ParameterSet with context 'mpi'
+        @param server: the location of the server (used for ssh - so username@servername if necessary), or None if local
+        @type server: str
+        @param server_dir: directory on the server to copy files and run scripts
+        @type server_dir: str
+        @param mount_location: local mounted location of server:server_dir, or None if local
+        @type mount_location: str or None
+        """
+        self.servers[name] = Server(mpi,server,server_directory,mount_location)
 
     def save(self,filename=None):
+        """
+        save usersettings to a file
+        
+        @param filename: save to a given filename, or None for default (~/.phoebe/preferences)
+        @type filename: str
+        """
         
         if filename is None:
             filename = os.path.expanduser('~/.phoebe/preferences')
@@ -46,6 +66,12 @@ class Settings(object):
         ff.close()
         
 def load(filename=None):
+    """
+    load usersettings from a file
+    
+    @param filename: load from a given filename, or None for default (~/.phoebe/preferences)
+    @type filename: str
+    """
     if filename is None:
         filename = os.path.expanduser('~/.phoebe/preferences')
 
