@@ -1508,8 +1508,8 @@ class Bundle(object):
                         y = t
                         
                     axes.plot(x,y,marker)
-                    axes.set_xlabel(po['xaxis'])
-                    axes.set_ylabel(po['yaxis'])
+        axes.set_xlabel(po['xaxis'])
+        axes.set_ylabel(po['yaxis'])
         
     #}
         
@@ -1883,10 +1883,12 @@ class Axes(object):
             else:
                 artists,obs = [],[]
         
-        mplfig.data_axes = axes
-        mplfig.sel_axes = axes.twinx()
+        if mplfig is not None:
+            mplfig.tight_layout()
+            mplfig.data_axes = axes
+            mplfig.sel_axes = axes.twinx()
 
-        self.plot_select_time(bundle.select_time,mplfig=mplfig)
+            self.plot_select_time(bundle.select_time,mplfig=mplfig)
                 
     def plot_select_time(self,time,mplfig):
         mplaxes_sel = mplfig.sel_axes
