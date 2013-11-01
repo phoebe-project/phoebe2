@@ -38,13 +38,12 @@ def run_on_server(fctn):
         elif fctn.func_name == 'run_compute':
             fctn_type = 'preview' if args[0] == 'Preview' else 'compute'
             
-        servername = kwargs.pop('server', None)
+        servername = kwargs['server'] if 'server' in kwargs.keys() else None
         
         callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
         dump = callargs.pop('self')
         callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
 
-        
         if servername is None: # will be False if running locally without mpi
             # then we need to determine which system based on preferences
             servername = bundle.get_usersettings().get_setting('use_server_on_%s' % (fctn_type))
@@ -53,30 +52,31 @@ def run_on_server(fctn):
             
         if servername is not False:
             server =  bundle.get_server(servername)
-            if server.is_external() and server.check_connection():
-                #~ logger.warning("running on servers not yet supported ({})".format(servername))
-                # prepare job
-                bundle.save(os.path.join(server.mount_location,'bundle.job.tmp')) # might have a problem here if threaded!!
-                
-                f = open(os.path.join(server.mount_location,'script.job.tmp'),'w')
-                f.write("#!/usr/bin/python\n")
-                f.write("print 'running from server %s'\n" % server.server)
-                f.write("from phoebe.frontend.bundle import load\n")
-                f.write("bundle = load('bundle.job.tmp')\n")
-                f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
-                f.write("bundle.save('bundle.return.job.tmp')\n")
-                f.close()
-                
-                # create job and submit
-                server.run_script_external('script.job.tmp')
-                
-                # it would be nice to do this in a screen session and lock the bundle
-                # and then have an option to enter a loop to watch for it to be complete
-                
-                bundle = load(os.path.join(server.mount_location,'bundle.return.job.tmp'))
+            if server.is_external():
+                if server.check_connection():
+                    #~ logger.warning("running on servers not yet supported ({})".format(servername))
+                    # prepare job
+                    bundle.save(os.path.join(server.mount_location,'bundle.job.tmp'),save_usersettings=True) # might have a problem here if threaded!!
+                    
+                    f = open(os.path.join(server.mount_location,'script.job.tmp'),'w')
+                    f.write("#!/usr/bin/python\n")
+                    f.write("print 'running from server %s'\n" % server.server)
+                    f.write("from phoebe.frontend.bundle import load\n")
+                    f.write("bundle = load('bundle.job.tmp',load_usersettings=False)\n")
+                    f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
+                    f.write("bundle.save('bundle.return.job.tmp')\n")
+                    f.close()
+                    
+                    # create job and submit
+                    server.run_script_external('script.job.tmp')
+                    
+                    # it would be nice to do this in a screen session and lock the bundle
+                    # and then have an option to enter a loop to watch for it to be complete
+                    
+                    bundle = load(os.path.join(server.mount_location,'bundle.return.job.tmp'))
 
-            else:
-                logger.warning('{} server not available, running locally'.format(servername))
+                else:
+                    logger.warning('{} server not available, running locally'.format(servername))
 
         # run locally by calling the original function
         return fctn(bundle, *args, **kwargs)
@@ -87,7 +87,7 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     """
-    def __init__(self,system=None,mpi=None,fitting=None,axes=None,compute=None):
+    def __init__(self,system=None,fitting=None,axes=None,compute=None):
         """
         Initialize a Bundle.
         
@@ -97,7 +97,6 @@ class Bundle(object):
         #-- prepare 
         self.versions = [] #list of dictionaries
         self.versions_curr_i = None
-        self.mpi = mpi
         self.compute = OrderedDict()
         self.fitting = OrderedDict()
         self.feedbacks = [] #list of dictionaries
@@ -195,11 +194,6 @@ class Bundle(object):
         """
         return self.get_usersettings().get_server(servername)
         
-    def set_mpi(self,mpi):
-        self.mpi = False if mpi is None else mpi
-        
-    def get_mpi(self):
-        return self.mpi
     #}    
     
     #{ System
@@ -1084,14 +1078,12 @@ class Bundle(object):
         self.compute.pop(label)        
     
     @run_on_server
-    def run_compute(self,label=None,mpi=True,im=False,add_version=None,server=None):
+    def run_compute(self,label=None,im=False,add_version=None,server=None):
         """
         Convenience function to run observatory.observe
         
         @param label: name of one of the compute parameterSets stored in bundle
         @type label: str
-        @param mpi: whether to use mpi (will use stored options)
-        @type mpi: bool
         @param im: whether to create images at each timestamp, if None will use value from settings
         @type im: bool or None
         @param add_version: whether to save a snapshot of the system after compute is complete
@@ -1107,11 +1099,6 @@ class Bundle(object):
         # clear all previous models and create new model
         self.system.clear_synthetic()
 
-        #~ self.system.fix_mesh()
-        #~ try:
-            #~ self.system.set_time(0)
-        #~ except:
-            #~ pass
         try:
             self.system.set_time(0)
         except:
@@ -1123,16 +1110,21 @@ class Bundle(object):
             if label not in self.compute:
                 return KeyError
             options = self.compute[label]
-
+        
+        if server is not None:
+            server = self.get_server(server)
+            mpi = server.mpi
+        else:
+            mpi = None
         
         if options['time']=='auto' and not im:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            self.system.compute(mpi=self.mpi if mpi else None,**options)
+            self.system.compute(mpi=mpi,**options)
         else:
             observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,
                 extra_func=[observatory.ef_binary_image] if im else [],
                 extra_func_kwargs=[dict(select='teff',cmap='blackbody')] if im else [],
-                mpi=self.mpi if mpi else None,**options
+                mpi=mpi,**options
                 )
                 
         self.system.uptodate = label
@@ -1193,7 +1185,7 @@ class Bundle(object):
         self.fitting.pop(label)        
         
     @run_on_server
-    def run_fitting(self,computelabel,fittinglabel,mpi=True,add_feedback=None,server=None):
+    def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None):
         """
         Run fitting for a given fitting parameterSet
         and store the feedback
@@ -1202,15 +1194,19 @@ class Bundle(object):
         @param computelabel: str
         @param fittinglabel: name of fitting parameterSet
         @type fittinglabel: str
-        @param mpi: whether mpi is enabled (will use stored options)
-        @type mpi: bool
         @param server: name of server to run on, or False to force locally (will override usersettings)
         @type server: string
         """
         if add_feedback is None:
             add_feedback = self.settings['add_feedback_on_fitting']
+    
+        if server is not None:
+            server = self.get_server(server)
+            mpi = server.mpi
+        else:
+            mpi = None
         
-        feedback = fitting.run(self.system, params=self.get_compute(computelabel), fitparams=self.get_fitting(fittinglabel), mpi=self.mpi if mpi else None)
+        feedback = fitting.run(self.system, params=self.get_compute(computelabel), fitparams=self.get_fitting(fittinglabel), mpi=mpi)
         
         if add_feedback:
             self.add_feedback(feedback)
@@ -1572,7 +1568,7 @@ class Bundle(object):
         """
         return copy.deepcopy(self)
     
-    def save(self,filename,purge_signals=True):
+    def save(self,filename,purge_signals=True,save_usersettings=False):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
@@ -1582,8 +1578,9 @@ class Bundle(object):
             self.purge_signals()
             
         # remove user settings
-        settings = self.usersettings
-        self.usersettings = None
+        if not save_usersettings:
+            settings = self.usersettings
+            self.usersettings = None
         
         # pickle
         ff = open(filename,'w')
@@ -1592,7 +1589,8 @@ class Bundle(object):
         logger.info('Saved bundle to file {} (pickle)'.format(filename))
         
         # reset user settings
-        self.usersettings = settings
+        if not save_usersettings:
+            self.usersettings = settings
         
         # call set_system so that purged (internal) signals are reconnected
         self.set_system(self.system)
@@ -1907,7 +1905,7 @@ class Axes(object):
                 mplaxes_sel.axvline(time, color='r')
 
     
-def load(filename):
+def load(filename,load_usersettings=True):
     """
     Load a class from a file.
     
@@ -1920,5 +1918,6 @@ def load(filename):
     # for set_system to update all signals, etc
     bundle.set_system(bundle.system)
     # load this users settings into the bundle
-    bundle.set_usersettings()
+    if load_usersettings:
+        bundle.set_usersettings()
     return bundle
