@@ -1,5 +1,6 @@
 import os
 import pickle
+import ConfigParser
 from server import Server
 
 class Settings(object):
@@ -83,3 +84,32 @@ def load(filename=None):
     ff.close()
     
     return settings
+
+
+def load_from_configfile_tryout(server):
+    """
+    Load settings from a configuration file.
+    
+    Example usage:
+    
+        >>> mpi, serversettings = load_from_configfile_tryout('clusty.ast.villanova.edu')
+    """
+    import phoebe
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    settings = ConfigParser.ConfigParser()
+    settings.optionxform = str # make sure the options are case sensitive
+    
+    with open(os.path.join(basedir,'servers.cfg')) as config_file:
+        settings.readfp(config_file)
+    
+    items = settings.items(server)
+    items_dict = {key:value for key,value in items}
+    context = items_dict.pop('type')
+    mpi = phoebe.PS(context=context)
+    
+    for key in items_dict.keys():
+        if key in mpi:
+            mpi[key] = items_dict.pop(key)
+    
+    return mpi, items_dict
+    
