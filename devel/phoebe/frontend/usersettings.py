@@ -31,25 +31,27 @@ class Settings(object):
     def set_setting(self,key,value):
         self.preferences[key] = value
         
-    def get_server(self,servername):
-        return self.servers[servername]
+    def get_server(self,label=None):
+        return self.servers[label]
         
-    def add_server(self,name,mpi,server=None,server_directory=None,mount_location=None):
+    def add_server(self,label,mpi,server=None,server_dir=None,server_script=None,mount_dir=None):
         """
         add a new server
         
-        @param name: name to refer to the server inside settings/bundle
-        @type name: str
+        @param label: name to refer to the server inside settings/bundle
+        @type label: str
         @param mpi: the mpi options to use for this server
         @type mpi: ParameterSet with context 'mpi'
         @param server: the location of the server (used for ssh - so username@servername if necessary), or None if local
         @type server: str
         @param server_dir: directory on the server to copy files and run scripts
         @type server_dir: str
-        @param mount_location: local mounted location of server:server_dir, or None if local
-        @type mount_location: str or None
+        @param server_script: location on the server of a script to run (ie. to setup a virtual environment) before running phoebe
+        @type server_script: str
+        @param mount_dir: local mounted location of server:server_dir, or None if local
+        @type mount_dir: str or None
         """
-        self.servers[name] = Server(mpi,server,server_directory,mount_location)
+        self.servers[label] = Server(mpi,label,server,server_dir,server_script,mount_dir)
 
     def save(self,filename=None):
         """

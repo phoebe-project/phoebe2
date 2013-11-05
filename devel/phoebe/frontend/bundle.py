@@ -54,13 +54,17 @@ def run_on_server(fctn):
             server =  bundle.get_server(servername)
             if server.is_external():
                 if server.check_connection():
-                    #~ logger.warning("running on servers not yet supported ({})".format(servername))
                     # prepare job
-                    bundle.save(os.path.join(server.mount_location,'bundle.job.tmp'),save_usersettings=True) # might have a problem here if threaded!!
+                    mount_dir = server.server_ps.get_value('mount_dir')
+                    server_dir = server.server_ps.get_value('server_dir')
                     
-                    f = open(os.path.join(server.mount_location,'script.job.tmp'),'w')
+                    logger.warning('copying bundle to {}'.format(mount_dir))
+                    bundle.save(os.path.join(mount_dir,'bundle.job.tmp'),save_usersettings=True) # might have a problem here if threaded!!
+                    
+                    logger.warning('creating script to run on {}:{}'.format(servername))
+                    f = open(os.path.join(mount_dir,'script.job.tmp'),'w')
                     f.write("#!/usr/bin/python\n")
-                    f.write("print 'running from server %s'\n" % server.server)
+                    f.write("print 'running from server %s'\n" % servername)
                     f.write("from phoebe.frontend.bundle import load\n")
                     f.write("bundle = load('bundle.job.tmp',load_usersettings=False)\n")
                     f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
@@ -68,12 +72,14 @@ def run_on_server(fctn):
                     f.close()
                     
                     # create job and submit
+                    logger.warning('running script on {}'.format(servername))
                     server.run_script_external('script.job.tmp')
                     
                     # it would be nice to do this in a screen session and lock the bundle
                     # and then have an option to enter a loop to watch for it to be complete
                     
-                    bundle = load(os.path.join(server.mount_location,'bundle.return.job.tmp'))
+                    logger.warning('retrieving updated bundle from {}'.format(mount_dir))
+                    bundle = load(os.path.join(mount_dir,'bundle.return.job.tmp'))
 
                 else:
                     logger.warning('{} server not available, running locally'.format(servername))
