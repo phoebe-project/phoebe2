@@ -587,7 +587,14 @@ defs += [dict(qualifier='data_times', description='whether to show the times of 
          dict(qualifier='xaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='x',frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='yaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='z',frame=["phoebe"],context='plotting:orbit'),
          ]
-
+         
+# Servers context
+defs += [dict(qualifier='label', description='label for the server',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='server', description='location of the server: [username@]server.edu',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='server_dir', description='location on server to copy files and run script',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='server_script', description='location on the server of a script to run (ie. to setup a virtual environment) before running phoebe',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='mount_dir', description='local mounted directory to server:server_dir',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         ]
         
 defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
