@@ -32,37 +32,25 @@ def get_dipole(time, rs_center, r_polar, beta, phi0, B_polar):
     
     All images are made at :math:`t=0` unless stated otherwise:
     
-    ::
+    +----------------------------------------------------------------------+----------------------------------------------------------------------+----------------------------------------------------------------------+
+    | ::                                                                   | ::                                                                   | ::                                                                   |
+    |                                                                      |                                                                      |                                                                      |
+    |     Bpolar 1.0    G Polar magnetic field strength                    |     Bpolar 1.0    G Polar magnetic field strength                    |     Bpolar 1.0    G Polar magnetic field strength                    |
+    |     beta   0.0  deg Magnetic field angle wrt rotation axis           |     beta   45.0 deg Magnetic field angle wrt rotation axis           |     beta   45.0 deg Magnetic field angle wrt rotation axis           |
+    |     phi0   90.0 deg Phase angle of magnetic field                    |     phi0   90.0 deg Phase angle of magnetic field                    |     phi0   0.0  deg Phase angle of magnetic field                    |
+    |                                                                      |                                                                      |                                                                      |
+    +----------------------------------------------------------------------+----------------------------------------------------------------------+----------------------------------------------------------------------+
+    |                                                                      |                                                                      |                                                                      |
+    | .. image:: images/atmospheres_magfield_convention01.png              | .. image:: images/atmospheres_magfield_convention02.png              | .. image:: images/atmospheres_magfield_convention03.png              |
+    |    :scale: 40%                                                       |    :scale: 40%                                                       |    :scale: 40%                                                       |
+    |    :align: center                                                    |    :align: center                                                    |    :align: center                                                    |
+    |                                                                      |                                                                      |                                                                      |
+    |                                                                      |                                                                      |                                                                      |
+    +----------------------------------------------------------------------+----------------------------------------------------------------------+----------------------------------------------------------------------+
     
-        Bpolar 1.0    G - phoebe Polar magnetic field strength
-        beta   0.0  deg - phoebe Magnetic field angle wrt rotation axis
-        phi0   90.0 deg - phoebe Phase angle of magnetic field
-        
-    .. image:: images/atmospheres_magfield_convention01.png
-       :scale: 60%
-       :align: center
+    See, e.g. `Magnetic dipole <http://en.wikipedia.org/wiki/Magnetic_dipole>`_.
     
-    ::
-    
-        Bpolar 1.0    G - phoebe Polar magnetic field strength
-        beta   45.0 deg - phoebe Magnetic field angle wrt rotation axis
-        phi0   90.0 deg - phoebe Phase angle of magnetic field
-    
-    .. image:: images/atmospheres_magfield_convention02.png
-       :scale: 60%
-       :align: center
-    
-    ::  
-    
-        Bpolar 1.0    G - phoebe Polar magnetic field strength
-        beta   45.0 deg - phoebe Magnetic field angle wrt rotation axis
-        phi0   0.0  deg - phoebe Phase angle of magnetic field
-        
-    .. image:: images/atmospheres_magfield_convention03.png    
-       :scale: 60%
-       :align: center
-    
-    See, e.g. `http://en.wikipedia.org/wiki/Magnetic_dipole`.
+    See also how to generate :py:func:`Stokes profiles <phoebe.backend.observatory.stokes>`.
     
     """
     r_ = rs_center / r_polar
