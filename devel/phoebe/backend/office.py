@@ -101,6 +101,10 @@ def summarize(system, time=None):
                 wflux = mesh['proj_'+ref]
                 wsize = mesh['size']
                 weights = wflux*wsize
+                
+                if weights.sum()==0:
+                    continue
+                
                 pteff = np.average(mesh['teff'], weights=weights, axis=0)
                 plogg = np.log10(np.average(10**mesh['logg'], weights=weights, axis=0))
                 

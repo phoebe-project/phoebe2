@@ -1154,9 +1154,21 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     and gravity are reflected both in the depth of the lines, as well as in
     the continuum. Limb-darkening is taken into account by taking limb
     darkening coefficients in a photometric passband in the vicinity of the
-    wavelength range (in fact the user is responsible for this). Limb darkening
+    wavelength range (the user is responsible for this). Limb darkening
     coefficients are thus not wavelength dependent within one spectrum or
-    spectral line profile, in the current implementation.
+    spectral line profile, in the current implementation. Also, the spectral
+    line profile is independent of limb angle.
+    
+    Instrumental broadening is assumed to be Gaussian, and can only be applied
+    when the resolution of the generated large is finer than the instrumental
+    broadening.
+    
+    Microturbulence can be taken into account by setting :envvar:`vmicro` in
+    the corresponding datasets. This effectively adds another Gaussian
+    convolution to the spectrum. In principle, this is also not OK, since the
+    microturbulence changes the equivalent width of the line. This is not the
+    case here. Better is to take microturbulence into account during grid
+    computations.
     
     Returns: wavelength ranges, total (unnormalized) spectrum, total continuum.
     
@@ -1164,15 +1176,23 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     continuum.
     
     We probably need to following info:
-    * time stamp (and possibly exposure time)
-    * dispersion type (lin, log, variable)
-    * wavelength span (wmin,wmax for lin and log, the whole array for
-      variable dispersion)
-    * sampling power
-    * resolving power or dispersion, depending on dispersion type
-    * passband (if any)
-    * auxiliary information that is not used but may be set for reference
-      (grating, decker, angle rotation, ..., whatever)
+    
+        * time stamp (and possibly exposure time)
+        * dispersion type (lin, log, variable)
+        * wavelength span (wmin,wmax for lin and log, the whole array for
+          variable dispersion)
+        * sampling power
+        * resolving power or dispersion, depending on dispersion type
+        * passband (if any)
+        * auxiliary information that is not used but may be set for reference
+          (grating, angle rotation, ..., whatever)
+    
+    .. note::
+        
+        We do not take into account the influence of limb-darkening in
+        the line shape. Although it seems to work out pretty well in
+        practice, this is wrong.
+              
     
     """
     ref = obs['ref']
@@ -1181,9 +1201,12 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     # Wavelength info
     if not 'wavelength' in obs or not len(obs['wavelength']):
         loaded = obs.load(force=False)
-    wavelengths = obs.request_value('wavelength', 'AA').ravel()
+    try:
+        wavelengths = obs.request_value('wavelength', 'AA').ravel()
+    except:
+        raise ValueError("Either wavelength is not in dataset, or it's not an array. Perhaps this is a weird location to throw this error, and this should be checked upon array creation")
     
-    # Instrumental info
+    # Instrumental and stellar field info
     R = obs.get('R', None)
     vmacro = obs.get('vmacro', 0.0)
     
@@ -1217,9 +1240,9 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         wn = conversions.convert('km/s', 'AA', +extend, wave=(wavelengths[-1], 'AA'))
         step_before = (wavelengths[1]  - wavelengths[0])
         step_after =  (wavelengths[-1] - wavelengths[-2])
-        wave_before = np.arange(w0, wavelengths[0], step_before)
-        wave_after = np.arange(wavelengths[-1], wn, step_after)
-        wavelengths = np.hstack([wave_before, wavelengths, wave_after])
+        wave_before = np.arange(w0, wavelengths[0], step_before)[:-1]
+        wave_after = np.arange(wavelengths[-1], wn, step_after)[1:]
+        wavelengths = np.hstack([wave_before, wavelengths, wave_after])    
     
     # If we're not seeing the star, we can easily compute the spectrum: it's
     # zero! Hihihi (hysterical laughter)!
@@ -1236,8 +1259,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
     cc_ = constants.cc / 1000.
-        
+    
+    # Numerical method with profiles from a precomputed grid:
     if method == 'numerical' and not profile == 'gauss':    
+        
         # Get limb angles
         mus = the_system.mesh['mu']
         keep = (mus > 0) & (the_system.mesh['partial'] | the_system.mesh['visible'])
@@ -1285,22 +1310,27 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
 
         total_continum = 0.
         total_spectrum = 0.
-        #-- gravitational redshift:
+        
+        # gravitational redshift:
         if rv_grav:
             rv_grav = 0#generic.gravitational_redshift(the_system)
         for i,rv in enumerate(rad_velos):
             
             # Not inline
-            total_spectrum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=spectra[0,:,i]*proj_intens[:,i])
-            total_continum += tools.doppler_shift(wavelengths,rv+rv_grav,flux=proj_intens[:,i])
+            total_spectrum += tools.doppler_shift(wavelengths, rv+rv_grav,
+                                                  flux=spectra[0,:,i]*proj_intens[:,i])
+            total_continum += tools.doppler_shift(wavelengths, rv+rv_grav,
+                                                  flux=proj_intens[:,i])
             
             # Inline
             #wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
             #total_spectrum += 
-            
+    
+    # Numerical computation with Gaussian profile
     elif method == 'numerical':
-        #-- derive intrinsic width of the profile
-        sigma = conversions.convert('km/s','AA',vmicro,wave=(wc,'AA'))-wc
+        
+        # Derive intrinsic width of the profile
+        sigma = conversions.convert('km/s', 'AA', vmicro, wave=(wc, 'AA')) - wc
         logger.info('Intrinsic width of the profile: {} AA ({} km/s)'.format(sigma, vmicro))
         template = 1.00 - depth*np.exp( -(wavelengths-wc)**2/(2*sigma**2))
         proj_intens = the_system.mesh['proj_'+ref][keep]
@@ -1326,6 +1356,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
             total_spectrum += spec
             total_continum += pri*sz
     
+    # Analytical computation
     elif method == 'analytical' and profile == 'gauss':
         #-- For the analytical computation, we require a linear limb darkening
         #   law
@@ -1349,11 +1380,27 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     #-- convolve with instrumental profile if desired
     if R is not None:
         instr_fwhm = wc/R
-        instr_sigm = instr_fwhm/2.38
+        
         logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
-        wavelengths,total_spectrum = tools.rotational_broadening(wavelengths,
-                       total_spectrum/total_continum,vrot=0.,vmac=vmacro,fwhm=instr_sigm)
-        total_spectrum *= total_continum
+        try:
+            total_spectrum = tools.broadening_instrumental(wavelengths,
+                       total_spectrum/total_continum, width=instr_fwhm,
+                       width_type='fwhm')
+            total_spectrum *= total_continum
+        except ValueError:
+            logger.error("Cannot convolve spectrum, resolution too low wrt instrumental broadening")
+    
+    if vmicro > 0:
+        dlam_micro = vmicro/constants.cc*1000*wc
+        logger.info('Convolving spectrum with microturbulent profile dlam_mic={:.3f}AA'.format(dlam_micro))
+        try:
+            total_spectrum = tools.broadening_instrumental(wavelengths,
+                       total_spectrum/total_continum, width=dlam_micro,
+                       width_type='sigma')
+            total_spectrum *= total_continum
+        except ValueError:
+            logger.error("Cannot convolve spectrum, resolution too low wrt microturbulent broadening")
+        
    
     if extend > 0:
         keep = slice(len(wave_before), len(wavelengths) - len(wave_after))
@@ -1664,7 +1711,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             
             stokes_I += spec
             
-            total_continum += pri*sz        
+            total_continum += pri*sz      
         
         #logger.info("Zeeman splitting: between {} and {} AA".format(min(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA'))),max(conversions.convert('Hz','AA',delta_nu_zeemans,wave=(wc,'AA')))))
         #logger.info("Zeeman splitting: between {} and {} Hz".format(min(delta_nu_zeemans/1e6),max(delta_nu_zeemans/1e6)))
@@ -1675,15 +1722,20 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     # Convolve with instrumental profile if desired
     if R is not None:
         instr_fwhm = wc/R
-        instr_sigm = instr_fwhm/2.38
         logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
-        wavelengths,stokes_I = tools.rotational_broadening(wavelengths,
-                       stokes_I/total_continum,vrot=0.,vmac=vmacro,fwhm=instr_sigm)
-        stokes_I *= total_continum
-        wavelengths,stokes_V = tools.rotational_broadening(wavelengths,
-                       1-stokes_V/total_continum,vrot=0.,vmac=0.,fwhm=instr_sigm)
-        stokes_V = (1-stokes_V)*total_continum
-    
+        try:
+            stokes_I = tools.broadening_instrumental(wavelengths,
+                       stokes_I/total_continum, width=instr_fwhm,
+                       width_type='fwhm')        
+            stokes_I *= total_continum
+        
+            stokes_V = tools.broadening_instrumental(wavelengths,
+                       1-stokes_V/total_continum, width=instr_fwhm,
+                       width_type='fwhm')        
+            stokes_V = (1-stokes_V)*total_continum
+        except:
+            logger.error("Cannot convolve spectrum, resolution too low wrt instrumental broadening")
+            
     return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
