@@ -3557,7 +3557,7 @@ class PhysicalBody(Body):
         return parsed_refs
     
     
-    def remove_pbeps(self,refs):
+    def remove_pbdeps(self,refs):
         """
         Remove dependable ParameterSets from the Body.
         """
@@ -3732,7 +3732,7 @@ class PhysicalBody(Body):
         
         passband_gravb = dlnI / np.sqrt(dlnT**2 + dlng**2)
         
-        print("passband gravity darkening, {}+{}*{}={}".format(dlnI_dlng,dlnT_dlng,dlnI_dlnT, passband_gravb))
+        #print("passband gravity darkening, {}+{}*{}={}".format(dlnI_dlng,dlnT_dlng,dlnI_dlnT, passband_gravb))
         return passband_gravb
     
     
@@ -5316,7 +5316,8 @@ class Star(PhysicalBody):
     
     """
     def __init__(self, star, mesh, reddening=None, circ_spot=None,
-                 puls=None, magnetic_field=None, pbdep=None, obs=None,
+                 puls=None, magnetic_field=None, velocity_field=None,
+                 pbdep=None, obs=None,
                  globals=None,
                  **kwargs):
         """
@@ -5390,6 +5391,11 @@ class Star(PhysicalBody):
         if magnetic_field is not None:
             check_input_ps(self, magnetic_field, ['magnetic_field'], 'magnetic_field')
             self.params['magnetic_field'] = magnetic_field
+        
+        # Add velocity field parameters when applicable
+        if velocity_field is not None:
+            check_input_ps(self, velocity_field, ['velocity_field:turb'], 'velocity_field')
+            self.params['velocity_field:turb'] = velocity_field
         
         # Add the parameters to compute dependables
         if pbdep is not None:
@@ -5549,14 +5555,16 @@ class Star(PhysicalBody):
     @decorators.parse_ref
     def velocity(self, time=None, ref=None):
         """
-        Calculate the velocity of each surface via the rotational velocity
+        Calculate the velocity of each surface via the rotational velocity.
         """
         if time is None:
             time = self.time
-        #-- rotational velocity: first collect some information
+        
+        # Rotational velocity: first collect some information
         omega_rot = 1./self.params['star'].request_value('rotperiod','d')
         omega_rot = np.array([0.,0.,-omega_rot])
         logger.info('Calculating rotation velocity (Omega={:.3f} rad/d)'.format(omega_rot[-1]*2*pi))
+        
         if 'diffrot' in self.params['star'] and self.params['star']['diffrot']!=0:
             #-- compute the local rotation velocities in cy/d
             b1,b2 = self.subdivision['mesh_args'][1:3]
@@ -5569,22 +5577,52 @@ class Star(PhysicalBody):
             omega_rot = np.column_stack([np.zeros_like(omega_rot),\
                                    np.zeros_like(omega_rot),\
                                    -omega_rot])
-        inclin = self.params['star'].request_value('incl','rad')
-        #-- the velocity is the cross product of the centers with
-        #   the rotation vector pointed in the Z direction.
+        
+        # The velocity is the cross product of the centers with the rotation
+        # vector pointed in the Z direction.
         velo_rot = 2*pi*np.cross(self.mesh['_o_center'],omega_rot) #NX3 array
-        #-- for logging purposes, we compute the magnitude of the velocity
-        #velo_mag = sqrt((velo_rot**2).sum(axis=1))
-        #print "... velocity between %.3g and %.3g Rsol/d"%(velo_mag.min(),velo_mag.max())
-        #-- total
-        #-- We need to rotate the velocities so that they are in line with the
-        #   current configuration
-        #velo_rot_ = fgeometry.rotate3d_orbit_conv(velo_rot,(0,inclin,0),[0,0,0],'YXZ')
+        
+        # We can add velocity fields here if we wish:
+        if 'velocity_field:turb' in self.params:
+            vmacro_rad = self.params['velocity_field:turb'].request_value('vmacro_rad', 'Rsol/d')
+            vmacro_tan = self.params['velocity_field:turb'].request_value('vmacro_tan', 'Rsol/d')
+            
+            # In order to get it similar to tools.broadening_macroturbulent, I
+            # suspiciously need to divide my vmacro with pi/sqrt(2)....
+            if vmacro_rad > 0 or vmacro_tan > 0:
+                
+                # Compute the local coordinate frames that have one axis as the
+                # normal on each surface element, one that is horizontal (wrt
+                # the z-axis) and one vertical.
+                radial = self.mesh['_o_normal_']
+                x, y, z = radial.T
+                n = np.sqrt(x**2+y**2)
+                horizontal = np.array([y/n, -x/n, np.zeros_like(x)]).T
+                vertical = np.array([z*x/n, z*y/n, -(x**2+y**2)/n]).T
+                vmacro_radial = vmacro_rad
+                vmacro_tanx = vmacro_tan/np.sqrt(2)
+                vmacro_tany = vmacro_tan/np.sqrt(2)
+                
+                # Then generate randomly distributed Gaussian velocities for
+                # each direction
+                np.random.seed(1111)
+                vmacro = np.random.normal(size=velo_rot.shape)
+                vmacro[:,0] *= vmacro_radial
+                vmacro[:,1] *= vmacro_tanx
+                vmacro[:,2] *= vmacro_tany
+                
+                # And convert them from the local reference frame to the global
+                # one
+                vmacro = vmacro[:,0][:,None] * radial + \
+                         vmacro[:,1][:,None] * horizontal + \
+                         vmacro[:,2][:,None] * vertical
+                velo_rot += vmacro
+                
+                logger.info("Added macroturbulent velocity field with vR,vT={},{}".format(vmacro_rad,vmacro_tan))
+        
         self.mesh['_o_velo___bol_'] = velo_rot
         self.mesh['velo___bol_'] = velo_rot
-        #-- and we need the systemic velocity too...
-        #self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] #+ self.params['star'].request_value('vgamma','Rsol/d')
-        #v = sqrt(velo_rot[:,0]**2+velo_rot[:,1]**2+velo_rot[:,2]**2)
+        
         
     
     def projected_intensity(self, los=[0.,0.,+1], ref=0, method=None,
