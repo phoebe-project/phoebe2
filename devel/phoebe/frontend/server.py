@@ -80,4 +80,4 @@ class Server(object):
         if server_script != '':
             command += '%s &&' % server_script
         command += 'python %s' % (os.path.join(server_dir,script))
-        os.system("ssh %s %s" % (server,command))
+        os.system("ssh %s '%s'" % (server,command))

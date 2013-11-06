@@ -33,16 +33,16 @@ def run_on_server(fctn):
     def parse(bundle,*args,**kwargs):
         """
         """
-        if fctn.func_name == 'run_fitting':
-            fctn_type = 'fitting'
-        elif fctn.func_name == 'run_compute':
-            fctn_type = 'preview' if args[0] == 'Preview' else 'compute'
-            
-        servername = kwargs['server'] if 'server' in kwargs.keys() else None
-        
         callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
         dump = callargs.pop('self')
         callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
+
+        if fctn.func_name == 'run_fitting':
+            fctn_type = 'fitting'
+        elif fctn.func_name == 'run_compute':
+            fctn_type = 'preview' if callargs['label'] == 'Preview' else 'compute'
+            
+        servername = kwargs['server'] if 'server' in kwargs.keys() else None
 
         if servername is None: # will be False if running locally without mpi
             # then we need to determine which system based on preferences
@@ -61,14 +61,14 @@ def run_on_server(fctn):
                     logger.warning('copying bundle to {}'.format(mount_dir))
                     bundle.save(os.path.join(mount_dir,'bundle.job.tmp'),save_usersettings=True) # might have a problem here if threaded!!
                     
-                    logger.warning('creating script to run on {}:{}'.format(servername))
+                    logger.warning('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,'script.job.tmp'),'w')
                     f.write("#!/usr/bin/python\n")
                     f.write("print 'running from server %s'\n" % servername)
                     f.write("from phoebe.frontend.bundle import load\n")
-                    f.write("bundle = load('bundle.job.tmp',load_usersettings=False)\n")
+                    f.write("bundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,'bundle.job.tmp'))
                     f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
-                    f.write("bundle.save('bundle.return.job.tmp')\n")
+                    f.write("bundle.save('%s')\n" % (os.path.join(server_dir,'bundle.return.job.tmp')))
                     f.close()
                     
                     # create job and submit
@@ -1119,7 +1119,7 @@ class Bundle(object):
         
         if server is not None:
             server = self.get_server(server)
-            mpi = server.mpi
+            mpi = server.mpi_ps
         else:
             mpi = None
         
@@ -1208,7 +1208,7 @@ class Bundle(object):
     
         if server is not None:
             server = self.get_server(server)
-            mpi = server.mpi
+            mpi = server.mpi_ps
         else:
             mpi = None
         
