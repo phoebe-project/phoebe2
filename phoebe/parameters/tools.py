@@ -264,14 +264,14 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     else:
         star['vsini'] = vsini
         
-    if derive=='rotperiod':
+    if derive == 'rotperiod':
         star.add_constraint('{rotperiod} = 2*np.pi*{radius}/{vsini}*np.sin({incl})')
         logger.info("star '{}': 'rotperiod' constrained by 'vsini' and 'radius' and 'incl'".format(star['label']))
-    elif derive=='incl':
+    elif derive == 'incl':
         star.add_constraint('{incl} = np.arcsin({rotperiod}*{vsini}/(2*np.pi*{radius}))')
         logger.info("star '{}': 'incl' constrained by 'vsini' and 'radius' and 'rotperiod'".format(star['label']))
     elif derive == 'radius':
-        raise NotImplementedError
+        star.add_constraint('{radius} = {rotperiod}/(2*np.pi)*{vsini}/np.sin({incl})')
     else:
         star.add_constraint('{vsini} = (2*np.pi*{radius})/{rotperiod}*np.sin({incl})')
         logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
