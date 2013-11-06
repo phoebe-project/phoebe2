@@ -115,24 +115,252 @@ def beaming():
     pass
 
 
-def vmacro_kernel(dlam,Ar,At,Zr,Zt):
+
+def broadening_instrumental(wave, flux, width=0.25, width_type='fwhm',
+                            return_kernel=False):
     r"""
-    Macroturbulent velocity kernel.
+    Apply instrumental broadening to a spectrum.
     
-    It is defined as in _[Gray2005]:
+    The instrumental broadening kernel is a simple Gaussian kernel:
     
     .. math::
     
-        M(\Delta\lambda) = \frac{2A_R\Delta\lambda}{\sqrt{\pi}\zeta_R^2}\int_0^{\zeta_R/\Delta\lambda}e^{-1/u^2}du 
-        
-         & + \frac{2A_T\Delta\lambda}{\sqrt{\pi}\zeta_T^2}\int_0^{\zeta_T/\Delta\lambda}e^{-1/u^2}du 
-        
-        
-    But only applies to spherical stars with linear limbdarkening.
+        K_\mathrm{instr} = \exp\left(-\frac{(\lambda-\lambda_0)^2}{2\sigma^2}\right)
     
+    where :math:`\lambda_0` is the center of the wavelength array
+    :envvar:`wave`.
+    
+    **Example usage**: Construct a simple Gaussian line profile and convolve with an instrumental profile sigma=0.5AA
+        
+    >>> sigma = 0.5
+    >>> wave = np.linspace(3995, 4005, 1001)
+    >>> flux = 1.0 - 0.5*np.exp( - (wave-4000)**2/(2*sigma**2))
+    
+    Convolve it with an instrumental :math:`\sigma=0.5\AA`:
+
+    >>> sigma_in = 0.5
+    >>> flux_broad = tools.broadening_instrumental(wave, flux, sigma_in, width_type='sigma')
+    >>> flux_broad, (wave_kernel, kernel) = tools.broadening_instrumental(wave, flux, sigma_in, width_type='sigma', return_kernel=True)
+    
+    ::
+    
+        plt.figure()
+        plt.plot(wave, flux, 'k-')
+        plt.plot(wave, flux_broad, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+
+        plt.figure()
+        plt.plot(wave_kernel, kernel, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+    
+    .. +----------------------------------------------------------------------+----------------------------------------------------------------------+
+    .. | .. image:: ../../images/api/spectra/tools/broaden_instrumental01.png | .. image:: ../../images/api/spectra/tools/broaden_instrumental02.png |
+    .. |   :scale: 50 %                                                       |   :scale: 50 %                                                       |
+    .. +----------------------------------------------------------------------+----------------------------------------------------------------------+
+        
+    :parameter wave: Wavelength of the spectrum
+    :type wave: array
+    :parameter flux: Flux of the spectrum
+    :type flux: array
+    :parameter width: width of instrumental profile, in units of :envvar:`wave`
+    :type width: float
+    :parameter width_type: type of width
+    :type width: str, one of ``fwhm`` or ``sigma``
+    :parameter return_kernel: return kernel
+    :type return_kernel: bool
+    :return: broadened flux [, (wavelength, kernel)]
+    :rtype: array [,(array, array)]
     """
-    dlam[dlam==0] = 1e-8
-    if Zr!=Zt:
+    
+    # If there is no broadening to apply, don't bother
+    if width == 0:
+        return flux
+    
+    # Convert user input width type to sigma (standard devation)
+    width_type = width_type.lower()
+    if width_type == 'fwhm':
+        sigma = width / 2.3548
+    elif width_type == 'sigma':
+        sigma = width
+    else:
+        raise ValueError(("Unrecognised width_type='{}' (must be one of 'fwhm'"
+                          "or 'sigma')").format(width_type))
+    
+    # Make sure the wavelength range is equidistant before applying the
+    # convolution
+    delta_wave = np.diff(wave).min()
+    range_wave = wave.ptp()
+    n_wave = int(range_wave/delta_wave)+1
+    wave_ = np.linspace(wave[0], wave[-1], n_wave)
+    flux_ = np.interp(wave_, wave, flux)
+    dwave = wave_[1]-wave_[0]
+    n_kernel = int(2*4*sigma/dwave)
+    
+    # The kernel might be of too low resolution, or the the wavelength range
+    # might be too narrow. In both cases, raise an appropriate error
+    if n_kernel == 0:
+        raise ValueError(("Spectrum resolution too low for "
+                          "instrumental broadening (delta_wave={}, "
+                          "width={}").format(delta_wave, width))
+    elif n_kernel > n_wave:
+        raise ValueError(("Spectrum range too narrow for "
+                          "instrumental broadening"))
+    
+    # Construct the broadening kernel
+    wave_k = np.arange(n_kernel)*dwave
+    wave_k -= wave_k[-1]/2.
+    kernel = np.exp(- (wave_k)**2/(2*sigma**2))
+    kernel /= sum(kernel)
+    
+    # Convolve the flux with the kernel
+    flux_conv = fftconvolve(1-flux_, kernel, mode='same')
+    
+    # And interpolate the results back on to the original wavelength array, 
+    # taking care of even vs. odd-length kernels
+    if n_kernel % 2 == 1:
+        offset = 0.0
+    else:
+        offset = dwave / 2.0
+    flux = np.interp(wave+offset, wave_, 1-flux_conv, left=1, right=1)
+    
+    # Return the results.
+    if return_kernel:
+        return flux, (wave_k, kernel)
+    else:
+        return flux
+
+
+def broadening_rotational(wave, flux, vrot, epsilon=0.6, return_kernel=False):
+    r"""
+    Apply rotational broadening to a spectrum assuming a linear limb darkening
+    law.
+    
+    The adopted limb darkening law is the linear one, parameterize by the linear
+    limb darkening parameter :envvar:`epsilon`. The default value is
+    :math:`\varepsilon = 0.6`.
+    
+    The rotational kernel is defined in velocity space :math:`v` and is given by
+    
+    .. math::
+        
+        y = 1 - \left(\frac{v}{v_\mathrm{rot}}\right)^2 \\
+        
+        K_\mathrm{rot} = 2 (1-\varepsilon)\sqrt{y} + \frac{\pi}{2} \left(\frac{\varepsilon y}{\pi v_\mathrm{rot}(1-\varepsilon/3)}\right)
+    
+    **Construct a simple Gaussian line profile and convolve with vsini=65 km/s**
+    
+    
+    >>> sigma = 0.5
+    >>> wave = np.linspace(3995, 4005, 1001)
+    >>> flux = 1.0 - 0.5*np.exp( - (wave-4000)**2/(2*sigma**2))
+    
+    Convolve it with a rotational velocity of :math:`v_\mathrm{rot}=65 \mathrm{km}\,\mathrm{s}^{-1}`:
+
+    >>> vrot = 65.
+    >>> flux_broad = tools.broadening_rotational(wave, flux, vrot)
+    >>> flux_broad, (wave_kernel, kernel) = tools.broadening_rotational(wave, flux, vrot, return_kernel=True)
+
+    ::
+    
+        plt.figure()
+        plt.plot(wave, flux, 'k-')
+        plt.plot(wave, flux_broad, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+
+        plt.figure()
+        plt.plot(wave_kernel, kernel, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+    
+    
+    .. +----------------------------------------------------------------------+----------------------------------------------------------------------+
+    .. | .. image:: ../../images/api/spectra/tools/broaden_rotational01.png   | .. image:: ../../images/api/spectra/tools/broaden_rotational02.png   |
+    .. |   :scale: 50 %                                                       |   :scale: 50 %                                                       |
+    .. +----------------------------------------------------------------------+----------------------------------------------------------------------+
+    
+        
+    :parameter wave: Wavelength of the spectrum
+    :type wave: array
+    :parameter flux: Flux of the spectrum
+    :type flux: array
+    :parameter vrot: Rotational broadening
+    :type vrot: float
+    :parameter epsilon: linear limbdarkening parameter
+    :type epsilon: float
+    :parameter return_kernel: return kernel
+    :type return_kernel: bool
+    :return: broadened flux [, (wavelength, kernel)]
+    :rtype: array [,(array, array)]
+    """
+    
+    # if there is no rotational velocity, don't bother
+    if vrot == 0:    
+        return flux
+    
+    # convert wavelength array into velocity space, this is easier. We also
+    # need to make it equidistant
+    velo = np.log(wave)
+    delta_velo = np.diff(velo).min()
+    range_velo = velo.ptp()
+    n_velo = int(range_velo/delta_velo) + 1
+    velo_ = np.linspace(velo[0], velo[-1], n_velo)
+    flux_ = np.interp(velo_, velo, flux)
+    dvelo = velo_[1]-velo_[0]
+    vrot = vrot / (constants.cc*1e-3)
+    n_kernel = int(2*vrot/dvelo) + 1
+    
+    # The kernel might be of too low resolution, or the the wavelength range
+    # might be too narrow. In both cases, raise an appropriate error
+    if n_kernel == 0:
+        raise ValueError(("Spectrum resolution too low for "
+                          "rotational broadening"))
+    elif n_kernel > n_velo:
+        raise ValueError(("Spectrum range too narrow for "
+                          "rotational broadening"))
+    
+    # Construct the domain of the kernel
+    velo_k = np.arange(n_kernel)*dvelo
+    velo_k -= velo_k[-1]/2.
+    
+    # transform the velocity array, construct and normalise the broadening
+    # kernel
+    y = 1 - (velo_k/vrot)**2
+    kernel = (2*(1-epsilon)*np.sqrt(y) + \
+                       np.pi*epsilon/2.*y) / (np.pi*vrot*(1-epsilon/3.0))
+    kernel /= kernel.sum()
+    
+    # Convolve the flux with the kernel
+    flux_conv = fftconvolve(1-flux_, kernel, mode='same')
+    
+    # And interpolate the results back on to the original wavelength array, 
+    # taking care of even vs. odd-length kernels
+    if n_kernel % 2 == 1:
+        offset = 0.0
+    else:
+        offset = dvelo / 2.0
+    
+    flux = np.interp(velo+offset, velo_, 1-flux_conv, left=1, right=1)
+    
+    # Return the results
+    if return_kernel:
+        lambda0 = (wave[-1]+wave[0]) / 2.0
+        return flux, (velo_k*lambda0, kernel)
+    else:
+        return flux
+
+
+
+def vmacro_kernel(dlam, Ar, At, Zr, Zt):
+    r"""
+    Macroturbulent velocity kernel.
+    
+    See :py:func:`broadening_macroturbulent` for more information.
+    """
+    dlam[dlam == 0] = 1e-8
+    if Zr != Zt:
         return np.array([(2*Ar*idlam/(np.sqrt(np.pi)*Zr**2) * quad(lambda u: np.exp(-1/u**2),0,Zr/idlam)[0] + \
                           2*At*idlam/(np.sqrt(np.pi)*Zt**2) * quad(lambda u: np.exp(-1/u**2),0,Zt/idlam)[0]) 
                              for idlam in dlam])
@@ -140,6 +368,127 @@ def vmacro_kernel(dlam,Ar,At,Zr,Zt):
         return np.array([(2*Ar*idlam/(np.sqrt(np.pi)*Zr**2) + 2*At*idlam/(np.sqrt(np.pi)*Zt**2))\
                            * quad(lambda u: np.exp(-1/u**2),0,Zr/idlam)[0]\
                              for idlam in dlam])
+
+
+def broadening_macroturbulent(wave, flux, vmacro_rad, vmacro_tan=None,
+                              return_kernel=False):
+    r"""
+    Apply macroturbulent broadening.
+    
+    The macroturbulent kernel is defined as in [Gray2005]_:
+    
+    .. math::
+    
+        K_\mathrm{macro}(\Delta\lambda) = \frac{2A_R\Delta\lambda}{\sqrt{\pi}\zeta_R^2}\int_0^{\zeta_R/\Delta\lambda}e^{-1/u^2}du 
+        
+         & + \frac{2A_T\Delta\lambda}{\sqrt{\pi}\zeta_T^2}\int_0^{\zeta_T/\Delta\lambda}e^{-1/u^2}du 
+    
+    If :envvar:`vmacro_tan` is :envvar:`None`, then the value will be put equal
+    to the radial component :envvar:`vmacro_rad`.
+    
+    **Example usage**: Construct a simple Gaussian line profile and convolve with vmacro=65km/s
+        
+    Construct a simple Gaussian line profile:
+    
+    >>> sigma = 0.5
+    >>> wave = np.linspace(3995, 4005, 1001)
+    >>> flux = 1.0 - 0.5*np.exp( - (wave-4000)**2/(2*sigma**2))
+    
+    Convolve it with a macroturbulent velocity of :math:`v_\mathrm{macro}=65 \mathrm{km}\,\mathrm{s}^{-1}`:
+
+    >>> vmac = 65.
+    >>> flux_broad = tools.broadening_macroturbulent(wave, flux, vmac)
+    >>> flux_broad, (wave_kernel, kernel) = tools.broadening_macroturbulent(wave, flux, vmac, return_kernel=True)
+
+    ::
+    
+        plt.figure()
+        plt.plot(wave, flux, 'k-')
+        plt.plot(wave, flux_broad, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+
+        plt.figure()
+        plt.plot(wave_kernel, kernel, 'r-', lw=2)
+        plt.xlabel("Wavelength [$\AA$]")
+        plt.ylabel("Normalised flux")
+    
+    
+    .. +--------------------------------------------------------------------------+-------------------------------------------------------------------------+
+    .. | .. image:: ../../images/api/spectra/tools/broaden_macroturbulent01.png   | .. image:: ../../images/api/spectra/tools/broaden_macroturbulent02.png  |
+    .. |   :scale: 50 %                                                           |   :scale: 50 %                                                          |
+    .. +--------------------------------------------------------------------------+-------------------------------------------------------------------------+
+ 
+    :parameter wave: Wavelength of the spectrum
+    :type wave: array
+    :parameter flux: Flux of the spectrum
+    :type flux: array
+    :parameter vmacro_rad: macroturbulent broadening, radial component
+    :type vmacro_rad: float
+    :parameter vmacro_tan: macroturbulent broadening, tangential component
+    :type vmacro_tan: float    
+    :parameter return_kernel: return kernel
+    :type return_kernel: bool
+    :return: broadened flux [, (wavelength, kernel)]
+    :rtype: array [,(array, array)]
+    """
+    if vmacro_tan is None:
+        vmacro_tan = vmacro_rad
+    
+    if vmacro_rad == vmacro_tan == 0:
+        return flux
+    
+    # Define central wavelength
+    lambda0 = (wave[0] + wave[-1]) / 2.0
+    
+    vmac_rad = vmacro_rad/(constants.cc*1e-3)*lambda0
+    vmac_tan = vmacro_tan/(constants.cc*1e-3)*lambda0
+    
+    # Make sure the wavelength range is equidistant before applying the
+    # convolution
+    delta_wave = np.diff(wave).min()
+    range_wave = wave.ptp()
+    n_wave = int(range_wave/delta_wave)+1
+    wave_ = np.linspace(wave[0], wave[-1], n_wave)
+    flux_ = np.interp(wave_, wave, flux)
+    dwave = wave_[1]-wave_[0]
+    n_kernel = int(5*max(vmac_rad, vmac_tan)/dwave)
+    if n_kernel % 2 == 0:
+        n_kernel += 1
+    
+    # The kernel might be of too low resolution, or the the wavelength range
+    # might be too narrow. In both cases, raise an appropriate error
+    if n_kernel == 0:
+        raise ValueError(("Spectrum resolution too low for "
+                          "macroturbulent broadening"))
+    elif n_kernel > n_wave:
+        raise ValueError(("Spectrum range too narrow for "
+                          "macroturbulent broadening"))
+    
+    # Construct the broadening kernel
+    wave_k = np.arange(n_kernel)*dwave
+    wave_k -= wave_k[-1]/2.
+    kernel = vmacro_kernel(wave_k, 1.0, 1.0, vmac_rad, vmac_tan)
+    kernel /= sum(kernel)
+    
+    flux_conv = fftconvolve(1-flux_, kernel, mode='same')
+    
+    # And interpolate the results back on to the original wavelength array, 
+    # taking care of even vs. odd-length kernels
+    if n_kernel % 2 == 1:
+        offset = 0.0
+    else:
+        offset = dwave / 2.0
+    flux = np.interp(wave+offset, wave_, 1-flux_conv)
+    
+    # Return the results.
+    if return_kernel:
+        return flux, (wave_k, kernel)
+    else:
+        return flux
+
+
+
 
 
 def rotational_broadening(wave_spec,flux_spec,vrot,vmac=0.,fwhm=0.25,epsilon=0.6,

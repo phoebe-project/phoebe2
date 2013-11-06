@@ -416,6 +416,12 @@ defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength
          dict(qualifier='phi0',      description='Phase angle of magnetic field',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field'),
         ]
 
+# VELOCITY FIELD contexts
+defs += [dict(qualifier='vmacro_rad', description='Radial macroturbulence component', cast_type=float, repr='%f',adjust=False,value=0.0,unit='km/s',frame=['phoebe'], context='velocity_field:turb'),
+         dict(qualifier='vmacro_tan', description='Tangentional macroturbulence component', cast_type=float, repr='%f',adjust=False,value=0.0,unit='km/s',frame=['phoebe'], context='velocity_field:turb'),
+         ]
+         
+
 #    Accretion disk contexts        
 defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',cast_type=float,value=1e-4,unit='Msol/yr',frame=["phoebe"],context='accretion_disk'),
          dict(qualifier='mass',     description='Host star mass',repr='%f',cast_type=float,value=1.,unit='Msol',frame=["phoebe"],context='accretion_disk'),
@@ -539,8 +545,13 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
          dict(qualifier='memory', description='Maximum amount of memory', cast_type=float, value=0, unit='MB', frame=['phoebe'],context='mpi:slurm'),
          dict(qualifier='partition', description='SLURM partition to commit job to', cast_type=str, value='',frame=['phoebe'],context='mpi:slurm'),
          dict(qualifier='directory', description='Directory for temporary files', cast_type=str, value='',frame=['phoebe'],context='mpi:slurm'),
-         
         ]
+
+defs += [dict(qualifier='np',       description='Number of nodes of any type',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi:torque'),
+         dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi:torque'),
+         dict(qualifier='time', description='Maximum time of one process', cast_type=float, value=60, unit='min',frame=['phoebe'],context='mpi:torque'),
+         dict(qualifier='memory', description='Maximum amount of memory', cast_type=float, value=200, unit='MB', frame=['phoebe'],context='mpi:torque'),
+         ]
         
 #    Plotting context
 defs += [dict(qualifier='location',     description="location in the figure for this axis", repr='%s',cast_type=str,value='auto',frame=["phoebe"],context='plotting:axes'),

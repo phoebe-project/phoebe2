@@ -308,6 +308,17 @@ def mpirun(fctn):
                            "mpirun -np {num_proc} {hostfile} {byslot} {python} "
                        "{mpirun_loc} {fctn.__name__} {sys_file.name} "
                        "{args_file.name} {kwargs_file.name}").format(**locals())
+                    
+                    
+                elif mpirun_par.get_context().split(':')[-1] == 'torque':
+                    
+                    memory = '{:.0f}'.format(mpirun_par['memory'])
+                    time = '{:.0f}'.format(mpirun_par['time'])    
+                        
+                    cmd = ("qsub -l nodes={num_proc},mem={memory},pcput={time} "
+                           "mpirun {python} "
+                       "{mpirun_loc} {fctn.__name__} {sys_file.name} "
+                       "{args_file.name} {kwargs_file.name}").format(**locals())
 
                 flag = subprocess.call(cmd, shell=True)
                 
