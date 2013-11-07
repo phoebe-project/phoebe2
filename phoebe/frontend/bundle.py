@@ -8,6 +8,7 @@ import inspect
 import numpy as np
 from collections import OrderedDict
 from datetime import datetime
+from time import sleep
 import matplotlib.pyplot as plt
 import copy
 import os
@@ -22,6 +23,16 @@ from phoebe.frontend import usersettings
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
+#~ def check_lock(fctn):
+    #~ @functools.wraps(fctn)
+    #~ def check(bundle,*args,**kwargs):
+        #~ if bundle.lock['locked']:
+            #~ # then raise warning and don't call function
+            #~ logger.warning('there is a job running on {}: any changes made before receiving results may be lost'.format(bundle.lock['server']))
+        #~ 
+        #~ # call requested function
+        #~ return fctn(bundle, *args, **kwargs)
+    #~ return check
 
 def run_on_server(fctn):
     """
@@ -64,7 +75,6 @@ def run_on_server(fctn):
                     logger.warning('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,'script.job.tmp'),'w')
                     f.write("#!/usr/bin/python\n")
-                    f.write("print 'running from server %s'\n" % servername)
                     f.write("from phoebe.frontend.bundle import load\n")
                     f.write("bundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,'bundle.job.tmp'))
                     f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
@@ -75,11 +85,15 @@ def run_on_server(fctn):
                     logger.warning('running script on {}'.format(servername))
                     server.run_script_external('script.job.tmp')
                     
-                    # it would be nice to do this in a screen session and lock the bundle
-                    # and then have an option to enter a loop to watch for it to be complete
-                    
-                    logger.warning('retrieving updated bundle from {}'.format(mount_dir))
-                    bundle = load(os.path.join(mount_dir,'bundle.return.job.tmp'))
+                    # lock the bundle and store information about the job
+                    # so it can be retrieved later
+                    # the bundle returned from the server will not have this lock - so we won't have to manually reset it
+                    bundle.lock = {'locked': True, 'server': servername, 'script': 'script.job.tmp'}
+                                        
+                    # enter loop to wait for results
+                    #~ bundle.server_loop(server)
+
+                    return
 
                 else:
                     logger.warning('{} server not available, running locally'.format(servername))
@@ -128,7 +142,7 @@ class Bundle(object):
         
         self.set_usersettings()
         
-        self.current_job = None
+        self.lock = {'locked': False, 'server': '', 'script': ''}
         
         self.settings = {}
         self.settings['add_version_on_compute'] = False
@@ -138,6 +152,7 @@ class Bundle(object):
         self.set_system(system) # will handle all signals, etc
         
     #{ Settings
+    
     def set_setting(self,key,value):
         """
         Set a bundle-level setting
@@ -203,6 +218,7 @@ class Bundle(object):
     #}    
     
     #{ System
+    
     def set_system(self,system=None):
         """
         Change the system
@@ -256,7 +272,7 @@ class Bundle(object):
                 self.system.uptodate=False
         else:
             self.system.uptodate = False
-              
+    
     def get_system(self):
         """
         Return the system.
@@ -417,7 +433,7 @@ class Bundle(object):
             return objectname
         else: #then hopefully body
             return obj.get_label()
-            
+    
     def change_label(self,oldlabel,newlabel):
         """
         not implemented yet
@@ -427,7 +443,7 @@ class Bundle(object):
         # need to handle changing label and references from children objects, etc
         
         return
-            
+    
     def get_ps(self,objectname):
         """
         retrieve the ParameterSet for a component or orbit
@@ -481,7 +497,7 @@ class Bundle(object):
             if path[-1] == 'orbit' and item['label']==objectname:
                 return item
         return None
-        
+    
     def get_mesh(self,objectname):
         """
         retrieve the ParameterSet for a mesh by name
@@ -497,7 +513,7 @@ class Bundle(object):
             obj = objectname
             
         return obj.params['mesh']
-               
+    
     def get_parent(self,objectname,return_type='obj'):
         """
         retrieve the parent of an item in a hierarchical structure
@@ -511,7 +527,7 @@ class Bundle(object):
         """
         return self._object_to_type(self.get_object(objectname).get_parent(),return_type)
         # TODO I'm concerned about what the parent of a BodyBag is returning
-        
+    
     def get_children(self,objectname,return_type='obj'):
         """
         retrieve the children of an item in a hierarchical structure
@@ -543,7 +559,7 @@ class Bundle(object):
         # remove reference? delete object?
         raise NotImplementedError
         return obj
-        
+    
     def insert_parent(self,objectname,parent):
         """
         add a parent to an existing item in the hierarchical system structure
@@ -1298,7 +1314,6 @@ class Bundle(object):
         # change the name value
         self.feedbacks[i]['name']=newname
                
-    
     def accept_feedback(self,feedback,by='name'):
         """
         Accept fitting results and apply to system
@@ -1516,6 +1531,79 @@ class Bundle(object):
         axes.set_xlabel(po['xaxis'])
         axes.set_ylabel(po['yaxis'])
         
+    #}
+    
+    #{Server
+    def server_job_status(self,server=None,script=None):
+        """
+        check whether the job is finished on the server and ready for 
+        the new bundle to be reloaded
+        """
+        if server is None:
+            server = self.get_server(self.lock['server'])
+        if script is None:
+            script = self.lock['script']
+        
+        return server.check_script_complete(script)
+            
+    def server_loop(self,server=None,script=None):
+        """
+        enter a loop to check the status of a job on a server and load
+        the results when finished.
+        
+        You can always kill this loop and reenter (even after saving and loading the bundle)        
+        """
+        if server is None:
+            server = self.get_server(self.lock['server'])
+        if script is None:
+            script = self.lock['script']
+        
+        servername = server.server_ps.get_value('server')
+        
+        while True:
+            logger.warning('checking {} server'.format(servername))
+            if self.server_job_status(server,script):
+                self.server_get_results(server,script)
+                return
+            sleep(5)
+    
+    def server_get_results(self,server=None,script=None):
+        """
+        reload the bundle from a finished job on the server
+        """
+        
+        if server is None:
+            server = self.get_server(self.lock['server'])
+        if script is None:
+            script = self.lock['script']
+        
+        if not self.server_job_status(server,script):
+            return False
+
+        mount_dir = server.server_ps.get_value('mount_dir')
+        
+        logger.warning('retrieving updated bundle from {}'.format(mount_dir))
+        self_new = load(os.path.join(mount_dir,'bundle.return.job.tmp'))
+
+        # reassign self_new -> self
+        # (no one said it had to be pretty)
+        for attr in ["__class__","__dict__"]:
+                setattr(self, attr, getattr(self_new, attr))
+
+        # alternatively we could just set the system, but 
+        # then we lose flexibility in adjusting things outside
+        # of bundle.system
+        #~ bundle.set_system(bundle_new.get_system()) # note: anything changed outside system will be lost
+
+        # cleanup files
+        logger.warning('cleaning files in {}'.format(mount_dir))
+        os.remove(os.path.join(mount_dir,'bundle.job.tmp'))
+        os.remove(os.path.join(mount_dir,'script.job.tmp'))
+        os.remove(os.path.join(mount_dir,'script.job.tmp.complete'))
+        os.remove(os.path.join(mount_dir,'bundle.return.job.tmp'))
+        
+        return
+    
     #}
         
         
