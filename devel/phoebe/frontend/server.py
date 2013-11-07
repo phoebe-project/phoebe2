@@ -75,9 +75,27 @@ class Server(object):
         server = self.server_ps.get_value('server')
         server_dir = self.server_ps.get_value('server_dir')
         server_script = self.server_ps.get_value('server_script')
+        script = os.path.join(server_dir,script)
         
         command = ''
         if server_script != '':
-            command += '%s &&' % server_script
-        command += 'python %s' % (os.path.join(server_dir,script))
-        os.system("ssh %s '%s'" % (server,command))
+            command += "%s && " % server_script
+        # script with nohup, redirecting stderr and stdout to [script].log
+        command += "nohup python %s > %s.log 2>&1 " % (script,script)
+        # when script is complete, create new file to notify client
+        command += "&& nohup touch %s.complete" % (script)
+        # run command in background
+        #~ print ("call: ssh %s '%s' &" % (server,command))
+        os.system("ssh %s '%s' &" % (server,command))
+        return
+
+    def check_script_complete(self, script):
+        """
+        @param script: filename of the script on the server (server:server_dir/script) 
+        @type script: str
+        """
+        if self.is_local():
+            print 'server is local'
+            return 
+        
+        return os.path.exists(os.path.join(self.server_ps.get_value('mount_dir'),'%s.complete' % script))
