@@ -34,7 +34,7 @@
          </property>
         </widget>
        </item>
-       <item row="12" column="0">
+       <item row="11" column="0">
         <spacer name="verticalSpacer_3">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -60,7 +60,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="label_4">
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Default Panes:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Default Panels:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="textFormat">
           <enum>Qt::RichText</enum>
@@ -103,81 +103,6 @@
           <bool>true</bool>
          </property>
         </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tab_6">
-      <attribute name="title">
-       <string>Models</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
-       <item>
-        <widget class="QLabel" name="label_12">
-         <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;MPI:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="textFormat">
-          <enum>Qt::RichText</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QGridLayout" name="gridLayout_6">
-         <item row="0" column="1">
-          <widget class="QSpinBox" name="p_mpi_np">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_14">
-           <property name="text">
-            <string>Hostfile:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <widget class="QCheckBox" name="p_mpi_byslot">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="text">
-            <string>by slot</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_13">
-           <property name="text">
-            <string>Number of Slots:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QPushButton" name="pushButton">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Add Hostfile</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_5">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </widget>
@@ -281,35 +206,6 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="tab_5">
-      <attribute name="title">
-       <string>Plugins</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="QTableWidget" name="tableWidget">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <column>
-          <property name="text">
-           <string>Enabled</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Plugin</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Description</string>
-          </property>
-         </column>
-        </widget>
-       </item>
-      </layout>
-     </widget>
      <widget class="QWidget" name="tab">
       <attribute name="title">
        <string>Python Interface</string>
@@ -394,15 +290,44 @@ from phoebe.utils import utils</string>
            </widget>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="p_pyinterp_startup_custom">
-            <property name="enabled">
-             <bool>true</bool>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <property name="spacing">
+             <number>2</number>
             </property>
-            <property name="plainText">
-             <string>import numpy as np
+            <item>
+             <widget class="QPlainTextEdit" name="p_pyinterp_startup_custom">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="plainText">
+               <string>import numpy as np
 logger = utils.get_basic_logger()</string>
-            </property>
-           </widget>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="save_pyinterp_startup_custom">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>40</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Save</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -488,7 +413,7 @@ logger = utils.get_basic_logger()</string>
         </layout>
        </item>
        <item row="0" column="0">
-        <widget class="QCheckBox" name="p_pyinterp_enabled">
+        <widget class="QCheckBox" name="copy_panel_python">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -515,6 +440,35 @@ logger = utils.get_basic_logger()</string>
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tab_5">
+      <attribute name="title">
+       <string>Plugins</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QTableWidget" name="tableWidget">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string>Enabled</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Plugin</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Description</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>
@@ -523,7 +477,7 @@ logger = utils.get_basic_logger()</string>
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::Close|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
@@ -564,8 +518,8 @@ logger = utils.get_basic_logger()</string>
    </hints>
   </connection>
   <connection>
-   <sender>p_pyinterp_enabled</sender>
-   <signal>clicked(bool)</signal>
+   <sender>copy_panel_python</sender>
+   <signal>toggled(bool)</signal>
    <receiver>PyInterp_restWidget</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -576,6 +530,38 @@ logger = utils.get_basic_logger()</string>
     <hint type="destinationlabel">
      <x>319</x>
      <y>94</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>copy_panel_python</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>p_panel_python</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>319</x>
+     <y>59</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>319</x>
+     <y>222</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>p_panel_python</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>copy_panel_python</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>319</x>
+     <y>222</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>319</x>
+     <y>59</y>
     </hint>
    </hints>
   </connection>

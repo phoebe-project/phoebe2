@@ -8,7 +8,7 @@ class Settings(object):
         self.default_preferences = {'panel_params': True, 'panel_fitting': True,\
             'panel_datasets': True, 'panel_system': False,\
             'panel_versions': False, 'panel_python': False,\
-            'pyinterp_enabled': True, 'pyinterp_tutsys': True, \
+            'pyinterp_tutsys': True, \
             'pyinterp_tutplots': True, 'pyinterp_tutsettings': True,\
             'pyinterp_thread_on': True, 'pyinterp_thread_off': False,\
             'pyinterp_startup_default': 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',
@@ -25,10 +25,10 @@ class Settings(object):
         self.preferences = {}
         self.servers = {}
         
-    def get_setting(self,key):
+    def get_value(self,key):
         return self.preferences[key] if key in self.preferences.keys() else self.default_preferences[key]
         
-    def set_setting(self,key,value):
+    def set_value(self,key,value):
         self.preferences[key] = value
         
     def get_server(self,label=None):
