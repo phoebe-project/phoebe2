@@ -57,7 +57,7 @@ def run_on_server(fctn):
 
         if servername is None: # will be False if running locally without mpi
             # then we need to determine which system based on preferences
-            servername = bundle.get_usersettings().get_setting('use_server_on_%s' % (fctn_type))
+            servername = bundle.get_usersettings().get_value('use_server_on_%s' % (fctn_type))
             
             # TODO allow for option to search for available or by priority?
             
@@ -70,25 +70,29 @@ def run_on_server(fctn):
                     server_dir = server.server_ps.get_value('server_dir')
                     
                     logger.warning('copying bundle to {}'.format(mount_dir))
-                    bundle.save(os.path.join(mount_dir,'bundle.job.tmp'),save_usersettings=True) # might have a problem here if threaded!!
+                    timestr = str(datetime.now()).replace(' ','_')
+                    in_f = '%s.bundle.in.phoebe' % timestr
+                    out_f = '%s.bundle.out.phoebe' % timestr
+                    script_f = '%s.py' % timestr
+                    bundle.save(os.path.join(mount_dir,in_f),save_usersettings=True) # might have a problem here if threaded!!
                     
                     logger.warning('creating script to run on {}'.format(servername))
-                    f = open(os.path.join(mount_dir,'script.job.tmp'),'w')
+                    f = open(os.path.join(mount_dir,script_f),'w')
                     f.write("#!/usr/bin/python\n")
                     f.write("from phoebe.frontend.bundle import load\n")
-                    f.write("bundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,'bundle.job.tmp'))
+                    f.write("bundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,in_f))
                     f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
-                    f.write("bundle.save('%s')\n" % (os.path.join(server_dir,'bundle.return.job.tmp')))
+                    f.write("bundle.save('%s')\n" % (os.path.join(server_dir,out_f)))
                     f.close()
                     
                     # create job and submit
                     logger.warning('running script on {}'.format(servername))
-                    server.run_script_external('script.job.tmp')
+                    server.run_script_external(script_f)
                     
                     # lock the bundle and store information about the job
                     # so it can be retrieved later
                     # the bundle returned from the server will not have this lock - so we won't have to manually reset it
-                    bundle.lock = {'locked': True, 'server': servername, 'script': 'script.job.tmp'}
+                    bundle.lock = {'locked': True, 'server': servername, 'script': script_f, 'files': [in_f, out_f, script_f], 'rfile': out_f}
                                         
                     # enter loop to wait for results
                     #~ bundle.server_loop(server)
@@ -143,6 +147,8 @@ class Bundle(object):
         self.set_usersettings()
         
         self.lock = {'locked': False, 'server': '', 'script': ''}
+        
+        self.filename = None
         
         self.settings = {}
         self.settings['add_version_on_compute'] = False
@@ -201,7 +207,7 @@ class Bundle(object):
         if key is None:
             return self.usersettings
         else:
-            return self.usersettings.get_setting(key)
+            return self.usersettings.get_value(key)
             
     def get_server(self,servername):
         """
@@ -1534,56 +1540,51 @@ class Bundle(object):
     #}
     
     #{Server
-    def server_job_status(self,server=None,script=None):
+    def server_job_status(self):
         """
         check whether the job is finished on the server and ready for 
         the new bundle to be reloaded
         """
-        if server is None:
-            server = self.get_server(self.lock['server'])
-        if script is None:
-            script = self.lock['script']
+        server = self.get_server(self.lock['server'])
+        script = self.lock['script']
         
         return server.check_script_complete(script)
             
-    def server_loop(self,server=None,script=None):
+    def server_loop(self):
         """
         enter a loop to check the status of a job on a server and load
         the results when finished.
         
         You can always kill this loop and reenter (even after saving and loading the bundle)        
         """
-        if server is None:
-            server = self.get_server(self.lock['server'])
-        if script is None:
-            script = self.lock['script']
+        server = self.get_server(self.lock['server'])
+        script = self.lock['script']
         
         servername = server.server_ps.get_value('server')
         
         while True:
             logger.warning('checking {} server'.format(servername))
-            if self.server_job_status(server,script):
-                self.server_get_results(server,script)
+            if self.server_job_status():
+                self.server_get_results()
                 return
             sleep(5)
     
-    def server_get_results(self,server=None,script=None):
+    def server_get_results(self):
         """
         reload the bundle from a finished job on the server
         """
         
-        if server is None:
-            server = self.get_server(self.lock['server'])
-        if script is None:
-            script = self.lock['script']
+        server = self.get_server(self.lock['server'])
+        script = self.lock['script']
+        lock_files = self.lock['files']
         
-        if not self.server_job_status(server,script):
+        if not self.server_job_status():
             return False
 
         mount_dir = server.server_ps.get_value('mount_dir')
         
         logger.warning('retrieving updated bundle from {}'.format(mount_dir))
-        self_new = load(os.path.join(mount_dir,'bundle.return.job.tmp'))
+        self_new = load(os.path.join(mount_dir,self.lock['rfile']))
 
         # reassign self_new -> self
         # (no one said it had to be pretty)
@@ -1597,10 +1598,10 @@ class Bundle(object):
 
         # cleanup files
         logger.warning('cleaning files in {}'.format(mount_dir))
-        os.remove(os.path.join(mount_dir,'bundle.job.tmp'))
-        os.remove(os.path.join(mount_dir,'script.job.tmp'))
-        os.remove(os.path.join(mount_dir,'script.job.tmp.complete'))
-        os.remove(os.path.join(mount_dir,'bundle.return.job.tmp'))
+        for fname in lock_files:
+            os.remove(os.path.join(mount_dir,fname))
+        os.remove(os.path.join(mount_dir,'%s.complete' % script))
+        os.remove(os.path.join(mount_dir,'%s.log' % script))
         
         return
     
@@ -1662,11 +1663,23 @@ class Bundle(object):
         """
         return copy.deepcopy(self)
     
-    def save(self,filename,purge_signals=True,save_usersettings=False):
+    def save(self,filename=None,purge_signals=True,save_usersettings=False):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
+        
+        @param filename: path to save the bundle (or None to use same as last save)
+        @type filename: str
         """
+        if filename is None and self.filename is None:
+            logger.error('save failed: need to provide filename')
+            return
+            
+        if filename is None:
+            filename = self.filename
+        else:
+            self.filename = filename
+        
         if purge_signals:
             #~ self_copy = self.copy()
             self.purge_signals()
