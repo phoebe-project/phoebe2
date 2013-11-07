@@ -75,9 +75,93 @@ class CreatePopHelp(QDialog, gui.Ui_popHelp_Dialog):
         self.setupUi(self)
         
 class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, prefs=None):
         super(CreatePopPrefs, self).__init__(parent)
         self.setupUi(self)
+        self.prefs = prefs
+        
+        self.pref_bools = self.findChildren(QCheckBox)
+        self.pref_bools += self.findChildren(QRadioButton)
+        
+        self.set_gui_from_prefs(prefs)
+        
+    def set_gui_from_prefs(self,p=None):
+        if p is None:
+            p = self.prefs
+        
+        bools = self.findChildren(QCheckBox)
+        bools += self.findChildren(QRadioButton)
+
+        for w in bools:
+            if w.objectName().split('_')[0]=='p':
+                key = "_".join(str(w.objectName()).split('_')[1:])
+                if key in p:
+                    w.setChecked(p[key])
+                    w.current_value = p[key]
+                self.connect(w, SIGNAL("toggled(bool)"), self.item_changed)
+                    
+        for w in self.findChildren(QPlainTextEdit):
+            if w.objectName().split('_')[0]=='p':
+                key = "_".join(str(w.objectName()).split('_')[1:])
+                if key in p:
+                    w.setPlainText(p[key])
+                    w.current_value = p[key]
+                self.connect(w, SIGNAL("textChanged()"), self.text_changed)
+                
+                # now find the save button and connect signals and link
+                button = self.get_button_for_textbox(w)
+                if button is not None:
+                    button.setVisible(False)
+                    button.textbox = w
+                    self.connect(button, SIGNAL("clicked()"), self.item_changed)
+                    
+        #~ for w in self.findChildren(QSpinBox):
+            #~ if w.objectName().split('_')[0]=='p':
+                #~ key = "_".join(str(w.objectName()).split('_')[1:])
+                #~ if key in p:
+                    #~ w.setValue(p[key])
+                    #~ w.current_value = p[key]
+                #~ self.connect(w, SIGNAL("toggled(bool)"), self.item_changed)
+                
+            #~ for w in self.findChildren(QComboBox):
+                #~ pass
+                
+    def get_button_for_textbox(self,textedit):
+        button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
+        buttons = self.findChildren(QPushButton,QString(button_name))
+        if len(buttons)==1:
+            return buttons[0]
+        else:
+            return None
+          
+    def text_changed(self,*args):
+        button = self.get_button_for_textbox(self.sender())
+        button.setVisible(True)
+            
+    def item_changed(self,*args):
+        ## TODO - for now this is really only set to handle bools and textedits with save buttons
+        
+        w = self.sender()
+        
+        if hasattr(w,'textbox'):
+            w.setVisible(False)
+            w = w.textbox
+            # we need to be careful with newlines and quotes since we're
+            # sending this through PyInterp
+            new_value = str(w.toPlainText()).replace('\n','\\n')
+        else:
+            new_value = args[0]
+        
+        prefname = '_'.join(str(w.objectName()).split('_')[1:])
+        
+        old_value = w.current_value
+        
+        do_command = "settings.set_value('%s',%s)" % (prefname,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.set_value('%s',%s)" % (prefname,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        description = "change setting: %s" % prefname
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+
+
 
 class CreatePopObsOptions(QDialog, gui.Ui_popObsOptions_Dialog):
     def __init__(self, parent=None):
@@ -328,14 +412,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.pluginsloaded = []
         self.plugins = []
         self.guiplugins = []
-        self.on_prefsLoad() #load to self.prefs
-        self.on_prefsUpdate() #apply to gui
+        #~ self.on_prefsLoad() #load to self.prefs
+        self.on_prefsUpdate(startup=True) #apply to gui
         self.latest_dir = None
         
         # send startup commands to interpreter
-        for line in self.prefs.get_setting('pyinterp_startup_default').split('\n'):
+        for line in self.prefs.get_value('pyinterp_startup_default').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
-        for line in self.prefs.get_setting('pyinterp_startup_custom').split('\n'):
+        for line in self.prefs.get_value('pyinterp_startup_custom').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
             
         # disable items for alpha version
@@ -1200,11 +1284,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,newunit),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,oldunit),thread=False,description='change value of %s:%s' % (kind,parname))
             self.undoStack.push(command)
             
-    def on_param_command(self,do_command,undo_command,description='',thread=False):
+    def on_param_command(self,do_command,undo_command,description='',thread=False,kind=None):
         """
         allows more flexible/customized commands to be sent from parameter treeviews
         """
-        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=thread,description=description)
+        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=thread,description=description,kind=kind)
         self.undoStack.push(command)
             
         
@@ -1624,63 +1708,43 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description=description)
         self.undoStack.push(command)
         
-    @PyInterp_selfdebug
-    def on_prefsLoad(self):
-        '''
-        load settings from file and save to self.prefs
-        '''       
-        
-        #~ try:
-            #~ self.prefs = self.PyInterp_get('settings')
-        #~ except:
-        self.prefs = usersettings.load()
-
-
     def on_prefsShow(self):
-        '''
-        open settings window
-        if changes are applied, update self.prefs and save to file
-        and then run on_prefsUpdate to update gui
-        '''
-        pop = CreatePopPrefs(self)
-        p = {key: self.prefs.get_setting(key) for key in self.prefs.default_preferences.keys()}
+        self.prefs = self.PyInterp_get('settings')
+        p = {key: self.prefs.get_value(key) for key in self.prefs.default_preferences.keys()}
+        pop = CreatePopPrefs(self,p)
+        QObject.connect(pop, SIGNAL("parameterCommand"), self.on_param_command)
+        QObject.connect(pop.buttonBox, SIGNAL("accepted()"), self.on_prefsSave)
+        QObject.connect(pop.buttonBox, SIGNAL("rejected()"), self.on_prefsUpdate)
+        pop.show()
         
-        self.setpopguifromprefs(pop, p)
-                          
-        response = pop.exec_()
-        
-        if response:
-            p = self.getprefsfrompopgui(pop, p)
- 
-            self.on_prefsSave(p)
-            self.on_prefsUpdate()
-    
-    def on_prefsSave(self,p):
-        self.prefs.preferences = p
-        self.PyInterp_send('settings',self.prefs)
-        # TODO we should really send system calls for each of the changed settings
-        
+    def on_prefsSave(self,*args):
         command_do = "settings.save()"
         command_undo = ""
         
         command = phoebe_widgets.CommandRun(self.PythonEdit,command_do, command_undo, thread=False, description='save settings', kind='settings')
         
-        self.undoStack.push(command)        
+        self.undoStack.push(command)   
         
+        self.on_prefsUpdate()
+    
     @PyInterp_selfdebug
-    def on_prefsUpdate(self):
-        p = {key: self.prefs.get_setting(key) for key in self.prefs.default_preferences.keys()}
+    def on_prefsUpdate(self,startup=False):
+        try:
+            self.prefs = self.PyInterp_get('settings')
+        except KeyError:
+            self.prefs = usersettings.load()
         
-        self.tb_view_lpAction.setChecked(p['panel_params'])
-        self.tb_view_rpAction.setChecked(p['panel_fitting'])
-        self.tb_view_versionsAction.setChecked(p['panel_versions'])
-        self.tb_view_systemAction.setChecked(p['panel_system'])
-        self.tb_view_datasetsAction.setChecked(p['panel_datasets'])
-        self.tb_view_pythonAction.setChecked(p['panel_python'])
-        #~ self.tb_view_sysAction.setChecked(p['sys'])
-        #~ self.tb_view_glAction.setChecked(p['gl'])
+        p = {key: self.prefs.get_value(key) for key in self.prefs.default_preferences.keys()}
+        
+        if startup:
+            # only apply default panels at startup (not immediately after changing preference)
+            self.tb_view_lpAction.setChecked(p['panel_params'])
+            self.tb_view_rpAction.setChecked(p['panel_fitting'])
+            self.tb_view_versionsAction.setChecked(p['panel_versions'])
+            self.tb_view_systemAction.setChecked(p['panel_system'])
+            self.tb_view_datasetsAction.setChecked(p['panel_datasets'])
+            self.tb_view_pythonAction.setChecked(p['panel_python'])
 
-        self.tb_view_pythonAction.setChecked(p['pyinterp_enabled'])
         self.PythonEdit.thread_enabled = p['pyinterp_thread_on']
         self.PythonEdit.write_sys = p['pyinterp_tutsys']
         self.PythonEdit.write_plots = p['pyinterp_tutplots']
@@ -1707,85 +1771,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ self.keplerebplugin = keplereb.GUIPlugin()
         #~ keplereb.GUIPlugin.enablePlugin(self.keplerebplugin, self, gui.Ui_PHOEBE_MainWindow)
         #~ keplereb.GUIPlugin.disablePlugin(self.keplerebplugin)
-
-    def setpopguifromprefs(self, pop, p, pdef=None):
-        if pdef is None:
-            #~ pdef = self.prefsdefault
-            pdef = self.prefs
-        bools = pop.findChildren(QCheckBox)
-        bools += pop.findChildren(QRadioButton)
-
-        for w in bools:
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    w.setChecked(p[key])
-                else:
-                    w.setChecked(pdef[key])
-                    
-        for w in pop.findChildren(QPlainTextEdit):
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    w.setPlainText(p[key])
-                else:
-                    w.setPlainText(pdef[key])
-                    
-        for w in pop.findChildren(QSpinBox):
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    w.setValue(p[key])
-                else:
-                    w.setValue(pdef[key])
-                    
-        #~ for w in pop.findChildren(QComboBox):
-            #~ if w.objectName().split('_')[0]=='p':
-                #~ key = "_".join(str(w.objectName()).split('_')[1:])
-                #~ if key in p:
-                    #~ w.setCurrentText(p[key])
-                #~ else:
-                    #~ w.setCurrentText(self.prefsdefault[key])
-    
-    def getprefsfrompopgui(self, pop, p, pdef=None):
-        if pdef is None:
-            #~ pdef = self.prefsdefault
-            pdef = self.prefs
-        bools = pop.findChildren(QCheckBox)
-        bools += pop.findChildren(QRadioButton)
-        
-        for w in bools:
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    p[key] = w.isChecked()
-                else:
-                    p[key] = pdef[key]
-
-        for w in pop.findChildren(QPlainTextEdit):
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    p[key] = str(w.toPlainText())
-                else:
-                    p[key] = pdef[key]
-                    
-        for w in pop.findChildren(QSpinBox):
-             if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    p[key] = w.value()
-                else:
-                    p[key] = pdef[key]
-        
-        for w in pop.findChildren(QComboBox):
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    p[key] = str(w.currentText())
-                else:
-                    p[key] = pdef[key]
-        return p
             
     def on_aboutShow(self):
         pop = CreatePopAbout(self)
