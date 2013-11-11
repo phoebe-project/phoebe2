@@ -88,30 +88,50 @@ def load(filename=None):
     return settings
 
 
-def load_from_configfile_tryout(server):
+def load_configfile(name, section=None, pararameter_sets=None):
     """
     Load settings from a configuration file.
     
-    Example usage:
+    ``name`` is the name of the configuration file (e.g. `servers` for
+    `servers.cfg`).
     
-        >>> mpi, serversettings = load_from_configfile_tryout('clusty.ast.villanova.edu')
+    If you don't give a section, you will get the configparser object back.
+    
+    If you give a section name, it will return a dictionary with the contents
+    of that section. Both the key and value will be strings.
+    
+    If you give a section and a list of parameterSets, then the contents will 
+    be smart-parsed to the parameterSets. If a key is not in any of the
+    parametersets, it will be ignored. If a key is in both, in will be stored
+    in both. If it is in only one of them, then of course it will be put in 
+    that one. In this case, nothing will be returned, but the parameterSets
+    will have changed!
+    
+    We will add something that does a smart parsing if you give parameter_sets:
+    we want 'true' and 'True' and '1' all to be evaluated to True. ConfigParser
+    can do that, it should only see if the parameterSet needs a boolean or float
+    or whatever.
     """
-    import phoebe
     basedir = os.path.abspath(os.path.dirname(__file__))
     settings = ConfigParser.ConfigParser()
     settings.optionxform = str # make sure the options are case sensitive
     
-    with open(os.path.join(basedir,'servers.cfg')) as config_file:
+    with open(os.path.join(basedir,'{}.cfg'.format(name))) as config_file:
         settings.readfp(config_file)
     
-    items = settings.items(server)
-    items_dict = {key:value for key,value in items}
-    context = items_dict.pop('type')
-    mpi = phoebe.PS(context=context)
+    # If nothing else is given, we just return the parser object
+    if section is None:
+        return settings
     
-    for key in items_dict.keys():
-        if key in mpi:
-            mpi[key] = items_dict.pop(key)
+    # If no parameterSets are given, a dictionary of the section is returned
+    if parameter_sets is None:
+        items = settings.items(server)
+        items_dict = {key:value for key,value in items}
+        return items_dict
     
-    return mpi, items_dict
+    # Else, we have parameterSets!
+    for key, value in settings.items(server):
+        for ps in parameter_sets:
+            if key in ps;
+                ps[key] = value
     
