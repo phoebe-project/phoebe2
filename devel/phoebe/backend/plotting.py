@@ -993,6 +993,150 @@ def plot_spres_as_profile(system, *args, **kwargs):
     
 
 
+def plot_plsyn_as_profile(system, *args, **kwargs):
+    """
+    Plot plsyn as a spectroscopic line profile.
+    """
+    scale = kwargs.pop('scale', 'obs')
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    ax = kwargs.pop('ax',plt.gca())
+    velocity = kwargs.pop('velocity',None)
+    stokes = kwargs.pop('stokes','I')
+    
+    if stokes == 'I':
+        column = 'flux'
+    else:
+        column = stokes
+    
+    syn, ref = system.get_parset(category='pl', type='syn', ref=ref)
+    loaded = syn.load(force=False)
+    
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    x = syn['wavelength'][index]
+    y = syn[column][index] / syn['continuum'][index]
+
+    pblum = 1.0
+    l3 = 0.0
+    if scale == 'obs':
+        try:
+            obs = system.get_obs(category='pl', ref=ref)
+            pblum = obs['pblum']
+            l3 = obs['l3']
+        except ValueError:
+            pass
+            #raise ValueError(("No observations in this system or component, "
+            #             "so no scalings available: set keyword `scale=None`"))
+    
+    if velocity is not None:
+        x = conversions.convert('nm','km/s', x, wave=velocity)
+    
+    if stokes == 'I':
+        y = y * pblum + l3
+    else:
+        y = y * pblum
+    
+    p, = ax.plot(x, y, *args, **kwargs)
+    
+    if loaded:
+        syn.unload()
+    
+    return [p], syn, pblum, l3
+    
+    
+def plot_plobs_as_profile(system, *args, **kwargs):
+    """
+    Plot plobs as a spectroscopic line profile.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    stokes = kwargs.pop('stokes','I')
+    
+    if stokes == 'I':
+        column = 'flux'
+        e_column = 'sigma'
+    else:
+        column = stokes
+        e_column = 'sigma_' + stokes
+    
+    
+    obs, ref = system.get_parset(category='pl', type='obs', ref=ref)
+    loaded = obs.load(force=False)
+    
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    
+    obs = obs.asarray()
+    if len(obs['wavelength'].shape)==2:
+        x = obs['wavelength'][index]
+    else:
+        x = obs['wavelength']
+    y = obs[column][index] / obs['continuum'][index]
+    e_y = obs[e_column][index] / obs['continuum'][index]
+    
+    plt.errorbar(x, y, yerr=e_y, **kwargs)
+    
+    if loaded:
+        obs.unload()    
+    
+    
+def plot_plres_as_profile(system, *args, **kwargs):
+    """
+    Plot plobs as a spectroscopic line profile.
+    """
+    ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
+    scale = kwargs.pop('scale', 'obs')
+    stokes = kwargs.pop('stokes','I')
+    
+    if stokes == 'I':
+        column = 'flux'
+        e_column = 'sigma'
+    else:
+        column = stokes
+        e_column = 'sigma_' + stokes
+    
+    obs, ref = system.get_parset(category='pl', type='obs', ref=ref)
+    syn, ref = system.get_parset(category='pl', type='syn', ref=ref)
+    
+    loaded_obs = obs.load(force=False)
+    loaded_syn = syn.load(force=False)
+    
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    x = syn['wavelength'][index]
+    y = syn[column][index] / syn['continuum'][index]
+    z = obs[column][index] / obs['continuum'][index]
+    e_z = obs[e_column][index] / obs['continuum'][index]
+    
+    pblum = 1.0
+    l3 = 0.0
+    if scale == 'obs':
+        try:
+            obs = system.get_obs(category='pl', ref=ref)
+            pblum = obs['pblum']
+            l3 = obs['l3']
+        except ValueError:
+            pass
+            #raise ValueError(("No observations in this system or component, "
+            #             "so no scalings available: set keyword `scale=None`"))    
+    
+    if stokes == 'I':
+        y = y * pblum + l3
+    else:
+        y = y * pblum
+    
+    plt.errorbar(x, (z-y)/e_z, yerr=np.ones_like(x), **kwargs)
+    
+    if loaded_obs:
+        obs.unload()        
+    if loaded_syn:
+        syn.unload()
+    
+    return x, y, (z, e_z)
+    
+    
+
 
 def plot_lcdeps_as_sed(system,residual=False,
                        kwargs_obs=None,kwargs_syn=None,

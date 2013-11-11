@@ -202,14 +202,15 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
     # First we want to get rid of any loggers that are present; we don't want
     # to follow all the output to the screen during each single computation.
     # Only the warning get through, and this is also how the loggers communicate
-    mylogger = logging.getLogger("")
-    for handler in mylogger.handlers:
-        if not hasattr(handler,'baseFilename'):
-            if mylogger.level<logging._levelNames['WARNING']:
-                handler.setLevel('WARNING')
-    utils.add_filehandler(mylogger,flevel='INFO',
-             filename='fitting_{}.log'.format("_".join(time.asctime().split())))
-    
+    if True:
+        mylogger = logging.getLogger("")
+        for handler in mylogger.handlers:
+            if not hasattr(handler,'baseFilename'):
+                if mylogger.level<logging._levelNames['WARNING']:
+                    handler.setLevel('WARNING')
+        utils.add_filehandler(mylogger,flevel='INFO',
+                filename='fitting_{}.log'.format("_".join(time.asctime().split())))
+        
     # We need to know how to compute the system (i.e. how many subdivisions,
     # reflections etc...)
     if params is None:
@@ -825,6 +826,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     for parset in system.walk():
         frames.append(parset.frame)
         
+        # If the parameterSet is not enabled, skip it
+        if not parset.get_enabled():
+            continue
+        
         #-- for each parameterSet, walk through all the parameters
         for qual in parset:
             
@@ -863,6 +868,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         
         #-- walk through all the parameterSets available:
         for parset in system.walk():
+            
+            # If the parameterSet is not enabled, skip it
+            if not parset.get_enabled():
+                continue
             
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
@@ -1962,6 +1971,11 @@ def accept_fit(system,fitparams):
     #-- walk through all the parameterSets available:
     #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
     for parset in system.walk():
+        
+        # If the parameterSet is not enabled, skip it
+        if not parset.get_enabled():
+            continue
+        
         #-- fore ach parameterSet, walk to all the parameters
         for qual in parset:
             #-- extract those which need to be fitted
@@ -1990,7 +2004,7 @@ def accept_fit(system,fitparams):
 
 
 
-def longitudinal_field(times,Bl,rotperiod=1.,
+def longitudinal_field(times,Bl=None,rotperiod=1.,
                   Bpolar=100.,ld_coeff=0.3,beta=90.,incl=90.,phi0=0.,
                   fix=('rotperiod','ld_coeff')):
     """
@@ -1999,7 +2013,7 @@ def longitudinal_field(times,Bl,rotperiod=1.,
     See e.g. [Preston1967]_ or [Donati2001]_.
     """
     
-    def residual(pars,times,Bl):
+    def residual(pars,times,Bl=None):
         rotperiod = pars['rotperiod'].value
         Bp = pars['Bpolar'].value
         u = pars['ld_coeff'].value
@@ -2010,7 +2024,10 @@ def longitudinal_field(times,Bl,rotperiod=1.,
     
         model = Bp*(15.+u)/(20.*(3.-u)) * (np.cos(beta)*np.cos(incl) + np.sin(beta)*np.sin(incl)*np.cos(2*np.pi*(phases-phi0)))
         
-        return (Bl-model)
+        if Bl is None:
+            return model
+        else:
+            return (Bl-model)
     
     params = lmfit.Parameters()
     params.add('rotperiod',value=rotperiod,vary=('rotperiod' not in fix))
@@ -2020,17 +2037,22 @@ def longitudinal_field(times,Bl,rotperiod=1.,
     params.add('incl',value=incl,vary=('incl' not in fix),min=-180,max=180)
     params.add('phi0',value=phi0,vary=('phi0' not in fix),min=0,max=1)
     
+    if Bl is not None:
+        out = lmfit.minimize(residual,params,args=(times,Bl))
+        lmfit.report_errors(params)
+        for par in params:
+            params[par].min = None
+            params[par].max = None
+        out = lmfit.minimize(residual,params,args=(times,Bl))
     
-    out = lmfit.minimize(residual,params,args=(times,Bl))
-    lmfit.report_errors(params)
-    for par in params:
-        params[par].min = None
-        params[par].max = None
-    out = lmfit.minimize(residual,params,args=(times,Bl))
+        lmfit.report_errors(params)
     
-    lmfit.report_errors(params)
+    final_model = residual(params,times)
     
-    return params
+    if Bl is None:
+        return final_model
+    else:
+        return params, final_model
     
     
     

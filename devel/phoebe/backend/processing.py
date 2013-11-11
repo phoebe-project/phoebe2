@@ -43,6 +43,16 @@ def sed_scale_to_distance(self, time, group):
     This only works if ``time==None``, such that the rescaling is only done
     after all computations are done.
     
+    Usage:
+    
+    1. First group your photometry. The easiest way to do this is by parsing
+       a group name to :py:func:`phoebe.parameters.datasets.parse_phot`.
+    2. Add a parameter :envvar:`derived_distance` to the global parameterSet,
+       via soemting like::
+       
+            globals = system.get_globals()
+            globals.add(phoebe.parameters.parameters.Parameter(qualifier='derived_distance', cast_type=float, value=1.0))
+    
     @param group: name of the photometry group to read the scaling from.
     @type group: str
     """
@@ -62,9 +72,15 @@ def sed_scale_to_distance(self, time, group):
                 obs = loc[-2]['lcobs'][ref]
                 # We only need one dataset, since all pblums are the same within the
                 # group. If we found a good lcdep, we can break
-                if 'group' in obs and obs['group'] == 'sed':
+                if 'group' in obs and obs['group'] == group:
                     pblum = obs['pblum']
                     break
+            # Next few lines make sure we break out of the inner loop as well
+            else:
+                continue
+            break
+    else:
+        raise ValueError("No pblum found for scaling of SED")
     
     # If we needed to multiply the model with 2, we need to put the thing
     # two times closer. To ensure consistency we (should have) added a new

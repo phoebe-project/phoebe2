@@ -2,6 +2,12 @@
 """
 Definitions of interstellar reddening curves
 
+.. autosummary::
+
+    get_law
+    redden
+    deredden
+
 Section 1. General interface
 ============================
 
@@ -103,17 +109,17 @@ basename = os.path.join(os.path.dirname(__file__),'redlaws')
 
 #{ Main interface
 
-def get_law(name,passbands=None,**kwargs):
-    """
+def get_law(name, passbands=None, wave=None, Rv=3.1, **kwargs):
+    r"""
     Retrieve an interstellar reddening law.
     
-    Parameter C{name} must be the function name of one of the laws defined in
-    this module.
+    Parameter :envvar:`name` must be the function name of one of the laws
+    defined in this module.
     
     By default, the law will be interpolated on a grid from 100 angstrom to
-    10 :math:`\mu`m in steps of 10 :math:`\AA`. This can be adjusted with the parameter
-    C{wave} (array), which B{must} be in angstrom. You can change the units
-    ouf the returned wavelength array via C{wave_units}.
+    10 :math:`\mu` m in steps of 10 :math:`\AA`. This can be adjusted with the
+    parameter :envvar:`wave` (array), which **must** be in angstrom. You can
+    change the units ouf the returned wavelength array via C{wave_units}.
     
     By default, the curve is normalised with respect to E(B-V) (you get
     :math:`A(\lambda)/E(B-V)`). You can set the C{norm} keyword to :math:`A_V`
@@ -121,7 +127,7 @@ def get_law(name,passbands=None,**kwargs):
     
     Remember that
     
-    ..math::
+    .. math::
         
         A(V) = R_V E(B-V)
     
@@ -133,7 +139,7 @@ def get_law(name,passbands=None,**kwargs):
     Example usage:
     
     >>> wave = np.r_[1e3:1e5:10]
-    >>> wave,mag = get_law('cardelli1989',wave=wave,Rv=3.1)
+    >>> wave, mag = get_law('cardelli1989', wave=wave, Rv=3.1)
     
     @param name: name of the interstellar law
     @type name: str, one of the functions defined here
@@ -141,52 +147,56 @@ def get_law(name,passbands=None,**kwargs):
     @type passbands: list of strings
     @param wave: wavelength array to interpolate the law on
     @type wave: array
+    @param Rv: total to selective extinction ratio
+    @type Rv: float
     @return: wavelength, reddening magnitude
     @rtype: (array,array)
     """
-    #-- get the inputs
-    wave_ = kwargs.pop('wave',None)
-    Rv = kwargs.setdefault('Rv',3.1)
+    # Get the inputs
     Aband = kwargs.pop('Aband',None) # normalisation band if A is given.
     
-    #-- get the curve
-    wave,mag = globals()[name.lower()](**kwargs)
-    wave_orig,mag_orig = wave.copy(),mag.copy()
+    # Get the curve
+    wave_law, mag_law = globals()[name.lower()](Rv=Rv, **kwargs)
     
-    #-- interpolate on user defined grid
-    if wave_ is not None:
-        mag = np.interp(wave_,wave,mag,right=0)
-        wave = wave_
+    # Interpolate on user defined grid if necessary
+    if wave is not None:
+        mag = np.interp(wave, wave_law, mag_law, right=0)
+    else:
+        wave = wave_law
+        mag = mag_law
            
-    #-- pick right normalisation: convert to A(lambda)/Av if needed
+    # Pick right normalisation: convert to A(lambda)/Av if needed
     if Aband is None:
         mag *= Rv
     else:
-        norm_reddening = sed.synthetic_flux(wave_orig,mag_orig,[Aband])[0]
+        norm_reddening = sed.synthetic_flux(wave, mag, [Aband])[0]
         logger.info('Normalisation via %s: Av/%s = %.6g'%(Aband,Aband,1./norm_reddening))
         mag /= norm_reddening
     
-    #-- maybe we want the curve in photometric pbs
+    # Maybe we want the curve in photometric passbands (pbs)
     if passbands is not None:
-        mag = sed.synthetic_flux(wave,mag,passbands)
+        mag = sed.synthetic_flux(wave, mag, passbands)
         wave = pbs.get_info(passbands)['eff_wave']
     
-    return wave,mag
+    return wave, mag
 
 
-def redden(flux,wave=None,passbands=None,ebv=0.,rtype='flux',law='cardelli1989',**kwargs):
+def redden(flux, wave=None, passbands=None, ebv=0., Rv=3.1, rtype='flux',
+           law='cardelli1989', **kwargs):
     """
     Redden flux or magnitudes
     
-    The reddening parameters C{ebv} means E(B-V).
+    The reddening parameters :envvar:`ebv` is :math:`E(B-V)`.
     
-    If it is negative, we B{deredden}.
+    If it is negative, we deredden.
     
-    If you give the keyword C{wave}, it is assumed that you want to (de)redden
-    a B{model}, i.e. a spectral energy distribution.
+    If you give the keyword :envvar:`wave`, it is assumed that you want to
+    (de)redden a **model**, i.e. a spectral energy distribution.
     
-    If you give the keyword C{passbands}, it is assumed that you want to (de)redden
-    B{photometry}, i.e. integrated fluxes.
+    If you give the keyword :envvar:`passbands`, it is assumed that you want to
+    (de)redden **photometry**, i.e. integrated fluxes. At this point, the
+    reddening is done monochromoatically, I guess at some point we need to
+    switch to integrating the law over the passbands first.
     
     @param flux: fluxes to (de)redden (magnitudes if C{rtype='mag'})
     @type flux: array (floats)
@@ -196,6 +206,8 @@ def redden(flux,wave=None,passbands=None,ebv=0.,rtype='flux',law='cardelli1989',
     @type passbands: array of str
     @param ebv: reddening parameter E(B-V)
     @type ebv: float
+    @param Rv: total to selective extinction ratio
+    @type Rv: float
     @param rtype: type of dereddening (magnituds or fluxes)
     @type rtype: str ('flux' or 'mag')
     @return: (de)reddened flux/magnitude
@@ -204,11 +216,13 @@ def redden(flux,wave=None,passbands=None,ebv=0.,rtype='flux',law='cardelli1989',
     if passbands is not None:
         wave = pbs.get_info(passbands)['eff_wave']
         
-    wave,mag = get_law(law,wave=wave,**kwargs)
-    if rtype=='flux':
+    wave, mag = get_law(law, wave=wave, Rv=Rv, **kwargs)
+    
+    if rtype == 'flux':
         flux_dered = flux / 10**(mag*ebv/2.5)
-    elif rtype=='mag':
+    elif rtype == 'mag':
         flux_dered = flux + mag*ebv
+        
     return flux_dered
 
 

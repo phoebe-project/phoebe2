@@ -206,7 +206,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
 #    INTERSTELLAR REDDENING
 defs += [dict(qualifier='law',       description='Interstellar reddening law',repr='%s',cast_type='choose',choices=['chiar2006','fitzpatrick1999','fitzpatrick2004','donnel1994','cardelli1989','seaton1979'],value='fitzpatrick2004',frame=["phoebe"],context=['reddening:interstellar']),
          dict(qualifier='extinction',description='Passband extinction',repr='%f',cast_type=float,value=0,adjust=False,frame=["phoebe"],context=['reddening:interstellar']),
-         dict(qualifier='bandpass',  description='Reference bandpass for extinction parameter',repr='%s',cast_type=str,value='JOHNSON.V',frame=["phoebe"],context=['reddening:interstellar']),
+         dict(qualifier='passband',  description='Reference bandpass for extinction parameter',repr='%s',cast_type=str,value='JOHNSON.V',frame=["phoebe"],context=['reddening:interstellar']),
          dict(qualifier='Rv',        description='Total-to-selective extinction',repr='%f',cast_type=float,value=3.1,adjust=False,frame=["phoebe"],context=['reddening:interstellar']),
         ]
 
@@ -411,9 +411,14 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
 
 #    MAGNETIC FIELD contexts
 
-defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,adjust=False,value=1.,unit='G',frame=["phoebe"],context='magnetic_field'),
-         dict(qualifier='beta',       description='Magnetic field angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field'),
-         dict(qualifier='phi0',      description='Phase angle of magnetic field',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field'),
+defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,adjust=False,value=1.,unit='G',frame=["phoebe"],context='magnetic_field:dipole'),
+         dict(qualifier='beta',       description='Magnetic field angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field:dipole'),
+         dict(qualifier='phi0',      description='Phase angle of magnetic field',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field:dipole'),
+         dict(qualifier='Bpolar',     description='Polar magnetic field strength',repr='%f',cast_type=float,adjust=False,value=1.,unit='G',frame=["phoebe"],context='magnetic_field:quadrupole'),
+         dict(qualifier='beta1',       description='First magnetic moment angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field:quadrupole'),
+         dict(qualifier='phi01',      description='Phase angle of first magnetic moment',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field:quadrupole'),
+         dict(qualifier='beta2',       description='Second magnetic moment angle wrt rotation axis',repr='%f',cast_type=float,adjust=False,value=0.,unit='deg',frame=["phoebe"],context='magnetic_field:quadrupole'),
+         dict(qualifier='phi02',      description='Phase angle of Second magnetic moment',repr='%f',cast_type=float,adjust=False,value=90.,unit='deg',frame=["phoebe"],context='magnetic_field:quadrupole'),
         ]
 
 # VELOCITY FIELD contexts
