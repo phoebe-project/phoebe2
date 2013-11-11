@@ -181,6 +181,7 @@ from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
 from phoebe.atmospheres import pulsations
 from phoebe.atmospheres import magfield
+from phoebe.atmospheres import reddening
 from phoebe.dynamics import keplerorbit
 try:
     from phoebe.utils import transit
@@ -1348,22 +1349,22 @@ class Body(object):
         component = self.get_component()
         return [child for child in parent.get_children() if child.get_component()!=component][0]
     
-    def get_globals(self):
+    def get_globals(self, context='globals'):
         """
-        Return the global ParameterSet if possible, otherwise return None.
+        Return a global ParameterSet if possible, otherwise return None.
         
         We recursively walk up the BodyBag, until we encounter a ParameterSet
         of context ``globals``. If we find one, we return it and stop the
         iteration process.
         """
         # First check if there is global parameterSet here
-        if 'globals' in self.params:
-            return self.params['globals']
+        if context in self.params:
+            return self.params[context]
         
         # Then walk up the parents.
         myparent = self.get_parent()
         if myparent is not None:
-            return myparent.get_globals()
+            return myparent.get_globals(context)
         
         # Else, for clarity, explicitly return None.
         else:
@@ -1572,7 +1573,7 @@ class Body(object):
                 
                 if 'l3' in obs and obs.get_adjust('l3'):
                     do_l3 = True
-                    
+                
                 # Do the computations
                 if do_pblum or do_l3:
                     
@@ -5389,13 +5390,15 @@ class Star(PhysicalBody):
             
         # Add magnetic field parameters when applicable
         if magnetic_field is not None:
-            check_input_ps(self, magnetic_field, ['magnetic_field'], 'magnetic_field')
+            check_input_ps(self, magnetic_field,
+                          ['magnetic_field:dipole','magnetic_field:quadrupole'],
+                           'magnetic_field')
             self.params['magnetic_field'] = magnetic_field
         
         # Add velocity field parameters when applicable
         if velocity_field is not None:
             check_input_ps(self, velocity_field, ['velocity_field:turb'], 'velocity_field')
-            self.params['velocity_field:turb'] = velocity_field
+            self.params['velocity_field'] = velocity_field
         
         # Add the parameters to compute dependables
         if pbdep is not None:
@@ -5521,23 +5524,38 @@ class Star(PhysicalBody):
         """
         Calculate the magnetic field.
         
-        Problem: when the surface is deformed, I need to know the value of
-        the radius at the magnetic pole. Or we could just interpret the
-        polar magnetic field as the magnetic field strength in the direction
-        of the magnetic axes but at a distance of 1 polar radius....
+        The magnetic field can be a :py:func:`dipole <phoebe.atmospheres.magfield.get_dipole>`
+        or a :py:func:`(non-linear) quadrupole <phoebe.atmospheres.magfield.get_quadrupole>`
         """
-        # Dipolar field:
+        # Figure out if we have a dipole or quadrupole
         parset = self.params['magnetic_field']
-        beta = parset.get_value('beta', 'rad')
-        phi0 = parset.get_value('phi0', 'rad')
+        context = parset.get_context()
+        topology = context.split(':')[-1]
+        
+        # Some basic quantities we need regardless of the topology
         Bpolar = parset.get_value('Bpolar')
         R = self.params.values()[0].get_value('radius')
         r_ = self.mesh['_o_center']
-        B = magfield.get_dipole(time, r_, R, beta, phi0, Bpolar)
+        
+        # Then finally get the field according to its topology
+        if topology == 'dipole':
+            beta1 = parset.get_value('beta', 'rad')
+            phi01 = parset.get_value('phi0', 'rad')
+            B = magfield.get_dipole(time, r_, R, beta, phi0, Bpolar)
+        
+        elif topology == 'quadrupole':
+            beta1 = parset.get_value('beta1', 'rad')
+            phi01 = parset.get_value('phi01', 'rad')
+            beta2 = parset.get_value('beta2', 'rad')
+            phi02 = parset.get_value('phi02', 'rad')
+            B = magfield.get_quadrupole(time, r_, R, beta1, phi01, beta2, phi02, Bpolar)
+        
+        # And add it to the mesh!
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
-        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar, beta/pi*180))
-        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B, axis=1).max()))
+        
+        logger.info("Added {} magnetic field with Bpolar={}G".format(topology, Bpolar))
+        #logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B, axis=1).max()))
     
     
     @decorators.parse_ref
@@ -5546,7 +5564,7 @@ class Star(PhysicalBody):
         Calculate local intensity and limb darkening coefficients.
         """
         #-- now run over all labels and compute the intensities
-        parset_isr = self.params['reddening']
+        parset_isr = dict() #self.params['reddening']
         for iref in ref:
             parset_pbdep, ref = self.get_parset(ref=iref, type='pbdep')
             limbdark.local_intensity(self, parset_pbdep, parset_isr)
@@ -5583,42 +5601,47 @@ class Star(PhysicalBody):
         velo_rot = 2*pi*np.cross(self.mesh['_o_center'],omega_rot) #NX3 array
         
         # We can add velocity fields here if we wish:
-        if 'velocity_field:turb' in self.params:
-            vmacro_rad = self.params['velocity_field:turb'].request_value('vmacro_rad', 'Rsol/d')
-            vmacro_tan = self.params['velocity_field:turb'].request_value('vmacro_tan', 'Rsol/d')
+        if 'velocity_field' in self.params:
+            ps = self.params['velocity_field']
+            context = ps.get_context()
+            subcontext = context.split(':')[1]
             
-            # In order to get it similar to tools.broadening_macroturbulent, I
-            # suspiciously need to divide my vmacro with pi/sqrt(2)....
-            if vmacro_rad > 0 or vmacro_tan > 0:
-                
-                # Compute the local coordinate frames that have one axis as the
-                # normal on each surface element, one that is horizontal (wrt
-                # the z-axis) and one vertical.
-                radial = self.mesh['_o_normal_']
-                x, y, z = radial.T
-                n = np.sqrt(x**2+y**2)
-                horizontal = np.array([y/n, -x/n, np.zeros_like(x)]).T
-                vertical = np.array([z*x/n, z*y/n, -(x**2+y**2)/n]).T
-                vmacro_radial = vmacro_rad
-                vmacro_tanx = vmacro_tan/np.sqrt(2)
-                vmacro_tany = vmacro_tan/np.sqrt(2)
-                
-                # Then generate randomly distributed Gaussian velocities for
-                # each direction
-                np.random.seed(1111)
-                vmacro = np.random.normal(size=velo_rot.shape)
-                vmacro[:,0] *= vmacro_radial
-                vmacro[:,1] *= vmacro_tanx
-                vmacro[:,2] *= vmacro_tany
-                
-                # And convert them from the local reference frame to the global
-                # one
-                vmacro = vmacro[:,0][:,None] * radial + \
-                         vmacro[:,1][:,None] * horizontal + \
-                         vmacro[:,2][:,None] * vertical
-                velo_rot += vmacro
-                
-                logger.info("Added macroturbulent velocity field with vR,vT={},{}".format(vmacro_rad,vmacro_tan))
+            if subcontext == 'turb':
+                vmacro_rad = ps.request_value('vmacro_rad', 'Rsol/d')
+                vmacro_tan = ps.request_value('vmacro_tan', 'Rsol/d')
+            
+                # In order to get it similar to tools.broadening_macroturbulent, I
+                # suspiciously need to divide my vmacro with pi/sqrt(2)....
+                if vmacro_rad > 0 or vmacro_tan > 0:
+                    
+                    # Compute the local coordinate frames that have one axis as the
+                    # normal on each surface element, one that is horizontal (wrt
+                    # the z-axis) and one vertical.
+                    radial = self.mesh['_o_normal_']
+                    x, y, z = radial.T
+                    n = np.sqrt(x**2+y**2)
+                    horizontal = np.array([y/n, -x/n, np.zeros_like(x)]).T
+                    vertical = np.array([z*x/n, z*y/n, -(x**2+y**2)/n]).T
+                    vmacro_radial = vmacro_rad
+                    vmacro_tanx = vmacro_tan/np.sqrt(2)
+                    vmacro_tany = vmacro_tan/np.sqrt(2)
+                    
+                    # Then generate randomly distributed Gaussian velocities for
+                    # each direction
+                    np.random.seed(1111)
+                    vmacro = np.random.normal(size=velo_rot.shape)
+                    vmacro[:,0] *= vmacro_radial
+                    vmacro[:,1] *= vmacro_tanx
+                    vmacro[:,2] *= vmacro_tany
+                    
+                    # And convert them from the local reference frame to the global
+                    # one
+                    vmacro = vmacro[:,0][:,None] * radial + \
+                            vmacro[:,1][:,None] * horizontal + \
+                            vmacro[:,2][:,None] * vertical
+                    velo_rot += vmacro
+                    
+                    logger.info("Added macroturbulent velocity field with vR,vT={},{}".format(vmacro_rad,vmacro_tan))
         
         self.mesh['_o_velo___bol_'] = velo_rot
         self.mesh['velo___bol_'] = velo_rot
@@ -5643,11 +5666,22 @@ class Star(PhysicalBody):
         proj_int = limbdark.projected_intensity(self, method=method,
                 ld_func=ld_func, ref=ref,
                 with_partial_as_half=with_partial_as_half)
+        
         # Scale the projected intensity with the distance
         globals_parset = self.get_globals()
+        
         if globals_parset is not None:
             distance = globals_parset.request_value('distance', 'Rsol')
             proj_int /= distance**2
+        
+        # Take reddening into account
+        red_parset = self.get_globals('reddening')
+        
+        if red_parset is not None and ref!='__bol':
+            ebv = red_parset['extinction'] / red_parset['Rv']
+            proj_int = reddening.redden(proj_int, passbands=[idep['passband']], ebv=ebv, rtype='flux',
+                             law=red_parset['law'])[0]
+            
         # Take passband luminosity into account
         if pblum >= 0:
             return proj_int*pblum + l3

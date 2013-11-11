@@ -380,7 +380,10 @@ class DeprecatedDistribution(object):
         return np.nan
     
     def get_scale(self):
-        return np.nan
+        if self.distribution == 'normal':
+            return self.distr_pars['sigma']
+        else:
+            return np.nan
 
 
 class Normal(DeprecatedDistribution):
