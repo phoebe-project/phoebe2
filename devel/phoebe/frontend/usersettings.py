@@ -132,6 +132,6 @@ def load_configfile(name, section=None, pararameter_sets=None):
     # Else, we have parameterSets!
     for key, value in settings.items(server):
         for ps in parameter_sets:
-            if key in ps;
+            if key in ps:
                 ps[key] = value
     
