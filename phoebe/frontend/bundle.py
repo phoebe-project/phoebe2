@@ -1360,6 +1360,63 @@ class Bundle(object):
     #}
 
     #{ Figures
+    def plot_obs(self,dataref,**kwargs):
+        """
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
+        """
+        ds = self.get_obs(dataref=dataref)[0]
+        typ = ds.context[:-3]
+        
+        if typ=='lc':
+            plotting.plot_lcobs(self.system,ref=dataref,**kwargs)
+        elif typ=='rv':
+            plotting.plot_rvobs(self.system,ref=dataref,**kwargs)
+        elif typ=='sp':
+            plotting.plot_spobs(self.system,ref=dataref,**kwargs)
+        elif typ=='if':
+            plotting.plot_ifobs(self.system,ref=dataref,**kwargs)
+        elif typ=='etv':
+            plotting.plot_etvobs(self.system,ref=dataref,**kwargs)
+        
+    def plot_syn(self,dataref,**kwargs):
+        """
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
+        """
+        ds = self.get_syn(dataref=dataref)[0]
+        typ = ds.context[:-3]
+        
+        if typ=='lc':
+            plotting.plot_lcsyn(self.system,ref=dataref,**kwargs)
+        elif typ=='rv':
+            plotting.plot_rvsyn(self.system,ref=dataref,**kwargs)
+        elif typ=='sp':
+            plotting.plot_spsyn(self.system,ref=dataref,**kwargs)
+        elif typ=='if':
+            plotting.plot_ifsyn(self.system,ref=dataref,**kwargs)
+        elif typ=='etv':
+            plotting.plot_etvsyn(self.system,ref=dataref,**kwargs)        
+            
+    def plot_residuals(self,dataref,**kwargs):
+        """
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
+        """
+        ds = self.get_obs(dataref=dataref)[0]
+        typ = ds.context[:-3]
+        
+        if typ=='lc':
+            plotting.plot_lcres(self.system,ref=dataref,**kwargs)
+        elif typ=='rv':
+            plotting.plot_rvres(self.system,ref=dataref,**kwargs)
+        elif typ=='sp':
+            plotting.plot_spres(self.system,ref=dataref,**kwargs)
+        elif typ=='if':
+            plotting.plot_ifres(self.system,ref=dataref,**kwargs)
+        elif typ=='etv':
+            plotting.plot_etvres(self.system,ref=dataref,**kwargs)    
+    
     def get_axes(self,ident=None):
         """
         Return an axes or list of axes that matches index OR title
