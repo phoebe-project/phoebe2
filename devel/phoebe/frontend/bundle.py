@@ -1075,12 +1075,27 @@ class Bundle(object):
         @rtype: ParameterSet
         """
         # create a dictionary with key as the label
-        compute_options = {co.get_value('label'): co for co in self.compute_options}
+        compute_options = self.usersettings.get_compute()
+        # bundle compute options override those in usersettings
+        for co in self.compute_options:
+            compute_options[co.get_value('label')] = co
         
         if label is None:
             return compute_options
         elif label in compute_options.keys():
-            return compute_options[label]
+            co = compute_options[label]
+            if co not in self.compute_options:
+                # then this came from usersettings - so we need to copy to bundle
+                # and return the new version.  From this point on, this version will
+                # be returned and used even if usersettings is changed.
+                # To return to the default options, remove from the bundle
+                # by calling bundle.remove_compute(label)
+                co_return = copy.deepcopy(co)
+                self.add_compute(co_return)
+                return co_return
+            else:
+                # then we're return from bundle already
+                return co
         else:
             return None
         
@@ -1181,12 +1196,27 @@ class Bundle(object):
         @rtype: ParameterSet
         """
         # create a dictionary with key as the label
-        fitting_options = {fo.get_value('label'): fo for fo in self.fitting_options}
+        fitting_options = self.usersettings.get_fitting()
+        # bundle fitting options override those in usersettings
+        for co in self.fitting_options:
+            fitting_options[co.get_value('label')] = co
         
         if label is None:
             return fitting_options
         elif label in fitting_options.keys():
-            return fitting_options[label]
+            fo = fitting_options[label]
+            if fo not in self.fitting_options:
+                # then this came from usersettings - so we need to copy to bundle
+                # and return the new version.  From this point on, this version will
+                # be returned and used even if usersettings is changed.
+                # To return to the default options, remove from the bundle
+                # by calling bundle.remove_fitting(label)
+                fo_return = copy.deepcopy(fo)
+                self.add_fitting(fo_return)
+                return fo_return
+            else:
+                # then we're return from bundle already
+                return fo
         else:
             return None
         

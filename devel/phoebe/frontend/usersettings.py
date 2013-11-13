@@ -2,6 +2,7 @@ import os
 import pickle
 import ConfigParser
 from server import Server
+from phoebe.parameters import parameters
 
 class Settings(object):
     def __init__(self):
@@ -24,12 +25,31 @@ class Settings(object):
             
         self.preferences = {}
         self.servers = []
+        self.compute_options = []
+        self.fitting_options = []
+        
+        self.add_compute(label='Compute')
+        self.add_compute(label='Preview')
+        
+        self.add_fitting(context='fitting:grid',label='grid')
+        self.add_fitting(context='fitting:minuit',label='minuit')
+        self.add_fitting(context='fitting:lmfit',label='lmfit')
+        self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
+        self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
+        self.add_fitting(context='fitting:emcee',label='emcee')
+        self.add_fitting(context='fitting:pymc',label='pymc')
+        
+        # compute options and fitting options will need new parameter label
+        # when calling get_compute from bundle, if not found at the bundle level, will then check settings
+        # changing a value from bundle will copy from the settings into the bundle and change that value
         
     def get_value(self,key):
         return self.preferences[key] if key in self.preferences.keys() else self.default_preferences[key]
         
     def set_value(self,key,value):
         self.preferences[key] = value
+        
+    #{Servers
         
     def get_server(self,label=None):
         servers = {s.get_value('label'): s for s in self.servers}
@@ -66,6 +86,103 @@ class Settings(object):
         """
         
         return self.servers.pop(self.servers.index(self.get_server(label)))
+        
+    #}
+    #{ Compute
+    
+    def add_compute(self,compute=None,**kwargs):
+        """
+        Add a new compute ParameterSet
+        
+        @param compute: compute ParameterSet
+        @type compute:  None or ParameterSet
+        """
+        if compute is None:
+            compute = parameters.ParameterSet(context='compute')
+        for k,v in kwargs.items():
+            compute.set_value(k,v)
+            
+        self.compute_options.append(compute)
+
+    def get_compute(self,label=None,copy=False):
+        """
+        Get a compute ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: compute ParameterSet
+        @rtype: ParameterSet
+        """
+        # create a dictionary with key as the label
+        compute_options = {co.get_value('label'): co for co in self.compute_options}
+        
+        if label is None:
+            return compute_options
+        elif label in compute_options.keys():
+            return compute_options[label]
+        else:
+            return None
+        
+    def remove_compute(self,label):
+        """
+        Remove a given compute ParameterSet
+        
+        @param label: name of compute ParameterSet
+        @type label: str
+        """
+        if label is None:    return None
+        return self.compute_options.pop(self.compute_options.index(self.get_compute(label))) 
+        
+    #}
+    #{ Fitting
+
+    def add_fitting(self,fitting=None,**kwargs):
+        """
+        Add a new fitting ParameterSet
+        
+        @param fitting: fitting ParameterSet
+        @type fitting:  None, or ParameterSet
+        @param copy: whether to return deepcopy
+        @type copy: bool
+        """
+        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
+        if fitting is None:
+            fitting = parameters.ParameterSet(context=context)
+        for k,v in kwargs.items():
+            fitting.set_value(k,v)
+            
+        self.fitting_options.append(fitting)
+
+    def get_fitting(self,label=None):
+        """
+        Get a fitting ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: fitting ParameterSet
+        @rtype: ParameterSet
+        """
+        # create a dictionary with key as the label
+        fitting_options = {fo.get_value('label'): fo for fo in self.fitting_options}
+        
+        if label is None:
+            return fitting_options
+        elif label in fitting_options.keys():
+            return fitting_options[label]
+        else:
+            return None
+        
+    def remove_fitting(self,label):
+        """
+        Remove a given fitting ParameterSet
+        
+        @param label: name of fitting ParameterSet
+        @type label: str
+        """
+        if label is None:    return None
+        return self.fitting_options.pop(self.fitting_options.index(self.get_fitting(label)))     
+        
+    #}
 
     def save(self,filename=None):
         """
