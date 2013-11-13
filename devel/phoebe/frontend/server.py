@@ -18,10 +18,10 @@ class Server(object):
         @type mount_dir: str or None
         """
         self.mpi_ps = mpi
-        if server is not None:
-            self.server_ps = parameters.ParameterSet(context='server',label=label,server=server,server_dir=server_dir,server_script=server_script,mount_dir=mount_dir)
-        else:
-            self.server_ps = None
+        #~ if server is not None:
+        self.server_ps = parameters.ParameterSet(context='server',label=label,server=server,server_dir=server_dir,server_script=server_script,mount_dir=mount_dir)
+        #~ else:
+            #~ self.server_ps = None
 
     def set_value(self,qualifier,value):
         
@@ -45,13 +45,13 @@ class Server(object):
         """
         checks whether this server is on an external machine (not is_local())
         """
-        return self.server_ps is not None
+        return self.server_ps.get_value('server') != 'None'
         
     def is_local(self):
         """
         check whether this server is on the local machine
         """
-        return self.server_ps is None
+        return self.server_ps.get_value('server') == 'None'
         
     def check_connection(self):
         """

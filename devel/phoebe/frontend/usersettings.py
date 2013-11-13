@@ -23,7 +23,7 @@ class Settings(object):
             }
             
         self.preferences = {}
-        self.servers = {}
+        self.servers = []
         
     def get_value(self,key):
         return self.preferences[key] if key in self.preferences.keys() else self.default_preferences[key]
@@ -32,9 +32,13 @@ class Settings(object):
         self.preferences[key] = value
         
     def get_server(self,label=None):
-        return self.servers[label]
+        servers = {s.get_value('label'): s for s in self.servers}
         
-    def add_server(self,label,mpi,server=None,server_dir=None,server_script=None,mount_dir=None):
+        if label in servers.keys():
+            return servers[label]
+        return servers
+        
+    def add_server(self,label,mpi=None,server=None,server_dir=None,server_script=None,mount_dir=None):
         """
         add a new server
         
@@ -51,7 +55,17 @@ class Settings(object):
         @param mount_dir: local mounted location of server:server_dir, or None if local
         @type mount_dir: str or None
         """
-        self.servers[label] = Server(mpi,label,server,server_dir,server_script,mount_dir)
+        self.servers.append(Server(mpi,label,server,server_dir,server_script,mount_dir))
+        
+    def remove_server(self,label):
+        """
+        remove a server by name
+        
+        @param label: name of the server
+        @type label: str
+        """
+        
+        return self.servers.pop(self.servers.index(self.get_server(label)))
 
     def save(self,filename=None):
         """

@@ -44,6 +44,51 @@ class CreatePopParamEdit(QDialog, gui.Ui_popParamEdit_Dialog):
         super(CreatePopParamEdit, self).__init__(parent)
         self.setupUi(self)
         
+class StatusPushButton(QPushButton):
+    def __init__(self, parent=None, server=None, job=None):
+        """
+        provide server (object) and job (script name string) for job
+        or just server (object) for server
+        """
+        super(StatusPushButton, self).__init__(parent)
+        
+        icon = QIcon()
+        icon.addPixmap(QPixmap(":/images/icons/bullet.png"), QIcon.Normal, QIcon.Off)
+        self.setIcon(icon)
+        
+        self.setFlat(True)
+        self.setIconSize(QSize(32, 32))
+        self.setMaximumSize(QSize(18,18))
+    
+        self.server = server
+        self.job = job
+        
+        self.connect(self, SIGNAL("clicked()"), self.update_status)
+        self.update_status()
+        
+        #~ self.status_icon = QIcon()
+        #~ self.status_icon.addPixmap(QPixmap(":/images/icons/bullet.png"), QIcon.Normal, QIcon.Off)
+        #~ self.setIcon(self.status_icon)
+        
+    def update_status(self):
+        if self.job is not None and self.server is not None:
+            status = self.server.check_script_complete(self.job)            
+        elif self.server is not None:
+            status = self.server.check_connection()
+        else:
+            status = True
+
+        self.colorize('green' if status else 'red')
+    
+    def colorize(self,color):
+        colorize = QGraphicsColorizeEffect()
+        qcolor = QColor()                                
+        qcolor.setNamedColor(color)
+        colorize.setColor(qcolor)
+        self.setGraphicsEffect(colorize)
+        
+        self.setStyleSheet('QPushButton {background-color: blue};QPushButton:pressed {background-color: blue};')
+        
 class GeneralParameterTreeWidget(QTreeWidget):
     """
     probably not used on its own, but all versions of the parameter tree widget can be subclassed from this
@@ -594,6 +639,91 @@ class FittingTreeWidget(GeneralParameterTreeWidget):
         # reset state
         stackedwidget.setCurrentIndex(0)
         self.selected_item = None
+        
+class ServerListTreeWidget(GeneralParameterTreeWidget):
+    """
+    parameter tree view in preferences:server
+    """
+    def set_data(self,servers):
+        
+        self.clear()
+        self.servers = servers
+        self.statusbuttons = []
+        
+        ### build rows
+        
+        for servername,server in servers.items():
+            item = QTreeWidgetItem()
+            #~ item.info = {'dataset': dataset, 'widgets': []}
+            self.addTopLevelItem(item)
+            
+            # col 1 (status & servername)
+            frame = QWidget()
+            HBox = QHBoxLayout()
+            HBox.setSpacing(4)
+            HBox.setMargin(2)
+            frame.setLayout(HBox) 
+            
+            statusbutton = StatusPushButton(server=server)        
+            self.statusbuttons.append(statusbutton)  
+            HBox.addWidget(statusbutton)
+
+            label = QLabel(QString(servername))
+            HBox.addWidget(label)
+
+            self.setItemWidget(item,0,frame)
+            
+            # col 2 (servername)
+            mpi_ps = server.mpi_ps
+            if mpi_ps is None:
+                mpi_type = "No MPI"
+            else:
+                mpi_type = "%s:np=%d" % (mpi_ps.context,mpi_ps.get_value('np'))
+            
+            label = QLabel(QString(mpi_type))
+            self.setItemWidget(item,1,label)
+            
+            # col 3 (edit button)
+            frame = QWidget()
+            HBox = QHBoxLayout()
+            HBox.setSpacing(0)
+            HBox.setMargin(2)
+            frame.setLayout(HBox)  
+            
+            spacer = QSpacerItem(0, 18, QSizePolicy.Expanding, QSizePolicy.Minimum)
+            HBox.addItem(spacer)           
+            
+            edit_button = QPushButton()
+            edit_button.setIcon(self.edit_icon)
+            edit_button.setMaximumSize(QSize(18, 18))
+            edit_button.setToolTip("edit %s server" % servername)
+            edit_button.info = {'server': server, 'servername': servername}
+            QObject.connect(edit_button, SIGNAL('clicked()'), self.on_edit_clicked)
+            HBox.addWidget(edit_button)
+
+            delete_button = QPushButton()
+            delete_button.setIcon(self.delete_icon)
+            delete_button.setMaximumSize(QSize(18, 18))
+            delete_button.setToolTip("remove %s server" % servername)
+            delete_button.info = {'server': server, 'servername': servername}
+            QObject.connect(delete_button, SIGNAL('clicked()'), self.on_delete_clicked)
+            HBox.addWidget(delete_button)
+            
+            self.setItemWidget(item,2,frame)
+            
+    def on_edit_clicked(self,*args):
+        w = self.sender()
+        server, servername = w.info['server'], w.info['servername']
+
+        self.emit(SIGNAL('edit_server_clicked'),servername,server)
+        
+    def on_delete_clicked(self,*args):
+        w = self.sender()
+        server, servername = w.info['server'], w.info['servername']
+        
+        self.emit(SIGNAL('delete_server_clicked'),servername,server)
+            
+            
 
 class DatasetTreeWidget(GeneralParameterTreeWidget):
     """
@@ -1262,7 +1392,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
 
         for n,params in enumerate(data):
             for k,v in params.items():
-                if 'label' not in k and k not in ['feedback']:
+                if ('label' not in k or 'incl_label' in self.style) and k not in ['feedback']:
                     par = params.get_parameter(k)
                     adj = params.get_adjust(k)
                     
