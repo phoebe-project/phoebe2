@@ -525,6 +525,7 @@ defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s'
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:grid'),
          dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',
                                      long_description=("Determines the type of iterations. Suppose the prior on parameter 'a' is [0,1,2] and "
                                                        "on parameter 'b' it is [7,8,9]. Then, if iterate=list, the fitting routines will "

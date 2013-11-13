@@ -203,7 +203,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.tb_tools_scriptAction, SIGNAL("activated()"), self.on_load_script)
         
         # left panel signals
-        QObject.connect(self.lp_previewPushButton, SIGNAL("clicked()"), self.on_observe_clicked)
+        QObject.connect(self.lp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_observeOption_changed)
         QObject.connect(self.lp_computePushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_progressQuit, SIGNAL("clicked()"), self.cancel_thread)
         
@@ -1020,36 +1020,38 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_systemEdit_clicked(self):
         self.mp_stackedWidget.setCurrentIndex(4)
+        
+    def update_observeoptions(self):
+        currenttext = self.lp_methodComboBox.currentText()
+        self.lp_methodComboBox.clear()
+        for k,v in self.bundle.get_compute().iteritems():
+            self.lp_methodComboBox.addItem(k)
+
+        # return to original selection
+        if len(currenttext) > 0: #ignore empty case
+            self.lp_methodComboBox.setCurrentIndex(self.lp_methodComboBox.findText(currenttext))
+        
+    def on_observeOption_changed(self, *args):
+        # get the correct parameter set and send to treeview
+        combo = self.lp_methodComboBox
+        key = str(combo.currentText())
+        if len(key)==0: return
+        #~ print "*** on_fittingOption_changed", key
+        
+        co = self.bundle.get_compute(key)
+            
+        self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit'])
+        self.lp_observeoptionsTreeView.headerItem().setText(1, key)
                 
     def on_observe_clicked(self):
-        if self.sender()==self.lp_previewPushButton:
-            kind = 'Preview'
-        else: 
-            kind = 'Compute'
+        kind = str(self.lp_methodComboBox.currentText())
 
-        if kind not in self.bundle.get_compute():
-            # then we need to create a compute parameterSet with default options
-            #~ p = {key.replace(kind+"_",""): value for (key, value) in self.prefs.iteritems() if key.split('_')[0]==kind}
-            #~ self.on_observeOptions_createnew(kind, p)
-            self.observe_create(kind)
-            
         self.bundle.purge_signals(self.bundle.attached_signals_system)
         params = self.bundle.get_compute(kind).copy()
         observatory.extract_times_and_refs(self.bundle.get_system(),params)
         self.set_time_is = len(params.get_value('time'))
         self.PyInterp_run('bundle.run_compute(\'%s\')' % (kind), kind='sys', thread=True)
 
-    def on_observeOptions_createnew(self, kind, options):
-        """
-        this function will be run before changing observeoptions if the default parameterset has not already been created
-        """
-        # kind = 'compute' or 'preview'
-        # options is a dictionary of all options needed to be sent to the parameterSet
-        
-        args = ",".join(["%s=\'%s\'" % (key, options[key]) for key in options if key!='mpi'])
-        command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.add_compute(parameters.ParameterSet(context=\'compute\',%s),\'%s\')' % (args,kind),'bundle.remove_compute(\'%s\')' % (kind),kind='sys',thread=False,description='save %s options' % kind)
-        self.undoStack.push(command) 
-        
     def on_orbit_update_clicked(self,*args):
         """
         """
@@ -1101,14 +1103,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             kind = 'orbit'
         elif treeview==self.lp_observeoptionsTreeView:
             kind = 'compute'
-            if label not in self.bundle.get_compute():
-                # need to first create item
-                self.observe_create(label)
         elif treeview==self.rp_fitoptionsTreeView:
             kind = 'fitting'
-            if label not in self.bundle.get_fitting():
-                # need to first creat item
-                self.fitting_create(label)
+
         elif treeview==self.sys_orbitOptionsTreeView:
             kind = 'orbitview'
             label = 'orbitview'
@@ -1239,9 +1236,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bp_pyDockWidget.setVisible(self.tb_view_pythonAction.isChecked())
             
             # check whether system is uptodate
-            uptodate = self.bundle.get_uptodate()
-            self.lp_previewPushButton.setEnabled(uptodate!='Preview')
-            self.lp_computePushButton.setEnabled(uptodate!='Compute')
+            #~ uptodate = self.bundle.get_uptodate()
+            #~ self.lp_computePushButton.setEnabled(uptodate==True)
             
             # update misc gui items
             self.versions_oncompute.setEnabled(False)
@@ -1432,60 +1428,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #should we only draw this if its visible?
         #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
             
-    def update_observeoptions(self):
-        default = {}
-        
-        # apply any default from user settings
-        default['Preview'] = parameters.ParameterSet(context='compute')
-        default['Compute'] = parameters.ParameterSet(context='compute')
-        
-        computes = []
-        for key in ['Preview','Compute']:
-            if key in self.bundle.get_compute():
-                computes.append(self.bundle.get_compute(key))
-            else:
-                computes.append(default[key])
-                
-        self.lp_observeoptionsTreeView.set_data(computes,style=['nofit'])
-        self.lp_observeoptionsTreeView.headerItem().setText(1, 'Preview')
-        self.lp_observeoptionsTreeView.headerItem().setText(2, 'Compute')
-        self.lp_observeoptionsTreeView.resizeColumnToContents(0) 
-        
-    def observe_create(self, kind):
-        command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_compute(label=\'%s\')' % (kind), 'bundle.remove_compute(\'%s\')' % kind,thread=False,description='add compute options %s' % kind)
-        self.undoStack.push(command)
-        
-    def fitting_create(self, kind):
-        command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_fitting(context=\'fitting:%s\',label=\'%s\')' % (kind,kind), 'bundle.remove_fitting(\'%s\')' % kind,thread=False,description='add fitting options %s' % kind)
-        self.undoStack.push(command)
-    
+
     def update_fittingOptions(self, *args):
-        #~ print "*** update_fittingOptions"
-        default = OrderedDict()
-        
-        default['grid'] = parameters.ParameterSet(context='fitting:grid')
-        default['minuit'] = parameters.ParameterSet(context='fitting:minuit')
-        default['lmfit'] = parameters.ParameterSet(context='fitting:lmfit')
-        default['lmfit:leastsq'] = parameters.ParameterSet(context='fitting:lmfit:leastsq')
-        default['lmfit:nelder'] = parameters.ParameterSet(context='fitting:lmfit:nelder')
-        default['emcee'] = parameters.ParameterSet(context='fitting:emcee')
-        default['pymc'] = parameters.ParameterSet(context='fitting:pymc')
-        
-        #loop through fitting options in bundle first
         currenttext = self.rp_methodComboBox.currentText()
-        fittingkeys = []
         self.rp_methodComboBox.clear()
         for k,v in self.bundle.get_fitting().iteritems():
-            fittingkeys.append(k)
             self.rp_methodComboBox.addItem(k)
-        for k,v in default.iteritems():
-            if k not in fittingkeys:
-                fittingkeys.append(k)
-                self.rp_methodComboBox.addItem(k)
+
         # return to original selection
         if len(currenttext) > 0: #ignore empty case
             self.rp_methodComboBox.setCurrentIndex(self.rp_methodComboBox.findText(currenttext))
-        
         
     def on_fittingOption_changed(self, *args):
         # get the correct parameter set and send to treeview
@@ -1494,10 +1446,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if len(key)==0: return
         #~ print "*** on_fittingOption_changed", key
         
-        if key in self.bundle.get_fitting():
-            fitting = self.bundle.get_fitting(key)
-        else:
-            fitting = parameters.ParameterSet(context="fitting:%s" % key)
+        fitting = self.bundle.get_fitting(key)
             
         self.rp_fitoptionsTreeView.set_data([fitting],style=['nofit'])
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
@@ -1507,11 +1456,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #override label
         #~ label = str(self.rp_methodComboBox.currentText())
         paramname = param.get_qualifier()
-        
-        #~ if label not in self.bundle.get_fitting():
-            # need to first create item
-            #~ command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_fitting(parameters.ParameterSet(context=\'fitting:%s\'), \'%s\')' % (label, label), 'bundle.remove_fitting(\'%s\')' % label,thread=False,description='add fitting options %s' % label)
-            #~ self.undoStack.push(command)
         
         command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_fitting(\'%s\').set_value(\'%s\',\'%s\')' % (label,paramname,newvalue),'bundle.get_fitting(\'%s\').set_value(\'%s\',\'%s\')' % (label,paramname,oldvalue),thread=False,description='change value of fitting:%s:%s' % (label,param))
             
@@ -1538,12 +1482,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_fit_clicked(self):
         label = str(self.rp_methodComboBox.currentText())
-
-        if label not in self.bundle.get_fitting():
-            # need to first create item
-            self.fitting_create(label)
-        if 'Compute' not in self.bundle.get_compute():
-            self.observe_create('Compute')
 
         self.PyInterp_run('bundle.run_fitting(\'Compute\', \'%s\')' % (label),thread=True,kind='sys')
         

@@ -136,41 +136,60 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                 
             #~ for w in self.findChildren(QComboBox):
                 #~ pass
-        
-        ### server stuff
-               
+                
         for w in self.findChildren(QComboBox):
             if w.objectName().split('_')[0]=='s':
                 key = "_".join(str(w.objectName()).split('_')[1:])
-                servernames = ['None']+self.prefs.get_server().keys()
+                names = ['None']+self.prefs.get_server().keys()
             elif w.objectName() == 'sx_serveredit_combo':
                 key = None
-                servernames = self.prefs.get_server().keys()
+                names = self.prefs.get_server().keys()
+            elif w.objectName() == 'co_edit_combo':
+                key = None
+                names = self.prefs.get_compute().keys()
+            elif w.objectName() == 'fo_edit_combo':
+                key = None
+                names = self.prefs.get_fitting().keys()
             else:
                 continue
             
             orig_text = str(w.currentText())
             w.setEnabled(False)
             w.clear()
-            w.addItems(servernames)
+            w.addItems(names)
+
             if key is not None:
                 w.current_value = p[key]
                 if p[key] is not False:
-                    if p[key] in servernames:
-                        w.setCurrentIndex(servernames.index(p[key]))
+                    if p[key] in names:
+                        w.setCurrentIndex(names.index(p[key]))
             else: #then we want to try to restore to original selection
-                if orig_text in servernames:
-                    w.setCurrentIndex(servernames.index(orig_text))
-            w.setEnabled(True)
-            
+                if orig_text in names:
+                    w.setCurrentIndex(names.index(orig_text))
+            w.setEnabled(True)                    
             
             if init:
                 if key is None: #then this doesn't control a parameter
                     if w.objectName() == 'sx_serveredit_combo':
                         self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.serveredit_changed) 
+                        self.serveredit_changed(names[0])
+                    elif w.objectName() == 'co_edit_combo':
+                        self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.coedit_changed)
+                        self.coedit_changed(names[0])
+                    elif w.objectName() == 'fo_edit_combo':
+                        self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.foedit_changed)
+                        self.foedit_changed(names[0])
                 else:
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
-                   
+                
+        ### defaults stuff
+        if init:
+            self.connect(self.co_psedit, SIGNAL("parameterChanged"), self.on_coparam_changed)
+            self.connect(self.fo_psedit, SIGNAL("parameterChanged"), self.on_foparam_changed)
+            self.connect(self.co_add, SIGNAL("clicked()"), self.on_add_co_clicked)
+            #~ self.connect(self.fo_add, SIGNAL("clicked()"), self.on_add_fo_clicked)
+        
+        ### server stuff
         if init:
             for tv in [self.sx_serveredit_psedit, self.sx_serveredit_mpipsedit]:
                 self.connect(tv, SIGNAL("parameterChanged"), self.on_serverparam_changed)
@@ -234,6 +253,22 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         self.sx_serveredit_psedit.set_data([server.server_ps] if server is not None else [],style=['nofit','incl_label'])
         self.sx_serveredit_mpipsedit.set_data([server.mpi_ps] if server is not None and server.mpi_ps is not None else [],style=['nofit','incl_label'])
         
+    def coedit_changed(self,label):
+        if label == 'None' or label == '':
+            co = None
+        else:
+            co = self.prefs.get_compute(str(label))
+            
+        self.co_psedit.set_data([co] if co is not None else [],style=['nofit','incl_label'])
+        
+    def foedit_changed(self,label):
+        if label == 'None' or label == '':
+            fo = None
+        else:
+            fo = self.prefs.get_fitting(str(label))
+            
+        self.fo_psedit.set_data([fo] if fo is not None else [],style=['nofit'])
+        
     def on_serverparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
         
         label = str(self.sx_serveredit_combo.currentText())
@@ -241,6 +276,32 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         do_command = "settings.get_server('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
         undo_command = "settings.get_server('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
         description = "change setting: %s" % param.get_qualifier()
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        
+    def on_coparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
+        
+        label = str(self.co_edit_combo.currentText())
+        
+        do_command = "settings.get_compute('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.get_compute('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        description = "change compute %s: %s" % (label,param.get_qualifier())
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        
+    def on_foparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
+        
+        label = str(self.fo_edit_combo.currentText())
+        
+        do_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        description = "change fitting %s: %s" % (label,param.get_qualifier())
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        
+    def on_add_co_clicked(self):
+        
+        label = 'new compute'
+        do_command = "settings.add_compute(label='%s')" % (label)
+        undo_command = "settings.remove_compute(label='%s')" % (label)
+        description = "add new compute options"
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
     def on_add_server_clicked(self):
