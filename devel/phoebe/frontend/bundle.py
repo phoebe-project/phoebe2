@@ -113,7 +113,7 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     """
-    def __init__(self,system=None,fitting=None,axes=None,compute=None):
+    def __init__(self,system=None):
         """
         Initialize a Bundle.
         
@@ -123,10 +123,10 @@ class Bundle(object):
         #-- prepare 
         self.versions = [] #list of dictionaries
         self.versions_curr_i = None
-        self.compute = OrderedDict()
-        self.fitting = OrderedDict()
+        self.compute_options = []
+        self.fitting_options = []
         self.feedbacks = [] #list of dictionaries
-        self.figs = OrderedDict()
+        self.axes = []
         
         self.select_time = None
         self.plot_meshviewoptions = parameters.ParameterSet(context='plotting:mesh')
@@ -136,15 +136,6 @@ class Bundle(object):
         self.signals = {}
         self.attached_signals = []
         self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
-        
-        self.add_fitting(fitting)
-        self.axes = []
-        if isinstance(axes, list):
-            self.axes = axes
-        if isinstance(axes, dict):
-            for key in axes.keys():
-                self.add_axes(axes[key], key)
-        self.add_compute(compute)
         
         self.set_usersettings()
         
@@ -256,7 +247,7 @@ class Bundle(object):
 
         self.purge_signals(self.attached_signals_system) # this will also clear the list
         #~ self.attached_signals_system = []
-        for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute.values():
+        for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute_options:
             self._attach_set_value_signals(ps)
         
         # these might already be attached?
@@ -276,7 +267,7 @@ class Bundle(object):
 
     def _on_param_changed(self,param,ps=None):
         if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if self.system.uptodate is not False and self.compute[self.system.uptodate] == ps:
+            if self.system.uptodate is not False and self.get_compute(self.system.uptodate) == ps:
                 self.system.uptodate=False
         else:
             self.system.uptodate = False
@@ -386,7 +377,7 @@ class Bundle(object):
         
     def list(self,summary=None,*args):
         """
-        List with indices all the parameterSets that are available.
+        List with indices all the ParameterSets that are available.
         Simply a shortcut to bundle.get_system().list(...)
         """
         return self.system.list(summary,*args)
@@ -908,7 +899,7 @@ class Bundle(object):
         @param objectname: name of the object to attach the dataset to
         @type objectname: str
         @param dataset: the dataset
-        @type dataset: parameterSet
+        @type dataset: ParameterSet
         """
         obj = self.get_object(objectname)
         
@@ -929,7 +920,7 @@ class Bundle(object):
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @return: dataset
-        @rtype: parameterSet
+        @rtype: ParameterSet
         """
         if objref is None:
             # then search the whole system
@@ -1025,7 +1016,7 @@ class Bundle(object):
         @param dataref: dataref (name) of the dataset
         @type dataref: str
         @return: dataset
-        @rtype: parameterSet
+        @rtype: ParameterSet
         """
         if objref is None:
             # then search the whole system
@@ -1058,61 +1049,57 @@ class Bundle(object):
     #}
     
     #{ Compute
-    def add_compute(self,compute=None,label=None):
+    def add_compute(self,compute=None,**kwargs):
         """
-        Add a new compute parameterSet
+        Add a new compute ParameterSet
         
-        @param compute: compute parameterSet
-        @type compute:  None, parameterSet or list of ParameterSets
-        @param label: name of parameterSet
-        @type label: None, str, or list of strs
+        @param compute: compute ParameterSet
+        @type compute:  None or ParameterSet
         """
         if compute is None:
-            if label is None:
-                return
             compute = parameters.ParameterSet(context='compute')
-        if not isinstance(compute,list):
-            compute = [compute]
-            label = [label]
-        for i,c in enumerate(compute):
-            if label[i] is not None:
-                name = label[i]
-            else:
-                name = c['label']
-            self.compute[name] = c
+        for k,v in kwargs.items():
+            compute.set_value(k,v)
             
-        self._attach_set_value_signals(self.compute[name])
+        self.compute_options.append(compute)
+
+        self._attach_set_value_signals(compute)
             
-    def get_compute(self,label):
+    def get_compute(self,label=None):
         """
-        Get a compute parameterSet by name
+        Get a compute ParameterSet by name
         
-        @param label: name of parameterSet
+        @param label: name of ParameterSet
         @type label: str
-        @return: compute parameterSet
-        @rtype: parameterSet
+        @return: compute ParameterSet
+        @rtype: ParameterSet
         """
-        if label in self.compute.keys():
-            return self.compute[label]
+        # create a dictionary with key as the label
+        compute_options = {co.get_value('label'): co for co in self.compute_options}
+        
+        if label is None:
+            return compute_options
+        elif label in compute_options.keys():
+            return compute_options[label]
         else:
             return None
         
     def remove_compute(self,label):
         """
-        Remove a given compute parameterSet
+        Remove a given compute ParameterSet
         
-        @param label: name of compute parameterSet
+        @param label: name of compute ParameterSet
         @type label: str
         """
         if label is None:    return None
-        self.compute.pop(label)        
+        return self.compute_options.pop(self.compute_options.index(self.get_compute(label)))       
     
     @run_on_server
     def run_compute(self,label=None,im=False,add_version=None,server=None):
         """
         Convenience function to run observatory.observe
         
-        @param label: name of one of the compute parameterSets stored in bundle
+        @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
         @param im: whether to create images at each timestamp, if None will use value from settings
         @type im: bool or None
@@ -1137,9 +1124,9 @@ class Bundle(object):
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
-            if label not in self.compute:
+            if label not in self.get_compute():
                 return KeyError
-            options = self.compute[label]
+            options = self.get_compute(label)
         
         if server is not None:
             server = self.get_server(server)
@@ -1164,65 +1151,64 @@ class Bundle(object):
 
         self.attach_system_signals()
 
-
-
-
     #}
             
     #{ Fitting
-    def add_fitting(self,fitting,label=None):
+    def add_fitting(self,fitting=None,**kwargs):
         """
-        Add a new fitting parameterSet
+        Add a new fitting ParameterSet
         
-        @param fitting: fitting parameterSet
-        @type fitting:  None, parameterSet or list of ParameterSets
-        @param label: name of parameterSet
-        @type label: None, str, or list of strs
+        @param fitting: fitting ParameterSet
+        @type fitting:  None, or ParameterSet
         """
-        if fitting is None: return None
-        if not isinstance(fitting,list):
-            fitting = [fitting]
-            label = [label]
-        for i,f in enumerate(fitting):
-            if label[i] is not None:
-                name = label[i]
-            else:
-                name = f['label']
-            self.fitting[name] = f
+        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
+        if fitting is None:
+            fitting = parameters.ParameterSet(context=context)
+        for k,v in kwargs.items():
+            fitting.set_value(k,v)
             
-    def get_fitting(self,label):
+        self.fitting_options.append(fitting)
+
+        self._attach_set_value_signals(fitting)
+            
+    def get_fitting(self,label=None):
         """
-        Get a fitting parameterSet by name
+        Get a fitting ParameterSet by name
         
-        @param label: name of parameterSet
+        @param label: name of ParameterSet
         @type label: str
-        @return: fitting parameterSet
-        @rtype: parameterSet
+        @return: fitting ParameterSet
+        @rtype: ParameterSet
         """
-        if label in self.fitting.keys():
-            return self.fitting[label]
+        # create a dictionary with key as the label
+        fitting_options = {fo.get_value('label'): fo for fo in self.fitting_options}
+        
+        if label is None:
+            return fitting_options
+        elif label in fitting_options.keys():
+            return fitting_options[label]
         else:
             return None
         
     def remove_fitting(self,label):
         """
-        Remove a given fitting parameterSet
+        Remove a given fitting ParameterSet
         
-        @param label: name of fitting parameterSet
+        @param label: name of fitting ParameterSet
         @type label: str
         """
         if label is None:    return None
-        self.fitting.pop(label)        
+        return self.fitting_options.pop(self.fitting_options.index(self.get_fitting(label)))     
         
     @run_on_server
     def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None):
         """
-        Run fitting for a given fitting parameterSet
+        Run fitting for a given fitting ParameterSet
         and store the feedback
         
-        @param computelabel: name of compute parameterSet
+        @param computelabel: name of compute ParameterSet
         @param computelabel: str
-        @param fittinglabel: name of fitting parameterSet
+        @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
         @param server: name of server to run on, or False to force locally (will override usersettings)
         @type server: string
@@ -1247,7 +1233,7 @@ class Bundle(object):
         Add fitting results to the bundle.
         
         @param feedback: results from the fitting
-        @type feedback: parameterSet
+        @type feedback: ParameterSet
         """
         #-- if we've nothing to add, then just quit
         if feedback is None: return None
@@ -1274,7 +1260,7 @@ class Bundle(object):
         @param by: what key to search by (defaults to name)
         @type by: str
         @return: feedback
-        @rtype: parameterSet
+        @rtype: ParameterSet
         """
         if len(self.feedbacks)==0:
             return None
@@ -1326,7 +1312,7 @@ class Bundle(object):
         """
         Accept fitting results and apply to system
         
-        @param feedback: name of the feedback parameterSet to accept
+        @param feedback: name of the feedback ParameterSet to accept
         @type label: str
         @param by: key to search for feedback (see get_feedback)
         @type by: str
@@ -1339,7 +1325,7 @@ class Bundle(object):
         
         If you don't provide a label, the last MCMC run will be continued.
         
-        @param feedback: name of the MCMC parameterSet to continue
+        @param feedback: name of the MCMC ParameterSet to continue
         @type label: str
         @param by: key to search for feedback (see get_feedback)
         @type by: str
@@ -1350,7 +1336,7 @@ class Bundle(object):
             allfitparams = [self.get_feedback(feedback,by)]
         else:
             allfitparams = self.feedbacks.values()[::-1]
-        #-- take the last fitting parameterSet that represents an mcmc
+        #-- take the last fitting ParameterSet that represents an mcmc
         for fitparams in allfitparams:
             if fitparams.context.split(':')[-1] in ['pymc','emcee']:
                 fitparams['iter'] += extra_iter
@@ -1515,7 +1501,7 @@ class Bundle(object):
         @param mplaxes: the matplotlib axes to plot to (overrides mplfig)
         @type mplaxes: plt.axes.Axes()
         @param meshviewoptions: the options for the mesh, will default to saved options
-        @type meshviewoptions: parameterSet
+        @type meshviewoptions: ParameterSet
         """
         if self.select_time is not None:
             self.system.set_time(self.select_time)
