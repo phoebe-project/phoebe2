@@ -1027,7 +1027,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         else: 
             kind = 'Compute'
 
-        if kind not in self.bundle.compute:
+        if kind not in self.bundle.get_compute():
             # then we need to create a compute parameterSet with default options
             #~ p = {key.replace(kind+"_",""): value for (key, value) in self.prefs.iteritems() if key.split('_')[0]==kind}
             #~ self.on_observeOptions_createnew(kind, p)
@@ -1101,12 +1101,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             kind = 'orbit'
         elif treeview==self.lp_observeoptionsTreeView:
             kind = 'compute'
-            if label not in self.bundle.compute:
+            if label not in self.bundle.get_compute():
                 # need to first create item
                 self.observe_create(label)
         elif treeview==self.rp_fitoptionsTreeView:
             kind = 'fitting'
-            if label not in self.bundle.fitting:
+            if label not in self.bundle.get_fitting():
                 # need to first creat item
                 self.fitting_create(label)
         elif treeview==self.sys_orbitOptionsTreeView:
@@ -1441,8 +1441,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         computes = []
         for key in ['Preview','Compute']:
-            if key in self.bundle.compute:
-                computes.append(self.bundle.compute[key])
+            if key in self.bundle.get_compute():
+                computes.append(self.bundle.get_compute(key))
             else:
                 computes.append(default[key])
                 
@@ -1456,7 +1456,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.undoStack.push(command)
         
     def fitting_create(self, kind):
-        command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_fitting(parameters.ParameterSet(context=\'fitting:%s\'), \'%s\')' % (kind,kind), 'bundle.remove_fitting(\'%s\')' % kind,thread=False,description='add fitting options %s' % kind)
+        command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_fitting(context=\'fitting:%s\',label=\'%s\')' % (kind,kind), 'bundle.remove_fitting(\'%s\')' % kind,thread=False,description='add fitting options %s' % kind)
         self.undoStack.push(command)
     
     def update_fittingOptions(self, *args):
@@ -1475,7 +1475,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currenttext = self.rp_methodComboBox.currentText()
         fittingkeys = []
         self.rp_methodComboBox.clear()
-        for k,v in self.bundle.fitting.iteritems():
+        for k,v in self.bundle.get_fitting().iteritems():
             fittingkeys.append(k)
             self.rp_methodComboBox.addItem(k)
         for k,v in default.iteritems():
@@ -1494,7 +1494,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if len(key)==0: return
         #~ print "*** on_fittingOption_changed", key
         
-        if key in self.bundle.fitting.keys():
+        if key in self.bundle.get_fitting():
             fitting = self.bundle.get_fitting(key)
         else:
             fitting = parameters.ParameterSet(context="fitting:%s" % key)
@@ -1508,7 +1508,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ label = str(self.rp_methodComboBox.currentText())
         paramname = param.get_qualifier()
         
-        #~ if label not in self.bundle.fitting:
+        #~ if label not in self.bundle.get_fitting():
             # need to first create item
             #~ command = phoebe_widgets.CommandRun(self.PythonEdit, 'bundle.add_fitting(parameters.ParameterSet(context=\'fitting:%s\'), \'%s\')' % (label, label), 'bundle.remove_fitting(\'%s\')' % label,thread=False,description='add fitting options %s' % label)
             #~ self.undoStack.push(command)
@@ -1539,10 +1539,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_fit_clicked(self):
         label = str(self.rp_methodComboBox.currentText())
 
-        if label not in self.bundle.fitting:
+        if label not in self.bundle.get_fitting():
             # need to first create item
             self.fitting_create(label)
-        if 'Compute' not in self.bundle.compute:
+        if 'Compute' not in self.bundle.get_compute():
             self.observe_create('Compute')
 
         self.PyInterp_run('bundle.run_fitting(\'Compute\', \'%s\')' % (label),thread=True,kind='sys')

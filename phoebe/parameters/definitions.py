@@ -437,7 +437,7 @@ defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',c
          #dict(qualifier='distance', description='Distance to the disk',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='accretion_disk'),
         ]
 
-#    Fitting contexts        
+#    Fitting contexts       
 defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=1000,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='burn',     description='Burn parameter',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:pymc'),
@@ -612,7 +612,8 @@ defs += [dict(qualifier='label', description='label for the server',repr='%s',ca
          dict(qualifier='mount_dir', description='local mounted directory to server:server_dir',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          ]
         
-defs += [dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
+defs += [dict(qualifier='label',                description='label for the comute options',repr='%s',cast_type=str,value='compute',frame=["phoebe"],context='compute'),
+         dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='samprate',             description='Compute observables of system with these sampling rates',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
