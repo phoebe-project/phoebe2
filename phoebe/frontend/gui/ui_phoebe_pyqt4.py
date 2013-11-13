@@ -7,6 +7,7 @@
 # ./popFileEntryColWidget.ui
 # ./popFileEntry.ui
 # ./popHelp.ui
+# ./popLock.ui
 # ./popObsOptions.ui
 # ./popPlot.ui
 # ./popPrefs.ui
@@ -525,7 +526,7 @@ class Ui_fileEntryWidget(object):
 class Ui_PHOEBE_MainWindow(object):
     def setupUi(self, PHOEBE_MainWindow):
         PHOEBE_MainWindow.setObjectName(_fromUtf8("PHOEBE_MainWindow"))
-        PHOEBE_MainWindow.resize(1193, 1827)
+        PHOEBE_MainWindow.resize(1193, 1851)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -1908,6 +1909,149 @@ class Ui_popHelp_Dialog(object):
         popHelp_Dialog.setWindowTitle(QtGui.QApplication.translate("popHelp_Dialog", "PHOEBE - Help", None, QtGui.QApplication.UnicodeUTF8))
 
 
+class Ui_popLock_Dialog(object):
+    def setupUi(self, popLock_Dialog):
+        popLock_Dialog.setObjectName(_fromUtf8("popLock_Dialog"))
+        popLock_Dialog.resize(536, 300)
+        font = QtGui.QFont()
+        font.setStrikeOut(False)
+        popLock_Dialog.setFont(font)
+        self.verticalLayout = QtGui.QVBoxLayout(popLock_Dialog)
+        self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
+        self.horizontalLayout_2 = QtGui.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
+        self.save_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.save_button.sizePolicy().hasHeightForWidth())
+        self.save_button.setSizePolicy(sizePolicy)
+        self.save_button.setMinimumSize(QtCore.QSize(0, 40))
+        self.save_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon = QtGui.QIcon.fromTheme(_fromUtf8("gtk-save"))
+        self.save_button.setIcon(icon)
+        self.save_button.setObjectName(_fromUtf8("save_button"))
+        self.horizontalLayout_2.addWidget(self.save_button)
+        self.saveas_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.saveas_button.sizePolicy().hasHeightForWidth())
+        self.saveas_button.setSizePolicy(sizePolicy)
+        self.saveas_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon = QtGui.QIcon.fromTheme(_fromUtf8("gtk-save-as"))
+        self.saveas_button.setIcon(icon)
+        self.saveas_button.setObjectName(_fromUtf8("saveas_button"))
+        self.horizontalLayout_2.addWidget(self.saveas_button)
+        self.new_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.new_button.sizePolicy().hasHeightForWidth())
+        self.new_button.setSizePolicy(sizePolicy)
+        self.new_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon = QtGui.QIcon.fromTheme(_fromUtf8("gtk-home"))
+        self.new_button.setIcon(icon)
+        self.new_button.setObjectName(_fromUtf8("new_button"))
+        self.horizontalLayout_2.addWidget(self.new_button)
+        self.verticalLayout.addLayout(self.horizontalLayout_2)
+        spacerItem = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.verticalLayout.addItem(spacerItem)
+        self.gridLayout_2 = QtGui.QGridLayout()
+        self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
+        self.server_label = QtGui.QLabel(popLock_Dialog)
+        self.server_label.setMinimumSize(QtCore.QSize(28, 0))
+        self.server_label.setMaximumSize(QtCore.QSize(16777215, 28))
+        self.server_label.setObjectName(_fromUtf8("server_label"))
+        self.gridLayout_2.addWidget(self.server_label, 0, 1, 1, 1)
+        self.job_refresh = StatusPushButton(popLock_Dialog)
+        self.job_refresh.setMinimumSize(QtCore.QSize(28, 28))
+        self.job_refresh.setMaximumSize(QtCore.QSize(28, 28))
+        self.job_refresh.setText(_fromUtf8(""))
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bullet.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.job_refresh.setIcon(icon)
+        self.job_refresh.setIconSize(QtCore.QSize(32, 32))
+        self.job_refresh.setFlat(True)
+        self.job_refresh.setObjectName(_fromUtf8("job_refresh"))
+        self.gridLayout_2.addWidget(self.job_refresh, 1, 0, 1, 1)
+        self.job_label = QtGui.QLabel(popLock_Dialog)
+        self.job_label.setMinimumSize(QtCore.QSize(0, 28))
+        self.job_label.setMaximumSize(QtCore.QSize(16777215, 28))
+        self.job_label.setObjectName(_fromUtf8("job_label"))
+        self.gridLayout_2.addWidget(self.job_label, 1, 1, 1, 1)
+        self.server_refresh = StatusPushButton(popLock_Dialog)
+        self.server_refresh.setMinimumSize(QtCore.QSize(28, 28))
+        self.server_refresh.setMaximumSize(QtCore.QSize(28, 28))
+        self.server_refresh.setText(_fromUtf8(""))
+        self.server_refresh.setIcon(icon)
+        self.server_refresh.setIconSize(QtCore.QSize(32, 32))
+        self.server_refresh.setFlat(True)
+        self.server_refresh.setObjectName(_fromUtf8("server_refresh"))
+        self.gridLayout_2.addWidget(self.server_refresh, 0, 0, 1, 1)
+        self.verticalLayout.addLayout(self.gridLayout_2)
+        spacerItem1 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.verticalLayout.addItem(spacerItem1)
+        self.horizontalLayout = QtGui.QHBoxLayout()
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        self.loop_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.loop_button.sizePolicy().hasHeightForWidth())
+        self.loop_button.setSizePolicy(sizePolicy)
+        self.loop_button.setMinimumSize(QtCore.QSize(0, 40))
+        self.loop_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/repeat-2.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.loop_button.setIcon(icon1)
+        self.loop_button.setIconSize(QtCore.QSize(30, 30))
+        self.loop_button.setObjectName(_fromUtf8("loop_button"))
+        self.horizontalLayout.addWidget(self.loop_button)
+        self.getresults_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.getresults_button.sizePolicy().hasHeightForWidth())
+        self.getresults_button.setSizePolicy(sizePolicy)
+        self.getresults_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/pull.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.getresults_button.setIcon(icon2)
+        self.getresults_button.setIconSize(QtCore.QSize(30, 30))
+        self.getresults_button.setObjectName(_fromUtf8("getresults_button"))
+        self.horizontalLayout.addWidget(self.getresults_button)
+        self.unlock_button = QtGui.QPushButton(popLock_Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.unlock_button.sizePolicy().hasHeightForWidth())
+        self.unlock_button.setSizePolicy(sizePolicy)
+        self.unlock_button.setMaximumSize(QtCore.QSize(16777215, 40))
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/delete.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.unlock_button.setIcon(icon3)
+        self.unlock_button.setIconSize(QtCore.QSize(30, 30))
+        self.unlock_button.setObjectName(_fromUtf8("unlock_button"))
+        self.horizontalLayout.addWidget(self.unlock_button)
+        self.verticalLayout.addLayout(self.horizontalLayout)
+
+        self.retranslateUi(popLock_Dialog)
+        QtCore.QMetaObject.connectSlotsByName(popLock_Dialog)
+
+    def retranslateUi(self, popLock_Dialog):
+        popLock_Dialog.setWindowTitle(QtGui.QApplication.translate("popLock_Dialog", "PHOEBE - waiting for results from server", None, QtGui.QApplication.UnicodeUTF8))
+        self.save_button.setText(QtGui.QApplication.translate("popLock_Dialog", "Save", None, QtGui.QApplication.UnicodeUTF8))
+        self.saveas_button.setText(QtGui.QApplication.translate("popLock_Dialog", "Save As...", None, QtGui.QApplication.UnicodeUTF8))
+        self.new_button.setText(QtGui.QApplication.translate("popLock_Dialog", "New", None, QtGui.QApplication.UnicodeUTF8))
+        self.server_label.setText(QtGui.QApplication.translate("popLock_Dialog", "Server: servername", None, QtGui.QApplication.UnicodeUTF8))
+        self.job_label.setText(QtGui.QApplication.translate("popLock_Dialog", "Job: job info", None, QtGui.QApplication.UnicodeUTF8))
+        self.loop_button.setText(QtGui.QApplication.translate("popLock_Dialog", "Wait for Results", None, QtGui.QApplication.UnicodeUTF8))
+        self.getresults_button.setText(QtGui.QApplication.translate("popLock_Dialog", "Get Results", None, QtGui.QApplication.UnicodeUTF8))
+        self.unlock_button.setText(QtGui.QApplication.translate("popLock_Dialog", "Forget Job", None, QtGui.QApplication.UnicodeUTF8))
+
+from phoebe_widgets import StatusPushButton
+
 class Ui_popObsOptions_Dialog(object):
     def setupUi(self, popObsOptions_Dialog):
         popObsOptions_Dialog.setObjectName(_fromUtf8("popObsOptions_Dialog"))
@@ -2213,7 +2357,7 @@ class Ui_popPlot_Dialog(object):
 class Ui_popPrefs_Dialog(object):
     def setupUi(self, popPrefs_Dialog):
         popPrefs_Dialog.setObjectName(_fromUtf8("popPrefs_Dialog"))
-        popPrefs_Dialog.resize(639, 493)
+        popPrefs_Dialog.resize(639, 651)
         self.verticalLayout_4 = QtGui.QVBoxLayout(popPrefs_Dialog)
         self.verticalLayout_4.setObjectName(_fromUtf8("verticalLayout_4"))
         self.tabWidget = QtGui.QTabWidget(popPrefs_Dialog)
@@ -2262,36 +2406,132 @@ class Ui_popPrefs_Dialog(object):
         self.verticalLayout_5.addWidget(self.label_2)
         self.gridLayout = QtGui.QGridLayout()
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        self.comboBox_2 = QtGui.QComboBox(self.tab_2)
-        self.comboBox_2.setEnabled(False)
-        self.comboBox_2.setObjectName(_fromUtf8("comboBox_2"))
-        self.gridLayout.addWidget(self.comboBox_2, 1, 1, 1, 1)
+        self.s_use_server_on_compute = QtGui.QComboBox(self.tab_2)
+        self.s_use_server_on_compute.setEnabled(True)
+        self.s_use_server_on_compute.setObjectName(_fromUtf8("s_use_server_on_compute"))
+        self.s_use_server_on_compute.addItem(_fromUtf8(""))
+        self.gridLayout.addWidget(self.s_use_server_on_compute, 1, 1, 1, 1)
         self.label_7 = QtGui.QLabel(self.tab_2)
         self.label_7.setObjectName(_fromUtf8("label_7"))
         self.gridLayout.addWidget(self.label_7, 1, 0, 1, 1)
         self.label_6 = QtGui.QLabel(self.tab_2)
         self.label_6.setObjectName(_fromUtf8("label_6"))
         self.gridLayout.addWidget(self.label_6, 0, 0, 1, 1)
-        self.comboBox = QtGui.QComboBox(self.tab_2)
-        self.comboBox.setEnabled(False)
-        self.comboBox.setObjectName(_fromUtf8("comboBox"))
-        self.gridLayout.addWidget(self.comboBox, 0, 1, 1, 1)
+        self.s_use_server_on_preview = QtGui.QComboBox(self.tab_2)
+        self.s_use_server_on_preview.setEnabled(True)
+        self.s_use_server_on_preview.setObjectName(_fromUtf8("s_use_server_on_preview"))
+        self.s_use_server_on_preview.addItem(_fromUtf8(""))
+        self.gridLayout.addWidget(self.s_use_server_on_preview, 0, 1, 1, 1)
         self.label_8 = QtGui.QLabel(self.tab_2)
         self.label_8.setObjectName(_fromUtf8("label_8"))
         self.gridLayout.addWidget(self.label_8, 2, 0, 1, 1)
-        self.comboBox_3 = QtGui.QComboBox(self.tab_2)
-        self.comboBox_3.setEnabled(False)
-        self.comboBox_3.setObjectName(_fromUtf8("comboBox_3"))
-        self.gridLayout.addWidget(self.comboBox_3, 2, 1, 1, 1)
+        self.s_use_server_on_fitting = QtGui.QComboBox(self.tab_2)
+        self.s_use_server_on_fitting.setEnabled(True)
+        self.s_use_server_on_fitting.setObjectName(_fromUtf8("s_use_server_on_fitting"))
+        self.s_use_server_on_fitting.addItem(_fromUtf8(""))
+        self.gridLayout.addWidget(self.s_use_server_on_fitting, 2, 1, 1, 1)
         self.verticalLayout_5.addLayout(self.gridLayout)
         self.label_5 = QtGui.QLabel(self.tab_2)
         self.label_5.setTextFormat(QtCore.Qt.RichText)
         self.label_5.setObjectName(_fromUtf8("label_5"))
         self.verticalLayout_5.addWidget(self.label_5)
-        self.treeWidget = QtGui.QTreeWidget(self.tab_2)
-        self.treeWidget.setEnabled(False)
-        self.treeWidget.setObjectName(_fromUtf8("treeWidget"))
-        self.verticalLayout_5.addWidget(self.treeWidget)
+        self.servers_config_stackedWidget = QtGui.QStackedWidget(self.tab_2)
+        self.servers_config_stackedWidget.setObjectName(_fromUtf8("servers_config_stackedWidget"))
+        self.page = QtGui.QWidget()
+        self.page.setObjectName(_fromUtf8("page"))
+        self.gridLayout_3 = QtGui.QGridLayout(self.page)
+        self.gridLayout_3.setMargin(0)
+        self.gridLayout_3.setSpacing(2)
+        self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
+        self.serverlist_treeWidget = ServerListTreeWidget(self.page)
+        self.serverlist_treeWidget.setEnabled(True)
+        self.serverlist_treeWidget.setIndentation(2)
+        self.serverlist_treeWidget.setObjectName(_fromUtf8("serverlist_treeWidget"))
+        self.gridLayout_3.addWidget(self.serverlist_treeWidget, 0, 0, 1, 1)
+        self.horizontalLayout_5 = QtGui.QHBoxLayout()
+        self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
+        self.serverlist_recheck = QtGui.QPushButton(self.page)
+        self.serverlist_recheck.setEnabled(True)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/refresh.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.serverlist_recheck.setIcon(icon)
+        self.serverlist_recheck.setObjectName(_fromUtf8("serverlist_recheck"))
+        self.horizontalLayout_5.addWidget(self.serverlist_recheck)
+        self.serverlist_edit = QtGui.QPushButton(self.page)
+        self.serverlist_edit.setEnabled(True)
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/pen.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.serverlist_edit.setIcon(icon1)
+        self.serverlist_edit.setObjectName(_fromUtf8("serverlist_edit"))
+        self.horizontalLayout_5.addWidget(self.serverlist_edit)
+        self.serverlist_add = QtGui.QPushButton(self.page)
+        self.serverlist_add.setEnabled(True)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/add.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.serverlist_add.setIcon(icon2)
+        self.serverlist_add.setObjectName(_fromUtf8("serverlist_add"))
+        self.horizontalLayout_5.addWidget(self.serverlist_add)
+        self.gridLayout_3.addLayout(self.horizontalLayout_5, 4, 0, 1, 1)
+        self.servers_config_stackedWidget.addWidget(self.page)
+        self.page_2 = QtGui.QWidget()
+        self.page_2.setObjectName(_fromUtf8("page_2"))
+        self.verticalLayout_3 = QtGui.QVBoxLayout(self.page_2)
+        self.verticalLayout_3.setMargin(0)
+        self.verticalLayout_3.setObjectName(_fromUtf8("verticalLayout_3"))
+        self.horizontalLayout_3 = QtGui.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
+        self.servers_returntolist = QtGui.QPushButton(self.page_2)
+        self.servers_returntolist.setMaximumSize(QtCore.QSize(28, 28))
+        self.servers_returntolist.setText(_fromUtf8(""))
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/menu-2.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.servers_returntolist.setIcon(icon3)
+        self.servers_returntolist.setObjectName(_fromUtf8("servers_returntolist"))
+        self.horizontalLayout_3.addWidget(self.servers_returntolist)
+        self.sx_serveredit_combo = QtGui.QComboBox(self.page_2)
+        self.sx_serveredit_combo.setObjectName(_fromUtf8("sx_serveredit_combo"))
+        self.sx_serveredit_combo.addItem(_fromUtf8(""))
+        self.horizontalLayout_3.addWidget(self.sx_serveredit_combo)
+        self.sx_serveredit_status = StatusPushButton(self.page_2)
+        self.sx_serveredit_status.setMaximumSize(QtCore.QSize(28, 28))
+        self.sx_serveredit_status.setText(_fromUtf8(""))
+        icon4 = QtGui.QIcon()
+        icon4.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bullet.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.sx_serveredit_status.setIcon(icon4)
+        self.sx_serveredit_status.setIconSize(QtCore.QSize(32, 32))
+        self.sx_serveredit_status.setFlat(True)
+        self.sx_serveredit_status.setObjectName(_fromUtf8("sx_serveredit_status"))
+        self.horizontalLayout_3.addWidget(self.sx_serveredit_status)
+        self.verticalLayout_3.addLayout(self.horizontalLayout_3)
+        self.sx_serveredit_psedit = ParameterTreeWidget(self.page_2)
+        self.sx_serveredit_psedit.setIndentation(2)
+        self.sx_serveredit_psedit.setObjectName(_fromUtf8("sx_serveredit_psedit"))
+        self.verticalLayout_3.addWidget(self.sx_serveredit_psedit)
+        self.horizontalLayout_4 = QtGui.QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
+        self.label_9 = QtGui.QLabel(self.page_2)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_9.sizePolicy().hasHeightForWidth())
+        self.label_9.setSizePolicy(sizePolicy)
+        self.label_9.setMaximumSize(QtCore.QSize(100, 16777215))
+        self.label_9.setObjectName(_fromUtf8("label_9"))
+        self.horizontalLayout_4.addWidget(self.label_9)
+        self.sx_serveredit_mpitype_combo = QtGui.QComboBox(self.page_2)
+        self.sx_serveredit_mpitype_combo.setEnabled(False)
+        self.sx_serveredit_mpitype_combo.setObjectName(_fromUtf8("sx_serveredit_mpitype_combo"))
+        self.sx_serveredit_mpitype_combo.addItem(_fromUtf8(""))
+        self.sx_serveredit_mpitype_combo.addItem(_fromUtf8(""))
+        self.sx_serveredit_mpitype_combo.addItem(_fromUtf8(""))
+        self.horizontalLayout_4.addWidget(self.sx_serveredit_mpitype_combo)
+        self.verticalLayout_3.addLayout(self.horizontalLayout_4)
+        self.sx_serveredit_mpipsedit = ParameterTreeWidget(self.page_2)
+        self.sx_serveredit_mpipsedit.setIndentation(2)
+        self.sx_serveredit_mpipsedit.setObjectName(_fromUtf8("sx_serveredit_mpipsedit"))
+        self.verticalLayout_3.addWidget(self.sx_serveredit_mpipsedit)
+        self.servers_config_stackedWidget.addWidget(self.page_2)
+        self.verticalLayout_5.addWidget(self.servers_config_stackedWidget)
         self.tabWidget.addTab(self.tab_2, _fromUtf8(""))
         self.tab = QtGui.QWidget()
         self.tab.setObjectName(_fromUtf8("tab"))
@@ -2418,6 +2658,7 @@ class Ui_popPrefs_Dialog(object):
 
         self.retranslateUi(popPrefs_Dialog)
         self.tabWidget.setCurrentIndex(0)
+        self.servers_config_stackedWidget.setCurrentIndex(0)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), popPrefs_Dialog.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), popPrefs_Dialog.reject)
         QtCore.QObject.connect(self.copy_panel_python, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.PyInterp_restWidget.setEnabled)
@@ -2436,14 +2677,30 @@ class Ui_popPrefs_Dialog(object):
         self.p_panel_params.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Parameters", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QtGui.QApplication.translate("popPrefs_Dialog", "Interface", None, QtGui.QApplication.UnicodeUTF8))
         self.label_2.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Use Server:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
+        self.s_use_server_on_compute.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "local", None, QtGui.QApplication.UnicodeUTF8))
         self.label_7.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Compute", None, QtGui.QApplication.UnicodeUTF8))
         self.label_6.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Preview", None, QtGui.QApplication.UnicodeUTF8))
+        self.s_use_server_on_preview.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "local", None, QtGui.QApplication.UnicodeUTF8))
         self.label_8.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Fitting", None, QtGui.QApplication.UnicodeUTF8))
+        self.s_use_server_on_fitting.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "local", None, QtGui.QApplication.UnicodeUTF8))
         self.label_5.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Configure Servers:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
-        self.treeWidget.headerItem().setText(0, QtGui.QApplication.translate("popPrefs_Dialog", "Status", None, QtGui.QApplication.UnicodeUTF8))
-        self.treeWidget.headerItem().setText(1, QtGui.QApplication.translate("popPrefs_Dialog", "Servername", None, QtGui.QApplication.UnicodeUTF8))
-        self.treeWidget.headerItem().setText(2, QtGui.QApplication.translate("popPrefs_Dialog", "Mount Location", None, QtGui.QApplication.UnicodeUTF8))
-        self.treeWidget.headerItem().setText(3, QtGui.QApplication.translate("popPrefs_Dialog", "Enabled", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_treeWidget.headerItem().setText(0, QtGui.QApplication.translate("popPrefs_Dialog", "Server", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_treeWidget.headerItem().setText(1, QtGui.QApplication.translate("popPrefs_Dialog", "MPI", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_treeWidget.headerItem().setText(2, QtGui.QApplication.translate("popPrefs_Dialog", " ", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_recheck.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Recheck Connections", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_edit.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Edit Servers", None, QtGui.QApplication.UnicodeUTF8))
+        self.serverlist_add.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Add Server", None, QtGui.QApplication.UnicodeUTF8))
+        self.servers_returntolist.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "return to server list", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_combo.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "servername", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_status.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "server status", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_psedit.headerItem().setText(0, QtGui.QApplication.translate("popPrefs_Dialog", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_psedit.headerItem().setText(1, QtGui.QApplication.translate("popPrefs_Dialog", "Value", None, QtGui.QApplication.UnicodeUTF8))
+        self.label_9.setText(QtGui.QApplication.translate("popPrefs_Dialog", "MPI type:", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_mpitype_combo.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "mpi", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_mpitype_combo.setItemText(1, QtGui.QApplication.translate("popPrefs_Dialog", "mpi:slurm", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_mpitype_combo.setItemText(2, QtGui.QApplication.translate("popPrefs_Dialog", "mpi:torque", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_mpipsedit.headerItem().setText(0, QtGui.QApplication.translate("popPrefs_Dialog", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_mpipsedit.headerItem().setText(1, QtGui.QApplication.translate("popPrefs_Dialog", "Value", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QtGui.QApplication.translate("popPrefs_Dialog", "Servers", None, QtGui.QApplication.UnicodeUTF8))
         self.label_10.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Tutorial Mode:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.p_pyinterp_tutsys.setText(QtGui.QApplication.translate("popPrefs_Dialog", "System", None, QtGui.QApplication.UnicodeUTF8))
@@ -2473,6 +2730,7 @@ class Ui_popPrefs_Dialog(object):
         item.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Description", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), QtGui.QApplication.translate("popPrefs_Dialog", "Plugins", None, QtGui.QApplication.UnicodeUTF8))
 
+from phoebe_widgets import ServerListTreeWidget, ParameterTreeWidget, StatusPushButton
 
 class Ui_datasetWidget(object):
     def setupUi(self, datasetWidget):
@@ -3800,6 +4058,163 @@ qt_resource_data = "\
 \x44\xc0\x38\xda\x2f\x18\x75\xc0\xa8\x03\x46\xbc\x03\x00\x02\x0c\
 \x00\x95\xbc\x9b\xe1\x17\xa5\xac\x3b\x00\x00\x00\x00\x49\x45\x4e\
 \x44\xae\x42\x60\x82\
+\x00\x00\x04\x74\
+\x89\
+\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
+\x00\x00\x20\x00\x00\x00\x20\x08\x06\x00\x00\x00\x73\x7a\x7a\xf4\
+\x00\x00\x00\x19\x74\x45\x58\x74\x53\x6f\x66\x74\x77\x61\x72\x65\
+\x00\x41\x64\x6f\x62\x65\x20\x49\x6d\x61\x67\x65\x52\x65\x61\x64\
+\x79\x71\xc9\x65\x3c\x00\x00\x03\x68\x69\x54\x58\x74\x58\x4d\x4c\
+\x3a\x63\x6f\x6d\x2e\x61\x64\x6f\x62\x65\x2e\x78\x6d\x70\x00\x00\
+\x00\x00\x00\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x62\x65\x67\
+\x69\x6e\x3d\x22\xef\xbb\xbf\x22\x20\x69\x64\x3d\x22\x57\x35\x4d\
+\x30\x4d\x70\x43\x65\x68\x69\x48\x7a\x72\x65\x53\x7a\x4e\x54\x63\
+\x7a\x6b\x63\x39\x64\x22\x3f\x3e\x20\x3c\x78\x3a\x78\x6d\x70\x6d\
+\x65\x74\x61\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x3d\x22\x61\x64\x6f\
+\x62\x65\x3a\x6e\x73\x3a\x6d\x65\x74\x61\x2f\x22\x20\x78\x3a\x78\
+\x6d\x70\x74\x6b\x3d\x22\x41\x64\x6f\x62\x65\x20\x58\x4d\x50\x20\
+\x43\x6f\x72\x65\x20\x35\x2e\x30\x2d\x63\x30\x36\x31\x20\x36\x34\
+\x2e\x31\x34\x30\x39\x34\x39\x2c\x20\x32\x30\x31\x30\x2f\x31\x32\
+\x2f\x30\x37\x2d\x31\x30\x3a\x35\x37\x3a\x30\x31\x20\x20\x20\x20\
+\x20\x20\x20\x20\x22\x3e\x20\x3c\x72\x64\x66\x3a\x52\x44\x46\x20\
+\x78\x6d\x6c\x6e\x73\x3a\x72\x64\x66\x3d\x22\x68\x74\x74\x70\x3a\
+\x2f\x2f\x77\x77\x77\x2e\x77\x33\x2e\x6f\x72\x67\x2f\x31\x39\x39\
+\x39\x2f\x30\x32\x2f\x32\x32\x2d\x72\x64\x66\x2d\x73\x79\x6e\x74\
+\x61\x78\x2d\x6e\x73\x23\x22\x3e\x20\x3c\x72\x64\x66\x3a\x44\x65\
+\x73\x63\x72\x69\x70\x74\x69\x6f\x6e\x20\x72\x64\x66\x3a\x61\x62\
+\x6f\x75\x74\x3d\x22\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\
+\x4d\x4d\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\
+\x6f\x62\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\
+\x6d\x6d\x2f\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x73\x74\x52\x65\x66\
+\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\
+\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x73\x54\
+\x79\x70\x65\x2f\x52\x65\x73\x6f\x75\x72\x63\x65\x52\x65\x66\x23\
+\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\x3d\x22\x68\x74\x74\
+\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\x65\x2e\x63\x6f\x6d\
+\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x4f\x72\x69\x67\x69\x6e\x61\x6c\x44\x6f\x63\x75\x6d\x65\x6e\
+\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x44\x46\x34\
+\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\x38\x31\x31\x38\x38\x43\
+\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\x38\x31\x32\x22\x20\x78\
+\x6d\x70\x4d\x4d\x3a\x44\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\
+\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x32\x37\x32\x34\x35\x42\x43\
+\x32\x32\x46\x45\x44\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\
+\x33\x46\x37\x31\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x49\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\x6d\x70\
+\x2e\x69\x69\x64\x3a\x32\x37\x32\x34\x35\x42\x43\x31\x32\x46\x45\
+\x44\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\x33\x46\x37\x31\
+\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x3a\x43\x72\x65\x61\x74\
+\x6f\x72\x54\x6f\x6f\x6c\x3d\x22\x41\x64\x6f\x62\x65\x20\x50\x68\
+\x6f\x74\x6f\x73\x68\x6f\x70\x20\x43\x53\x35\x2e\x31\x20\x4d\x61\
+\x63\x69\x6e\x74\x6f\x73\x68\x22\x3e\x20\x3c\x78\x6d\x70\x4d\x4d\
+\x3a\x44\x65\x72\x69\x76\x65\x64\x46\x72\x6f\x6d\x20\x73\x74\x52\
+\x65\x66\x3a\x69\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\
+\x6d\x70\x2e\x69\x69\x64\x3a\x31\x33\x39\x37\x31\x33\x42\x41\x32\
+\x37\x32\x30\x36\x38\x31\x31\x38\x46\x36\x32\x42\x38\x38\x42\x42\
+\x44\x44\x31\x46\x34\x46\x46\x22\x20\x73\x74\x52\x65\x66\x3a\x64\
+\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\
+\x69\x64\x3a\x44\x46\x34\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\
+\x38\x31\x31\x38\x38\x43\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\
+\x38\x31\x32\x22\x2f\x3e\x20\x3c\x2f\x72\x64\x66\x3a\x44\x65\x73\
+\x63\x72\x69\x70\x74\x69\x6f\x6e\x3e\x20\x3c\x2f\x72\x64\x66\x3a\
+\x52\x44\x46\x3e\x20\x3c\x2f\x78\x3a\x78\x6d\x70\x6d\x65\x74\x61\
+\x3e\x20\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x65\x6e\x64\x3d\
+\x22\x72\x22\x3f\x3e\x37\x5f\x21\xce\x00\x00\x00\xa2\x49\x44\x41\
+\x54\x78\xda\x62\xfc\xff\xff\x3f\xc3\x40\x02\x26\x86\x01\x06\xa3\
+\x0e\x18\x75\xc0\xa8\x03\x46\x1d\x30\xe0\x0e\x60\x21\x45\x31\x23\
+\x23\x23\xd1\x6a\x89\x2d\xe2\xc9\x0d\x01\x69\x20\x5e\x01\xc4\x4f\
+\xa0\x78\x05\x54\x8c\x74\x00\x72\x29\xb1\x18\x0a\xd4\x81\xf8\x2d\
+\x48\x2b\x1a\x06\x89\x69\x91\x6a\x2e\x39\x0e\x58\x8d\xc5\x72\x18\
+\x5e\x47\xaa\x03\x18\x49\xa9\x8e\xa1\x69\xe0\x03\x10\xf3\xe3\x50\
+\xf2\x05\x88\x79\xe9\x91\x06\x06\x34\x1b\xee\xc3\x23\xb7\x9b\x1e\
+\x89\x50\x6b\xa0\x13\x21\x2c\x1b\x82\x12\xe3\x73\x28\x5e\x8d\x9e\
+\x0d\x69\x99\x08\x07\x45\x41\x34\x30\x45\x31\x2d\x5a\xd0\xa3\xb5\
+\xe1\xa8\x03\x46\x1d\x30\xea\x80\x01\x77\x00\x40\x80\x01\x00\xed\
+\x71\x2e\x06\x0c\xcc\x59\x19\x00\x00\x00\x00\x49\x45\x4e\x44\xae\
+\x42\x60\x82\
+\x00\x00\x05\x06\
+\x89\
+\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
+\x00\x00\x20\x00\x00\x00\x20\x08\x06\x00\x00\x00\x73\x7a\x7a\xf4\
+\x00\x00\x00\x19\x74\x45\x58\x74\x53\x6f\x66\x74\x77\x61\x72\x65\
+\x00\x41\x64\x6f\x62\x65\x20\x49\x6d\x61\x67\x65\x52\x65\x61\x64\
+\x79\x71\xc9\x65\x3c\x00\x00\x03\x68\x69\x54\x58\x74\x58\x4d\x4c\
+\x3a\x63\x6f\x6d\x2e\x61\x64\x6f\x62\x65\x2e\x78\x6d\x70\x00\x00\
+\x00\x00\x00\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x62\x65\x67\
+\x69\x6e\x3d\x22\xef\xbb\xbf\x22\x20\x69\x64\x3d\x22\x57\x35\x4d\
+\x30\x4d\x70\x43\x65\x68\x69\x48\x7a\x72\x65\x53\x7a\x4e\x54\x63\
+\x7a\x6b\x63\x39\x64\x22\x3f\x3e\x20\x3c\x78\x3a\x78\x6d\x70\x6d\
+\x65\x74\x61\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x3d\x22\x61\x64\x6f\
+\x62\x65\x3a\x6e\x73\x3a\x6d\x65\x74\x61\x2f\x22\x20\x78\x3a\x78\
+\x6d\x70\x74\x6b\x3d\x22\x41\x64\x6f\x62\x65\x20\x58\x4d\x50\x20\
+\x43\x6f\x72\x65\x20\x35\x2e\x30\x2d\x63\x30\x36\x31\x20\x36\x34\
+\x2e\x31\x34\x30\x39\x34\x39\x2c\x20\x32\x30\x31\x30\x2f\x31\x32\
+\x2f\x30\x37\x2d\x31\x30\x3a\x35\x37\x3a\x30\x31\x20\x20\x20\x20\
+\x20\x20\x20\x20\x22\x3e\x20\x3c\x72\x64\x66\x3a\x52\x44\x46\x20\
+\x78\x6d\x6c\x6e\x73\x3a\x72\x64\x66\x3d\x22\x68\x74\x74\x70\x3a\
+\x2f\x2f\x77\x77\x77\x2e\x77\x33\x2e\x6f\x72\x67\x2f\x31\x39\x39\
+\x39\x2f\x30\x32\x2f\x32\x32\x2d\x72\x64\x66\x2d\x73\x79\x6e\x74\
+\x61\x78\x2d\x6e\x73\x23\x22\x3e\x20\x3c\x72\x64\x66\x3a\x44\x65\
+\x73\x63\x72\x69\x70\x74\x69\x6f\x6e\x20\x72\x64\x66\x3a\x61\x62\
+\x6f\x75\x74\x3d\x22\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\
+\x4d\x4d\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\
+\x6f\x62\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\
+\x6d\x6d\x2f\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x73\x74\x52\x65\x66\
+\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\
+\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x73\x54\
+\x79\x70\x65\x2f\x52\x65\x73\x6f\x75\x72\x63\x65\x52\x65\x66\x23\
+\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\x3d\x22\x68\x74\x74\
+\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\x65\x2e\x63\x6f\x6d\
+\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x4f\x72\x69\x67\x69\x6e\x61\x6c\x44\x6f\x63\x75\x6d\x65\x6e\
+\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x44\x46\x34\
+\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\x38\x31\x31\x38\x38\x43\
+\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\x38\x31\x32\x22\x20\x78\
+\x6d\x70\x4d\x4d\x3a\x44\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\
+\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x37\x45\x38\x44\x45\x43\x32\
+\x34\x32\x46\x45\x41\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\
+\x33\x46\x37\x31\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x49\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\x6d\x70\
+\x2e\x69\x69\x64\x3a\x37\x45\x38\x44\x45\x43\x32\x33\x32\x46\x45\
+\x41\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\x33\x46\x37\x31\
+\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x3a\x43\x72\x65\x61\x74\
+\x6f\x72\x54\x6f\x6f\x6c\x3d\x22\x41\x64\x6f\x62\x65\x20\x50\x68\
+\x6f\x74\x6f\x73\x68\x6f\x70\x20\x43\x53\x35\x2e\x31\x20\x4d\x61\
+\x63\x69\x6e\x74\x6f\x73\x68\x22\x3e\x20\x3c\x78\x6d\x70\x4d\x4d\
+\x3a\x44\x65\x72\x69\x76\x65\x64\x46\x72\x6f\x6d\x20\x73\x74\x52\
+\x65\x66\x3a\x69\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\
+\x6d\x70\x2e\x69\x69\x64\x3a\x34\x42\x45\x42\x37\x43\x34\x36\x32\
+\x32\x32\x30\x36\x38\x31\x31\x38\x46\x36\x32\x42\x38\x38\x42\x42\
+\x44\x44\x31\x46\x34\x46\x46\x22\x20\x73\x74\x52\x65\x66\x3a\x64\
+\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\
+\x69\x64\x3a\x44\x46\x34\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\
+\x38\x31\x31\x38\x38\x43\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\
+\x38\x31\x32\x22\x2f\x3e\x20\x3c\x2f\x72\x64\x66\x3a\x44\x65\x73\
+\x63\x72\x69\x70\x74\x69\x6f\x6e\x3e\x20\x3c\x2f\x72\x64\x66\x3a\
+\x52\x44\x46\x3e\x20\x3c\x2f\x78\x3a\x78\x6d\x70\x6d\x65\x74\x61\
+\x3e\x20\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x65\x6e\x64\x3d\
+\x22\x72\x22\x3f\x3e\x56\x16\xe3\x26\x00\x00\x01\x34\x49\x44\x41\
+\x54\x78\xda\x62\xfc\xff\xff\x3f\xc3\x40\x02\x26\x86\x01\x06\x03\
+\xee\x80\x41\x0f\x12\x80\xf8\x00\x10\x3f\x07\xe2\xff\x24\xe2\x9f\
+\x50\xbd\x39\x40\xcc\x46\xaa\xc5\x12\x40\x7c\x86\x0c\x4b\x71\xe1\
+\xf3\x40\x2c\x4d\xac\xe5\xcc\x40\x7c\x92\x8a\x96\xc3\xf0\x25\x62\
+\x43\x22\x9c\x06\x96\xc3\x70\x0e\x31\x0e\x50\x04\x62\x51\x20\x96\
+\x83\x3a\xa6\x05\x88\xcd\xc8\x48\x3f\x66\xd0\x34\x80\xec\x80\xc3\
+\xf4\x4e\xc4\x12\x58\x12\x26\x0a\x60\xa4\x83\x23\xfe\xe3\xb3\x73\
+\x50\x96\x84\x7e\xd0\x7c\xff\x1c\xca\x26\x15\x78\x00\xf1\x0d\xa4\
+\x60\xc7\x16\x22\xff\xa1\x6a\x3c\xd0\x25\x43\x80\xf8\x0f\x5a\x9c\
+\x85\x90\xe8\x00\x52\x0a\xad\xe7\xf8\x2c\x27\xd7\x11\x4f\x48\x70\
+\xc0\x13\x42\x96\xc3\xf0\x1f\x12\x1c\xe1\x47\xc0\x2c\x64\x33\xbd\
+\x19\xa0\x04\x49\x1a\x88\x00\x24\x79\xe8\x39\x39\x41\x46\x81\x23\
+\x30\xa2\xf4\x09\xb9\x89\x86\x0c\x47\x60\x4d\x4f\xa0\x60\xbd\x47\
+\x84\xe5\xf7\x48\x88\x02\xa2\xb3\x35\x23\xa9\x25\xd7\x88\x68\x13\
+\xfe\x42\xe3\x4b\xd3\xdb\x51\xc7\xd0\xe2\x7e\x3b\xb4\x56\x23\xa7\
+\x26\xac\x06\x62\x27\x68\x43\x44\x08\x5a\xd5\x13\x04\xf9\x34\x6c\
+\x90\x10\x55\x98\xb1\x41\x9b\x4f\xd4\xb6\xfc\x24\xb4\xb9\x47\x14\
+\x90\xa6\xb2\x23\xce\x93\x93\x96\xd8\xa0\xd1\x71\x80\x4c\x4b\xdf\
+\x42\x9b\x60\xc9\xa3\xbd\x1b\x7c\x80\x71\xc4\xf7\x8e\x01\x02\x0c\
+\x00\x7e\x24\x3a\x5f\x35\xfd\xc2\x9e\x00\x00\x00\x00\x49\x45\x4e\
+\x44\xae\x42\x60\x82\
 \x00\x00\x05\xad\
 \x89\
 \x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
@@ -4298,6 +4713,88 @@ qt_resource_data = "\
 \x92\xf0\x9d\x02\x11\x4f\xc9\x29\xfe\xf3\xdf\xe0\x3f\x02\x0c\x00\
 \x12\x4a\x70\xda\x17\x63\xb5\xbb\x00\x00\x00\x00\x49\x45\x4e\x44\
 \xae\x42\x60\x82\
+\x00\x00\x04\xf5\
+\x89\
+\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
+\x00\x00\x20\x00\x00\x00\x20\x08\x06\x00\x00\x00\x73\x7a\x7a\xf4\
+\x00\x00\x00\x19\x74\x45\x58\x74\x53\x6f\x66\x74\x77\x61\x72\x65\
+\x00\x41\x64\x6f\x62\x65\x20\x49\x6d\x61\x67\x65\x52\x65\x61\x64\
+\x79\x71\xc9\x65\x3c\x00\x00\x03\x22\x69\x54\x58\x74\x58\x4d\x4c\
+\x3a\x63\x6f\x6d\x2e\x61\x64\x6f\x62\x65\x2e\x78\x6d\x70\x00\x00\
+\x00\x00\x00\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x62\x65\x67\
+\x69\x6e\x3d\x22\xef\xbb\xbf\x22\x20\x69\x64\x3d\x22\x57\x35\x4d\
+\x30\x4d\x70\x43\x65\x68\x69\x48\x7a\x72\x65\x53\x7a\x4e\x54\x63\
+\x7a\x6b\x63\x39\x64\x22\x3f\x3e\x20\x3c\x78\x3a\x78\x6d\x70\x6d\
+\x65\x74\x61\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x3d\x22\x61\x64\x6f\
+\x62\x65\x3a\x6e\x73\x3a\x6d\x65\x74\x61\x2f\x22\x20\x78\x3a\x78\
+\x6d\x70\x74\x6b\x3d\x22\x41\x64\x6f\x62\x65\x20\x58\x4d\x50\x20\
+\x43\x6f\x72\x65\x20\x35\x2e\x30\x2d\x63\x30\x36\x30\x20\x36\x31\
+\x2e\x31\x33\x34\x37\x37\x37\x2c\x20\x32\x30\x31\x30\x2f\x30\x32\
+\x2f\x31\x32\x2d\x31\x37\x3a\x33\x32\x3a\x30\x30\x20\x20\x20\x20\
+\x20\x20\x20\x20\x22\x3e\x20\x3c\x72\x64\x66\x3a\x52\x44\x46\x20\
+\x78\x6d\x6c\x6e\x73\x3a\x72\x64\x66\x3d\x22\x68\x74\x74\x70\x3a\
+\x2f\x2f\x77\x77\x77\x2e\x77\x33\x2e\x6f\x72\x67\x2f\x31\x39\x39\
+\x39\x2f\x30\x32\x2f\x32\x32\x2d\x72\x64\x66\x2d\x73\x79\x6e\x74\
+\x61\x78\x2d\x6e\x73\x23\x22\x3e\x20\x3c\x72\x64\x66\x3a\x44\x65\
+\x73\x63\x72\x69\x70\x74\x69\x6f\x6e\x20\x72\x64\x66\x3a\x61\x62\
+\x6f\x75\x74\x3d\x22\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\
+\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\
+\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x22\x20\
+\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\x4d\x4d\x3d\x22\x68\x74\x74\
+\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\x65\x2e\x63\x6f\x6d\
+\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x6d\x6d\x2f\x22\x20\x78\x6d\
+\x6c\x6e\x73\x3a\x73\x74\x52\x65\x66\x3d\x22\x68\x74\x74\x70\x3a\
+\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\x65\x2e\x63\x6f\x6d\x2f\x78\
+\x61\x70\x2f\x31\x2e\x30\x2f\x73\x54\x79\x70\x65\x2f\x52\x65\x73\
+\x6f\x75\x72\x63\x65\x52\x65\x66\x23\x22\x20\x78\x6d\x70\x3a\x43\
+\x72\x65\x61\x74\x6f\x72\x54\x6f\x6f\x6c\x3d\x22\x41\x64\x6f\x62\
+\x65\x20\x50\x68\x6f\x74\x6f\x73\x68\x6f\x70\x20\x43\x53\x35\x20\
+\x4d\x61\x63\x69\x6e\x74\x6f\x73\x68\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x49\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\x6d\x70\
+\x2e\x69\x69\x64\x3a\x44\x39\x45\x32\x39\x32\x44\x37\x33\x41\x32\
+\x39\x31\x31\x45\x32\x39\x42\x38\x36\x46\x43\x39\x37\x44\x38\x42\
+\x45\x30\x43\x44\x32\x22\x20\x78\x6d\x70\x4d\x4d\x3a\x44\x6f\x63\
+\x75\x6d\x65\x6e\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\x69\x64\
+\x3a\x44\x39\x45\x32\x39\x32\x44\x38\x33\x41\x32\x39\x31\x31\x45\
+\x32\x39\x42\x38\x36\x46\x43\x39\x37\x44\x38\x42\x45\x30\x43\x44\
+\x32\x22\x3e\x20\x3c\x78\x6d\x70\x4d\x4d\x3a\x44\x65\x72\x69\x76\
+\x65\x64\x46\x72\x6f\x6d\x20\x73\x74\x52\x65\x66\x3a\x69\x6e\x73\
+\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\x6d\x70\x2e\x69\x69\x64\
+\x3a\x44\x39\x45\x32\x39\x32\x44\x35\x33\x41\x32\x39\x31\x31\x45\
+\x32\x39\x42\x38\x36\x46\x43\x39\x37\x44\x38\x42\x45\x30\x43\x44\
+\x32\x22\x20\x73\x74\x52\x65\x66\x3a\x64\x6f\x63\x75\x6d\x65\x6e\
+\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x44\x39\x45\
+\x32\x39\x32\x44\x36\x33\x41\x32\x39\x31\x31\x45\x32\x39\x42\x38\
+\x36\x46\x43\x39\x37\x44\x38\x42\x45\x30\x43\x44\x32\x22\x2f\x3e\
+\x20\x3c\x2f\x72\x64\x66\x3a\x44\x65\x73\x63\x72\x69\x70\x74\x69\
+\x6f\x6e\x3e\x20\x3c\x2f\x72\x64\x66\x3a\x52\x44\x46\x3e\x20\x3c\
+\x2f\x78\x3a\x78\x6d\x70\x6d\x65\x74\x61\x3e\x20\x3c\x3f\x78\x70\
+\x61\x63\x6b\x65\x74\x20\x65\x6e\x64\x3d\x22\x72\x22\x3f\x3e\x96\
+\x5b\x4e\x6f\x00\x00\x01\x69\x49\x44\x41\x54\x78\xda\xec\x57\x4d\
+\xaa\xc2\x30\x10\x8e\x15\x7a\x86\x80\x97\x70\xf5\xb6\x6f\xfb\x40\
+\x70\xe5\x56\xf0\x00\x85\x1e\xcf\x6d\x41\x28\x04\x04\xa1\x37\x70\
+\xe5\x0d\x04\xc1\x52\xa7\x92\xf2\xe2\x90\x9f\xf9\xac\xe0\xa6\x03\
+\x1f\x94\x24\xf3\xcd\x64\x32\xcd\x4c\x94\xfa\x97\x9c\x50\x10\x2a\
+\xc2\xcd\xa2\xb2\x63\xb9\x4a\xcb\x1f\xc1\x10\xce\x84\x5f\x05\xca\
+\x82\x70\x22\x74\x01\x9c\xec\x9a\x90\x6c\x08\x77\x67\xfd\x05\x31\
+\xde\xef\xae\x89\x18\x1f\xd0\x04\x22\xc1\x8d\x0f\x10\x4b\x21\x30\
+\x3e\xa0\x10\x1a\x87\x1c\x38\x30\xc5\xfe\xdc\x7f\x2c\x2a\x36\x77\
+\x70\xf4\x56\x11\xe3\x1d\x92\x43\x37\xa6\xa8\x9d\x39\xed\x21\x1d\
+\xe4\x02\x44\x2e\x98\x43\x19\xa1\x65\x63\xf3\xc0\xb7\x62\x6b\x5b\
+\x20\xca\x4b\xc2\x3e\x14\x09\xc3\xbc\xdd\xdb\x9d\x6b\xfb\xed\xce\
+\x19\x47\x6f\x9d\x38\x02\x49\x0e\x3d\x65\x07\x10\xec\x80\x24\x4c\
+\xe5\xd0\x4b\x98\x8f\xc2\x73\x9c\x83\xbf\x61\x2c\x87\x5e\x44\x27\
+\x9c\x38\xb2\xe4\x44\x2e\x22\xe8\xf7\xdc\x7a\x14\xb6\xc2\x44\xeb\
+\xaf\xe2\xda\x73\x15\x47\x1d\x98\x79\x88\x3a\xc1\x1a\x44\xa2\x7c\
+\x99\xfa\xb2\x4c\x0e\x4c\x0e\x4c\x0e\x64\x9e\x8b\x48\x09\xc6\xa4\
+\x22\xe6\xd3\x9e\xaa\xc8\xab\xa0\x06\x0c\x43\x7c\x63\x8b\xd1\xe8\
+\xe2\x36\xa6\x1c\x7f\xa4\xbc\x1b\xa0\x27\x34\x02\x07\x60\xbe\x2b\
+\xd0\x13\x5e\x05\x0e\x40\x7c\x99\xe7\x5c\xa5\x3d\x61\x2c\x07\x20\
+\xbe\x1a\xe8\x09\x6b\x81\x03\x30\x5f\x09\x24\x4d\x29\x70\x00\xe6\
+\x1b\xfb\x34\xfb\xc8\x53\x6f\x91\x50\x6a\x12\x8f\x53\xdf\x63\x17\
+\xe6\xcb\x6d\x48\x2a\xd6\x46\x97\xc2\x9d\xbf\xc5\xf7\x10\x60\x00\
+\x80\x31\x6b\x23\x79\x2c\x08\xa3\x00\x00\x00\x00\x49\x45\x4e\x44\
+\xae\x42\x60\x82\
 "
 
 qt_resource_name = "\
@@ -4369,6 +4866,14 @@ qt_resource_name = "\
 \x04\x0a\x1b\xc7\
 \x00\x63\
 \x00\x6f\x00\x6d\x00\x6d\x00\x69\x00\x74\x00\x2e\x00\x70\x00\x6e\x00\x67\
+\x00\x0a\
+\x02\xca\x6f\x27\
+\x00\x62\
+\x00\x75\x00\x6c\x00\x6c\x00\x65\x00\x74\x00\x2e\x00\x70\x00\x6e\x00\x67\
+\x00\x0c\
+\x08\x1d\x80\x47\
+\x00\x72\
+\x00\x65\x00\x70\x00\x65\x00\x61\x00\x74\x00\x2d\x00\x32\x00\x2e\x00\x70\x00\x6e\x00\x67\
 \x00\x0c\
 \x06\xeb\x97\xe7\
 \x00\x7a\
@@ -4397,30 +4902,37 @@ qt_resource_name = "\
 \x03\x03\x9b\x47\
 \x00\x7a\
 \x00\x6f\x00\x6f\x00\x6d\x00\x2d\x00\x69\x00\x6e\x00\x2e\x00\x70\x00\x6e\x00\x67\
+\x00\x08\
+\x0c\x2f\x59\xa7\
+\x00\x70\
+\x00\x75\x00\x6c\x00\x6c\x00\x2e\x00\x70\x00\x6e\x00\x67\
 "
 
 qt_resource_struct = "\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x01\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x02\
 \x00\x00\x00\x22\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
-\x00\x00\x00\x12\x00\x02\x00\x00\x00\x15\x00\x00\x00\x04\
-\x00\x00\x01\xbc\x00\x00\x00\x00\x00\x01\x00\x00\x51\x22\
-\x00\x00\x02\x00\x00\x00\x00\x00\x00\x01\x00\x00\x5a\xd6\
-\x00\x00\x02\x18\x00\x00\x00\x00\x00\x01\x00\x00\x5f\x7a\
-\x00\x00\x02\x2e\x00\x00\x00\x00\x00\x01\x00\x00\x63\xc7\
+\x00\x00\x00\x12\x00\x02\x00\x00\x00\x18\x00\x00\x00\x04\
+\x00\x00\x01\xf4\x00\x00\x00\x00\x00\x01\x00\x00\x5a\xa4\
+\x00\x00\x02\x38\x00\x00\x00\x00\x00\x01\x00\x00\x64\x58\
+\x00\x00\x02\x50\x00\x00\x00\x00\x00\x01\x00\x00\x68\xfc\
+\x00\x00\x01\x9e\x00\x00\x00\x00\x00\x01\x00\x00\x4b\x71\
+\x00\x00\x02\x66\x00\x00\x00\x00\x00\x01\x00\x00\x6d\x49\
 \x00\x00\x01\x84\x00\x00\x00\x00\x00\x01\x00\x00\x47\x27\
-\x00\x00\x01\xea\x00\x00\x00\x00\x00\x01\x00\x00\x59\xef\
+\x00\x00\x02\x22\x00\x00\x00\x00\x00\x01\x00\x00\x63\x71\
 \x00\x00\x00\xb4\x00\x00\x00\x00\x00\x01\x00\x00\x20\xc8\
 \x00\x00\x00\x5a\x00\x00\x00\x00\x00\x01\x00\x00\x0f\xc4\
-\x00\x00\x01\x9e\x00\x00\x00\x00\x00\x01\x00\x00\x4b\x71\
+\x00\x00\x01\xd6\x00\x00\x00\x00\x00\x01\x00\x00\x54\xf3\
 \x00\x00\x01\x22\x00\x00\x00\x00\x00\x01\x00\x00\x32\xe9\
 \x00\x00\x00\x6e\x00\x00\x00\x00\x00\x01\x00\x00\x14\x88\
 \x00\x00\x00\x8c\x00\x00\x00\x00\x00\x01\x00\x00\x18\xe8\
 \x00\x00\x00\xd2\x00\x00\x00\x00\x00\x01\x00\x00\x25\xfd\
+\x00\x00\x01\xb8\x00\x00\x00\x00\x00\x01\x00\x00\x4f\xe9\
 \x00\x00\x01\x54\x00\x00\x00\x00\x00\x01\x00\x00\x3d\x69\
-\x00\x00\x01\xd2\x00\x00\x00\x00\x00\x01\x00\x00\x56\xba\
+\x00\x00\x02\x0a\x00\x00\x00\x00\x00\x01\x00\x00\x60\x3c\
 \x00\x00\x01\x6e\x00\x00\x00\x00\x00\x01\x00\x00\x42\x85\
 \x00\x00\x01\x36\x00\x00\x00\x00\x00\x01\x00\x00\x37\xdf\
+\x00\x00\x02\x82\x00\x00\x00\x00\x00\x01\x00\x00\x73\x12\
 \x00\x00\x00\x44\x00\x00\x00\x00\x00\x01\x00\x00\x0e\xdf\
 \x00\x00\x01\x06\x00\x00\x00\x00\x00\x01\x00\x00\x2d\x83\
 \x00\x00\x00\xec\x00\x00\x00\x00\x00\x01\x00\x00\x2a\x25\

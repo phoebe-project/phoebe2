@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="images">
+    <file>icons/repeat-2.png</file>
+    <file>icons/pull.png</file>
     <file>icons/zoom-out.png</file>
     <file>icons/zoom-in.png</file>
     <file>icons/database.png</file>
@@ -22,5 +24,6 @@
     <file>icons/pop.png</file>
     <file>phoebe-gui.png</file>
     <file>icons/settings.png</file>
+    <file>icons/bullet.png</file>
   </qresource>
 </RCC>

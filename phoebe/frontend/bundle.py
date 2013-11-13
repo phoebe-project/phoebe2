@@ -58,6 +58,8 @@ def run_on_server(fctn):
         if servername is None: # will be False if running locally without mpi
             # then we need to determine which system based on preferences
             servername = bundle.get_usersettings().get_value('use_server_on_%s' % (fctn_type))
+            if servername is "None":
+                servername = False
             
             # TODO allow for option to search for available or by priority?
             
@@ -92,7 +94,7 @@ def run_on_server(fctn):
                     # lock the bundle and store information about the job
                     # so it can be retrieved later
                     # the bundle returned from the server will not have this lock - so we won't have to manually reset it
-                    bundle.lock = {'locked': True, 'server': servername, 'script': script_f, 'files': [in_f, out_f, script_f], 'rfile': out_f}
+                    bundle.lock = {'locked': True, 'server': servername, 'script': script_f, 'command': "bundle.%s(%s)\n" % (fctn.func_name, callargstr), 'files': [in_f, out_f, script_f], 'rfile': out_f}
                                         
                     # enter loop to wait for results
                     #~ bundle.server_loop(server)
@@ -146,8 +148,8 @@ class Bundle(object):
         
         self.set_usersettings()
         
-        self.lock = {'locked': False, 'server': '', 'script': ''}
-        
+        self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
+
         self.filename = None
         
         self.settings = {}
@@ -1549,6 +1551,27 @@ class Bundle(object):
         script = self.lock['script']
         
         return server.check_script_complete(script)
+        
+    def server_cancel(self):
+        """
+        unlock the bundle and remove information about the running job
+        NOTE: this will not actually kill the job on the server, but will remove files that have already been created
+        """
+        server = self.get_server(self.lock['server'])
+        script = self.lock['script']
+        lock_files = self.lock['files']
+        
+        mount_dir = server.server_ps.get_value('mount_dir')
+        
+        if server.check_connection():
+            logger.warning('cleaning files in {}'.format(mount_dir))
+            for fname in lock_files:
+                try:
+                    os.remove(os.path.join(mount_dir,fname))
+                except:
+                    pass
+            
+        self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
             
     def server_loop(self):
         """

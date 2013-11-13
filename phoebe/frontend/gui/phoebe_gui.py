@@ -16,7 +16,7 @@ from PyQt4.QtWebKit import *
 
 #phoebe modules
 from phoebe.frontend import usersettings
-from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets
+from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets, phoebe_dialogs
 
 from phoebe.parameters import parameters, datasets
 from phoebe.backend import universe, observatory
@@ -59,139 +59,6 @@ def PyInterp_selfdebug(fctn):
             guiself.PyInterp_send('gui',guiself)
         return
     return send
-
-
-### classes to allow creating the popup dialogs or attaching widgets
-class CreatePopAbout(QDialog, gui.Ui_popAbout_Dialog):
-    def __init__(self, parent=None):
-        super(CreatePopAbout, self).__init__(parent)
-        self.setupUi(self)
-
-        #~ self.setFixedSize(self.size())
-
-class CreatePopHelp(QDialog, gui.Ui_popHelp_Dialog):
-    def __init__(self, parent=None):
-        super(CreatePopHelp, self).__init__(parent)
-        self.setupUi(self)
-        
-class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
-    def __init__(self, parent=None, prefs=None):
-        super(CreatePopPrefs, self).__init__(parent)
-        self.setupUi(self)
-        self.prefs = prefs
-        
-        self.pref_bools = self.findChildren(QCheckBox)
-        self.pref_bools += self.findChildren(QRadioButton)
-        
-        self.set_gui_from_prefs(prefs)
-        
-    def set_gui_from_prefs(self,p=None):
-        if p is None:
-            p = self.prefs
-        
-        bools = self.findChildren(QCheckBox)
-        bools += self.findChildren(QRadioButton)
-
-        for w in bools:
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    w.setChecked(p[key])
-                    w.current_value = p[key]
-                self.connect(w, SIGNAL("toggled(bool)"), self.item_changed)
-                    
-        for w in self.findChildren(QPlainTextEdit):
-            if w.objectName().split('_')[0]=='p':
-                key = "_".join(str(w.objectName()).split('_')[1:])
-                if key in p:
-                    w.setPlainText(p[key])
-                    w.current_value = p[key]
-                self.connect(w, SIGNAL("textChanged()"), self.text_changed)
-                
-                # now find the save button and connect signals and link
-                button = self.get_button_for_textbox(w)
-                if button is not None:
-                    button.setVisible(False)
-                    button.textbox = w
-                    self.connect(button, SIGNAL("clicked()"), self.item_changed)
-                    
-        #~ for w in self.findChildren(QSpinBox):
-            #~ if w.objectName().split('_')[0]=='p':
-                #~ key = "_".join(str(w.objectName()).split('_')[1:])
-                #~ if key in p:
-                    #~ w.setValue(p[key])
-                    #~ w.current_value = p[key]
-                #~ self.connect(w, SIGNAL("toggled(bool)"), self.item_changed)
-                
-            #~ for w in self.findChildren(QComboBox):
-                #~ pass
-                
-    def get_button_for_textbox(self,textedit):
-        button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
-        buttons = self.findChildren(QPushButton,QString(button_name))
-        if len(buttons)==1:
-            return buttons[0]
-        else:
-            return None
-          
-    def text_changed(self,*args):
-        button = self.get_button_for_textbox(self.sender())
-        button.setVisible(True)
-            
-    def item_changed(self,*args):
-        ## TODO - for now this is really only set to handle bools and textedits with save buttons
-        
-        w = self.sender()
-        
-        if hasattr(w,'textbox'):
-            w.setVisible(False)
-            w = w.textbox
-            # we need to be careful with newlines and quotes since we're
-            # sending this through PyInterp
-            new_value = str(w.toPlainText()).replace('\n','\\n')
-        else:
-            new_value = args[0]
-        
-        prefname = '_'.join(str(w.objectName()).split('_')[1:])
-        
-        old_value = w.current_value
-        
-        do_command = "settings.set_value('%s',%s)" % (prefname,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.set_value('%s',%s)" % (prefname,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change setting: %s" % prefname
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
-
-
-
-class CreatePopObsOptions(QDialog, gui.Ui_popObsOptions_Dialog):
-    def __init__(self, parent=None):
-        super(CreatePopObsOptions, self).__init__(parent)
-        self.setupUi(self)
-
-class CreatePopPlot(QDialog, gui.Ui_popPlot_Dialog):
-    def __init__(self, parent=None):
-        super(CreatePopPlot, self).__init__(parent)
-        self.setupUi(self)
-        
-class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
-    def __init__(self, parent=None):
-        super(CreatePopFileEntry, self).__init__(parent)
-        self.setupUi(self)
-        
-class CreatePopFileEntryColWidget(QWidget, gui.Ui_popFileEntryColWidget):
-    def __init__(self, parent=None):
-        super(CreatePopFileEntryColWidget, self).__init__(parent)
-        self.setupUi(self)
-        
-class CreateFileEntryWidget(QWidget, gui.Ui_fileEntryWidget):
-    def __init__(self, parent=None):
-        super(CreateFileEntryWidget, self).__init__(parent)
-        self.setupUi(self)
-        
-class CreateDatasetWidget(QWidget, gui.Ui_datasetWidget):
-    def __init__(self, parent=None):
-        super(CreateDatasetWidget, self).__init__(parent)
-        self.setupUi(self)
         
 ### MAIN WINDOW
 class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
@@ -272,7 +139,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #################################
 
         # add master dataset tree view to bottom panel 
-        self.datasetswidget_main = CreateDatasetWidget()
+        self.datasetswidget_main = phoebe_dialogs.CreateDatasetWidget()
         self.bp_datasetsDockWidget.setWidget(self.datasetswidget_main)
         
         # Add the OpenGL mesh_widget to gui
@@ -303,7 +170,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # Create canvas for expanded plot
         self.expanded_plot_widget, self.expanded_canvas = self.create_plot_widget()
-        expanded_plot = CreatePopPlot()
+        expanded_plot = phoebe_dialogs.CreatePopPlot()
         expanded_plot.xaxisCombo.axes_i = 'expanded'
         expanded_plot.yaxisCombo.axes_i = 'expanded'
         expanded_plot.titleLinkButton.axes_i = 'expanded'
@@ -413,6 +280,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.plugins = []
         self.guiplugins = []
         #~ self.on_prefsLoad() #load to self.prefs
+        self.prefs_pop = None
+        self.lock_pop = None
         self.on_prefsUpdate(startup=True) #apply to gui
         self.latest_dir = None
         
@@ -437,7 +306,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 return True
         return False
     
-    def gui_lock(self,command,thread=None):
+    def gui_lock(self,command='',thread=None):
         """
         lock the gui while commands are being run from the python console
         """
@@ -466,6 +335,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         unlock to gui to full responsive state
         this should undo anything done by gui_lock
         """
+        if self.bundle.lock['locked']:
+            return
         self.gui_locked=False
         self.current_thread = None
         self.lp_mainWidget.setEnabled(True)
@@ -642,7 +513,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         save a bundle to a .phoebe file
         this function handles both save and save as
         """
-        if self.sender() == self.tb_file_saveAction and self.filename is not None:
+        if (self.sender() == self.tb_file_saveAction or (self.lock_pop is not None and self.sender() == self.lock_pop.save_button)) and self.filename is not None:
             filename = self.filename
         else:
             filename = QFileDialog.getSaveFileName(self, 'Save File', self.latest_dir if self.latest_dir is not None else './', ".phoebe(*.phoebe)", **_fileDialog_kwargs)
@@ -1092,7 +963,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ for po in self.bundle.axes[i].plots:
             #~ self.bundle.attach_signal(po, 'set_value', self.plot_redraw, i, canvas)
         
-        pop = CreatePopPlot(self)
+        pop = phoebe_dialogs.CreatePopPlot(self)
         pop.popPlot_gridPushButton.setVisible(False)
         pop.popPlot_popPushButton.setVisible(False)
         pop.popPlot_delPushButton.setVisible(False)
@@ -1116,7 +987,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # make title and axes options available from canvas
         canvas.info = {'xaxisCombo': pop.xaxisCombo, 'yaxisCombo': pop.yaxisCombo, 'titleLinkButton': pop.titleLinkButton}
         
-        plotEntryWidget = CreateDatasetWidget()
+        plotEntryWidget = phoebe_dialogs.CreateDatasetWidget()
         plotEntryWidget.datasetTreeView.plotindex = i
         plotEntryWidget.selectorWidget.setVisible(False)
         plotEntryWidget.addDataWidget.setVisible(False)
@@ -1406,11 +1277,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
         command = self.PythonEdit.prevcommand.replace(' ','')
         
+        if 'settings' in command and self.prefs_pop is not None:
+            self.prefs = self.PyInterp_get('settings')
+            self.prefs_pop.set_gui_from_prefs(self.prefs)
+        
         if 'bundle=' in command in command:
             #then new bundle
             self.on_new_bundle()
             
-        if 'run_compute' in command:
+        if 'run_compute' in command or 'server_get_results' in command or 'server_loop' in command:
             #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
         
             #should we only draw this if its visible?
@@ -1420,6 +1295,24 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if 'run_fitting' in command:
             #~ self.lp_stackedWidget.setCurrentIndex(1) #compute
             self.rp_stackedWidget.setCurrentIndex(1) #feedback
+            
+        if self.bundle.lock['locked']:
+            if self.lock_pop is None:
+                self.lock_pop = phoebe_dialogs.CreatePopLock(self,self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
+                QObject.connect(self.lock_pop, SIGNAL("parameterCommand"), self.on_param_command)   
+                QObject.connect(self.lock_pop.save_button, SIGNAL("clicked()"), self.on_save_clicked)         
+                QObject.connect(self.lock_pop.saveas_button, SIGNAL("clicked()"), self.on_save_clicked)         
+                QObject.connect(self.lock_pop.new_button, SIGNAL("clicked()"), self.on_new_clicked)      
+                # all other signals handled in phoebe_dialogs.CreatePopLock subclass   
+            else:
+                self.lock_pop.setup(self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
+            self.lock_pop.show()
+            self.lock_pop.shown = True
+            self.gui_lock()
+        elif self.lock_pop is not None and self.lock_pop.shown:
+            self.lock_pop.hide()
+            self.lock_pop.shown = False
+            self.gui_unlock()
             
         #### TESTING ###
         ## EVENTUALLY RUN ONLY WHEN NEEDED THROUGH SIGNAL OR OTHER LOGIC
@@ -1710,12 +1603,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_prefsShow(self):
         self.prefs = self.PyInterp_get('settings')
-        p = {key: self.prefs.get_value(key) for key in self.prefs.default_preferences.keys()}
-        pop = CreatePopPrefs(self,p)
-        QObject.connect(pop, SIGNAL("parameterCommand"), self.on_param_command)
-        QObject.connect(pop.buttonBox, SIGNAL("accepted()"), self.on_prefsSave)
-        QObject.connect(pop.buttonBox, SIGNAL("rejected()"), self.on_prefsUpdate)
-        pop.show()
+        if self.prefs_pop is None:
+            self.prefs_pop = phoebe_dialogs.CreatePopPrefs(self,self.prefs)
+            QObject.connect(self.prefs_pop, SIGNAL("parameterCommand"), self.on_param_command)
+            QObject.connect(self.prefs_pop.buttonBox, SIGNAL("accepted()"), self.on_prefsSave)
+            QObject.connect(self.prefs_pop.buttonBox, SIGNAL("rejected()"), self.on_prefsUpdate)
+        self.prefs_pop.show()
         
     def on_prefsSave(self,*args):
         command_do = "settings.save()"
@@ -1773,15 +1666,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ keplereb.GUIPlugin.disablePlugin(self.keplerebplugin)
             
     def on_aboutShow(self):
-        pop = CreatePopAbout(self)
+        pop = phoebe_dialogs.CreatePopAbout(self)
         pop.show()
 
     def on_helpShow(self):
-        pop = CreatePopHelp(self)
+        pop = phoebe_dialogs.CreatePopHelp(self)
         pop.show()
         
     def on_fileEntryShow(self):
-        pop = CreatePopFileEntry(self)
+        pop = phoebe_dialogs.CreatePopFileEntry(self)
         pop.show()
 
         #determine what type of data we're loading, and set options accordingly
@@ -1863,7 +1756,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 pop.horizontalLayout_ColWidgets.removeWidget(colwidget)
         pop.colwidgets = []
         for col in range(ncols):
-            colwidget = CreatePopFileEntryColWidget()
+            colwidget = phoebe_dialogs.phoebe_dialogs.CreatePopFileEntryColWidget()
             pop.colwidgets.append(colwidget) # so we can iterate through these later
             pop.horizontalLayout_ColWidgets.addWidget(colwidget)
 
