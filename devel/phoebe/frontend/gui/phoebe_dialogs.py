@@ -172,13 +172,16 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                 if key is None: #then this doesn't control a parameter
                     if w.objectName() == 'sx_serveredit_combo':
                         self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.serveredit_changed) 
-                        self.serveredit_changed(names[0])
+                        if len(names):
+                            self.serveredit_changed(names[0])
                     elif w.objectName() == 'co_edit_combo':
                         self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.coedit_changed)
-                        self.coedit_changed(names[0])
+                        if len(names):
+                            self.coedit_changed(names[0])
                     elif w.objectName() == 'fo_edit_combo':
                         self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.foedit_changed)
-                        self.foedit_changed(names[0])
+                        if len(names):
+                            self.foedit_changed(names[0])
                 else:
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
                 
