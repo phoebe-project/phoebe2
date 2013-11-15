@@ -3,28 +3,24 @@ import pickle
 import ConfigParser
 from server import Server
 from phoebe.parameters import parameters
+from phoebe.utils.utils import get_basic_logger
 
 class Settings(object):
     def __init__(self):
-        self.default_preferences = {'panel_params': True, 'panel_fitting': True,\
-            'panel_datasets': True, 'panel_system': False,\
-            'panel_versions': False, 'panel_python': False,\
-            'pyinterp_tutsys': True, \
-            'pyinterp_tutplots': True, 'pyinterp_tutsettings': True,\
-            'pyinterp_thread_on': True, 'pyinterp_thread_off': False,\
-            'pyinterp_startup_default': 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',
-            'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
-            'plugins': {'keplereb': False, 'example': False},\
-            }
-            
-        self.preferences = {}
-        self.servers = []
-        self.compute_options = []
-        self.fitting_options = []
         
+        # settings consists of different categories - each of which is
+        # either a parameterset or a list of parametersets
+        
+        # here we'll initialize all the categories and their defaults
+        self.settings = {}
+        
+        self.settings['servers'] = []
+        
+        self.settings['compute'] = []
         self.add_compute(label='Compute')
         self.add_compute(label='Preview')
         
+        self.settings['fitting'] = []
         self.add_fitting(context='fitting:grid',label='grid')
         self.add_fitting(context='fitting:minuit',label='minuit')
         self.add_fitting(context='fitting:lmfit',label='lmfit')
@@ -33,29 +29,122 @@ class Settings(object):
         self.add_fitting(context='fitting:emcee',label='emcee')
         self.add_fitting(context='fitting:pymc',label='pymc')
         
-    def get_value(self,key):
-        return self.preferences[key] if key in self.preferences.keys() else self.default_preferences[key]
+        self.settings['gui'] = parameters.ParameterSet(context='gui')
         
-    def set_value(self,key,value):
-        self.preferences[key] = value
+        self.settings['logger'] = parameters.ParameterSet(context='logger')
         
-    #{Servers
+    #~ def __str__(self):
+        #~ pass
         
-    def get_server(self,label=None):
+    def _get_from_list(self,listname,label):
         """
-        get a server by name
-        
-        @param label: name of the server
-        @type label: str
-        @return: server
-        @rtype: Server
+        retrieve a parameterset from a list by label
         """
-        servers = {s.get_value('label'): s for s in self.servers}
+        items = {ps.get_value('label'): ps for ps in self.settings[listname]}
         
-        if label in servers.keys():
-            return servers[label]
-        return servers
+        if label is None:
+            return items
+        elif label in items:
+            return items[label]
+        else:
+            return None
+            
+    def _remove_from_list(self,listname,label):
+        """
+        remove a parameterset from a list by label
+        """
+        if label is None:    return None
+        return self.settings[listname].pop(self.settings[listname].index(self._get_from_list(listname,label))) 
         
+    #{ General Parameters
+        
+    def get_ps(self,category=None):
+        """
+        get a parameterset by category
+        
+        @param category: setting category (gui, logger, etc)
+        @type category: str
+        @return: parameterset
+        @rtype: ParameterSet
+        """
+        if category is None:
+            return self.settings
+        return self.settings[category]
+        
+    def get_parameter(self,qualifier,category=None):
+        """
+        Retrieve a parameter from the settings
+        If category is not provided and there are more than one object in 
+        settings containing a parameter with the same name, this will
+        return an error and ask you to provide a valid category
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param category: setting category (gui, logger, etc)
+        @type objref: str
+        @return: Parameter corresponding to the qualifier
+        @rtype: Parameter
+        """
+        if category is None:
+            categories = [c for c in self.settings.keys() if not isinstance(self.settings[c],list)]
+        else:
+            categories = [category]
+        
+        return_params = []
+        return_categories = []
+        
+        for category in categories:
+            ps = self.get_ps(category)
+            if qualifier in ps.keys():
+                return_params.append(ps.get_parameter(qualifier))
+                return_categories.append(category)
+                
+        if len(return_params) > 1:
+            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for category:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
+
+        elif len(return_params)==0:
+            raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
+            
+        return return_params[0]
+        
+    def get_value(self,qualifier,category=None):
+        """
+        Retrieve the value of a parameter from the settings
+        If category is not provided and there are more than one object in 
+        settings containing a parameter with the same name, this will
+        return an error and ask you to provide a valid category
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param category: setting category (gui, logger, etc)
+        @type objref: str
+        @return: value of the Parameter corresponding to the qualifier
+        @rtype: (depends on the parameter)
+        """
+        param = self.get_parameter(qualifier,category)
+        return param.get_value()
+                    
+    def set_value(self,qualifier,value,category=None):
+        """
+        Retrieve the value of a parameter from the settings
+        If category is not provided and there are more than one object in 
+        settings containing a parameter with the same name, this will
+        return an error and ask you to provide a valid category
+        
+        @param qualifier: name or alias of the variable
+        @type qualifier: str
+        @param value: the new value for the parameter
+        @type value: (depends on parameter)
+        @param category: setting category (gui, logger, etc)
+        @type objref: str
+        """
+        param = self.get_parameter(qualifier,category)
+        param.set_value(value)
+        
+    #}
+        
+       
+    #{ Servers
     def add_server(self,label,mpi=None,server=None,server_dir=None,server_script=None,mount_dir=None):
         """
         add a new server
@@ -73,7 +162,18 @@ class Settings(object):
         @param mount_dir: local mounted location of server:server_dir, or None if local
         @type mount_dir: str or None
         """
-        self.servers.append(Server(mpi,label,server,server_dir,server_script,mount_dir))
+        self.settings['servers'].append(Server(mpi,label,server,server_dir,server_script,mount_dir))
+        
+    def get_server(self,label=None):
+        """
+        get a server by name
+        
+        @param label: name of the server
+        @type label: str
+        @return: server
+        @rtype: Server
+        """
+        return self._get_from_list('servers',label)
         
     def remove_server(self,label):
         """
@@ -82,8 +182,7 @@ class Settings(object):
         @param label: name of the server
         @type label: str
         """
-        
-        return self.servers.pop(self.servers.index(self.get_server(label)))
+        return self._remove_from_list('servers',label)
         
     #}
     #{ Compute
@@ -100,9 +199,9 @@ class Settings(object):
         for k,v in kwargs.items():
             compute.set_value(k,v)
             
-        self.compute_options.append(compute)
+        self.settings['compute'].append(compute)
 
-    def get_compute(self,label=None,copy=False):
+    def get_compute(self,label=None):
         """
         Get a compute ParameterSet by name
         
@@ -111,16 +210,8 @@ class Settings(object):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        # create a dictionary with key as the label
-        compute_options = {co.get_value('label'): co for co in self.compute_options}
-        
-        if label is None:
-            return compute_options
-        elif label in compute_options.keys():
-            return compute_options[label]
-        else:
-            return None
-        
+        return self._get_from_list('compute',label)
+
     def remove_compute(self,label):
         """
         Remove a given compute ParameterSet
@@ -128,8 +219,8 @@ class Settings(object):
         @param label: name of compute ParameterSet
         @type label: str
         """
-        if label is None:    return None
-        return self.compute_options.pop(self.compute_options.index(self.get_compute(label))) 
+        return self._remove_from_list('compute',label)
+
         
     #}
     #{ Fitting
@@ -149,7 +240,7 @@ class Settings(object):
         for k,v in kwargs.items():
             fitting.set_value(k,v)
             
-        self.fitting_options.append(fitting)
+        self.settings['fitting'].append(fitting)
 
     def get_fitting(self,label=None):
         """
@@ -160,15 +251,7 @@ class Settings(object):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        # create a dictionary with key as the label
-        fitting_options = {fo.get_value('label'): fo for fo in self.fitting_options}
-        
-        if label is None:
-            return fitting_options
-        elif label in fitting_options.keys():
-            return fitting_options[label]
-        else:
-            return None
+        return self._get_from_list('fitting',label)
         
     def remove_fitting(self,label):
         """
@@ -177,8 +260,7 @@ class Settings(object):
         @param label: name of fitting ParameterSet
         @type label: str
         """
-        if label is None:    return None
-        return self.fitting_options.pop(self.fitting_options.index(self.get_fitting(label)))     
+        return self._remove_from_list('fitting',label)
         
     #}
 
@@ -213,6 +295,12 @@ def load(filename=None):
     ff = open(filename,'r')
     settings = pickle.load(ff)
     ff.close()
+    
+    # and apply necessary things (ie. logger)
+    lps = settings.get_ps('logger')
+    logger = get_basic_logger(style=lps.get_value('style'),clevel=lps.get_value('clevel'),
+        flevel=lps.get_value('flevel'),filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
+        filemode=lps.get_value('filemode'))
     
     return settings
 
