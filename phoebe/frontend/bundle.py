@@ -48,25 +48,12 @@ def run_on_server(fctn):
         dump = callargs.pop('self')
         callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
 
-        if fctn.func_name == 'run_fitting':
-            fctn_type = 'fitting'
-        elif fctn.func_name == 'run_compute':
-            fctn_type = 'preview' if callargs['label'] == 'Preview' else 'compute'
-            
         servername = kwargs['server'] if 'server' in kwargs.keys() else None
 
-        if servername is None: # will be False if running locally without mpi
-            # then we need to determine which system based on preferences
-            servername = bundle.get_usersettings().get_value('use_server_on_%s' % (fctn_type))
-            if servername is "None":
-                servername = False
-            
-            # TODO allow for option to search for available or by priority?
-            
         if servername is not False:
             server =  bundle.get_server(servername)
             if server.is_external():
-                if server.check_connection():
+                if server.check_status():
                     # prepare job
                     mount_dir = server.server_ps.get_value('mount_dir')
                     server_dir = server.server_ps.get_value('server_dir')
@@ -81,10 +68,14 @@ def run_on_server(fctn):
                     logger.warning('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,script_f),'w')
                     f.write("#!/usr/bin/python\n")
-                    f.write("from phoebe.frontend.bundle import load\n")
-                    f.write("bundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,in_f))
-                    f.write("bundle.%s(%s)\n" % (fctn.func_name, callargstr))
-                    f.write("bundle.save('%s')\n" % (os.path.join(server_dir,out_f)))
+                    f.write("try:\n")
+                    f.write("\timport os\n")
+                    f.write("\tfrom phoebe.frontend.bundle import load\n")
+                    f.write("\tbundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,in_f))
+                    f.write("\tbundle.%s(%s)\n" % (fctn.func_name, callargstr))
+                    f.write("\tbundle.save('%s')\n" % (os.path.join(server_dir,out_f)))
+                    f.write("except:\n")
+                    f.write("\tos.system(\"cat 'failed' > %s.status\")\n" % (script_f))
                     f.close()
                     
                     # create job and submit
@@ -102,7 +93,8 @@ def run_on_server(fctn):
                     return
 
                 else:
-                    logger.warning('{} server not available, running locally'.format(servername))
+                    logger.warning('{} server not available'.format(servername))
+                    return
 
         # run locally by calling the original function
         return fctn(bundle, *args, **kwargs)
@@ -1623,7 +1615,10 @@ class Bundle(object):
         server = self.get_server(self.lock['server'])
         script = self.lock['script']
         
-        return server.check_script_complete(script)
+        if server is not None:
+            return server.check_script_status(script)
+        else:
+            return 'no job'
         
     def server_cancel(self):
         """
@@ -1636,7 +1631,7 @@ class Bundle(object):
         
         mount_dir = server.server_ps.get_value('mount_dir')
         
-        if server.check_connection():
+        if server.check_mount():
             logger.warning('cleaning files in {}'.format(mount_dir))
             for fname in lock_files:
                 try:
@@ -1660,7 +1655,7 @@ class Bundle(object):
         
         while True:
             logger.warning('checking {} server'.format(servername))
-            if self.server_job_status():
+            if self.server_job_status()=='complete':
                 self.server_get_results()
                 return
             sleep(5)
@@ -1674,7 +1669,7 @@ class Bundle(object):
         script = self.lock['script']
         lock_files = self.lock['files']
         
-        if not self.server_job_status():
+        if self.server_job_status()!='complete':
             return False
 
         mount_dir = server.server_ps.get_value('mount_dir')
@@ -1696,7 +1691,7 @@ class Bundle(object):
         logger.warning('cleaning files in {}'.format(mount_dir))
         for fname in lock_files:
             os.remove(os.path.join(mount_dir,fname))
-        os.remove(os.path.join(mount_dir,'%s.complete' % script))
+        os.remove(os.path.join(mount_dir,'%s.status' % script))
         os.remove(os.path.join(mount_dir,'%s.log' % script))
         
         return

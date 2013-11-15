@@ -36,6 +36,7 @@ class CreatePopLock(QDialog, gui.Ui_popLock_Dialog):
         self.connect(self.unlock_button, SIGNAL("clicked()"), self.on_unlock_clicked)
         
         self.server_refresh.server = self.server
+        self.server_refresh.server_kind = 'mount'
         self.job_refresh.server = self.server
         self.job_refresh.job = self.lock_info['script']
 
@@ -43,8 +44,8 @@ class CreatePopLock(QDialog, gui.Ui_popLock_Dialog):
         self.job_refresh.update_status()
         
     def on_loop_clicked(self,*args):
-        self.on_refresh_server()
-        self.on_refresh_job()
+        self.server_refresh.update_status()
+        self.job_refresh.update_status()
         
         do_command = 'bundle.server_loop()'
         undo_command = None
@@ -52,8 +53,8 @@ class CreatePopLock(QDialog, gui.Ui_popLock_Dialog):
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'system')
         
     def on_getresults_clicked(self,*args):
-        self.on_refresh_server()
-        self.on_refresh_job()
+        self.server_refresh.update_status()
+        self.job_refresh.update_status()
         
         do_command = 'bundle.server_get_results()'
         undo_command = None
@@ -247,10 +248,6 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             server = None
         else:
             server = self.prefs.get_server(str(servername))
-        
-        # update push button and check status
-        self.sx_serveredit_status.server = server
-        self.sx_serveredit_status.update_status()
         
         # set data for parameter tree views
         self.sx_serveredit_psedit.set_data([server.server_ps] if server is not None else [],style=['nofit','incl_label'])

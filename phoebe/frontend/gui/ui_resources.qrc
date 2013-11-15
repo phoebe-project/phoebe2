@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="images">
+    <file>icons/return.png</file>
     <file>icons/repeat-2.png</file>
     <file>icons/pull.png</file>
     <file>icons/zoom-out.png</file>
