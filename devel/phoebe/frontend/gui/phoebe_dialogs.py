@@ -91,7 +91,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         else:
             self.prefs = prefs
         
-        p = {key: self.prefs.get_value(key) for key in self.prefs.default_preferences.keys()}
+        p = self.prefs.get_ps('gui')
         
         bools = self.findChildren(QCheckBox)
         bools += self.findChildren(QRadioButton)
@@ -103,7 +103,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     w.setEnabled(False)
                     w.setChecked(p[key])
                     w.setEnabled(True)
-                    w.current_value = p[key]
+                    w.current_value = p.get_value(key)
                 if init:
                     self.connect(w, SIGNAL("toggled(bool)"), self.item_changed)
                     
@@ -115,7 +115,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     w.setPlainText(p[key])
                     if w.objectName() != 'p_pyinterp_startup_default':
                         w.setEnabled(True)
-                    w.current_value = p[key]
+                    w.current_value = p.get_value(key)
                 if init:
                     self.connect(w, SIGNAL("textChanged()"), self.text_changed)
                 
@@ -160,10 +160,10 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             w.addItems(names)
 
             if key is not None:
-                w.current_value = p[key]
-                if p[key] is not False:
-                    if p[key] in names:
-                        w.setCurrentIndex(names.index(p[key]))
+                w.current_value = p.get_value(key)
+                if p.get_value(key) is not False:
+                    if p.get_value(key) in names:
+                        w.setCurrentIndex(names.index(p.get_value(key)))
             else: #then we want to try to restore to original selection
                 if orig_text in names:
                     w.setCurrentIndex(names.index(orig_text))
@@ -191,6 +191,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             self.connect(self.co_psedit, SIGNAL("parameterChanged"), self.on_coparam_changed)
             self.connect(self.fo_psedit, SIGNAL("parameterChanged"), self.on_foparam_changed)
             self.connect(self.co_add, SIGNAL("clicked()"), self.on_add_co_clicked)
+            
             #~ self.connect(self.fo_add, SIGNAL("clicked()"), self.on_add_fo_clicked)
         
         ### server stuff
@@ -203,6 +204,11 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         if init:
             self.connect(self.serverlist_treeWidget, SIGNAL("edit_server_clicked"), self.on_edit_server_clicked)
             self.connect(self.serverlist_treeWidget, SIGNAL("delete_server_clicked"), self.on_delete_server_clicked)
+            
+        # logger stuff
+        self.lo_psedit.set_data([self.prefs.get_ps('logger')],style=['nofit'])
+        if init:
+            self.connect(self.lo_psedit, SIGNAL("parameterChanged"), self.on_loparam_changed)
         
     def get_button_for_textbox(self,textedit):
         button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
@@ -294,6 +300,15 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         do_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
         undo_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
         description = "change fitting %s: %s" % (label,param.get_qualifier())
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        
+    def on_loparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
+        
+        label = 'logger'
+
+        do_command = "settings.get_ps('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.get_ps('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        description = "change logger %s" % (param.get_qualifier())
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
     def on_add_co_clicked(self):

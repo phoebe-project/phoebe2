@@ -1301,7 +1301,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.prefs_pop.set_gui_from_prefs(self.prefs)
             
         # probably don't always have to do this (maybe only if settings or first call?)
-        servers_on = ['None']+[s.get_value('label') for s in self.prefs.servers if s.last_known_status['ping'] and s.last_known_status['mount']]        
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server().values() if s.last_known_status['ping'] and s.last_known_status['mount']]        
         for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
             orig_text = str(w.currentText())
             w.clear()
@@ -1617,38 +1617,38 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         except KeyError:
             self.prefs = usersettings.load()
         
-        p = {key: self.prefs.get_value(key) for key in self.prefs.default_preferences.keys()}
+        p = self.prefs.get_ps('gui')
         
         if startup:
             # only apply default panels at startup (not immediately after changing preference)
-            self.tb_view_lpAction.setChecked(p['panel_params'])
-            self.tb_view_rpAction.setChecked(p['panel_fitting'])
-            self.tb_view_versionsAction.setChecked(p['panel_versions'])
-            self.tb_view_systemAction.setChecked(p['panel_system'])
-            self.tb_view_datasetsAction.setChecked(p['panel_datasets'])
-            self.tb_view_pythonAction.setChecked(p['panel_python'])
+            self.tb_view_lpAction.setChecked(p.get_value('panel_params'))
+            self.tb_view_rpAction.setChecked(p.get_value('panel_fitting'))
+            self.tb_view_versionsAction.setChecked(p.get_value('panel_versions'))
+            self.tb_view_systemAction.setChecked(p.get_value('panel_system'))
+            self.tb_view_datasetsAction.setChecked(p.get_value('panel_datasets'))
+            self.tb_view_pythonAction.setChecked(p.get_value('panel_python'))
 
-        self.PythonEdit.thread_enabled = p['pyinterp_thread_on']
-        self.PythonEdit.write_sys = p['pyinterp_tutsys']
-        self.PythonEdit.write_plots = p['pyinterp_tutplots']
-        self.PythonEdit.write_settings = p['pyinterp_tutsettings']
+        self.PythonEdit.thread_enabled = p.get_value('pyinterp_thread_on')
+        self.PythonEdit.write_sys = p.get_value('pyinterp_tutsys')
+        self.PythonEdit.write_plots = p.get_value('pyinterp_tutplots')
+        self.PythonEdit.write_settings = p.get_value('pyinterp_tutsettings')
         
         # THIS PROBABLY DOESN'T WORK
-        for pluginpath in p['plugins'].keys():
-            if pluginpath not in self.pluginsloaded and p['plugins'][pluginpath]:
-                # need to load and enable
-                self.pluginsloaded.append(pluginpath)
-                self.plugins.append(imp.load_source(os.path.basename(pluginpath).strip('.py'), pluginpath))
-                self.guiplugins.append(self.plugins[-1].GUIPlugin())
-                self.plugins[i].enablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
-            if pluginpath in self.pluginsloaded:
-                i = self.pluginsloaded.index(pluginpath)
-                if pluginpath in p['plugins'][pluginpath]:
-                    # then already loaded, but need to enable
-                    self.plugins[i].enablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
-                else:
-                    #then already loaded, but need to disable
-                    self.plugins[i].disablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
+        #~ for pluginpath in p['plugins'].keys():
+            #~ if pluginpath not in self.pluginsloaded and p['plugins'][pluginpath]:
+                #~ # need to load and enable
+                #~ self.pluginsloaded.append(pluginpath)
+                #~ self.plugins.append(imp.load_source(os.path.basename(pluginpath).strip('.py'), pluginpath))
+                #~ self.guiplugins.append(self.plugins[-1].GUIPlugin())
+                #~ self.plugins[i].enablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
+            #~ if pluginpath in self.pluginsloaded:
+                #~ i = self.pluginsloaded.index(pluginpath)
+                #~ if pluginpath in p['plugins'][pluginpath]:
+                    #~ # then already loaded, but need to enable
+                    #~ self.plugins[i].enablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
+                #~ else:
+                    #~ #then already loaded, but need to disable
+                    #~ self.plugins[i].disablePlugin(self.guiplugins[i], self, gui.Ui_PHOEBE_MainWindow)
 
         #~ from pyphoebe.plugins import keplereb
         #~ self.keplerebplugin = keplereb.GUIPlugin()

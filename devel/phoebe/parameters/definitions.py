@@ -612,7 +612,32 @@ defs += [dict(qualifier='label', description='label for the server',repr='%s',ca
          dict(qualifier='server_script', description='location on the server of a script to run (ie. to setup a virtual environment) before running phoebe',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          dict(qualifier='mount_dir', description='local mounted directory to server:server_dir',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          ]
-        
+         
+# Logger context
+defs += [dict(qualifier='style',    description='logger style',repr='%s',cast_type='choose',value='default',choices=['default','grandpa','minimal','trace'],frame=["phoebe"],context='logger'),
+         dict(qualifier='clevel',   description='print to consolve this level and above',repr='%s',cast_type='choose',value='WARNING',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
+         dict(qualifier='flevel',   description='print to file this level and above',repr='%s',cast_type='choose',value='DEBUG',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
+         dict(qualifier='filename', description='log file to print messages with level flevel and above',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='logger'),
+         dict(qualifier='filemode', description='mode to open log file',repr='%s',cast_type='choose',value='w',choices=['a','w'],frame=["phoebe"],context='logger'),
+         ]
+
+# GUI context
+defs += [dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_params', description='show parameters panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_versions', description='show versions panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_datasets', description='show datasets/plotting panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_python', description='show python console panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_tutsys', description='show system messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_tutplots', description='show plotting messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_tutsettings', description='show settings messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_thread_on', description='use threading in the python console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_startup_default', description='DON\'T CHANGE',repr='%s',cast_type=str,value='import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',frame=["phoebe"],context='gui'),
+         dict(qualifier='pyinterp_startup_custom', description='custom startup script to run on gui load',repr='%s',cast_type=str,value='import numpy as np',frame=["phoebe"],context='gui'),
+         ]
+         
+         
+# Compute context
 defs += [dict(qualifier='label',                description='label for the comute options',repr='%s',cast_type=str,value='compute',frame=["phoebe"],context='compute'),
          dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
@@ -632,7 +657,7 @@ defs += [dict(qualifier='label',                description='label for the comut
                                                                    "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='graham',frame=['phoebe'],context='compute'),
         ] 
 
-
+# Globals context
 defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['globals']),
          dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['globals']),
          dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value='J2000', cast_type=str, frame=['phoebe'], context=['globals']),
