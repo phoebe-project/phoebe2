@@ -131,18 +131,38 @@
           </widget>
          </item>
          <item>
+          <widget class="QPushButton" name="co_delete">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>28</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="ui_resources.qrc">
+             <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QPushButton" name="co_add">
            <property name="enabled">
             <bool>true</bool>
            </property>
            <property name="maximumSize">
             <size>
-             <width>150</width>
+             <width>28</width>
              <height>16777215</height>
             </size>
            </property>
            <property name="text">
-            <string>Create New</string>
+            <string/>
            </property>
            <property name="icon">
             <iconset resource="ui_resources.qrc">
@@ -183,6 +203,46 @@
           <widget class="QComboBox" name="fo_edit_combo">
            <property name="enabled">
             <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fo_delete">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>28</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="ui_resources.qrc">
+             <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fo_add">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>28</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset resource="ui_resources.qrc">
+             <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
            </property>
           </widget>
          </item>
@@ -430,31 +490,67 @@
               </widget>
              </item>
              <item>
-              <widget class="StatusPushButton" name="sx_serveredit_status">
+              <widget class="QPushButton" name="sx_serveredit_test">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
                <property name="maximumSize">
                 <size>
-                 <width>28</width>
-                 <height>28</height>
+                 <width>60</width>
+                 <height>16777215</height>
                 </size>
                </property>
                <property name="toolTip">
-                <string>server status</string>
+                <string>test server configuration</string>
+               </property>
+               <property name="text">
+                <string>Test</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="sx_serveredit_delete">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>28</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>delete server</string>
                </property>
                <property name="text">
                 <string/>
                </property>
                <property name="icon">
                 <iconset resource="ui_resources.qrc">
-                 <normaloff>:/images/icons/bullet.png</normaloff>:/images/icons/bullet.png</iconset>
+                 <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
                </property>
-               <property name="iconSize">
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="sx_serveredit_add">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="maximumSize">
                 <size>
-                 <width>32</width>
-                 <height>32</height>
+                 <width>28</width>
+                 <height>16777215</height>
                 </size>
                </property>
-               <property name="flat">
-                <bool>true</bool>
+               <property name="toolTip">
+                <string>add new server</string>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="ui_resources.qrc">
+                 <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
                </property>
               </widget>
              </item>
@@ -823,11 +919,6 @@ logger = utils.get_basic_logger()</string>
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>StatusPushButton</class>
-   <extends>QPushButton</extends>
-   <header>phoebe_widgets</header>
-  </customwidget>
   <customwidget>
    <class>ServerListTreeWidget</class>
    <extends>QTreeWidget</extends>

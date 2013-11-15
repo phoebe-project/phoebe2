@@ -526,7 +526,7 @@ class Ui_fileEntryWidget(object):
 class Ui_PHOEBE_MainWindow(object):
     def setupUi(self, PHOEBE_MainWindow):
         PHOEBE_MainWindow.setObjectName(_fromUtf8("PHOEBE_MainWindow"))
-        PHOEBE_MainWindow.resize(1193, 1851)
+        PHOEBE_MainWindow.resize(1193, 1903)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -855,6 +855,22 @@ class Ui_PHOEBE_MainWindow(object):
         self.lp_optionsPushButton2.setCheckable(True)
         self.lp_optionsPushButton2.setObjectName(_fromUtf8("lp_optionsPushButton2"))
         self.verticalLayout_10.addWidget(self.lp_optionsPushButton2)
+        self.lp_observeoptionsReset = QtGui.QPushButton(self.lp_observeoptionsWidget)
+        self.lp_observeoptionsReset.setEnabled(True)
+        self.lp_observeoptionsReset.setMaximumSize(QtCore.QSize(16777215, 24))
+        icon4 = QtGui.QIcon()
+        icon4.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/return.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.lp_observeoptionsReset.setIcon(icon4)
+        self.lp_observeoptionsReset.setObjectName(_fromUtf8("lp_observeoptionsReset"))
+        self.verticalLayout_10.addWidget(self.lp_observeoptionsReset)
+        self.lp_observeoptionsDelete = QtGui.QPushButton(self.lp_observeoptionsWidget)
+        self.lp_observeoptionsDelete.setEnabled(True)
+        self.lp_observeoptionsDelete.setMaximumSize(QtCore.QSize(16777215, 24))
+        icon5 = QtGui.QIcon()
+        icon5.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bin-3.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.lp_observeoptionsDelete.setIcon(icon5)
+        self.lp_observeoptionsDelete.setObjectName(_fromUtf8("lp_observeoptionsDelete"))
+        self.verticalLayout_10.addWidget(self.lp_observeoptionsDelete)
         self.lp_observeoptionsTreeView = ParameterTreeWidget(self.lp_observeoptionsWidget)
         self.lp_observeoptionsTreeView.setIndentation(2)
         self.lp_observeoptionsTreeView.setObjectName(_fromUtf8("lp_observeoptionsTreeView"))
@@ -880,20 +896,23 @@ class Ui_PHOEBE_MainWindow(object):
         self.lp_optionsPushButton = QtGui.QPushButton(self.page_5)
         self.lp_optionsPushButton.setMaximumSize(QtCore.QSize(24, 24))
         self.lp_optionsPushButton.setText(_fromUtf8(""))
-        icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/settings.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.lp_optionsPushButton.setIcon(icon4)
+        icon6 = QtGui.QIcon()
+        icon6.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/settings.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.lp_optionsPushButton.setIcon(icon6)
         self.lp_optionsPushButton.setCheckable(True)
         self.lp_optionsPushButton.setObjectName(_fromUtf8("lp_optionsPushButton"))
         self.horizontalLayout_12.addWidget(self.lp_optionsPushButton)
         self.lp_methodComboBox = QtGui.QComboBox(self.page_5)
         self.lp_methodComboBox.setObjectName(_fromUtf8("lp_methodComboBox"))
         self.horizontalLayout_12.addWidget(self.lp_methodComboBox)
+        self.lp_serverComboBox = QtGui.QComboBox(self.page_5)
+        self.lp_serverComboBox.setObjectName(_fromUtf8("lp_serverComboBox"))
+        self.horizontalLayout_12.addWidget(self.lp_serverComboBox)
         self.lp_computePushButton = QtGui.QPushButton(self.page_5)
         self.lp_computePushButton.setMaximumSize(QtCore.QSize(60, 24))
-        icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/play.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.lp_computePushButton.setIcon(icon5)
+        icon7 = QtGui.QIcon()
+        icon7.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/play.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.lp_computePushButton.setIcon(icon7)
         self.lp_computePushButton.setObjectName(_fromUtf8("lp_computePushButton"))
         self.horizontalLayout_12.addWidget(self.lp_computePushButton)
         self.lp_progressStackedWidget.addWidget(self.page_5)
@@ -912,9 +931,9 @@ class Ui_PHOEBE_MainWindow(object):
         self.lp_progressQuit.setMinimumSize(QtCore.QSize(24, 24))
         self.lp_progressQuit.setMaximumSize(QtCore.QSize(24, 24))
         self.lp_progressQuit.setText(_fromUtf8(""))
-        icon6 = QtGui.QIcon()
-        icon6.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/delete.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.lp_progressQuit.setIcon(icon6)
+        icon8 = QtGui.QIcon()
+        icon8.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/delete.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.lp_progressQuit.setIcon(icon8)
         self.lp_progressQuit.setObjectName(_fromUtf8("lp_progressQuit"))
         self.horizontalLayout_13.addWidget(self.lp_progressQuit)
         self.lp_progressStackedWidget.addWidget(self.page_6)
@@ -977,6 +996,18 @@ class Ui_PHOEBE_MainWindow(object):
         self.rp_optionsPushButton2.setCheckable(True)
         self.rp_optionsPushButton2.setObjectName(_fromUtf8("rp_optionsPushButton2"))
         self.verticalLayout_8.addWidget(self.rp_optionsPushButton2)
+        self.rp_fitoptionsReset = QtGui.QPushButton(self.rp_fitoptionsWidget)
+        self.rp_fitoptionsReset.setEnabled(True)
+        self.rp_fitoptionsReset.setMaximumSize(QtCore.QSize(16777215, 24))
+        self.rp_fitoptionsReset.setIcon(icon4)
+        self.rp_fitoptionsReset.setObjectName(_fromUtf8("rp_fitoptionsReset"))
+        self.verticalLayout_8.addWidget(self.rp_fitoptionsReset)
+        self.rp_fitoptionsDelete = QtGui.QPushButton(self.rp_fitoptionsWidget)
+        self.rp_fitoptionsDelete.setEnabled(True)
+        self.rp_fitoptionsDelete.setMaximumSize(QtCore.QSize(16777215, 24))
+        self.rp_fitoptionsDelete.setIcon(icon5)
+        self.rp_fitoptionsDelete.setObjectName(_fromUtf8("rp_fitoptionsDelete"))
+        self.verticalLayout_8.addWidget(self.rp_fitoptionsDelete)
         self.rp_fitoptionsTreeView = ParameterTreeWidget(self.rp_fitoptionsWidget)
         self.rp_fitoptionsTreeView.setMinimumSize(QtCore.QSize(0, 150))
         self.rp_fitoptionsTreeView.setIndentation(2)
@@ -997,7 +1028,7 @@ class Ui_PHOEBE_MainWindow(object):
         self.rp_optionsPushButton.setMinimumSize(QtCore.QSize(24, 24))
         self.rp_optionsPushButton.setMaximumSize(QtCore.QSize(24, 24))
         self.rp_optionsPushButton.setText(_fromUtf8(""))
-        self.rp_optionsPushButton.setIcon(icon4)
+        self.rp_optionsPushButton.setIcon(icon6)
         self.rp_optionsPushButton.setCheckable(True)
         self.rp_optionsPushButton.setObjectName(_fromUtf8("rp_optionsPushButton"))
         self.horizontalLayout_14.addWidget(self.rp_optionsPushButton)
@@ -1006,11 +1037,14 @@ class Ui_PHOEBE_MainWindow(object):
         self.rp_methodComboBox.setMaximumSize(QtCore.QSize(16777215, 24))
         self.rp_methodComboBox.setObjectName(_fromUtf8("rp_methodComboBox"))
         self.horizontalLayout_14.addWidget(self.rp_methodComboBox)
+        self.rp_serverComboBox = QtGui.QComboBox(self.page_7)
+        self.rp_serverComboBox.setObjectName(_fromUtf8("rp_serverComboBox"))
+        self.horizontalLayout_14.addWidget(self.rp_serverComboBox)
         self.rp_fitPushButton = QtGui.QPushButton(self.page_7)
         self.rp_fitPushButton.setEnabled(True)
         self.rp_fitPushButton.setMinimumSize(QtCore.QSize(24, 24))
         self.rp_fitPushButton.setMaximumSize(QtCore.QSize(60, 24))
-        self.rp_fitPushButton.setIcon(icon5)
+        self.rp_fitPushButton.setIcon(icon7)
         self.rp_fitPushButton.setObjectName(_fromUtf8("rp_fitPushButton"))
         self.horizontalLayout_14.addWidget(self.rp_fitPushButton)
         self.rp_progressStackedWidget.addWidget(self.page_7)
@@ -1041,9 +1075,9 @@ class Ui_PHOEBE_MainWindow(object):
         self.pushButton_4 = QtGui.QPushButton(self.page_10)
         self.pushButton_4.setEnabled(False)
         self.pushButton_4.setMaximumSize(QtCore.QSize(16777215, 24))
-        icon7 = QtGui.QIcon()
-        icon7.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/add.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pushButton_4.setIcon(icon7)
+        icon9 = QtGui.QIcon()
+        icon9.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/add.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.pushButton_4.setIcon(icon9)
         self.pushButton_4.setObjectName(_fromUtf8("pushButton_4"))
         self.verticalLayout_13.addWidget(self.pushButton_4)
         self.gridLayout_15 = QtGui.QGridLayout()
@@ -1052,34 +1086,32 @@ class Ui_PHOEBE_MainWindow(object):
         self.rp_rejectPushButton.setEnabled(True)
         self.rp_rejectPushButton.setMinimumSize(QtCore.QSize(0, 24))
         self.rp_rejectPushButton.setMaximumSize(QtCore.QSize(16777215, 24))
-        icon8 = QtGui.QIcon()
-        icon8.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bin-3.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.rp_rejectPushButton.setIcon(icon8)
+        self.rp_rejectPushButton.setIcon(icon5)
         self.rp_rejectPushButton.setObjectName(_fromUtf8("rp_rejectPushButton"))
         self.gridLayout_15.addWidget(self.rp_rejectPushButton, 3, 1, 1, 1)
         self.rp_acceptPushButton = QtGui.QPushButton(self.page_10)
         self.rp_acceptPushButton.setEnabled(True)
         self.rp_acceptPushButton.setMinimumSize(QtCore.QSize(0, 24))
         self.rp_acceptPushButton.setMaximumSize(QtCore.QSize(16777215, 24))
-        icon9 = QtGui.QIcon()
-        icon9.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/commit.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.rp_acceptPushButton.setIcon(icon9)
+        icon10 = QtGui.QIcon()
+        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/commit.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.rp_acceptPushButton.setIcon(icon10)
         self.rp_acceptPushButton.setObjectName(_fromUtf8("rp_acceptPushButton"))
         self.gridLayout_15.addWidget(self.rp_acceptPushButton, 3, 3, 1, 1)
         self.pushButton_2 = QtGui.QPushButton(self.page_10)
         self.pushButton_2.setEnabled(False)
         self.pushButton_2.setMaximumSize(QtCore.QSize(16777215, 24))
-        icon10 = QtGui.QIcon()
-        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/eye.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pushButton_2.setIcon(icon10)
+        icon11 = QtGui.QIcon()
+        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/eye.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.pushButton_2.setIcon(icon11)
         self.pushButton_2.setObjectName(_fromUtf8("pushButton_2"))
         self.gridLayout_15.addWidget(self.pushButton_2, 2, 3, 1, 1)
         self.pushButton_3 = QtGui.QPushButton(self.page_10)
         self.pushButton_3.setEnabled(False)
         self.pushButton_3.setMaximumSize(QtCore.QSize(16777215, 24))
-        icon11 = QtGui.QIcon()
-        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/chart.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pushButton_3.setIcon(icon11)
+        icon12 = QtGui.QIcon()
+        icon12.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/chart.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.pushButton_3.setIcon(icon12)
         self.pushButton_3.setObjectName(_fromUtf8("pushButton_3"))
         self.gridLayout_15.addWidget(self.pushButton_3, 2, 1, 1, 1)
         self.verticalLayout_13.addLayout(self.gridLayout_15)
@@ -1130,7 +1162,7 @@ class Ui_PHOEBE_MainWindow(object):
         self.gridLayout_2.addWidget(self.versions_oncompute, 2, 0, 1, 1)
         self.versions_addnow = QtGui.QPushButton(self.dockWidgetContents_2)
         self.versions_addnow.setEnabled(True)
-        self.versions_addnow.setIcon(icon7)
+        self.versions_addnow.setIcon(icon9)
         self.versions_addnow.setObjectName(_fromUtf8("versions_addnow"))
         self.gridLayout_2.addWidget(self.versions_addnow, 2, 1, 1, 1)
         self.versions_treeView = VersionsTreeWidget(self.dockWidgetContents_2)
@@ -1210,14 +1242,14 @@ class Ui_PHOEBE_MainWindow(object):
         self.sys_orbitOptionsPushButton.setEnabled(True)
         self.sys_orbitOptionsPushButton.setMaximumSize(QtCore.QSize(24, 24))
         self.sys_orbitOptionsPushButton.setText(_fromUtf8(""))
-        self.sys_orbitOptionsPushButton.setIcon(icon4)
+        self.sys_orbitOptionsPushButton.setIcon(icon6)
         self.sys_orbitOptionsPushButton.setCheckable(True)
         self.sys_orbitOptionsPushButton.setObjectName(_fromUtf8("sys_orbitOptionsPushButton"))
         self.horizontalLayout_5.addWidget(self.sys_orbitOptionsPushButton)
         self.sys_orbitPushButton = QtGui.QPushButton(self.mp_sysorbitWidget)
         self.sys_orbitPushButton.setEnabled(True)
         self.sys_orbitPushButton.setMaximumSize(QtCore.QSize(16777215, 24))
-        self.sys_orbitPushButton.setIcon(icon5)
+        self.sys_orbitPushButton.setIcon(icon7)
         self.sys_orbitPushButton.setObjectName(_fromUtf8("sys_orbitPushButton"))
         self.horizontalLayout_5.addWidget(self.sys_orbitPushButton)
         self.verticalLayout_15.addLayout(self.horizontalLayout_5)
@@ -1272,14 +1304,14 @@ class Ui_PHOEBE_MainWindow(object):
         self.sys_meshOptionsPushButton.setEnabled(True)
         self.sys_meshOptionsPushButton.setMaximumSize(QtCore.QSize(24, 24))
         self.sys_meshOptionsPushButton.setText(_fromUtf8(""))
-        self.sys_meshOptionsPushButton.setIcon(icon4)
+        self.sys_meshOptionsPushButton.setIcon(icon6)
         self.sys_meshOptionsPushButton.setCheckable(True)
         self.sys_meshOptionsPushButton.setObjectName(_fromUtf8("sys_meshOptionsPushButton"))
         self.horizontalLayout_3.addWidget(self.sys_meshOptionsPushButton)
         self.sys_meshPushButton = QtGui.QPushButton(self.mp_sysmplWidget)
         self.sys_meshPushButton.setEnabled(True)
         self.sys_meshPushButton.setMaximumSize(QtCore.QSize(16777215, 24))
-        self.sys_meshPushButton.setIcon(icon5)
+        self.sys_meshPushButton.setIcon(icon7)
         self.sys_meshPushButton.setObjectName(_fromUtf8("sys_meshPushButton"))
         self.horizontalLayout_3.addWidget(self.sys_meshPushButton)
         self.verticalLayout_9.addLayout(self.horizontalLayout_3)
@@ -1508,6 +1540,8 @@ class Ui_PHOEBE_MainWindow(object):
         self.lp_meshTreeView.headerItem().setText(0, QtGui.QApplication.translate("PHOEBE_MainWindow", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
         self.lp_meshTreeView.headerItem().setText(1, QtGui.QApplication.translate("PHOEBE_MainWindow", "Value", None, QtGui.QApplication.UnicodeUTF8))
         self.lp_optionsPushButton2.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Compute Options", None, QtGui.QApplication.UnicodeUTF8))
+        self.lp_observeoptionsReset.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Reset to Default", None, QtGui.QApplication.UnicodeUTF8))
+        self.lp_observeoptionsDelete.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Delete", None, QtGui.QApplication.UnicodeUTF8))
         self.lp_observeoptionsTreeView.headerItem().setText(0, QtGui.QApplication.translate("PHOEBE_MainWindow", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
         self.lp_observeoptionsTreeView.headerItem().setText(1, QtGui.QApplication.translate("PHOEBE_MainWindow", "Preview", None, QtGui.QApplication.UnicodeUTF8))
         self.lp_observeoptionsTreeView.headerItem().setText(2, QtGui.QApplication.translate("PHOEBE_MainWindow", "Compute", None, QtGui.QApplication.UnicodeUTF8))
@@ -1521,6 +1555,8 @@ class Ui_PHOEBE_MainWindow(object):
         self.rp_savedFeedbackTreeView.headerItem().setText(0, QtGui.QApplication.translate("PHOEBE_MainWindow", "Feedback Name", None, QtGui.QApplication.UnicodeUTF8))
         self.rp_savedFeedbackAutoSaveCheck.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "auto save feedback", None, QtGui.QApplication.UnicodeUTF8))
         self.rp_optionsPushButton2.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Fitting Options", None, QtGui.QApplication.UnicodeUTF8))
+        self.rp_fitoptionsReset.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Reset to Default", None, QtGui.QApplication.UnicodeUTF8))
+        self.rp_fitoptionsDelete.setText(QtGui.QApplication.translate("PHOEBE_MainWindow", "Delete", None, QtGui.QApplication.UnicodeUTF8))
         self.rp_fitoptionsTreeView.headerItem().setText(0, QtGui.QApplication.translate("PHOEBE_MainWindow", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
         self.rp_optionsPushButton.setToolTip(QtGui.QApplication.translate("PHOEBE_MainWindow", "view options for the current fitting", None, QtGui.QApplication.UnicodeUTF8))
         self.rp_fitPushButton.setToolTip(QtGui.QApplication.translate("PHOEBE_MainWindow", "run the selected fitting routine", None, QtGui.QApplication.UnicodeUTF8))
@@ -2407,12 +2443,22 @@ class Ui_popPrefs_Dialog(object):
         self.co_edit_combo.setEnabled(True)
         self.co_edit_combo.setObjectName(_fromUtf8("co_edit_combo"))
         self.horizontalLayout_6.addWidget(self.co_edit_combo)
+        self.co_delete = QtGui.QPushButton(self.tab_3)
+        self.co_delete.setEnabled(False)
+        self.co_delete.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.co_delete.setText(_fromUtf8(""))
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bin-3.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.co_delete.setIcon(icon)
+        self.co_delete.setObjectName(_fromUtf8("co_delete"))
+        self.horizontalLayout_6.addWidget(self.co_delete)
         self.co_add = QtGui.QPushButton(self.tab_3)
         self.co_add.setEnabled(True)
-        self.co_add.setMaximumSize(QtCore.QSize(150, 16777215))
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/add.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.co_add.setIcon(icon)
+        self.co_add.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.co_add.setText(_fromUtf8(""))
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/add.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.co_add.setIcon(icon1)
         self.co_add.setObjectName(_fromUtf8("co_add"))
         self.horizontalLayout_6.addWidget(self.co_add)
         self.verticalLayout_6.addLayout(self.horizontalLayout_6)
@@ -2432,6 +2478,20 @@ class Ui_popPrefs_Dialog(object):
         self.fo_edit_combo.setEnabled(True)
         self.fo_edit_combo.setObjectName(_fromUtf8("fo_edit_combo"))
         self.horizontalLayout_7.addWidget(self.fo_edit_combo)
+        self.fo_delete = QtGui.QPushButton(self.tab_3)
+        self.fo_delete.setEnabled(False)
+        self.fo_delete.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.fo_delete.setText(_fromUtf8(""))
+        self.fo_delete.setIcon(icon)
+        self.fo_delete.setObjectName(_fromUtf8("fo_delete"))
+        self.horizontalLayout_7.addWidget(self.fo_delete)
+        self.fo_add = QtGui.QPushButton(self.tab_3)
+        self.fo_add.setEnabled(False)
+        self.fo_add.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.fo_add.setText(_fromUtf8(""))
+        self.fo_add.setIcon(icon1)
+        self.fo_add.setObjectName(_fromUtf8("fo_add"))
+        self.horizontalLayout_7.addWidget(self.fo_add)
         self.verticalLayout_6.addLayout(self.horizontalLayout_7)
         self.fo_psedit = ParameterTreeWidget(self.tab_3)
         self.fo_psedit.setEnabled(True)
@@ -2502,21 +2562,21 @@ class Ui_popPrefs_Dialog(object):
         self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
         self.serverlist_recheck = QtGui.QPushButton(self.page)
         self.serverlist_recheck.setEnabled(True)
-        icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/refresh.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.serverlist_recheck.setIcon(icon1)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/refresh.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.serverlist_recheck.setIcon(icon2)
         self.serverlist_recheck.setObjectName(_fromUtf8("serverlist_recheck"))
         self.horizontalLayout_5.addWidget(self.serverlist_recheck)
         self.serverlist_edit = QtGui.QPushButton(self.page)
         self.serverlist_edit.setEnabled(True)
-        icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/pen.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.serverlist_edit.setIcon(icon2)
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/pen.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.serverlist_edit.setIcon(icon3)
         self.serverlist_edit.setObjectName(_fromUtf8("serverlist_edit"))
         self.horizontalLayout_5.addWidget(self.serverlist_edit)
         self.serverlist_add = QtGui.QPushButton(self.page)
         self.serverlist_add.setEnabled(True)
-        self.serverlist_add.setIcon(icon)
+        self.serverlist_add.setIcon(icon1)
         self.serverlist_add.setObjectName(_fromUtf8("serverlist_add"))
         self.horizontalLayout_5.addWidget(self.serverlist_add)
         self.gridLayout_3.addLayout(self.horizontalLayout_5, 4, 0, 1, 1)
@@ -2531,25 +2591,34 @@ class Ui_popPrefs_Dialog(object):
         self.servers_returntolist = QtGui.QPushButton(self.page_2)
         self.servers_returntolist.setMaximumSize(QtCore.QSize(28, 28))
         self.servers_returntolist.setText(_fromUtf8(""))
-        icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/menu-2.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.servers_returntolist.setIcon(icon3)
+        icon4 = QtGui.QIcon()
+        icon4.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/menu-2.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.servers_returntolist.setIcon(icon4)
         self.servers_returntolist.setObjectName(_fromUtf8("servers_returntolist"))
         self.horizontalLayout_3.addWidget(self.servers_returntolist)
         self.sx_serveredit_combo = QtGui.QComboBox(self.page_2)
         self.sx_serveredit_combo.setObjectName(_fromUtf8("sx_serveredit_combo"))
         self.sx_serveredit_combo.addItem(_fromUtf8(""))
         self.horizontalLayout_3.addWidget(self.sx_serveredit_combo)
-        self.sx_serveredit_status = StatusPushButton(self.page_2)
-        self.sx_serveredit_status.setMaximumSize(QtCore.QSize(28, 28))
-        self.sx_serveredit_status.setText(_fromUtf8(""))
-        icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap(_fromUtf8(":/images/icons/bullet.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.sx_serveredit_status.setIcon(icon4)
-        self.sx_serveredit_status.setIconSize(QtCore.QSize(32, 32))
-        self.sx_serveredit_status.setFlat(True)
-        self.sx_serveredit_status.setObjectName(_fromUtf8("sx_serveredit_status"))
-        self.horizontalLayout_3.addWidget(self.sx_serveredit_status)
+        self.sx_serveredit_test = QtGui.QPushButton(self.page_2)
+        self.sx_serveredit_test.setEnabled(False)
+        self.sx_serveredit_test.setMaximumSize(QtCore.QSize(60, 16777215))
+        self.sx_serveredit_test.setObjectName(_fromUtf8("sx_serveredit_test"))
+        self.horizontalLayout_3.addWidget(self.sx_serveredit_test)
+        self.sx_serveredit_delete = QtGui.QPushButton(self.page_2)
+        self.sx_serveredit_delete.setEnabled(False)
+        self.sx_serveredit_delete.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.sx_serveredit_delete.setText(_fromUtf8(""))
+        self.sx_serveredit_delete.setIcon(icon)
+        self.sx_serveredit_delete.setObjectName(_fromUtf8("sx_serveredit_delete"))
+        self.horizontalLayout_3.addWidget(self.sx_serveredit_delete)
+        self.sx_serveredit_add = QtGui.QPushButton(self.page_2)
+        self.sx_serveredit_add.setEnabled(False)
+        self.sx_serveredit_add.setMaximumSize(QtCore.QSize(28, 16777215))
+        self.sx_serveredit_add.setText(_fromUtf8(""))
+        self.sx_serveredit_add.setIcon(icon1)
+        self.sx_serveredit_add.setObjectName(_fromUtf8("sx_serveredit_add"))
+        self.horizontalLayout_3.addWidget(self.sx_serveredit_add)
         self.verticalLayout_3.addLayout(self.horizontalLayout_3)
         self.sx_serveredit_psedit = ParameterTreeWidget(self.page_2)
         self.sx_serveredit_psedit.setIndentation(2)
@@ -2725,7 +2794,6 @@ class Ui_popPrefs_Dialog(object):
         self.p_panel_params.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Parameters", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QtGui.QApplication.translate("popPrefs_Dialog", "Interface", None, QtGui.QApplication.UnicodeUTF8))
         self.label_12.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Compute Options:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
-        self.co_add.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Create New", None, QtGui.QApplication.UnicodeUTF8))
         self.label_13.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Fitting Options:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.label_14.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Note: values in a bundle will override those set here.  Changes made to defaults may not take effect until a new bundle is loaded or created", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QtGui.QApplication.translate("popPrefs_Dialog", "Defaults", None, QtGui.QApplication.UnicodeUTF8))
@@ -2744,7 +2812,10 @@ class Ui_popPrefs_Dialog(object):
         self.serverlist_add.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Add Server", None, QtGui.QApplication.UnicodeUTF8))
         self.servers_returntolist.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "return to server list", None, QtGui.QApplication.UnicodeUTF8))
         self.sx_serveredit_combo.setItemText(0, QtGui.QApplication.translate("popPrefs_Dialog", "servername", None, QtGui.QApplication.UnicodeUTF8))
-        self.sx_serveredit_status.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "server status", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_test.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "test server configuration", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_test.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Test", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_delete.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "delete server", None, QtGui.QApplication.UnicodeUTF8))
+        self.sx_serveredit_add.setToolTip(QtGui.QApplication.translate("popPrefs_Dialog", "add new server", None, QtGui.QApplication.UnicodeUTF8))
         self.sx_serveredit_psedit.headerItem().setText(0, QtGui.QApplication.translate("popPrefs_Dialog", "Parameter", None, QtGui.QApplication.UnicodeUTF8))
         self.sx_serveredit_psedit.headerItem().setText(1, QtGui.QApplication.translate("popPrefs_Dialog", "Value", None, QtGui.QApplication.UnicodeUTF8))
         self.label_9.setText(QtGui.QApplication.translate("popPrefs_Dialog", "MPI type:", None, QtGui.QApplication.UnicodeUTF8))
@@ -2782,7 +2853,7 @@ class Ui_popPrefs_Dialog(object):
         item.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Description", None, QtGui.QApplication.UnicodeUTF8))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), QtGui.QApplication.translate("popPrefs_Dialog", "Plugins", None, QtGui.QApplication.UnicodeUTF8))
 
-from phoebe_widgets import ServerListTreeWidget, ParameterTreeWidget, StatusPushButton
+from phoebe_widgets import ServerListTreeWidget, ParameterTreeWidget
 
 class Ui_datasetWidget(object):
     def setupUi(self, datasetWidget):
@@ -3706,6 +3777,84 @@ qt_resource_data = "\
 \x1d\x93\x01\xef\x9a\x31\x8e\xf8\x10\x00\x08\x30\x00\xa5\x45\x3d\
 \xd3\xc3\x27\x28\xe6\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\
 \x82\
+\x00\x00\x04\xb4\
+\x89\
+\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
+\x00\x00\x20\x00\x00\x00\x20\x08\x06\x00\x00\x00\x73\x7a\x7a\xf4\
+\x00\x00\x00\x19\x74\x45\x58\x74\x53\x6f\x66\x74\x77\x61\x72\x65\
+\x00\x41\x64\x6f\x62\x65\x20\x49\x6d\x61\x67\x65\x52\x65\x61\x64\
+\x79\x71\xc9\x65\x3c\x00\x00\x03\x68\x69\x54\x58\x74\x58\x4d\x4c\
+\x3a\x63\x6f\x6d\x2e\x61\x64\x6f\x62\x65\x2e\x78\x6d\x70\x00\x00\
+\x00\x00\x00\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x62\x65\x67\
+\x69\x6e\x3d\x22\xef\xbb\xbf\x22\x20\x69\x64\x3d\x22\x57\x35\x4d\
+\x30\x4d\x70\x43\x65\x68\x69\x48\x7a\x72\x65\x53\x7a\x4e\x54\x63\
+\x7a\x6b\x63\x39\x64\x22\x3f\x3e\x20\x3c\x78\x3a\x78\x6d\x70\x6d\
+\x65\x74\x61\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x3d\x22\x61\x64\x6f\
+\x62\x65\x3a\x6e\x73\x3a\x6d\x65\x74\x61\x2f\x22\x20\x78\x3a\x78\
+\x6d\x70\x74\x6b\x3d\x22\x41\x64\x6f\x62\x65\x20\x58\x4d\x50\x20\
+\x43\x6f\x72\x65\x20\x35\x2e\x30\x2d\x63\x30\x36\x31\x20\x36\x34\
+\x2e\x31\x34\x30\x39\x34\x39\x2c\x20\x32\x30\x31\x30\x2f\x31\x32\
+\x2f\x30\x37\x2d\x31\x30\x3a\x35\x37\x3a\x30\x31\x20\x20\x20\x20\
+\x20\x20\x20\x20\x22\x3e\x20\x3c\x72\x64\x66\x3a\x52\x44\x46\x20\
+\x78\x6d\x6c\x6e\x73\x3a\x72\x64\x66\x3d\x22\x68\x74\x74\x70\x3a\
+\x2f\x2f\x77\x77\x77\x2e\x77\x33\x2e\x6f\x72\x67\x2f\x31\x39\x39\
+\x39\x2f\x30\x32\x2f\x32\x32\x2d\x72\x64\x66\x2d\x73\x79\x6e\x74\
+\x61\x78\x2d\x6e\x73\x23\x22\x3e\x20\x3c\x72\x64\x66\x3a\x44\x65\
+\x73\x63\x72\x69\x70\x74\x69\x6f\x6e\x20\x72\x64\x66\x3a\x61\x62\
+\x6f\x75\x74\x3d\x22\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\
+\x4d\x4d\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\
+\x6f\x62\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\
+\x6d\x6d\x2f\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x73\x74\x52\x65\x66\
+\x3d\x22\x68\x74\x74\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\
+\x65\x2e\x63\x6f\x6d\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x73\x54\
+\x79\x70\x65\x2f\x52\x65\x73\x6f\x75\x72\x63\x65\x52\x65\x66\x23\
+\x22\x20\x78\x6d\x6c\x6e\x73\x3a\x78\x6d\x70\x3d\x22\x68\x74\x74\
+\x70\x3a\x2f\x2f\x6e\x73\x2e\x61\x64\x6f\x62\x65\x2e\x63\x6f\x6d\
+\x2f\x78\x61\x70\x2f\x31\x2e\x30\x2f\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x4f\x72\x69\x67\x69\x6e\x61\x6c\x44\x6f\x63\x75\x6d\x65\x6e\
+\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x44\x46\x34\
+\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\x38\x31\x31\x38\x38\x43\
+\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\x38\x31\x32\x22\x20\x78\
+\x6d\x70\x4d\x4d\x3a\x44\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\
+\x22\x78\x6d\x70\x2e\x64\x69\x64\x3a\x37\x35\x45\x46\x46\x44\x37\
+\x31\x32\x46\x45\x41\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\
+\x33\x46\x37\x31\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x4d\x4d\
+\x3a\x49\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\x6d\x70\
+\x2e\x69\x69\x64\x3a\x37\x35\x45\x46\x46\x44\x37\x30\x32\x46\x45\
+\x41\x31\x31\x45\x32\x38\x43\x30\x39\x39\x39\x32\x33\x46\x37\x31\
+\x37\x31\x31\x41\x34\x22\x20\x78\x6d\x70\x3a\x43\x72\x65\x61\x74\
+\x6f\x72\x54\x6f\x6f\x6c\x3d\x22\x41\x64\x6f\x62\x65\x20\x50\x68\
+\x6f\x74\x6f\x73\x68\x6f\x70\x20\x43\x53\x35\x2e\x31\x20\x4d\x61\
+\x63\x69\x6e\x74\x6f\x73\x68\x22\x3e\x20\x3c\x78\x6d\x70\x4d\x4d\
+\x3a\x44\x65\x72\x69\x76\x65\x64\x46\x72\x6f\x6d\x20\x73\x74\x52\
+\x65\x66\x3a\x69\x6e\x73\x74\x61\x6e\x63\x65\x49\x44\x3d\x22\x78\
+\x6d\x70\x2e\x69\x69\x64\x3a\x34\x42\x45\x42\x37\x43\x34\x36\x32\
+\x32\x32\x30\x36\x38\x31\x31\x38\x46\x36\x32\x42\x38\x38\x42\x42\
+\x44\x44\x31\x46\x34\x46\x46\x22\x20\x73\x74\x52\x65\x66\x3a\x64\
+\x6f\x63\x75\x6d\x65\x6e\x74\x49\x44\x3d\x22\x78\x6d\x70\x2e\x64\
+\x69\x64\x3a\x44\x46\x34\x39\x41\x45\x36\x46\x33\x44\x32\x30\x36\
+\x38\x31\x31\x38\x38\x43\x36\x43\x42\x36\x33\x31\x44\x37\x36\x46\
+\x38\x31\x32\x22\x2f\x3e\x20\x3c\x2f\x72\x64\x66\x3a\x44\x65\x73\
+\x63\x72\x69\x70\x74\x69\x6f\x6e\x3e\x20\x3c\x2f\x72\x64\x66\x3a\
+\x52\x44\x46\x3e\x20\x3c\x2f\x78\x3a\x78\x6d\x70\x6d\x65\x74\x61\
+\x3e\x20\x3c\x3f\x78\x70\x61\x63\x6b\x65\x74\x20\x65\x6e\x64\x3d\
+\x22\x72\x22\x3f\x3e\x81\xbe\x72\xe3\x00\x00\x00\xe2\x49\x44\x41\
+\x54\x78\xda\x62\xfc\xff\xff\x3f\xc3\x40\x02\x26\x86\x01\x06\x03\
+\xee\x80\x21\x01\xec\x81\xf8\x24\x10\xff\xa7\x10\xff\x04\xe2\x03\
+\x40\x9c\x03\xc4\x6c\xa4\x38\xe0\x39\x15\x2c\x47\xc7\xe7\x81\x58\
+\x9a\x58\x07\x3c\xa1\x81\x03\x40\xf8\x12\x28\x24\x98\x89\x70\xc0\
+\x35\x20\x76\x01\x62\x1e\x2a\x47\xad\x38\x10\xbf\xa2\x67\x5a\x32\
+\x83\xa6\x01\xe4\x50\x38\x4c\xef\x04\x2d\x81\x9e\x30\x19\x07\x20\
+\x57\xfd\x1f\x2d\x09\x47\x1d\x30\xe8\x1d\xe0\x01\x2d\xfb\x1f\x42\
+\xeb\x01\xba\x82\x10\x20\xfe\x83\x94\x4f\x9f\xd3\x28\x1b\x22\x63\
+\x9c\x96\x63\x28\xa0\x02\x90\x46\x33\xfb\x33\x21\xcb\xa9\xe9\x00\
+\x50\x29\xb8\x1d\xcd\xec\x63\x20\x09\x6f\x3c\x96\xd3\x1a\xe7\xd3\
+\xaa\xbe\x27\xba\x3a\x06\xe5\x82\xbf\x03\x90\xfb\x2e\x03\xb1\x27\
+\x10\xff\x02\x71\xfc\xe8\x18\x05\x87\xa1\xc1\xce\x46\x28\xfb\xd1\
+\x2a\x17\x90\x54\x06\xd0\xdd\x01\xf4\x2a\x88\x08\x02\x3f\xa8\xc5\
+\x4f\x06\xa2\x28\x1e\x79\x80\x71\xc4\xf7\x8e\x01\x02\x0c\x00\x49\
+\x62\xdd\xf7\x46\x26\x8a\x67\x00\x00\x00\x00\x49\x45\x4e\x44\xae\
+\x42\x60\x82\
 \x00\x00\x04\xf2\
 \x89\
 \x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\
@@ -4898,6 +5047,10 @@ qt_resource_name = "\
 \x0c\x6a\x2c\x47\
 \x00\x72\
 \x00\x65\x00\x66\x00\x72\x00\x65\x00\x73\x00\x68\x00\x2e\x00\x70\x00\x6e\x00\x67\
+\x00\x0a\
+\x0c\x9e\x4e\x27\
+\x00\x72\
+\x00\x65\x00\x74\x00\x75\x00\x72\x00\x6e\x00\x2e\x00\x70\x00\x6e\x00\x67\
 \x00\x07\
 \x07\x63\x57\xa7\
 \x00\x70\
@@ -4964,29 +5117,30 @@ qt_resource_struct = "\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x01\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x02\x00\x00\x00\x02\
 \x00\x00\x00\x22\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
-\x00\x00\x00\x12\x00\x02\x00\x00\x00\x18\x00\x00\x00\x04\
-\x00\x00\x01\xf4\x00\x00\x00\x00\x00\x01\x00\x00\x5a\xa4\
-\x00\x00\x02\x38\x00\x00\x00\x00\x00\x01\x00\x00\x64\x58\
-\x00\x00\x02\x50\x00\x00\x00\x00\x00\x01\x00\x00\x68\xfc\
-\x00\x00\x01\x9e\x00\x00\x00\x00\x00\x01\x00\x00\x4b\x71\
-\x00\x00\x02\x66\x00\x00\x00\x00\x00\x01\x00\x00\x6d\x49\
-\x00\x00\x01\x84\x00\x00\x00\x00\x00\x01\x00\x00\x47\x27\
-\x00\x00\x02\x22\x00\x00\x00\x00\x00\x01\x00\x00\x63\x71\
+\x00\x00\x00\x12\x00\x02\x00\x00\x00\x19\x00\x00\x00\x04\
+\x00\x00\x02\x0e\x00\x00\x00\x00\x00\x01\x00\x00\x5f\x5c\
+\x00\x00\x02\x52\x00\x00\x00\x00\x00\x01\x00\x00\x69\x10\
+\x00\x00\x02\x6a\x00\x00\x00\x00\x00\x01\x00\x00\x6d\xb4\
+\x00\x00\x01\xb8\x00\x00\x00\x00\x00\x01\x00\x00\x50\x29\
+\x00\x00\x02\x80\x00\x00\x00\x00\x00\x01\x00\x00\x72\x01\
+\x00\x00\x01\x9e\x00\x00\x00\x00\x00\x01\x00\x00\x4b\xdf\
+\x00\x00\x02\x3c\x00\x00\x00\x00\x00\x01\x00\x00\x68\x29\
 \x00\x00\x00\xb4\x00\x00\x00\x00\x00\x01\x00\x00\x20\xc8\
 \x00\x00\x00\x5a\x00\x00\x00\x00\x00\x01\x00\x00\x0f\xc4\
-\x00\x00\x01\xd6\x00\x00\x00\x00\x00\x01\x00\x00\x54\xf3\
-\x00\x00\x01\x22\x00\x00\x00\x00\x00\x01\x00\x00\x32\xe9\
+\x00\x00\x01\xf0\x00\x00\x00\x00\x00\x01\x00\x00\x59\xab\
+\x00\x00\x01\x3c\x00\x00\x00\x00\x00\x01\x00\x00\x37\xa1\
 \x00\x00\x00\x6e\x00\x00\x00\x00\x00\x01\x00\x00\x14\x88\
 \x00\x00\x00\x8c\x00\x00\x00\x00\x00\x01\x00\x00\x18\xe8\
 \x00\x00\x00\xd2\x00\x00\x00\x00\x00\x01\x00\x00\x25\xfd\
-\x00\x00\x01\xb8\x00\x00\x00\x00\x00\x01\x00\x00\x4f\xe9\
-\x00\x00\x01\x54\x00\x00\x00\x00\x00\x01\x00\x00\x3d\x69\
-\x00\x00\x02\x0a\x00\x00\x00\x00\x00\x01\x00\x00\x60\x3c\
-\x00\x00\x01\x6e\x00\x00\x00\x00\x00\x01\x00\x00\x42\x85\
-\x00\x00\x01\x36\x00\x00\x00\x00\x00\x01\x00\x00\x37\xdf\
-\x00\x00\x02\x82\x00\x00\x00\x00\x00\x01\x00\x00\x73\x12\
+\x00\x00\x01\xd2\x00\x00\x00\x00\x00\x01\x00\x00\x54\xa1\
+\x00\x00\x01\x6e\x00\x00\x00\x00\x00\x01\x00\x00\x42\x21\
+\x00\x00\x02\x24\x00\x00\x00\x00\x00\x01\x00\x00\x64\xf4\
+\x00\x00\x01\x88\x00\x00\x00\x00\x00\x01\x00\x00\x47\x3d\
+\x00\x00\x01\x50\x00\x00\x00\x00\x00\x01\x00\x00\x3c\x97\
+\x00\x00\x02\x9c\x00\x00\x00\x00\x00\x01\x00\x00\x77\xca\
 \x00\x00\x00\x44\x00\x00\x00\x00\x00\x01\x00\x00\x0e\xdf\
 \x00\x00\x01\x06\x00\x00\x00\x00\x00\x01\x00\x00\x2d\x83\
+\x00\x00\x01\x22\x00\x00\x00\x00\x00\x01\x00\x00\x32\xe9\
 \x00\x00\x00\xec\x00\x00\x00\x00\x00\x01\x00\x00\x2a\x25\
 \x00\x00\x00\xa0\x00\x00\x00\x00\x00\x01\x00\x00\x1b\x64\
 "

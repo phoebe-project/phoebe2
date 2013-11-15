@@ -45,7 +45,7 @@ class CreatePopParamEdit(QDialog, gui.Ui_popParamEdit_Dialog):
         self.setupUi(self)
         
 class StatusPushButton(QPushButton):
-    def __init__(self, parent=None, server=None, job=None):
+    def __init__(self, parent=None, server=None, job=None, enabled=True, server_kind='ping', from_last_known=False):
         """
         provide server (object) and job (script name string) for job
         or just server (object) for server
@@ -56,28 +56,51 @@ class StatusPushButton(QPushButton):
         icon.addPixmap(QPixmap(":/images/icons/bullet.png"), QIcon.Normal, QIcon.Off)
         self.setIcon(icon)
         
+        self.server_kind = server_kind      
+        
         self.setFlat(True)
         self.setIconSize(QSize(32, 32))
         self.setMaximumSize(QSize(18,18))
+        self.setEnabled(enabled)
     
         self.server = server
         self.job = job
         
         self.connect(self, SIGNAL("clicked()"), self.update_status)
-        self.update_status()
+        self.update_status(from_last_known=from_last_known)
+            
         
         #~ self.status_icon = QIcon()
         #~ self.status_icon.addPixmap(QPixmap(":/images/icons/bullet.png"), QIcon.Normal, QIcon.Off)
         #~ self.setIcon(self.status_icon)
         
-    def update_status(self):
+    def update_status(self,from_last_known=False):
         if self.job is not None and self.server is not None:
-            status = self.server.check_script_complete(self.job)            
+            status = self.server.check_script_status(self.job)
+            self.setToolTip('job: %s' % status)
+            if status == 'running':
+                self.colorize('yellow')
+            elif status == 'complete':
+                self.colorize('green')
+            else:
+                self.colorize('red')
+            return
         elif self.server is not None:
-            status = self.server.check_connection()
+            # then this is for a server
+            if from_last_known:
+                status = self.server.last_known_status[self.server_kind]
+            elif self.server_kind == 'mount':
+                status = self.server.check_mount()
+            elif self.server_kind == 'ping':
+                status = self.server.check_ping()
+            elif self.server_kind == 'test':
+                status = self.server.check_test()
+            else:
+                status = self.server.check_status()
         else:
             status = True
 
+        self.setToolTip("%s: %s" % (self.server_kind, status))
         self.colorize('green' if status else 'red')
     
     def colorize(self,color):
@@ -664,11 +687,17 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
             HBox.setMargin(2)
             frame.setLayout(HBox) 
             
-            statusbutton = StatusPushButton(server=server)        
+            statusbutton = StatusPushButton(server=server,server_kind='mount',from_last_known=True)        
             self.statusbuttons.append(statusbutton)  
             HBox.addWidget(statusbutton)
+            statusbutton = StatusPushButton(server=server,server_kind='ping',from_last_known=True)        
+            self.statusbuttons.append(statusbutton)  
+            HBox.addWidget(statusbutton)
+            #~ statusbutton = StatusPushButton(server=server,server_kind='test')        
+            #~ self.statusbuttons.append(statusbutton)  
+            #~ HBox.addWidget(statusbutton)
 
-            label = QLabel(QString(servername))
+            label = QLabel(QString(servername)+"    ")
             HBox.addWidget(label)
 
             self.setItemWidget(item,0,frame)
@@ -710,6 +739,8 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
             HBox.addWidget(delete_button)
             
             self.setItemWidget(item,2,frame)
+            
+            self.resizeColumnToContents(0)
             
     def on_edit_clicked(self,*args):
         w = self.sender()

@@ -15,12 +15,6 @@ class Settings(object):
             'pyinterp_startup_default': 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',
             'pyinterp_startup_custom': 'import numpy as np\nlogger = utils.get_basic_logger(clevel=\'WARNING\')', \
             'plugins': {'keplereb': False, 'example': False},\
-            
-            'mpi_np': 4, 'mpi_byslot': True,\
-            
-            'use_server_on_compute': False,\
-            'use_server_on_preview': False,\
-            'use_server_on_fitting': False, 
             }
             
         self.preferences = {}
@@ -39,10 +33,6 @@ class Settings(object):
         self.add_fitting(context='fitting:emcee',label='emcee')
         self.add_fitting(context='fitting:pymc',label='pymc')
         
-        # compute options and fitting options will need new parameter label
-        # when calling get_compute from bundle, if not found at the bundle level, will then check settings
-        # changing a value from bundle will copy from the settings into the bundle and change that value
-        
     def get_value(self,key):
         return self.preferences[key] if key in self.preferences.keys() else self.default_preferences[key]
         
@@ -52,6 +42,14 @@ class Settings(object):
     #{Servers
         
     def get_server(self,label=None):
+        """
+        get a server by name
+        
+        @param label: name of the server
+        @type label: str
+        @return: server
+        @rtype: Server
+        """
         servers = {s.get_value('label'): s for s in self.servers}
         
         if label in servers.keys():

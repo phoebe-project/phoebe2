@@ -204,6 +204,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # left panel signals
         QObject.connect(self.lp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_observeOption_changed)
+        QObject.connect(self.lp_observeoptionsReset, SIGNAL("clicked()"), self.on_observeOption_delete)
+        QObject.connect(self.lp_observeoptionsDelete, SIGNAL("clicked()"), self.on_observeOption_delete)
         QObject.connect(self.lp_computePushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_progressQuit, SIGNAL("clicked()"), self.cancel_thread)
         
@@ -239,6 +241,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # right panel signals     
         QObject.connect(self.rp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_fittingOption_changed)
+        QObject.connect(self.rp_fitoptionsReset, SIGNAL("clicked()"), self.on_fittingOption_delete)
+        QObject.connect(self.rp_fitoptionsDelete, SIGNAL("clicked()"), self.on_fittingOption_delete)
         QObject.connect(self.rp_fitPushButton, SIGNAL("clicked()"), self.on_fit_clicked)
         QObject.connect(self.rp_rejectPushButton, SIGNAL("clicked()"), self.on_feedback_reject_clicked)
         QObject.connect(self.rp_acceptPushButton, SIGNAL("clicked()"), self.on_feedback_accept_clicked)
@@ -1042,15 +1046,33 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
         self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit'])
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
+        
+        # set visibility of reset/delete buttons
+        in_settings = key in self.prefs.get_compute()
+        self.lp_observeoptionsReset.setVisible(in_settings)
+        self.lp_observeoptionsDelete.setVisible(in_settings==False)
+
+    def on_observeOption_delete(self, *args):
+        key = str(self.lp_methodComboBox.currentText())
+        
+        do_command = "bundle.remove_compute('%s')" % key
+        undo_command = "bundle.add_compute(label='%s')" % key
+        description = "remove %s compute options" % key
+        
+        self.on_param_command(do_command,undo_command,description='',thread=False,kind='system')
                 
     def on_observe_clicked(self):
         kind = str(self.lp_methodComboBox.currentText())
+        server = str(self.lp_serverComboBox.currentText())
 
         self.bundle.purge_signals(self.bundle.attached_signals_system)
         params = self.bundle.get_compute(kind).copy()
         observatory.extract_times_and_refs(self.bundle.get_system(),params)
         self.set_time_is = len(params.get_value('time'))
-        self.PyInterp_run('bundle.run_compute(\'%s\')' % (kind), kind='sys', thread=True)
+        if server == 'None':
+            self.PyInterp_run("bundle.run_compute('%s')" % (kind), kind='sys', thread=True)
+        else:
+            self.PyInterp_run("bundle.run_compute('%s',server='%s')" % (kind,server), kind='sys', thread=True)
 
     def on_orbit_update_clicked(self,*args):
         """
@@ -1275,7 +1297,19 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         if 'settings' in command and self.prefs_pop is not None:
             self.prefs = self.PyInterp_get('settings')
-            self.prefs_pop.set_gui_from_prefs(self.prefs)
+            if self.prefs_pop is not None:
+                self.prefs_pop.set_gui_from_prefs(self.prefs)
+            
+        # probably don't always have to do this (maybe only if settings or first call?)
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs.servers if s.last_known_status['ping'] and s.last_known_status['mount']]        
+        for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
+            orig_text = str(w.currentText())
+            w.clear()
+            w.addItems(servers_on)
+            if orig_text in servers_on:
+                w.setCurrentIndex(servers_on.index(orig_text))
+            w.setVisible(len(servers_on)>1)
+        
         
         if 'bundle=' in command in command:
             #then new bundle
@@ -1451,6 +1485,20 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_fitoptionsTreeView.set_data([fitting],style=['nofit'])
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
+        # set visibility of reset/delete buttons
+        in_settings = key in self.prefs.get_fitting()
+        self.rp_fitoptionsReset.setVisible(in_settings)
+        self.rp_fitoptionsDelete.setVisible(in_settings==False)
+
+    def on_fittingOption_delete(self, *args):
+        key = str(self.rp_methodComboBox.currentText())
+        
+        do_command = "bundle.remove_fitting('%s')" % key
+        undo_command = "bundle.add_fitting(label='%s')" % key
+        description = "remove %s fitting options" % key
+        
+        self.on_param_command(do_command,undo_command,description='',thread=False,kind='sys')
+        
     def on_fitoptions_param_changed(self,treeview,label,param,oldvalue,newvalue,oldunit=None,newunit=None,is_adjust=False,is_prior=False):
         #~ print "*** on_fitoptions_param_changed", label, param, oldvalue, newvalue
         #override label
@@ -1482,8 +1530,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_fit_clicked(self):
         label = str(self.rp_methodComboBox.currentText())
+        server = str(self.rp_serverComboBox.currentText())
 
-        self.PyInterp_run('bundle.run_fitting(\'Compute\', \'%s\')' % (label),thread=True,kind='sys')
+        if server == 'None':
+            self.PyInterp_run("bundle.run_fitting('Compute', '%s')" % (label),thread=True,kind='sys')
+        else:
+            self.PyInterp_run("bundle.run_fitting('Compute', '%s', server='%s')" % (label,server),thread=True,kind='sys')
         
         #~ self.rp_stackedWidget.setCurrentIndex(1) #feedback
         
