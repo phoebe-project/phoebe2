@@ -80,8 +80,29 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         
         self.connect(self.servers_returntolist, SIGNAL("clicked()"), self.on_servers_returntolist)
         self.connect(self.serverlist_edit, SIGNAL("clicked()"), self.on_edit_server_clicked)
-        self.connect(self.serverlist_add, SIGNAL("clicked()"), self.on_add_server_clicked)
+        self.connect(self.serverlist_add, SIGNAL("clicked()"), self.on_add_ps_clicked)
         self.connect(self.serverlist_recheck, SIGNAL("clicked()"), self.on_recheck_servers_clicked)
+        
+        self.connect(self.sx_serveredit_add, SIGNAL("clicked()"), self.on_add_ps_clicked)
+        self.connect(self.sx_serveredit_delete, SIGNAL("clicked()"), self.on_delete_ps_clicked)
+        self.connect(self.sx_serveredit_combo, SIGNAL("currentIndexChanged(QString)"), self.serveredit_changed) 
+        self.connect(self.co_edit_combo, SIGNAL("currentIndexChanged(QString)"), self.coedit_changed)
+        self.connect(self.fo_edit_combo, SIGNAL("currentIndexChanged(QString)"), self.foedit_changed)
+
+        self.connect(self.co_psedit, SIGNAL("parameterChanged"), self.on_coparam_changed)
+        self.connect(self.fo_psedit, SIGNAL("parameterChanged"), self.on_foparam_changed)
+        self.connect(self.co_add, SIGNAL("clicked()"), self.on_add_ps_clicked)
+        #~ self.connect(self.fo_add, SIGNAL("clicked()"), self.on_add_ps_clicked)
+        self.connect(self.co_delete, SIGNAL("clicked()"), self.on_delete_ps_clicked)
+        self.connect(self.fo_delete, SIGNAL("clicked()"), self.on_delete_ps_clicked)
+            
+        for tv in [self.sx_serveredit_psedit, self.sx_serveredit_mpipsedit]:
+            self.connect(tv, SIGNAL("parameterChanged"), self.on_serverparam_changed)
+            
+        self.connect(self.serverlist_treeWidget, SIGNAL("edit_server_clicked"), self.on_edit_server_clicked)
+        self.connect(self.serverlist_treeWidget, SIGNAL("delete_server_clicked"), self.on_delete_ps_clicked)
+        
+        self.connect(self.lo_psedit, SIGNAL("parameterChanged"), self.on_loparam_changed)
         
         self.set_gui_from_prefs(prefs,init=True)
         
@@ -113,9 +134,8 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                 if key in p:
                     w.setEnabled(False) # in case the signal is already connected
                     w.setPlainText(p[key])
-                    if w.objectName() != 'p_pyinterp_startup_default':
-                        w.setEnabled(True)
                     w.current_value = p.get_value(key)
+                    w.setEnabled(True)
                 if init:
                     self.connect(w, SIGNAL("textChanged()"), self.text_changed)
                 
@@ -126,6 +146,11 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     button.textbox = w
                     if init:
                         self.connect(button, SIGNAL("clicked()"), self.item_changed)
+            elif w.objectName() == 'px_pyinterp_startup_default':
+                # this string is hardcoded - also needs to be in phoebe_gui.__init__
+                startup_default = 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()'
+                w.setPlainText(startup_default)
+                w.setEnabled(False)
                     
         #~ for w in self.findChildren(QSpinBox):
             #~ if w.objectName().split('_')[0]=='p':
@@ -172,43 +197,22 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             if init:
                 if key is None: #then this doesn't control a parameter
                     if w.objectName() == 'sx_serveredit_combo':
-                        self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.serveredit_changed) 
                         if len(names):
                             self.serveredit_changed(names[0])
                     elif w.objectName() == 'co_edit_combo':
-                        self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.coedit_changed)
                         if len(names):
                             self.coedit_changed(names[0])
                     elif w.objectName() == 'fo_edit_combo':
-                        self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.foedit_changed)
                         if len(names):
                             self.foedit_changed(names[0])
                 else:
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
                 
-        ### defaults stuff
-        if init:
-            self.connect(self.co_psedit, SIGNAL("parameterChanged"), self.on_coparam_changed)
-            self.connect(self.fo_psedit, SIGNAL("parameterChanged"), self.on_foparam_changed)
-            self.connect(self.co_add, SIGNAL("clicked()"), self.on_add_co_clicked)
-            
-            #~ self.connect(self.fo_add, SIGNAL("clicked()"), self.on_add_fo_clicked)
-        
-        ### server stuff
-        if init:
-            for tv in [self.sx_serveredit_psedit, self.sx_serveredit_mpipsedit]:
-                self.connect(tv, SIGNAL("parameterChanged"), self.on_serverparam_changed)
-                    
         ### create server list treeview
         self.serverlist_treeWidget.set_data(self.prefs.get_server())
-        if init:
-            self.connect(self.serverlist_treeWidget, SIGNAL("edit_server_clicked"), self.on_edit_server_clicked)
-            self.connect(self.serverlist_treeWidget, SIGNAL("delete_server_clicked"), self.on_delete_server_clicked)
             
         # logger stuff
         self.lo_psedit.set_data([self.prefs.get_ps('logger')],style=['nofit'])
-        if init:
-            self.connect(self.lo_psedit, SIGNAL("parameterChanged"), self.on_loparam_changed)
         
     def get_button_for_textbox(self,textedit):
         button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
@@ -311,32 +315,44 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         description = "change logger %s" % (param.get_qualifier())
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
-    def on_add_co_clicked(self):
+    def on_add_ps_clicked(self):
+        w = self.sender()
         
-        label = 'new compute'
-        do_command = "settings.add_compute(label='%s')" % (label)
-        undo_command = "settings.remove_compute(label='%s')" % (label)
-        description = "add new compute options"
+        if w == self.co_add:
+            typ = 'compute'
+        elif w == self.fo_add:
+            typ = 'fitting'
+        elif w == self.sx_serveredit_add:
+            typ = 'server'
+        
+        label = 'new %s' % typ
+        do_command = "settings.add_%s(label='%s')" % (typ,label)
+        undo_command = "settings.remove_%s(label='%s')" % (typ,label)
+        description = "add new %s" % typ
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
-    def on_add_server_clicked(self):
+    def on_delete_ps_clicked(self):
+        w = self.sender()
         
-        label = 'new server'
-        do_command = "settings.add_server('%s')" % (label)
-        undo_command = "settings.remove_server('%s')" % (label)
-        description = "add new server"
+        if w == self.co_delete:
+            typ = 'compute'
+            label = str(self.co_edit_combo.currentText())
+        elif w == self.fo_delete:
+            typ = 'fitting'
+            label = str(self.fo_edit_combo.currentText())
+        elif w == self.sx_serveredit_delete:
+            typ = 'server'
+            label = str(self.sx_serveredit_combo.currentText())
+            
+        do_command = "settings.remove_%s('%s')" % (typ,label)
+        undo_command = "settings.add_%s('%s')" % (typ,label)
+        description = "remove %s %s" % (label,typ)
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
-        
-    def on_delete_server_clicked(self,servername,server):
-        
-        do_command = "settings.remove_server('%s')" % (servername)
-        undo_command = "settings.add_server('%s')" % (servername)
-        description = "remove %s server" % (servername)
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
-        
+                
     def on_recheck_servers_clicked(self):
         for button in self.serverlist_treeWidget.statusbuttons:
             button.update_status()
+        #~ self.emit(SIGNAL("serverschanged"),True)
         
     def on_edit_server_clicked(self,servername=None,server=None):
         if servername is not None:

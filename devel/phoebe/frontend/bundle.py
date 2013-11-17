@@ -50,7 +50,9 @@ def run_on_server(fctn):
 
         servername = kwargs['server'] if 'server' in kwargs.keys() else None
 
-        if servername is not False:
+        is_server = kwargs.pop('is_server',False)
+
+        if servername is not False and not is_server:
             server =  bundle.get_server(servername)
             if server.is_external():
                 if server.check_status():
@@ -58,28 +60,28 @@ def run_on_server(fctn):
                     mount_dir = server.server_ps.get_value('mount_dir')
                     server_dir = server.server_ps.get_value('server_dir')
                     
-                    logger.warning('copying bundle to {}'.format(mount_dir))
+                    logger.info('copying bundle to {}'.format(mount_dir))
                     timestr = str(datetime.now()).replace(' ','_')
                     in_f = '%s.bundle.in.phoebe' % timestr
                     out_f = '%s.bundle.out.phoebe' % timestr
                     script_f = '%s.py' % timestr
                     bundle.save(os.path.join(mount_dir,in_f),save_usersettings=True) # might have a problem here if threaded!!
                     
-                    logger.warning('creating script to run on {}'.format(servername))
+                    logger.info('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,script_f),'w')
                     f.write("#!/usr/bin/python\n")
                     f.write("try:\n")
                     f.write("\timport os\n")
                     f.write("\tfrom phoebe.frontend.bundle import load\n")
                     f.write("\tbundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,in_f))
-                    f.write("\tbundle.%s(%s)\n" % (fctn.func_name, callargstr))
+                    f.write("\tbundle.%s(%s,is_server=True)\n" % (fctn.func_name, callargstr))
                     f.write("\tbundle.save('%s')\n" % (os.path.join(server_dir,out_f)))
                     f.write("except:\n")
-                    f.write("\tos.system(\"cat 'failed' > %s.status\")\n" % (script_f))
+                    f.write("\tos.system(\"echo 'failed' > %s.status\")\n" % (script_f))
                     f.close()
                     
                     # create job and submit
-                    logger.warning('running script on {}'.format(servername))
+                    logger.info('running script on {}'.format(servername))
                     server.run_script_external(script_f)
                     
                     # lock the bundle and store information about the job
@@ -901,7 +903,7 @@ class Bundle(object):
         elif typ=='obs':
             obj.add_obs(ds)
         
-    def get_obs(self,objref=None,dataref=None):
+    def get_obs(self,objref=None,dataref=None,force_dict=False):
         """
         get an observables dataset by the object its attached to and its label
         if objectname and ref are given, this will return a single dataset
@@ -916,13 +918,16 @@ class Bundle(object):
         """
         if objref is None:
             # then search the whole system
-            return_ = []
-            for objname in self.get_system_structure(return_type='obj',flat=True):
-                parsets = self.get_obs(objname,dataref=dataref)
-                for parset in parsets:
+            return_ = {}
+            for objref in self.get_system_structure(return_type='label',flat=True):
+                parsets = self.get_obs(objref,dataref=dataref,force_dict=True)
+                for parset in parsets.values():
                     if parset not in return_:
-                        return_.append(parset)
-            return return_
+                        return_['%s:%s' % (objref, parset.get_value('ref'))] = parset
+            if len(return_)==1 and not force_dict:
+                return return_.values()[0]
+            else:
+                return return_
             
         # now we assume we're dealing with a single object
         obj = self.get_object(objref)
@@ -931,16 +936,22 @@ class Bundle(object):
             # then search for the dataref by name/index
             parset = obj.get_parset(type='obs',ref=dataref)
             if parset != (None, None):
-                return [parset[0]]
-            return []
+                if force_dict:
+                    return {'%s:%s' % (objref, parset[0].get_value('ref')): parset[0]}
+                else:
+                    return parset[0]
+            return {}
         else:
             # then loop through indices until there are none left
             return_ = []
             for typ in obj.params['obs']:
                 for ref in obj.params['obs'][typ]:
                     return_.append(obj.params['obs'][typ][ref])
-            return return_
-
+            if len(return_)==1 and not force_dict:
+                return return_[0]
+            else:
+                return {'%s:%s' % (objref, r.get_value('ref')): r for r in return_}
+                
     def enable_obs(self,dataref=None):
         """
         @param dataref: ref (name) of the dataset
@@ -997,7 +1008,7 @@ class Bundle(object):
 
         return
             
-    def get_syn(self,objref=None,dataref=None):
+    def get_syn(self,objref=None,dataref=None,force_dict=False):
         """
         get a synthetic dataset by the object its attached to and its label
         if objref and dataref are given, this will return a single dataset
@@ -1012,14 +1023,17 @@ class Bundle(object):
         """
         if objref is None:
             # then search the whole system
-            return_ = []
-            for obj in self.get_system_structure(return_type='obj',flat=True):
-                #~ print "*** a", self.get_label(obj)
-                parsets = self.get_syn(obj,dataref=dataref)
-                for parset in parsets:
+            return_ = {}
+            for objref in self.get_system_structure(return_type='label',flat=True):
+                obj = self.get_object(objref)
+                parsets = self.get_syn(obj,dataref=dataref,force_dict=True)
+                for parset in parsets.values():
                     if parset not in return_:
-                        return_.append(parset)
-            return return_
+                        return_['%s:%s' % (objref,parset.get_value('ref'))] = parset
+            if len(return_)==1 and not force_dict:
+                return return_.values()[0]
+            else:
+                return return_
             
         # now we assume we're dealing with a single object
         obj = self.get_object(objref)
@@ -1027,16 +1041,22 @@ class Bundle(object):
         if dataref is not None:
             # then search for the dataref by name/index
             parset = obj.get_synthetic(ref=dataref, cumulative=True)
-            if parset != None:
-                return [parset]
-            return []
+            if parset != None and parset != []:
+                if force_dict:
+                    return {'%s:%s' % (objref,parset.get_value('ref')): parset}
+                else:
+                    return parset
+            return {}
         else:
             # then loop through indices until there are none left
             return_ = []
             for typ in obj.params['obs']:
                 for ref in obj.params['obs'][typ]:
                     return_.append(obj.params['obs'][typ][ref])
-            return return_
+            if len(return_)==1 and not force_dict:
+                return return_[0]
+            else:
+                return {'%s:%s' % (objref,r.get_value('ref')): r for r in return_}
         
     #}
     
@@ -1102,7 +1122,7 @@ class Bundle(object):
         return self.compute_options.pop(self.compute_options.index(self.get_compute(label)))       
     
     @run_on_server
-    def run_compute(self,label=None,im=False,add_version=None,server=None):
+    def run_compute(self,label=None,im=False,add_version=None,server=None,**kwargs):
         """
         Convenience function to run observatory.observe
         
@@ -1223,7 +1243,7 @@ class Bundle(object):
         return self.fitting_options.pop(self.fitting_options.index(self.get_fitting(label)))     
         
     @run_on_server
-    def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None):
+    def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None,**kwargs):
         """
         Run fitting for a given fitting ParameterSet
         and store the feedback
@@ -1368,12 +1388,14 @@ class Bundle(object):
     #}
 
     #{ Figures
-    def plot_obs(self,dataref,**kwargs):
+    def plot_obs(self,dataref,objref=None,**kwargs):
         """
         @param dataref: ref (name) of the dataset
         @type dataref: str
+        @param objref: label of the object
+        @type objref: str
         """
-        ds = self.get_obs(dataref=dataref)[0]
+        ds = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1387,12 +1409,14 @@ class Bundle(object):
         elif typ=='etv':
             plotting.plot_etvobs(self.system,ref=dataref,**kwargs)
         
-    def plot_syn(self,dataref,**kwargs):
+    def plot_syn(self,dataref,objref=None,**kwargs):
         """
         @param dataref: ref (name) of the dataset
         @type dataref: str
+        @param objref: label of the object
+        @type objref: str
         """
-        ds = self.get_syn(dataref=dataref)[0]
+        ds = self.get_syn(dataref=dataref,objref=objref,force_dict=True).values()[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1406,12 +1430,14 @@ class Bundle(object):
         elif typ=='etv':
             plotting.plot_etvsyn(self.system,ref=dataref,**kwargs)        
             
-    def plot_residuals(self,dataref,**kwargs):
+    def plot_residuals(self,dataref,objref=None,**kwargs):
         """
         @param dataref: ref (name) of the dataset
         @type dataref: str
+        @param objref: label of the object
+        @type objref: str
         """
-        ds = self.get_obs(dataref=dataref)[0]
+        ds = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1632,7 +1658,7 @@ class Bundle(object):
         mount_dir = server.server_ps.get_value('mount_dir')
         
         if server.check_mount():
-            logger.warning('cleaning files in {}'.format(mount_dir))
+            logger.info('cleaning files in {}'.format(mount_dir))
             for fname in lock_files:
                 try:
                     os.remove(os.path.join(mount_dir,fname))
@@ -1651,10 +1677,10 @@ class Bundle(object):
         server = self.get_server(self.lock['server'])
         script = self.lock['script']
         
-        servername = server.server_ps.get_value('server')
+        servername = server.server_ps.get_value('label')
         
         while True:
-            logger.warning('checking {} server'.format(servername))
+            logger.info('checking {} server'.format(servername))
             if self.server_job_status()=='complete':
                 self.server_get_results()
                 return
@@ -1674,7 +1700,7 @@ class Bundle(object):
 
         mount_dir = server.server_ps.get_value('mount_dir')
         
-        logger.warning('retrieving updated bundle from {}'.format(mount_dir))
+        logger.info('retrieving updated bundle from {}'.format(mount_dir))
         self_new = load(os.path.join(mount_dir,self.lock['rfile']))
 
         # reassign self_new -> self
@@ -1688,7 +1714,7 @@ class Bundle(object):
         #~ bundle.set_system(bundle_new.get_system()) # note: anything changed outside system will be lost
 
         # cleanup files
-        logger.warning('cleaning files in {}'.format(mount_dir))
+        logger.info('cleaning files in {}'.format(mount_dir))
         for fname in lock_files:
             os.remove(os.path.join(mount_dir,fname))
         os.remove(os.path.join(mount_dir,'%s.status' % script))
@@ -2023,9 +2049,9 @@ class Axes(object):
             obj = bundle.get_object(plotoptions['objref'])
             
             if plotoptions['type'][-3:]=='obs':
-                dataset = bundle.get_obs(objref=plotoptions['objref'],dataref=plotoptions['dataref'])[0]
+                dataset = bundle.get_obs(objref=plotoptions['objref'],dataref=plotoptions['dataref'])
             else:
-                dataset = bundle.get_syn(objref=plotoptions['objref'],dataref=plotoptions['dataref'])[0]
+                dataset = bundle.get_syn(objref=plotoptions['objref'],dataref=plotoptions['dataref'])
                 
             if len(dataset['time'])==0: # then empty dataset
                 continue

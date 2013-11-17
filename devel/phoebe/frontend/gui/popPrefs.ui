@@ -133,7 +133,7 @@
          <item>
           <widget class="QPushButton" name="co_delete">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="maximumSize">
             <size>
@@ -209,7 +209,7 @@
          <item>
           <widget class="QPushButton" name="fo_delete">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="maximumSize">
             <size>
@@ -403,28 +403,9 @@
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="sx_serveredit_test">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>60</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-               <property name="toolTip">
-                <string>test server configuration</string>
-               </property>
-               <property name="text">
-                <string>Test</string>
-               </property>
-              </widget>
-             </item>
-             <item>
               <widget class="QPushButton" name="sx_serveredit_delete">
                <property name="enabled">
-                <bool>false</bool>
+                <bool>true</bool>
                </property>
                <property name="maximumSize">
                 <size>
@@ -447,7 +428,7 @@
              <item>
               <widget class="QPushButton" name="sx_serveredit_add">
                <property name="enabled">
-                <bool>false</bool>
+                <bool>true</bool>
                </property>
                <property name="maximumSize">
                 <size>
@@ -620,7 +601,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="p_pyinterp_startup_default">
+           <widget class="QPlainTextEdit" name="px_pyinterp_startup_default">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -631,9 +612,7 @@
              <bool>false</bool>
             </property>
             <property name="plainText">
-             <string>import pyphoebe as phoebe
-from phoebe.parameters import parameters, create
-from phoebe.utils import utils</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -861,12 +840,12 @@ from phoebe.utils import utils</string>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ServerListTreeWidget</class>
+   <class>ParameterTreeWidget</class>
    <extends>QTreeWidget</extends>
    <header>phoebe_widgets</header>
   </customwidget>
   <customwidget>
-   <class>ParameterTreeWidget</class>
+   <class>ServerListTreeWidget</class>
    <extends>QTreeWidget</extends>
    <header>phoebe_widgets</header>
   </customwidget>
