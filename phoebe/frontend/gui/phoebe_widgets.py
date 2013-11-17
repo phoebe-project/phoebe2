@@ -45,7 +45,7 @@ class CreatePopParamEdit(QDialog, gui.Ui_popParamEdit_Dialog):
         self.setupUi(self)
         
 class StatusPushButton(QPushButton):
-    def __init__(self, parent=None, server=None, job=None, enabled=True, server_kind='ping', from_last_known=False):
+    def __init__(self, parent=None, server=None, job=None, enabled=True, from_last_known=False):
         """
         provide server (object) and job (script name string) for job
         or just server (object) for server
@@ -55,8 +55,6 @@ class StatusPushButton(QPushButton):
         icon = QIcon()
         icon.addPixmap(QPixmap(":/images/icons/bullet.png"), QIcon.Normal, QIcon.Off)
         self.setIcon(icon)
-        
-        self.server_kind = server_kind      
         
         self.setFlat(True)
         self.setIconSize(QSize(32, 32))
@@ -88,20 +86,24 @@ class StatusPushButton(QPushButton):
         elif self.server is not None:
             # then this is for a server
             if from_last_known:
-                status = self.server.last_known_status[self.server_kind]
-            elif self.server_kind == 'mount':
-                status = self.server.check_mount()
-            elif self.server_kind == 'ping':
-                status = self.server.check_ping()
-            elif self.server_kind == 'test':
-                status = self.server.check_test()
+                status = self.server.last_known_status['status']
             else:
                 status = self.server.check_status()
         else:
             status = True
 
-        self.setToolTip("%s: %s" % (self.server_kind, status))
+        if status:
+            self.setToolTip("ok")
+        else:
+            lks = self.server.last_known_status
+            if lks['mount'] and lks['ping']:
+                failed = [f for f in lks.keys() if lks[f]==False and f not in ['status']]
+            else:
+                failed = [f for f in lks.keys() if lks[f]==False and f not in ['status','test']]
+            self.setToolTip("failed: %s" % " ".join(failed))
         self.colorize('green' if status else 'red')
+        
+        self.emit(SIGNAL("serverStatusChanged"),False)
     
     def colorize(self,color):
         colorize = QGraphicsColorizeEffect()
@@ -687,12 +689,13 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
             HBox.setMargin(2)
             frame.setLayout(HBox) 
             
-            statusbutton = StatusPushButton(server=server,server_kind='mount',from_last_known=True)        
+            statusbutton = StatusPushButton(server=server,from_last_known=True)        
             self.statusbuttons.append(statusbutton)  
             HBox.addWidget(statusbutton)
-            statusbutton = StatusPushButton(server=server,server_kind='ping',from_last_known=True)        
-            self.statusbuttons.append(statusbutton)  
-            HBox.addWidget(statusbutton)
+            self.connect(statusbutton, SIGNAL("serverStatusChanged"), self.on_server_status_changed)
+            #~ statusbutton = StatusPushButton(server=server,server_kind='ping',from_last_known=True)        
+            #~ self.statusbuttons.append(statusbutton)  
+            #~ HBox.addWidget(statusbutton)
             #~ statusbutton = StatusPushButton(server=server,server_kind='test')        
             #~ self.statusbuttons.append(statusbutton)  
             #~ HBox.addWidget(statusbutton)
@@ -753,6 +756,9 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
         server, servername = w.info['server'], w.info['servername']
         
         self.emit(SIGNAL('delete_server_clicked'),servername,server)
+        
+    def on_server_status_changed(self,*args):
+        self.emit(SIGNAL("serverStatusChanged"),False)
             
             
 
@@ -800,10 +806,10 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         for ax in axes_incl:
             for p in ax.plots:
                 if p['type'][-3:]=='obs':
-                    plotted_obs+=bundle.get_obs(p['objref'],p['dataref'])
+                    plotted_obs.append(bundle.get_obs(p['objref'],p['dataref']))
                     plotted_obs_ps.append(p)
                 elif p['type'][-3:]=='syn':
-                    plotted_syn+=bundle.get_syn(p['objref'],p['dataref'])
+                    plotted_syn.append(bundle.get_syn(p['objref'],p['dataref']))
                     plotted_syn_ps.append(p)
         
         # setup tree view
@@ -905,16 +911,16 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 stackedwidget = QStackedWidget()
                 
                 # these two bools are used in the data view                
-                has_obs = len(bundle.get_obs(name, dataset['ref'])) > 0
-                has_syn = len(bundle.get_syn(name, dataset['ref'])) > 0
+                has_obs = len(bundle.get_obs(name, dataset['ref'], force_dict=True)) > 0
+                has_syn = len(bundle.get_syn(name, dataset['ref'], force_dict=True)) > 0
                 
                 # get the dataset for this row AND column
                 if has_obs:
-                    col_obs = bundle.get_obs(name, dataset['ref'])[0]
+                    col_obs = bundle.get_obs(name, dataset['ref'], force_dict=True).values()[0]
                 else:
                     col_obs = None
                 if has_syn:
-                    col_syn = bundle.get_syn(name, dataset['ref'])[0]
+                    col_syn = bundle.get_syn(name, dataset['ref'], force_dict=True).values()[0]
                 else:
                     col_syn = None
                 
@@ -1420,7 +1426,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
         
         self.setColumnCount(ncol)
         self.setHeaderLabels(['Parameter']+['Value']*nobj)
-
+        
         for n,params in enumerate(data):
             for k,v in params.items():
                 if ('label' not in k or 'incl_label' in self.style) and k not in ['feedback']:
@@ -1435,8 +1441,17 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                             self.items[k].append([v,par,adj])
                         else:
                             self.items[k]=[[v,par,adj]]
-
-        for k,v in self.items.items():
+        
+        if 'incl_label' in self.style and 'label' in self.items.keys():
+            # make sure label is first
+            labelitem = self.items.pop('label')
+            iteritems = [('label',labelitem)] + self.items.items()
+            # add back to self.items
+            self.items['label'] = labelitem
+        else:
+            iteritems = self.items.items() 
+        
+        for k,v in iteritems:
             item = QTreeWidgetItem()
             try:
                 item.setToolTip(0,v[0][1].get_description())

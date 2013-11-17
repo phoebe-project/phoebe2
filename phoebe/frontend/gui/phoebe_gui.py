@@ -206,6 +206,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.lp_methodComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_observeOption_changed)
         QObject.connect(self.lp_observeoptionsReset, SIGNAL("clicked()"), self.on_observeOption_delete)
         QObject.connect(self.lp_observeoptionsDelete, SIGNAL("clicked()"), self.on_observeOption_delete)
+        QObject.connect(self.lp_observeoptionsAdd, SIGNAL("clicked()"), self.on_observeOption_add)
         QObject.connect(self.lp_computePushButton, SIGNAL("clicked()"), self.on_observe_clicked)
         QObject.connect(self.lp_progressQuit, SIGNAL("clicked()"), self.cancel_thread)
         
@@ -290,7 +291,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.latest_dir = None
         
         # send startup commands to interpreter
-        for line in self.prefs.get_value('pyinterp_startup_default').split('\n'):
+        startup_default = 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()'
+        # this string is hardcoded - also needs to be in phoebe_dialogs.CreatePopPres.set_gui_from_prefs
+        for line in startup_default.split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
         for line in self.prefs.get_value('pyinterp_startup_custom').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
@@ -608,8 +611,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.system is None:
             return
         # get obs and syn
-        ds_obs_all = self.bundle.get_obs()
-        ds_syn_all = self.bundle.get_syn()
+        ds_obs_all = self.bundle.get_obs(force_dict=True).values()
+        ds_syn_all = self.bundle.get_syn(force_dict=True).values()
         
         
         # remove duplicates
@@ -1025,6 +1028,18 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_systemEdit_clicked(self):
         self.mp_stackedWidget.setCurrentIndex(4)
         
+    def update_servers_avail(self,update_prefs=False):
+        if update_prefs:
+            self.prefs = self.PyInterp_get('settings')
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server().values() if s.last_known_status['status']]        
+        for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
+            orig_text = str(w.currentText())
+            w.clear()
+            w.addItems(servers_on)
+            if orig_text in servers_on:
+                w.setCurrentIndex(servers_on.index(orig_text))
+            w.setVisible(len(servers_on)>1)
+        
     def update_observeoptions(self):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
@@ -1044,7 +1059,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         co = self.bundle.get_compute(key)
             
-        self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit'])
+        self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit','incl_label'])
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
@@ -1058,6 +1073,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         do_command = "bundle.remove_compute('%s')" % key
         undo_command = "bundle.add_compute(label='%s')" % key
         description = "remove %s compute options" % key
+        
+        self.on_param_command(do_command,undo_command,description='',thread=False,kind='system')
+                
+    def on_observeOption_add(self, *args):
+        key = 'new compute'
+        
+        do_command = "bundle.add_compute(label='%s')" % key
+        undo_command = "bundle.add_compute(label='%s')" % key
+        description = "add new compute options"
         
         self.on_param_command(do_command,undo_command,description='',thread=False,kind='system')
                 
@@ -1301,15 +1325,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.prefs_pop.set_gui_from_prefs(self.prefs)
             
         # probably don't always have to do this (maybe only if settings or first call?)
-        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server().values() if s.last_known_status['ping'] and s.last_known_status['mount']]        
-        for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
-            orig_text = str(w.currentText())
-            w.clear()
-            w.addItems(servers_on)
-            if orig_text in servers_on:
-                w.setCurrentIndex(servers_on.index(orig_text))
-            w.setVisible(len(servers_on)>1)
-        
+        self.update_servers_avail()    
         
         if 'bundle=' in command in command:
             #then new bundle
@@ -1482,7 +1498,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         fitting = self.bundle.get_fitting(key)
             
-        self.rp_fitoptionsTreeView.set_data([fitting],style=['nofit'])
+        self.rp_fitoptionsTreeView.set_data([fitting],style=['nofit','incl_label'])
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
@@ -1598,6 +1614,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             QObject.connect(self.prefs_pop, SIGNAL("parameterCommand"), self.on_param_command)
             QObject.connect(self.prefs_pop.buttonBox, SIGNAL("accepted()"), self.on_prefsSave)
             QObject.connect(self.prefs_pop.buttonBox, SIGNAL("rejected()"), self.on_prefsUpdate)
+            QObject.connect(self.prefs_pop.serverlist_treeWidget, SIGNAL("serverStatusChanged"), self.update_servers_avail)
         self.prefs_pop.show()
         
     def on_prefsSave(self,*args):

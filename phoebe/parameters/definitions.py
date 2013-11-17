@@ -605,12 +605,14 @@ defs += [dict(qualifier='data_times', description='whether to show the times of 
          dict(qualifier='yaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='z',frame=["phoebe"],context='plotting:orbit'),
          ]
          
-# Servers context
+# Server context
 defs += [dict(qualifier='label', description='label for the server',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
-         dict(qualifier='server', description='location of the server: [username@]server.edu',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='username', description='(optional) username for the server (ssh [-i identity_file] [username@]host)',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='host', description='hostname for the server (ssh [-i identity_file] [username@]host), or None if local',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='identity_file', description='(optional) identity file for the server (ssh [-i identity_file] [username@]host)',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          dict(qualifier='server_dir', description='location on server to copy files and run script',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          dict(qualifier='server_script', description='location on the server of a script to run (ie. to setup a virtual environment) before running phoebe',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
-         dict(qualifier='mount_dir', description='local mounted directory to server:server_dir',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+         dict(qualifier='mount_dir', description='local mounted directory to host:server_dir',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          ]
          
 # Logger context
@@ -632,7 +634,6 @@ defs += [dict(qualifier='panel_system', description='show system panel on startu
          dict(qualifier='pyinterp_tutplots', description='show plotting messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
          dict(qualifier='pyinterp_tutsettings', description='show settings messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
          dict(qualifier='pyinterp_thread_on', description='use threading in the python console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_startup_default', description='DON\'T CHANGE',repr='%s',cast_type=str,value='import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()',frame=["phoebe"],context='gui'),
          dict(qualifier='pyinterp_startup_custom', description='custom startup script to run on gui load',repr='%s',cast_type=str,value='import numpy as np',frame=["phoebe"],context='gui'),
          ]
          

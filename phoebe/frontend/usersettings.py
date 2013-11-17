@@ -145,7 +145,7 @@ class Settings(object):
         
        
     #{ Servers
-    def add_server(self,label,mpi=None,server=None,server_dir=None,server_script=None,mount_dir=None):
+    def add_server(self,label,mpi=None,**kwargs):
         """
         add a new server
         
@@ -153,16 +153,8 @@ class Settings(object):
         @type label: str
         @param mpi: the mpi options to use for this server
         @type mpi: ParameterSet with context 'mpi'
-        @param server: the location of the server (used for ssh - so username@servername if necessary), or None if local
-        @type server: str
-        @param server_dir: directory on the server to copy files and run scripts
-        @type server_dir: str
-        @param server_script: location on the server of a script to run (ie. to setup a virtual environment) before running phoebe
-        @type server_script: str
-        @param mount_dir: local mounted location of server:server_dir, or None if local
-        @type mount_dir: str or None
         """
-        self.settings['servers'].append(Server(mpi,label,server,server_dir,server_script,mount_dir))
+        self.settings['servers'].append(Server(label,mpi,**kwargs))
         
     def get_server(self,label=None):
         """

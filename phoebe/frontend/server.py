@@ -5,7 +5,7 @@ from datetime import datetime
 from phoebe.parameters import parameters
 
 class Server(object):
-    def __init__(self,mpi,label=None,server=None,server_dir='~/',server_script='',mount_dir=None):
+    def __init__(self,label=None,mpi=None,**kwargs):
         """
         @param mpi: the mpi options to use for this server
         @type mpi: ParameterSet with context 'mpi'
@@ -19,10 +19,29 @@ class Server(object):
         @type mount_dir: str or None
         """
         self.mpi_ps = mpi
-        self.server_ps = parameters.ParameterSet(context='server',label=label,server=server,server_dir=server_dir,server_script=server_script,mount_dir=mount_dir)
+        self.server_ps = parameters.ParameterSet(context='server',label=label,**kwargs)
 
         local = self.is_local()
         self.last_known_status = {'mount': local, 'ping': local, 'test': local, 'status': local, 'phoebe_version': 'unknown'}
+        
+    def _ssh_string(self):
+        if self.is_local():
+            return ''
+
+        comm = 'ssh '
+        
+        id_file = self.server_ps.get_value('identity_file')
+        if id_file != 'None' and id_file != '':
+            comm += '-i %s ' % id_file
+        
+        un = self.server_ps.get_value('username')
+        if un != 'None' and un != '':
+            comm += '%s@' % un
+
+        host = self.server_ps.get_value('host')
+        comm += '%s ' % host
+        
+        return comm
 
     def set_value(self,qualifier,value):
         
@@ -46,14 +65,16 @@ class Server(object):
         """
         checks whether this server is on an external machine (not is_local())
         """
-        return self.server_ps.get_value('server') != 'None'
+        host = self.server_ps.get_value('host')
+        return host != 'None' and host != ''
         
     def is_local(self):
         """
         check whether this server is on the local machine
         """
-        return self.server_ps.get_value('server') == 'None'
-        
+        host = self.server_ps.get_value('host')
+        return host == 'None' or host == ''
+                
     def check_mount(self):
         """
         checks whether the server is local or, if external, whether the mount location exists
@@ -68,19 +89,8 @@ class Server(object):
         """
         if self.is_local():
             return True
-        pingdata = os.popen('ping -c 1 %s' % (self.server_ps.get_value('server'))).readlines()
-        # Extract the ping time
-        if len(pingdata) < 2:
-            # Failed to find a DNS resolution or route
-            success = False
-        else:
-            index = pingdata[1].find('time=')
-            if index == -1:
-                # Ping failed or timed-out
-                success = False
-            else:
-                success = True
-                
+        pingdata = os.popen('%s \'echo "success"\'' % self._ssh_string()).readline().strip()
+        success = pingdata=='success'
         self.last_known_status['ping'] = success
         return success
         
@@ -94,8 +104,7 @@ class Server(object):
             return False
         timestr = str(datetime.now()).replace(' ','_')
         command = "touch %s" % os.path.join(self.server_ps.get_value('server_dir') ,"test.%s" % timestr)
-        #~ print "*** ssh %s '%s'" % (self.server_ps.get_value('server'),command)
-        os.system("ssh %s '%s'" % (self.server_ps.get_value('server'),command))
+        os.system("%s '%s'" % (self._ssh_string(),command))
         
         fname = os.path.join(self.server_ps.get_value('mount_dir'), 'test.%s' % timestr)
         success = os.path.exists(fname)
@@ -145,7 +154,6 @@ class Server(object):
         
         # files and script should already have been copied/saved to self.mount_dir
         # the user or bundle is responsible for this
-        server = self.server_ps.get_value('server')
         server_dir = self.server_ps.get_value('server_dir')
         server_script = self.server_ps.get_value('server_script')
         script = os.path.join(server_dir,script)
@@ -158,10 +166,10 @@ class Server(object):
         # script with nohup, redirecting stderr and stdout to [script].log
         command += "&& nohup python %s > %s.log 2>&1 " % (script,script)
         # when script is complete, create new file to notify client
-        command += "&& nohup echo 'complete' > %s.status" % (script)
+        command += "&& nohup echo 'complete' >> %s.status" % (script)
         # run command in background
         #~ print ("call: ssh %s '%s' &" % (server,command))
-        os.system("ssh %s '%s' &" % (server,command))
+        os.system("%s '%s' &" % (self._ssh_string(),command))
         return
 
     def check_script_status(self, script):
@@ -177,6 +185,9 @@ class Server(object):
             return False
             
         f = open(fname, 'r')
-        status = f.readline().strip()
+        status = f.readlines()
         f.close()
-        return status
+        if status[0].strip()=='failed':
+            return 'failed'
+        else:
+            return status[-1].strip()

@@ -549,7 +549,7 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="minimumSize">
     <size>
-     <width>346</width>
+     <width>373</width>
      <height>522</height>
     </size>
    </property>
@@ -794,44 +794,71 @@ p, li { white-space: pre-wrap; }
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="lp_observeoptionsReset">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>24</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Reset to Default</string>
-            </property>
-            <property name="icon">
-             <iconset resource="ui_resources.qrc">
-              <normaloff>:/images/icons/return.png</normaloff>:/images/icons/return.png</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="lp_observeoptionsDelete">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>24</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Delete</string>
-            </property>
-            <property name="icon">
-             <iconset resource="ui_resources.qrc">
-              <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QPushButton" name="lp_observeoptionsReset">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>24</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>reset to default (from preferences)</string>
+              </property>
+              <property name="text">
+               <string>Reset</string>
+              </property>
+              <property name="icon">
+               <iconset resource="ui_resources.qrc">
+                <normaloff>:/images/icons/return.png</normaloff>:/images/icons/return.png</iconset>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="lp_observeoptionsDelete">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>24</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Delete</string>
+              </property>
+              <property name="icon">
+               <iconset resource="ui_resources.qrc">
+                <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="lp_observeoptionsAdd">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>24</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Create New</string>
+              </property>
+              <property name="icon">
+               <iconset resource="ui_resources.qrc">
+                <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="ParameterTreeWidget" name="lp_observeoptionsTreeView">
@@ -1006,7 +1033,7 @@ p, li { white-space: pre-wrap; }
   <widget class="QDockWidget" name="rp_fittingDockWidget">
    <property name="minimumSize">
     <size>
-     <width>298</width>
+     <width>371</width>
      <height>503</height>
     </size>
    </property>
@@ -1155,44 +1182,71 @@ p, li { white-space: pre-wrap; }
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="rp_fitoptionsReset">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>16777215</width>
-                <height>24</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Reset to Default</string>
-              </property>
-              <property name="icon">
-               <iconset resource="ui_resources.qrc">
-                <normaloff>:/images/icons/return.png</normaloff>:/images/icons/return.png</iconset>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="rp_fitoptionsDelete">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>16777215</width>
-                <height>24</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Delete</string>
-              </property>
-              <property name="icon">
-               <iconset resource="ui_resources.qrc">
-                <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
-              </property>
-             </widget>
+             <layout class="QHBoxLayout" name="horizontalLayout_16">
+              <item>
+               <widget class="QPushButton" name="rp_fitoptionsDelete">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>24</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Delete</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="ui_resources.qrc">
+                  <normaloff>:/images/icons/bin-3.png</normaloff>:/images/icons/bin-3.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="rp_fitoptionsReset">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>24</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>reset to default (from preferences)</string>
+                </property>
+                <property name="text">
+                 <string>Reset</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="ui_resources.qrc">
+                  <normaloff>:/images/icons/return.png</normaloff>:/images/icons/return.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="rp_fitoptionsAdd">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>24</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Create New</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="ui_resources.qrc">
+                  <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </item>
             <item>
              <widget class="ParameterTreeWidget" name="rp_fitoptionsTreeView">
