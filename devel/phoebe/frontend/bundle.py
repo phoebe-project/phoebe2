@@ -52,7 +52,7 @@ def run_on_server(fctn):
 
         is_server = kwargs.pop('is_server',False)
 
-        if servername is not False and not is_server:
+        if servername is not False and servername is not None and not is_server:
             server =  bundle.get_server(servername)
             if server.is_external():
                 if server.check_status():
@@ -375,6 +375,13 @@ class Bundle(object):
         Simply a shortcut to bundle.get_system().list(...)
         """
         return self.system.list(summary,*args)
+        
+    def clear_synthetic(self):
+        """
+        Clear all synthetic datasets
+        Simply a shortcut to bundle.get_system().clear_synthetic()
+        """
+        return self.system.clear_synthetic()
         
     def set_time(self,time):
         """
@@ -816,41 +823,73 @@ class Bundle(object):
         i = [v[key] for v in self.versions].index(version)
         # change the name value
         self.versions[i]['name']=newname
-            
 
     #}
-    
-    
-    #{ Loading Data
-    def load_data(self,context,filename,passband=None,columns=None,components=None,ref=None):
+    #{ Datasets
+    def _get_data_ps(self,kind,objref,dataref,force_dict):
         """
-        import data from a file, create multiple DataSets, load data,
-        and add to corresponding bodies
+        used by get_obs, get_syn, and get_dep
         
-        @param context: context
-        @type context: str
-        @param filename: filename
-        @type filename: str
-        @param passband: passband
-        @type passband: str
-        @param columns: list of columns in file
-        @type columns: list of strings
-        @param components: component for each column in file
-        @type components: list of bodies
-        @param name: name for ref for all returned datasets (currently UNUSED)
-        @type name: str    
+        @param kind: 'obs', 'syn', or 'dep'
+        @type kind: str
+        @param objref: name of the object the dataset is attached to
+        @type objref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
+        @return: dep ParameterSet
+        @rtype: ParameterSet
         """
         
-        if 'rv' in context:
-            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'lc' in context:
-            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'etv' in context:
-            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'sp' in context:
-            output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        if objref is None:
+            # then search the whole system
+            return_ = {}
+            for objref in self.get_system_structure(return_type='label',flat=True):
+                parsets = self._get_data_ps(kind,objref,dataref=dataref,force_dict=True)
+                for parset in parsets.values():
+                    if parset not in return_:
+                        return_['%s:%s' % (objref, parset.get_value('ref'))] = parset
+            if len(return_)==1 and not force_dict:
+                return return_.values()[0]
+            else:
+                return return_
+            
+        # now we assume we're dealing with a single object
+        obj = self.get_object(objref)
+        
+        if dataref is not None:
+            # then search for the dataref by name/index
+            if kind=='syn':
+                parset = obj.get_synthetic(ref=dataref, cumulative=True)
+            else:
+                parset = obj.get_parset(type=kind,ref=dataref)[0]
+            if parset != None and parset != []:
+                if force_dict:
+                    return {'%s:%s' % (objref, parset.get_value('ref')): parset}
+                else:
+                    return parset
+            return {}
         else:
-            print("only lc, rv, etv, and sp currently implemented")
+            # then loop through indices until there are none left
+            return_ = []
+            if kind in obj.params.keys():
+                for typ in obj.params[kind]:
+                    for ref in obj.params[kind][typ]:
+                        return_.append(obj.params[kind][typ][ref])
+            if len(return_)==1 and not force_dict:
+                return return_[0]
+            else:
+                return {'%s:%s' % (objref, r.get_value('ref')): r for r in return_}
+                
+    def _attach_datasets(self,output):
+        """
+        attach datasets and pbdeps from parsing file or creating synthetic datasets
+        
+        output is a dictionary with object names as keys and lists of both
+        datasets and pbdeps as the values {objectname: [[ds1,ds2],[ps1,ps2]]}
+        
+        this is called from bundle.load_data and bundle.create_syn
+        and should not be called on its own        
+        """
         
         for objectlabel in output.keys():      
             # get the correct component (body)
@@ -875,17 +914,95 @@ class Bundle(object):
             for ds in dss:    
                 #~ ds.load()
                 comp.add_obs(ds)
-                
-    def create_syn(self,context,passband=None,components=None,ref=None):
+    
+    def load_data(self,context,filename,passband=None,columns=None,components=None,ref=None):
+        """
+        import data from a file, create multiple DataSets, load data,
+        and add to corresponding bodies
+        
+        @param context: context
+        @type context: str
+        @param filename: filename
+        @type filename: str
+        @param passband: passband
+        @type passband: str
+        @param columns: list of columns in file
+        @type columns: list of strings
+        @param components: component for each column in file
+        @type components: list of bodies
+        @param ref: name for ref for all returned datasets
+        @type ref: str    
         """
         
+        if 'rv' in context:
+            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'lc' in context:
+            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'etv' in context:
+            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        elif 'sp' in context:
+            output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        else:
+            print("only lc, rv, etv, and sp currently implemented")
+        
+        self._attach_datasets(output)
+                       
+    def create_syn(self,kind='lc',times=None,passband=None,components=None,ref=None):
+        """
+        create and attach 'empty' datasets with no actual data but rather
+        to provide times to compute the model
+        
+        @param kind: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
+        @type kind: str
+        @param times: list of times
+        @type times: list
+        @param passband: passband
+        @type passband: str
+        @param columns: list of columns in file
+        @type columns: list of strings
+        @param components: component for each column in file
+        @type components: list of bodies
+        @param ref: name for ref for all returned datasets
+        @type ref: str    
         """
         # create pbdeps and attach to the necessary object
         # this function will be used for creating pbdeps without loading an actual file ie. creating a synthetic model only
         # times will need to be provided by the compute options (auto will not load times out of a pbdep)
         
-        raise NotImplementedError
-    
+        # Modified functionality from datasets.parse_header
+        
+        # Create a default pbdep and DataSet
+        contexts = dict(rv='rv',
+                        phot='lc', lc='lc',
+                        spec='sp', lprof='sp',
+                        vis2='if', plprof='pl')
+        dataset_classes = dict(rv=datasets.RVDataSet,
+                               phot=datasets.LCDataSet, lc=datasets.LCDataSet,
+                               spec=datasets.SPDataSet, lprof=datasets.SPDataSet,
+                               vis2=datasets.IFDataSet, plprof=datasets.PLDataSet)
+
+            
+        if not kind in dataset_classes:
+            dataset_class = DataSet
+        else:
+            dataset_class = dataset_classes[kind]
+
+        if components is None:
+            # then attempt to make smart prediction
+            if kind=='lc':
+                # then top-level
+                components = [self.get_system_structure(flat=True)[0]]
+                logger.warning('components not provided - assuming {}'.format(components))
+
+        output = {}
+        for component in components:
+            ds = dataset_class(context=kind+'obs',time=times,ref=ref)
+            pb = parameters.ParameterSet(context=kind+'dep',passband=passband,ref=ref)
+            
+            output[component] = [[ds],[pb]]
+
+        self._attach_datasets(output)
+        
     def add_obs(self,objectname,dataset):
         """
         attach dataset to an object
@@ -916,41 +1033,8 @@ class Bundle(object):
         @return: dataset
         @rtype: ParameterSet
         """
-        if objref is None:
-            # then search the whole system
-            return_ = {}
-            for objref in self.get_system_structure(return_type='label',flat=True):
-                parsets = self.get_obs(objref,dataref=dataref,force_dict=True)
-                for parset in parsets.values():
-                    if parset not in return_:
-                        return_['%s:%s' % (objref, parset.get_value('ref'))] = parset
-            if len(return_)==1 and not force_dict:
-                return return_.values()[0]
-            else:
-                return return_
-            
-        # now we assume we're dealing with a single object
-        obj = self.get_object(objref)
         
-        if dataref is not None:
-            # then search for the dataref by name/index
-            parset = obj.get_parset(type='obs',ref=dataref)
-            if parset != (None, None):
-                if force_dict:
-                    return {'%s:%s' % (objref, parset[0].get_value('ref')): parset[0]}
-                else:
-                    return parset[0]
-            return {}
-        else:
-            # then loop through indices until there are none left
-            return_ = []
-            for typ in obj.params['obs']:
-                for ref in obj.params['obs'][typ]:
-                    return_.append(obj.params['obs'][typ][ref])
-            if len(return_)==1 and not force_dict:
-                return return_[0]
-            else:
-                return {'%s:%s' % (objref, r.get_value('ref')): r for r in return_}
+        return self._get_data_ps('obs',objref,dataref,force_dict)
                 
     def enable_obs(self,dataref=None):
         """
@@ -1021,42 +1105,24 @@ class Bundle(object):
         @return: dataset
         @rtype: ParameterSet
         """
-        if objref is None:
-            # then search the whole system
-            return_ = {}
-            for objref in self.get_system_structure(return_type='label',flat=True):
-                obj = self.get_object(objref)
-                parsets = self.get_syn(obj,dataref=dataref,force_dict=True)
-                for parset in parsets.values():
-                    if parset not in return_:
-                        return_['%s:%s' % (objref,parset.get_value('ref'))] = parset
-            if len(return_)==1 and not force_dict:
-                return return_.values()[0]
-            else:
-                return return_
-            
-        # now we assume we're dealing with a single object
-        obj = self.get_object(objref)
         
-        if dataref is not None:
-            # then search for the dataref by name/index
-            parset = obj.get_synthetic(ref=dataref, cumulative=True)
-            if parset != None and parset != []:
-                if force_dict:
-                    return {'%s:%s' % (objref,parset.get_value('ref')): parset}
-                else:
-                    return parset
-            return {}
-        else:
-            # then loop through indices until there are none left
-            return_ = []
-            for typ in obj.params['obs']:
-                for ref in obj.params['obs'][typ]:
-                    return_.append(obj.params['obs'][typ][ref])
-            if len(return_)==1 and not force_dict:
-                return return_[0]
-            else:
-                return {'%s:%s' % (objref,r.get_value('ref')): r for r in return_}
+        return self._get_data_ps('syn',objref,dataref,force_dict)
+                
+    def get_dep(self,objref=None,dataref=None,force_dict=False):
+        """
+        get a dep by the object its attached to and its label
+        if objectname and ref are given, this will return a single dataset
+        if either or both are not give, this will return a list of all datasets matching the search
+        
+        @param objref: name of the object the dataset is attached to
+        @type objref: str
+        @param dataref: ref (name) of the dataset
+        @type dataref: str
+        @return: dep ParameterSet
+        @rtype: ParameterSet
+        """
+        
+        return self._get_data_ps('pbdep',objref,dataref,force_dict)
         
     #}
     
@@ -1395,7 +1461,10 @@ class Bundle(object):
         @param objref: label of the object
         @type objref: str
         """
-        ds = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()[0]
+        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        if len(dss) > 1:
+            logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
+        ds = dss[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1416,7 +1485,10 @@ class Bundle(object):
         @param objref: label of the object
         @type objref: str
         """
-        ds = self.get_syn(dataref=dataref,objref=objref,force_dict=True).values()[0]
+        dss = self.get_syn(dataref=dataref,objref=objref,force_dict=True).values()
+        if len(dss) > 1:
+            logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
+        ds = dss[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1437,7 +1509,10 @@ class Bundle(object):
         @param objref: label of the object
         @type objref: str
         """
-        ds = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()[0]
+        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        if len(dss) > 1:
+            logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
+        ds = dss[0]
         typ = ds.context[:-3]
         
         if typ=='lc':
@@ -1564,6 +1639,13 @@ class Bundle(object):
             axes = mplfig.add_subplot(111)
         
         po = self.plot_meshviewoptions if meshviewoptions is None else meshviewoptions
+
+        fig = plt.gcf()    
+        fig.set_facecolor(po['background'])
+        fig.set_edgecolor(po['background'])
+        axes.get_xaxis().set_visible(False)
+        axes.get_yaxis().set_visible(False)
+        
         #~ print "***", po['cmap'] if po['cmap'] is not 'None' else None
         lims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
         axes.set_xlim(lims['xlim'])
