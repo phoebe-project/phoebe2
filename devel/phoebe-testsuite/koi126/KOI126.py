@@ -4,7 +4,7 @@ KOI-126 as a hierarchical triple system
 
 Last updated: ***time***
 
-KOI-125 is a triple system. In the Science paper of Carter et al. 2011, it 
+KOI-126 is a triple system. In the Science paper of Carter et al. 2011, it 
 was modelled as a dynamical system. We construct a hierarchal model of this
 system using the ephemeris and parameters given in the paper.
 
@@ -31,7 +31,7 @@ system = phoebe.create.KOI126()
 # --------------------------
 
 # We compute the transit light curve only in the specific windows of the
-# transits. These transit timings are reasnably close to the ones presented in
+# transits. These transit timings are reasonably close to the ones presented in
 # Carter et al. 2011 (Science), but not exactly since this model is hierarchical
 # and not dynamical.
 times = [2455102.815, 2455136.716, 2455170.465, 2455204.267, 2455238.207+0.25,
