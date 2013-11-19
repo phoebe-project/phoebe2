@@ -13,8 +13,12 @@ from phoebe.utils import pergrams
 logger = logging.getLogger('ATMO.TOOLS')
 
 def gravitational_redshift(the_system):
-    """
+    r"""
     Compute the gravitional redshift of an object
+    
+    .. math::
+    
+        RV_\mathrm{grav} = \frac{GM}{Rc}
     
     @param the_system: object
     @type the_system: Body

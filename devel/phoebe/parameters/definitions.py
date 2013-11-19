@@ -405,6 +405,7 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
          dict(qualifier='amplgrav',description='Amplitude of gravity perturbation',repr='%g',cast_type=float,value=0.00001,adjust=False,frame=["phoebe"],context='puls'),
          dict(qualifier='phasegrav',description='Phase of gravity perturbation',repr='%g',cast_type=float,value=0.0,adjust=False,frame=["phoebe"],context='puls'),
          dict(qualifier='incl',     description='Angle between rotation and pulsation axis',unit='deg',repr='%f',llim=0,ulim=360,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='puls'),
+         dict(qualifier='phaseincl',description='Phase of obliquity',repr='%g',cast_type=float,value=0.0,adjust=False,frame=["phoebe"],context='puls'),
          dict(qualifier='trad_coeffs',  description='B vector for traditional approximation',repr='%s',cast_type=np.array,value=[],frame=['phoebe'],context='puls'),
          dict(qualifier='scheme',   description='Type of approximation for description of pulsations',repr='%s',cast_type='choose',choices=['nonrotating','coriolis','traditional approximation'],value='nonrotating',frame=["phoebe"],context='puls'),
         ]

@@ -83,24 +83,21 @@ if __name__=="__main__":
 
     if myrank == 0:
         
-        try:
+        # Load the system that we want to compute
+        system = universe.load(sys.argv[2])
+        
+        # Load the arguments to the function
+        with open(sys.argv[3],'r') as open_file:
+            args = cPickle.load(open_file)
+        
+        # Load the keyword arguments to the function
+        with open(sys.argv[4],'r') as open_file:
+            kwargs = cPickle.load(open_file)
             
-            # Load the system that we want to compute
-            system = universe.load(sys.argv[2])
-            
-            # Load the arguments to the function
-            with open(sys.argv[3],'r') as open_file:
-                args = cPickle.load(open_file)
-            
-            # Load the keyword arguments to the function
-            with open(sys.argv[4],'r') as open_file:
-                kwargs = cPickle.load(open_file)
-        finally:
-            
-            # Clean up pickle files once they are loaded:
-            os.unlink(sys.argv[2])
-            os.unlink(sys.argv[3])
-            os.unlink(sys.argv[4])
+        # Clean up pickle files once they are loaded:
+        os.unlink(sys.argv[2])
+        os.unlink(sys.argv[3])
+        os.unlink(sys.argv[4])
         
         res = []
 
@@ -122,6 +119,9 @@ if __name__=="__main__":
                 system.fix_mesh()
         
         update_progress(-1)
+        
+        # If something goes wrong, try to catch the traceback to report
+        # to the user
         try:
             system.set_time(params['time'][0])
         except Exception as e:

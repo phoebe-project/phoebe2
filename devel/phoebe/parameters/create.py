@@ -30,6 +30,7 @@ L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
 **Specific targets**    
     
 .. autosummary::    
+
     T_CrB
     KOI126
 
@@ -181,52 +182,6 @@ from phoebe.io import ascii
 
 logger = logging.getLogger('PARS.CREATE')
 
-#{ General purpose
-
-def make_body(fctn):
-    """
-    Immediately make a Body if desired (otherwise just apply C{fctn}).
-    
-    *args are passed to fctn
-    **kwargs are passed to get_obs
-    """
-    @functools.wraps(fctn)
-    def make_body_decorator(*args,**kwargs):
-        #-- first check if a body needs to be created
-        create_body = kwargs.pop('create_body',False)
-        #-- then make the parameterSets
-        ps = fctn(*args,**kwargs)
-        #-- if needed, we create bodies from the returned ParameterSets
-        if create_body:
-            if not isinstance(ps,tuple) and not isinstance(ps,list):
-                ps = ps,
-            contexts = [ips.context for ips in ps]
-            if args[0] in globals():
-                ps = globals()[args[0]](*args[1:],**kwargs)
-            #-- let's create two bodies and put them in a BodyBag
-            elif len(ps)==3 and contexts.count('component')==2 and contexts.count('orbit')==1:
-                myobs1 = observables(**kwargs)
-                myobs2 = [myobs.copy() for myobs in myobs1]
-                orbit = ps[contexts.index('orbit')]
-                comp1 = ps[contexts.index('component')]
-                comp2 = ps[::-1][contexts[::-1].index('component')]
-                #-- find out which body needs to be made
-                body1 = GenericBody(comp1,orbit,pbdep=myobs1)
-                body2 = GenericBody(comp2,orbit,pbdep=myobs2)
-                #-- if there are irradiators, we need to prepare for reflection
-                #   results
-                if comp1['irradiator'] or comp2['irradiator']:
-                    body1.prepare_reflection()
-                    body2.prepare_reflection()
-                #-- put the two Bodies in a BodyBag and return it to the user.
-                ps = universe.BodyBag([body1,body2])
-            #-- OK, if it's no binary, we assume we can deal with it as is
-            else:
-                myobs = observables(**kwargs)
-                ps = GenericBody(*ps,pbdep=myobs)
-        return ps
-    return make_body_decorator
-
 
 
 class GenericBody(object):
@@ -245,7 +200,7 @@ class GenericBody(object):
         match will be returned, stating which arguments were given, which are
         missing and which are given but are not allowed.
     """
-    def __new__(self,*args,**kwargs):
+    def __new__(self, *args, **kwargs):
         #-- check which contexts are given
         pbdep = kwargs.pop('pbdep',[])
         if kwargs:
@@ -266,62 +221,76 @@ class GenericBody(object):
         #   are actually a class
         info = {}
         match = []
-        for attr in dir(universe):
-            info[attr] = {'required':[],'missing':[],'rest':[],'optional':{}}
-            thing = getattr(universe,attr)
-            if inspect.isclass(thing) and hasattr(thing,'__init__'):
-                #-- if we have a class, check what arguments it needs
-                argspec = inspect.getargspec(thing.__init__)
-                arg_names = argspec[0][1:] # we can forget about the self arg
-                arg_defaults = argspec[3]
-                #-- split the arguments into two categories: those that are
-                #   required, and those that are not.
-                if arg_defaults:
-                    arg_required = list(arg_names[:-len(arg_defaults)])
-                    #============ >PYTHON 2.7 ===============================
-                    arg_optional = {name:default for name,default in zip(arg_names[-len(arg_defaults):],arg_defaults)}
-                    #============ <PYTHON 2.7 ===============================
-                    #arg_optional = {}
-                    #for name,default in zip(arg_names[-len(arg_defaults):],arg_defaults):
-                    #    arg_optional[name] = default
-                    #========================================================
+        
+        # List all possible Body classes:
+        body_classes = []
+        for body_class in dir(universe):
+            try:
+                if issubclass(getattr(universe, body_class), universe.Body) \
+                     and not body_class in ['Body', 'BodyBag', 'BinaryBag']:
+                    body_classes.append(body_class)
+            except TypeError:
+                continue
+    
+        
+        for body_class in body_classes:
+            thing = getattr(universe, body_class)
+            info[body_class] = {'required':[],'missing':[],'rest':[],'optional':{}}
+            #-- if we have a class, check what arguments it needs
+            argspec = inspect.getargspec(thing.__init__)
+            arg_names = argspec[0][1:] # we can forget about the self arg
+            arg_defaults = argspec[3]
+            #-- split the arguments into two categories: those that are
+            #   required, and those that are not.
+            if arg_defaults:
+                arg_required = list(arg_names[:-len(arg_defaults)])
+                #============ >PYTHON 2.7 ===============================
+                arg_optional = {name:default for name,default in zip(arg_names[-len(arg_defaults):],arg_defaults)}
+                #============ <PYTHON 2.7 ===============================
+                #arg_optional = {}
+                #for name,default in zip(arg_names[-len(arg_defaults):],arg_defaults):
+                #    arg_optional[name] = default
+                #========================================================
+            else:
+                arg_required = arg_names
+                arg_optional = {}
+            if pbdep:
+                info[body_class]['optional']['pbdep'] = pbdep
+            #-- absorb given keyword arguments into optional arguments
+            for key in kwargs:
+                if key in arg_optional:
+                    arg_optional[key] = kwargs[key]
+            #-- then check which contexts are given. Make a local copy of
+            #   the contexts that can be exhausted. For all arguments that
+            #   are required, we check which ones are missing, which ones
+            #   are given, and in the end which ones were given but not
+            #   required.
+            contexts_ = [context for context in contexts] 
+            for par in arg_required:
+                #-- if the required but missing argument is a mesh,
+                #   create one!
+                if not par in contexts and par=='mesh':    
+                    info[body_class]['required'].append(parameters.ParameterSet(context='mesh:marching'))
+                #-- else, it's just missing and we don't make any assumptions
+                elif not par in contexts:
+                    info[body_class]['missing'].append(par)
                 else:
-                    arg_required = arg_names
-                    arg_optional = {}
-                if pbdep:
-                    info[attr]['optional']['pbdep'] = pbdep
-                #-- absorb given keyword arguments into optional arguments
-                for key in kwargs:
-                    if key in arg_optional:
-                        arg_optional[key] = kwargs[key]
-                #-- then check which contexts are given. Make a local copy of
-                #   the contexts that can be exhausted. For all arguments that
-                #   are required, we check which ones are missing, which ones
-                #   are given, and in the end which ones were given but not
-                #   required.
-                contexts_ = [context for context in contexts] 
-                for par in arg_required:
-                    #-- if the required but missing argument is a mesh,
-                    #   create one!
-                    if not par in contexts and par=='mesh':    
-                        info[attr]['required'].append(parameters.ParameterSet(context='mesh:marching'))
-                    #-- else, it's just missing and we don't make any assumptions
-                    elif not par in contexts:
-                        info[attr]['missing'].append(par)
-                    else:
-                        par = contexts_.pop(contexts_.index(par))
-                        info[attr]['required'].append(contexts_args[contexts.index(par)])
-                #-- for optional arguments, we only need to check if they are
-                #   in the contexts
-                for par in arg_optional:
-                    if par=='mesh' and not par in contexts:
-                        info[attr]['optional']['mesh'] = parameters.ParameterSet(context='mesh:marching')
-                    if par in contexts:
-                        par_ = contexts_.pop(contexts_.index(par))
-                        info[attr]['optional'][par] = contexts_args[contexts.index(par_)]
-                info[attr]['rest'] = contexts_
-                if not info[attr]['missing'] and not info[attr]['rest'] and len(contexts_)==0:
-                    match.append(attr)
+                    par = contexts_.pop(contexts_.index(par))
+                    info[body_class]['required'].append(contexts_args[contexts.index(par)])
+            #-- for optional arguments, we only need to check if they are
+            #   in the contextsreturn star
+    
+    
+    
+            for par in arg_optional:
+                if par=='mesh' and not par in contexts:
+                    info[body_class]['optional']['mesh'] = parameters.ParameterSet(context='mesh:marching')
+                if par in contexts:
+                    par_ = contexts_.pop(contexts_.index(par))
+                    info[body_class]['optional'][par] = contexts_args[contexts.index(par_)]
+            info[body_class]['rest'] = contexts_
+            if not info[body_class]['missing'] and not info[body_class]['rest'] and len(contexts_)==0:
+                match.append(body_class)
         #-- Evaluate and return a Body if possible. Else, try to give some
         #   information about what went wrong
         if len(match)==1:
@@ -353,55 +322,125 @@ class GenericBody(object):
             if m2: message = message + " -- required but missing args: {}".format(", ".join(m2))
             if m3: message = message + " -- does not accept extra args: {}".format(", ".join(m3))
             raise ValueError(message)
-        
 
-def observables(pbdep=('lcdep','spdep','ifdep','rvdep'),**kwargs):
-    """
-    Create a homogeneous set of observables.
+
+def make_body_from_parametersets(ps):
+
+    if not isinstance(ps,tuple) and not isinstance(ps,list):
+        ps = ps,
+    contexts = [ips.context for ips in ps]
+    #-- let's create two bodies and put them in a BodyBag
+    if len(ps)==3 and contexts.count('component')==2 and contexts.count('orbit')==1:
+        orbit = ps[contexts.index('orbit')]
+        comp1 = ps[contexts.index('component')]
+        comp2 = ps[::-1][contexts[::-1].index('component')]
+        #-- find out which body needs to be made
+        body1 = GenericBody(comp1,orbit)
+        body2 = GenericBody(comp2,orbit)
+        #-- if there are irradiators, we need to prepare for reflection
+        #   results
+        if comp1['irradiator'] or comp2['irradiator']:
+            body1.prepare_reflection()
+            body2.prepare_reflection()
+        #-- put the two Bodies in a BodyBag and return it to the user.
+        body = universe.BodyBag([body1,body2])
+    #-- OK, if it's no binary, we assume we can deal with it as is
+    else:
+        body = GenericBody(*ps)
     
-    Extra keyword arguments are set simultaneously to all observables, resulting
-    in a uniform set of observables. E.g., if give an extra keyword argument
-    C{passband='JOHNSON.V'}, all observables will have that passband.
+    return body
+
+
+def body_from_string(body_string):
     """
-    #-- set some defaults
-    kwargs.setdefault('ld_func','claret')
-    kwargs.setdefault('ld_coeffs','kurucz')
-    kwargs.setdefault('atm','kurucz')
-    kwargs.setdefault('passband','JOHNSON.V')
-    kwargs.setdefault('method','numerical')
-    #-- collect observables: it's also possible that observable sets were given
-    #   in the obs tuple, directly add them if this is the case
-    pbdep_ = []
-    for obstype in pbdep:
-        if obstype=='lcdep':
-            #-- light curve
-            lcdep = parameters.ParameterSet(frame='phoebe',context='lcdep')
-            pbdep_.append(lcdep)
-        elif obstype=='spdep':
-            #-- spectrum
-            spdep = parameters.ParameterSet(frame='phoebe',context='spdep')
-            pbdep_.append(spdep)
-        elif obstype=='ifdep':
-            #-- interferometry
-            ifdep = parameters.ParameterSet(frame='phoebe',context='ifdep')
-            pbdep_.append(ifdep)
-        elif obstype=='rvdep':
-            #-- radial velocity
-            rvdep = parameters.ParameterSet(frame='phoebe',context='rvdep')
-            pbdep_.append(rvdep)
-        elif isinstance(obstype,parameters.ParameterSet):
-            pbdep_.append(obstype)
-    #-- set extra keyword arguments in the observables ParameterSet, but only
-    #   if applicable
-    for key in kwargs:
-        for iobs in pbdep_:
-            if key in iobs:
-                iobs[key] = kwargs[key]
+    Create a Body from a string representation.
+    
+    Possibilities:
+    
+        - string represents file name from the library (or local file)
+        - string represents a predefined system from this module
+        - string represents a spectral type
         
-    return pbdep_    
+    """
     
-@make_body
-def from_library(name, create_body=False, **kwargs):
+    # First try to see if the system is recognised by the library, or if it's
+    # predefined in this module
+    try:
+        body = from_library(body_string, create_body=True)
+        return body
+    except NotImplementedError:
+        pass
+    
+    # Then try to create a spectral type
+    try:
+        body = star_from_spectral_type(body_string, create_body=True)
+        return body
+    except ValueError:
+        pass
+    
+    body_classes = []
+    for body_class in dir(universe):
+        try:
+            if issubclass(getattr(universe, body_class), universe.Body) \
+                 and not body_class in ['Body', 'BodyBag', 'BinaryBag']:
+                body_classes.append(body_class)
+        except TypeError:
+            continue
+    
+    # Then try smart-detection of meta-information
+    # Default class name is BinaryRocheStar
+    class_name = 'BinaryRocheStar'
+    
+    # Collect meta-info on Body:
+    meta_info = None
+    
+    # See if the user gave instructions for the type of Body
+    result = re.search(r"(.*)[\s*]<(\w*)>", body_string)
+    while result is not None:
+        body_string, info = result.groups()
+        
+        # Meta-info is either class name or spectral type
+        if meta_info in body_classes:
+            class_name = info
+        else:
+            meta_info = info
+        
+        # Consume the rest of the string
+        result = re.search(r"(.*)[\s*]<(\w*)>", body_string)
+    
+    if meta_info is not None:
+        body = body_from_string(meta_info)
+    
+    body.set_label(body_string)
+    
+    return body
+    
+
+
+def system(structure):
+    """
+    Create a generic system.
+    
+    Example usage::
+    
+        system(['primary <BinaryRocheStar>', 'secondary <BinaryRocheStar>'])
+    """
+    # Create an empty structure list
+    list_of_bodies = []
+    
+    # Go over every string in the body and derive what we need to do with it
+    for body_string in structure:
+        body = body_from_string(body_string)
+        if 'globals' in body.params:
+            thrash = body.params.pop('globals')
+        list_of_bodies.append(body)
+    
+    bbag = universe.BodyBag(list_of_bodies)
+    bbag.set_label("+".join([body.get_label() for body in bbag.get_bodies()]))
+    return bbag
+
+
+def from_library(name, create_body=False):
     """
     Create stars and objects from the library.
     
@@ -436,27 +475,25 @@ def from_library(name, create_body=False, **kwargs):
         if name.lower()+'.par' in filesl:
             name = files[filesl.index(name.lower()+'.par')]
     if not os.path.isfile(name) and name in globals():
-        return globals()[name](create_body=create_body,**kwargs)
+        return globals()[name](create_body=create_body)
     if not os.path.isfile(name):
         raise NotImplementedError("system not in library")
     ps = parameters.load_ascii(name)
     logger.info("Loaded {} from library".format(name))
-    for pset in ps:
-        for kw in kwargs:
-            if kw in pset:
-                pset[kw] = kwargs[kw]
     
+    if create_body:
+        ps = make_body_from_parametersets(ps)
+        return ps
+    elif len(ps) == 1:
     #-- we have a few special cases here:
     #-- perhaps we're not creating bodies. Then, if the ASCII files contains
     #   only one parameterSet, we just return that one
-    if len(ps)==1:
         return ps[0]
     #-- else, we return the list
     else:
         return ps
 
  
-@make_body
 def star_from_spectral_type(spectype, create_body=False, **kwargs):
     """
     Create a star with a specific spectral type.
@@ -647,17 +684,18 @@ def star_from_spectral_type(spectype, create_body=False, **kwargs):
     star['mass'] = sptypes[index]['mass'],'Msol'
     star['rotperiod'] = sptypes[index]['rotperiod'],'d'
     
-    #-- overwrite with values from the keyword dictionary if possible
     for key in kwargs:
-        if key in star:
-            star[key] = kwargs[key]
+        star[key] = kwargs[key]
     
     logger.info('Created star of spectral type {}'.format(spectype))
+    
+    if create_body:
+        star = make_body_from_parametersets(star)
     
     return star    
     
 
-@make_body
+
 def binary_from_deb2011(name,create_body=False,**kwargs):
     """
     Create a binary from the catalog [deb2011]_
@@ -710,7 +748,6 @@ def dep_from_object(myobject,context,**kwargs):
             obsdep[key] = myobject[key]
     return obsdep
 
-@make_body
 def binary_from_stars(star1, star2, sma=None, period=None,\
                       kwargs1=None, kwargs2=None, orbitkwargs=None,\
                       create_body=False, **kwargs):
@@ -873,7 +910,6 @@ def stars_from_binary(comp1, comp2, orbit):
 
 
 
-@make_body
 def binary_from_spectroscopy(star1,star2,period,ecc,K1,K2=None,\
              vsini1=None,vsini2=None,\
              logg1=None,logg2=None,\
@@ -1262,7 +1298,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     
     return systemA_BC
 
-@make_body
+
 def vega_aufdenberg2006():
     """
     Vega model from Aufdenberg (2006).
@@ -1285,7 +1321,7 @@ def vega_aufdenberg2006():
     
     return star
 
-@make_body
+
 def vega_hill2010():
     """
     Vega model from Hill (2010).
@@ -1308,7 +1344,7 @@ def vega_hill2010():
     
     return star
 
-@make_body
+
 def vega_yoon2010():
     """
     Vega model from Yoon (2010).
@@ -1330,7 +1366,7 @@ def vega_yoon2010():
     
     return star
 
-@make_body
+
 def vega_monnier2012():
     """
     Vega model from Monnier (2012).

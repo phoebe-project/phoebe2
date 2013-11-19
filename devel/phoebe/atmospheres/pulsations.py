@@ -26,9 +26,11 @@ Calculate the stellar surface displacements due to pulsations.
     sph_harm
     dsph_harm_dtheta
     dsph_harm_dphi
+    rotate_sph_harm
     norm_J
     norm_atlp1
     norm_atlm1
+    wignerD
     legendre_
 
 Main references: [Aerts1993]_, [Zima2006]_, [Townsend2003]_.
@@ -77,7 +79,9 @@ just linear combinations of the nonrotating case).
 |                                             | .. image:: images/pulsations_l2m2_rot.gif   | .. image:: images/pulsations_l2m-2_rot.gif  |                                             |
 +---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
 
+**To do**:
 
+    - magnetic pulsators: Shibahashi and Takata (1993)?
 
 """
 import logging
@@ -143,7 +147,7 @@ def legendre_(l,m,x):
         P_l_m = (-1)**m_ * float(factorial(l-m_)/factorial(l+m_)) * P_l_m
     return P_l_m
 
-def sph_harm(theta,phi,l=2,m=1):
+def sph_harm(theta, phi, l=2, m=1, alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Spherical harmonic.
     
@@ -193,9 +197,13 @@ def sph_harm(theta,phi,l=2,m=1):
     #   try:
     if np.abs(m)>l:
         return np.zeros_like(phi)
-    return -Ylm.Ylm(l,m,phi,theta)
+    if alpha==0.0 and beta==0.0 and gamma==0.0:
+        return -Ylm.Ylm(l,m,phi,theta)
+    else:
+        return rotate_sph_harm(theta,phi, l,m,alpha,beta,gamma)
 
-def orthonormal(theta,phi,l1=2,m1=1,l2=2,m2=1):
+
+def orthonormal(theta, phi, l1=2, m1=1, l2=2, m2=1):
     r"""
     Test the othornomal property of the spherical harmonic.
     
@@ -222,7 +230,7 @@ def orthonormal(theta,phi,l1=2,m1=1,l2=2,m2=1):
     inside = sph_harm(theta,phi,l1,m1) * sph_harm(theta,phi,l2,m2).conjugate() 
     return inside.real*np.sin(theta)
 
-def dsph_harm_dtheta(theta,phi,l=2,m=1):
+def dsph_harm_dtheta(theta,phi,l=2,m=1,alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Derivative of spherical harmonic wrt colatitude.
     
@@ -247,12 +255,12 @@ def dsph_harm_dtheta(theta,phi,l=2,m=1):
         Y = 0.
     else:
         factor = 1./sin(theta)
-        term1 = l     * norm_J(l+1,m) * sph_harm(theta,phi,l+1,m)
-        term2 = (l+1) * norm_J(l,m)   * sph_harm(theta,phi,l-1,m)
+        term1 = l     * norm_J(l+1,m) * sph_harm(theta,phi,l+1,m,alpha, beta, gamma)
+        term2 = (l+1) * norm_J(l,m)   * sph_harm(theta,phi,l-1,m,alpha, beta, gamma)
         Y = factor * (term1 - term2)
     return Y
 
-def dsph_harm_dphi(theta,phi,l=2,m=1):
+def dsph_harm_dphi(theta,phi,l=2,m=1,alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Derivative of spherical harmonic wrt longitude.
     
@@ -271,7 +279,7 @@ def dsph_harm_dphi(theta,phi,l=2,m=1):
        :align: center
     
     """
-    return 1j*m*sph_harm(theta,phi,l,m)
+    return 1j*m*sph_harm(theta,phi,l,m,alpha, beta, gamma)
     
 
 def norm_J(l,m):
@@ -335,12 +343,106 @@ def norm_atlm1(l,m,spin,k):
     
     """
     return spin * (l+abs(m))/l * 2./(2*l+1.) * (1 + (l+1)*k)
+  
+  
+def wignerD(ell, mu, m, alpha, beta, gamma):
+    r"""
+    Elements of Wigner D matrix.
     
+    This matrix is used to rotate spherical harmonics:
+    
+    .. math::
+    
+        \mathcal{D}_{\mu, m}^\ell = e^{-i\mu\alpha} d_{\mu,m}^\ell(\beta)e^{-im\gamma}
+        
+    with
+    
+    .. math::
+    
+        d_{\mu, m}^\ell(\beta) & = \sqrt{(\ell+\mu)!(\ell-\mu)!(\ell+m)!(\ell-m)!} \\
+         & \sum_s \frac{(-1)^{\mu-m+s} \cos(\beta/2)^{2\ell+m-\mu-2s}\sin(\beta/2)^{\mu-m+2s}}{(\ell+m-s)!s!(\mu-m+s)!(\ell-\mu-s)!}
+    
+    And the sum :math:`s` is over such values that none of the factorial terms are negative.
+    
+    See, e.g. `A Guide to rotations in quantum mechanics <www.publish.csiro.au/?act=view_file&file_id=PH870465.pdf>`_ or,
+    of course, `Wikipedia on Wigner D-matrix <http://en.wikipedia.org/wiki/Wigner_D-matrix>`_
+    
+    @param ell: degree ell
+    @type ell: int
+    @param mu: summation index :math:`\mu`
+    @type mu: int
+    @param m: azumuthal order m
+    @type m: int
+    @param alpha: first Euler angle, shift in longitude (rad)
+    @type alpha: float
+    @param beta: second Euler angle, inclination (rad)
+    @type beta: float
+    @param gamma: third Euler angle (rad)
+    @type gamma: float
+    @return: Wigner D matrix element
+    @rtype: float
+    """
+    
+    factor = sqrt( factorial(ell+mu) * factorial(ell-mu)\
+                * factorial(ell+m) * factorial(ell-m))
+    s_limit = int(max(0, max(mu-m, ell-mu, ell+m)))
+    small_d = 0.0
+    for s in range(s_limit+1):
+        denom = factorial(ell+m-s) * factorial(s)\
+            *factorial(mu-m+s) * factorial(ell-mu-s)
+        if denom == 0:
+            continue
+        pow1 = (mu-m+s)
+        pow2 = (2*ell+m-mu-2*s)
+        pow3 = (mu-m+2*s)
+        num = (-1)**pow1 * cos(beta*0.5)**pow2 * sin(beta*0.5)**pow3
+        small_d += num/denom
+        
+    small_d = factor*small_d    
+        
+    
+    return exp(-1j*mu*alpha) * small_d * exp(-1j*m*gamma)
+
+
+def rotate_sph_harm(theta, phi, l=2, m=1, alpha=0.0, beta=0.0, gamma=0.0):
+    r"""
+    Rotate a spherical harmonic.
+    
+    This uses the :py:func:`wignerD` matrix coefficients:
+    
+    .. math::
+    
+        Y_\ell^m(\theta',\phi') = \sum_{\mu=-\ell}^{+\ell}Y_\ell^\mu(\theta,\phi)\mathcal{D}_{\mu, m}^\ell
+    
+    An alternative (faster) approach can be given in "A fast and stable method
+    for rotating spherical harmonic expansions" by Z. Gimbutas and L. Greengard (2009).
+    
+    @param theta: colatitude
+    @type theta: float/array
+    @param phi: longitude
+    @type phi: float/array
+    @param ell: degree ell
+    @type ell: int
+    @param mu: summation index :math:`\mu`
+    @type mu: int
+    @param m: azumuthal order m
+    @type m: int
+    @param alpha: first Euler angle, shift in longitude (rad)
+    @type alpha: float
+    @param beta: second Euler angle, inclination (rad)
+    @type beta: float
+    @param gamma: third Euler angle (rad)
+    @type gamma: float
+    @return: rotated spherical harmonic
+    @rtype: float/array
+    """
+    return sum([sph_harm(theta, phi, l=l, m=mu)*wignerD(l, mu, m, alpha, beta, gamma)\
+                              for mu in range(-l,l+1)])
 #}
 
 #{ Displacement fields
 
-def radial(theta,phi,l,m,freq,phase,t):
+def radial(theta, phi, l, m, freq, phase, t, alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Radial displacement.
     
@@ -352,9 +454,9 @@ def radial(theta,phi,l,m,freq,phase,t):
     
         \xi_r & = Y_\ell^m(\theta,\phi) e^{2\pi i (ft+\phi)}
     """
-    return sph_harm(theta,phi,l,m) * exp(1j*2*pi*(freq*t+phase))
+    return sph_harm(theta,phi,l,m,alpha,beta,gamma) * exp(1j*2*pi*(freq*t+phase))
 
-def colatitudinal(theta,phi,l,m,freq,phase,t,spin,k):
+def colatitudinal(theta,phi,l,m,freq,phase,t,spin,k,alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Colatitudinal displacement.
     
@@ -390,12 +492,12 @@ def colatitudinal(theta,phi,l,m,freq,phase,t,spin,k):
     @param k: amplitude ratio of horizontal to vertical component
     @type k: float
     """
-    term1 = k * dsph_harm_dtheta(theta,phi,l,m)                                    * exp(1j*2*pi*(freq*t+phase))
-    term2 = norm_atlp1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l+1,m)  * exp(1j*2*pi*(freq*t+phase + 0.25))
-    term3 = norm_atlm1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l-1,m)  * exp(1j*2*pi*(freq*t+phase - 0.25))
+    term1 = k * dsph_harm_dtheta(theta,phi,l,m,alpha,beta,gamma)                                    * exp(1j*2*pi*(freq*t+phase))
+    term2 = norm_atlp1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l+1,m,alpha,beta,gamma)  * exp(1j*2*pi*(freq*t+phase + 0.25))
+    term3 = norm_atlm1(l,m,spin,k) / sin(theta) * dsph_harm_dphi(theta,phi,l-1,m,alpha,beta,gamma)  * exp(1j*2*pi*(freq*t+phase - 0.25))
     return term1 + term2 + term3
 
-def longitudinal(theta,phi,l,m,freq,phase,t,spin,k):
+def longitudinal(theta,phi,l,m,freq,phase,t,spin,k,alpha=0.0, beta=0.0, gamma=0.0):
     r"""
     Longitudinal displacement.
     
@@ -431,12 +533,13 @@ def longitudinal(theta,phi,l,m,freq,phase,t,spin,k):
     @param k: amplitude ratio of horizontal to vertical component
     @type k: float
     """
-    term1 = k /sin(theta) * dsph_harm_dphi(theta,phi,l,m)*exp(1j*2*pi*(freq*t+phase))
-    term2 = -norm_atlp1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l+1,m)*exp(1j*2*pi*(freq*t+phase+0.25))
-    term3 = -norm_atlm1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l-1,m)*exp(1j*2*pi*(freq*t+phase-0.25))
+    term1 = k /sin(theta) * dsph_harm_dphi(theta,phi,l,m,alpha,beta,gamma)*exp(1j*2*pi*(freq*t+phase))
+    term2 = -norm_atlp1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l+1,m,alpha,beta,gamma)*exp(1j*2*pi*(freq*t+phase+0.25))
+    term3 = -norm_atlm1(l,m,spin,k) * dsph_harm_dtheta(theta,phi,l-1,m,alpha,beta,gamma)*exp(1j*2*pi*(freq*t+phase-0.25))
     return term1 + term2 + term3
 
-def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, mesh_phase=0):
+
+def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, mesh_phase=0):
     """
     Compute surface displacements.
     
@@ -460,7 +563,7 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, mesh_phase=0):
     
     for il,im,ifreq,iphase,ispin,ik,iasl,incl in zip(l,m,freq,phases,spin,k,asl,incls):
         #-- radial perturbation
-        theta_ = theta# - incl
+        theta_ = theta
         ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta_,phi_,il,im,ifreq,iphase,t)
         #-- add to the total perturbation of the radius and velocity
         ksi_r += ksi_r_
@@ -488,7 +591,7 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, mesh_phase=0):
 
 def observables(radius, theta, phi, teff, logg,
                 t, l, m, freq, phases,
-                spin, k, asl, delta_T, delta_g, incls,
+                spin, k, asl, delta_T, delta_g, incls, phaseincls,
                 mesh_phase=0.0):
     """
     Good defaults:
@@ -518,7 +621,7 @@ def observables(radius, theta, phi, teff, logg,
     
     for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g,incl in \
        zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g,incls):
-        theta_ = theta# - incl
+        theta_ = theta
         rad_part = radial(theta_,phi_,il,im,ifreq,iphase,t)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
         ksi_r += ksi_r_*radius
@@ -620,6 +723,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     ks = []
     spinpars = []
     incls = []
+    phaseincls = []
     
     #-- extract pulsation parameters, depending on their scheme
     for i,pls in enumerate(self.params['puls']):
@@ -636,6 +740,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         phase = pls.get_value('phase')
         omega = 2*pi*freq_Hz
         incl = pls.get_value('incl','rad')
+        phaseincl = pls.get_value('phaseincl')
         k0 = k_#constants.GG*M/omega**2/R**3    
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.
@@ -664,6 +769,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                 #spinpars.append(0.5)
                 spinpars.append(0.) # not applicable, this is for coriolis (?)
                 incls.append(incl)
+                phaseincls.append(phaseincl)
         elif scheme=='nonrotating' or scheme=='coriolis':
             if scheme=='coriolis' and l>0:
                 spinpar = rotfreq/freq
@@ -685,6 +791,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             ks.append(k)
             spinpars.append(spinpar)
             incls.append(incl)
+            phaseincls.append(phaseincl)
         else:
             raise ValueError('Pulsation scheme {} not recognised'.format(scheme))
     #-- then add displacements due to pulsations. When computing the centers,
@@ -698,12 +805,19 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
     r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
     r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
-    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)        
-    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)
-    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,phases,spinpars,ks,ampls, incls, mesh_phase=mesh_phase)
+    r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,
+                                            phases,spinpars,ks,ampls, incls,
+                                            phaseincls, mesh_phase=mesh_phase)        
+    r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,
+                                            phases,spinpars,ks,ampls, incls,
+                                            phaseincls, mesh_phase=mesh_phase)
+    r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,
+                                            phases,spinpars,ks,ampls, incls,
+                                            phaseincls, mesh_phase=mesh_phase)
     r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = observables(r4,theta4,phi4,
                  self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
-                 spinpars,ks,ampls,deltaTs,deltags, incls, mesh_phase=mesh_phase)
+                 spinpars,ks,ampls,deltaTs,deltags, incls,
+                 phaseincls, mesh_phase=mesh_phase)
     self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
     self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
     self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T
