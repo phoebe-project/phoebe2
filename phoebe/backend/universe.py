@@ -2604,8 +2604,6 @@ class Body(object):
         """
         List with indices all the parameterSets that are available.
         
-        ``summary`` can be None, 'short' or long.
-        
         Should show some kind of hierarchical list::
         
             entire system
@@ -2639,7 +2637,11 @@ class Body(object):
             |         +----------> B1V_secondary (BinaryRocheStar)
             |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1 ifdep
             |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn                    
-
+        
+        @param emphasize: bring structure in the text via boldfacing
+        @type emphasize: bool
+        @param summary: type of summary (envvar:`long`, envvar:`short`, envvar:`physical`)
+        @type summary: str
         """
         def add_summary_short(thing, text, width=79):
             """
@@ -3709,7 +3711,7 @@ class PhysicalBody(Body):
         return ps
     
     def get_passband_gravity_brightening(self, ref=0):
-        """
+        r"""
         Compute the passband gravity brightening.
         
         It is defined as in e.g. [Claret2011]_:
@@ -3731,7 +3733,10 @@ class PhysicalBody(Body):
         dlnT = np.log(self.mesh['teff']).ptp()
         dlng = np.log(10**self.mesh['logg']).ptp()
         
-        passband_gravb = dlnI / np.sqrt(dlnT**2 + dlng**2)
+        if dlnT == 0 and dlng == 0:
+            passband_gravb = 0.0
+        else:
+            passband_gravb = dlnI / np.sqrt(dlnT**2 + dlng**2)
         
         #print("passband gravity darkening, {}+{}*{}={}".format(dlnI_dlng,dlnT_dlng,dlnI_dlnT, passband_gravb))
         return passband_gravb
@@ -5324,9 +5329,9 @@ class Star(PhysicalBody):
         """
         Initialize a star.
         
-        What needs to be done? We'll, sit down and let me explain. Are you
+        What needs to be done? Well, sit down and let me explain. Are you
         sitting down? Yes, then let's begin our journey through the birth
-        stage of a Star. In many ways, the birth of a Star can be regarded as
+        stages of a Star. In many ways, the birth of a Star can be regarded as
         the growth of a human child. First of all, the basic properties
         need to be set. Properties of a star include physical properties,
         but also computational properties such as mesh density and algorithm.

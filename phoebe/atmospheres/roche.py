@@ -34,6 +34,8 @@ Most of these parameters are local atmospheric parameters.
 
     temperature_zeipel
     temperature_espinosa
+    zeipel_gravb_binary
+    claret_gravb
 
 
 **Gravity darkening**

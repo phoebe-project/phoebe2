@@ -21,6 +21,28 @@ class MyFormatter(logging.Formatter):
         a = "%s:%s" % (filename, record.lineno)
         return "[%s] %s" % (a.ljust(self.width), record.msg)
 
+
+def which(cmd):
+    """
+    Locate a command.
+    
+    Emulates "which" command from Linux terminal.
+    
+    @param cmd: command to run
+    @type cmd: str
+    @return: absolute path to command
+    @rtype: str
+    """
+    paths = os.path.expandvard('$PATH').split(':')
+    for path in paths:
+        attempt = os.path.join(path, cmd)
+        if os.path.isfile(attempt):
+            break
+    else:
+        raise ValueError("Command '{}' not found".format(cmd))
+    return attempt
+
+
 def get_basic_logger(style="default",clevel='INFO',
                              flevel='DEBUG',filename=None,filemode='w'):
     """

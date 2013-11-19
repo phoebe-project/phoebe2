@@ -9,7 +9,7 @@ import subprocess
 import os
 import sys
 from phoebe.parameters import parameters
-
+from phoebe.utils import utils
 
 def parse_ref(fctn):
     """
@@ -237,7 +237,7 @@ def mpirun(fctn):
                 
                 # Pickle args and kwargs in NamedTemporaryFiles, which we will
                 # delete afterwards
-                if not mpirun_par['directory']:
+                if not 'directory' in mpirun_par or not mpirun_par['directory']:
                     direc = os.getcwd()
                 else:
                     direc = mpirun_par['directory']
@@ -263,7 +263,7 @@ def mpirun(fctn):
                 num_proc = mpirun_par['np']
                 
                 # Byslot
-                if mpirun_par['byslot']:
+                if 'byslot' in mpirun_par and mpirun_par['byslot']:
                     byslot = '--byslot'
                 else:
                     byslot = ''
@@ -272,7 +272,7 @@ def mpirun(fctn):
                 python = mpirun_par['python']
                 
                 # Hostfile
-                if mpirun_par['hostfile']:
+                if 'hostfile' in mpirun_par and mpirun_par['hostfile']:
                     hostfile = '--hostfile {}'.format(mpirun_par['hostfile'])
                 else:
                     hostfile = ''
@@ -312,13 +312,35 @@ def mpirun(fctn):
                     
                 elif mpirun_par.get_context().split(':')[-1] == 'torque':
                     
+                    # Get extra arguments for Torque
                     memory = '{:.0f}'.format(mpirun_par['memory'])
-                    time = '{:.0f}'.format(mpirun_par['time'])    
-                        
-                    cmd = ("qsub -l nodes={num_proc},mem={memory},pcput={time} "
-                           "mpirun {python} "
-                       "{mpirun_loc} {fctn.__name__} {sys_file.name} "
-                       "{args_file.name} {kwargs_file.name}").format(**locals())
+                    time = '{:.0f}'.format(mpirun_par['time'])
+                    
+                    # We need the absolute path name to mpirun for Torque:
+                    mpirun = utils.which('mpirun')
+                    
+                    # We also need to know whether the job is done or not.
+                    
+                    # Build the command:
+                    cmd = ("mpirun -np {num_proc} {python} "
+                           "{mpirun_loc} {fctn.__name__} {sys_file.name} "
+                           "{args_file.name} {kwargs_file.name}").format(**locals())
+                    
+                    # Create the commands to run Torque
+                    job_string = """#!/bin/bash
+#PBS -l pcput={time:.0f}
+#PBS -l mem={memory:.0f}
+#PBS -l nodes={np}
+{mpirun} -np {np} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
+                     
+                    cmd = ('echo "mpirun {python} '
+                       '{mpirun_loc} {fctn.__name__} {sys_file.name} '
+                       '{args_file.name} {kwargs_file.name}" '
+                       '| qsub -l nodes={num_proc},mem={memory},pcput={time}').format(**locals())
+                    #cmd = ('qsub -I -l nodes={num_proc},mem={memory},pcput={time}'
+                           #'bash -c "mpirun {python} '
+                           #'{mpirun_loc} {fctn.__name__} {sys_file.name} '
+                           #'{args_file.name} {kwargs_file.name}"').format(**locals())
 
                 flag = subprocess.call(cmd, shell=True)
                 
@@ -333,15 +355,16 @@ def mpirun(fctn):
                 
                 # Merge the original system with the results from the function
                 merge_synthetic([system, results])
-            
+            except:
+                raise
             # Finally, clean up the pickle files that are lying around
-            finally:
-                if os.path.isfile(sys_file.name):
-                    os.unlink(sys_file.name)
-                if os.path.isfile(args_file.name):
-                    os.unlink(args_file.name)
-                if os.path.isfile(kwargs_file.name):
-                    os.unlink(kwargs_file.name)
+            #finally:
+                #if os.path.isfile(sys_file.name):
+                    #os.unlink(sys_file.name)
+                #if os.path.isfile(args_file.name):
+                    #os.unlink(args_file.name)
+                #if os.path.isfile(kwargs_file.name):
+                    #os.unlink(kwargs_file.name)
             
             # And compute pblum or l3 and postprocess
             system.bin_oversampling()

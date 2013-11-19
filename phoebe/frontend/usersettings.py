@@ -2,6 +2,7 @@ import os
 import pickle
 import ConfigParser
 from server import Server
+from phoebe.utils import utils
 from phoebe.parameters import parameters
 from phoebe.utils.utils import get_basic_logger
 
@@ -297,7 +298,7 @@ def load(filename=None):
     return settings
 
 
-def load_configfile(name, section=None, pararameter_sets=None):
+def load_configfile(name, section=None, parameter_sets=None, basedir=None):
     """
     Load settings from a configuration file.
     
@@ -321,11 +322,21 @@ def load_configfile(name, section=None, pararameter_sets=None):
     can do that, it should only see if the parameterSet needs a boolean or float
     or whatever.
     """
-    basedir = os.path.abspath(os.path.dirname(__file__))
+    if basedir is None:
+        basedir = os.path.abspath(os.path.dirname(__file__))
+    else:
+        basedir = os.path.expanduser(basedir)
+    
+    # Build the filename and check if it exists. If not, exit nicely and return
+    # False
+    config_filename = os.path.join(basedir,'{}.cfg'.format(name))
+    if not os.path.isfile(config_filename):
+        return False
+    
     settings = ConfigParser.ConfigParser()
     settings.optionxform = str # make sure the options are case sensitive
     
-    with open(os.path.join(basedir,'{}.cfg'.format(name))) as config_file:
+    with open(config_filename) as config_file:
         settings.readfp(config_file)
     
     # If nothing else is given, we just return the parser object
@@ -334,13 +345,31 @@ def load_configfile(name, section=None, pararameter_sets=None):
     
     # If no parameterSets are given, a dictionary of the section is returned
     if parameter_sets is None:
-        items = settings.items(server)
+        items = settings.items(section)
         items_dict = {key:value for key,value in items}
         return items_dict
     
     # Else, we have parameterSets!
-    for key, value in settings.items(server):
+    for key, value in settings.items(section):
         for ps in parameter_sets:
             if key in ps:
                 ps[key] = value
     
+    # In the case the preference file existed, we return True
+    return True
+    
+
+def get_user_logger(name='default_logger'):
+    """
+    Set up a logger with properties loaded from the user preferences.
+    """
+    settings = load_configfile('logging', section=name, basedir='~/.phoebe/preferences')
+    filename = settings['filename']
+    if filename.lower() == 'none':
+        filename = None
+    logger = utils.get_basic_logger(style=settings['style'],
+                                    clevel=settings['console_level'],
+                                    flevel=settings['file_level'],
+                                    filemode=settings['filemode'],
+                                    filename=filename)
+    return logger
