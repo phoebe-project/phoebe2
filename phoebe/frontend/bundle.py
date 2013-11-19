@@ -12,8 +12,9 @@ from time import sleep
 import matplotlib.pyplot as plt
 import copy
 import os
+from PIL import Image
 
-from phoebe.utils import callbacks, utils
+from phoebe.utils import callbacks, utils, plotlib, coordinates
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.backend import fitting, observatory, plotting
@@ -1041,7 +1042,7 @@ class Bundle(object):
         @param dataref: ref (name) of the dataset
         @type dataref: str
         """
-        for obs in self.get_obs(dataref=dataref):
+        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
             obs.enabled=True
         return
                
@@ -1051,7 +1052,7 @@ class Bundle(object):
         @type dataref: str
         """
         
-        for obs in self.get_obs(dataref=dataref):
+        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
             obs.enabled=False
         return
         
@@ -1188,14 +1189,14 @@ class Bundle(object):
         return self.compute_options.pop(self.compute_options.index(self.get_compute(label)))       
     
     @run_on_server
-    def run_compute(self,label=None,im=False,add_version=None,server=None,**kwargs):
+    def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Convenience function to run observatory.observe
         
         @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
-        @param im: whether to create images at each timestamp, if None will use value from settings
-        @type im: bool or None
+        @param anim: basename for animation, or False - will use settings in bundle.get_meshview()
+        @type anim: False or str
         @param add_version: whether to save a snapshot of the system after compute is complete
         @type add_version: bool or str (which will become the version's name if provided)
         @param server: name of server to run on, or False to run locally (will override usersettings)
@@ -1227,15 +1228,47 @@ class Bundle(object):
         else:
             mpi = None
         
-        if options['time']=='auto' and not im:
+        if options['time']=='auto' and anim==False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
             self.system.compute(mpi=mpi,**options)
         else:
+            im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
             observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,
-                extra_func=[observatory.ef_binary_image] if im else [],
-                extra_func_kwargs=[dict(select='teff',cmap='blackbody')] if im else [],
+                extra_func=[observatory.ef_binary_image] if anim!=False else [],
+                extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
                 mpi=mpi,**options
                 )
+                
+        if anim!=False:
+            for ext in ['.gif','.avi']:
+                plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+            
+            # we now have images for each computed time step
+            # and we want to create an animation for each syn that was used during compute
+            
+            # first lets get the datasets that were used during this compute
+            #~ enabled_obs = [o for o in self.get_obs(force_dict=True).values() if o.enabled]
+            
+            # now for each of these we need to know which images belong to which timepoints
+            #~ options_copy = options.copy()
+            #~ observatory.extract_times_and_refs(self.get_system(),options_copy)
+            
+            #~ times = options_copy.get_value('time')
+            #~ refs = options_copy.get_value('refs')
+            
+            # and then we need to overplot on those images (noting there may be duplicates)
+            #~ for obs in enabled_obs:
+                #~ obsref = obs.get_value('ref')
+                #~ 
+                #~ for i,ref in enumerate(refs):
+                   #~ if obsref in ref:
+                        #~ self.overlay_on_image('ef_binary_image_{:04d}.png'.format(i),obsref,None,out_file='gif_tmp_{:04d}'.format(i))
+                
+                
+                # and then we need to create a gif for each obs
+                #~ for ext in ['.gif','.avi']:
+                    #~ plotlib.make_movie('gif_tmp*.png',output='{}_{}{}'.format(anim,obsref,ext),cleanup=ext=='.avi')
+               
                 
         self.system.uptodate = label
         
@@ -1243,6 +1276,26 @@ class Bundle(object):
             self.add_version(name=None if add_version==True else add_version)
 
         self.attach_system_signals()
+        
+        
+    def overlay_on_image(self,image_file,dataref,objref,out_file=None):
+        data = Image.open(image_file)
+        shape = data.size
+        
+        plt.figure(figsize=(8,8*shape[1]/float(shape[0])))
+        ax = plt.axes([0,0,1,1],axisbg='k',aspect='equal')
+        plt.imshow(data,origin='image')
+        plt.twinx(plt.gca())
+        plt.twiny(plt.gca())
+        self.plot_syn(dataref=dataref,objref=objref)
+        #~ flux = bundle.get_syn(dataref='syn_lc',objref=top_level_name).asarray()['flux']
+        #~ ylims = flux.min(),flux.max()
+        #~ ylims = ylims[0]-(ylims[1]-ylims[0])*0.1,ylims[1]+(ylims[1]-ylims[0])*0.1
+        #~ plt.ylim(ylims)
+        #~ plt.xlim(times[0],times[-1])
+        
+        plt.savefig(out_file if out_file is not None else image_file)
+        plt.close()
 
     #}
             
@@ -1595,7 +1648,62 @@ class Bundle(object):
         @param location: the location on the figure to add the axes
         @type location: str or tuple  
         """
-        self.get_axes(ident).plot(self,mplfig=mplfig,mplaxes=mplaxes,location=location)
+        axes = self.get_axes(ident)
+        axes.plot(self,mplfig=mplfig,mplaxes=mplaxes,location=location)
+                
+    def anim_axes(self,ident,nframes=100,outfile='anim'):
+
+        axes = self.get_axes(ident)
+
+        # if the axes is zoomed, use those limits
+        tmin, tmax = axes.get_value('xlim')
+        fmin, fmax = axes.get_value('ylim')
+        
+        # for now lets cheat - we should really check for all plots in axes.plots
+        plot = axes.get_plot(0)
+        ds = axes.get_dataset(plot, self).asarray()
+
+        if tmin is None or tmax is None:
+            # need to get limits from datasets
+            # check if 'phase' in axes.get_value('xaxis') 
+            tmin, tmax = ds['time'].min(), ds['time'].max()
+        
+        if fmin is None or fmax is None:
+            # again cheating - would probably need to check type of ds 
+            # as this will probably only currently work for lc
+            fmin, fmax = ds['flux'].min(), ds['flux'].max()
+
+        times = np.linspace(tmin,tmax,nframes)
+        
+        # now get the limits for the meshplot so that the system
+        # never goes out of limit during this time
+        # TODO this function really only works well for binaries
+        xmin, xmax, ymin, ymax = self._get_meshview_limits(times)
+        
+        figsize=kwargs.pop('figsize',10)
+        dpi=kwargs.pop('dpi',80)
+        figsize=(figsize,int(abs(ymin-ymax)/abs(xmin-xmax)*figsize))
+        
+        for i,time in enumerate(times):
+            # set the time for the meshview and the selector
+            self.set_select_time(time)
+
+            plt.cla()
+
+            mplfig = plt.figure(figsize=figsize, dpi=dpi)
+            plt.gca().set_axis_off()
+            self.plot_meshview(mplfig=mplfig,lims=(xmin,xmax,ymin,ymax))
+            plt.twinx(plt.gca())
+            plt.twiny(plt.gca())
+            mplaxes = plt.gca()
+            axes.plot(self,mplaxes=mplaxes)
+            mplaxes.set_axis_off()
+            mplaxes.set_ylim(fmin,fmax)
+            
+            plt.savefig('gif_tmp_{:04d}.png'.format(i))
+            
+        for ext in ['.gif','.avi']:
+            plotlib.make_movie('gif_tmp*.png',output='{}{}'.format(outfile,ext),cleanup=ext=='.avi')        
         
     def set_select_time(self,time=None):
         """
@@ -1615,7 +1723,39 @@ class Bundle(object):
         """
         return self.plot_meshviewoptions
         
-    def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None):
+    def _get_meshview_limits(self,times):
+        # get size of system during these times for scaling image
+        system = self.get_system()
+        if hasattr(system, '__len__'):
+            orbit = system[0].params['orbit']
+            star1 = system[0]
+            star2 = system[1]
+        else:
+            orbit = system.params['orbit']
+            star1 = system
+            star2 = None
+        period = orbit['period']
+        orbit1 = keplerorbit.get_binary_orbit(times, orbit, component='primary')[0]
+        orbit2 = keplerorbit.get_binary_orbit(times, orbit, component='secondary')[0]
+        # What's the radius of the stars?
+        r1 = coordinates.norm(star1.mesh['_o_center'], axis=1).mean()
+        if star2 is not None:
+            r2 = coordinates.norm(star2.mesh['_o_center'], axis=1).mean()
+        else:
+            r2 = r1
+        # Compute the limits
+        xmin = min(orbit1[0].min(),orbit2[0].min())
+        xmax = max(orbit1[0].max(),orbit2[0].max())
+        ymin = min(orbit1[1].min(),orbit2[1].min())
+        ymax = max(orbit1[1].max(),orbit2[1].max())
+        xmin = xmin - 1.1*max(r1,r2)
+        xmax = xmax + 1.1*max(r1,r2)
+        ymin = ymin - 1.1*max(r1,r2)
+        ymax = ymax + 1.1*max(r1,r2)
+        
+        return xmin, xmax, ymin, ymax
+        
+    def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None,lims=None):
         """
         Creates a mesh plot using the saved options if not overridden
         
@@ -1629,27 +1769,30 @@ class Bundle(object):
         if self.select_time is not None:
             self.system.set_time(self.select_time)
         
-        if mplfig is None:
-            if mplaxes is None: # no axes provided
-                axes = plt.axes()
-            else: # use provided axes
-                axes = mplaxes
-            
-        else:
-            axes = mplfig.add_subplot(111)
-        
         po = self.plot_meshviewoptions if meshviewoptions is None else meshviewoptions
 
-        fig = plt.gcf()    
-        fig.set_facecolor(po['background'])
-        fig.set_edgecolor(po['background'])
+        if mplaxes is not None:
+            axes = mplaxes
+            mplfig = plt.gcf()
+        elif mplfig is None:
+            axes = plt.axes([0,0,1,1],aspect='equal',axisbg=po['background'])
+            mplfig = plt.gcf()
+        else:
+            axes = mplfig.add_subplot(111,aspect='equal',axisbg=po['background'])
+        
+        mplfig.set_facecolor(po['background'])
+        mplfig.set_edgecolor(po['background'])
         axes.get_xaxis().set_visible(False)
         axes.get_yaxis().set_visible(False)
-        
+
         #~ print "***", po['cmap'] if po['cmap'] is not 'None' else None
-        lims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
-        axes.set_xlim(lims['xlim'])
-        axes.set_ylim(lims['ylim'])       
+        slims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
+        if lims is None:
+            axes.set_xlim(slims['xlim'])
+            axes.set_ylim(slims['ylim'])       
+        else: #apply supplied lims (likely from _get_meshview_limits)
+            axes.set_xlim(lims[0],lims[1])
+            axes.set_ylim(lims[2],lims[3])
         
     def get_orbitview(self):
         """
@@ -2041,8 +2184,8 @@ class Axes(object):
         @type bundle: Bundle
         @parameter mplfig: the matplotlib figure to add the axes to, if none is give one will be created
         @type mplfig: plt.Figure()
-        @parameter mplaxes: the matplotlib axes to plot to (overrides mplfig, axesoptions will not apply)
-        @type mplaxes: plt.axes.Axes()
+        @parameter mplaxes: the matplotlib figure to plot to (overrides mplfig)
+        @type mpaxes: plt.Axes()
         @parameter location: the location on the figure to add the axes
         @type location: str or tuple        
         """
@@ -2099,22 +2242,19 @@ class Axes(object):
         # just know that self.mplaxes is just to predict which axes
         # to use and not necessarily the correct axes
         
-        if mplfig is None:
-            if location == 'auto':  # then just plot to an axes
-                if mplaxes is None: # no axes provided
-                    axes = plt.axes(**ao)
-                else: # use provided axes
-                    axes = mplaxes
-            else:
-                mplfig = plt.Figure()
-            
-        if location != 'auto':
-            if isinstance(location, str):
-                axes = mplfig.add_subplot(location,**ao)
-            else:
-                axes = mplfig.add_subplot(location[0],location[1],location[2],**ao)
+        if mplaxes is not None:
+            axes = mplaxes
+            mplfig = plt.gcf()
+        elif mplfig is None:
+            axes = plt.axes(**ao)
+            mplfig = plt.gcf()
         else:
-            if mplfig is not None:
+            if location != 'auto':
+                if isinstance(location, str):
+                    axes = mplfig.add_subplot(location,**ao)
+                else:
+                    axes = mplfig.add_subplot(location[0],location[1],location[2],**ao)
+            else:
                 axes = mplfig.add_subplot(111,**ao)
         
         # get phasing information
@@ -2194,6 +2334,8 @@ class Axes(object):
             mplfig.tight_layout()
             mplfig.data_axes = axes
             mplfig.sel_axes = axes.twinx()
+            mplfig.sel_axes.get_xaxis().set_visible(False)
+            mplfig.sel_axes.get_yaxis().set_visible(False)
 
             self.plot_select_time(bundle.select_time,mplfig=mplfig)
                 
