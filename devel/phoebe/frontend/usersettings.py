@@ -9,10 +9,10 @@ from phoebe.utils.utils import get_basic_logger
 class Settings(object):
     def __init__(self):
         
-        # settings consists of different categories - each of which is
+        # settings consists of different sections - each of which is
         # either a parameterset or a list of parametersets
         
-        # here we'll initialize all the categories and their defaults
+        # here we'll initialize all the sections and their defaults
         self.settings = {}
         
         self.settings['servers'] = []
@@ -59,87 +59,87 @@ class Settings(object):
         
     #{ General Parameters
         
-    def get_ps(self,category=None):
+    def get_ps(self,section=None):
         """
-        get a parameterset by category
+        get a parameterset by section
         
-        @param category: setting category (gui, logger, etc)
-        @type category: str
+        @param section: setting section (gui, logger, etc)
+        @type section: str
         @return: parameterset
         @rtype: ParameterSet
         """
-        if category is None:
+        if section is None:
             return self.settings
-        return self.settings[category]
+        return self.settings[section]
         
-    def get_parameter(self,qualifier,category=None):
+    def get_parameter(self,qualifier,section=None):
         """
         Retrieve a parameter from the settings
-        If category is not provided and there are more than one object in 
+        If section is not provided and there are more than one object in 
         settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid category
+        return an error and ask you to provide a valid section
         
         @param qualifier: name or alias of the variable
         @type qualifier: str
-        @param category: setting category (gui, logger, etc)
+        @param section: setting section (gui, logger, etc)
         @type objref: str
         @return: Parameter corresponding to the qualifier
         @rtype: Parameter
         """
-        if category is None:
+        if section is None:
             categories = [c for c in self.settings.keys() if not isinstance(self.settings[c],list)]
         else:
-            categories = [category]
+            categories = [section]
         
         return_params = []
         return_categories = []
         
-        for category in categories:
-            ps = self.get_ps(category)
+        for section in categories:
+            ps = self.get_ps(section)
             if qualifier in ps.keys():
                 return_params.append(ps.get_parameter(qualifier))
-                return_categories.append(category)
+                return_categories.append(section)
                 
         if len(return_params) > 1:
-            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for category:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
+            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for section:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
 
         elif len(return_params)==0:
             raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
             
         return return_params[0]
         
-    def get_value(self,qualifier,category=None):
+    def get_value(self,qualifier,section=None):
         """
         Retrieve the value of a parameter from the settings
-        If category is not provided and there are more than one object in 
+        If section is not provided and there are more than one object in 
         settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid category
+        return an error and ask you to provide a valid section
         
         @param qualifier: name or alias of the variable
         @type qualifier: str
-        @param category: setting category (gui, logger, etc)
+        @param section: setting section (gui, logger, etc)
         @type objref: str
         @return: value of the Parameter corresponding to the qualifier
         @rtype: (depends on the parameter)
         """
-        param = self.get_parameter(qualifier,category)
+        param = self.get_parameter(qualifier,section)
         return param.get_value()
                     
-    def set_value(self,qualifier,value,category=None):
+    def set_value(self,qualifier,value,section=None):
         """
         Retrieve the value of a parameter from the settings
-        If category is not provided and there are more than one object in 
+        If section is not provided and there are more than one object in 
         settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid category
+        return an error and ask you to provide a valid section
         
         @param qualifier: name or alias of the variable
         @type qualifier: str
         @param value: the new value for the parameter
         @type value: (depends on parameter)
-        @param category: setting category (gui, logger, etc)
+        @param section: setting section (gui, logger, etc)
         @type objref: str
         """
-        param = self.get_parameter(qualifier,category)
+        param = self.get_parameter(qualifier,section)
         param.set_value(value)
         
     #}

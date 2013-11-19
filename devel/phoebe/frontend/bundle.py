@@ -948,13 +948,13 @@ class Bundle(object):
         
         self._attach_datasets(output)
                        
-    def create_syn(self,kind='lc',times=None,passband=None,components=None,ref=None):
+    def create_syn(self,category='lc',times=None,passband=None,components=None,ref=None,**pbkwargs):
         """
         create and attach 'empty' datasets with no actual data but rather
         to provide times to compute the model
         
-        @param kind: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
-        @type kind: str
+        @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
+        @type category: str
         @param times: list of times
         @type times: list
         @param passband: passband
@@ -983,22 +983,22 @@ class Bundle(object):
                                vis2=datasets.IFDataSet, plprof=datasets.PLDataSet)
 
             
-        if not kind in dataset_classes:
+        if not category in dataset_classes:
             dataset_class = DataSet
         else:
-            dataset_class = dataset_classes[kind]
+            dataset_class = dataset_classes[category]
 
         if components is None:
             # then attempt to make smart prediction
-            if kind=='lc':
+            if category=='lc':
                 # then top-level
                 components = [self.get_system_structure(flat=True)[0]]
                 logger.warning('components not provided - assuming {}'.format(components))
 
         output = {}
         for component in components:
-            ds = dataset_class(context=kind+'obs',time=times,ref=ref)
-            pb = parameters.ParameterSet(context=kind+'dep',passband=passband,ref=ref)
+            ds = dataset_class(context=category+'obs',time=times,ref=ref)
+            pb = parameters.ParameterSet(context=category+'dep',passband=passband,ref=ref,**pbkwargs)
             
             output[component] = [[ds],[pb]]
 
@@ -1651,7 +1651,19 @@ class Bundle(object):
         axes = self.get_axes(ident)
         axes.plot(self,mplfig=mplfig,mplaxes=mplaxes,location=location)
                 
-    def anim_axes(self,ident,nframes=100,outfile='anim'):
+    def anim_axes(self,ident,nframes=100,fps=24,outfile='anim',**kwargs):
+        """
+        Animate an axes on top of a meshplot
+        
+        @param ident: index or title of the axes
+        @type ident: int or str
+        @param nframes: number of frames in the gif (timestep)
+        @type nframes: int
+        @param fps: number of frames per second in the gif
+        @type fps: int
+        @param outfile: basename for output file [outfile.gif]
+        @type outfile: str
+        """
 
         axes = self.get_axes(ident)
 
@@ -1703,7 +1715,7 @@ class Bundle(object):
             plt.savefig('gif_tmp_{:04d}.png'.format(i))
             
         for ext in ['.gif','.avi']:
-            plotlib.make_movie('gif_tmp*.png',output='{}{}'.format(outfile,ext),cleanup=ext=='.avi')        
+            plotlib.make_movie('gif_tmp*.png',output='{}{}'.format(outfile,ext),fps=fps,cleanup=ext=='.avi')        
         
     def set_select_time(self,time=None):
         """
