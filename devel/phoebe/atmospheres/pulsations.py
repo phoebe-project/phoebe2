@@ -354,7 +354,7 @@ def wignerD(ell, mu, m, alpha, beta, gamma):
     
     .. math::
     
-        \mathcal{D}_{\mu, m}^\ell = e^{-i\mu\alpha} d_{\mu,m}^\ell(\beta)e^{-im\gamma}
+        \mathcal{D}_{\mu, m}^\ell = e^{i\mu\alpha} d_{\mu,m}^\ell(\beta)e^{im\gamma}
         
     with
     
@@ -402,7 +402,7 @@ def wignerD(ell, mu, m, alpha, beta, gamma):
     small_d = factor*small_d    
         
     
-    return exp(-1j*mu*alpha) * small_d * exp(-1j*m*gamma)
+    return exp(1j*mu*alpha) * small_d * exp(1j*m*gamma)
 
 
 def rotate_sph_harm(theta, phi, l=2, m=1, alpha=0.0, beta=0.0, gamma=0.0):
@@ -448,7 +448,7 @@ def rotate_theta(theta, phi, alpha=0, beta=0):
     Technically, phi is not rotate correctly but we don't need it anywhere.
     """
     if alpha != 0 or beta != 0:
-        theta = np.arccos(sin(theta)*cos(phi-alpha)*sin(-beta)+cos(theta)*cos(-beta))
+        theta = np.arccos(sin(theta)*cos(phi+alpha)*sin(-beta)+cos(theta)*cos(-beta))
         
     return theta
         
@@ -580,18 +580,18 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, me
     # BinaryRocheStars)
     phi_ = phi - mesh_phase
     
-    for il,im,ifreq,iphase,ispin,ik,iasl,incl in zip(l,m,freq,phases,spin,k,asl,incls):
+    for il,im,ifreq,iphase,ispin,ik,iasl,incl,pincl in zip(l,m,freq,phases,spin,k,asl,incls,phaseincls):
         #-- radial perturbation
         theta_ = theta
-        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl)
+        ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl, alpha=pincl)
         #-- add to the total perturbation of the radius and velocity
         ksi_r += ksi_r_
         velo_r += 1j*2*pi*ifreq*ksi_r_
         #-- colatitudinal and longitudonal perturbation when l>0
         norm = sqrt(4*pi)
         if il>0:
-            ksi_theta_ = iasl*norm*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl)
-            ksi_phi_   = iasl*norm* longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl)
+            ksi_theta_ = iasl*norm*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl, alpha=pincl)
+            ksi_phi_   = iasl*norm* longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl, alpha=pincl)
             ksi_theta += ksi_theta_
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
@@ -638,16 +638,16 @@ def observables(radius, theta, phi, teff, logg,
     # BinaryRocheStars)
     phi_ = phi - mesh_phase
     
-    for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g,incl in \
-       zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g,incls):
+    for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g,incl,pincl in \
+       zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g,incls,phaseincls):
         theta_ = theta
-        rad_part = radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl)
+        rad_part = radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl, alpha=pincl)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
         ksi_r += ksi_r_*radius
         velo_r += 1j*2*pi*ifreq*ksi_r_*radius
         if il>0:
-            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl)
-            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl)
+            ksi_theta_ = iasl*sqrt(4*pi)*colatitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl, alpha=pincl)
+            ksi_phi_ = iasl*sqrt(4*pi)*longitudinal(theta_,phi_,il,im,ifreq,iphase,t,ispin,ik, beta=incl, alpha=pincl)
             ksi_phi += ksi_phi_
             velo_theta += 1j*2*pi*ifreq*ksi_theta_
             velo_phi += 1j*2*pi*ifreq*ksi_phi_
@@ -759,7 +759,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         phase = pls.get_value('phase')
         omega = 2*pi*freq_Hz
         incl = pls.get_value('incl','rad')
-        phaseincl = pls.get_value('phaseincl')
+        phaseincl = pls.get_value('phaseincl','rad')
         k0 = k_#constants.GG*M/omega**2/R**3    
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.

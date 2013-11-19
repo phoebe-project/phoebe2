@@ -60,6 +60,7 @@ def get_dipole(time, rs_center, r_polar, beta, phi0, B_polar):
     
     """
     r_ = rs_center / r_polar
+    phi0 = phi0 + np.pi/2
     m_ = np.array([np.sin(beta) * np.cos(phi0) - 0.0*np.sin(phi0),
                        np.sin(beta) * np.sin(phi0) + 0.0*np.cos(phi0),
                        np.cos(beta)])
