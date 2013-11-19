@@ -5544,8 +5544,8 @@ class Star(PhysicalBody):
         
         # Then finally get the field according to its topology
         if topology == 'dipole':
-            beta1 = parset.get_value('beta', 'rad')
-            phi01 = parset.get_value('phi0', 'rad')
+            beta = parset.get_value('beta', 'rad')
+            phi0 = parset.get_value('phi0', 'rad')
             B = magfield.get_dipole(time, r_, R, beta, phi0, Bpolar)
         
         elif topology == 'quadrupole':
