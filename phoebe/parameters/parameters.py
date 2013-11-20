@@ -3036,6 +3036,10 @@ def match_string(choice,possible_values):
             matches.append(i)
     if len(matches)==1:
         return matches[0]
+    # if there are multiple choices, try to choose the one which is identical
+    elif len(matches)>1 and choice in possible_values:
+        return possible_values.index(choice)
+    # otherwise raise an error
     elif len(matches)>1:
         raise ValueError('ambiguous identification of parameter %s'%(choice))
 
