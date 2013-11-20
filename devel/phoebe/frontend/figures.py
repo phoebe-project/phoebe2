@@ -1,8 +1,10 @@
 """
 Frontend plotting functionality
 """
-import matplotlib.pyplot as plt
+from collections import OrderedDict
+from phoebe.parameters import parameters
 from phoebe.backend import plotting
+import matplotlib.pyplot as plt
 
 class Axes(object):
     """
@@ -15,12 +17,12 @@ class Axes(object):
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
         """
-        #~ super(Axes, self).__init__()
         
-        self.axesoptions = parameters.ParameterSet(context="plotting:axes")
-        #~ self.mplaxes = {} # mplfig as keys, data axes as values
-        #~ self.mplaxes_sel = {} # mplfig as keys, overlay as values
-        self.plots = []
+        self.settings = OrderedDict()
+        
+        self.settings['axes'] = parameters.ParameterSet(context="plotting:axes")
+        self.settings['selector'] = parameters.ParameterSet(context="plotting:selector")
+        self.settings['plots'] = []
         
         self.phased = False
         self.period = None
@@ -28,11 +30,33 @@ class Axes(object):
         for key in kwargs.keys():
             self.set_value(key, kwargs[key])
             
+    def __str__(self):
+        return self.to_string()
+        
+    def to_string(self):
+        txt = ""
+        for section in self.settings.keys():
+            if isinstance(self.settings[section],list):
+                # then assume plots (if add another section with list
+                # then we'll need to make this more general like it is
+                # in usersettings
+                for label,ps in self.get_plot().items():
+                    if ps is not None:
+                        txt += "\n============ {}:{} ============\n".format(section,label)
+                        txt += ps.to_string()
+            else:
+                ps = self.settings[section]
+                if ps is not None:
+                    txt += "\n============ {} ============\n".format(section)
+                    txt += self.settings[section].to_string()
+                
+        return txt
+            
     def keys(self):
-        return self.axesoptions.keys()
+        return self.settings['axes'].keys()
         
     def values(self):
-        return self.axesoptions.values()
+        return self.settings['axes'].values()
         
     def add_plot(self,plotoptions=None,**kwargs):
         """
@@ -47,7 +71,7 @@ class Axes(object):
             plotoptions = parameters.ParameterSet(context="plotting:plot")
         for key in kwargs.keys():
             plotoptions.set_value(key, kwargs[key])
-        self.plots.append(plotoptions)
+        self.settings['plots'].append(plotoptions)
         
     def remove_plot(self,i):
         """
@@ -59,21 +83,32 @@ class Axes(object):
         @return: the remove plotoptions
         @rtype: ParameterSet
         """
-        return self.plots.pop(i)
+        plot = self.get_plot(i)
         
-    def get_plot(self,i=None):
+        return self.settings['plots'].pop(self.settings['plots'].index(plot))
+        
+    def get_plot(self,ident=None):
         """
         Return a given plot by index
         
-        @param i: index of plot, will return list if None given
-        @type i: int
+        @param ident: index of plot or objref:dataref
+        @type ident: int or str
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        if i is None:
-            return self.plots
+        plots = {'{}:{}'.format(pl.get_value('objref'),pl.get_value('dataref')):pl for pl in self.settings['plots']}
+        
+        if ident is None:
+            return plots
+        elif isinstance(ident,str):
+            return plots[ident]
         else:
-            return self.plots[i]
+            return plots.values()[ident]
+            
+    def get_selector(self):
+        """
+        """
+        return self.settings['selector']
             
     def get_dataset(self,plot,bundle):
         """
@@ -86,7 +121,7 @@ class Axes(object):
         @return: the dataset attached to the plotoptions
         @rtype: ParameterSet
         """
-        if plot in self.plots: #then we already have the plot
+        if plot in self.settings['plots']: #then we already have the plot
             plotoptions = plot
         else:
             plotoptions = self.get_plot(plot)
@@ -107,7 +142,7 @@ class Axes(object):
         @type key: str
         @return: the parameter
         """
-        return self.axesoptions.get_value(key)
+        return self.settings['axes'].get_value(key)
     
     def set_value(self,key,value):
         """
@@ -118,7 +153,7 @@ class Axes(object):
         @type key: str
         @param value: the new value
         """
-        self.axesoptions.set_value(key,value)
+        self.settings['axes'].set_value(key,value)
 
     def savefig(self,system,fname):
         """
@@ -152,9 +187,9 @@ class Axes(object):
         
         # get options for axes
         ao = {}
-        for key in self.axesoptions.keys():
+        for key in self.settings['axes'].keys():
             if key not in ['location', 'active', 'category', 'xaxis', 'yaxis']:
-                ao[key] = self.axesoptions.get_value(key)
+                ao[key] = self.settings['axes'].get_value(key)
                 
         # override anything set from kwargs
         for key in kwargs:
@@ -162,17 +197,17 @@ class Axes(object):
 
             
         # control auto options
-        xaxis, yaxis = self.axesoptions['xaxis'], self.axesoptions['yaxis']
+        xaxis, yaxis = self.settings['axes']['xaxis'], self.settings['axes']['yaxis']
         if xaxis == 'auto':
             xaxis = 'time'
         if yaxis == 'auto':
-            if self.axesoptions['category'] == 'lc':
+            if self.settings['axes']['category'] == 'lc':
                 yaxis = 'flux'
-            elif self.axesoptions['category'] == 'rv':
+            elif self.settings['axes']['category'] == 'rv':
                 yaxis = 'rv'
-            elif self.axesoptions['category'] == 'sp':
+            elif self.settings['axes']['category'] == 'sp':
                 yaxis = 'wavelength'
-            elif self.axesoptions['category'] == 'etv':
+            elif self.settings['axes']['category'] == 'etv':
                 yaxis = 'ETV'
         if ao['xlabel'] == 'auto':
             ao['xlabel'] = xaxis
@@ -193,7 +228,7 @@ class Axes(object):
             
         # add the axes to the figure
         if location is None:
-            location = self.axesoptions['location'] # location not added in ao
+            location = self.settings['axes']['location'] # location not added in ao
             
         # of course we may be trying to plot to a different figure
         # so we'll override this later if that is the case 
@@ -216,11 +251,11 @@ class Axes(object):
                 axes = mplfig.add_subplot(111,**ao)
         
         # get phasing information
-        xaxis = self.axesoptions.get_value('xaxis')
+        xaxis = self.settings['axes'].get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
         
         # now loop through individual plot commands
-        for plotoptions in self.plots:
+        for plotoptions in self.settings['plots']:
             #~ print "***", plotoptions['dataref'], plotoptions['objref'], plotoptions['type'], plotoptions['active']
             if not plotoptions['active']:
                 continue
@@ -258,19 +293,14 @@ class Axes(object):
                     po.pop(key)
            
             if phased and len(xaxis.split(':')) > 1:
-                #~ orbit = self._get_orbit(xaxis.split(':')[1],system) 
                 orbit = bundle.get_orbit(xaxis.split(':')[1])
             elif hasattr(obj,'params') and 'orbit' in obj.params.keys():
                 orbit = obj.params['orbit']
             else:
-                #~ orbit = self._get_orbit(plotoptions['objref'],system)
                 orbit = bundle.get_orbit(plotoptions['objref'])
             period = orbit.get_value('period')
             self.period = period
             self.phased = phased
-            #~ print "** period", period
-            #~ print "** phased", phased     
-            #~ print "** type", plotoptions['type']
             
             # call appropriate plotting command
             if plotoptions['type']=='lcobs':
@@ -308,4 +338,13 @@ class Axes(object):
             
             xlim = mplfig.data_axes.get_xlim()
             if time < xlim[1] and time > xlim[0]:
-                mplaxes_sel.axvline(time, color='r')
+                # change command here based on self.settings['selector'] ps
+                so = self.get_selector()
+                if so.get_value('type')=='axvline':
+                    mplaxes_sel.axvline(time, color=so.get_value('color'), alpha=so.get_value('alpha'))
+                elif so.get_value('type')=='axvspan':
+                    width_perc = so.get_value('size')
+                    width_time = abs(xlim[1]-xlim[0])*width_perc/100.
+                    mplaxes_sel.axvspan(time-width_time/2.,time+width_time/2., color=so.get_value('color'), alpha=so.get_value('alpha'))
+                else:
+                    print "currently only axvline and axvspan are implemented"

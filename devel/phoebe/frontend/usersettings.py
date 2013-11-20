@@ -1,6 +1,7 @@
 import os
 import pickle
 import ConfigParser
+from collections import OrderedDict
 from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
@@ -13,7 +14,7 @@ class Settings(object):
         # either a parameterset or a list of parametersets
         
         # here we'll initialize all the sections and their defaults
-        self.settings = {}
+        self.settings = OrderedDict()
         
         self.settings['servers'] = []
         
@@ -34,10 +35,31 @@ class Settings(object):
         
         self.settings['logger'] = parameters.ParameterSet(context='logger')
         
-    #~ def __str__(self):
-        #~ pass
+    def __str__(self):
+        """
+        return a string representation
+        """
+        return self.to_string()
+
+    def to_string(self):
+        """
+        """
+        txt = ""
+        for section in self.settings.keys():
+            if isinstance(self.settings[section],list):
+                for label,ps in self._get_from_list(section).items():
+                    if ps is not None:
+                        txt += "\n============ {}:{} ============\n".format(section,label)
+                        txt += ps.to_string()
+            else:
+                ps = self.settings[section]
+                if ps is not None:
+                    txt += "\n============ {} ============\n".format(section)
+                    txt += self.settings[section].to_string()
+                
+        return txt
         
-    def _get_from_list(self,listname,label):
+    def _get_from_list(self,listname,label=None):
         """
         retrieve a parameterset from a list by label
         """

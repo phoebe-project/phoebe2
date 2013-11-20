@@ -146,6 +146,19 @@ class Bundle(object):
         
         self.set_system(system) # will handle all signals, etc
         
+    def __str__(self):
+        return self.to_string()
+        
+    def to_string(self):
+        txt = ""
+        txt += "{} compute options\n".format(len(self.compute_options))
+        txt += "{} fitting options\n".format(len(self.fitting_options))
+        txt += "{} axes\n".format(len(self.axes))
+        txt += "============ System ============\n"
+        txt += self.list()
+        
+        return txt
+        
     #{ Settings
     
     def set_setting(self,key,value):
@@ -1068,7 +1081,7 @@ class Bundle(object):
         @type pblum: bool or None
         """
         
-        for obs in self.get_obs(dataref=dataref):
+        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
             if l3 is not None:
                 obs.set_adjust('l3',l3)
             if pblum is not None:
@@ -1083,7 +1096,7 @@ class Bundle(object):
 
         # disable any plotoptions that use this dataset
         for axes in self.axes:
-            for pl in axes.plots:
+            for pl in axes.get_plot():
                 if pl.get_value('dataref')==dataref:
                     pl.set_value('active',False)
         
@@ -1586,19 +1599,18 @@ class Bundle(object):
         Return an axes or list of axes that matches index OR title
         
         @param ident: index or title of the desired axes
-        @type i: int or str
+        @type ident: int or str
         @return: axes
         @rtype: plotting.Axes
         """
+        axes = {ax.get_value('title'): ax for ax in self.axes}
+        
         if ident is None:
-            return self.axes
-
-        if isinstance(ident, int):
-            return self.axes[ident]
-        elif isinstance(ident, str):
-            for ax in self.axes:
-                if ax.get_value('title')==ident:
-                    return ax
+            return axes
+        elif isinstance(ident,str):
+            return axes[ident]
+        else:
+            return axes.values()[ident]
         
     def add_axes(self,axes=None,**kwargs):
         """
@@ -1673,7 +1685,7 @@ class Bundle(object):
         tmin, tmax = axes.get_value('xlim')
         fmin, fmax = axes.get_value('ylim')
         
-        # for now lets cheat - we should really check for all plots in axes.plots
+        # for now lets cheat - we should really check for all plots in axes.get_plot()
         plot = axes.get_plot(0)
         ds = axes.get_dataset(plot, self).asarray()
 
@@ -1799,8 +1811,13 @@ class Bundle(object):
         axes.get_xaxis().set_visible(False)
         axes.get_yaxis().set_visible(False)
 
-        #~ print "***", po['cmap'] if po['cmap'] is not 'None' else None
+        #~ cmap = po['cmap'] if po['cmap'] is not 'None' else None
         slims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
+        
+        #~ if po['contours']:
+            #~ observatory.contour(self.system, select='longitude', colors='k', linewidths=2, linestyles='-')
+            #~ observatory.contour(self.system, select='latitude', colors='k', linewidths=2, linestyles='-')
+        
         if lims is None:
             axes.set_xlim(slims['xlim'])
             axes.set_ylim(slims['ylim'])       
