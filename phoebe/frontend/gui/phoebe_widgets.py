@@ -804,7 +804,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         plotted_obs_ps = [] # hold the plotoptions in axes_incl
         plotted_syn_ps = []
         for ax in axes_incl:
-            for p in ax.plots:
+            for p in ax.get_plot().values():
                 if p['type'][-3:]=='obs':
                     plotted_obs.append(bundle.get_obs(p['objref'],p['dataref']))
                     plotted_obs_ps.append(p)
@@ -937,20 +937,20 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 # we want to know the names of all the plots that this dataset appears in
                 plotted_names = []
                 for ax in axes_incl:
-                    for p in ax.plots:
+                    for p in ax.get_plot().values():
                         if ax.get_value('title') not in plotted_names and p['dataref']==dataset['ref']:
                             plotted_names.append(ax.get_value('title'))
                 
                 # and now we get the actually plotoptions parameter sets for the plots view
                 if is_plotted_obs and self.style=='plot':
                     plotted_obs_ps_curr = plotted_obs_ps[plotted_obs.index(col_obs)]
-                    plotted_obs_ind_curr = axes_incl[0].plots.index(plotted_obs_ps_curr)  # the index used in axes.get_plot()
+                    plotted_obs_ind_curr = axes_incl[0].get_plot().index(plotted_obs_ps_curr)  # the index used in axes.get_plot()
                 else:
                     plotted_obs_ind_curr = None
                     plotted_obs_ps_curr = None
                 if is_plotted_syn and self.style=='plot':
                     plotted_syn_ps_curr = plotted_syn_ps[plotted_syn.index(col_syn)]
-                    plotted_syn_ind_curr = axes_incl[0].plots.index(plotted_syn_ps_curr)
+                    plotted_syn_ind_curr = axes_incl[0].get_plot().values().index(plotted_syn_ps_curr)
                 else:
                     plotted_syn_ind_curr = None
                     plotted_syn_ps_curr = None

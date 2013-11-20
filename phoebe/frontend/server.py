@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+from collections import OrderedDict
 from datetime import datetime
 from phoebe.parameters import parameters
 
@@ -18,11 +19,25 @@ class Server(object):
         @param mount_dir: local mounted location of server:server_dir, or None if local
         @type mount_dir: str or None
         """
-        self.mpi_ps = mpi
-        self.server_ps = parameters.ParameterSet(context='server',label=label,**kwargs)
-
+        self.settings = OrderedDict()
+        
+        self.settings['server'] = parameters.ParameterSet(context='server',label=label,**kwargs)
+        self.settings['mpi'] = mpi
+        
         local = self.is_local()
         self.last_known_status = {'mount': local, 'ping': local, 'test': local, 'status': local, 'phoebe_version': 'unknown'}
+        
+    def __str__(self):
+        return self.to_string()
+        
+    def to_string(self):
+        txt = ""
+        for section,ps in self.settings.items():
+            if ps is not None:
+                txt += "\n============ {} ============\n".format(section)
+                txt += ps.to_string()
+            
+        return txt
         
     def _ssh_string(self):
         if self.is_local():
@@ -30,34 +45,34 @@ class Server(object):
 
         comm = 'ssh '
         
-        id_file = self.server_ps.get_value('identity_file')
+        id_file = self.settings['server'].get_value('identity_file')
         if id_file != 'None' and id_file != '':
             comm += '-i %s ' % id_file
         
-        un = self.server_ps.get_value('username')
+        un = self.settings['server'].get_value('username')
         if un != 'None' and un != '':
             comm += '%s@' % un
 
-        host = self.server_ps.get_value('host')
+        host = self.settings['server'].get_value('host')
         comm += '%s ' % host
         
         return comm
 
     def set_value(self,qualifier,value):
         
-        if self.mpi_ps is not None and qualifier in self.mpi_ps.keys():
-            self.mpi_ps.set_value(qualifier,value)
-        elif self.server_ps is not None and qualifier in self.server_ps.keys():
-            self.server_ps.set_value(qualifier,value)
+        if self.settings['mpi'] is not None and qualifier in self.settings['mpi'].keys():
+            self.settings['mpi'].set_value(qualifier,value)
+        elif self.settings['server'] is not None and qualifier in self.settings['server'].keys():
+            self.settings['server'].set_value(qualifier,value)
         else:
             raise IOError('parameter not understood')
             
     def get_value(self,qualifier):
         
-        if self.mpi_ps is not None and qualifier in self.mpi_ps.keys():
-            return self.mpi_ps.get_value(qualifier)
-        elif self.server_ps is not None and qualifier in self.server_ps.keys():
-            return self.server_ps.get_value(qualifier)
+        if self.settings['mpi'] is not None and qualifier in self.settings['mpi'].keys():
+            return self.settings['mpi'].get_value(qualifier)
+        elif self.settings['server'] is not None and qualifier in self.settings['server'].keys():
+            return self.settings['server'].get_value(qualifier)
         else:
             raise IOError('parameter not understood')
             
@@ -65,21 +80,21 @@ class Server(object):
         """
         checks whether this server is on an external machine (not is_local())
         """
-        host = self.server_ps.get_value('host')
+        host = self.settings['server'].get_value('host')
         return host != 'None' and host != ''
         
     def is_local(self):
         """
         check whether this server is on the local machine
         """
-        host = self.server_ps.get_value('host')
+        host = self.settings['server'].get_value('host')
         return host == 'None' or host == ''
                 
     def check_mount(self):
         """
         checks whether the server is local or, if external, whether the mount location exists
         """
-        success = self.is_local() or (os.path.exists(self.server_ps.get_value('mount_dir')) and os.path.isdir(self.server_ps.get_value('mount_dir')))
+        success = self.is_local() or (os.path.exists(self.settings['server'].get_value('mount_dir')) and os.path.isdir(self.settings['server'].get_value('mount_dir')))
         self.last_known_status['mount'] = success
         return success
         
@@ -103,10 +118,10 @@ class Server(object):
         if not self.check_mount() and self.check_ping():
             return False
         timestr = str(datetime.now()).replace(' ','_')
-        command = "touch %s" % os.path.join(self.server_ps.get_value('server_dir') ,"test.%s" % timestr)
+        command = "touch %s" % os.path.join(self.settings['server'].get_value('server_dir') ,"test.%s" % timestr)
         os.system("%s '%s'" % (self._ssh_string(),command))
         
-        fname = os.path.join(self.server_ps.get_value('mount_dir'), 'test.%s' % timestr)
+        fname = os.path.join(self.settings['server'].get_value('mount_dir'), 'test.%s' % timestr)
         success = os.path.exists(fname)
         
         if success:
@@ -154,8 +169,8 @@ class Server(object):
         
         # files and script should already have been copied/saved to self.mount_dir
         # the user or bundle is responsible for this
-        server_dir = self.server_ps.get_value('server_dir')
-        server_script = self.server_ps.get_value('server_script')
+        server_dir = self.settings['server'].get_value('server_dir')
+        server_script = self.settings['server'].get_value('server_script')
         script = os.path.join(server_dir,script)
         
         command = ''
@@ -180,7 +195,7 @@ class Server(object):
             print 'server is local'
             return 
                     
-        fname = os.path.join(self.server_ps.get_value('mount_dir'),'%s.status' % script)
+        fname = os.path.join(self.settings['server'].get_value('mount_dir'),'%s.status' % script)
         if not os.path.exists(fname):
             return False
             

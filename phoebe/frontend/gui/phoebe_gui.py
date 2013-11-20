@@ -732,7 +732,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if canvas is None:
             canvas = self.plot_canvases[i]
            
-        for po in axes.plots:
+        for po in axes.get_plot().values():
             if (po, canvas) not in self.attached_plot_signals:
                 for paramname in po.keys():
                     param = po.get_parameter(paramname)
@@ -743,7 +743,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if not skip_axes_attach:
             self.bundle.attach_signal(self.bundle, 'set_select_time', self.on_select_time_changed, i, canvas)
             self.bundle.attach_signal(self.bundle, 'set_system', self.plot_redraw, i, canvas) #will also be called for get_version(set_system=True)
-            self.bundle.attach_signal(axes.axesoptions, 'set_value', self.plot_redraw, i, canvas)
+            self.bundle.attach_signal(axes.settings['axes'], 'set_value', self.plot_redraw, i, canvas)
             #~ self.bundle.attach_signal(axes, 'set_value', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes, 'add_plot', self.attach_plot_signals, i, canvas, True) # so that we can add the new parameter options
             self.bundle.attach_signal(axes, 'add_plot', self.plot_redraw, i, canvas)
@@ -967,7 +967,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
        
         #~ self.bundle.attach_signal(self.bundle.axes[i], 'add_plot', self.plot_redraw, i, canvas)
         #~ self.bundle.attach_signal(self.bundle.axes[i], 'remove_plot', self.plot_redraw, i, canvas)       
-        #~ for po in self.bundle.axes[i].plots:
+        #~ for po in self.bundle.axes[i].get_plot():
             #~ self.bundle.attach_signal(po, 'set_value', self.plot_redraw, i, canvas)
         
         pop = phoebe_dialogs.CreatePopPlot(self)
