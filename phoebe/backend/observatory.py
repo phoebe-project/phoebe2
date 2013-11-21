@@ -1639,12 +1639,13 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
                                       flux=spectra[0, :, i] * proj_intens[:, i])
             specp = tools.doppler_shift(wavelengths, rv+rv_grav+rvz,
                                       flux=spectra[0, :, i] * proj_intens[:, i])  
-            stokes_I += tools.doppler_shift(wavelengths, rv+rv_grav,
+            spec = tools.doppler_shift(wavelengths, rv+rv_grav,
                                       flux=spectra[0, :, i] * proj_intens[:, i])
+            stokes_I += spec
             
             # Stokes V (in weak field approximation or not)
             if do_V and weak_field:
-                stokes_V -= costh * delta_nu_zeemans[i] * utils.deriv(nus, spec)
+                stokes_V -= cos_theta[i] * delta_nu_zeemans[i] * utils.deriv(nus, spec)
             elif do_V:
                 stokes_V += cos_theta[i] * (specm-specp) / 2.0
 

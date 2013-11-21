@@ -962,6 +962,21 @@ class Parameter(object):
     
     #}
     #{ Set parameter properties
+    def add_alias(self, alias):
+        """
+        Add an alias to the Parameter.
+        
+        @param alias: new alias
+        @type alias: str
+        """
+        if alias == self.get_qualifier():
+            return None
+        if not hasattr(self, alias):
+            self.alias = []
+        if not alias in self.alias:
+            self.alias.append(alias)
+        
+        
     def set_qualifier(self,new_qualifier):
         """
         Change the name of the parameter.
@@ -1033,7 +1048,7 @@ class Parameter(object):
         logger.info("Set value of {} to {}".format(self.get_qualifier(),value))
     
     def set_value_from_posterior(self):
-        """
+        """           
         Change a parameter value to the mean of the posterior distribution.
         
         Only done if the parameter has a posterior, otherwise the call to
@@ -1800,12 +1815,12 @@ class ParameterSet(object):
     #}
     #{ Accessibility functions to the Parameters
     
-    def add(self, parameter, force=False):
+    def add(self, parameter, with_qualifier=None, force=False):
         """
         Add a parameter to the class instance.
         
         If the parameter qualifier is already in the container, it will be
-        silently overwritten.
+        silently overwritten only if :envvar:`force=False`.
         
         C{parameter} can either be a Parameter instance, or a dictionary with
         stuff like C{qualifier}, C{value} etc.
@@ -1819,8 +1834,41 @@ class ParameterSet(object):
         if parameter.qualifier in self.container and not force:
             raise KeyError('{0} already exists'.format(parameter.qualifier))
         
-        self.container[parameter.qualifier] = parameter
+        if with_qualifier is None:
+            with_qualifier = parameter.qualifier
+        self.container[with_qualifier] = parameter
         #self.__dict__[parameter.qualifier] = parameter.get_value()
+    
+    def point_to(self, qualifier, parameter):
+        """
+        Let a parameter point to another parameter, to guarentee equal values.
+        
+        This replace the existing parameter :envvar:`qualifier` with
+        :envvar:`parameter`, and adds the qualifier as an alias to parameter.
+        
+        This way, it is guaranteed that the two parameters take the same value,
+        though they can still have different names. This could for example be
+        useful when adding oblique pulsations and an oblique magnetic field, 
+        where you want to align the pulsation and magnetic axes. Instead of
+        fitting them both, you can then fit only one; since the other one takes
+        its value directly from the first.
+        
+        .. warning::
+        
+            The qualifier :envvar:`qualifier` should not be present in the
+            parameterset where :envvar:`parameter` resides (if any), otherwise
+            there will be name clashes. This is the user's responsability.
+            
+        .. warning::
+        
+            If you print out the parameterSet, the full description + qualifier
+            name of envvar:`parameter` will be shown. This way, you can always
+            easily see where it comes from. But be aware that the parameter
+            you're looking for might not have the same name as listed there
+            (though because of aliasing, it is still possible to reference it)
+        """
+        parameter.add_alias(qualifier)
+        self.add(parameter, with_qualifier=qualifier, force=True)
     
     def nestParameterSet(self,**kwargs):
         """
