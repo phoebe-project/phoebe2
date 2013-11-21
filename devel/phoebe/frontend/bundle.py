@@ -94,9 +94,6 @@ def run_on_server(fctn):
                     # the bundle returned from the server will not have this lock - so we won't have to manually reset it
                     bundle.lock = {'locked': True, 'server': servername, 'script': script_f, 'command': "bundle.%s(%s)\n" % (fctn.func_name, callargstr), 'files': [in_f, out_f, script_f], 'rfile': out_f}
                                         
-                    # enter loop to wait for results
-                    #~ bundle.server_loop(server)
-
                     return
 
                 else:
@@ -1058,15 +1055,18 @@ class Bundle(object):
             # stuff that is in the defaults. So, if a parameter is in the
             # main body parameterSet, then we'll take that as a default value,
             # but it can be overriden by pbkwargs
-            main_parset = component.params()[0]
+            main_parset = self.get_ps(component)
             pb = parameters.ParameterSet(context=category+'dep', ref=ref)
             for key in pb:
                 # derive default
                 if key in main_parset:
                     default_value = main_parset[key]
-                # but only set it if not overridden
-                pb[key] = pbkwargs.get(key, default_value)
-            
+                    # but only set it if not overridden
+                    pb[key] = pbkwargs.get(key, default_value)
+                else:
+                    if key in pbkwargs.keys():
+                        pb[key] = pbkwargs.get(key)
+                        
             output[component] = [[ds],[pb]]
 
         self._attach_datasets(output)
@@ -1691,13 +1691,7 @@ class Bundle(object):
         @param ident: index or title of the axes to be removed
         @type ident: int or str
         """
-        if isinstance(ident, int):
-            return self.axes.pop(ident)
-        elif isinstance(ident, str):
-            for i,ax in reversed(self.axes):
-                if ax.get_value('title')==ident:
-                    self.axes.pop(i)
-        
+        return self.axes.pop(self.axes.index(self.get_axes(ident)))
                                 
     def plot_axes(self,ident,mplfig=None,mplaxes=None,location=None):
         """
@@ -1777,6 +1771,7 @@ class Bundle(object):
             axes.plot(self,mplaxes=mplaxes)
             mplaxes.set_axis_off()
             mplaxes.set_ylim(fmin,fmax)
+            mplfig.sel_axes.set_ylim(fmin,fmax)
             
             plt.savefig('gif_tmp_{:04d}.png'.format(i))
             
