@@ -378,67 +378,7 @@ def body_from_string(body_string):
     except ValueError:
         pass
     
-    body_classes = []
-    for body_class in dir(universe):
-        try:
-            if issubclass(getattr(universe, body_class), universe.Body) \
-                 and not body_class in ['Body', 'BodyBag', 'BinaryBag']:
-                body_classes.append(body_class)
-        except TypeError:
-            continue
     
-    # Then try smart-detection of meta-information
-    # Default class name is BinaryRocheStar
-    class_name = 'BinaryRocheStar'
-    
-    # Collect meta-info on Body:
-    meta_info = None
-    
-    # See if the user gave instructions for the type of Body
-    result = re.search(r"(.*)[\s*]<(\w*)>", body_string)
-    while result is not None:
-        body_string, info = result.groups()
-        
-        # Meta-info is either class name or spectral type
-        if meta_info in body_classes:
-            class_name = info
-        else:
-            meta_info = info
-        
-        # Consume the rest of the string
-        result = re.search(r"(.*)[\s*]<(\w*)>", body_string)
-    
-    
-    if meta_info is not None:
-        body = body_from_string(meta_info)
-    
-    body.set_label(body_string)
-    
-    return body
-    
-
-
-def system(structure):
-    """
-    Create a generic system.
-    
-    Example usage::
-    
-        system(['primary <BinaryRocheStar>', 'secondary <BinaryRocheStar>'])
-    """
-    # Create an empty structure list
-    list_of_bodies = []
-    
-    # Go over every string in the body and derive what we need to do with it
-    for body_string in structure:
-        body = body_from_string(body_string)
-        if 'globals' in body.params:
-            thrash = body.params.pop('globals')
-        list_of_bodies.append(body)
-    
-    bbag = universe.BodyBag(list_of_bodies)
-    bbag.set_label("+".join([body.get_label() for body in bbag.get_bodies()]))
-    return bbag
 
 
 def from_library(name, create_body=False):
