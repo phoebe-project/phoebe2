@@ -11,7 +11,6 @@ import re
 import os
 import logging
 import glob
-import logging.handlers
 import numpy as np
 import phoebe
 from phoebe.parameters import parameters
@@ -22,13 +21,13 @@ from phoebe.backend import observatory
 from phoebe.algorithms import marching
 from phoebe.wd import wd
 from phoebe.parameters import datasets
-from phoebe.frontend.bundle import Bundle
 import matplotlib.pyplot as plt
 import os.path
 
 logger = logging.getLogger('PARSER')
+logger.addHandler(logging.NullHandler())
 
-def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
+def legacy_to_phoebe(inputfile, create_body=False,
                      mesh='wd', root=None):
     """
     Convert a legacy PHOEBE file to the parameterSets. 
@@ -761,7 +760,7 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         mesh1 = mesh1wd
         mesh2 = mesh2wd
     
-    if create_bundle or create_body:
+    if create_body:
         
         ##need an if statement here incase no obs
         if prim_rv !=0 and sec_rv !=0:
@@ -785,11 +784,11 @@ def legacy_to_phoebe(inputfile, create_body=False, create_bundle=False,
         # Set the name of the thing
         bodybag.set_label(system_label)
         
-    if create_bundle:
-
-        bundle = Bundle(bodybag)
-        
-        return bundle
+    #if create_bundle:
+    #
+    #    bundle = Bundle(bodybag)
+    #    
+    #    return bundle
     
     if create_body:
         return bodybag

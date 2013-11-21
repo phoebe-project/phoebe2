@@ -20,6 +20,9 @@ def summarize(system, time=None):
         #if isinstance(thing, parameters.ParameterSet) and 'extinction' in thing:
             #thing['extinction'] = 0.0
             #system.set_time(0.)
+    if not len(system.mesh):
+        system.set_time(0.)
+    
             
     params = {}
     for loc, thing in phoebe.BodyBag([system]).walk_all():

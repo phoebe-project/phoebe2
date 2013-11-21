@@ -1141,6 +1141,11 @@ class Body(object):
         self._preprocessing = []
         self._postprocessing = []
         
+        # We definitely need signals and a label, even if it's empty
+        self.signals = {}
+        self.label = None
+        self.parent = None
+        
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()
         

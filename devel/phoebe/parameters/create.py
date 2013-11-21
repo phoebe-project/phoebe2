@@ -181,7 +181,7 @@ from phoebe.io import ascii
 
 
 logger = logging.getLogger('PARS.CREATE')
-
+logger.addHandler(logging.NullHandler())
 
 
 class GenericBody(object):
@@ -407,6 +407,7 @@ def body_from_string(body_string):
         
         # Consume the rest of the string
         result = re.search(r"(.*)[\s*]<(\w*)>", body_string)
+    
     
     if meta_info is not None:
         body = body_from_string(meta_info)

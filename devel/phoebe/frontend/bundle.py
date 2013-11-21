@@ -17,7 +17,10 @@ from PIL import Image
 from phoebe.utils import callbacks, utils, plotlib, coordinates
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
+from phoebe.parameters import create
 from phoebe.backend import fitting, observatory, plotting
+from phoebe.backend import universe
+from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend import usersettings
 from phoebe.frontend.figures import Axes
@@ -115,6 +118,8 @@ class Bundle(object):
         
         You don't have to give anything, but you can. Afterwards, you can
         always add more.
+        
+        For all the different possibilities to set a system, see :py:func:`Bundle.set_system`.
         """
         #-- prepare 
         self.versions = [] #list of dictionaries
@@ -229,13 +234,54 @@ class Bundle(object):
     
     def set_system(self,system=None):
         """
-        Change the system
+        Change or set the system.
+        
+        Possibilities:
+        
+        1. If :envvar:`system is a Body, then that body will be set as the system
+        2. If :envvar:`system` is a string, the following options exist:
+            - the string represents a Phoebe pickle file containing a Body; that
+              one will be set
+            - the string represents a Phoebe pickle file containing a Bundle;
+              the system from that bundle will be set (to load a complete Bundle,
+              use :py:func`load`
+            - the string represents a Phoebe Legacy file, then it will be parsed
+              to a system
+            - the string represents a WD lcin file, then it will be parsed to
+              a system
+            - the string represents a system from the library (or spectral type),
+              then the library will create the system
 
         @param system: the new system
-        @type system: System
+        @type system: Body or str
         """
-        self.system = system 
-        if system is None:  return None
+        # Possibly we initialized an empty Bundle
+        if system is None:
+            self.system = None
+            return None
+        # Or a real system
+        elif isinstance(system, universe.Body):
+            self.system = system
+        elif isinstance(system, list) or isinstance(system, tuple):
+            self.system = create.system(system)
+        # Or we could've given a filename
+        else:
+            
+            # Try to guess the file type (if it is a file)
+            if os.path.isfile(system):
+                file_type, contents = guess_filetype(system)
+            
+                if file_type in ['phoebe_legacy', 'wd', 'pickle_body']:
+                    system = contents
+                elif file_type == 'pickle_bundle':
+                    system = contents.get_system()
+        
+            # As a last resort, we pass it on to 'body_from_string' in the
+            # create module:
+            else:
+                system = create.body_from_string(system)
+            
+            self.system = system
         
         # initialize uptodate
         self.system.uptodate = False
@@ -2077,19 +2123,115 @@ class Bundle(object):
     
     #}
     
-def load(filename,load_usersettings=True):
+def load(filename, load_usersettings=True):
     """
     Load a class from a file.
     
+    @param filename: filename of a Body or Bundle pickle file
+    @type filename: str
+    @param load_usersettings: flag to load custom user settings
+    @type load_usersettings: bool
     @return: Bundle saved in file
     @rtype: Bundle
     """
-    ff = open(filename,'r')
-    bundle = pickle.load(ff)
-    ff.close()
-    # for set_system to update all signals, etc
-    bundle.set_system(bundle.system)
-    # load this users settings into the bundle
+    
+    # First: is this thing a file?
+    if os.path.isfile(filename):
+        
+        # If it is a file, try to unpickle it:   
+        try:
+            with open(filename, 'r') as open_file:
+                contents = pickle.load(open_file)
+        except:
+            raise IOError(("Cannot load file {}: probably not "
+                           "a Bundle file").format(filename))
+        
+        # If we can unpickle it, check if it is a Body(Bag) or a bundle. If it
+        # is a Body(Bag), create a new bundle and set the system
+        if isinstance(contents, universe.Body):
+            bundle = Bundle(system=contents)
+            
+        # If it a bundle, we don't need to initiate it anymore
+        elif isinstance(contents, Bundle):
+            bundle = contents
+            # for set_system to update all signals, etc
+            bundle.set_system(bundle.system)
+        
+        # Else, we could load it, but we don't know what to do with it
+        else:
+            raise IOError(("Cannot load file {}: unrecognized contents "
+                           "(probably not a Bundle file)").format(filename))
+    else:
+        raise IOError("Cannot load file {}: it does not exist".format(filename))
+    
+    # Load this users settings into the bundle
     if load_usersettings:
         bundle.set_usersettings()
+    
+    # That's it!
     return bundle
+
+
+def guess_filetype(filename):
+    """
+    Guess what kind of file `filename` is and return the contents if possible.
+    
+    Possibilities and return values:
+    
+    1. Phoebe2.0 pickled Body: envvar:`file_type='pickle_body', contents=<phoebe.backend.Body>`
+    2. Phoebe2.0 pickled Bundle: envvar:`file_type='pickle_bundle', contents=<phoebe.frontend.Bundle>`
+    3. Phoebe Legacy file: envvar:`file_type='phoebe_legacy', contents=<phoebe.frontend.Body>`
+    4. Wilson-Devinney lcin file: envvar:`file_type='wd', contents=<phoebe.frontend.Body>`
+    5. Other existing loadable pickle file: envvar:`file_type='unknown', contents=<custom_class>`
+    6. Other existing file: envvar:`file_type='unknown', contents=None`
+    7. Nonexisting file: IOError
+    
+    """
+    file_type = 'unknown'
+    contents = None
+    
+    # First: is this thing a file?
+    if os.path.isfile(filename):
+        
+        # If it is a file, try to unpickle it:   
+        try:
+            with open(filename, 'r') as open_file:
+                contents = pickle.load(open_file)
+            file_type = 'pickle'
+        except:
+            pass
+        
+        # If the file is not a pickle file, it could be a Phoebe legacy file?
+        if contents is None:
+            
+            try:
+                contents = parsers.legacy_to_phoebe(filename, create_body=True,
+                                                mesh='marching')
+                file_type = 'phoebe_legacy'
+            except IOError:
+                pass
+        
+        # If it's not a pickle file nor a legacy file, is it a WD lcin file?
+        if contents is None:
+            
+            try:
+                contents = parsers.wd_to_phoebe(filename, mesh='marching',
+                                                create_body=True)
+                file_type = 'wd'
+            except:
+                contents = None
+        
+        # If we unpickled it, check if it is a Body(Bag) or a bundle.
+        if file_type == 'pickle' and isinstance(contents, universe.Body):
+            file_type += '_body'
+            
+        # If it a bundle, we don't need to initiate it anymore
+        elif file_type == 'pickle' and isinstance(contents, Bundle):
+            file_type += '_bundle'
+        
+        # If we don't know the filetype by now, we don't know it at all
+    else:
+        raise IOError(("Cannot guess type of file {}: "
+                      "it does not exist").format(filename))
+    
+    return file_type, contents
