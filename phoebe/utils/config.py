@@ -40,10 +40,12 @@ dataset_class = {'lc':'LCDataSet',
                  'etv':'DataSet'}
 
 # Correspondence between data type and file extension:
-file_extension = {'.lc':'lc',
-                  '.phot':'lc',
-                  '.rv':'rv',
-                  '.plprof':'pl',
-                  '.vis2':'if',
-                  '.am':'am',
-                  '.etv':'etv'}
+file_extension = {'lc':'lc',
+                  'phot':'lc',
+                  'spec':'sp',
+                  'lprof':'sp',
+                  'rv':'rv',
+                  'plprof':'pl',
+                  'vis2':'if',
+                  'am':'am',
+                  'etv':'etv'}

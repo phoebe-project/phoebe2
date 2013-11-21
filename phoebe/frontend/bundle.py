@@ -14,7 +14,7 @@ import copy
 import os
 from PIL import Image
 
-from phoebe.utils import callbacks, utils, plotlib, coordinates
+from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.parameters import create
@@ -1008,7 +1008,8 @@ class Bundle(object):
         
         self._attach_datasets(output)
                        
-    def create_syn(self,category='lc',times=None,components=None,ref=None,**pbkwargs):
+    def create_syn(self, category='lc', times=None, components=None,
+                   ref=None, **pbkwargs):
         """
         create and attach 'empty' datasets with no actual data but rather
         to provide times to compute the model
@@ -1033,39 +1034,44 @@ class Bundle(object):
         
         # Modified functionality from datasets.parse_header
         
-        # Create a default pbdep and DataSet
-        contexts = dict(rv='rv',
-                        phot='lc', lc='lc',
-                        spec='sp', lprof='sp',
-                        vis2='if', plprof='pl')
-        dataset_classes = dict(rv=datasets.RVDataSet,
-                               phot=datasets.LCDataSet, lc=datasets.LCDataSet,
-                               spec=datasets.SPDataSet, lprof=datasets.SPDataSet,
-                               vis2=datasets.IFDataSet, plprof=datasets.PLDataSet)
-
-            
-        if not category in dataset_classes:
+        # What DataSet subclass do we need? We can derive it from the category    
+        if not category in config.dataset_class:
             dataset_class = DataSet
         else:
-            dataset_class = dataset_classes[category]
+            dataset_class = getattr(datasets, config.dataset_class[category])
 
         if components is None:
             # then attempt to make smart prediction
-            if category=='lc':
+            if category == 'lc':
                 # then top-level
                 components = [self.get_system_structure(flat=True)[0]]
                 logger.warning('components not provided - assuming {}'.format(components))
 
         output = {}
         for component in components:
-            ds = dataset_class(context=category+'obs',time=times,ref=ref)
-            pb = parameters.ParameterSet(context=category+'dep',ref=ref,**pbkwargs)
+            ds = dataset_class(context=category+'obs', time=times, ref=ref)
+            
+            # For the "dep" parameterSet, we'll use defaults derived from the
+            # Body instead of the normal defaults. This should give the least
+            # surprise to users: it is more logical to have default atmosphere,
+            # LD-laws etc the same as the Body, then the "uniform" or "blackbody"
+            # stuff that is in the defaults. So, if a parameter is in the
+            # main body parameterSet, then we'll take that as a default value,
+            # but it can be overriden by pbkwargs
+            main_parset = component.params()[0]
+            pb = parameters.ParameterSet(context=category+'dep', ref=ref)
+            for key in pb:
+                # derive default
+                if key in main_parset:
+                    default_value = main_parset[key]
+                # but only set it if not overridden
+                pb[key] = pbkwargs.get(key, default_value)
             
             output[component] = [[ds],[pb]]
 
         self._attach_datasets(output)
         
-    def add_obs(self,objectname,dataset):
+    def add_obs(self, objectname, dataset):
         """
         attach dataset to an object
         
