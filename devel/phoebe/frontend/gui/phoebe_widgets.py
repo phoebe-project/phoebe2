@@ -706,7 +706,7 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
             self.setItemWidget(item,0,frame)
             
             # col 2 (servername)
-            mpi_ps = server.mpi_ps
+            mpi_ps = server.settings['mpi']
             if mpi_ps is None:
                 mpi_type = "No MPI"
             else:
@@ -784,7 +784,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             return
         
         ### filter which rows we want to show
-        axes_incl = bundle.axes #default
+        axes_incl = bundle.get_axes().values() #default
         self.style = 'data' #default
         if plots!='all plots' or types!='all types':
             if plots!='all plots':
@@ -944,7 +944,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 # and now we get the actually plotoptions parameter sets for the plots view
                 if is_plotted_obs and self.style=='plot':
                     plotted_obs_ps_curr = plotted_obs_ps[plotted_obs.index(col_obs)]
-                    plotted_obs_ind_curr = axes_incl[0].get_plot().index(plotted_obs_ps_curr)  # the index used in axes.get_plot()
+                    plotted_obs_ind_curr = axes_incl[0].get_plot().values().index(plotted_obs_ps_curr)  # the index used in axes.get_plot()
                 else:
                     plotted_obs_ind_curr = None
                     plotted_obs_ps_curr = None
@@ -1404,7 +1404,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
         plot mesh options
     """
      
-    def set_data(self,data,style=[]):
+    def set_data(self,data,style=[],hide_params=[]):
         '''
         data - list of ParameterSets to be shown in the treeview
         
@@ -1429,7 +1429,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
         
         for n,params in enumerate(data):
             for k,v in params.items():
-                if ('label' not in k or 'incl_label' in self.style) and k not in ['feedback']:
+                if ('label' not in k or 'incl_label' in self.style) and k not in ['feedback'] and k not in hide_params:
                     par = params.get_parameter(k)
                     adj = params.get_adjust(k)
                     

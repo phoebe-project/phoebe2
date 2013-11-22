@@ -753,7 +753,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.plot_redraw(None, i, canvas)
             
     def update_plot_widgets(self, i, canvas):
-        if not hasattr(canvas,'info'):
+        #~ print "*** update_plot_widgets", i
+        if not hasattr(canvas,'info') or 'xaxisCombo' not in canvas.info.keys():
             #~ print '* update_plot_widgets exiting'
             return
         canvas.info['xaxisCombo'].setEnabled(False)
@@ -764,16 +765,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             if ps.context=='orbit':
                 items.append('phase:%s' % name)
         canvas.info['xaxisCombo'].addItems(items)
-        canvas.info['xaxisCombo'].setCurrentIndex(items.index(self.bundle.axes[i].get_value('xaxis')) if self.bundle.axes[i].get_value('xaxis') in items else 0)
+        canvas.info['xaxisCombo'].setCurrentIndex(items.index(self.bundle.get_axes(i).get_value('xaxis')) if self.bundle.get_axes(i).get_value('xaxis') in items else 0)
         canvas.info['xaxisCombo'].setEnabled(True)
         
         #~ canvas.info['yaxisCombo'].setCurrentIndex()
 
-        canvas.info['titleLinkButton'].setText(self.bundle.axes[i].get_value('title'))
+        canvas.info['titleLinkButton'].setText(self.bundle.get_axes(i).get_value('title'))
             
     def plot_redraw(self, param=None, i=0, canvas=None):
         #~ print "*** redraw plot", i
-        if param is not None and len(self.plot_canvases) != len(self.bundle.axes):
+        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes()):
             #then this is being called from a signal, but the number of canvases isn't right
             #so redraw all to make sure we're in sync
             self.on_plots_changed()
@@ -785,22 +786,22 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.update_plot_widgets(i, canvas)
             
             canvas.cla()
-            canvas.plot(self.bundle, self.bundle.axes[i])
-            canvas.draw()
+            canvas.plot(self.bundle, self.bundle.get_axes(i))
+            #~ canvas.draw()
             
             if i==self.pop_i: # then this plot is in the expanded plot and we should also draw that
                 self.expanded_canvas.cla()
-                self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
-                self.expanded_canvas.draw()
+                self.expanded_canvas.plot(self.bundle, self.bundle.get_axes(i))
+                #~ self.expanded_canvas.draw()
 
     def on_plot_add(self, mesh=False, orbit=False, plotoptions=None):
         # add button clicked from gui
         if mesh==True and self.meshmpl_widget is None:
-            self.meshmpl_widget, self.meshmpl_canvas = self.create_plot_widget(thumb=True)
+            self.meshmpl_widget, self.meshmpl_canvas = self.create_plot_widget(thumb=True,closable=False)
             #~ self.meshmpl_widget.setMaximumWidth(self.meshmpl_widget.height())
             self.mp_sysmplGridLayout.addWidget(self.meshmpl_widget, 0,0)
         elif orbit==True and self.orbitmpl_widget is None:
-            self.orbitmpl_widget, self.orbitmpl_canvas = self.create_plot_widget(thumb=True)
+            self.orbitmpl_widget, self.orbitmpl_canvas = self.create_plot_widget(thumb=True,closable=False)
             self.sys_orbitmplGridLayout.addWidget(self.orbitmpl_widget, 0,0)
             
         else:
@@ -812,20 +813,24 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     plottype='rvobs'
                 if self.sender()==self.mp_addSPPlotPushButton:
                     plottype='spobs'
-            add_command = 'bundle.add_axes(category=\'%s\', title=\'Plot %d\')' % (plottype[:-3],len(self.bundle.axes)+1)
-            remove_command = 'bundle.remove_axes(%d)' % (len(self.bundle.axes))
+            add_command = 'bundle.add_axes(category=\'%s\', title=\'Plot %d\')' % (plottype[:-3],len(self.bundle.get_axes())+1)
+            remove_command = 'bundle.remove_axes(%d)' % (len(self.bundle.get_axes()))
             command = phoebe_widgets.CommandRun(self.PythonEdit,add_command,remove_command,kind='plots',thread=False,description='add new plot')
             
             self.undoStack.push(command) 
             
-    def create_plot_widget(self, canvas=None, thumb=False):
+    def create_plot_widget(self, canvas=None, thumb=False, closable=True):
         new_plot_widget = QWidget()
         if canvas is None:
             canvas = phoebe_plotting.MyMplCanvas(new_plot_widget, width=5, height=4, dpi=100, thumb=thumb, bg=str(self.palette.color(QPalette.Window).name()), hl=str(self.palette.color(QPalette.Highlight).name()))
         if thumb:
-            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_expand_toggle)
+            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
+            QObject.connect(canvas, SIGNAL("expand_clicked"), self.on_plot_expand_toggle)
+            QObject.connect(canvas, SIGNAL("plot_delete"), self.on_plot_del)
+            QObject.connect(canvas, SIGNAL("plot_pop"), self.on_plot_pop)
+            overlay = phoebe_plotting.PlotOverlay(canvas,closable)
         else:
-            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_expanded_plot_clicked)
+            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
         vbox = QVBoxLayout()
         vbox.addWidget(canvas)
         if not thumb:
@@ -923,7 +928,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.mp_stackedWidget.setCurrentIndex(2)
             
             self.expanded_canvas.cla()
-            self.expanded_canvas.plot(self.bundle, self.bundle.axes[i])
+            self.expanded_canvas.plot(self.bundle, self.bundle.get_axes(i))
             
             # instead of dealing with attaching and destroying signals for the expanded plot
             # let's always check to see if the expanded plot is the same plot as a plot that is being asked to be redrawn
@@ -936,7 +941,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
         #~ self.update_datasets()
         
-    def on_expanded_plot_clicked(self,canvas,event):
+    def on_plot_clicked(self,canvas,event):
+        if not hasattr(canvas,'xaxis'):
+            return
         t = event.xdata
         
         if 'phase' in canvas.xaxis:
@@ -957,17 +964,17 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_mesh_update_clicked()
 
     @PyInterp_selfdebug
-    def on_plot_pop(self):
+    def on_plot_pop(self,i=None):
         #plot popped from gui
-        i = self.pop_i
-        
-        self.on_plot_expand_toggle() #to reset to grid view
+        if i is None:
+            i = self.pop_i
+            self.on_plot_expand_toggle() #to reset to grid view
 
         new_plot_widget, canvas = self.create_plot_widget()
        
-        #~ self.bundle.attach_signal(self.bundle.axes[i], 'add_plot', self.plot_redraw, i, canvas)
-        #~ self.bundle.attach_signal(self.bundle.axes[i], 'remove_plot', self.plot_redraw, i, canvas)       
-        #~ for po in self.bundle.axes[i].get_plot():
+        #~ self.bundle.attach_signal(self.bundle.get_axes(i), 'add_plot', self.plot_redraw, i, canvas)
+        #~ self.bundle.attach_signal(self.bundle.get_axes(i), 'remove_plot', self.plot_redraw, i, canvas)       
+        #~ for po in self.bundle.get_axes(i).get_plot():
             #~ self.bundle.attach_signal(po, 'set_value', self.plot_redraw, i, canvas)
         
         pop = phoebe_dialogs.CreatePopPlot(self)
@@ -1005,7 +1012,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.plot_redraw(None, i, canvas)
  
-        self.attach_plot_signals(self.bundle.axes[i], i, canvas)
+        self.attach_plot_signals(self.bundle.get_axes(i), i, canvas)
         
         pop.show()
         
@@ -1016,14 +1023,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ self.update_plotTreeViews(wa=zip([plotEntryWidget.bp_plotsTreeView],[i])) #just draw the new one, not all
         self.update_datasets()
         
-    def on_plot_del(self):
+    def on_plot_del(self,i=None):
         #plot deleted from gui
-        plottype = self.bundle.axes[self.pop_i].get_value('category')
-        axesname = self.bundle.axes[self.pop_i].get_value('title')
+        if i is None:
+            i = self.pop_i
+            self.on_plot_expand_toggle()
+        
+        plottype = self.bundle.get_axes(i).get_value('category')
+        axesname = self.bundle.get_axes(i).get_value('title')
         command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.remove_axes('%s')" % axesname,"bundle.add_axes(category='%s', title='%s')" % (plottype, axesname),kind='plots',thread=True,description='remove axes %s' % axesname)
         self.undoStack.push(command)  
-        
-        self.on_plot_expand_toggle()
         
     def on_systemEdit_clicked(self):
         self.mp_stackedWidget.setCurrentIndex(4)
@@ -1059,7 +1068,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         co = self.bundle.get_compute(key)
             
-        self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit','incl_label'])
+        self.lp_observeoptionsTreeView.set_data([co] if co is not None else [],style=['nofit','incl_label'],hide_params=['time','refs','types'])
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
@@ -1366,9 +1375,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
-        title = 'Plot %d' % (len(self.bundle.axes)+1)
+        title = 'Plot %d' % (len(self.bundle.get_axes())+1)
         do_command = 'bundle.add_axes(category=\'%s\', title=\'%s\')' % (category,title)
-        undo_command = 'bundle.remove_axes(%d)' % (len(self.bundle.axes))
+        undo_command = 'bundle.remove_axes(%d)' % (len(self.bundle.get_axes()))
         command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
         self.undoStack.push(command)
         
@@ -1376,7 +1385,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None,ind=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex([ax.get_value('title') for ax in self.bundle.axes].index(plotname)+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes().keys().index(plotname)+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
@@ -1397,7 +1406,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+[ax.get_value('title') for ax in self.bundle.axes]
+        items = ['all plots']+self.bundle.get_axes().keys()
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -1405,7 +1414,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         
     def on_plots_changed(self,*args):
-        #~ print "*** on_plots_changed", len(self.bundle.axes)
+        #~ print "*** on_plots_changed", len(self.bundle.get_axes())
 
         #bundle.axes changed - have to handle adding/deleting/reordering
         #for now we'll just completely recreate all thumbnail widgets and redraw
@@ -1416,9 +1425,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plots_rename() # to update selection combo
         
         #redraw all plots
-        for i,axes in enumerate(self.bundle.axes):
+        for i,axes in enumerate(self.bundle.get_axes().values()):
                 
             new_plot_widget, canvas = self.create_plot_widget(thumb=True)
+            canvas.info['axes_i'] = i
             self.plot_widgets.append(new_plot_widget)
             self.plot_canvases.append(canvas)
             #TODO change to horizontals in verticals so we don't have empty space for odd numbers
@@ -1437,7 +1447,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
         
-        for i in range(len(self.bundle.axes)):    
+        for i in range(len(self.bundle.get_axes())):    
             self.plot_redraw(None,i)
             
     def on_select_time_changed(self,param=None,i=None,canvas=None):
@@ -1473,10 +1483,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ self.rp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.set_time_i += 1
             
-        #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
+            
+        #~ if True:
+            #~ self.on_plots_changed()
+            #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
         
-        #should we only draw this if its visible?
-        #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
+            #should we only draw this if its visible?
+            #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
             
 
     def update_fittingOptions(self, *args):

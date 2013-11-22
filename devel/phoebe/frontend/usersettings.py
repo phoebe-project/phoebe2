@@ -63,7 +63,7 @@ class Settings(object):
         """
         retrieve a parameterset from a list by label
         """
-        items = {ps.get_value('label'): ps for ps in self.settings[listname]}
+        items = OrderedDict([(ps.get_value('label'), ps) for ps in self.settings[listname]])
         
         if label is None:
             return items

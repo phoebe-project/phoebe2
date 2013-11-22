@@ -37,7 +37,7 @@
     <item>
      <widget class="QStackedWidget" name="mp_stackedWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="splash">
        <layout class="QGridLayout" name="gridLayout_6">
@@ -368,17 +368,24 @@ p, li { white-space: pre-wrap; }
               <number>2</number>
              </property>
              <item>
-              <spacer name="horizontalSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
+              <widget class="QPushButton" name="pushButton_6">
+               <property name="enabled">
+                <bool>false</bool>
                </property>
-               <property name="sizeHint" stdset="0">
+               <property name="maximumSize">
                 <size>
-                 <width>40</width>
-                 <height>20</height>
+                 <width>24</width>
+                 <height>24</height>
                 </size>
                </property>
-              </spacer>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset resource="ui_resources.qrc">
+                 <normaloff>:/images/icons/pop.png</normaloff>:/images/icons/pop.png</iconset>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QPushButton" name="mpgl_gridPushButton">
@@ -398,6 +405,19 @@ p, li { white-space: pre-wrap; }
                </property>
               </widget>
              </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
             </layout>
            </item>
           </layout>
@@ -410,13 +430,16 @@ p, li { white-space: pre-wrap; }
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_10">
           <item>
-           <spacer name="horizontalSpacer_2">
+           <spacer name="horizontalSpacer_4">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
             <property name="sizeHint" stdset="0">
              <size>
-              <width>40</width>
+              <width>44</width>
               <height>20</height>
              </size>
             </property>
@@ -438,6 +461,19 @@ p, li { white-space: pre-wrap; }
               <normaloff>:/images/icons/grid.png</normaloff>:/images/icons/grid.png</iconset>
             </property>
            </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </item>
