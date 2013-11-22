@@ -5,6 +5,7 @@ from collections import OrderedDict
 from phoebe.parameters import parameters
 from phoebe.backend import plotting
 import matplotlib.pyplot as plt
+import numpy as np
 
 class Axes(object):
     """
@@ -91,12 +92,12 @@ class Axes(object):
         """
         Return a given plot by index
         
-        @param ident: index of plot or objref:dataref
+        @param ident: index of plot or objref:dataref:type
         @type ident: int or str
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        plots = {'{}:{}'.format(pl.get_value('objref'),pl.get_value('dataref')):pl for pl in self.settings['plots']}
+        plots = OrderedDict([('{}:{}:{}'.format(pl.get_value('objref'),pl.get_value('dataref'),pl.get_value('type')), pl) for pl in self.settings['plots']])
         
         if ident is None:
             return plots
@@ -322,15 +323,17 @@ class Axes(object):
             mplfig.tight_layout()
             mplfig.data_axes = axes
             mplfig.sel_axes = axes.twinx()
+            #~ mplfig.sel_axes.sharey(axes)
             mplfig.sel_axes.get_xaxis().set_visible(False)
             mplfig.sel_axes.get_yaxis().set_visible(False)
 
-            self.plot_select_time(bundle.select_time,mplfig=mplfig)
+            self.plot_select_time(bundle,bundle.select_time,mplfig=mplfig)
                 
-    def plot_select_time(self,time,mplfig):
+    def plot_select_time(self,bundle,time,mplfig):
         mplaxes_sel = mplfig.sel_axes
         mplaxes_sel.cla()
         mplaxes_sel.set_yticks([])
+        #~ mplaxes_sel.set_xticks([])
             
         if time is not None:
             if self.phased:
@@ -346,5 +349,14 @@ class Axes(object):
                     width_perc = so.get_value('size')
                     width_time = abs(xlim[1]-xlim[0])*width_perc/100.
                     mplaxes_sel.axvspan(time-width_time/2.,time+width_time/2., color=so.get_value('color'), alpha=so.get_value('alpha'))
+                elif so.get_value('type')=='interp':
+                    for plot in self.get_plot().values():
+                        if plot.get_value('type')[-3:]=='syn': #then we want to plot interpolated value
+                            # interpolate necessary value and make call to plot
+                            ds = self.get_dataset(plot,bundle).asarray()
+                            times, signal = ds['time'], ds['flux']
+                            mplaxes_sel.plot([time],np.interp(np.array([time]),times,signal), marker=so.get_value('marker'), color=so.get_value('color'), markersize=so.get_value('size'), alpha=so.get_value('alpha'))
                 else:
-                    print "currently only axvline and axvspan are implemented"
+                    logger.warning("did not recognize type {}".format(so.get_value('type')))
+                    
+            mplaxes_sel.set_ylim(mplfig.data_axes.get_ylim())

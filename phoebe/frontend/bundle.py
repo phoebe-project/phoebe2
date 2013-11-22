@@ -922,10 +922,10 @@ class Bundle(object):
                 parset = obj.get_parset(type=kind,ref=dataref)[0]
             if parset != None and parset != []:
                 if force_dict:
-                    return {'%s:%s' % (objref, parset.get_value('ref')): parset}
+                    return OrderedDict([('%s:%s' % (objref, parset.get_value('ref')), parset)])
                 else:
                     return parset
-            return {}
+            return OrderedDict()
         else:
             # then loop through indices until there are none left
             return_ = []
@@ -1655,7 +1655,7 @@ class Bundle(object):
         @return: axes
         @rtype: plotting.Axes
         """
-        axes = {ax.get_value('title'): ax for ax in self.axes}
+        axes = OrderedDict([(ax.get_value('title'), ax) for ax in self.axes])
         
         if ident is None:
             return axes

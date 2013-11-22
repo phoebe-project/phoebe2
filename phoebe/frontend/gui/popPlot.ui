@@ -295,32 +295,22 @@
          <number>2</number>
         </property>
         <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
-         <widget class="QPushButton" name="popPlot_gridPushButton">
+         <widget class="QPushButton" name="popPlot_delPushButton">
           <property name="maximumSize">
            <size>
             <width>24</width>
             <height>24</height>
            </size>
           </property>
+          <property name="toolTip">
+           <string>delete axes</string>
+          </property>
           <property name="text">
            <string/>
           </property>
           <property name="icon">
            <iconset resource="ui_resources.qrc">
-            <normaloff>:/images/icons/grid.png</normaloff>:/images/icons/grid.png</iconset>
+            <normaloff>:/images/icons/delete.png</normaloff>:/images/icons/delete.png</iconset>
           </property>
          </widget>
         </item>
@@ -332,6 +322,9 @@
             <height>24</height>
            </size>
           </property>
+          <property name="toolTip">
+           <string>popout</string>
+          </property>
           <property name="text">
            <string/>
           </property>
@@ -342,21 +335,37 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="popPlot_delPushButton">
+         <widget class="QPushButton" name="popPlot_gridPushButton">
           <property name="maximumSize">
            <size>
             <width>24</width>
             <height>24</height>
            </size>
           </property>
+          <property name="toolTip">
+           <string>thumbnail grid</string>
+          </property>
           <property name="text">
            <string/>
           </property>
           <property name="icon">
            <iconset resource="ui_resources.qrc">
-            <normaloff>:/images/icons/delete.png</normaloff>:/images/icons/delete.png</iconset>
+            <normaloff>:/images/icons/grid.png</normaloff>:/images/icons/grid.png</iconset>
           </property>
          </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </item>

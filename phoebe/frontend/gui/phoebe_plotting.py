@@ -36,6 +36,8 @@ class MyMplCanvas(FigureCanvas):
         #~ if not thumb:
             #~ self.mpl_toolbar = NavigationToolbar(self, parent)
             
+        self.info = {}
+            
         self.mpl_connect ("button_release_event", self.on_button_released)
 
         FigureCanvas.setSizePolicy(self,
@@ -44,37 +46,28 @@ class MyMplCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
 
         self.thumb = thumb
-        self.hover_effect = QGraphicsColorizeEffect()
-        color = QColor()
-        color.setNamedColor(hl)
-        self.hover_effect.setColor(color)
-        self.setGraphicsEffect(self.hover_effect)
-        self.hover_effect.setEnabled(False)
         
     def enterEvent(self, event=None):
         super(MyMplCanvas, self).enterEvent(event)
-        #~ self.emit(SIGNAL("plot_hover"),self,True)
         if self.thumb:
-            self.hover_effect.setEnabled(True)
-            #~ self.fig.set_facecolor('#85A3FF')        
-            #~ self.axes.set_axis_bgcolor('#85A3FF')
-            #~ self.replot()
-        # highlight and show buttons
+            self.overlay.setVisible(True)
 
     def leaveEvent(self, event=None):
         super(MyMplCanvas, self).leaveEvent(event)
-        #~ self.emit(SIGNAL("plot_hover"),self,Flase)
         if self.thumb:
-            self.hover_effect.setEnabled(False)
-            #~ self.fig.set_facecolor('white')        
-            #~ self.axes.set_axis_bgcolor('white')
-            #~ self.replot()
-        # unhighlight/hide buttons
+            self.overlay.setVisible(False)
 
     def on_button_released(self, event):
         self.emit(SIGNAL("plot_clicked"),self,event)
-        #~ print "***", 
-        #~ pass
+        
+    def on_expand_clicked(self, *args):
+        self.emit(SIGNAL("expand_clicked"))
+        
+    def on_pop_clicked(self, *args):
+        self.emit(SIGNAL("plot_pop"),self.info['axes_i'])
+        
+    def on_delete_clicked(self, *args):
+        self.emit(SIGNAL("plot_delete"),self.info['axes_i'])
 
     def plot_mesh(self, bundle):
         #~ self.axes.cla()
@@ -89,6 +82,7 @@ class MyMplCanvas(FigureCanvas):
     def plot_orbit(self, bundle):
         self.fig.clf()
         bundle.plot_orbitview(mplfig=self.fig)
+        #~ self.check_ticks()
         self.draw()
 
     def cla(self):
@@ -100,8 +94,79 @@ class MyMplCanvas(FigureCanvas):
         self.xaxis = axes.get_value('xaxis')
         self.period = axes.period
         self.axes = axes # this is the bundle axes not mpl axes
+        
+        self.check_ticks()
+        
         self.draw()
         
     def update_select_time(self, bundle):
-        self.axes.plot_select_time(bundle.select_time, self.fig)
+        self.axes.plot_select_time(bundle, bundle.select_time, self.fig)
+        self.check_ticks()
         self.draw()
+
+    def check_ticks(self):
+        if self.thumb:
+            # hide tick marks
+            ax = self.fig.gca()
+            ax.set_xticklabels(['']*len(ax.get_xticks()))
+            self.fig.data_axes.set_yticklabels(['']*len(self.fig.data_axes.get_yticks()))
+            
+class PlotOverlay(QWidget):
+    def __init__(self, parent=None, closable=True):
+        QWidget.__init__(self, parent)
+        parent.overlay = self
+        palette = QPalette(self.palette())
+        palette.setColor(palette.Background, Qt.transparent)
+        self.setPalette(palette)
+        #~ self.setAlignment(Qt.AlignHRight|Qt.AlignVCenter)
+        self.setVisible(False)
+        
+        hbox = QHBoxLayout(self)
+        hbox.setSpacing(2)
+        hbox.setMargin(0)
+        
+        #~ print parent.size().width()-3*22
+        #~ spacer = QSpacerItem(parent.size().width()-3*22, 28, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        #~ hbox.addItem(spacer)    
+
+        if closable:
+            delete_icon = QIcon()
+            delete_icon.addPixmap(QPixmap(":/images/icons/delete.png"), QIcon.Normal, QIcon.Off)
+
+            delete_button = QPushButton()
+            delete_button.setIcon(delete_icon)
+            delete_button.setToolTip('delete axes')
+            delete_button.setIconSize(QSize(16, 16))
+            delete_button.setMaximumSize(QSize(22, 22))
+            
+            #~ delete_button.setEnabled(False)
+            QObject.connect(delete_button, SIGNAL("clicked()"), parent.on_delete_clicked)
+            
+            hbox.addWidget(delete_button)
+        
+        pop_icon = QIcon()
+        pop_icon.addPixmap(QPixmap(":/images/icons/pop.png"), QIcon.Normal, QIcon.Off)
+
+        pop_button = QPushButton()
+        pop_button.setIcon(pop_icon)
+        pop_button.setToolTip('popout')
+        pop_button.setIconSize(QSize(16, 16))
+        pop_button.setMaximumSize(QSize(22, 22))
+        
+        #~ pop_button.setEnabled(False)
+        QObject.connect(pop_button, SIGNAL("clicked()"), parent.on_pop_clicked)
+        
+        hbox.addWidget(pop_button)
+
+        exp_icon = QIcon()
+        exp_icon.addPixmap(QPixmap(":/images/icons/expand.png"), QIcon.Normal, QIcon.Off)
+        
+        exp_button = QPushButton()
+        exp_button.setIcon(exp_icon)
+        exp_button.setToolTip('expand plot')
+        exp_button.setIconSize(QSize(16, 16))
+        exp_button.setMaximumSize(QSize(22, 22))
+        
+        QObject.connect(exp_button, SIGNAL("clicked()"), parent.on_expand_clicked)
+        
+        hbox.addWidget(exp_button)

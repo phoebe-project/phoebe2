@@ -260,8 +260,8 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             server = self.prefs.get_server(str(servername))
         
         # set data for parameter tree views
-        self.sx_serveredit_psedit.set_data([server.server_ps] if server is not None else [],style=['nofit','incl_label'])
-        self.sx_serveredit_mpipsedit.set_data([server.mpi_ps] if server is not None and server.mpi_ps is not None else [],style=['nofit','incl_label'])
+        self.sx_serveredit_psedit.set_data([server.settings['server']] if server is not None else [],style=['nofit','incl_label'])
+        self.sx_serveredit_mpipsedit.set_data([server.settings['mpi']] if server is not None and server.settings['mpi'] is not None else [],style=['nofit','incl_label'])
         
     def coedit_changed(self,label):
         if label == 'None' or label == '':
@@ -269,7 +269,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         else:
             co = self.prefs.get_compute(str(label))
             
-        self.co_psedit.set_data([co] if co is not None else [],style=['nofit','incl_label'])
+        self.co_psedit.set_data([co] if co is not None else [],style=['nofit','incl_label'],hide_params=['time','refs','types'])
         
     def foedit_changed(self,label):
         if label == 'None' or label == '':
