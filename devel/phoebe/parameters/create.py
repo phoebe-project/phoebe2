@@ -689,6 +689,7 @@ def dep_from_object(myobject,context,**kwargs):
             obsdep[key] = myobject[key]
     return obsdep
 
+
 def binary_from_stars(star1, star2, sma=None, period=None,\
                       kwargs1=None, kwargs2=None, orbitkwargs=None,\
                       create_body=False, **kwargs):
@@ -803,7 +804,13 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     orbit['c1label'] = comp1['label']
     orbit['c2label'] = comp2['label']
     logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
-    return comp1,comp2,orbit    
+    
+    
+    if create_body:
+        system = make_body_from_parametersets((comp1, comp2, orbit))
+        return system
+    else:   
+        return comp1, comp2, orbit    
 
 def stars_from_binary(comp1, comp2, orbit):
     """

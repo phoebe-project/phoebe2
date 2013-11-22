@@ -1531,7 +1531,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
         if col == 'flux':
             f, e_f = conversions.convert(units[col],
                                          myds.get_parameter(col).get_unit(), 
-                                         myds['flux'], myds['sigma'])
+                                         myds['flux'], myds['sigma'], passband=pb['passband'])
             myds['flux'] = f
             myds['sigma'] = e_f
     
