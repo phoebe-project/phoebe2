@@ -7,9 +7,6 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     
     add_vsini
     add_rotfreqcrit
-    add_solarosc
-    add_solarosc_Deltanu0
-    add_solarosc_numax
     add_surfgrav
     add_teffpolar
     add_angdiam
@@ -39,6 +36,9 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 
     add_amplvelo
     add_nonadiabatic_coefficients
+    add_solarosc
+    add_solarosc_Deltanu0
+    add_solarosc_numax
     
 **Constraints for reddening**
 
@@ -51,6 +51,10 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 .. autosummary::
 
     add_parallax
+    
+**Constraints for spectral synthesis**
+
+
 
 **Helper functions**
 

@@ -1649,6 +1649,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             elif do_V:
                 stokes_V += cos_theta[i] * (specm-specp) / 2.0
 
+    # This case: numerical but Gaussian profile
     elif method == 'numerical':
         # Derive intrinsic width of the profile
         sigma = conversions.convert('km/s', 'AA', vmicro, wave=(wc, 'AA')) - wc
@@ -1672,9 +1673,15 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
         rad_velosw = conversions.convert('km/s', 'AA', rad_velos, wave=(wc, 'AA')) - wc
         
         cc_ = constants.cc / 1000.
-        teff = the_system.mesh['teff'][keep]
-        teff_mean = 27000.0
-        alpha_T = 1.0
+        teff_local = the_system.mesh['teff'][keep]
+        
+        try:
+            main_parset = the_system.params.values()[0]
+            teff_mean = main_parset['teff']
+        except IndexError, KeyError:
+            logger.critical("Cannot figure out reference temperature, set to T=10000K")
+            teff_mean = 10000.
+            alpha_T = 1.0
         
         iterator = zip(proj_intens,rad_velos,sizes,B,cos_theta)
         for i, (pri, rv, sz, iB, costh) in enumerate(iterator):
@@ -1686,7 +1693,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             #specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
             
             # Correct the template for the temperature:
-            template_ = 1.00 - (alpha_T * (teff[i]-teff_mean)/teff_mean + 1.0)*(1-template)
+            template_ = 1.00 - alpha_T * (teff[i]/teff_mean)*(1-template)
             
             # First version but inline
             wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)

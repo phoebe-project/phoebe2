@@ -359,12 +359,12 @@ def mpirun(fctn):
                 raise
             # Finally, clean up the pickle files that are lying around
             #finally:
-                #if os.path.isfile(sys_file.name):
-                    #os.unlink(sys_file.name)
-                #if os.path.isfile(args_file.name):
-                    #os.unlink(args_file.name)
-                #if os.path.isfile(kwargs_file.name):
-                    #os.unlink(kwargs_file.name)
+            if os.path.isfile(sys_file.name):
+                os.unlink(sys_file.name)
+            if os.path.isfile(args_file.name):
+                os.unlink(args_file.name)
+            if os.path.isfile(kwargs_file.name):
+                os.unlink(kwargs_file.name)
             
             # And compute pblum or l3 and postprocess
             system.bin_oversampling()
