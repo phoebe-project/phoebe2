@@ -170,6 +170,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # Create canvas for expanded plot
         self.expanded_plot_widget, self.expanded_canvas = self.create_plot_widget()
+        self.expanded_canvas.info['axes_i'] = 'expanded'
         expanded_plot = phoebe_dialogs.CreatePopPlot()
         expanded_plot.xaxisCombo.axes_i = 'expanded'
         expanded_plot.yaxisCombo.axes_i = 'expanded'
@@ -178,7 +179,15 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         expanded_plot.title_saveButton.axes_i = 'expanded'
         self.mp_expandLayout.addWidget(expanded_plot.plot_Widget,0,0)
         expanded_plot.plot_gridLayout.addWidget(self.expanded_plot_widget,0,0)
+        expanded_plot.zoom_in.info = {'axes_i': 'expanded', 'canvas': self.expanded_canvas}
+        expanded_plot.zoom_out.info = {'axes_i': 'expanded'}
+        expanded_plot.save.info = {'axes_i': 'expanded'}
         self.expanded_plot = expanded_plot
+        
+        QObject.connect(expanded_plot.zoom_in, SIGNAL("toggled(bool)"), self.on_plot_zoom_in_toggled)
+        QObject.connect(self.expanded_canvas, SIGNAL("plot_zoom"), self.on_plot_zoom_in)
+        QObject.connect(expanded_plot.zoom_out, SIGNAL("clicked()"), self.on_plot_zoom_out_clicked)
+        QObject.connect(expanded_plot.save, SIGNAL("clicked()"), self.on_plot_save_clicked)
       
         # Create undo stack
         self.undoStack = QUndoStack(self)
@@ -813,8 +822,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     plottype='rvobs'
                 if self.sender()==self.mp_addSPPlotPushButton:
                     plottype='spobs'
-            add_command = 'bundle.add_axes(category=\'%s\', title=\'Plot %d\')' % (plottype[:-3],len(self.bundle.get_axes())+1)
-            remove_command = 'bundle.remove_axes(%d)' % (len(self.bundle.get_axes()))
+            title = 'Plot %d' % len(self.bundle.get_axes())+1
+            add_command = "bundle.add_axes(category='%s', title='Plot %d')" % (plottype[:-3],title)
+            remove_command = "bundle.remove_axes('%s')" % (title)
             command = phoebe_widgets.CommandRun(self.PythonEdit,add_command,remove_command,kind='plots',thread=False,description='add new plot')
             
             self.undoStack.push(command) 
@@ -829,8 +839,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             QObject.connect(canvas, SIGNAL("plot_delete"), self.on_plot_del)
             QObject.connect(canvas, SIGNAL("plot_pop"), self.on_plot_pop)
             overlay = phoebe_plotting.PlotOverlay(canvas,closable)
-        else:
-            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
+        #~ else:
+            #~ QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
         vbox = QVBoxLayout()
         vbox.addWidget(canvas)
         if not thumb:
@@ -916,7 +926,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             i = self.plot_canvases.index(self.sender())
             
             # make title and axes options available from canvas
-            self.expanded_canvas.info = {'xaxisCombo': self.expanded_plot.xaxisCombo, 'yaxisCombo': self.expanded_plot.yaxisCombo, 'titleLinkButton': self.expanded_plot.titleLinkButton}
+            self.expanded_canvas.info = {'axes_i': i, 'xaxisCombo': self.expanded_plot.xaxisCombo, 'yaxisCombo': self.expanded_plot.yaxisCombo, 'titleLinkButton': self.expanded_plot.titleLinkButton, 'zoominButton': self.expanded_plot.zoom_in}
             self.update_plot_widgets(i,self.expanded_canvas)
             
             if i!= self.pop_i: # then we've changed plots and need to force a redraw
@@ -962,6 +972,58 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         if self.bundle.get_setting('update_mesh_on_select_time'):
             self.on_mesh_update_clicked()
+            
+    def on_plot_zoom_in_toggled(self,state):
+        # this function is called whenever the toggle button changes state
+        # and just controls whether the recselect is active or not
+        # after selecting a rectangle and releasing, the canvas will emit
+        # a signal 'plot_zoom' which will then call the function on_plot_zoom_in
+        
+        button = self.sender()
+        canvas = button.info['canvas']
+        canvas.recselect.set_active(state)
+            
+    def on_plot_zoom_in(self,axes_i,xlim,ylim):
+        # this function should be entered from the 'plot_zoom' signal
+        # sent from the canvas when the recselect has been set
+        
+        axesname = self.bundle.get_axes(axes_i).get_value('title')
+        current_zoom = self.bundle.get_axes(axes_i).get_zoom()
+        
+        canvas = self.sender()
+        canvas.info['zoominButton'].setChecked(False)
+        
+        do_command = "bundle.get_axes('%s').set_zoom(%s,%s)" % (axesname, xlim, ylim)
+        undo_command = "bundle.get_axes('%s').set_zoom(%s)" % (axesname, current_zoom)
+        description = "%s zoom in" % axesname
+        self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)
+
+            
+    def on_plot_zoom_out_clicked(self,*args):
+        # reset zoom to automatic values and make sure the zoom in button is disabled
+        
+        button = self.sender()
+        button.info['canvas'].info['zoominButton'].setChecked(False)        
+        axes_i = self.pop_i if button.info['axes_i'] == 'expanded' else button.info['axes_i']
+        axesname = self.bundle.get_axes(axes_i).get_value('title')
+        current_zoom = self.bundle.get_axes(axes_i).get_zoom()
+        
+        do_command = "bundle.get_axes('%s').set_zoom((None,None),(None,None))" % axesname
+        undo_command = "bundle.get_axes('%s').set_zoom(%s)" % (axesname, current_zoom)
+        description = "%s zoom out" % axesname
+        self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)
+        
+    def on_plot_save_clicked(self,*args):
+        button = self.sender()
+        axes_i = self.pop_i if button.info['axes_i'] == 'expanded' else button.info['axes_i']
+        axesname = self.bundle.get_axes(axes_i).get_value('title')
+        
+        filename = QFileDialog.getSaveFileName(self, 'Export Axes Image', self.latest_dir if self.latest_dir is not None else './', **_fileDialog_kwargs)
+
+        do_command = "bundle.save_axes('%s','%s')" % (axesname, filename)
+        undo_command = "print 'cannot undo save axes'"
+        description = "save axes"
+        self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)
 
     @PyInterp_selfdebug
     def on_plot_pop(self,i=None):
@@ -999,7 +1061,17 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(pop.title_saveButton, SIGNAL("clicked()"), self.on_plot_title_save)  
         
         # make title and axes options available from canvas
-        canvas.info = {'xaxisCombo': pop.xaxisCombo, 'yaxisCombo': pop.yaxisCombo, 'titleLinkButton': pop.titleLinkButton}
+        canvas.info = {'axes_i': i, 'xaxisCombo': pop.xaxisCombo, 'yaxisCombo': pop.yaxisCombo, 'titleLinkButton': pop.titleLinkButton, 'zoominButton': pop.zoom_in}
+        
+        # zoom and save buttons
+        pop.zoom_in.info = {'axes_i': i, 'canvas': canvas}
+        pop.zoom_out.info = {'axes_i': i}
+        pop.save.info = {'axes_i': i}
+        
+        QObject.connect(pop.zoom_in, SIGNAL("toggled(bool)"), self.on_plot_zoom_in_toggled)
+        QObject.connect(canvas, SIGNAL("plot_zoom"), self.on_plot_zoom_in)
+        QObject.connect(pop.zoom_out, SIGNAL("clicked()"), self.on_plot_zoom_out_clicked)
+        QObject.connect(pop.save, SIGNAL("clicked()"), self.on_plot_save_clicked)
         
         plotEntryWidget = phoebe_dialogs.CreateDatasetWidget()
         plotEntryWidget.datasetTreeView.plotindex = i
@@ -1238,8 +1310,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             return
         
         axesname = self.bundle.get_axes(axes_i).get_value('title')
-        command_do = "bundle.get_axes('%s').get_plot(%d).set_value('%s','%s')" % (axes_i, plot_i, param, new_value)
-        command_undo = "bundle.get_axes('%s').get_plot(%d).set_value('%s','%s')" % (axes_i, plot_i, param, old_value)
+        command_do = "bundle.get_axes('%s').get_plot(%d).set_value('%s','%s')" % (axesname, plot_i, param, new_value)
+        command_undo = "bundle.get_axes('%s').get_plot(%d).set_value('%s','%s')" % (axesname, plot_i, param, old_value)
         
         command = phoebe_widgets.CommandRun(self.PythonEdit,command_do, command_undo, thread=False, description='change plotting option', kind='plots')
         
@@ -1270,6 +1342,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         this will be called after any command is sent through the python interface
         anything that cannot be caught through signals belongs here
         """
+        #~ import time
+        #~ start_time = time.time()
+        
         try:
             self.bundle = self.PyInterp_get('bundle')
             #~ self.prefs = self.PyInterp_get('settings')
@@ -1277,7 +1352,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             return
             
         if self.bundle is not None and self.bundle.system is not None:
-            self.update_system()
+            self.update_system()  # TRY TO OPTIMIZE OR USE SIGNALS (costs ~0.15 s)
             self.on_fittingOption_changed()
             self.update_observeoptions()
             if self.mp_stackedWidget.currentIndex()==0:
@@ -1314,7 +1389,26 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # update plot mesh options - should probably move this
             self.sys_meshOptionsTreeView.set_data([self.bundle.plot_meshviewoptions],style=['nofit'])
             self.sys_orbitOptionsTreeView.set_data([self.bundle.plot_orbitviewoptions],style=['nofit'])
-        
+
+            # bundle lock
+            if self.bundle.lock['locked']:
+                if self.lock_pop is None:
+                    self.lock_pop = phoebe_dialogs.CreatePopLock(self,self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
+                    QObject.connect(self.lock_pop, SIGNAL("parameterCommand"), self.on_param_command)   
+                    QObject.connect(self.lock_pop.save_button, SIGNAL("clicked()"), self.on_save_clicked)         
+                    QObject.connect(self.lock_pop.saveas_button, SIGNAL("clicked()"), self.on_save_clicked)         
+                    QObject.connect(self.lock_pop.new_button, SIGNAL("clicked()"), self.on_new_clicked)      
+                    # all other signals handled in phoebe_dialogs.CreatePopLock subclass   
+                else:
+                    self.lock_pop.setup(self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
+                self.lock_pop.show()
+                self.lock_pop.shown = True
+                self.gui_lock()
+            elif self.lock_pop is not None and self.lock_pop.shown:
+                self.lock_pop.hide()
+                self.lock_pop.shown = False
+                self.gui_unlock()
+
         else:
             if self.mp_stackedWidget.currentIndex()!=0:
                 self.mp_stackedWidget.setCurrentIndex(0)
@@ -1351,33 +1445,22 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ self.lp_stackedWidget.setCurrentIndex(1) #compute
             self.rp_stackedWidget.setCurrentIndex(1) #feedback
             
-        if self.bundle.lock['locked']:
-            if self.lock_pop is None:
-                self.lock_pop = phoebe_dialogs.CreatePopLock(self,self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
-                QObject.connect(self.lock_pop, SIGNAL("parameterCommand"), self.on_param_command)   
-                QObject.connect(self.lock_pop.save_button, SIGNAL("clicked()"), self.on_save_clicked)         
-                QObject.connect(self.lock_pop.saveas_button, SIGNAL("clicked()"), self.on_save_clicked)         
-                QObject.connect(self.lock_pop.new_button, SIGNAL("clicked()"), self.on_new_clicked)      
-                # all other signals handled in phoebe_dialogs.CreatePopLock subclass   
-            else:
-                self.lock_pop.setup(self.bundle.lock,self.bundle.get_server(self.bundle.lock['server']))
-            self.lock_pop.show()
-            self.lock_pop.shown = True
-            self.gui_lock()
-        elif self.lock_pop is not None and self.lock_pop.shown:
-            self.lock_pop.hide()
-            self.lock_pop.shown = False
-            self.gui_unlock()
+
             
         #### TESTING ###
         ## EVENTUALLY RUN ONLY WHEN NEEDED THROUGH SIGNAL OR OTHER LOGIC
+        ## OR NEED TO SIGNIFICANTLY OPTIMIZE
+        ## this is causing the majority of lag (0.4 s)
         self.update_datasets()
+        
+        #~ end_time = time.time()
+        #~ print "!!!", end_time - start_time
         
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
         title = 'Plot %d' % (len(self.bundle.get_axes())+1)
-        do_command = 'bundle.add_axes(category=\'%s\', title=\'%s\')' % (category,title)
-        undo_command = 'bundle.remove_axes(%d)' % (len(self.bundle.get_axes()))
+        do_command = "bundle.add_axes(category='%s', title='%s')" % (category,title)
+        undo_command = "bundle.remove_axes('%s')" % (title)
         command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
         self.undoStack.push(command)
         

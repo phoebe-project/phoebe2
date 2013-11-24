@@ -49,7 +49,7 @@
              </font>
             </property>
             <property name="text">
-             <string>[Zoom In]</string>
+             <string>Zoom In</string>
             </property>
             <property name="icon">
              <iconset resource="ui_resources.qrc">
@@ -84,7 +84,7 @@
              </font>
             </property>
             <property name="text">
-             <string>[Zoom Out]</string>
+             <string>Zoom Out</string>
             </property>
             <property name="icon">
              <iconset resource="ui_resources.qrc">
@@ -126,7 +126,7 @@
              </font>
             </property>
             <property name="text">
-             <string>[Save]</string>
+             <string>Save</string>
             </property>
             <property name="iconSize">
              <size>
