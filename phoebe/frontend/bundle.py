@@ -279,6 +279,9 @@ class Bundle(object):
                 system = create.body_from_string(system)
             
             self.system = system
+            
+        if self.system is None:
+            return
         
         # initialize uptodate
         self.system.uptodate = False
@@ -406,7 +409,7 @@ class Bundle(object):
             rtype = return_type
             return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
     
-    def get_object(self,objectname):
+    def get_object(self,objectname=None):
         """
         search for an object inside the system structure and return it if found
         this will return the Body or BodyBag
@@ -416,16 +419,19 @@ class Bundle(object):
         @type objectname: str, Body, or BodyBag
         @param bodybag: the bodybag to search under (will default to system)
         @type bodybag: BodyBag
-        @return: the object
-        @rtype: ParameterSet
+        @return: the object or dictionary of objects
+        @rtype: ParameterSet or OrderedDict
         """
         #this should return a Body or BodyBag
-        
-        if not isinstance(objectname,str): #then return whatever is sent (probably the body or bodybag)
+        if objectname is not None and not isinstance(objectname,str): #then return whatever is sent (probably the body or bodybag)
             return objectname
             
         names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
-        return objects[names.index(objectname)]
+        
+        if objectname is not None:
+            return objects[names.index(objectname)]
+        else:
+            return OrderedDict([(n,o) for n,o in zip(names,objects)])
         
     def list(self,summary=None,*args):
         """
@@ -538,24 +544,33 @@ class Bundle(object):
             return params['star']
         return None
     
-    def get_orbit(self,objectname):
+    def get_orbit(self,objectname=None):
         """
         retrieve the ParameterSet for a orbit by name
         
         @param objectname: label of the desired object
         @type objectname: str or BodyBag
-        @return: the ParameterSet of the orbit
-        @rtype: ParameterSet
+        @return: the ParameterSet of the orbit or dictionary
+        @rtype: ParameterSet or OrderedDict
         """
-        if not isinstance(objectname,str):
+        if objectname is not None and not isinstance(objectname,str):
             objectname = self.get_label(objectname)
+        
+        orbits = OrderedDict()
         
         # for orbits we have to be more clever
         for path,item in self.system.walk_all():
-            if path[-1] == 'orbit' and item['label']==objectname:
-                return item
-        return None
-    
+            if path[-1] == 'orbit':
+                if objectname is not None and objectname == item['label']:
+                    return item
+                orbits[item['label']] = item
+        
+        if objectname is None:
+            return orbits
+        else:
+            # would already have returned if there was a match
+            return None
+
     def get_mesh(self,objectname):
         """
         retrieve the ParameterSet for a mesh by name
@@ -973,13 +988,13 @@ class Bundle(object):
                 #~ ds.load()
                 comp.add_obs(ds)
     
-    def load_data(self,context,filename,passband=None,columns=None,components=None,ref=None):
+    def load_data(self,category,filename,passband=None,columns=None,components=None,ref=None):
         """
         import data from a file, create multiple DataSets, load data,
         and add to corresponding bodies
         
-        @param context: context
-        @type context: str
+        @param category: category (lc, rv, sp, etv)
+        @type category: str
         @param filename: filename
         @type filename: str
         @param passband: passband
@@ -992,18 +1007,20 @@ class Bundle(object):
         @type ref: str    
         """
         
-        if 'rv' in context:
+        if category=='rv':
             output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'lc' in context:
+        elif category=='lc':
             output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'etv' in context:
+        elif category=='etv':
             output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif 'sp' in context:
+        elif category=='sp':
             output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
         else:
+            output = None
             print("only lc, rv, etv, and sp currently implemented")
         
-        self._attach_datasets(output)
+        if output is not None:
+            self._attach_datasets(output)
                        
     def create_syn(self, category='lc', times=None, components=None,
                    ref=None, **pbkwargs):
@@ -1043,6 +1060,9 @@ class Bundle(object):
                 # then top-level
                 components = [self.get_system_structure(flat=True)[0]]
                 logger.warning('components not provided - assuming {}'.format(components))
+            else:
+                logger.error('create_syn failed: components need to be provided')
+                return
 
         output = {}
         for component in components:
