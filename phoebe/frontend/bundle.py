@@ -1710,7 +1710,21 @@ class Bundle(object):
         """
         axes = self.get_axes(ident)
         axes.plot(self,mplfig=mplfig,mplaxes=mplaxes,location=location)
-                
+        
+    def save_axes(self,ident,filename=None):
+        """
+        Save an axes to an image
+        
+        @param ident: index or title of the axes
+        @type ident: int or str
+        @param filename: name of desired output image
+        @type filename: str
+        """
+        axes = self.get_axes(ident)
+        if filename is None:
+            filename = "{}.png".format(axes.get_value('title').replace(' ','_'))
+        axes.savefig(self, filename)
+
     def anim_axes(self,ident,nframes=100,fps=24,outfile='anim',**kwargs):
         """
         Animate an axes on top of a meshplot

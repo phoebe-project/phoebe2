@@ -2408,9 +2408,9 @@ class Ui_popPlot_Dialog(object):
 
     def retranslateUi(self, popPlot_Dialog):
         popPlot_Dialog.setWindowTitle(QtGui.QApplication.translate("popPlot_Dialog", "PHOEBE - Plot", None, QtGui.QApplication.UnicodeUTF8))
-        self.zoom_in.setText(QtGui.QApplication.translate("popPlot_Dialog", "[Zoom In]", None, QtGui.QApplication.UnicodeUTF8))
-        self.zoom_out.setText(QtGui.QApplication.translate("popPlot_Dialog", "[Zoom Out]", None, QtGui.QApplication.UnicodeUTF8))
-        self.save.setText(QtGui.QApplication.translate("popPlot_Dialog", "[Save]", None, QtGui.QApplication.UnicodeUTF8))
+        self.zoom_in.setText(QtGui.QApplication.translate("popPlot_Dialog", "Zoom In", None, QtGui.QApplication.UnicodeUTF8))
+        self.zoom_out.setText(QtGui.QApplication.translate("popPlot_Dialog", "Zoom Out", None, QtGui.QApplication.UnicodeUTF8))
+        self.save.setText(QtGui.QApplication.translate("popPlot_Dialog", "Save", None, QtGui.QApplication.UnicodeUTF8))
         self.titleLinkButton.setText(QtGui.QApplication.translate("popPlot_Dialog", "Plot 1", None, QtGui.QApplication.UnicodeUTF8))
         self.title_cancelButton.setText(QtGui.QApplication.translate("popPlot_Dialog", "Cancel", None, QtGui.QApplication.UnicodeUTF8))
         self.title_saveButton.setText(QtGui.QApplication.translate("popPlot_Dialog", "Save", None, QtGui.QApplication.UnicodeUTF8))

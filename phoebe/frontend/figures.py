@@ -155,8 +155,30 @@ class Axes(object):
         @param value: the new value
         """
         self.settings['axes'].set_value(key,value)
+        
+    def set_zoom(self,xlim,ylim):
+        """
+        set the xlim and ylim
+        Same as set_value('xlim',xlim); set_value('ylim',ylim)
+        
+        @param xlim: xlimits (xmin,xmax)
+        @type xlim: tuple
+        @param ylim: ylimits (ymin,ymax)
+        @type ylim: tuple
+        """
+        self.set_value('xlim',xlim)
+        self.set_value('ylim',ylim)
+        
+    def get_zoom(self):
+        """
+        returns the xlim and ylim
+        
+        @return: ((xmin,xmax),(ymin,ymax))
+        @rtype: 2 tuples
+        """
+        return self.get_value('xlim'),self.get_value('ylim')
 
-    def savefig(self,system,fname):
+    def savefig(self,bundle,fname):
         """
         Save the plot to a file
         
@@ -165,10 +187,10 @@ class Axes(object):
         @parameter fname: filename of output image
         @type fname: str
         """
-        if self.mplaxes is None:
-            self.plot(system)
-        self.mplaxes.savefig(fname)
-        return
+        
+        self.plot(bundle)
+        plt.savefig(fname)
+        return fname
             
     def plot(self,bundle,mplfig=None,mplaxes=None,location=None,*args,**kwargs):
         """
@@ -359,4 +381,4 @@ class Axes(object):
                 else:
                     logger.warning("did not recognize type {}".format(so.get_value('type')))
                     
-            mplaxes_sel.set_ylim(mplfig.data_axes.get_ylim())
+        mplaxes_sel.set_ylim(mplfig.data_axes.get_ylim())
