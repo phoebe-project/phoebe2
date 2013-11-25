@@ -108,6 +108,31 @@ def run_on_server(fctn):
 class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
+    
+    What is the Bundle?
+    
+    What main properties does it have? (rough sketch of structure)
+        - a Body (can also be BodyBag), called :envvar:`system` in this context.
+        - ...
+        - ...
+        
+    How do you initialize it? Examples and/or refer to :py:func:`set_system`.
+        
+    What methods does it have?
+    
+    **Input/output**
+    
+    **Setting and getting system parameters**
+    
+    **Setting and getting computational parameters**
+    
+    **Setting and getting fit parameters**
+    
+    **Getting results**
+    
+    **History and GUI functionality**
+    
+    
     """
     def __init__(self,system=None):
         """
@@ -409,7 +434,7 @@ class Bundle(object):
             rtype = return_type
             return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
     
-    def get_object(self,objectname=None):
+    def get_object(self, objectname=None):
         """
         search for an object inside the system structure and return it if found
         this will return the Body or BodyBag
@@ -508,7 +533,7 @@ class Bundle(object):
         
         return
     
-    def get_ps(self,objectname):
+    def get_ps(self, objectname):
         """
         retrieve the ParameterSet for a component or orbit
         this is the same as calling get_orbit or get_component, except that this tries to predict the type first
@@ -526,6 +551,7 @@ class Bundle(object):
             return self.get_orbit(obj)
         else:
             return self.get_component(obj)
+        
         
     def get_component(self,objectname):
         """
@@ -695,12 +721,20 @@ class Bundle(object):
         else:
             return return_[0]
             
-    def get_parameter(self,qualifier,objref=None):
+    def get_parameter(self, qualifier, objref=None):
         """
-        Retrieve a parameter from the system
-        If objref is not provided and there are more than one object in 
-        they system containing a parameter with the same name, this will
-        return an error and ask you to provide a valid objref
+        Retrieve a parameter from the system.
+        
+        If :envvar:`objref` is not provided and there is more than one object in 
+        the system containing a parameter with the same name, this will return
+        a :envvar:`ValueError` and ask you to provide a valid :envvar:`objref`.
+        
+        If there is more than one parameter with the same name in the same
+        object, a :envvar:`ValueError` will be raised.
+        
+        If the parameter is not found a :envvar:`ValueError` is raised.
+        
+        See also: :py:func:`Bundle.set_value`, :py:func:`Bundle.set_adjust`
         
         @param qualifier: name or alias of the variable
         @type qualifier: str
@@ -722,13 +756,17 @@ class Bundle(object):
                 return_objrefs.append(objref)
                 
         if len(return_params) > 1:
-            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for objref:\n{}".format(qualifier,'\n'.join(["\t'%s'" % ref for ref in return_objrefs])))
+            raise ValueError(("parameter '{}' is ambiguous, please provide one "
+                              "of the following for "
+                              "objref:\n{}").format(qualifier,'\n'.join(["\t'%s'" % ref for ref in return_objrefs])))
 
-        elif len(return_params)==0:
-            raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
+        elif len(return_params) == 0:
+            raise ValueError(("parameter '{}' was not found in any of the "
+                              "objects in the system").format(qualifier))
             
         return return_params[0]
-        
+      
+      
     def get_value(self,qualifier,objref=None):
         """
         Retrieve the value from a parameter from the system
@@ -769,14 +807,19 @@ class Bundle(object):
         param = self.get_parameter(qualifier,objref)
         param.set_value(value)
         
-    def set_adjust(self,qualifier,adjust=True,objref=None):
+    def set_adjust(self, qualifier, adjust=True, objref=None):
         """
-        Set adjust for a parameter from the system
-        This is identical to bundle.get_parameter(qualifier,objref).set_adjust(adjust)
+        Set adjust for a parameter from the system.
         
-        If objref is not provided and there are more than one object in 
-        they system containing a parameter with the same name, this will
-        return an error and ask you to provide a valid objref
+        The following two calls are equivalent::
+            
+            bundle.set_adjust(qualifier, adjust, objref)
+            bundle.get_parameter(qualifier, objref).set_adjust(adjust)
+        
+        If :envvar:`objref` is not provided and there is more than one object
+        in the system containing a parameter with the same name, this will
+        return an error (<Q>: What error?) and ask you to provide a valid
+        :envvar:`objref`.
         
         @param qualifier: name or alias of the variable
         @type qualifier: str
@@ -786,7 +829,7 @@ class Bundle(object):
         @type objref: str
         """
         
-        param = self.get_parameter(qualifier,objref)
+        param = self.get_parameter(qualifier, objref)
         param.set_adjust(adjust)
         
     #}  
@@ -899,9 +942,14 @@ class Bundle(object):
 
     #}
     #{ Datasets
-    def _get_data_ps(self,kind,objref,dataref,force_dict):
+    def _get_data_ps(self, kind, objref, dataref, force_dict):
         """
-        used by get_obs, get_syn, and get_dep
+        Retrieve a parameterSet of type dep, obs or syn.
+        
+        Used by :py:func:`Bundle.get_obs`, :py:func:`Bundle.get_syn`, and
+        :py:func:`Bundle.get_dep`
+        
+        <Q>: why are objref, dataref and force_dict not None by default?
         
         @param kind: 'obs', 'syn', or 'dep'
         @type kind: str
@@ -921,7 +969,8 @@ class Bundle(object):
                 for parset in parsets.values():
                     if parset not in return_:
                         return_['%s:%s' % (objref, parset.get_value('ref'))] = parset
-            if len(return_)==1 and not force_dict:
+                        
+            if len(return_) == 1 and not force_dict:
                 return return_.values()[0]
             else:
                 return return_
@@ -931,16 +980,18 @@ class Bundle(object):
         
         if dataref is not None:
             # then search for the dataref by name/index
-            if kind=='syn':
+            if kind == 'syn':
                 parset = obj.get_synthetic(ref=dataref, cumulative=True)
             else:
-                parset = obj.get_parset(type=kind,ref=dataref)[0]
+                parset = obj.get_parset(type=kind, ref=dataref)[0]
+            
             if parset != None and parset != []:
                 if force_dict:
                     return OrderedDict([('%s:%s' % (objref, parset.get_value('ref')), parset)])
                 else:
                     return parset
             return OrderedDict()
+        
         else:
             # then loop through indices until there are none left
             return_ = []
@@ -948,12 +999,14 @@ class Bundle(object):
                 for typ in obj.params[kind]:
                     for ref in obj.params[kind][typ]:
                         return_.append(obj.params[kind][typ][ref])
+            
             if len(return_)==1 and not force_dict:
                 return return_[0]
             else:
                 return {'%s:%s' % (objref, r.get_value('ref')): r for r in return_}
-                
-    def _attach_datasets(self,output):
+            
+            
+    def _attach_datasets(self, output):
         """
         attach datasets and pbdeps from parsing file or creating synthetic datasets
         
@@ -1093,7 +1146,7 @@ class Bundle(object):
         
     def add_obs(self, objectname, dataset):
         """
-        attach dataset to an object
+        Attach a dataset to an object
         
         @param objectname: name of the object to attach the dataset to
         @type objectname: str
@@ -1108,7 +1161,7 @@ class Bundle(object):
         elif typ=='obs':
             obj.add_obs(ds)
         
-    def get_obs(self,objref=None,dataref=None,force_dict=False):
+    def get_obs(self, objref=None, dataref=None, force_dict=False):
         """
         get an observables dataset by the object its attached to and its label
         if objectname and ref are given, this will return a single dataset
@@ -1123,25 +1176,29 @@ class Bundle(object):
         """
         
         return self._get_data_ps('obs',objref,dataref,force_dict)
-                
+        
+        
     def enable_obs(self,dataref=None):
         """
+        Include observations in the fitting process by enabling them.
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         """
-        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
-            obs.enabled=True
-        return
+        for obs in self.get_obs(dataref=dataref, force_dict=True).values():
+            obs.set_enabled(True)
+            
                
     def disable_obs(self,dataref=None):
         """
+        Exclude observations from the fitting process by disabling them.
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         """
+        for obs in self.get_obs(dataref=dataref, force_dict=True).values():
+            obs.set_enabled(False)
         
-        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
-            obs.enabled=False
-        return
         
     def adjust_obs(self,dataref=None,l3=None,pblum=None):
         """
@@ -1159,6 +1216,7 @@ class Bundle(object):
             if pblum is not None:
                 obs.set_adjust('pblum',pblum)
         return
+        
         
     def remove_data(self,dataref):
         """
@@ -1179,6 +1237,7 @@ class Bundle(object):
                 obj.remove_pbdeps(refs=[dataref]) 
 
         return
+            
             
     def get_syn(self,objref=None,dataref=None,force_dict=False):
         """
