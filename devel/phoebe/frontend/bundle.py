@@ -434,7 +434,7 @@ class Bundle(object):
             rtype = return_type
             return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
     
-    def get_object(self, objectname=None):
+    def get_object(self,objectname=None,force_dict=False):
         """
         search for an object inside the system structure and return it if found
         this will return the Body or BodyBag
@@ -449,11 +449,15 @@ class Bundle(object):
         """
         #this should return a Body or BodyBag
         if objectname is not None and not isinstance(objectname,str): #then return whatever is sent (probably the body or bodybag)
+            if force_dict:
+                return OrderedDict([(self.get_label(objectname),objectname)])
             return objectname
             
         names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
         
         if objectname is not None:
+            if force_dict:
+                return OrderedDict([(objectname,objects[names.index(objectname)])])
             return objects[names.index(objectname)]
         else:
             return OrderedDict([(n,o) for n,o in zip(names,objects)])
@@ -533,7 +537,7 @@ class Bundle(object):
         
         return
     
-    def get_ps(self, objectname):
+    def get_ps(self,objectname=None):
         """
         retrieve the ParameterSet for a component or orbit
         this is the same as calling get_orbit or get_component, except that this tries to predict the type first
@@ -552,8 +556,7 @@ class Bundle(object):
         else:
             return self.get_component(obj)
         
-        
-    def get_component(self,objectname):
+    def get_component(self,objectname=None,force_dict=False):
         """
         retrieve the ParameterSet for a component by name
         
@@ -563,12 +566,24 @@ class Bundle(object):
         @rtype: ParameterSet
         """
         # get_object already allows passing object, so we don't have to check to see if str
-        params = self.get_object(objectname=objectname).params
-        if 'component' in params.keys():
-            return params['component']
-        elif 'star' in params.keys():
-            return params['star']
-        return None
+        objects = self.get_object(objectname=objectname,force_dict=True)
+        
+        components = OrderedDict()
+        
+        for name,obj in objects.items():
+            params = obj.params
+            if 'component' in params.keys():
+                components[name] = params['component']
+            elif 'star' in params.keys():
+                components[name] = params['star']
+                
+        if objectname is None:
+            return components
+        else:
+            if force_dict:
+                name = self.get_label(objectname)
+                return OrderedDict([(name,components[name])])
+            return components[self.get_label(objectname)]
     
     def get_orbit(self,objectname=None):
         """
@@ -597,7 +612,7 @@ class Bundle(object):
             # would already have returned if there was a match
             return None
 
-    def get_mesh(self,objectname):
+    def get_mesh(self,objectname=None):
         """
         retrieve the ParameterSet for a mesh by name
         
@@ -606,12 +621,14 @@ class Bundle(object):
         @return: the ParameterSet of the mesh
         @rtype: ParameterSet
         """
-        if isinstance(objectname,str):
-            obj = self.get_object(objectname)
+        objects = self.get_object(objectname,force_dict=True)
+
+        meshes = OrderedDict([(name,obj.params['mesh']) for name,obj in objects.items() if 'mesh' in obj.params.keys()])
+
+        if objectname is None:
+            return meshes
         else:
-            obj = objectname
-            
-        return obj.params['mesh']
+            return meshes[objectname]
     
     def get_parent(self,objectname,return_type='obj'):
         """
@@ -1144,23 +1161,6 @@ class Bundle(object):
 
         self._attach_datasets(output)
         
-    def add_obs(self, objectname, dataset):
-        """
-        Attach a dataset to an object
-        
-        @param objectname: name of the object to attach the dataset to
-        @type objectname: str
-        @param dataset: the dataset
-        @type dataset: ParameterSet
-        """
-        obj = self.get_object(objectname)
-        
-        typ = dataset.context[-3:]
-        if typ=='dep':
-            obj.add_pbdeps(dataset)
-        elif typ=='obs':
-            obj.add_obs(ds)
-        
     def get_obs(self, objref=None, dataref=None, force_dict=False):
         """
         get an observables dataset by the object its attached to and its label
@@ -1176,7 +1176,6 @@ class Bundle(object):
         """
         
         return self._get_data_ps('obs',objref,dataref,force_dict)
-        
         
     def enable_obs(self,dataref=None):
         """
