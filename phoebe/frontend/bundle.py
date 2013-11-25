@@ -235,7 +235,7 @@ class Bundle(object):
         
         Possibilities:
         
-        1. If :envvar:`system is a Body, then that body will be set as the system
+        1. If :envvar:`system` is a Body, then that body will be set as the system
         2. If :envvar:`system` is a string, the following options exist:
             - the string represents a Phoebe pickle file containing a Body; that
               one will be set

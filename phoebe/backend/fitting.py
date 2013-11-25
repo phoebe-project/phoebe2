@@ -1713,9 +1713,13 @@ def check_system(system, fitparams):
     """
     Diagnose which parameters are to be fitted, and give the user feedback when
     something is wrong.
+    
+    List the parameters that need to be fitted, but also the included data
+    sets.
     """
     pars = []
     ids = []
+    enabled = []
     logger.info("Fit setup in context {}:\n{}".format(fitparams.get_context(),
                                                       str(fitparams)))
     logger.info('Search for all parameters to be fitted:')
@@ -1738,7 +1742,14 @@ def check_system(system, fitparams):
                 ids.append(myid)
                 logger.info(('Parameter {} with prior {} (unique label: {}) '
                             '').format(qual, parameter.get_prior(), myid))
+        
+        # If this parameterSet is a DataSet, check if it is enabled
+        if parset.get_context()[-3:] == 'obs' and parset.get_enabled():
+            enabled.append('{} ({})'.format(parset['ref'], parset.get_context()))
     
+    logger.info("The following datasets are included in the fit: {}".format(", ".join(enabled)))
+            
+        
     # There has to be at least one parameter to fit, otherwise it's quite silly
     # to call the fitting routine
     if not ids:

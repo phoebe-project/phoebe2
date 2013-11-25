@@ -1519,6 +1519,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     # Intrinsic width of the profile
     vmicro = pbdep.get('vmicro', 5.0)
     depth = pbdep.get('depth', 0.4)
+    alphaT = pbdep.get('alphaT', 0.0)
     
     # Profiles to compute, and method to use
     do_V = do_Q = do_U = False
@@ -1693,7 +1694,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             #specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
             
             # Correct the template for the temperature:
-            template_ = 1.00 - alpha_T * (teff[i]/teff_mean)*(1-template)
+            template_ = 1.00 - alphaT * (teff_local[i]/teff_mean)*(1-template)
             
             # First version but inline
             wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)

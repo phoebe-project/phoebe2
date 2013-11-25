@@ -1158,6 +1158,20 @@ def add_nonadiabatic_coefficients(puls, fT=0, psiT=180., fg=0, psig=180.):
     puls.add_constraint('{phasegrav} = {psig}/180.*pi - 2*pi*{phase}')
     
     
+def add_alphaT(spdep, alphaT=0.0, **kwargs):
+    kwargs.setdefault('description','Temperature dependence of depth of profile')
+    kwargs.setdefault('context',spdep.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
+    
+    # remove any constraints on the parameter
+    spdep.pop_constraint('alphaT', None)
+    if not 'alphaT' in spdep:
+        spdep.add(parameters.Parameter(qualifier='alphaT', value=alphaT, **kwargs))
+    else:
+        spdep['alphaT'] = alphaT
     
 
 #}
