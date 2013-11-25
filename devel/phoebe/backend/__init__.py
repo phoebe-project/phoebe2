@@ -6,7 +6,6 @@ Section 1. Subpackages
 
 .. autosummary::
 
-    bundle
     universe
     observatory
     fitting

@@ -7,6 +7,7 @@ Section 1. Package structure
 
 .. autosummary::    
 
+   phoebe.frontend
    phoebe.backend
    phoebe.parameters
    phoebe.wd
