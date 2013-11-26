@@ -234,8 +234,9 @@ Convert these coordinates (returned in SI units) to solar radii:
 >>> velo1 = np.array(velo1)/constants.Rsol
 >>> velo2 = np.array(velo2)/constants.Rsol
 
-And those on its turn to angular coordinates on the sky, since the are returned
-as cartesian coordinates.
+And those on its turn to angular coordinates on the sky via
+:py:func:`truecoords_to_spherical`, since the coordinates were returned in the
+Cartesian framework.
 
 >>> ra1,dec1 = truecoords_to_spherical(pos1.T,distance=distance)
 >>> ra2,dec2 = truecoords_to_spherical(pos2.T,distance=distance)
@@ -468,6 +469,8 @@ def get_orbit(times, period, ecc, sma, t0, per0=0., long_an=0., incl=0.,
     
         a_1 = \frac{a}{1 + \frac{1}{q}} \\
         a_2 = \frac{a}{1 + q}
+    
+    See also: :py:func:`get_binary_orbit`
     
     @param times: times of observations (s)
     @type times: array
@@ -1497,7 +1500,7 @@ def truecoords_to_spherical(coords,distance=0., origin=(0.,0.), units=None):
     If you set C{distance=None}, a standard value of 10 pc will be used.
     
     @param coords: array of 3D coordinates in Rsol. X,Y must be sky-coordinates,
-    z must be the radial direction
+                   z must be the radial direction
     @type coords: (Nx3) array
     @param distance: distance to the source in Rsol or given as a tuple with unit
     @type distance: float
@@ -1778,16 +1781,28 @@ def walk_hierarchical(o,orbits=None,components=None):
 
 def get_binary_orbit(time, orbit, component, barycentric=False):
     """
-    Get the binary orbit.
+    Get the binary orbit from a Phoebe parameterSet.
     
-    Careful, everything is in Phoebe units (Rsol, Rsol/d).
+    The output is in Phoebe units, i.e.:
     
-    Barycentric thing not implemented yet.
+        - distance is in Rsol
+        - time is in days
+        - velocity is in Rsol/day
+        
+    The output is in Phoebe coordinates, i.e.:
+    
+        - x, y are the coordinates in the plane of the sky
+        - z is in the direction towards from the observer. Thus, negative z means
+          the object is going away from the observer
     
     @param time: time array or float to compute the orbit on
     @type time: numpy array or float
     @param orbit: orbit ParameterSet
     @type orbit: ParameterSet
+    @param component: 'primary' or 'secondary'
+    @type component: str
+    @param barycentric: correct for light time travel effects
+    @type barycentric: bool
     """
     #-- get some information
     P = orbit.get_value('period','d')
