@@ -431,7 +431,7 @@ class Bundle(object):
             rtype = return_type
             return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
     
-    def get_object(self,objectname=None,force_dict=False):
+    def get_object(self, objectname=None, force_dict=False):
         """
         search for an object inside the system structure and return it if found
         this will return the Body or BodyBag
@@ -451,6 +451,13 @@ class Bundle(object):
             return objectname
             
         names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
+        
+        # if the objectname is '__nolabel__', then it comes from the parsers,
+        # and it means there is no label given to this particular object. If so,
+        # it can only mean that there is only one object in the system (or it
+        # is the top object that is meant)
+        if objectname == '__nolabel__':
+            objectname = names[0]
         
         if objectname is not None:
             if force_dict:
@@ -475,8 +482,14 @@ class Bundle(object):
         
     def set_time(self,time):
         """
+        Set the time of a system, taking compute options into account.
+        
         Shortcut to bundle.get_system().set_time() which insures fix_mesh
         is called first if any data was recently attached
+        
+        TODO: we should take advantage of the compute options here in the
+              bundle. "set_time" doesn't compute reflection effects, we should
+              do that here.
         
         @param time: time
         @type time: float
@@ -552,7 +565,7 @@ class Bundle(object):
             else: #then no results
                 return None
         
-    def get_ps(self,name=None,context=None,return_type='single'):
+    def get_ps(self, name=None, context=None, return_type='single'):
         """
         Retrieve a ParameterSet(s) from the system
         
@@ -567,23 +580,33 @@ class Bundle(object):
         """
         matching_ps = OrderedDict()
         
-        if isinstance(name,str):
+        if isinstance(name, str):
             name = [name]
-        if isinstance(context,str):
+            
+        if isinstance(context, str):
             context = [context]
         
         for ps in self.get_system().walk():
-            # Is walk recursive?
-            # Why can't I find meshes?
+            # Is walk recursive? -- pieterdegroote: yes
+            # Why can't I find meshes? -- pieterdegroote: because it walks over all .params entries only (there are more general "walkers" attached to body or bodybag if you need them)
             ps_name = None
-            if 'ref' in ps.keys():
+            if 'ref' in ps:
                 ps_name = ps.get_value('ref')
                 #~ ps_name = '{}:{}'.format(ps_name,ps.get_value('ref')) # ds are coming before the first orbit, otherwise this would work
                 # TODO - there are likely going to be duplicates overwritten here
                 # so we want ps_name = "{}:{}".format(parent_name,ref)
                 # we would then need to do intelligent string matching between this and the provided name (ie if name='None:mylc')
                 # get_obs can then simply call get_ps('objref:dataref',['lcobs','rvobs','spobs','etvobs'],return_type)
-            elif 'label' in ps.keys():
+                # -- pieterdegroote: I like the idea, since it's simple for the user
+                #                    and doesn't require a lot of nomenclature
+                #                    however we can't use label:ref, because
+                #                    some parametersets already have this ':'
+                #                    perhaps we should reserve another sign, e.g. '#'
+                #                    (we need to take something that people don't use
+                #                    in filenames often, since filenames can be
+                #                    easy references for datasets
+                
+            elif 'label' in ps:
                 ps_name = ps.get_value('label')
             #~ else:
                 # are there other cases??
@@ -593,7 +616,7 @@ class Bundle(object):
                 
         return self._return_from_dict(matching_ps,return_type)
             
-    def get_parameter(self,qualifier=None,name=None,context=None,return_type='single'):
+    def get_parameter(self, qualifier, return_type='first'):
         """
         Retrieve a Parameter(s) from the system
         
@@ -609,16 +632,58 @@ class Bundle(object):
         @rtype: Parameter or OrderedDict
         """
         matching_param = OrderedDict()
+        structure_info = []
+        
+        qualifier = qualifier.split('@')
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
+                 
+        structure_info = structure_info[::-1]
         
         # first we'll loop through matching parametersets
         # and gather all parameters that match the qualifier
-        for psname,ps in self.get_ps(name,context,return_type='dict').items():
-            for parname in ps:
-                if qualifier is None or parname==qualifier:
-                    matching_param[psname] = ps.get_parameter(parname)
+        found = []
+        
+        if structure_info and structure_info[0] == self.system.get_label():
+            start_index = 1
+        else:
+            start_index = 0
+        
+        for path, val in self.system.walk_all(path_as_string=False):
+            if structure_info:
+                index = start_index
+                for level in path:
+                    if index < len(structure_info):
+                        name_of_this_level = None
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                        elif isinstance(level, parameters.ParameterSet):
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[-1]:
+                                name_of_this_level = level.get_context()
+                        # We're on the right track!
+                        if name_of_this_level == structure_info[index]:
+                            index += 1
+                if index < len(structure_info):
+                    continue
 
-        # and now return the type requested
-        return self._return_from_dict(matching_param,return_type)
+            if isinstance(val, parameters.Parameter):
+                if val.get_qualifier() == qualifier and not val in found:
+                    found.append(val)
+                    
+        if len(found) == 0:
+            raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        elif return_type == 'single' and len(found)>1:
+            raise ValueError("more than one parameter was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single', 'first']:
+            return found[0]
+        else:
+            return found
+        
         
     def get_value(self,qualifier=None,name=None,context=None,return_type='single'):
         """
@@ -1108,7 +1173,9 @@ class Bundle(object):
                 #~ ds.load()
                 comp.add_obs(ds)
     
-    def load_data(self,category,filename,passband=None,columns=None,components=None,ref=None):
+    
+    def load_data(self, category, filename, passband=None, columns=None,
+                  components=None, ref=None, scale=False, offset=False):
         """
         import data from a file, create multiple DataSets, load data,
         and add to corresponding bodies
@@ -1127,14 +1194,32 @@ class Bundle(object):
         @type ref: str    
         """
         
-        if category=='rv':
-            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='lc':
-            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='etv':
-            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='sp':
-            output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        if category == 'rv':
+            output = datasets.parse_rv(filename, columns=columns,
+                                       components=components, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        elif category == 'lc':
+            output = datasets.parse_lc(filename, columns=columns,
+                                       components=components, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        elif category == 'etv':
+            output = datasets.parse_etv(filename, columns=columns,
+                                        components=components, full_output=True,
+                                        **{'passband':passband, 'ref': ref})
+        
+        elif category == 'sp':
+            output = datasets.parse_sp(filename, columns=columns,
+                                       components=components, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        
+        elif category == 'sed':
+            output = datasets.parse_phot(filename, columns=columns,
+                  group=filename, group_kwargs=dict(scale=scale, offset=offset),
+                  full_output=True)
+        #elif category == 'pl':
+        #    output = datasets.parse_plprof(filename, columns=columns,
+        #                               components=components, full_output=True,
+        #                               **{'passband':passband, 'ref': ref})
         else:
             output = None
             print("only lc, rv, etv, and sp currently implemented")
