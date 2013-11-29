@@ -292,7 +292,7 @@ class Bundle(object):
         @param ps: the new parameterset with label set
         @type ps: ParameterSet
         """
-        if section not in self.sections.keys()
+        if section not in self.sections.keys():
             self.sections[section] = []
         self.sections[section].append(ps)
         
@@ -418,7 +418,7 @@ class Bundle(object):
             return
         
         # initialize uptodate
-        self.get_uptodate() = False
+        self.get_uptodate = False
         
         # connect signals
         self.attach_system_signals()
@@ -811,8 +811,8 @@ class Bundle(object):
         system = self.get_system().copy()
         version = Version(system)
         date_created = datetime.now()
-        version.set_value('date_created') = date_created
-        version.set_value('name') = name if name is not None else str(date_created)
+        version.set_value('date_created', date_created)
+        version.set_value('name', name if name is not None else str(date_created))
         
         self._add_to_section('version',version)
 
@@ -1111,7 +1111,7 @@ class Bundle(object):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None,return_type):
+    def get_compute(self,label=None,return_type='bla'):
         """
         Get a compute ParameterSet by name
         
@@ -1308,7 +1308,7 @@ class Bundle(object):
         @param search_by: key to search by (defaults to label)
         @type search_by: str
         """
-        self._remove_from_section('feedback',search,search_by
+        self._remove_from_section('feedback',search,search_by)
 
     def rename_feedback(self,old_alias,new_alias):
         """
@@ -1357,7 +1357,6 @@ class Bundle(object):
             
             feedback = fitting.run_emcee(self.system,params=self.compute,
                                 fitparams=fitparams,mpi=self.mpi)
-            break
 
         
         #~ if label is not None:
