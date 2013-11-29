@@ -422,16 +422,16 @@ class Bundle(object):
         self.get_uptodate = False
         
         # connect signals
-        self.attach_system_signals()
+        #self.attach_system_signals()
         
         # check to see if in versions, and if so set versions_curr_i
-        versions_sys = [v.get_system() for v in self.get_version(return_type='list')]
+        #versions_sys = [v.get_system() for v in self.get_version(return_type='list')]
         
-        if system in versions_sys:
-            i = versions_sys.index(system)
-        else:
-            i = None
-        self.versions_curr_i = i
+        #if system in versions_sys:
+        #    i = versions_sys.index(system)
+        #else:
+        #    i = None
+        #self.versions_curr_i = i
         
     def get_system(self):
         """
@@ -440,7 +440,7 @@ class Bundle(object):
         @return: the attached system
         @rtype: Body or BodyBag
         """
-        return self._get_from_section('system')
+        return self.sections['system'][0]
                        
     def list(self,summary=None,*args):
         """
@@ -663,15 +663,18 @@ class Bundle(object):
         # parameters that match the qualifier
         found = []
         
+        system = self.get_system()
+        print system
+        
         # You can always give top level system information if you desire
-        if structure_info and structure_info[0] == self.system.get_label():
+        if structure_info and structure_info[0] == system.get_label():
             start_index = 1
         else:
             start_index = 0
         
         # Now walk recursively over all parameters in the system, keeping track
         # of the history
-        for path, val in self.system.walk_all(path_as_string=False):
+        for path, val in system.walk_all(path_as_string=False):
             
             # Only if structure info is given, we need to do some work
             if structure_info:
@@ -721,6 +724,20 @@ class Bundle(object):
                 # variable at all (which is what we want)
                 if index < len(structure_info):
                     continue
+            
+            # Now did we find it?
+            if isinstance(val, parameters.Parameter):
+                if val.get_qualifier() == qualifier and not val in found:
+                    found.append(val)
+                    
+        if len(found) == 0:
+            raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        elif return_type == 'single' and len(found)>1:
+            raise ValueError("more than one parameter was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single', 'first']:
+            return found[0]
+        else:
+            return found
                 
                 
     def get_value(self, qualifier, return_type='first'):
