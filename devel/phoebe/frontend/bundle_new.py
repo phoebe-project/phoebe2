@@ -413,9 +413,10 @@ class Bundle(object):
                 system = create.body_from_string(system)
             
             self.sections['system'] = [system]
-            
-        if self.get_system() is None:
-            return
+         
+        # got me an error 
+        #if self.get_system() is None:
+        #   return
         
         # initialize uptodate
         self.get_uptodate = False
@@ -1019,7 +1020,8 @@ class Bundle(object):
             # then attempt to make smart prediction
             if category == 'lc':
                 # then top-level
-                components = [self.get_system_structure(flat=True)[0]]
+                # get_system_structure is not implemented yet
+                #components = [self.get_system_structure(flat=True)[0]]
                 logger.warning('components not provided - assuming {}'.format(components))
             else:
                 logger.error('create_syn failed: components need to be provided')
@@ -1901,8 +1903,9 @@ class Bundle(object):
         """
 
         self.purge_signals(self.attached_signals_system) # this will also clear the list
-        for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.sections['compute']:
-            self._attach_set_value_signals(ps)
+        # get_system_structure is not implemented yet
+        #for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.sections['compute']:
+        #    self._attach_set_value_signals(ps)
         
         # these might already be attached?
         self.attach_signal(self,'load_data',self._on_param_changed)
