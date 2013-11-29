@@ -417,6 +417,19 @@ class Normal(DeprecatedDistribution):
         values = np.random.normal(size=size,loc=self.distr_pars['mu'],
                                   scale=self.distr_pars['sigma'])
         return values
+    
+    def grid(self, sampling=5):
+        """
+        Draw a (set of_) likely value(s) from the normal distribution.
+        
+        We grid uniformly in 
+        """
+        loc = self.get_loc()
+        scale = self.get_scale()
+        cum_sampling = np.linspace(0, 1, sampling+2)[1:-1]
+        mygrid = distributions.norm(loc=loc, scale=scale).isf(cum_sampling)
+        return mygrid
+        
 
 
     def shrink(self, factor=10.0):

@@ -1789,14 +1789,14 @@ class ParameterSet(object):
             self.add(idef)
         self.frame = frame
     
-    def set_enabled(self,state):
+    def set_enabled(self, state):
         """
         Enable/disable a parameterSet.
         
         What exactly it means to be enabled/disabled depends on the context.
         For example, if data is enabled, it could be used for fitting. If a
         spot parameterSet is disabled, the parameters might be stored, but no
-        spots added.
+        spots added. This interpretation is determined by the calling functions.
         
         @param state: enable/disable the ParameterSet
         @type state: bool

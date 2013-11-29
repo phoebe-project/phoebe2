@@ -475,7 +475,7 @@ class LCDataSet(DataSet):
         self['flux'] = new_flux
         self['time'] = new_time
         self['samprate'] = new_samprate
-        logger.info("Binned data according to oversampling rate")
+        #logger.info("Binned data according to oversampling rate")
     
         
 class RVDataSet(DataSet):
