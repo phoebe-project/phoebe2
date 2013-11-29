@@ -147,31 +147,39 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     """
     Plot lcobs as a light curve.
     
-    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+    except:
     
-        - ``ref=0``: the reference of the lc to plot
+        - ``ref=0``: the reference of the lc to plot (index (int) or reference (str))
         - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times.
-        - ``period=None``: period of repetition. If not given, the last time point
-          will be used
+          want to repeat the phase curve a couple of times in the plot.
+        - ``period=None``: period of repetition. If not given and :envvar:`phased=True`,
+          the last time point will be used for the period.
         - ``phased=False``: decide whether to phase the data according to
-         ``period`` or not.
+          ``period`` or not.
+        - ``t0``: arbitrary offset for phase plots (defaults to 0)
+        - ``ax``: axis to plot on. If not given, the plot will be made on the
+          current active axis (i.e. the return value of ``plt.gca()``)
+    
+    The following behaviour of matplotlib's ``errorbar`` function is overwritten:
+        - ``label``: if you give no label, the default label is ``<ref> (obs)``.
+          If you want no label at all, you need to set this to ``_nolegend_``.
     
     **Example usage:**
     
-    >>> artists, obs = plot_lcobs(system,fmt='ko-')
+    >>> artists, obs = plot_lcobs(system, fmt='ko-')
     
     Returns the matplotlib objects and the observed parameterSet
     """
-    ref = kwargs.pop('ref',0)
-    repeat = kwargs.pop('repeat',0)
+    ref = kwargs.pop('ref', 0)
+    repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
     t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
 
-    #-- get parameterSets
-    obs = system.get_obs(category='lc',ref=ref)
+    # Get parameterSets
+    obs = system.get_obs(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
     #-- load observations: they need to be here
@@ -218,13 +226,13 @@ def plot_lcobs(system,errorbars=True,**kwargs):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
             if errorbars:
-                p = ax.errorbar(time+n,flux,yerr=sigm,**kwargs)
+                p = ax.errorbar(time+n,flux,yerr=sigm[o],**kwargs)
             else:
                 p = ax.plot(time+n,flux,**kwargs)
 
     if loaded: obs.unload()
     
-    return artists,obs
+    return artists, obs
 
 
 def plot_lcres(system,*args,**kwargs):

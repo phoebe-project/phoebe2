@@ -1207,6 +1207,8 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:grid')
     
+    sampling = fitparams['sampling']
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -1236,7 +1238,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                     continue
                 
                 # Construct the range:
-                myrange = parameter.get_prior().distr_pars['bins']
+                myrange = parameter.get_prior().get_grid(sampling)
                 
                 # And add the id
                 ids.append(myid)
