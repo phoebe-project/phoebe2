@@ -1682,7 +1682,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
         except IndexError, KeyError:
             logger.critical("Cannot figure out reference temperature, set to T=10000K")
             teff_mean = 10000.
-            alpha_T = 1.0
+            alpha_T = 0.0
         
         iterator = zip(proj_intens,rad_velos,sizes,B,cos_theta)
         for i, (pri, rv, sz, iB, costh) in enumerate(iterator):
@@ -1694,7 +1694,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             #specp = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav+rvz,flux=template)
             
             # Correct the template for the temperature:
-            template_ = 1.00 - alphaT * (teff_local[i]/teff_mean)*(1-template)
+            template_ = 1.00 - (1.0+alphaT) * (teff_local[i]/teff_mean)*(1-template)
             
             # First version but inline
             wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)

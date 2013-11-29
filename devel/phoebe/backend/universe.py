@@ -3715,7 +3715,7 @@ class PhysicalBody(Body):
         
         return ps
     
-    def get_passband_gravity_brightening(self, ref=0):
+    def get_passband_gravity_brightening(self, ref=0, blackbody=False):
         r"""
         Compute the passband gravity brightening.
         
@@ -3737,7 +3737,9 @@ class PhysicalBody(Body):
         dlnI = np.log(self.mesh['ld_'+ref][:,-1]).ptp()
         dlnT = np.log(self.mesh['teff']).ptp()
         dlng = np.log(10**self.mesh['logg']).ptp()
-        
+        if blackbody:
+            dlng = 0
+            
         if dlnT == 0 and dlng == 0:
             passband_gravb = 0.0
         else:
@@ -4276,7 +4278,7 @@ class BodyBag(Body):
         """
         # We definitely need signals and a label, even if it's empty
         self.signals = {}
-        self.label = None
+        self.label = uuid.uuid4()
         self.parent = None
         
         # Do the components belong together? This is important for the eclipse
@@ -5991,8 +5993,8 @@ class BinaryRocheStar(PhysicalBody):
     """
     
     def __init__(self, component, orbit=None, mesh=None, reddening=None,
-                 puls=None, circ_spot=None, magnetic_field=None, pbdep=None,
-                 obs=None, **kwargs):
+                 puls=None, circ_spot=None, magnetic_field=None, 
+                 velocity_field=None, pbdep=None, obs=None, **kwargs):
         """
         Component: 0 is primary 1 is secondary
         """
@@ -6047,12 +6049,21 @@ class BinaryRocheStar(PhysicalBody):
                 to_add = [puls]
             else:
                 to_add = puls
+            for ito_add in to_add:
+                check_input_ps(self, ito_add, ['puls'], 'puls', is_list=True)
             self.params['puls'] = to_add
         
         # Add magnetic field parameters when applicable
         if magnetic_field is not None:
-            check_input_ps(self, magnetic_field, ['magnetic_field'], 'magnetic_field')
+            check_input_ps(self, magnetic_field,
+                          ['magnetic_field:dipole','magnetic_field:quadrupole'],
+                           'magnetic_field')
             self.params['magnetic_field'] = magnetic_field
+        
+        # Add velocity field parameters when applicable
+        if velocity_field is not None:
+            check_input_ps(self, velocity_field, ['velocity_field:turb'], 'velocity_field')
+            self.params['velocity_field'] = velocity_field
         
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
@@ -6524,8 +6535,6 @@ class BinaryRocheStar(PhysicalBody):
         """
         # Rotational properties
         component = self.get_component()
-        mass = self.params['orbit']['mass{}'.format(component+1)]
-        radius = self.params['component']['r_pole']
         F = self.params['component']['syncpar'] 
         orbperiod = self.params['orbit']['period']
         if F>0:
@@ -6551,24 +6560,34 @@ class BinaryRocheStar(PhysicalBody):
         mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
         
         
-        # Dipolar field:
+        # Figure out if we have a dipole or quadrupole
         parset = self.params['magnetic_field']
-        beta = parset.get_value('beta', 'rad')
-        phi0 = parset.get_value('phi0', 'rad')
+        context = parset.get_context()
+        topology = context.split(':')[-1]
+        
+        # Some basic quantities we need regardless of the topology
         Bpolar = parset.get_value('Bpolar')
-        R = self.params.values()[0].get_value('radius')
+        R = self.params['component'].request_value('r_pole','Rsol')
         r_ = self.mesh['_o_center'] / R
         
-        m_ = np.array([np.sin(beta) * np.cos(phi0) - 0.0*np.sin(phi0),
-                       np.sin(beta) * np.sin(phi0) + 0.0*np.cos(phi0),
-                       np.cos(beta)])
-        dotprod = np.dot(m_, r_.T).reshape(-1, 1)
-        B =     (3*dotprod    *r_ - m_)
-        B = B / 2.0 * Bpolar
+        # Then finally get the field according to its topology
+        if topology == 'dipole':
+            beta = parset.get_value('beta', 'rad')
+            phi0 = parset.get_value('phi0', 'rad') - mesh_phase
+            B = magfield.get_dipole(time, r_, R, beta, phi0, Bpolar)
+        
+        elif topology == 'quadrupole':
+            beta1 = parset.get_value('beta1', 'rad')
+            phi01 = parset.get_value('phi01', 'rad') - mesh_phase
+            beta2 = parset.get_value('beta2', 'rad')
+            phi02 = parset.get_value('phi02', 'rad') - mesh_phase
+            B = magfield.get_quadrupole(time, r_, R, beta1, phi01, beta2, phi02, Bpolar)
+        
+        # And add it to the mesh!
         self.mesh['_o_B_'] = B
         self.mesh['B_'] = self.mesh['_o_B_']
-        logger.info("Added magnetic field with Bpolar={}G, beta={} deg".format(Bpolar, beta/pi*180))
-        logger.info("Maximum B-field on surface = {}G".format(coordinates.norm(B, axis=1).max()))
+        
+        logger.info("Added {} magnetic field with Bpolar={}G".format(topology, Bpolar))
 
     
     def abundance(self, time=None):
