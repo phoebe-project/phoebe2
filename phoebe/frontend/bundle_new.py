@@ -496,14 +496,279 @@ class Bundle(object):
     def get_ps(self, name=None, context=None, return_type='single'):
         pass
         
-    def get_parameter(self, qualifier, return_type='first'):
-        pass
+    def get_ps2(self, name, return_type='first'):
+        """
+        Retrieve a ParameterSet(s) from the system
         
-    def get_value(self,qualifier=None,name=None,context=None,return_type='single'):
-        pass
+        Undocumented
+        """
+        # Put the hierarchical structure in a list, that's easier to reference
+        structure_info = []
+        
+        # Extract the info on the name and structure info. The name is always
+        # first
+        name = name.split('@')
+        if len(name)>1:
+            structure_info = name[1:]
+        name = name[0]
+                 
+        # Reverse the structure info, that's easier to handle
+        structure_info = structure_info[::-1]
+        
+        # First we'll loop through matching parametersets and gather all
+        # parameters that match the qualifier
+        found = []
+        
+        # You can always give top level system information if you desire
+        if structure_info and structure_info[0] == self.system.get_label():
+            start_index = 1
+        else:
+            start_index = 0
+        
+        # Now walk recursively over all parameters in the system, keeping track
+        # of the history
+        for path, val in self.system.walk_all(path_as_string=False):
+            
+            # Only if structure info is given, we need to do some work
+            if structure_info:
+                
+                # We should look for the first structure information before
+                # advancing to deeper levels; as long as we don't encounter
+                # that reference/label/context, we can't look for the next one
+                index = start_index
+                
+                # Look down the tree structure
+                for level in path:
+                    print type(level), type(val)
+                    # but only if we still have structure information
+                    if index < len(structure_info):
+                        
+                        # We don't now the name of this level yet, but we'll
+                        # figure it out
+                        name_of_this_level = None
+                        
+                        # If this level is a Body, we check it's label
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                            
+                        # If it is a ParameterSet, we'll try to match the label,
+                        # reference or context
+                        elif isinstance(level, parameters.ParameterSet):
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[index]:
+                                name_of_this_level = level.get_context()
+                            
+                            context = level.get_context()
+                            ref = level['ref'] if 'ref' in level else None
+                            label = level['label'] if 'label' in level else None
+                            print '---',context,ref,label
+                            
+                        # The walk iterator could also give us 'lcsyn' or something
+                        # the like, it apparently doesn't walk over these PSsets
+                        # themselves -- but no problem, this works
+                        elif isinstance(level, str):
+                            name_of_this_level = level
+                            
+                        # We're on the right track and can advance to find the
+                        # next label in the structure!
+                        if name_of_this_level == structure_info[index]:
+                            index += 1
+                
+                # Keep looking if we didn't exhaust all specifications yet.
+                # If we're at the end already, this will avoid finding a
+                # variable at all (which is what we want)
+                if index < len(structure_info):
+                    continue
+            
+            # Now did we find it?
+            if isinstance(val, parameters.ParameterSet):
+                context = val.get_context()
+                ref = val['ref'] if 'ref' in val else None
+                label = val['label'] if 'label' in val else None
+                print context,ref,label
+                if name in [context, ref, label] and not val in found:
+                    found.append(val)
+                
+                    
+        if len(found) == 0:
+            raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(name,"@".join(structure_info)))
+        elif return_type == 'single' and len(found)>1:
+            raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single', 'first']:
+            return found[0]
+        else:
+            return found
+            
+            
+    def get_parameter(self, qualifier, return_type='first'):
+        """
+        Smart retrieval of a Parameter(s) from the system.
 
-    def set_value(self,qualifier,value,name=None,context=None,accept_all=False):
-        pass
+        If :envvar:`qualifier` is the sole occurrence of a parameter in this
+        Bundle, there is no confusion and that parameter will be returned.
+        If there is another occurrence, then the behaviour depends on the value
+        of :envvar:`return_type`:
+        
+            - :envvar:`return_type='first'`: the first occurrence will be returned
+            - :envvar:`return_type='single'`: a ValueError is raised if multiple occurrences exit
+            - :envvar:`return_type='all'`: a list of all occurrences will be returned
+       
+        You can specify which qualifier you want with the :envvar:`@` operator.
+        This operator allows you to hierarchically specify which parameter you
+        mean. The general syntax is:
+        
+        :envvar:`<qualifier>@<label/ref/context>@<label/ref/context>`
+        
+        You can repeat as many :envvar:`@` operators as you want, as long as
+        it they are hierarchically ordered, with the top level label of the
+        system **last**.
+        
+        Examples::
+        
+            bundle.get_parameter('teff')
+            bundle.get_parameter('teff@star') # star context
+            bundle.get_parameter('teff@Vega') # name of the Star
+            
+            bundle.get_parameter('teff@primary') # if there is Body named primary
+            bundle.get_parameter('teff@primary@V380_Cyg')
+            
+            bundle.get_parameter('time@lcsyn') # no confusion if there is only one lc
+            bundle.get_parameter('flux@my_hipparcos_lightcurve')
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param return_type: 'first', 'single', 'all'
+        @type return_type: str
+        @return: Parameter or list
+        @rtype: Parameter or list
+        """
+        # Put the hierarchical structure in a list, that's easier to reference
+        structure_info = []
+        
+        # Extract the info on the qualifier and structure info. The qualifier
+        # is always first
+        qualifier = qualifier.split('@')
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
+                 
+        # Reverse the structure info, that's easier to handle
+        structure_info = structure_info[::-1]
+        
+        # First we'll loop through matching parametersets and gather all
+        # parameters that match the qualifier
+        found = []
+        
+        # You can always give top level system information if you desire
+        if structure_info and structure_info[0] == self.system.get_label():
+            start_index = 1
+        else:
+            start_index = 0
+        
+        # Now walk recursively over all parameters in the system, keeping track
+        # of the history
+        for path, val in self.system.walk_all(path_as_string=False):
+            
+            # Only if structure info is given, we need to do some work
+            if structure_info:
+                
+                # We should look for the first structure information before
+                # advancing to deeper levels; as long as we don't encounter
+                # that reference/label/context, we can't look for the next one
+                index = start_index
+                
+                # Look down the tree structure
+                for level in path:
+                    
+                    # but only if we still have structure information
+                    if index < len(structure_info):
+                        
+                        # We don't now the name of this level yet, but we'll
+                        # figure it out
+                        name_of_this_level = None
+                        
+                        # If this level is a Body, we check it's label
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                            
+                        # If it is a ParameterSet, we'll try to match the label,
+                        # reference or context
+                        elif isinstance(level, parameters.ParameterSet):
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[index]:
+                                name_of_this_level = level.get_context()
+                        
+                        # The walk iterator could also give us 'lcsyn' or something
+                        # the like, it apparently doesn't walk over these PSsets
+                        # themselves -- but no problem, this works
+                        elif isinstance(level, str):
+                            name_of_this_level = level
+                            
+                        # We're on the right track and can advance to find the
+                        # next label in the structure!
+                        if name_of_this_level == structure_info[index]:
+                            index += 1
+                
+                # Keep looking if we didn't exhaust all specifications yet.
+                # If we're at the end already, this will avoid finding a
+                # variable at all (which is what we want)
+                if index < len(structure_info):
+                    continue
+                
+                
+    def get_value(self, qualifier, return_type='first'):
+        """
+        Get the value from a Parameter(s) in the system
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param name: label or ref of ps, or None to search all
+        @type name: str or list orNone
+        @param context: context of ps, or None to search all
+        @type context: str or list or None
+        @param return_type: 'single', 'dict', 'list'
+        @type return_type: str
+        @return: value of the parameter
+        @rtype: depends on parameter type
+        """
+        par = self.get_parameter(qualifier, return_type=return_type)
+        return par.get_value()
+    
+        
+    def set_value(self, qualifier, value, *args, **kwargs):
+        """
+        Set the value of a Parameter(s) in the system
+        
+        @param qualifier: qualifier of the parameter
+        @type qualifier: str
+        @param value: new value of the parameter
+        @type value: depends on parameter type
+        @param name: label or ref of ps, or None to search all
+        @type name: str or list or None
+        @param context: context of ps, or None to search all
+        @type context: str or list or None
+        @param accept_all: if True, will set value for all parameters that return from the search, otherwise will raise an Error if more than one is returned from the search
+        @type accept_all: bool
+        """
+        apply_to = kwargs.pop('apply_to', 'first')
+        if kwargs:
+            raise SyntaxError("set_value does not take extra keyword arguments")
+        
+        params = self.get_parameter(qualifier, name, return_type=apply_to)
+        
+        if apply_to in ['first', 'single']:
+            params.set_value(value, *args)
+        elif apply_to in ['all']:
+            for param in params:
+                param.set_value(value, *args)
+        else:
+            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
             
     def get_adjust(self,qualifier=None,name=None,context=None,return_type='single'):
         pass
@@ -521,7 +786,7 @@ class Bundle(object):
         # return list of children for self.get_object(name)
         obj = self.get_object(name)
         if hasattr(obj,'bodies'):
-            return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies)
+            return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
         else:
             return []
         
@@ -659,7 +924,8 @@ class Bundle(object):
                     comp.add_pbdeps(ps)
 
             # obs get attached to the requested object
-            for ds in dss:    
+            for ds in dss:
+
                 #~ ds.load()
                 comp.add_obs(ds)
     
@@ -889,11 +1155,7 @@ class Bundle(object):
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        # fix the mesh if set_time is going to fail
-        try:
-            system.set_time(0)
-        except:
-            system.fix_mesh()
+        self.system.set_time(0)
         
         # get compute options
         if label is None:
@@ -1833,6 +2095,8 @@ def guess_filetype(filename):
             with open(filename, 'r') as open_file:
                 contents = pickle.load(open_file)
             file_type = 'pickle'
+        except AttributeError:
+            logger.info("Probably old pickle file")
         except:
             pass
         
