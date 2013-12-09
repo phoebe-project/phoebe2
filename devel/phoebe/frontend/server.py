@@ -74,7 +74,7 @@ class Server(object):
         elif self.settings['server'] is not None and qualifier in self.settings['server'].keys():
             return self.settings['server'].get_value(qualifier)
         else:
-            raise IOError('parameter not understood')
+            raise IOError('parameter {} not understood'.format(qualifier))
             
     def is_external(self):
         """
