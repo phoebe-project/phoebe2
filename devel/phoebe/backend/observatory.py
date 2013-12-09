@@ -289,7 +289,8 @@ def image(the_system, ref='__bol', context='lcdep',
     # Order the body's triangles from back to front so that they get plotted in
     # the right order.
     mesh = the_system.mesh
-    mesh = mesh[np.argsort(mesh['center'][:, 2])]
+    sa = np.argsort(mesh['center'][:, 2])
+    mesh = mesh[sa]
     
     # Now transform the coordinates to spherical coordinates
     # scales) if needed
@@ -368,8 +369,10 @@ def image(the_system, ref='__bol', context='lcdep',
             values = np.sqrt(mesh['B_'][:, 0]**2 + \
                              mesh['B_'][:, 1]**2 + \
                              mesh['B_'][:, 2]**2)
-        else:
+        elif select in mesh.dtype.names:
             values = mesh[select]
+        else:
+            values = select[sa]
         # Set the limits of the color scale, if we need to compute them
         # ourselves
         if vmin is None:

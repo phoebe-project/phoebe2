@@ -4428,6 +4428,22 @@ class BodyBag(Body):
             yield body
     
     
+    def walk_bodies(self):
+        """
+        Walk over all Bodies and BodyBags.
+        """
+        children = self.get_children()
+        self_and_children = [self] + children
+        for body in self_and_children:
+            if body is self:
+                yield body
+            elif hasattr(body, 'get_children'):
+                for sub_body in body.walk_bodies():
+                    yield sub_body
+            else:
+                yield body
+            
+    
     def walk_type(self, type='syn'):
         """
         Walk through parameterSets of a certain type.
