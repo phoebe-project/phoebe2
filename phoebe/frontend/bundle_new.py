@@ -32,28 +32,49 @@ def run_on_server(fctn):
     """
     Parse usersettings to determine whether to run a function locally
     or submit it to a server
-        
     """
     @functools.wraps(fctn)
     def parse(bundle,*args,**kwargs):
         """
         """
+        # first we need to reconstruct the arguments passed to the original function
         callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
         dump = callargs.pop('self')
-        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
+        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key]\
+            if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
 
+        # determine if the function is supposed to be run on a server
         servername = kwargs['server'] if 'server' in kwargs.keys() else None
 
+        # is_server is a kwarg that will be True in the script running on a server
+        # itself - this just simply avoids the server resending to itself, without
+        # having to remove server from the kwargs
         is_server = kwargs.pop('is_server',False)
 
+        # now, if this function is supposed to run on a server, let's prepare
+        # the script and files and submit the job.  Otherwise we'll just return
+        # with the original function as called.
         if servername is not False and servername is not None and not is_server:
+            # first we need to retrieve the requested server using get_server
             server =  bundle.get_server(servername)
+            
+            # servers can be local (only have mpi settings) - in these cases we
+            # don't need to submit a script, and the original function can handle
+            # retrieving and applying the mpi settings
             if server.is_external():
+                
+                # now we know that we are being asked to run on an external server,
+                # so let's do a quick check to see if the server seems to be online
+                # and responding.  If it isn't we'll provide an error message and abort
                 if server.check_status():
-                    # prepare job
+                    
+                    # The external server seems to be responding, so now we need to
+                    # prepare all files and the script to run on the server
                     mount_dir = server.server_ps.get_value('mount_dir')
                     server_dir = server.server_ps.get_value('server_dir')
                     
+                    # Copy the bundle to the mounted directory, without removing
+                    # usersettings (so that the server can have access to everything)
                     logger.info('copying bundle to {}'.format(mount_dir))
                     timestr = str(datetime.now()).replace(' ','_')
                     in_f = '%s.bundle.in.phoebe' % timestr
@@ -61,6 +82,12 @@ def run_on_server(fctn):
                     script_f = '%s.py' % timestr
                     bundle.save(os.path.join(mount_dir,in_f),save_usersettings=True) # might have a problem here if threaded!!
                     
+                    # Now we write a script file to the mounted directory which will
+                    # load the saved bundle file, call the original function with the
+                    # same arguments, and save the bundle to a new file
+                    #
+                    # we'll also provide some status updates so that we can see when
+                    # the script has started/failed/completed
                     logger.info('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,script_f),'w')
                     f.write("#!/usr/bin/python\n")
@@ -129,6 +156,12 @@ class Bundle(object):
 
         For all the different possibilities to set a system, see :py:func:`Bundle.set_system`.
         """
+        
+        # self.sections is an ordered dictionary containing lists of 
+        # ParameterSets (or ParameterSet-like objects)
+        # Each of these lists is searchable via self._get_from_section
+        # and can contain defaults in usersettings which will be used
+        # if there are no overrides in the bundle
         self.sections = OrderedDict()
         
         self.sections['system'] = [None] # only 1
@@ -140,30 +173,49 @@ class Bundle(object):
         self.sections['meshview'] = [parameters.ParameterSet(context='plotting:mesh')] # only 1
         self.sections['orbitview'] = [parameters.ParameterSet(context='plotting:orbit')] # only 1
         
+        # self.select_time controls at which time to draw the meshview and
+        # the 'selector' on axes (if enabled)
         self.select_time = None
         
+        # we need to keep track of all attached signals so that they can 
+        # be purged before pickling the bundle, and can be restored
         self.signals = {}
         self.attached_signals = []
         self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
         
+        # Now we load a copy of the usersettings into self.usersettings
+        # Note that by default these will be removed from the bundle before
+        # saving, and reimported when the bundle is loaded
         self.set_usersettings()
         
+        # self.lock simply keeps track of whether the bundle is waiting
+        # on a job to complete on a server.  If a lock is in place, it can
+        # manually be removed by self.server_cancel()
         self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
 
+        # Let's keep track of the filename whenever saving the bundle -
+        # if self.save() is called without a filename but we have one in
+        # memory, we'll try to save to that location.
         self.filename = None
         
+        # self.settings are bundle-level settings that control defaults
+        # for bundle functions.  These do not belong in either individual
+        # ParameterSets or the usersettings
         self.settings = {}
         self.settings['add_version_on_compute'] = False
         self.settings['add_feedback_on_fitting'] = False
         self.settings['update_mesh_on_select_time'] = False
         
-        self.set_system(system) # will handle all signals, etc
+        # Lastly we'll set the system, which will parse the string sent
+        # to init and will handle attaching all necessary signals
+        self.set_system(system)
         
     ## string representation
     def __str__(self):
         return self.to_string()
         
     def to_string(self):
+        # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
         txt += "{} compute options\n".format(len(self.get_compute(return_type='list')))
         txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
@@ -186,9 +238,14 @@ class Bundle(object):
     ## generic functions to get non-system parametersets
     def _return_from_dict(self,dictionary,return_type):
         """
-        this function takes a dictionary from a searching function (get_ps)
-        along with the desired return_type ('single','dict','list') and
-        returns in the correct format
+        this functin takes a dictionary of results from a searching function
+        ie. _get_from_section and returns in the desired format ('list',
+        'dict', or 'single')
+        
+        @param dictionary: the dictionary of results
+        @type dictionary: dict or OrderedDict
+        @param return_type: 'list', 'dict', or 'single'
+        @type return_type: str
         """
         if return_type=='dict':
             return dictionary
@@ -201,8 +258,8 @@ class Bundle(object):
                 return dictionary.values()[0]
             else: #then no results
                 return None
-
-    def _get_from_section(self,section,search=None,search_by='label',return_type='single'):
+                
+    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
         """
         retrieve a parameterset (or similar object) by section and label (optional)
         if the section is also in the defaults set by usersettings, 
@@ -220,8 +277,9 @@ class Bundle(object):
         @type search_by: str
         @param return_type: 'single', 'list', 'dict'
         @type return_type: str
+        @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
+        @type ignore_usersettings: bool
         """
-        
         # We'll start with an empty dictionary, fill it, and then convert
         # to the requested format
         items = OrderedDict()
@@ -231,35 +289,42 @@ class Bundle(object):
         if section in self.sections.keys():
             for ps in self.sections[section]:
                 if search is None or ps.get_value(search_by)==search:
-                    items[ps.get_value(search_by)] = ps
+                    # if search_by is None then we want to return everything
+                    # NOTE: in this case usersettings will be ignored
+                    if search_by is not None:
+                        key = ps.get_value(search_by)
+                    else:
+                        key = len(items)
+                    items[key] = ps
 
-        # Now let's check the defaults in usersettings
-        usersettings = self.get_usersettings().settings
-        if section in usersettings.keys():
-            for ps in usersettings[section]:
-                if (search is None or ps.get_value(search_by)==search) and search not in items.keys():
-                    # Then these defaults exist in the usersettings but 
-                    # are not (yet) overridden by the bundle.
-                    #
-                    # In this case, we need to make a deepcopy and save it
-                    # to the bundle (since it could be edited here).
-                    # This is the version that will be returned in this 
-                    # and any future retrieval attempts.
-                    #
-                    # In order to return to the usersettings default,
-                    # the user needs to remove the bundle version, or 
-                    # access directly from usersettings (bundle.get_usersettings().get_...).
-                    #
-                    # NOTE: in the case of things that have defaults in
-                    # usersettings but not in bundle by default (ie logger, servers, etc)
-                    # this will still create a new copy (for consistency)
+        if not ignore_usersettings and search_by is not None:
+            # Now let's check the defaults in usersettings
+            usersettings = self.get_usersettings().settings
+            if section in usersettings.keys():
+                for ps in usersettings[section]:
+                    if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
+                        # Then these defaults exist in the usersettings but 
+                        # are not (yet) overridden by the bundle.
+                        #
+                        # In this case, we need to make a deepcopy and save it
+                        # to the bundle (since it could be edited here).
+                        # This is the version that will be returned in this 
+                        # and any future retrieval attempts.
+                        #
+                        # In order to return to the usersettings default,
+                        # the user needs to remove the bundle version, or 
+                        # access directly from usersettings (bundle.get_usersettings().get_...).
+                        #
+                        # NOTE: in the case of things that have defaults in
+                        # usersettings but not in bundle by default (ie logger, servers, etc)
+                        # this will still create a new copy (for consistency)
 
-                    psc = copy.deepcopy(ps)
-                    items[psc.get_value(search_by)] = psc
-                    self._add_to_section(section,psc)
-        
+                        psc = copy.deepcopy(ps)
+                        items[psc.get_value(search_by)] = psc
+                        #~ self._add_to_section(section,psc)
+                    
         # and now return in the requested format
-        self._return_from_dict(items,return_type)
+        return self._return_from_dict(items,return_type)
 
     def _remove_from_section(self,section,search,search_by='label'):
         """
@@ -347,18 +412,14 @@ class Bundle(object):
         else:
             return self.get_usersettings().get_value(key)
             
-    def get_server(self,servername,return_type='list'):
+    def get_server(self,label=None,return_type='list'):
         """
         Return a server by name
-        
-        Note that this is merely a shortcut to bundle.get_usersettings().get_server()
-        The server settings are stored in the usersettings and are not kept with the bundle
         
         @param servername: name of the server
         @type servername: string
         """
-        #~ return self.get_usersettings().get_server(servername)
-        return self._get_from_section('servers',servername,return_type)
+        return self._get_from_section('servers',label,return_type=return_type)
         
     #}    
     #{ System
@@ -415,11 +476,11 @@ class Bundle(object):
             self.sections['system'] = [system]
          
         # got me an error 
-        #if self.get_system() is None:
-        #   return
+        if self.get_system() is None:
+           return
         
         # initialize uptodate
-        self.get_uptodate = False
+        system.uptodate = False
         
         # connect signals
         #self.attach_system_signals()
@@ -440,8 +501,19 @@ class Bundle(object):
         @return: the attached system
         @rtype: Body or BodyBag
         """
-        return self.sections['system'][0]
-    
+        # for consistency sake, we'll use _get_from_section and confirm
+        # that only one entry is returned 
+        # NOTE: since we're passing search_by=None, usersettings will be ignored
+        # so you cannot set a default system in usersettings
+        servers = self._get_from_section('system',search_by=None,return_type='list')
+        if len(servers) == 0:
+            raise ValueError("ERROR: no system attached")
+            return None
+        if len(servers) > 1:
+            raise ValueError("ERROR: returned more than 1 server")
+        return servers[0]
+        #~ return self.sections['system'][0]
+                       
     def list(self,summary=None,*args):
         """
         List with indices all the ParameterSets that are available.
@@ -493,11 +565,7 @@ class Bundle(object):
     #}
     #{ Parameters/ParameterSets
     
-       
-    def get_ps(self, name=None, context=None, return_type='single'):
-        pass
-        
-    def get_ps2(self, name, return_type='first'):
+    def get_ps(self, name, return_type='first'):
         """
         Retrieve a ParameterSet(s) from the system
         
@@ -521,14 +589,14 @@ class Bundle(object):
         found = []
         
         # You can always give top level system information if you desire
-        if structure_info and structure_info[0] == self.system.get_label():
+        if structure_info and structure_info[0] == self.get_system().get_label():
             start_index = 1
         else:
             start_index = 0
         
         # Now walk recursively over all parameters in the system, keeping track
         # of the history
-        for path, val in self.system.walk_all(path_as_string=False):
+        for path, val in self.get_system().walk_all(path_as_string=False):
             
             # Only if structure info is given, we need to do some work
             if structure_info:
@@ -766,12 +834,8 @@ class Bundle(object):
         @type qualifier: str
         @param value: new value of the parameter
         @type value: depends on parameter type
-        @param name: label or ref of ps, or None to search all
-        @type name: str or list or None
-        @param context: context of ps, or None to search all
-        @type context: str or list or None
-        @param accept_all: if True, will set value for all parameters that return from the search, otherwise will raise an Error if more than one is returned from the search
-        @type accept_all: bool
+        @param apply_to: 'first', 'single', 'all'
+        @type apply_to: str        
         """
         apply_to = kwargs.pop('apply_to', 'first')
         if kwargs:
@@ -787,11 +851,44 @@ class Bundle(object):
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
             
-    def get_adjust(self,qualifier=None,name=None,context=None,return_type='single'):
-        pass
+    def get_adjust(self, qualifier, return_type='first'):
+        """
+        Get whether a Parameter(s) in the system is set for adjustment/fitting
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param return_type: 'single', 'dict', 'list'
+        @type return_type: str
+        @return: adjust
+        @rtype: bool
+        """
+        par = self.get_parameter(qualifier, return_type=return_type)
+        return par.get_adjust()
             
-    def set_adjust(self,qualifier,adjust,name=None,context=None,accept_all=False):
-        pass
+    def set_adjust(self, qualifier, value, *args, **kwargs):
+        """
+        Set whether a Parameter(s) in the system is set for adjustment/fitting
+        
+        @param qualifier: qualifier of the parameter
+        @type qualifier: str
+        @param value: new value for adjust
+        @type value: bool
+        @param apply_to: 'first', 'single', 'all'
+        @type apply_to: str   
+        """
+        apply_to = kwargs.pop('apply_to', 'first')
+        if kwargs:
+            raise SyntaxError("set_adjust does not take extra keyword arguments")
+        
+        params = self.get_parameter(qualifier, name, return_type=apply_to)
+        
+        if apply_to in ['first', 'single']:
+            params.set_value(value, *args)
+        elif apply_to in ['all']:
+            for param in params:
+                param.set_adjust(value, *args)
+        else:
+            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
         
     #}
     #{ Objects
@@ -856,7 +953,7 @@ class Bundle(object):
         @return: version (get system from version.get_system())
         @rtype: Version
         """
-        if isinstance(version,int): #then easy to return from list
+        if isinstance(search,int): #then easy to return from list
             return self._get_from_section('version',return_type='list')[self.versions_curr_i+version]
             
         return self._get_from_section('version',search,search_by,return_type=return_type)
@@ -895,6 +992,7 @@ class Bundle(object):
         @type search_by: str
         """
 
+        # TODO: this won't work for search=int
         self._remove_from_section('version',search,search_by)
         
         
@@ -1047,6 +1145,10 @@ class Bundle(object):
                 logger.error('create_syn failed: components need to be provided')
                 return
 
+        else:
+            pass
+            # TODO: components were passed as strings - so we need to get the objects still
+
         output = {}
         for component in components:
             ds = dataset_class(context=category+'obs', time=times, ref=ref)
@@ -1178,7 +1280,7 @@ class Bundle(object):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None,return_type='bla'):
+    def get_compute(self,label=None,return_type='single'):
         """
         Get a compute ParameterSet by name
         
@@ -1352,7 +1454,7 @@ class Bundle(object):
         
         self._add_to_section('feedback',feedback)
         
-    def get_feedback(self,search,search_by='label',return_type='single'):
+    def get_feedback(self,search=None,search_by='label',return_type='single'):
         """
         Retrieve a stored feedback by one of its keys
         
@@ -1422,7 +1524,7 @@ class Bundle(object):
             
             self.run_fitting(computelabel,fitparams,add_feedback,server)
             
-            feedback = fitting.run_emcee(self.system,params=self.compute,
+            feedback = fitting.run_emcee(self.get_system(),params=self.compute,
                                 fitparams=fitparams,mpi=self.mpi)
 
         
@@ -1434,7 +1536,7 @@ class Bundle(object):
         #~ for fitparams in allfitparams:
             #~ if fitparams.context.split(':')[-1] in ['pymc','emcee']:
                 #~ fitparams['iter'] += extra_iter
-                #~ feedback = fitting.run_emcee(self.system,params=self.compute,
+                #~ feedback = fitting.run_emcee(self.get_system(),params=self.compute,
                                     #~ fitparams=fitparams,mpi=self.mpi)
                 #~ break
     #}
@@ -1572,9 +1674,12 @@ class Bundle(object):
         """
         if isinstance(ident,int): 
             #then we need to return all in list and take index
-            return self._get_from_section('axes',return_type='list')[ident]
+            raise NotImplementedError
+            return
+            # TODO - this won't work - we need to make _remove_from_section take an index
+            #~ return self._get_from_section('axes',return_type='list')[ident]
         
-        return self._get_from_section('axes',ident,'title')
+        return self._remove_from_section('axes',ident,'title')
                                 
     def plot_axes(self,ident,mplfig=None,mplaxes=None,location=None):
         """
@@ -1691,7 +1796,9 @@ class Bundle(object):
         """
         
         """
-        return self._get_from_section('meshview')
+        # TODO: fix this so we can set defaults in sersettings
+        # (currently can't with search_by = None)
+        return self._get_from_section('meshview',search_by=None)
         
     def _get_meshview_limits(self,times):
         # get size of system during these times for scaling image
@@ -1773,7 +1880,9 @@ class Bundle(object):
         """
         
         """
-        return self._get_from_section('orbitview')
+        # TODO: fix this so we can set defaults in usersettings
+        # (currently can't with search_by = None)
+        return self._get_from_section('orbitview',search_by=None)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
