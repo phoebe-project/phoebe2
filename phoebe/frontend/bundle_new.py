@@ -664,7 +664,6 @@ class Bundle(object):
         found = []
         
         system = self.get_system()
-        print system
         
         # You can always give top level system information if you desire
         if structure_info and structure_info[0] == system.get_label():

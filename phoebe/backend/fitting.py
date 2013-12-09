@@ -1251,7 +1251,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
         had = []
         
         # Walk through all the parameterSets available:
-        walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         for parset in system.walk():
             #-- for each parameterSet, walk to all the parameters
             for qual in parset:
@@ -1321,7 +1321,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 #this_param.set_posterior(trace.ravel())f
                 feedback['parameters'].append(this_param)
                 feedback['values'].append(grid_pars[:,index])
-                feedback['priors'].append(this_param.get_prior().distr_pars['bins'])
+                feedback['priors'].append(this_param.get_prior().get_grid(sampling))
     feedback['logp'] = grid_logp
     feedback['save_files'] = save_files
     fitparams['feedback'] = feedback

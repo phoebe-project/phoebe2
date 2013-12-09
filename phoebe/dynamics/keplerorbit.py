@@ -1368,7 +1368,7 @@ def calculate_mass_function(period, ecc, K):
         
         f(M) = (M_2\sin \mathrm{incl})^3/(M_1+M_2)^2
     
-        f(M) = 1.0361\times 10^7 (1-\mathrm{ecc}^2)^(1.5) K^3 \mathrm{period}
+        f(M) = 1.0361\times 10^7 (1-\mathrm{ecc}^2)^{1.5} K^3 \mathrm{period}
     
     Fixing the primary and secondary mass, you can use this relation to compute
     the inclination angle.

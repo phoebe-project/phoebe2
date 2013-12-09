@@ -231,7 +231,7 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
         
 #    DATA contexts
 defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','amdep','rvdep']),
-         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
+         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',long_description=("Limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                   "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
                                                                                   "other information like reddening, beaming etc... (2) using a relative filename, in which case "
@@ -324,7 +324,7 @@ defs += [dict(qualifier='ld_coeffs',description='Limb darkening coefficients',re
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','pssyn','amsyn','sisyn']),
         ]        
 
-defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type=str,value='uniform',frame=["phoebe"],context=['spdep','pldep']),
+defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of spectrum',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context=['spdep','pldep']),
@@ -333,6 +333,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='R',        description='Resolving power lambda/Dlambda (or c/Deltav)',repr='%g',cast_type=float,value=400000.,frame=["phoebe"],context=['spdep','pldep','spobs','plobs']),
          dict(qualifier='vmacro',   description='Analytical macroturbulent velocity',repr='%g',unit='km/s',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='vmicro',   description='Microturbulent velocity', long_description="Currently only used when profile=gauss.", repr='%g',unit='km/s',cast_type=float,value=5.0,adjust=False,frame=["phoebe"],context=['spdep','pldep']),
+         dict(qualifier='depth',   description='Depth of Gaussian profile', long_description="Currently only used when profile=gauss.", repr='%g',cast_type=float,value=0.4,adjust=False,frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='vgamma', description='Systemic velocity',long_description="A negative systemic velocity means the synthetic profile will be blue-shifted (towards shorter wavelengths). Note that the observed profile is never changed, all modifications are done on the synthetic spectra only.", repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context=['spobs','plobs']),
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
@@ -406,7 +407,7 @@ defs += [dict(qualifier='freq',     description='Pulsation frequency',repr='%f',
          dict(qualifier='ampl',     description='Pulsation amplitude (fractional radius)',repr='%f',cast_type=float,adjust=False,value=0.01,frame=["phoebe"],context='puls'),
          dict(qualifier='l',        description='Degree of the mode',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='puls'),
          dict(qualifier='m',        description='Azimuthal order of the mode',repr='%d',cast_type=int,value=2,frame=["phoebe"],context='puls'),
-         dict(qualifier='k',        description='Horizontal/vertical displacement',repr='%f',cast_type=float,value=0.001,frame=["phoebe"],context='puls'),
+         dict(qualifier='k',        description='Horizontal/vertical displacement',repr='%f',adjust=False, cast_type=float,value=0.001,frame=["phoebe"],context='puls'),
          dict(qualifier='ledoux_coeff',description='Ledoux Cln',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context='puls'),
          dict(qualifier='amplteff',description='Amplitude of temperature perturbation',repr='%g',cast_type=float,value=0.025,adjust=False,frame=["phoebe"],context='puls'),
          dict(qualifier='phaseteff',description='Phase of temperature perturbation',repr='%g',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context='puls'),

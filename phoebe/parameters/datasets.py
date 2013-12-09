@@ -381,7 +381,12 @@ class DataSet(parameters.ParameterSet):
         return (len(self),)    
     
     def __len__(self):
-        return len(self[self['columns'][0]])
+        # if there is time in this parameterSet, we'll take the length of that
+        if 'time' in self['columns']:
+            return len(self['time'])
+        # otherwise we guess the firt column
+        else:
+            return len(self[self['columns'][0]])
     
     def asarray(self):
         self_copy = self.copy()

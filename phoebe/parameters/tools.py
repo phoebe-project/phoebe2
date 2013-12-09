@@ -1091,7 +1091,7 @@ def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
     kwargs.setdefault('repr','%f')
     
     #-- remove any constraints on amplvelo and add the parameter
-    star.pop_constraint('amplvelo',None)
+    puls.pop_constraint('amplvelo',None)
     if not 'amplvelo' in puls:
         puls.add(parameters.Parameter(qualifier='amplvelo',
                                 value=amplvelo if amplvelo is not None else 0.,
@@ -1104,8 +1104,8 @@ def add_amplvelo(puls,amplvelo=None,derive=None,unit='s-1',**kwargs):
         puls.add_constraint('{amplvelo} = 2.0*np.pi*{freq}*{ampl}')
         logger.info("puls '{}': 'amplvelo' constrained by 'freq' and 'ampl'".format(puls['label']))
     elif derive=='ampl':
-        star.pop_constraint('ampl',None)
-        star.add_constraint('{ampl} = {amplvelo}/(2*np.pi*{freq})')
+        puls.pop_constraint('ampl',None)
+        puls.add_constraint('{ampl} = {amplvelo}/(2*np.pi*{freq})')
         logger.info("puls '{}': '{}' constrained by 'amplvelo' and 'freq'".format(puls['label'],derive))
     else:
         raise ValueError("Cannot derive {} from amplvelo".format(derive))
