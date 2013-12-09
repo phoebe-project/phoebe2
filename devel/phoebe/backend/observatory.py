@@ -1215,11 +1215,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     depth = pbdep.get('depth', 0.4)
     
     # System velocity
-    globals = the_system.get_globals()
-    if globals is not None:
-        vgamma = globals.request_value('vgamma', 'km/s')
-    else:
-        vgamma = 0.0
+    vgamma = obs.get('vgamma', 0.0)
     
     # Information on dependable set: we need the limb darkening function and
     # the method
@@ -1376,7 +1372,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         wavelengths, total_spectrum = tools.rotational_broadening(wavelengths,
                               template, vrot, stepr=-1, epsilon=epsilon)
         total_continum = np.ones_like(wavelengths)
-   
+
     #-- convolve with instrumental profile if desired
     if R is not None:
         instr_fwhm = wc/R
@@ -1388,9 +1384,9 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
                        width_type='fwhm')
             total_spectrum *= total_continum
         except ValueError:
-            logger.error("Cannot convolve spectrum, resolution too low wrt instrumental broadening")
+            logger.info("Cannot convolve spectrum, resolution too low wrt instrumental broadening")
     
-    if vmicro > 0:
+    if vmicro > 0 and profile != 'gauss':
         dlam_micro = vmicro/constants.cc*1000*wc
         logger.info('Convolving spectrum with microturbulent profile dlam_mic={:.3f}AA'.format(dlam_micro))
         try:
@@ -1401,7 +1397,6 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         except ValueError:
             logger.error("Cannot convolve spectrum, resolution too low wrt microturbulent broadening")
         
-   
     if extend > 0:
         keep = slice(len(wave_before), len(wavelengths) - len(wave_after))
         wavelengths = wavelengths[keep]
@@ -1415,7 +1410,6 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         total_spectrum /= distance**2
         total_continum /= distance**2
         
-    
     return wavelengths, total_spectrum, total_continum
 
 
@@ -1884,7 +1878,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
         if dates == 'auto' and not parset.get_enabled():
             continue
         loaded = parset.load(force=False)
-        
+
         # Retrieve exposure times
         if 'exptime' in parset and len(parset['exptime']):
             exps = parset['exptime']
@@ -1918,13 +1912,13 @@ def extract_times_and_refs(system, params, tol=1e-8):
                             "phshift={}").format(period, t0, phshift))
         else:
             mytimes = parset['time']
-            
+
         for itime, iexp, isamp in zip(mytimes, exps, samp):
             times.append(np.linspace(itime - iexp/2.0/(24*3600.), itime + iexp/2.0/(24*3600.), isamp+2)[1:-1])
             refs.append([parset['ref']] * isamp)
             types.append([parset.context] * isamp)
             samps.append([isamp]*isamp)
-            
+
         # Put the parameterSet in the state we found it
         if loaded: parset.unload()
     
@@ -2620,8 +2614,7 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     
     elif algorithm == 'graham':
         logger.info("Graham E/H detection")
-        
-       
+               
         try:
             found_partial = eclipse.convex_graham(all_systems.get_bodies())
         # For single bodies, it's quite trivial:

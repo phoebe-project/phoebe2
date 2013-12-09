@@ -45,7 +45,7 @@ just linear combinations of the nonrotating case).
     - :math:`\theta` is the colatitude, and runs between 0 (north pole) over
       :math:`\pi/2` (equator) to :math:`\pi` (south pole).
     - :math:`\phi` is the longitude, and runs between 0 and :math:`2\pi`.
-    - :math:`\ell` is the degree of the mode (number of nodal lines)
+    - :math:`\ell` (:ref:`l <parlabel-phoebe-puls>`) is the degree of the mode (number of nodal lines)
     - :math:`m` is the azimuthal order of the mode (number of nodal lines going
       through the pulsational azimuth). A positive :math:`m` means the mode is
       prograde (in the direction of the rotation :math:`\Omega_\mathrm{rot}`), a
@@ -68,6 +68,17 @@ just linear combinations of the nonrotating case).
       
       Note that if the rotation period is of the order of the pulsational period,
       one should include higher order rotational effects in the calculations.
+    - The inclination axis of each pulsation is given by :math:`i`. When the
+      rotation axis and the pulsation axis are the same, then :math:`i=0^\circ`.
+      If the pulsation and rotation axis are not aligned, then the same coordinate
+      system is used as for the :py:func:`oblique magnetic field <phoebe.atmospheres.magfield.get_dipole>`.
+      Here, the parameters ``incl`` and ``phaseincl`` are equivalent to
+      ``beta`` and ``phi0`` in the magnetic context.
+    - Ephemeris are always computed in Julian Days, with the reference time
+      equal to :math:`t_0=0`. If you want to have another reference time for 
+      a certain dataset, you need to set :math:`t_0` to some appropriate value
+      in that particular dataset.
+    
 
 +---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
 | :math:`\ell=3, m=2` (nonrotating)           | :math:`\ell=2, m=2` (nonrotating)           | :math:`\ell=2, m=-2` (nonrotating)          | :math:`\ell=1, m=0` (nonrotating)           |
@@ -760,7 +771,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         omega = 2*pi*freq_Hz
         incl = pls.get_value('incl','rad')
         phaseincl = pls.get_value('phaseincl','rad')
-        k0 = k_#constants.GG*M/omega**2/R**3    
+        k0 = constants.GG*M/omega**2/R**3    
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.
         #   indeed, the traditional approximation approximates a mode as a

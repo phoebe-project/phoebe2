@@ -897,6 +897,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     scale = kwargs.pop('scale', 'obs')
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
+    offset = kwargs.pop('offset', 0)
     ax = kwargs.pop('ax',plt.gca())
     velocity = kwargs.pop('velocity',None)
     
@@ -918,8 +919,8 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
             l3 = obs['l3']
         
             # Shift the synthetic wavelengths if necessary
-            if 'vgamma' in obs and obs['vgamma']!=0:
-                x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
+            #if 'vgamma' in obs and obs['vgamma']!=0:
+            #    x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
         except ValueError:
             pass
             #raise ValueError(("No observations in this system or component, "
@@ -930,7 +931,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     
     y = y * pblum + l3
     
-    p, = ax.plot(x, y, *args, **kwargs)
+    p, = ax.plot(x, y+offset, *args, **kwargs)
     
     if loaded:
         syn.unload()
@@ -944,6 +945,7 @@ def plot_spobs_as_profile(system, *args, **kwargs):
     """
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
+    offset = kwargs.pop('offset', 0)
     
     
     obs, ref = system.get_parset(category='sp', type='obs', ref=ref)
@@ -951,11 +953,15 @@ def plot_spobs_as_profile(system, *args, **kwargs):
     
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
-    x = obs['wavelength'][index]
+    x = obs['wavelength']
+    # only if wavelengths are different for every observation do we need to
+    # select the correct one
+    if len(x.shape)==2:
+        x = x[index]
     y = obs['flux'][index] / obs['continuum'][index]
     e_y = obs['sigma'][index] / obs['continuum'][index]
     
-    plt.errorbar(x, y, yerr=e_y, **kwargs)
+    plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
     
     if loaded:
         obs.unload()    
@@ -968,6 +974,7 @@ def plot_spres_as_profile(system, *args, **kwargs):
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
     scale = kwargs.pop('scale', 'obs')
+    offset = kwargs.pop('offset', 0)
     
     obs, ref = system.get_parset(category='sp', type='obs', ref=ref)
     syn, ref = system.get_parset(category='sp', type='syn', ref=ref)
@@ -984,14 +991,17 @@ def plot_spres_as_profile(system, *args, **kwargs):
                          "so no scalings available: set keyword `scale=None`"))
     
     
-    
-    x = obs['wavelength'][index]
+    x = obs['wavelength']
+    # only if wavelengths are different for every observation do we need to
+    # select the correct one
+    if len(x.shape)==2:
+        x = x[index]
     y1 = obs['flux'][index] / obs['continuum'][index]
     e_y1 = obs['sigma'][index] / obs['continuum'][index]
     y = (y1 - y2) / e_y1
     e_y = np.ones(len(y))
     
-    plt.errorbar(x, y, yerr=e_y, **kwargs)
+    plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
     
     if loaded_obs:
         obs.unload()        

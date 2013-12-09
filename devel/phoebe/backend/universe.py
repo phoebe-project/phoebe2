@@ -3021,6 +3021,8 @@ class Body(object):
         if savefig:
             mlab.figure(bgcolor=(0.5,0.5,0.5),size=kwargs.pop('size',(600,600)))
         
+        scale_factor = kwargs.pop('scale_factor',1.0)
+        
         for si,keep in enumerate(select):
             kwargs_ = kwargs.copy()
             if keep=='hidden':
@@ -3069,7 +3071,7 @@ class Body(object):
             triangles = [(i,N+i,2*N+i) for i in range(N)]
             x0,y0,z0 = offset
             #-- plot the normals as arrows in the same color as the triangles
-            scale_factor = kwargs.pop('scale_factor',1.)
+            
             if normals:
                 x1,y1,z1 = self.mesh[coframe+'center'][keep].T
                 u1,v1,w1 = self.mesh[coframe+'normal_'][keep].T

@@ -25,6 +25,8 @@ class Distribution(object):
             
         if dist_name == 'normal':
             return Normal(*args, **kwargs)
+        elif dist_name == 'uniform':
+            return Uniform(*args, **kwargs)
         else:
             return DeprecatedDistribution(dist_name, *args, **kwargs)
             
@@ -418,7 +420,7 @@ class Normal(DeprecatedDistribution):
                                   scale=self.distr_pars['sigma'])
         return values
     
-    def grid(self, sampling=5):
+    def get_grid(self, sampling=5):
         """
         Draw a (set of_) likely value(s) from the normal distribution.
         
@@ -473,6 +475,78 @@ class Normal(DeprecatedDistribution):
         Get scale parameter.
         """
         return self.distr_pars['sigma']
+        
+        
+        
+
+class Uniform(DeprecatedDistribution):
+    """
+    The Uniform distribution.
+    """
+    def __init__(self, lower, upper):
+        self.distribution = 'uniform'
+        self.distr_pars = dict(lower=lower, upper=upper)        
+    
+    
+    def get_limits(self, factor=1.0):
+        """
+        Return the minimum and maximum of the uniform distribution.
+        
+        """
+        lower = self.distr_pars['lower']
+        upper = self.distr_pars['upper']
+        window = upper - lower
+        mean = (lower + upper) / 2.0
+        lower = mean - factor * window/2.0
+        upper = mean + factor * window/2.0  
+        
+        return lower, upper
+    
+        
+    def draw(self, size=1):
+        """
+        Draw a (set of) random value(s) from the uniform distribution.
+        
+        @param size: number of values to generate
+        @type size: int
+        @return: random value from the distribution
+        @rtype: array[C{size}]
+        """
+        values = np.random.uniform(size=size,low=self.distr_pars['lower'],
+                                 high=self.distr_pars['upper'])
+        return values
+    
+    
+    def get_grid(self, sampling=5):
+        """
+        Draw a (set of_) likely value(s) from the normal distribution.
+        
+        We grid uniformly in 
+        """
+        lower = self.distr_pars['lower']
+        upper = self.distr_pars['upper']
+        mygrid = np.linspace(lower, upper, sampling)
+        
+        return mygrid    
+    
+    def get_loc(self):
+        """
+        Get location parameter.
+        """
+        lower = self.distr_pars['lower']
+        upper = self.distr_pars['upper']
+        return (lower + upper) / 2.0
+    
+    
+    def get_scale(self):
+        """
+        Get scale parameter.
+        """
+        lower = self.distr_pars['lower']
+        upper = self.distr_pars['upper']
+        
+        return (upper - lower) / 2.0
+        
         
 
 def transform_to_unbounded(par,low,high):
