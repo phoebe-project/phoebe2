@@ -3,6 +3,26 @@ from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
 
 import ui_phoebe_pyqt4 as gui
+import os
+import numpy as np
+
+from phoebe.parameters import datasets
+from phoebe.atmospheres import passbands
+
+def get_datarefs(bundle):
+    """
+    returns a list of datarefs for synthetic datasets
+    
+    note this does not include duplicates if multiple objrefs have the same dataref
+    """
+    
+    ds_syn_all = bundle.get_syn(force_dict=True).values()
+    ds_syn_names = []
+    for dss in ds_syn_all:
+        if dss['ref'] not in ds_syn_names:
+            ds_syn_names.append(dss['ref'])    
+    return ds_syn_names
+
 
 ### classes to allow creating the popup dialogs or attaching widgets
 class CreatePopAbout(QDialog, gui.Ui_popAbout_Dialog):
@@ -362,7 +382,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
 
     def on_servers_returntolist(self,*args):
         self.servers_config_stackedWidget.setCurrentIndex(0)
-
+        
 class CreatePopObsOptions(QDialog, gui.Ui_popObsOptions_Dialog):
     def __init__(self, parent=None):
         super(CreatePopObsOptions, self).__init__(parent)
@@ -372,12 +392,286 @@ class CreatePopPlot(QDialog, gui.Ui_popPlot_Dialog):
     def __init__(self, parent=None):
         super(CreatePopPlot, self).__init__(parent)
         self.setupUi(self)
+
+class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
+    def __init__(self, parent, bundle):
+        super(CreatePopTimeSelect, self).__init__(parent)
+        self.setupUi(self)
+        
+        for w in [self.compute_min, self.compute_max, self.compute_median, self.compute_mean]:
+            self.connect(w, SIGNAL("clicked()"), self.on_compute)
+            
+        self.ds_names = get_datarefs(bundle)
+        self.datasetComboBox.addItems(['*all*']+self.ds_names)
+
+        self.bundle = bundle
+        
+    def get_times(self,dataref):
+        """
+        returns the times (np.array) given a dataref
+        this function gets the first syn that matches, not caring about objref
+        as we are assuming they should all have the same times
+        """
+        return self.bundle.get_syn(dataref=dataref).values()[0].asarray()['time']
+        
+    def get_time(self):
+        """
+        this function returns the currently set time, or None if it hasn't been set
+        """
+        time_str = self.time.text()
+        
+        if time_str == '':
+            return None
+        else:
+            return float(time_str)
+
+    def on_compute(self):
+        """
+        compute time and fill time button
+        user still has to accept the time before returning value
+        """
+        w = self.sender()
+        compute = str(w.objectName()).split('_')[1] # min, max, median, mean
+        
+        dataref = str(self.datasetComboBox.currentText())
+        
+        if dataref == '*all*':
+            times = np.array([])
+            for dr in self.ds_names:
+                times = np.append(times, self.get_times(dr))
+        else:
+            times = self.get_times(dataref)
+        
+        if compute == 'min':
+            time = times.min()
+        elif compute == 'max':
+            time = times.max()
+        elif compute == 'median':
+            time = np.median(times)
+        elif compute == 'mean':
+            time = np.mean(times)
+        
+        self.time.setText(str(time))
+        
         
 class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
     def __init__(self, parent=None):
         super(CreatePopFileEntry, self).__init__(parent)
         self.setupUi(self)
         
+        self.colwidgets = []
+        
+        self.pfe_fileReloadButton.setVisible(False) # TODO - will need to change this when allowing editing already created datasets
+        
+        self.dataTextEdit.setVisible(False)
+        self.syn_timeWidget.setVisible(False)
+        
+        self.set_filters()
+        self.on_category_changed('lc') # initialize the datatypes combo to lc
+        
+        self.connect(self.pfe_fileChooserButton, SIGNAL("clicked()"), self.on_file_choose)
+        self.connect(self.pfe_synChooserButton, SIGNAL("clicked()"), self.on_syn_choose)
+        self.connect(self.pfe_categoryComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_category_changed)
+        
+        for w in [self.timeselect_arange_min, self.timeselect_arange_max, self.timeselect_linspace_min, self.timeselect_linspace_max]:
+            self.connect(w, SIGNAL("clicked()"), self.on_timeselect_clicked)
+        
+    def set_filters(self):
+        self.filtertypes = passbands.list_response()
+        self.pfe_filterComboBox.addItems(self.filtertypes)
+        
+    def on_syn_choose(self):
+        # show the time chooser widget
+        
+        # set datarefs
+        datarefs = get_datarefs(self.parent().bundle)
+        self.datasetComboBox.addItems(datarefs)
+        
+        # set components
+        self.syn_components_checks = {}
+        vbox = QVBoxLayout(self.syn_componentsWidget)
+        for name in self.parent().system_names:
+            check = QCheckBox(name)
+            self.syn_components_checks[name] = check
+            vbox.addWidget(check)
+            
+        # show panel
+        self.syn_timeWidget.setVisible(True)
+        
+        # this is now a synthetic dataset - hide the file chooser button
+        self.pfe_synChooserButton.setEnabled(False)
+        self.pfe_fileChooserButton.setVisible(False)
+        
+    def on_timeselect_clicked(self):
+        pop = CreatePopTimeSelect(self,self.parent().bundle)
+        result = pop.exec_()
+        
+        name = str(self.sender().objectName())
+        
+        if result:
+            # get the necessary widget
+            w = self.findChildren(QDoubleSpinBox,'_'.join(name.split('_')[1:]))[0]
+            w.setValue(pop.get_time())
+        
+    def on_file_choose(self):
+        """
+        this is called when the file selector button is clicked
+        we need to create a filechooser popup and then set the gui based on the selected file
+        """
+
+        f = QFileDialog.getOpenFileName(self, 'Import Data...', self.parent().latest_dir if self.parent().latest_dir is not None else '.', **self.parent()._fileDialog_kwargs)
+        if len(f)==0: #then no file selected
+            return
+ 
+        # store the directory used (to the main gui class)
+        self.parent().latest_dir = os.path.dirname(str(f))
+        
+        # change the text of the button to say the filename
+        self.pfe_fileChooserButton.setText(f)
+
+        # make the widget that will show the contents visible
+        self.dataTextEdit.clear()
+        self.dataTextEdit.setVisible(True)
+
+        # open and read the file
+        fdata = open(f, 'r')
+        data = fdata.readlines()
+
+        # parse header and try to predict settings
+        (columns,components,datatypes,units,ncols),(pbdep,dataset) = datasets.parse_header(str(f))
+        if components is None:
+            components = ['None']*ncols
+        
+        if pbdep['passband'] in self.filtertypes:
+            passband = self.pfe_filterComboBox.setCurrentIndex(self.filtertypes.index(pbdep['passband'])+1)
+        
+        # if no name has been provided, try to guess
+        if self.name.text()=='':
+            self.name.setText(pbdep['ref'])
+
+        # remove any existing colwidgets
+        if hasattr(self, 'colwidgets'): 
+            # then we have existing columns from a previous file and need to remove them
+            for colwidget in self.colwidgets:
+                self.horizontalLayout_ColWidgets.removeWidget(colwidget)
+                
+        self.colwidgets = []
+        for col in range(ncols):
+            colwidget = CreatePopFileEntryColWidget()
+            self.colwidgets.append(colwidget) # so we can iterate through these later
+            self.horizontalLayout_ColWidgets.addWidget(colwidget)
+
+            colwidget.col_comboBox.setVisible(False)
+
+            colwidget.type_comboBox.addItems(self.datatypes)
+
+            colwidget.comp_comboBox.addItems(self.parent().system_names)
+            #~ colwidget.comp_comboBox.addItem('provided in another column')
+            
+            QObject.connect(colwidget.type_comboBox, SIGNAL("currentIndexChanged(QString)"), self.on_pfe_typeComboChanged)
+            
+            # try to guess the column types and settings
+            if columns is not None and columns[col] in self.datatypes:
+                colwidget.type_comboBox.setCurrentIndex(self.datatypes.index(columns[col]))
+            if components is not None and components[col] in self.parent().system_names:
+                colwidget.comp_comboBox.setCurrentIndex(self.parent().system_names.index(components[col])+1) #+1 because of header item
+            
+
+            colwidget.col_comboBox.setEnabled(False)
+            colwidget.col_comboBox.clear()
+            for col in range(ncols):
+                colwidget.col_comboBox.addItem('Column %d' % (col+1))
+            colwidget.col_comboBox.setEnabled(True)
+
+        # show the first 100 lines of the data
+        for i,line in enumerate(data):
+            if i > 100: continue    
+            if i==100: self.dataTextEdit.appendPlainText('...')
+            if i<100:
+                self.dataTextEdit.appendPlainText(line.strip())
+                
+        # show the reload button, hide the syn only button
+        self.pfe_fileReloadButton.setVisible(True)
+        self.pfe_synChooserButton.setVisible(False)
+                
+    def on_pfe_typeComboChanged(self):
+        """
+        when data column type is changed, this changes the options for the remaining combo boxes
+        """
+        combo = self.sender()
+        if not combo.isEnabled():
+            return
+        selection = combo.currentText()
+        colwidget = combo.parent()
+        unitscombo = colwidget.units_comboBox
+        compcombo = colwidget.comp_comboBox
+        colcombo = colwidget.col_comboBox
+
+        unitscombo.setEnabled(False)
+        unitscombo.clear()
+        unitscombo.setEnabled(True)
+
+        if selection=='--Data Type--' or selection=='ignore' or selection=='component':
+            unitscombo.addItems(['--Units--'])
+            unitscombo.setEnabled(False)
+        if selection=='time' or selection=='eclipse time':
+            unitscombo.addItems(['BJD', 'HJD', 'Phase'])
+        if selection=='wavelength':
+            unitscombo.addItems(['Angstroms'])
+        if selection=='flux':
+            unitscombo.addItems(['Flux','Magnitude'])
+        if selection=='rv':
+            unitscombo.addItems(['m/s', 'km/s'])
+        if selection=='o-c':
+            unitscombo.addItems(['days', 'mins'])
+        if selection=='sigma':
+            unitscombo.addItems(['Standard Weight', 'Standard Deviation'])
+            
+        unitscombo.setEnabled(False) #TODO unit support
+
+        if selection=='component':
+            compcombo.setVisible(False)
+            colcombo.setVisible(True)
+        else:
+            compcombo.setVisible(True)
+            colcombo.setVisible(False)
+
+        if selection != 'time' and selection != 'wavelength' and selection!="--Data Type--" and selection!='ignore': # x-axis types
+            compcombo.setEnabled(True)
+        else:
+            compcombo.setCurrentIndex(0)
+            compcombo.setEnabled(False)
+        
+    def on_category_changed(self,category):
+        """
+        this is called whenever the category combo is changed
+        
+        we need to change the column datatype combos to match the category
+        and also need to set self.category so when ok is clicked we can call the correct command
+        """
+        
+        #determine what type of data we're loading, and set options accordingly
+        if category=='lc':
+            self.datatypes = ['--Data Type--', 'time', 'flux', 'sigma']
+            #~ self.datatypes = ['--Data Type--', 'time', 'flux', 'sigma', 'component', 'ignore']
+        elif category=='rv':
+            self.datatypes = ['--Data Type--', 'time', 'rv', 'sigma']
+            #~ self.datatypes = ['--Data Type--', 'time', 'rv', 'sigma', 'component', 'ignore']
+        elif category=='etv':
+            self.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma']
+            #~ self.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma', 'component', 'ignore']
+        elif category=='sp':
+            self.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma']
+            #~ self.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma', 'component', 'ignore']
+        else:
+            return
+            
+        self.category = category
+            
+        for colwidget in self.colwidgets:
+            colwidget.type_comboBox.clear()
+            colwidget.type_comboBox.addItems(self.datatypes)
+
 class CreatePopFileEntryColWidget(QWidget, gui.Ui_popFileEntryColWidget):
     def __init__(self, parent=None):
         super(CreatePopFileEntryColWidget, self).__init__(parent)

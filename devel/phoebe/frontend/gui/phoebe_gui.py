@@ -93,7 +93,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.bp_datasetsDockWidget.setTitleBarWidget(QWidget())
 
         # set default visibility for docks/frames
-        self.mp_addPlotButtonsWidget.setVisible(False)
         self.lp_DockWidget.setVisible(False)
         self.rp_fittingDockWidget.setVisible(False)
         self.bp_pyDockWidget.setVisible(False)
@@ -180,7 +179,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.mp_expandLayout.addWidget(expanded_plot.plot_Widget,0,0)
         expanded_plot.plot_gridLayout.addWidget(self.expanded_plot_widget,0,0)
         expanded_plot.zoom_in.info = {'axes_i': 'expanded', 'canvas': self.expanded_canvas}
-        expanded_plot.zoom_out.info = {'axes_i': 'expanded'}
+        expanded_plot.zoom_out.info = {'axes_i': 'expanded', 'canvas': self.expanded_canvas}
         expanded_plot.save.info = {'axes_i': 'expanded'}
         self.expanded_plot = expanded_plot
         
@@ -231,11 +230,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.jsmessenger, SIGNAL("selectionUpdate"), self.on_sysSel_selectionChanged)
         QObject.connect(self.mpsys_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle)
         QObject.connect(self.mpgl_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle)
-        QObject.connect(self.mp_addPlotLabelWidget, SIGNAL("hover_enter"), self.on_plot_add_hover_enter)
-        QObject.connect(self.mp_addPlotLabelWidget, SIGNAL("hover_leave"), self.on_plot_add_hover_leave)
-        QObject.connect(self.mp_addLCPlotPushButton, SIGNAL("clicked()"), self.on_plot_add)
-        QObject.connect(self.mp_addRVPlotPushButton, SIGNAL("clicked()"), self.on_plot_add)
-        QObject.connect(self.mp_addSPPlotPushButton, SIGNAL("clicked()"), self.on_plot_add)
         QObject.connect(self.datasetswidget_main.datasetTreeView, SIGNAL("axes_add"), self.on_axes_add)
         QObject.connect(self.datasetswidget_main.datasetTreeView, SIGNAL("axes_goto"), self.on_axes_goto)
         QObject.connect(self.mp_splash_binaryPushButton, SIGNAL("clicked()"), self.splash_binary)
@@ -265,11 +259,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # bottom panel signals
         QObject.connect(self.datasetswidget_main.ds_typeComboBox, SIGNAL("currentIndexChanged(QString)"), self.update_datasets)
         QObject.connect(self.datasetswidget_main.ds_plotComboBox, SIGNAL("currentIndexChanged(QString)"), self.update_datasets)
-        QObject.connect(self.datasetswidget_main.addLCButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
-        QObject.connect(self.datasetswidget_main.addRVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
-        QObject.connect(self.datasetswidget_main.addSPButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
-        QObject.connect(self.datasetswidget_main.addETVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
-        self.datasetswidget_main.addETVButton.setEnabled(False)
+        QObject.connect(self.datasetswidget_main.addDataButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        #~ QObject.connect(self.datasetswidget_main.addLCButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        #~ QObject.connect(self.datasetswidget_main.addRVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        #~ QObject.connect(self.datasetswidget_main.addSPButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        #~ QObject.connect(self.datasetswidget_main.addETVButton, SIGNAL("clicked()"), self.on_fileEntryShow) 
+        #~ self.datasetswidget_main.addETVButton.setEnabled(False)
         
         # tree view signals
         self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView, self.versions_treeView, self.rp_savedFeedbackTreeView, self.sys_orbitOptionsTreeView, self.sys_meshOptionsTreeView]
@@ -338,7 +333,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.set_time_i = 0
         # should be deciding based on the type of call made
-        #~ self.mp_progressStackedWidget.setCurrentIndex(1) #progress bar
         if self.str_includes(command, ['set_time','observe','run_compute']):
             self.lp_progressStackedWidget.setCurrentIndex(1) #progress bar
         if self.str_includes(command, ['run_fitting']):
@@ -364,11 +358,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.centralwidget.setEnabled(True)
         
         # can't hurt to reset all
-        self.mp_progressStackedWidget.setCurrentIndex(0) #plot buttons
         self.lp_progressStackedWidget.setCurrentIndex(0) #plot buttons
         self.rp_progressStackedWidget.setCurrentIndex(0) #plot buttons
         
-        self.mp_progressBar.setValue(0)
         self.lp_progressBar.setValue(0)
         self.rp_progressBar.setValue(0)
         
@@ -728,14 +720,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         """
         self.jsmessenger.ctrl=False
             
-    def on_plot_add_hover_enter(self):
-        self.mp_addPlotButtonsWidget.setVisible(True)
-        self.mp_addPlotLabel.setVisible(False)
-
-    def on_plot_add_hover_leave(self):
-        self.mp_addPlotLabel.setVisible(True)
-        self.mp_addPlotButtonsWidget.setVisible(False)
-        
     def attach_plot_signals(self, axes, i=0, canvas=None, skip_axes_attach=False):
         #~ print "*** attach_plot_signals", i
         if canvas is None:
@@ -839,8 +823,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             QObject.connect(canvas, SIGNAL("plot_delete"), self.on_plot_del)
             QObject.connect(canvas, SIGNAL("plot_pop"), self.on_plot_pop)
             overlay = phoebe_plotting.PlotOverlay(canvas,closable)
-        #~ else:
-            #~ QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
+        else:
+            QObject.connect(canvas, SIGNAL("plot_clicked"), self.on_plot_clicked)
         vbox = QVBoxLayout()
         vbox.addWidget(canvas)
         if not thumb:
@@ -1065,7 +1049,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # zoom and save buttons
         pop.zoom_in.info = {'axes_i': i, 'canvas': canvas}
-        pop.zoom_out.info = {'axes_i': i}
+        pop.zoom_out.info = {'axes_i': i, 'canvas': canvas}
         pop.save.info = {'axes_i': i}
         
         QObject.connect(pop.zoom_in, SIGNAL("toggled(bool)"), self.on_plot_zoom_in_toggled)
@@ -1459,14 +1443,22 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
         title = 'Plot %d' % (len(self.bundle.get_axes())+1)
+        
         do_command = "bundle.add_axes(category='%s', title='%s')" % (category,title)
         undo_command = "bundle.remove_axes('%s')" % (title)
-        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
+        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new axes')
         self.undoStack.push(command)
         
-        self.on_axes_goto()
+        for context_kind in ['obs','syn']:
+            if (context_kind=='obs' and len(self.bundle.get_obs(objref=objref,dataref=dataref,force_dict=True)) > 0) or (context_kind=='syn' and len(self.bundle.get_syn(objref=objref,dataref=dataref,force_dict=True)) > 0):
+                do_command = "bundle.get_axes('%s').add_plot(type='%s%s',objref='%s',dataref='%s')" % (title,category,context_kind,objref,dataref)
+                undo_command = "bundle.get_axes('%s').remove_plot(0)" % (title)
+                command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
+                self.undoStack.push(command)
+        
+        self.on_axes_goto(title)
                     
-    def on_axes_goto(self,plotname=None,ind=None):
+    def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
         self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes().keys().index(plotname)+1)        
         # expand plot? or leave as is?
@@ -1522,11 +1514,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 col = j - row
                 self.mp_plotGridLayout.addWidget(widget, row, col)
 
-            if num >= 9:
-                self.mp_addPlotLabelWidget.setVisible(False)
-            else:
-                self.mp_addPlotLabelWidget.setVisible(True)
-
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
         
@@ -1561,7 +1548,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.unity_launcher.set_property("progress", float(self.set_time_i)/self.set_time_is)
                 self.unity_launcher.set_property("progress_visible", True)
                 
-            #~ self.mp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.lp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             #~ self.rp_progressBar.setValue(int(float(self.set_time_i+1)/self.set_time_is*100))
             self.set_time_i += 1
@@ -1780,206 +1766,74 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         pop = phoebe_dialogs.CreatePopFileEntry(self)
         pop.show()
 
-        #determine what type of data we're loading, and set options accordingly
-        sender = self.sender()
-        if sender==self.datasetswidget_main.addLCButton:
-            if _alpha_test:
-                pop.datatypes = ['--Data Type--', 'time', 'flux', 'sigma']
-            else:
-                pop.datatypes = ['--Data Type--', 'time', 'flux', 'sigma', 'component', 'ignore']
-            pop.context = 'lcobs'
-            pop.setWindowTitle('PHOEBE - Import LC Data')
-        elif sender==self.datasetswidget_main.addRVButton:
-            if _alpha_test:
-                pop.datatypes = ['--Data Type--', 'time', 'rv', 'sigma']
-            else:
-                pop.datatypes = ['--Data Type--', 'time', 'rv', 'sigma', 'component', 'ignore']
-            pop.context = 'rvobs'
-            pop.setWindowTitle('PHOEBE - Import RV Data')
-        elif sender==self.datasetswidget_main.addETVButton:
-            if _alpha_test:
-                pop.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma']
-            else:
-                pop.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma', 'component', 'ignore']
-            pop.context = 'etvobs'
-            pop.setWindowTitle('PHOEBE - Import ETV Data')
-        elif sender==self.datasetswidget_main.addSPButton:
-            if _alpha_test:
-                pop.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma']
-            else:
-                pop.datatypes = ['--Data Type--', 'wavelength', 'flux', 'sigma', 'component', 'ignore']
-            pop.context = 'spobs'
-            pop.setWindowTitle('PHOEBE - Import Spectral Data')
-        pop.filtertypes = ['JOHNSON.V','JOHNSON.R']
-            
-        QObject.connect(pop.pfe_fileChooserButton, SIGNAL("clicked()"), self.on_pfe_fileChoose)
         QObject.connect(pop.buttonBox.buttons()[1], SIGNAL("clicked()"), pop.close)
         QObject.connect(pop.buttonBox.buttons()[0], SIGNAL("clicked()"), self.on_pfe_okClicked)
                 
-        if True:  #change this to load current filename if already set
-            pop.pfe_fileChooserButton.setText('')
-            #~ pop.dataTreeView.setVisible(False)
-            pop.dataTextEdit.setVisible(False)
-        else:
-            self.on_pfe_fileChoose(pop.pfe_fileChooserButton)
-
-    def on_pfe_fileChoose(self, button=None):
-        from_button = True if button is None else False
-        if button is None:
-            button = self.sender() #this will be the button from the correct dialog
-        pop = button.topLevelWidget()
-        f = QFileDialog.getOpenFileName(self, 'Import Data...', self.latest_dir if self.latest_dir is not None else '.', **_fileDialog_kwargs)
-        if len(f)==0: #then no file selected
-            return
-        self.latest_dir = os.path.dirname(str(f))
-        
-        button.setText(f)
-        #~ pop.dataTreeView.setVisible(True)
-        pop.dataTextEdit.setVisible(True)
-
-        fdata = open(f, 'r')
-        data = fdata.readlines()
-
-        pop.dataTextEdit.clear()
-        
-        pop.pfe_filterComboBox.addItems(pop.filtertypes)
-
-        # parse header and try to predict settings
-        (columns,components,datatypes,units,ncols),(pbdep,dataset) = datasets.parse_header(str(f))
-        if components is None:
-            components = ['None']*ncols
-        
-        if pbdep['passband'] in pop.filtertypes:
-            passband = pop.pfe_filterComboBox.setCurrentIndex(pop.filtertypes.index(pbdep['passband'])+1)
-        pop.name.setText(pbdep['ref'])
-
-        # remove any existing colwidgets
-        if hasattr(pop, 'colwidgets'): # then we have existing columns from a previous file and need to remove them
-            for colwidget in pop.colwidgets:
-                pop.horizontalLayout_ColWidgets.removeWidget(colwidget)
-        pop.colwidgets = []
-        for col in range(ncols):
-            colwidget = phoebe_dialogs.phoebe_dialogs.CreatePopFileEntryColWidget()
-            pop.colwidgets.append(colwidget) # so we can iterate through these later
-            pop.horizontalLayout_ColWidgets.addWidget(colwidget)
-
-            colwidget.col_comboBox.setVisible(False)
-
-            colwidget.type_comboBox.addItems(pop.datatypes)
-
-            try:
-                colwidget.comp_comboBox.addItems(self.system_names) #self.system_names needs to be [] at startup
-                if not _alpha_test:
-                    colwidget.comp_comboBox.addItem('provided in another column')
-            except: pass
-            
-            QObject.connect(colwidget.type_comboBox, SIGNAL("currentIndexChanged(QString)"), self.on_pfe_typeComboChanged)
-            
-            if columns is not None and columns[col] in pop.datatypes:
-                colwidget.type_comboBox.setCurrentIndex(pop.datatypes.index(columns[col]))
-            if components is not None and components[col] in self.system_names:
-                colwidget.comp_comboBox.setCurrentIndex(self.system_names.index(components[col])+1) #+1 because of header item
-            
-            #~ pop.dataTreeView.headerItem().setText(col, str(col+1))
-
-            colwidget.col_comboBox.setEnabled(False)
-            colwidget.col_comboBox.clear()
-            for col in range(ncols):
-                colwidget.col_comboBox.addItem('Column %d' % (col+1))
-            colwidget.col_comboBox.setEnabled(True)
-
-        for i,line in enumerate(data):
-            if i > 100: continue    
-            if i==100: pop.dataTextEdit.appendPlainText('...')
-            if i<100:
-                pop.dataTextEdit.appendPlainText(line.strip())
-            
-    def on_pfe_typeComboChanged(self):
-        combo = self.sender()
-        if not combo.isEnabled():
-            return
-        selection = combo.currentText()
-        colwidget = combo.parent()
-        unitscombo = colwidget.units_comboBox
-        compcombo = colwidget.comp_comboBox
-        colcombo = colwidget.col_comboBox
-
-        unitscombo.setEnabled(False)
-        unitscombo.clear()
-        unitscombo.setEnabled(True)
-
-        if selection=='--Data Type--' or selection=='ignore' or selection=='component':
-            unitscombo.addItems(['--Units--'])
-            unitscombo.setEnabled(False)
-        if selection=='time' or selection=='eclipse time':
-            unitscombo.addItems(['BJD', 'HJD', 'Phase'])
-        if selection=='wavelength':
-            unitscombo.addItems(['Angstroms'])
-        if selection=='flux':
-            unitscombo.addItems(['Flux','Magnitude'])
-        if selection=='rv':
-            unitscombo.addItems(['m/s', 'km/s'])
-        if selection=='o-c':
-            unitscombo.addItems(['days', 'mins'])
-        if selection=='sigma':
-            unitscombo.addItems(['Standard Weight', 'Standard Deviation'])
-            
-        unitscombo.setEnabled(False) #TODO unit support
-
-        if selection=='component':
-            compcombo.setVisible(False)
-            colcombo.setVisible(True)
-        else:
-            compcombo.setVisible(True)
-            colcombo.setVisible(False)
-
-        if selection != 'time' and selection != 'wavelength' and selection!="--Data Type--" and selection!='ignore': # x-axis types
-            compcombo.setEnabled(True)
-        else:
-            compcombo.setCurrentIndex(0)
-            compcombo.setEnabled(False)
-            
     def on_pfe_okClicked(self):
         pop = self.sender().topLevelWidget()
-        filename=pop.pfe_fileChooserButton.text()
         passband = pop.pfe_filterComboBox.currentText()
         name = pop.name.text() if len(pop.name.text()) > 0 else None
-        
-        if filename is None: #then just create the synthetic (pbdeps)
-            #TODO: make this undoable
-            self.PyInterp_run('', thread=False, kind='sys')
-            return
-        
-        columns = [str(colwidget.type_comboBox.currentText()) if '--' not in str(colwidget.type_comboBox.currentText()) else None for colwidget in pop.colwidgets]
-        units = [str(colwidget.units_comboBox.currentText()) if '--' not in str(colwidget.units_comboBox.currentText()) else None for colwidget in pop.colwidgets]
-        components = [str(colwidget.comp_comboBox.currentText()) if '--' not in str(colwidget.comp_comboBox.currentText()) else None for colwidget in pop.colwidgets]
 
-        
-        #TODO make this more intelligent so values that weren't changed by the user aren't sent
-        #TODO name currently doesn't do anything in bundle
-        
-        if passband == '--Passband--':
-            QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
-            return
-        
-        for i,colwidget in enumerate(pop.colwidgets):
-            typecombo = colwidget.type_comboBox
-            unitscombo = colwidget.units_comboBox
-            compcombo = colwidget.comp_comboBox
-            colcombo = colwidget.col_comboBox
+        if pop.pfe_fileChooserButton.isVisible(): # then load_data
+            filename=pop.pfe_fileChooserButton.text()
             
-            if typecombo.currentIndex()!=0:
-                if compcombo.isEnabled() and compcombo.currentIndex()==0:
-                    QMessageBox.information(None, "Warning", "Cannot load data: no component for column %d" % (i+1))  
-                    return
+            if filename is None: #then just create the synthetic (pbdeps)
+                #TODO: make this undoable
+                self.PyInterp_run('', thread=False, kind='sys')
+                return
+            
+            columns = [str(colwidget.type_comboBox.currentText()) if '--' not in str(colwidget.type_comboBox.currentText()) else None for colwidget in pop.colwidgets]
+            units = [str(colwidget.units_comboBox.currentText()) if '--' not in str(colwidget.units_comboBox.currentText()) else None for colwidget in pop.colwidgets]
+            components = [str(colwidget.comp_comboBox.currentText()) if '--' not in str(colwidget.comp_comboBox.currentText()) else None for colwidget in pop.colwidgets]
+            
+            #TODO make this more intelligent so values that weren't changed by the user aren't sent
+            
+            if passband == '--Passband--':
+                QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
+                return
+            
+            for i,colwidget in enumerate(pop.colwidgets):
+                typecombo = colwidget.type_comboBox
+                unitscombo = colwidget.units_comboBox
+                compcombo = colwidget.comp_comboBox
+                colcombo = colwidget.col_comboBox
+                
+                if typecombo.currentIndex()!=0:
+                    if compcombo.isEnabled() and compcombo.currentIndex()==0:
+                        QMessageBox.information(None, "Warning", "Cannot load data: no component for column %d" % (i+1))  
+                        return
 
-        do_command = "bundle.load_data(context='%s',filename='%s',passband='%s',columns=%s,components=%s,ref='%s')" % (pop.context, filename, passband, columns, components, name)
-        undo_command = "bundle.remove_data(ref='%s')" % name
-        description = "load %s dataset" % name
-        
-        command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='sys',thread=False,description=description)
-        self.undoStack.push(command)
-
+            do_command = "bundle.load_data(category='%s',filename='%s',passband='%s',columns=%s,components=%s,ref='%s')" % (pop.category, filename, passband, columns, components, name)
+            undo_command = "bundle.remove_data(ref='%s')" % name
+            description = "load %s dataset" % name
+            
+            command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='sys',thread=False,description=description)
+            self.undoStack.push(command)
+            
+        else: # then create_syn
+            
+            # determine times
+            if pop.times_match.isChecked():
+                dataref = str(pop.datasetComboBox.currentText())
+                timestr = "bundle.get_syn(dataref='%s').values()[0].asarray()['time']" % dataref
+            elif pop.times_arange.isChecked():
+                timestr = "np.arange(%f,%f,%f)" % (pop.arange_min.value(),pop.arange_max.value(),pop.arange_step.value())
+            elif pop.times_linspace.isChecked():
+                timestr = "np.linspace(%f,%f,%d)" % (pop.linspace_min.value(),pop.linspace_max.value(),pop.linspace_num.value())
+            else: # custom list
+                timestr = str(pop.time_custom.text())
+                
+            # determine components
+            components = [comp for comp,check in pop.syn_components_checks.items() if check.isChecked()]
+            if len(components) == 0: components = 'None'
+            
+            do_command = "bundle.create_syn(category='%s', times=%s, components=%s, passband='%s', ref='%s')" % (pop.category,timestr,components,passband,name)
+            undo_command = "bundle.remove_data(ref='%s')" % name
+            description = "create %s synthetic dataset" % name
+            
+            command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='sys',thread=False,description=description)
+            self.undoStack.push(command)
+            
         pop.close()
             
     def on_pfe_refreshClicked(self):
@@ -2004,5 +1858,6 @@ if __name__=='__main__':
     font = app.font()
     palette = app.palette()
     phoebegui = PhoebeGUI((STDOUT, STDERR),DEBUG,font,palette)
+    phoebegui._fileDialog_kwargs = _fileDialog_kwargs
     phoebegui.main()
     app.exec_()
