@@ -441,7 +441,7 @@ class Bundle(object):
         @rtype: Body or BodyBag
         """
         return self.sections['system'][0]
-                       
+    
     def list(self,summary=None,*args):
         """
         List with indices all the ParameterSets that are available.
@@ -797,7 +797,12 @@ class Bundle(object):
     #{ Objects
     def get_object(self, name):
         # return the Body/BodyBag from the system hierarchy
-        pass
+        system = self.get_system()
+        if system.get_label() == name:
+            return system
+        else:
+            raise NotImplementedError
+            
         
     def get_children(self, name):
         # return list of children for self.get_object(name)
@@ -1036,8 +1041,7 @@ class Bundle(object):
             # then attempt to make smart prediction
             if category == 'lc':
                 # then top-level
-                # get_system_structure is not implemented yet
-                #components = [self.get_system_structure(flat=True)[0]]
+                components = [self.get_system()]
                 logger.warning('components not provided - assuming {}'.format(components))
             else:
                 logger.error('create_syn failed: components need to be provided')
@@ -1054,7 +1058,7 @@ class Bundle(object):
             # stuff that is in the defaults. So, if a parameter is in the
             # main body parameterSet, then we'll take that as a default value,
             # but it can be overriden by pbkwargs
-            main_parset = self.get_ps(component)
+            main_parset = component.params.values()[0]
             pb = parameters.ParameterSet(context=category+'dep', ref=ref)
             for key in pb:
                 # derive default
@@ -1066,18 +1070,63 @@ class Bundle(object):
                     if key in pbkwargs.keys():
                         pb[key] = pbkwargs.get(key)
                         
-            output[component] = [[ds],[pb]]
-
+            output[component.get_label()] = [[ds],[pb]]
+        
         self._attach_datasets(output)
         
     def get_syn(self,objref=None,dataref=None,force_dict=False):
-        pass
+        """
+        Get synthetic
+        
+        returns a dictionairy -- should be changed to match behaviour of
+        force_dict (don't know what behaviour is required)
+        """
+        dss = OrderedDict()
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['syn']:
+                    if dataref in body.params['syn'][obstype]:
+                        dss[this_objref] = body.params['syn'][obstype][dataref]
+        
+        if not force_dict and len(dss) == 1:
+            return dss.values()[0]
+        else:
+            return dss
 
     def get_dep(self,objref=None,dataref=None,force_dict=False):
         pass
         
     def get_obs(self, objref=None, dataref=None, force_dict=False):
-        pass
+        """
+        Get observations
+        
+        returns a dictionairy -- should be changed to match behaviour of
+        force_dict (don't know what behaviour is required)
+        """
+        dss = OrderedDict()
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref in body.params['obs'][obstype]:
+                        dss[this_objref] = body.params['obs'][obstype][dataref]
+        
+        return dss
 
     def enable_obs(self,dataref=None):
         pass
@@ -1173,7 +1222,7 @@ class Bundle(object):
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        self.system.set_time(0)
+        system.set_time(0)
         
         # get compute options
         if label is None:
@@ -1391,53 +1440,68 @@ class Bundle(object):
     #}
 
     #{ Figures
-    def plot_obs(self,dataref,objref=None,**kwargs):
+    def plot_obs(self, dataref, *args, **kwargs):
         """
+        Make a plot of the attached observations.
+        
+        The arguments are passed to the appropriate functions in :py:mod:`plotting`.
+        
+        Example usage::
+            
+            bundle.plot_obs('mylc')
+            bundle.plot_obs('mylc', objref='secondary')
+            bundle.plot_obs('mylc', fmt='ko-', objref='secondary')
+            bundle.plot_obs('mylc', fmt='ko-', label='my legend label', objref='secondary')
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True).values()
+        
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
+        
+        # Get the obs DataSet and retrieve its context
         ds = dss[0]
-        typ = ds.context[:-3]
+        context = ds.get_context()
         
-        if typ=='lc':
-            plotting.plot_lcobs(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvobs(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spobs(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifobs(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvobs(self.system,ref=dataref,**kwargs)
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}'.format(context))(self.get_system(),
+                                                     *args, **kwargs)
         
-    def plot_syn(self,dataref,objref=None,**kwargs):
+
+        
+    def plot_syn(self, dataref, *args, **kwargs):
         """
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_syn(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True).values()
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
-        ds = dss[0]
-        typ = ds.context[:-3]
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
-        if typ=='lc':
-            plotting.plot_lcsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvsyn(self.system,ref=dataref,**kwargs)        
+        # Get the obs DataSet and retrieve its context
+        ds = dss[0]
+        context = ds.get_context()
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}'.format(context))(self.get_system(),
+                                                     *args, **kwargs)
+
             
     def plot_residuals(self,dataref,objref=None,**kwargs):
         """
@@ -1446,22 +1510,22 @@ class Bundle(object):
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True).values()
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
-        ds = dss[0]
-        typ = ds.context[:-3]
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
-        if typ=='lc':
-            plotting.plot_lcres(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvres(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spres(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifres(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvres(self.system,ref=dataref,**kwargs)    
+        # Get the obs DataSet and retrieve its context
+        ds = dss[0]
+        typ = ds.get_context()[:-3]
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}res'.format(typ))(self.get_system(),
+                                                     *args, **kwargs)
     
     def get_axes(self,ident=None):
         """
@@ -1881,7 +1945,7 @@ class Bundle(object):
         # for some reason system.signals is becoming an 'instance' and 
         # is giving the error that it is not iterable
         # for now this will get around that, until we can find the source of the problem
-        if system is not None and not isinstance(systemsignals, dict):
+        if system is not None and not isinstance(system.signals, dict):
             #~ print "*system.signals not dict"
             system.signals = {}
         callbacks.attach_signal(param,funcname,callbackfunc,*args)

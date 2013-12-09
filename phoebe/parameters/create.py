@@ -634,8 +634,27 @@ def star_from_spectral_type(spectype, create_body=False, **kwargs):
         star = make_body_from_parametersets(star)
     
     return star    
-    
 
+
+def binary_from_spectral_types(spectype1, spectype2, sma=None, period=None,
+                               kwargs1=None, kwargs2=None, orbitkwargs=None,
+                               create_body=False, **kwargs):
+    """
+    Create a binary consisting of two stars with a given spectral type.
+    
+    See :py:func:`star_from_spectral_type` for details on the spectral type
+    definitions.
+    
+    See :py:func:`binary_from_stars` for details on parameters and extra
+    keyword arguments.
+    """
+    star1 = star_from_spectral_type(spectype1)
+    star2 = star_from_spectral_type(spectype2)
+    return binary_from_stars(star1, star2, sma=sma, period=period,\
+                      kwargs1=kwargs1, kwargs2=kwargs2, orbitkwargs=orbitkwargs,\
+                      create_body=create_body, **kwargs)
+    
+    
 
 def binary_from_deb2011(name,create_body=False,**kwargs):
     """
@@ -796,11 +815,15 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     comp2['pot'] = roche.radius2potential(R2/sma,orbit['q'],d=d,component=2,F=comp2['syncpar'])
     
     for key in ['teff']:
-        comp1[key] = star1.get_value_with_unit(key)
-        comp2[key] = star2.get_value_with_unit(key)
+        if not key in kwargs1:
+            comp1[key] = star1.get_value_with_unit(key)
+        if not key in kwargs2:
+            comp2[key] = star2.get_value_with_unit(key)
     for key in ['atm','label','ld_func','ld_coeffs','gravb','irradiator','alb','redist','abun','gravblaw']:
-        comp1[key] = star1[key]
-        comp2[key] = star2[key]
+        if not key in kwargs1:
+            comp1[key] = star1[key]
+        if not key in kwargs2:
+            comp2[key] = star2[key]
     orbit['c1label'] = comp1['label']
     orbit['c2label'] = comp2['label']
     logger.info('Creating binary: pot1={:.3g}, pot2={:.3g}'.format(comp1['pot'],comp2['pot']))
