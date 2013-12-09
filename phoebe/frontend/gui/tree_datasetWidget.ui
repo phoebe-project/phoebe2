@@ -98,66 +98,15 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="QCommandLinkButton" name="addLCButton">
+         <widget class="QCommandLinkButton" name="addDataButton">
           <property name="maximumSize">
            <size>
-            <width>64</width>
-            <height>40</height>
+            <width>36</width>
+            <height>36</height>
            </size>
           </property>
           <property name="text">
-           <string>LC</string>
-          </property>
-          <property name="icon">
-           <iconset resource="ui_resources.qrc">
-            <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCommandLinkButton" name="addRVButton">
-          <property name="maximumSize">
-           <size>
-            <width>64</width>
-            <height>40</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>RV</string>
-          </property>
-          <property name="icon">
-           <iconset resource="ui_resources.qrc">
-            <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCommandLinkButton" name="addSPButton">
-          <property name="maximumSize">
-           <size>
-            <width>64</width>
-            <height>40</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>SP</string>
-          </property>
-          <property name="icon">
-           <iconset resource="ui_resources.qrc">
-            <normaloff>:/images/icons/add.png</normaloff>:/images/icons/add.png</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCommandLinkButton" name="addETVButton">
-          <property name="maximumSize">
-           <size>
-            <width>64</width>
-            <height>40</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>ETV</string>
+           <string/>
           </property>
           <property name="icon">
            <iconset resource="ui_resources.qrc">

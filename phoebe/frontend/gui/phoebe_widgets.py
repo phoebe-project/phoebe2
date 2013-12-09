@@ -1061,7 +1061,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                     newplot_button.setToolTip("create new %s axes" % dataset.context[:-3])
                     newplot_button.info = {'category': dataset.context[:-3], 'datasetref': dataset['ref'], 'objref': name}
                     QObject.connect(newplot_button, SIGNAL("clicked()"), self.axes_add)
-                    newplot_button.setEnabled(False) # until signal connected
+                    #~ newplot_button.setEnabled(False) # until signal connected
                     HBox.addWidget(newplot_button)
                     
                     spacer = QSpacerItem(0, 18, QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -1225,6 +1225,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         
     def axes_add(self):
         info = self.sender().info
+        
         self.emit(SIGNAL("axes_add"),info['category'],info['objref'],info['datasetref'])
     
     def axes_goto(self):
