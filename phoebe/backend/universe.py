@@ -5349,7 +5349,7 @@ class Star(PhysicalBody):
     def __init__(self, star, mesh, reddening=None, circ_spot=None,
                  puls=None, magnetic_field=None, velocity_field=None,
                  pbdep=None, obs=None,
-                 globals=None,
+                 globals=None, label=None,
                  **kwargs):
         """
         Initialize a star.
@@ -5437,6 +5437,12 @@ class Star(PhysicalBody):
         # Add the parameters from the observations
         if obs is not None:
             _parse_obs(self, obs)
+        
+        # The label should be given in the Star parameterSet, but this isn't
+        # always very intuitive. We allow setting the label via an extra keyword
+        # argument
+        if label is not None:
+            self.set_label(label)
         
         # Check for leftover kwargs and report to the user
         if kwargs:

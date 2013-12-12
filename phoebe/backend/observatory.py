@@ -2312,16 +2312,17 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Heating and reflection are by default switched on. However, if there are
     # no irradiators, we don't need to compute it.
+    found_irradiator = False
     if heating or reflect:
         for loc, thing in system.walk_all():
             if isinstance(thing, parameters.Parameter) and thing.get_qualifier() == 'irradiator':
                 if thing.get_value():
                     # If there's at least one irradiator, we need to leave it on
-                    break
-        # Otherwise we can switch it off
-        else:
-            heating = False
-            reflect = False
+                    found_irradiator = True
+    # Otherwise we can switch it off
+    if not found_irradiator:
+        heating = False
+        reflect = False
     
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
