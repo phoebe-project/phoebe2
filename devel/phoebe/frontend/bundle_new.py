@@ -424,7 +424,7 @@ class Bundle(object):
     #}    
     #{ System
     
-    def set_system(self,system=None):
+    def set_system(self, system=None):
         """
         Change or set the system.
         
@@ -451,11 +451,13 @@ class Bundle(object):
         if system is None:
             self.sections['system'] = [None]
             return None
+        
         # Or a real system
         elif isinstance(system, universe.Body):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
             self.sections['system'] = [create.system(system)]
+        
         # Or we could've given a filename
         else:
             
@@ -542,7 +544,7 @@ class Bundle(object):
         @param time: time
         @type time: float
         """
-        
+        # <pieterdegroote> This should actually run compute.
         try:
             self.get_system().set_time(time)
         except:
@@ -785,7 +787,7 @@ class Bundle(object):
                         # next label in the structure!
                         if name_of_this_level == structure_info[index]:
                             index += 1
-                
+                        
                 # Keep looking if we didn't exhaust all specifications yet.
                 # If we're at the end already, this will avoid finding a
                 # variable at all (which is what we want)
@@ -1324,6 +1326,7 @@ class Bundle(object):
         # clear all previous models and create new model
         system.clear_synthetic()
 
+        # <pieterdegroote> Necessary?
         system.set_time(0)
         
         # get compute options
@@ -1337,7 +1340,7 @@ class Bundle(object):
             server = self.get_server(server)
             mpi = server.mpi_ps
         else:
-            mpi = None
+            mpi = kwargs.pop('mpi', None)
         
         if options['time']=='auto' and anim==False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
@@ -2172,6 +2175,45 @@ class Bundle(object):
         self.set_system(self.get_system())
     
     #}
+    #{ Legacy interface
+    def getpar(self, qualifier, index=0):
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].get_value()
+    
+    def getlim(self, qualifier, index=0):
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].get_prior().get_limits()
+    
+    def setlim(self, qualifier, lower, upper, index=0):
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].set_prior(distribution='uniform',
+                                     lower=lower, upper=upper)
+    
+    def cfval(self, dataset, index=None):
+        
+        # First disable/enabled correct datasets
+        old_state = []
+        location = 0
+        for obs in self.get_system().walk_type(type='obs'):
+            print obs.get_context()
+            old_state.append(obs.get_enabled())
+            this_state = False    
+            if dataset == obs['ref'] or dataset == obs.get_context():
+                if index is None or index == location:
+                    this_state = True
+                location += 1
+            obs.set_enabled(this_state)
+        
+        # Then compute statistics
+        logf, chi2, n_data = self.get_system().get_logp()
+        
+        # Then reset the enable property
+        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
+            obs.set_enabled(state)
+        
+        return chi2
+    
+    
     
 class Version(object):
     """ 
