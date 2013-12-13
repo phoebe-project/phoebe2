@@ -2440,6 +2440,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         except:
             logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
         
+        
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
             extra_func=[], extra_func_kwargs=[{}], animate=None, **kwargs):
     """
