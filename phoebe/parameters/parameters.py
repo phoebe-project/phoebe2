@@ -8,7 +8,6 @@ Summary
 
     Parameter
     ParameterSet
-    Distribution
 
 Section 1. Parameter preparation
 ================================
@@ -373,6 +372,7 @@ class Parameter(object):
        Parameter.get_cast_type
        Parameter.get_context
        Parameter.get_prior
+       Parameter.get_logp
        Parameter.get_posterior
        Parameter.get_value_from_prior
        Parameter.get_value_from_posterior
@@ -890,6 +890,27 @@ class Parameter(object):
         else:
             prior = self.prior.get_distribution(distr_type=fitter,**kwargs)
         return prior
+    
+    
+    def get_logp(self):
+        """
+        Get the log-probability of a value given the prior.
+        
+        If there is no prior, the probability of the value is always 1, so the
+        log probability is zero.
+        
+        An out-of-bound parameter has a probability of zero, or a log-probability
+        of -infinity
+        """
+        if self.has_prior():
+            prior = self.get_prior()
+            value = self.get_value()
+            pdf = prior.pdf(x=value)[1]
+        else:
+            pdf = 0.0
+            
+        return np.log10(pdf)
+    
     
     def get_value_from_prior(self,size=1):
         """

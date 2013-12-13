@@ -14,6 +14,7 @@ Modules:
 .. autosummary::
     
     parameters
+    distributions
     datasets
     create
     tools

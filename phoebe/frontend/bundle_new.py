@@ -530,26 +530,43 @@ class Bundle(object):
         """
         return self.get_system().clear_synthetic()
         
-    def set_time(self,time):
+    def set_time(self, time, label=None, server=None):
         """
         Set the time of a system, taking compute options into account.
-        
-        Shortcut to bundle.get_system().set_time() which insures fix_mesh
-        is called first if any data was recently attached
-        
-        TODO: we should take advantage of the compute options here in the
-              bundle. "set_time" doesn't compute reflection effects, we should
-              do that here.
-        
+                
         @param time: time
         @type time: float
         """
-        # <pieterdegroote> This should actually run compute.
-        try:
-            self.get_system().set_time(time)
-        except:
-            self.get_system().fix_mesh()
-            self.get_system().set_time(time)
+        system = self.get_system()
+        
+        # clear all previous models and create new model
+        system.clear_synthetic()
+
+        # <pieterdegroote> Necessary?
+        system.set_time(0)
+        
+        # get compute options
+        if label is None:
+            options = parameters.ParameterSet(context='compute')
+        else:
+            options = self.get_compute(label)
+        
+        # get server options
+        if server is not None:
+            server = self.get_server(server)
+            mpi = server.mpi_ps
+        else:
+            mpi = kwargs.pop('mpi', None)
+        
+        options['time'] = [time]
+        options['types'] = ['lc']
+        options['refs'] = ['all']
+        options['samprate'] = [0]
+        system.compute(mpi=mpi, **options)
+                
+        system.uptodate = label
+        
+        self.attach_system_signals()
         
     def get_uptodate(self):
         """
@@ -567,7 +584,7 @@ class Bundle(object):
     #}
     #{ Parameters/ParameterSets
     
-    def get_ps(self, name, return_type='first'):
+    def get_ps(self, name, return_type='single'):
         """
         Retrieve a ParameterSet(s) from the system
         
@@ -668,13 +685,13 @@ class Bundle(object):
             raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(name,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
             raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
-        elif return_type in ['single', 'first']:
+        elif return_type in ['single']:
             return found[0]
         else:
             return found
             
             
-    def get_parameter(self, qualifier, return_type='first'):
+    def get_parameter(self, qualifier, return_type='single'):
         """
         Smart retrieval of a Parameter(s) from the system.
 
@@ -683,9 +700,9 @@ class Bundle(object):
         If there is another occurrence, then the behaviour depends on the value
         of :envvar:`return_type`:
         
-            - :envvar:`return_type='first'`: the first occurrence will be returned
             - :envvar:`return_type='single'`: a ValueError is raised if multiple occurrences exit
             - :envvar:`return_type='all'`: a list of all occurrences will be returned
+            - :envvar:`return_type='dict'`: a dictionair with the structure.
        
         You can specify which qualifier you want with the :envvar:`@` operator.
         This operator allows you to hierarchically specify which parameter you
@@ -711,7 +728,7 @@ class Bundle(object):
         
         @param qualifier: qualifier of the parameter, or None to search all
         @type qualifier: str or None
-        @param return_type: 'first', 'single', 'all'
+        @param return_type: 'single', 'all'
         @type return_type: str
         @return: Parameter or list
         @rtype: Parameter or list
@@ -803,13 +820,13 @@ class Bundle(object):
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
             raise ValueError("more than one parameter was returned from the search: either constrain search or set return_type='all'")
-        elif return_type in ['single', 'first']:
+        elif return_type in ['single']:
             return found[0]
         else:
             return found
                 
                 
-    def get_value(self, qualifier, return_type='first'):
+    def get_value(self, qualifier, return_type='single'):
         """
         Get the value from a Parameter(s) in the system
         
@@ -836,16 +853,16 @@ class Bundle(object):
         @type qualifier: str
         @param value: new value of the parameter
         @type value: depends on parameter type
-        @param apply_to: 'first', 'single', 'all'
+        @param apply_to: 'single', 'all'
         @type apply_to: str        
         """
-        apply_to = kwargs.pop('apply_to', 'first')
+        apply_to = kwargs.pop('apply_to', 'single')
         if kwargs:
             raise SyntaxError("set_value does not take extra keyword arguments")
         
         params = self.get_parameter(qualifier, name, return_type=apply_to)
         
-        if apply_to in ['first', 'single']:
+        if apply_to in ['single']:
             params.set_value(value, *args)
         elif apply_to in ['all']:
             for param in params:
@@ -853,7 +870,7 @@ class Bundle(object):
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
             
-    def get_adjust(self, qualifier, return_type='first'):
+    def get_adjust(self, qualifier, return_type='single'):
         """
         Get whether a Parameter(s) in the system is set for adjustment/fitting
         
@@ -875,23 +892,80 @@ class Bundle(object):
         @type qualifier: str
         @param value: new value for adjust
         @type value: bool
-        @param apply_to: 'first', 'single', 'all'
+        @param apply_to: 'single', 'all'
         @type apply_to: str   
         """
-        apply_to = kwargs.pop('apply_to', 'first')
+        apply_to = kwargs.pop('apply_to', 'single')
         if kwargs:
             raise SyntaxError("set_adjust does not take extra keyword arguments")
         
         params = self.get_parameter(qualifier, name, return_type=apply_to)
         
-        if apply_to in ['first', 'single']:
+        if apply_to in ['single']:
             params.set_value(value, *args)
         elif apply_to in ['all']:
             for param in params:
                 param.set_adjust(value, *args)
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+    
+    
+    def get_prior(self, qualifier, return_type='single'):
+        """
+        Get a prior.
+        """
+        pars = self.get_parameter(qualifier, return_type=return_type)
+        return pars[0].get_prior().get_limits()
+    
+    
+    def set_prior(self, qualifier, apply_to='single', **dist_kwargs):
+        """
+        Set properties of a prior.
         
+        Examples initiating, overriding or resetting priors completely:
+        
+        >>> mybundle.set_prior('teff@primary', distribution='uniform', lower=10000, upper=20000)
+        >>> mybundle.set_prior('sma', distribution='normal', mu=10., sigma=1.0)
+        
+        Examples updating existing properties:
+        
+        >>> mybundle.set_prior('teff@primary', lower=15000)
+        
+        See :py:func:`phoebe.parameters.parameters.Parameter.set_prior` and
+        :py:class:`phoebe.parameters.distributions.Distribution`.
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        
+        if apply_to == 'single' and len(pars) != 1:
+            raise ValueError('more than one found')
+        
+        for par in pars:
+            par.set_prior(**dist_kwargs)
+    
+    
+    def get_logp(self, dataset=None):
+        
+        # First disable/enabled correct datasets
+        old_state = []
+        location = 0
+        for obs in self.get_system().walk_type(type='obs'):
+            old_state.append(obs.get_enabled())
+            this_state = False    
+            if dataset == obs['ref'] or dataset == obs.get_context():
+                if index is None or index == location:
+                    this_state = True
+                location += 1
+            obs.set_enabled(this_state)
+        
+        # Then compute statistics
+        logf, chi2, n_data = self.get_system().get_logp()
+        
+        # Then reset the enable property
+        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
+            obs.set_enabled(state)
+        
+        return chi2
+    
     #}
     #{ Objects
     def get_object(self, name):
@@ -2180,6 +2254,10 @@ class Bundle(object):
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].get_value()
     
+    def setpar(self, qualifier, value, index=0):
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].set_value(value)
+    
     def getlim(self, qualifier, index=0):
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].get_prior().get_limits()
@@ -2195,7 +2273,6 @@ class Bundle(object):
         old_state = []
         location = 0
         for obs in self.get_system().walk_type(type='obs'):
-            print obs.get_context()
             old_state.append(obs.get_enabled())
             this_state = False    
             if dataset == obs['ref'] or dataset == obs.get_context():
@@ -2211,7 +2288,12 @@ class Bundle(object):
         for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
             obs.set_enabled(state)
         
-        return chi2
+        return logf
+    
+    def check(self, qualifier, index=0):
+        par = self.get_parameter(qualifier, return_type='all')[index]
+        return par.get_logp() > -100
+        
     
     
     
