@@ -1,5 +1,21 @@
 """
 Top level class of Phoebe.
+
+Basic class:
+
+.. autosummary::
+
+    Bundle
+    
+Helper functions and classes:
+
+.. autosummary::
+
+    Version
+    Feedback
+    run_on_server
+    load
+    guess_filetype
 """
 import pickle
 import logging
@@ -125,20 +141,66 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     
-    What is the Bundle?
+    You can initiate a bundle in different ways:
     
-    What main properties does it have? (rough sketch of structure)
-        - a Body (can also be BodyBag), called :envvar:`system` in this context.
+        1. Via a Body or BodyBag::
+        
+            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+            mybundle = Bundle(mysystem)
+        
+        2. Via the library::
+        
+            mybundle = Bundle('V380_Cyg')
+            
+        3. Via a pickled system::
+        
+            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+            mysystem.save('mysystem.pck')
+            mybundle = Bundle('mysystem.pck')
+        
+        4. Via a pickled Bundle::
+        
+            mybundle = Bundle('V380_Cyg')
+            mybundle.save('V380_Cyg.bpck')
+            mybundle = Bundle('V380_Cyg.bpck')
+        
+        5. Via a Phoebe Legacy ASCII parameter file::
+        
+            mybundle = Bundle('legacy.phoebe')
+    
+    For more details, see :py:func:`set_system`.
+    
+    What is the Bundle?
+    ====================
+    
+    The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
+    such that parameters can easily be queried or changed, data added, results
+    plotted and observations computed. It does not contain any implementation of
+    physics; that is all done at the Body level.
+    
+    Structure of the Bundle
+    ==========================
+    
+    A Bundle contains:
+    
+        - a Body (or BodyBag), called :envvar:`system` in this context.
         - ...
         - ...
         
-    How do you initialize it? Examples and/or refer to :py:func:`set_system`.
-        
-    What methods does it have?
+    Outline of methods
+    =====================
     
     **Input/output**
     
+    .. autosummary::
+        
+        to_string
+        
+    
     **Setting and getting system parameters**
+    
+        get_ps
+        get_parameter
     
     **Setting and getting computational parameters**
     
@@ -219,7 +281,7 @@ class Bundle(object):
         txt = ""
         txt += "{} compute options\n".format(len(self.get_compute(return_type='list')))
         txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
-        txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
+        #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
         txt += "============ System ============\n"
         txt += self.list()
         
@@ -706,9 +768,9 @@ class Bundle(object):
        
         You can specify which qualifier you want with the :envvar:`@` operator.
         This operator allows you to hierarchically specify which parameter you
-        mean. The general syntax is:
+        mean. The general syntax is::
         
-        :envvar:`<qualifier>@<label/ref/context>@<label/ref/context>`
+            <qualifier>@<label/ref/context>@<label/ref/context>
         
         You can repeat as many :envvar:`@` operators as you want, as long as
         it they are hierarchically ordered, with the top level label of the
@@ -814,9 +876,28 @@ class Bundle(object):
             # Now did we find it?
             if isinstance(val, parameters.Parameter):
                 if val.get_qualifier() == qualifier and not val in found:
-                    found.append(val)
-                    
+                    found.append(val)            
+        
         if len(found) == 0:
+            # we should look into subsections here
+            index = 0
+            if len(structure_info) == 2:
+                mylist = self._get_from_section(structure_info[0],
+                                                search=structure_info[1],
+                                                return_type='list')
+            elif len(structure_info) == 1:
+                mylist = self._get_from_section(structure_info[0],
+                                                return_type='list')
+            else:
+                sections = self.sections.keys()[1:]
+                mylist = []
+                for section in sections:
+                    mylist += self._get_from_section(section,
+                                           return_type='list')
+            found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
+            
+        
+        if len(found) == 0:    
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
             raise ValueError("more than one parameter was returned from the search: either constrain search or set return_type='all'")

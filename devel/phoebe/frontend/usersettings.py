@@ -35,6 +35,15 @@ class Settings(object):
         
         self.settings['logger'] = parameters.ParameterSet(context='logger')
         
+        # Next, we should override the defaults with those from the config files
+        # in ~/.phoebe/preferences/....*.cfg
+        # servers.cfg
+        # compute.cfg
+        # fitting.cfg
+        # gui.cfg
+        # logger.cfg
+        
+        
     def __str__(self):
         """
         return a string representation
@@ -202,7 +211,7 @@ class Settings(object):
     #}
     #{ Compute
     
-    def add_compute(self,compute=None,**kwargs):
+    def add_compute(self, compute=None, **kwargs):
         """
         Add a new compute ParameterSet
         
@@ -210,7 +219,16 @@ class Settings(object):
         @type compute:  None or ParameterSet
         """
         if compute is None:
+            # Take defaults from backend
             compute = parameters.ParameterSet(context='compute')
+            
+            # Override to defaults from preferences
+            success = load_configfile('compute', 'compute',
+                                      parameter_sets=[compute],
+                                      basedir='~/.phoebe/preferences')
+            if not success:
+                logger.info('No usersettings found for compute')
+            
         for k,v in kwargs.items():
             compute.set_value(k,v)
             
@@ -249,9 +267,12 @@ class Settings(object):
         @param copy: whether to return deepcopy
         @type copy: bool
         """
-        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
+        context = kwargs.pop('context', 'fitting:pymc')
+        
         if fitting is None:
             fitting = parameters.ParameterSet(context=context)
+            # here override from defaults in fitting.cfg
+            
         for k,v in kwargs.items():
             fitting.set_value(k,v)
             
