@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import socket
 from collections import OrderedDict
 from datetime import datetime
 from phoebe.parameters import parameters
@@ -80,15 +81,17 @@ class Server(object):
         """
         checks whether this server is on an external machine (not is_local())
         """
-        host = self.settings['server'].get_value('host')
-        return host != 'None' and host != ''
+        return not self.is_local()
         
     def is_local(self):
         """
         check whether this server is on the local machine
         """
         host = self.settings['server'].get_value('host')
-        return host == 'None' or host == ''
+        return host.lower() == 'none' or \
+               host == '' or \
+               host == socket.gethostname() or \
+               host == 'localhost'
                 
     def check_mount(self):
         """
