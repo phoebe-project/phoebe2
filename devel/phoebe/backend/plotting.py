@@ -961,10 +961,12 @@ def plot_spobs_as_profile(system, *args, **kwargs):
     y = obs['flux'][index] / obs['continuum'][index]
     e_y = obs['sigma'][index] / obs['continuum'][index]
     
-    plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
+    p = plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
     
     if loaded:
         obs.unload()    
+    
+    return p, obs
     
     
 def plot_spres_as_profile(system, *args, **kwargs):
@@ -1001,12 +1003,14 @@ def plot_spres_as_profile(system, *args, **kwargs):
     y = (y1 - y2) / e_y1
     e_y = np.ones(len(y))
     
-    plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
+    p = plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
     
     if loaded_obs:
         obs.unload()        
     if loaded_syn:
-        syn.unload()        
+        syn.unload()
+    
+    return p, obs, syn, pblum, l3
     
     
 
