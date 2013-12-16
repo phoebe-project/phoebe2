@@ -6544,11 +6544,12 @@ class BinaryRocheStar(PhysicalBody):
         #mesh_phase+= (time % orbperiod)/orbperiod * 2*np.pi
         # to correct for rotational phase:
         mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
+        mesh_phase += np.pi
         
         pulsations.add_pulsations(self, time=time, mass=mass, radius=radius,
                                   rotperiod=rotperiod, mesh_phase=mesh_phase)
     
-    def magnetic_field(self):
+    def magnetic_field(self, time=None):
         """
         Calculate the magnetic field.
         
@@ -6582,6 +6583,7 @@ class BinaryRocheStar(PhysicalBody):
         mesh_phase += euler[0]
         # to correct for rotational phase:
         mesh_phase-= (time % rotperiod)/rotperiod * 2*np.pi
+        mesh_phase += np.pi
         
         
         # Figure out if we have a dipole or quadrupole
@@ -6592,7 +6594,7 @@ class BinaryRocheStar(PhysicalBody):
         # Some basic quantities we need regardless of the topology
         Bpolar = parset.get_value('Bpolar')
         R = self.params['component'].request_value('r_pole','Rsol')
-        r_ = self.mesh['_o_center'] / R
+        r_ = self.mesh['_o_center']
         
         # Then finally get the field according to its topology
         if topology == 'dipole':
@@ -6800,7 +6802,7 @@ class BinaryRocheStar(PhysicalBody):
             self.intensity(ref=ref)
             
             if has_magnetic_field:
-                self.magnetic_field()
+                self.magnetic_field(time)
             
             # Compute projected intensity if not done before, to have the
             # passband luminosity
