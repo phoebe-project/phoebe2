@@ -2371,8 +2371,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                              prop_time=prop_times)
             
             # We need to keep the same hierarchy as with lcsyns and such
-            if not 'orbsyn' in body.params['syn']:
-                body.params['syn']['orbsyn'] = OrderedDict()
+            body.params['syn']['orbsyn'] = OrderedDict()
             body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
     
     # And don't forget beaming!
@@ -2402,7 +2401,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
-
+    
     if not animate:
         for i, (time, ref, type, samp) in enumerate(iterator):
             compute_one_time_step(system, i, time, ref, type, samp, reflect, nreflect,

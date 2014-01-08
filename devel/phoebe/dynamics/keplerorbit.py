@@ -683,6 +683,10 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentr
     
     via a simple Newton-Raphson procedure.
     
+    Note that in Phoebe, :math:`-z` is in the direction of the observer, thus
+    in Phoebe internal coordinates, you need to replace :math:`z` in the above
+    equations with :math:`-z`.
+    
     Get orbits and components via :py:func:`Body.get_orbits <phoebe.backend.universe.Body.get_orbits>`
     from the :py:mod:`phoebe.backend.universe` module.
     
@@ -703,11 +707,12 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentr
     # we thus see the light from that object is t+z/cc, but we need it to be
     # t_bary. Thus, we need to optimize it's location (i.e. proper time) until
     # the observed time is the barycentric time.
+    # Because -z is in the line of sight (instead of +z), we set -z below.
     scale_factor = 1.0/constants.cc * constants.Rsol/(24*3600.)
     def propertime_barytime_residual(t):
         obj,vel = get_hierarchical_orbit_phoebe(t, orbits, components)
         z = obj[2,0]
-        return t + z*scale_factor - t_bary
+        return t - z*scale_factor - t_bary
     # Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual, t_bary) for \
                        t_bary in bary_times] if barycentric else bary_times

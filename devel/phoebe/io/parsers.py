@@ -1013,15 +1013,24 @@ def phoebe_to_wd(system, create_body=False):
         lc['cla'] = pblum2
         ps['ipb'] = 0
     lc['filter'] = body1.params['pbdep']['lcdep'].values()[0]['passband']
-    lc['ld_lcx1'] = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
-    lc['ld_lcx2'] = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
+    ld_coeffs = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
+    if not isinstance(ld_coeffs,str):
+        lc['ld_lcx1'] = ld_coeffs
+    ld_coeffs = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][0]
+    if not isinstance(ld_coeffs,str):
+        lc['ld_lcx2'] = ld_coeffs
+    
     lc['ref'] = body1.params['pbdep']['lcdep'].values()[0]['ref']
     
     try:
-        lc['ld_lcy1'] = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
-        lc['ld_lcy2'] = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
-    except IndexError:
-        logger.warning("Second passband LD coefficients not parsed; ld_model={}".format(comp1['ld_func']))
+        ld_coeffs = body1.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
+        if not isinstance(ld_coeffs,str):
+            lc['ld_lcy1'] = ld_coeffs
+        ld_coeffs = body2.params['pbdep']['lcdep'].values()[0]['ld_coeffs'][1]
+        if not isinstance(ld_coeffs,str):
+            lc['ld_lcy2'] = ld_coeffs
+    except:
+        pass
     
     if create_body:
         obs = system.params['obs']['lcobs'].values()

@@ -854,7 +854,6 @@ def plot_lcres_as_sed(system, *args, **kwargs):
             continue
         wave = passbands.get_info([passband])['eff_wave']
         wave = list(wave) * len(obs['flux'][right_time])
-        
         to_plot[pass_sys]['x'].append(wave)
         if units == 'sigma':
             to_plot[pass_sys]['y'].append(((obs['flux']-(syn['flux']*pblum+l3)) / obs['sigma'])[right_time])

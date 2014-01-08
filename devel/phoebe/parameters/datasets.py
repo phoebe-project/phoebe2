@@ -339,6 +339,8 @@ class DataSet(parameters.ParameterSet):
         else:
             self_copy = self.copy()
             for col in self_copy['columns']:
+                if col=='wavelength':
+                    continue
                 self_copy[col] = self_copy[col][item]
             return self_copy
     

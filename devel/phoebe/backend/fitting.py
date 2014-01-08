@@ -113,7 +113,7 @@ except ImportError:
 logger = logging.getLogger("FITTING")
 
 
-def run(system,params=None,fitparams=None,mpi=None,accept=False):
+def run(system, params=None, fitparams=None, mpi=None, accept=False):
     """
     Run a fitting routine.
     
@@ -199,6 +199,7 @@ def run(system,params=None,fitparams=None,mpi=None,accept=False):
         
     # Zeroth we want to check stuff and give a summary of what we're going to do:
     check_system(system, fitparams)
+    
     # First we want to get rid of any loggers that are present; we don't want
     # to follow all the output to the screen during each single computation.
     # Only the warning get through, and this is also how the loggers communicate
@@ -560,7 +561,7 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     return fitparams
 
 #@decorators.mpirun_emcee
-def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
+def run_emcee(system, params=None, mpi=None, fitparams=None, pool=None):
     """
     Perform MCMC sampling of the parameter space of a system using emcee.
     
@@ -574,7 +575,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
       probably need to take more iterations!
     * Use as many walkers as possible (hundreds for a handful of
       parameters)
-    * Beware of a burn in period. The most conservative you can get is making
+    * Beware of a burn-in period. The most conservative you can get is making
       a histogram of only the final states of all walkers.
     * To get the original chains per walker back, and make a histogram of the
       final states, do
@@ -607,8 +608,9 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     @rtype: ParameterSet
     """
     if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=20,iters=10)
+        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=128,iters=10)
     nwalkers = fitparams['walkers']
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -618,115 +620,141 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     ids = []
     pars = []
     names = []
-    #-- walk through all the parameterSets available. This needs to be via
-    #   this utility function because we need to iteratively walk down through
-    #   all BodyBags too.
-    #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
+    
+    # walk through all the parameterSets available. This needs to be via this
+    # utility function because we need to iteratively walk down through all
+    # BodyBags too.
     frames = []
     for parset in system.walk():
         frames.append(parset.frame)
-        #-- for each parameterSet, walk through all the parameters
+        
+        # for each parameterSet, walk through all the parameters
         for qual in parset:
-            #-- extract those which need to be fitted
+            
+            # extract those which need to be fitted
             if parset.get_adjust(qual) and parset.has_prior(qual):
-                #-- ask a unique ID and check if this parameter has already
-                #   been treated. If so, continue to the next one.
+                
+                # ask a unique ID and check if this parameter has already been
+                # treated. If so, continue to the next one.
                 parameter = parset.get_parameter(qual)
                 myid = parameter.get_unique_label()
                 if myid in ids: continue
-                #-- and add the id
+                
+                # and add the id
                 ids.append(myid)
                 pars.append(parameter.get_value_from_prior(size=nwalkers))
                 names.append(qual)
+    
     pars = np.array(pars).T
-    #-- now, if the number of walkers is smaller then twice the number of
-    #   parameters, adjust that number to the required minimum and raise a
-    #   warning
-    if (2*pars.shape[1])>nwalkers:
+    
+    # now, if the number of walkers is smaller then twice the number of
+    # parameters, adjust that number to the required minimum and raise a warning
+    if (2*pars.shape[1]) > nwalkers:
         logger.warning("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
         nwalkers = 2*pars.shape[1]
         fitparams['walkers'] = nwalkers
-    #-- derive which algorithm to use for fitting. If all the contexts are the
-    #   same, it's easy. Otherwise, it's ambiguous and we raise a ValueError
-    #algorithm = set(frames)
-    #if len(algorithm)>1:
-        #raise ValueError("Ambiguous set of parameters (different frames, found): {}".format(algorithm))
-    #else:
-        #algorithm = list(algorithm)[0]
-        #logger.info('Choosing back-end {}'.format(algorithm))
     
-    def lnprob(pars,ids,system):
-        #-- evaluate the system, get the results and return a probability
+    def lnprob(pars, ids, system):
+        
+        # Evaluate the system, get the results and return a probability
         had = []
         any_outside_limits = False
-        #-- walk through all the parameterSets available:
-        #walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
         
+        # Walk through all the parameterSets available. Collect unique
+        # parameters and their values, but stop once a parameter value is
+        # outside it's limits or prior boundaries (raise StopIteration). In the
+        # latter case, we don't need to compute the model anymore, but can just
+        # return logp=-np.inf
         try:
             for parset in system.walk():
-                #-- for each parameterSet, walk to all the parameters
+                
+                # For each parameterSet, walk through all the parameters
                 for qual in parset:
-                    #-- extract those which need to be fitted
+                    
+                    # Extract those which need to be fitted (i.e. adjustable
+                    # and having a prior)
                     if parset.get_adjust(qual) and parset.has_prior(qual):
-                        #-- ask a unique ID and update the value of the parameter
+                        
+                        # Ask a unique ID and update the value of the parameter
                         this_param = parset.get_parameter(qual)
                         myid = this_param.get_unique_label()
-                        if myid in had: continue
+                        
+                        # If we already incountered this parameter, continue
+                        # on to the next
+                        if myid in had:
+                            continue
+                        
                         index = ids.index(myid)
                         parset[qual] = pars[index]
                         had.append(myid)
-                        #-- if this parameter is outside the limits, we know
-                        #   the model is crap and forget about it immediately
+                        
+                        # If this parameter is outside the limits, we know the
+                        # model is crap and forget about it immediately
                         if not this_param.is_inside_limits():
                             any_outside_limits = True
                             raise StopIteration
-        #-- if any of the parameters is outside the bounds, we don't really
-        #   compute the model
+                        
+                        # If this parameter is outside the boundaries of the
+                        # prior, the model is crap and forget about it
+                        # immediately
+                        if np.isinf(this_param.get_logp()):
+                            any_outside_limits = True
+                            raise StopIteration
+                                      
+        # If any of the parameters is outside the bounds, we don't really
+        # compute the model
         except StopIteration:
             logger.warning("At least one of the parameters was outside bounds")
             return -np.inf
         
         system.reset()
         system.clear_synthetic()
-        system.compute(params=params,mpi=mpi)
-        logp,chi2,N = system.get_logp()
+        system.compute(params=params, mpi=mpi)
+        logp, chi2, N = system.get_logp(include_priors=True)
         #mu,sigma,model = system.get_model()
         return logp
     
-    #-- if we need to do incremental stuff, we'll need to open a chain file
-    #   if we don't have feedback already
+    # If we need to do incremental stuff, we'll need to open a chain file if we
+    # don't have feedback already
     start_iter = 0
     if fitparams['incremental'] and not fitparams['feedback']:
         chain_file = 'emcee_chain.{}'.format(fitparams['label'])
-        #-- if the file already exists, choose the starting position to be
-        #   the last position from the file
+        
+        # If the file already exists, choose the starting position to be the
+        # last position from the file
         if os.path.isfile(chain_file):
-            f = open(chain_file,'r')
-            last_lines = [line.strip().split() for line in f.readlines()[-nwalkers:]]
-            start_iter = int(np.array(last_lines[-1])[0])+1
-            pars = np.array(last_lines,float)[:,2:]         
-            f.close()
+            
+            with open(chain_file, 'r') as ff:
+                last_lines = [line.strip().split() for line in ff.readlines()[-nwalkers:]]
+                start_iter = int(np.array(last_lines[-1])[0])+1
+                pars = np.array(last_lines, float)[:,2:]         
+            
             logger.info("Starting from previous EMCEE chain from file")
         else:
             logger.info("Starting new EMCEE chain")
-        f = open(chain_file,'a')
-    #-- if we do have feedback already we can simply load the final state
-    #   from the feedback
+        
+        f = open(chain_file, 'a')
+    
+    # If we do have feedback already we can simply load the final state from the
+    # feedback
     elif fitparams['incremental']:
         pars = np.array(fitparams['feedback']['traces'])
-        pars = pars.reshape(pars.shape[0],-1,nwalkers)
+        pars = pars.reshape(pars.shape[0], -1, nwalkers)
         pars = pars[:,-1,:].T
-        start_iter = len(fitparams['feedback']['traces'][0])/nwalkers
+        start_iter = len(fitparams['feedback']['traces'][0]) / nwalkers
         logger.info("Starting from previous EMCEE chain from feedback")
-    #-- run the sampler
-    sampler = emcee.EnsembleSampler(nwalkers,pars.shape[1],lnprob,
-                                    args=[ids,system],
-                                    threads=fitparams['threads'],pool=pool)
+    
+    # run the sampler
+    sampler = emcee.EnsembleSampler(nwalkers, pars.shape[1], lnprob,
+                                    args=[ids, system],
+                                    threads=fitparams['threads'], pool=pool)
     num_iterations = fitparams['iters']-start_iter
-    if num_iterations<=0:
+    if num_iterations <= 0:
         logger.info('EMCEE contains {} iterations already (iter={})'.format(start_iter,fitparams['iters']))
-        num_iterations=0
+        num_iterations = 0
+        
     logger.warning("EMCEE: varying parameters {}".format(', '.join(names)))
+    
     for i,result in enumerate(sampler.sample(pars,iterations=num_iterations,storechain=True)):
         niter = i+start_iter
         logger.info("EMCEE: Iteration {} of {} ({:.3f}% complete)".format(niter,fitparams['iters'],float(niter)/fitparams['iters']*100.))
@@ -738,6 +766,7 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
                 values = " ".join(["{:.16e}".format(l) for l in position[k]])
                 f.write("{0:9d} {1:9d} {2:s}\n".format(niter,k,values))
             f.flush()
+    
     if fitparams['incremental'] and not fitparams['feedback']:
         f.close()
     
@@ -751,7 +780,9 @@ def run_emcee(system,params=None,mpi=None,fitparams=None,pool=None):
     except RuntimeError:
         acortime = np.nan
         logger.warning('Probably not enough iterations for emcee')
-    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],accfrac=np.mean(sampler.acceptance_fraction),
+    
+    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],
+                    accfrac=np.mean(sampler.acceptance_fraction),
                     lnprobability=sampler.flatlnprobability,acortime=acortime)
     
     #-- add the posteriors to the parameters
@@ -907,6 +938,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         redchis.append(np.array(retvalue**2).sum() / (len(model)-len(pars)))
         Nmodel['Nd'] = len(model)
         Nmodel['Np'] = len(pars)
+        #if fitparams['method']=='nelder':
+        #    logf = system.get_logp()[0]    
+        #    logger.warning('--- or logp = {} (min={})'.format(logf,100-logf))
+        #    return 100-logf
         return retvalue
     
     # The user can give fine tuning parameters if the fitting parameterSet is a
@@ -1245,7 +1280,7 @@ def run_grid(system,params=None,mpi=None,fitparams=None):
                 names.append(qual)
                 ranges.append(myrange) 
     
-    def lnprob(pars,ids,system):
+    def lnprob(pars, ids, system):
         
         # Evaluate the system, get the results and return a probability
         had = []
@@ -1338,10 +1373,7 @@ def run_genetic(system, params=None, mpi=None, fitparams=None):
     Fit the system using a genetic algorithm.
         
     **See also:**
-    
-    - :ref:`fitting:grid <parlabel-phoebe-fitting:genetic>` 
-    - :ref:`feedback <label-feedback-fitting:genetic-phoebe>`, :ref:`iterate <label-iterate-fitting:genetic-phoebe>`
-    
+        
     @param system: the system to fit
     @type system: Body
     @param params: computation parameters

@@ -18,9 +18,13 @@ class Settings(object):
         
         self.settings['servers'] = []
         
+        # Default compute parameterSets: retrieve them from the configfile
         self.settings['compute'] = []
-        self.add_compute(label='Compute')
-        self.add_compute(label='Preview')
+        
+        compute_sections = get_configfile_sections('compute',
+                                                basedir='~/.phoebe/preferences')
+        for section in compute_sections:
+            self.add_compute(label=section)
         
         self.settings['fitting'] = []
         self.add_fitting(context='fitting:grid',label='grid')
@@ -222,12 +226,18 @@ class Settings(object):
             # Take defaults from backend
             compute = parameters.ParameterSet(context='compute')
             
-            # Override to defaults from preferences
-            success = load_configfile('compute', 'compute',
+            label = kwargs.get('label', None)
+            
+            success = False
+            if label is not None: 
+                parser = load_configfile('compute', basedir='~/.phoebe/preferences')
+                if label in parser.sections():
+                    # Override to defaults from preferences
+                    success = load_configfile('compute', label,
                                       parameter_sets=[compute],
                                       basedir='~/.phoebe/preferences')
-            if not success:
-                logger.info('No usersettings found for compute')
+                if not success:
+                    logger.info('No usersettings found for compute "{}"'.format(label))
             
         for k,v in kwargs.items():
             compute.set_value(k,v)
@@ -400,6 +410,31 @@ def load_configfile(name, section=None, parameter_sets=None, basedir=None):
     
     # In the case the preference file existed, we return True
     return True
+
+
+def get_configfile_sections(name, basedir=None):
+    """
+    Return a list of all sections in a configuration file.
+    """
+    if basedir is None:
+        basedir = os.path.abspath(os.path.dirname(__file__))
+    else:
+        basedir = os.path.expanduser(basedir)
+    
+    # Build the filename and check if it exists. If not, exit nicely and return
+    # False
+    config_filename = os.path.join(basedir,'{}.cfg'.format(name))
+    if not os.path.isfile(config_filename):
+        return False
+    
+    settings = ConfigParser.ConfigParser()
+    settings.optionxform = str # make sure the options are case sensitive
+    
+    with open(config_filename) as config_file:
+        settings.readfp(config_file)
+    
+    return settings.sections()
+    
     
 
 def get_user_logger(name='default_logger'):

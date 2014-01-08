@@ -43,6 +43,7 @@ Section 2. Quick reference
     observatory.spectrum
     observatory.stokes
     observatory.ifm
+    observatory.astrometry
 
 Other observables such as ``lc`` and ``rv`` are computed directly from the Body
 or BodyBag.

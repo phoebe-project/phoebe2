@@ -349,6 +349,26 @@ def keep_only_results(system):
     system.remove_mesh()
     return system
 
+def remove_disabled_data(system):
+    """
+    Remove disabled data.
+    
+    This can ben handy to remove unncessary data from a Body before passing it
+    around via the MPI protocol
+    """
+    if hasattr(system, 'params'):
+        if 'obs' in system.params:
+            for obstype in system.params['obs']:
+                for iobs in system.params['obs'][obstype]:
+                    if not system.params['obs'][obstype][iobs].get_enabled():
+                        thrash = system.params['obs'][obstype].pop(iobs)
+                        del thrash
+    if hasattr(system, 'bodies'):
+        for body in system.bodies:
+            remove_disabled_data(body)
+    return system
+    
+
 
 def merge_results(list_of_bodies):
     """
@@ -3532,8 +3552,14 @@ class PhysicalBody(Body):
             if bary_time[index] == time:
                 logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({:.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
                 return prop_time[index]
+            # If not precalculated, we need to calculate it now
             else:
-                raise ValueError('Proper time corresponding to barycentric time {} not found'.format(time))
+                out = self.get_orbits()
+                objs, vels, prop_times = \
+                keplerorbit.get_barycentric_hierarchical_orbit(np.array([time]),
+                                out[0], out[1])
+                return prop_times[0]
+                #raise ValueError('Proper time corresponding to barycentric time {} not found'.format(time))
         else:
             return time
     
@@ -5380,10 +5406,10 @@ class Star(PhysicalBody):
         self.params['syn'] = OrderedDict()
         
         # Shortcut to make a binaryStar
-        if 'orbit' in kwargs:
-            myorbit = kwargs.pop('orbit')
-            check_input_ps(self, myorbit, ['orbit'], 'orbit')
-            self.params['orbit'] = myorbit
+        #if 'orbit' in kwargs:
+        #   myorbit = kwargs.pop('orbit')
+        #    check_input_ps(self, myorbit, ['orbit'], 'orbit')
+        #    self.params['orbit'] = myorbit
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
@@ -5492,6 +5518,21 @@ class Star(PhysicalBody):
         return self.params['star']['label']
     
     
+    def get_component(self):
+        """
+        Check which component this is.
+        
+        @return: 0 (primary) or 1 (secondary) or None (fail)
+        @rtype: integer/None
+        """
+        #print "Calling get component from BinaryStar",self.label
+        if 'orbit' in self.params:
+            if self.get_label()==self.params['orbit']['c1label']:
+                return 0
+            elif self.get_label()==self.params['orbit']['c2label']:
+                return 1
+        return None
+        
     def get_mass(self):
         """
         Return the mass of a star.
