@@ -2665,7 +2665,7 @@ class Body(object):
         
         @param emphasize: bring structure in the text via boldfacing
         @type emphasize: bool
-        @param summary: type of summary (envvar:`long`, envvar:`short`, envvar:`physical`)
+        @param summary: type of summary (envvar:`long`, envvar:`short`, envvar:`physical`, envvar:`full`)
         @type summary: str
         """
         def add_summary_short(thing, text, width=79):
@@ -2779,21 +2779,135 @@ class Body(object):
                         mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
                         if iiterover.get_parameter(par).has_unit():
                             mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                        if emphasize and iiterover.get_parameter(par).get_adjust():
+                            mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
+                mystring = mystring[0] + ', '.join(mystring[1:])
+                summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+
+            text += summary
+        
+        def add_summary_full(thing, text, width=79):
+            """
+            Add information on pbdeps, obs and syn
+            """
+           
+            # Construct the  "|     |     " string that preceeds the summary info
+            # We need to have the same length as the previous line. If there
+            # is no previous line, or it is not indented, we don't need to indent
+            # this one
+            try:
+                indent = text[-1].split('+')[0] \
+                       + '|'\
+                       + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                       + '  '
+            except IndexError:
+                indent = ''
+               
+            # Collect references
+            summary = []
+            # Loop over all categories and make a string
+            for param in thing.params:
+                if param in ['pbdep', 'obs', 'syn']:
+                    continue
+                lbl = param
+                mystring = ['{}: '.format(lbl)]
+                if not isinstance(thing.params[param],list):
+                    iterover = [thing.params[param]]
+                else:
+                    iterover = thing.params[param]
+                for iiterover in iterover:
+                    for par in iiterover:
+                        mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                        if iiterover.get_parameter(par).has_unit():
+                            mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                        if emphasize and iiterover.get_parameter(par).get_adjust():
+                            mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
                 mystring = mystring[0] + ', '.join(mystring[1:])
                 summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
             
-                    #ns = 0 
-                    #lbl = (category+ptype[-3:])
-                    #mystring = ['{}: '.format(lbl)]
-                    #if ptype in thing.params and lbl in thing.params[ptype]:
-                        #for ref in thing.params[ptype][lbl]:
-                            #mystring.append(ref)
-                        #ns += len(thing.params[ptype][lbl])
-                    #mystring = mystring[0] + ', '.join(mystring[1:])
-                    ## Only report if there are some
-                    #if ns > 0:
-                        #summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=79)))
-           
+            # Loop over all pbdep and make a string
+            for param in thing.params:
+                if not param == 'pbdep':
+                    continue
+                
+                for ptype in thing.params[param]:
+                    for iref,ref in enumerate(thing.params[param][ptype]):
+                        
+                        # The pbdep
+                        lbl = '{}[{}]'.format(ptype, iref)
+                        mystring = ['{}: '.format(lbl)]
+                        iterover = thing.params[param][ptype][ref].keys()
+                        iiterover = thing.params[param][ptype][ref]
+                        # First the reference for clarity:
+                        if 'ref' in iterover:
+                            iterover.remove('ref')
+                            iterover = ['ref'] + iterover
+                        
+                        for par in iterover:
+                            mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                            if iiterover.get_parameter(par).has_unit():
+                                mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                            if emphasize and iiterover.get_parameter(par).get_adjust():
+                                mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
+                        
+                        mystring = mystring[0] + ', '.join(mystring[1:])
+                        summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+                        
+                        # Is there an obs here?
+                        ptype = ptype[:-3]+'obs'
+                        if not ptype in thing.params['obs']:
+                            continue
+                        if not ref in thing.params['obs'][ptype]:
+                            continue
+                        lbl = '{}[{}]'.format(ptype, iref)
+                        mystring = ['{}: '.format(lbl)]
+                        iterover = thing.params[param][ptype][ref].keys()
+                        iiterover = thing.params[param][ptype][ref]
+                        # First the reference for clarity:
+                        if 'ref' in iterover:
+                            iterover.remove('ref')
+                            iterover = ['ref'] + iterover
+                        
+                        for par in iterover:
+                            mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                            if iiterover.get_parameter(par).has_unit():
+                                mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                            if emphasize and iiterover.get_parameter(par).get_adjust():
+                                mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
+                        
+                        mystring = mystring[0] + ', '.join(mystring[1:])
+                        summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+                        
+            # Loop over all pbdep and make a string
+            for param in thing.params:
+                if not param == 'obs':
+                    continue
+                
+                for ptype in thing.params[param]:
+                    for iref,ref in enumerate(thing.params[param][ptype]):
+                        
+                        if 'pbdep' in thing.params and ptype[:-3]+'dep' in thing.params['pbdep'] and ref in thing.params['pbdep'][ptype[:-3]+'dep']:
+                            continue
+
+                        lbl = '{}[{}]'.format(ptype, iref)
+                        mystring = ['{}: '.format(lbl)]
+                        iterover = thing.params[param][ptype][ref].keys()
+                        iiterover = thing.params[param][ptype][ref]
+                        # First the reference for clarity:
+                        if 'ref' in iterover:
+                            iterover.remove('ref')
+                            iterover = ['ref'] + iterover
+                        
+                        for par in iterover:
+                            mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                            if iiterover.get_parameter(par).has_unit():
+                                mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                            if emphasize and iiterover.get_parameter(par).get_adjust():
+                                mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
+                        
+                        mystring = mystring[0] + ', '.join(mystring[1:])
+                        summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+
             text += summary
         
         if emphasize:

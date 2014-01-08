@@ -180,6 +180,11 @@ class Bundle(object):
         setlim
         cfval
         check
+        updateLD
+        set_beaming
+        set_ltt
+        set_heating
+        set_reflection
     
     **What is the Bundle?**
     
@@ -293,7 +298,7 @@ class Bundle(object):
         txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
         #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
         txt += "============ System ============\n"
-        txt += self.list(summary='long')
+        txt += self.list(summary='full')
         
         return txt
         
@@ -993,10 +998,10 @@ class Bundle(object):
         if kwargs:
             raise SyntaxError("set_adjust does not take extra keyword arguments")
         
-        params = self.get_parameter(qualifier, name, return_type=apply_to)
+        params = self.get_parameter(qualifier, return_type=apply_to)
         
         if apply_to in ['single']:
-            params.set_value(value, *args)
+            params.set_adjust(value, *args)
         elif apply_to in ['all']:
             for param in params:
                 param.set_adjust(value, *args)
@@ -2518,11 +2523,29 @@ class Bundle(object):
         for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
             ld_coeff.set_value(atm_type)
     
-    def include_beaming(self, on=True):
+    def set_beaming(self, on=True):
         """
         Include/exclude the boosting effect.
         """
         self.set_value('beaming', on, apply_to='all')
+        
+    def set_ltt(self, on=True):
+        """
+        Include/exclude light-time travel effects.
+        """
+        self.set_value('ltt', on, apply_to='all')
+    
+    def set_heating(self, on=True):
+        """
+        Include/exclude heating effects.
+        """
+        self.set_value('heating', on, apply_to='all')
+        
+    def set_reflection(self, on=True):
+        """
+        Include/exclude reflection effects.
+        """
+        self.set_value('refl', on, apply_to='all')
         
     
 class Version(object):
