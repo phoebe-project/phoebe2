@@ -170,16 +170,26 @@ class Bundle(object):
     
     For more details, see :py:func:`set_system`.
     
-    What is the Bundle?
-    ====================
+    **Phoebe 1.0 Legacy interface**
+    
+    .. autosummary::
+    
+        getpar
+        setpar
+        getlim
+        setlim
+        cfval
+        check
+    
+    **What is the Bundle?**
     
     The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
     such that parameters can easily be queried or changed, data added, results
     plotted and observations computed. It does not contain any implementation of
     physics; that is all done at the Body level.
     
-    Structure of the Bundle
-    ==========================
+    **Structure of the Bundle**
+    
     
     A Bundle contains:
     
@@ -283,7 +293,7 @@ class Bundle(object):
         txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
         #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
         txt += "============ System ============\n"
-        txt += self.list()
+        txt += self.list(summary='long')
         
         return txt
         
@@ -354,7 +364,10 @@ class Bundle(object):
                     # if search_by is None then we want to return everything
                     # NOTE: in this case usersettings will be ignored
                     if search_by is not None:
-                        key = ps.get_value(search_by)
+                        try:
+                            key = ps.get_value(search_by)
+                        except AttributeError:
+                            continue
                     else:
                         key = len(items)
                     items[key] = ps
@@ -2332,24 +2345,142 @@ class Bundle(object):
     #}
     #{ Legacy interface
     def getpar(self, qualifier, index=0):
+        """
+        Retrieve a parameter value.
+        
+        If there are more parameters with the same qualifier, you can use
+        :envvar:`index` to specify which one you want.
+        
+        **Example usage:**
+        
+        Let's have a look a the following system::
+        
+        >>> mybundle = Bundle('detached_1.phoebe')
+        >>> print(mybundle)
+        2 compute options
+        7 fitting options
+        Detached_1 (BodyBag)
+        lcobs: lightcurve_0
+        |
+        +----------> primary (BinaryRocheStar)
+        |            lcdep: lightcurve_0
+        |            rvdep: primaryrv_0
+        |
+        +----------> secondary (BinaryRocheStar)
+        |            lcdep: lightcurve_0
+        |            rvdep: secondaryrv_0
+        
+        If a parameter is unique, there is no ambiguity, but you still have the
+        option to specify to which parameterSet it belongs to::
+        
+            >>> print(mybundle.getpar('delta'))
+            0.0527721121858
+            >>> print(mybundle.getpar('delta@mesh:marching'))
+            0.0527721121858
+        
+        If you try to access a parameter that does not exist, you get a :envvar:`ValueError`::
+            
+            >>> print(mybundle.getpar('delta@component'))
+            ValueError: parameter delta with constraints "component" nowhere found in system
+            >>> print(mybundle.getpar('stock_price'))
+            ValueError: parameter stock_price with constraints "" nowhere found in system
+        
+        You can access *any* parameter, not just the physical ones::
+        
+            >>> print(mybundle.getpar('eclipse_alg'))
+            graham
+        
+        If a parameter is not unique, you get by default the first occurrence,
+        but you can specify the index to get the second one (or more)::
+        
+            >>> print(mybundle.getpar('teff'))
+            8350.0
+            >>> print(mybundle.getpar('teff', 1))
+            7780.0
+        
+        Alternatively, you can specify which component/parameterSet/dataset you
+        wish to access, and you can concatenate those specifications as long
+        as they go from lowest hierarchy (parameter name) to top level (body name).
+        In the latter concatenation, you can include/exclude as many levels as
+        you like::
+        
+            >>> print(mybundle.getpar('teff@secondary'))
+            7780.0
+            >>> print(mybundle.getpar('passband@secondaryrv_0'))
+            JOHNSON.V
+            >>> print(mybundle.getpar('passband@lightcurve_0@primary'))
+            JOHNSON.V
+            
+        .. note::
+        
+            You can always check your changes with::
+            
+                >>> print(mybundle.list(summary='physical'))
+            
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter value
+        """
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].get_value()
     
     def setpar(self, qualifier, value, index=0):
+        """
+        Retrieve a parameter value.
+        
+        If there are more parameters with the same qualifier, you can use
+        :envvar:``index`` to specify which one you want.
+        
+        See :py:func:`Bundle.getpar` for examples on usage.
+        
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param value: parameter value
+        @type value: undefined
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter value
+        """
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].set_value(value)
     
+    
     def getlim(self, qualifier, index=0):
+        """
+        Retrieve the limits of the prior on a parameter.
+        
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter limits
+        @rtype: tuple (low, high)
+        """
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].get_prior().get_limits()
     
     def setlim(self, qualifier, lower, upper, index=0):
+        """
+        Set the limits of the prior on a parameter (only uniform priors).
+        """
         pars = self.get_parameter(qualifier, return_type='all')
         return pars[index].set_prior(distribution='uniform',
                                      lower=lower, upper=upper)
     
     def cfval(self, dataset, index=None):
+        """
+        Retrieve the loglikelihood of one or more datasets.
         
+        If index is None, all enabled datasets will be included.
+        """
         # First disable/enabled correct datasets
         old_state = []
         location = 0
@@ -2372,11 +2503,27 @@ class Bundle(object):
         return logf
     
     def check(self, qualifier, index=0):
+        """
+        Check if a parameter has a finite log likelihood.
+        """
         par = self.get_parameter(qualifier, return_type='all')[index]
-        return par.get_logp() > -100
+        return -np.isinf(par.get_logp())
         
+    def updateLD(self):
+        """
+        Update limbdarkening coefficients according to local quantities.
+        """
+        atm_types = self.get_parameter('atm', return_type='all')
+        ld_coeffs = self.get_parameter('ld_coeffs', return_type='all')
+        for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
+            ld_coeff.set_value(atm_type)
     
-    
+    def include_beaming(self, on=True):
+        """
+        Include/exclude the boosting effect.
+        """
+        self.set_value('beaming', on, apply_to='all')
+        
     
 class Version(object):
     """ 

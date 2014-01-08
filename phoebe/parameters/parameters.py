@@ -216,19 +216,21 @@ Section 2.2.2 Setting limits and priors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are two distinct interfaces to set a valid range for a parameter value.
-One is via C{limits}, the other via C{priors}. These are different concepts,
-and their values I{can} be equal but they don't have to be.
+One is via **limits**, the other via **priors**. These are different concepts,
+and their values *can* be equal but they don't have to be.
 
 Limits are real limits on the values of the parameters: e.g. it doesn't make
 sense to set a negative effective temperature, or to set an inclination angle
 of 1000 degrees. Trying to set a value to a parameter outside of these limits,
-will raise a warning and reset it to be equal to the closest limit. This
-information can be useful also for GUI purposes.
+will raise at least a warning, and can reset the value to be equal to the
+closest limit if :envvar:`_force_inside_limits` (see :py:func:`Parameter.set_limits`)
+is ``True``. This information can be useful also for GUI purposes. To check
+manually if a value is inside these limits, use :py:func:`Parameter.is_inside_limits`::
 
 >>> bps.get_parameter('period').set_limits(1.,100.)
 
-Priors are B{distributions}, not B{limits}. If the distribution is uniform,
-then the distribution limits can be equal to C{limits}, but they don't have
+Priors are **distributions**, not **limits**. If the distribution is uniform,
+then the distribution limits can be equal to ``limits``, but they don't have
 to be. For example, although a physical limit for the effective temperature
 is 0 Kelvin, you know that the temperature of a star will be way higher than
 that, and for example set the prior to a uniform distribution with limits
@@ -236,7 +238,22 @@ that, and for example set the prior to a uniform distribution with limits
 
 >>> bps.get_parameter('period').set_prior(distribution='uniform',lower=1,upper=100.)
 
+If a parameter has a prior, then you can always retrieve the log probability of
+the current value given the prior with :py:func:`Parameter.get_logp`.
 
+**Summary:**
+
+.. autosummary::
+
+    Parameter.has_limits
+    Parameter.is_inside_limits
+    Parameter.set_limits
+    
+    Parameter.has_prior
+    Parameter.set_prior
+    Parameter.get_prior
+    Parameter.get_logp
+    Parameter.get_value_from_prior
 
 """
 #-- load standard modules
@@ -601,14 +618,14 @@ class Parameter(object):
         if props['qualifier'][-3:]=='ref' and not props['value']:
             props['value'] = uuid.uuid4()
         
-        #-- remember initial settings
+        # remember initial settings
         self._initial = props.copy()
-        #-- keep a flag if it's opaque or not
-        #self.opaque = False
-        #-- attach all keys to the class instance
+        
+        # attach all keys to the class instance
         self.reset()    
-        #-- what is the default behaviour for when limits our outside of bounds?
-        self._force_inside_limits = True
+        
+        # what is the default behaviour for when limits our outside of bounds?
+        self._force_inside_limits = False
     
     def reset(self):
         """
@@ -909,7 +926,7 @@ class Parameter(object):
         else:
             pdf = 0.0
             
-        return np.log10(pdf)
+        return np.log(pdf)
     
     
     def get_value_from_prior(self,size=1):
@@ -1044,6 +1061,7 @@ class Parameter(object):
                     loau.remove(default_unit)
                 raise ValueError("Given unit type '{0}' is {1}: {2} must be '{3}' (default) or one of {4} or equivalent. Or perpaps there was not enough information.".format(args[0],given_type,utype,default_unit,loau))
         self.value = value
+        
         #-- check for inside limits
         has_limits = self.has_limits()
         inside_limits = self.is_inside_limits()
@@ -1128,7 +1146,7 @@ class Parameter(object):
         #else:
         #    raise AttributeError,"Parameter '%s' cannot be %s"%(self.qualifier,(adjust and 'released (adjustable)' or 'locked (not adjustable)'))
     
-    def set_limits(self,llim=None,ulim=None,force=True):
+    def set_limits(self,llim=None,ulim=None,force=False):
         """
         Set lower and upper bounds on this variable.
         """
@@ -1148,7 +1166,7 @@ class Parameter(object):
             self.step = step
             #logger.debug('set_step {0} to {1}'.format(self.qualifier,step))
     
-    def set_prior(self,**kwargs):
+    def set_prior(self, **kwargs):
         """
         Set the distribution of the parameter's prior.
         
@@ -1166,8 +1184,10 @@ class Parameter(object):
         
         Or you can change the prior information later on:
         
-        >>> mypar.set_prior(distribution='normal',mu=5,sigma=1.)
+        >>> mypar.set_prior(distribution='normal', mu=5, sigma=1.)
         
+        @param distribution: type of distribution
+        @type distribution: str, one of :envvar:`uniform`, :envvar:`normal`
         """
         #-- do unit conversions if necessary:
         for key in kwargs:
@@ -1327,10 +1347,12 @@ class Parameter(object):
         @return: C{True} if inside of limits
         @rtype: bool
         """
-        if hasattr(self,'llim'):
+        if hasattr(self, 'llim'):
             value = self.get_value()
-            if not (self.llim<=value<=self.ulim):
+            
+            if not (self.llim <= value <= self.ulim):
                 return False
+            
         return True
         
     #}
@@ -2045,11 +2067,16 @@ class ParameterSet(object):
         self.get_parameter(qualifier).set_value_from_prior()
         self.run_constraints()
     
-    def set_prior(self,qualifier,**kwargs):
+    def set_prior(self, qualifier, **kwargs):
         """
         Set or update prior information.
+        
+        See :py:func:`Parameter.set_prior` for possible keyword arguments.
+        
+        @param qualifier: name of the parameter
+        @type qualifier: str
         """
-        self.get_parameter(qualifier).set_prior(qualifier,**kwargs)
+        self.get_parameter(qualifier).set_prior(**kwargs)
     
     def get_value(self,qualifier,*args):
         """

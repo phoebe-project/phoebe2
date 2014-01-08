@@ -1,5 +1,32 @@
 """
 Definition of statistical or empirical distributions.
+
+The following definitions are defined:
+
+.. autosummary::
+
+    Uniform
+    Normal
+
+Each distribution has the following attributes:
+
+    - :envvar:`distribution`: a string containing the name of the distribution (e.g. ``normal``)
+    - :envvar:`distr_pars`: parameters determining the distributions (e.g. ``mu`` and ``sigma``)
+
+Each distribution has the following methods:
+
+.. autosummary::
+
+    Normal.draw
+    Distribution.pdf
+    Distribution.cdf
+    Normal.get_loc
+    Normal.get_scale
+    Normal.get_limits
+    Normal.get_grid
+    Normal.get_distribution
+
+
 """
 import numpy as np
 from phoebe.units import conversions
@@ -29,8 +56,18 @@ class Distribution(object):
             return Uniform(*args, **kwargs)
         else:
             return DeprecatedDistribution(dist_name, *args, **kwargs)
-            
-
+    
+    def pdf(self, domain=None, **kwargs):
+        """
+        Return the probability density function.
+        """
+        return self.get_distribution(distr_type='pdf', domain=domain, **kwargs)
+    
+    def cdf(self, domain=None, **kwargs):
+        """
+        Return the cumulative density function.
+        """
+        return self.get_distribution(distr_type='cdf', domain=domain, **kwargs)
 
 class DeprecatedDistribution(object):
     """
@@ -391,10 +428,51 @@ class DeprecatedDistribution(object):
 class Normal(DeprecatedDistribution):
     """
     The Normal distribution.
+    
+    The normal distribution has two parameters in its :envvar:`distr_pars` attribute:
+    
+        - :envvar:`mu` (:math:`\mu`): the location parameter (the mean)
+        - :envvar:`sigma` (:math:`\sigma`): the scale parameter (standard deviation)
+    
+    Example usage::
+    
+        >>> norm = Normal(5.0, 1.0)
+        >>> print(norm)
+        Normal(mu=5.0, sigma=1.0)
+        
+    The limits for this distribution are by default defined as the 3 sigma
+    limits::
+    
+        >>> print(norm.get_limits())
+        (2.0, 8.0)
+    
+    Draw 5 random values from the distribution::
+    
+        >>> print(norm.draw(5))
+        [ 3.98397393  5.25521791  4.221863    5.14080982  5.33466166]
+    
+    Get a grid of values, equidistantly sampled in probability:
+    
+        >>> print(norm.get_grid(11))
+        [ 6.38299413  5.96742157  5.67448975  5.4307273   5.21042839  5.
+          4.78957161  4.5692727   4.32551025  4.03257843  3.61700587]
+    
+    
+
+        
     """
     def __init__(self, mu, sigma):
+        """
+        Initiate a normal distribution.
+        
+        @param mu: location parameter (mean)
+        @type mu: float
+        @param sigma: scale parameter (standard deviation)
+        @type sigma: float
+        """
         self.distribution = 'normal'
         self.distr_pars = dict(mu=mu, sigma=sigma)
+    
     
     def get_limits(self, factor=1.0):
         """
@@ -406,7 +484,8 @@ class Normal(DeprecatedDistribution):
         lower = self.distr_pars['mu'] - 3*self.distr_pars['sigma']*factor
         upper = self.distr_pars['mu'] + 3*self.distr_pars['sigma']*factor
         return lower, upper
-
+    
+    
     def draw(self, size=1):
         """
         Draw a (set of) random value(s) from the normal distribution.
@@ -420,6 +499,7 @@ class Normal(DeprecatedDistribution):
                                   scale=self.distr_pars['sigma'])
         return values
     
+    
     def get_grid(self, sampling=5):
         """
         Draw a (set of_) likely value(s) from the normal distribution.
@@ -431,7 +511,42 @@ class Normal(DeprecatedDistribution):
         cum_sampling = np.linspace(0, 1, sampling+2)[1:-1]
         mygrid = distributions.norm(loc=loc, scale=scale).isf(cum_sampling)
         return mygrid
+    
+    
+    def get_distribution(self, distr_type=None, domain=None, factor=1.0):
+        """
+        Return the distribution in some custom format.
         
+        By default, the format is just the name and distribution parameters
+        (attributes :envvar:`distribution` and :envvar:`distr_pars`).
+        
+        Other options:
+            - ``distr_type='pdf'``: return the probability density function.
+              If you do not give :envvar:``domain`` (the value(s) to evaluate the
+              probability density function at), then the domain will be chosen
+              to be an array of 1000 points equidistanly sampled between the
+              :py:func:`limits <Normal.get_limits>` (which can be expanded or
+              contracted with :envvar:`factor`. Returns tuple (domain, pdf) 
+        """
+        if distr_type is None:
+            return self.distribution, self.distr_pars
+        
+        elif distr_type in ['pdf', 'cdf']:
+            
+            # If 'domain' is not given, sample equidistantly between the limits
+            # of the distribution
+            if domain is None:
+                lower, upper = self.get_limits(factor=factor)
+                domain = np.linspace(lower, upper, 1000)
+            
+            return domain, getattr(distributions.norm(loc=self.distr_pars['mu'],
+                                                 scale=self.distr_pars['sigma']),
+                                                 distr_type)(domain)
+           
+        # Else, we don't know what to do.
+        else:
+            raise ValueError("Do not understand distr_type='{}'".format(distr_type))
+    
 
 
     def shrink(self, factor=10.0):
@@ -528,6 +643,42 @@ class Uniform(DeprecatedDistribution):
         mygrid = np.linspace(lower, upper, sampling)
         
         return mygrid    
+    
+    
+    def get_distribution(self, distr_type=None, domain=None, factor=1.0):
+        """
+        Return the distribution in some custom format.
+        
+        By default, the format is just the name and distribution parameters
+        (attributes :envvar:`distribution` and :envvar:`distr_pars`).
+        
+        Other options:
+            - ``distr_type='pdf'``: return the probability density function.
+              If you do not give :envvar:``domain`` (the value(s) to evaluate the
+              probability density function at), then the domain will be chosen
+              to be an array of 1000 points equidistanly sampled between the
+              :py:func:`limits <Uniform.get_limits>` (which can be expanded or
+              contracted with :envvar:`factor`. Returns tuple (domain, pdf) 
+        """
+        if distr_type is None:
+            return self.distribution, self.distr_pars
+        
+        elif distr_type in ['pdf', 'cdf']:
+            
+            # If 'domain' is not given, sample equidistantly between the limits
+            # of the distribution
+            if domain is None:
+                lower, upper = self.get_limits(factor=factor)
+                domain = np.linspace(lower, upper, 1000)
+            
+            return domain, getattr(distributions.uniform(loc=self.distr_pars['mu'],
+                                                 scale=self.distr_pars['sigma']),
+                                                 distr_type)(domain)
+           
+        # Else, we don't know what to do.
+        else:
+            raise ValueError("Do not understand distr_type='{}'".format(distr_type))
+    
     
     def get_loc(self):
         """

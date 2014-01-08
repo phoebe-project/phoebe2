@@ -569,7 +569,7 @@ def longitudinal(theta,phi,l,m,freq,phase,t,spin,k,alpha=0.0, beta=0.0, gamma=0.
     return term1 + term2 + term3
 
 
-def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, mesh_phase=0):
+def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, mesh_phase=0, t0=0.0, dfdt=0.0):
     """
     Compute surface displacements.
     
@@ -585,6 +585,7 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, me
     velo_theta = 0.
     velo_phi = 0.
     zero = np.zeros_like(theta,complex)
+    t = t-t0
     
     # Take care of meshes that rotate themselves (i.e. the mesh rotates
     # independently from the rotation period, as happens e.g. in
@@ -592,6 +593,8 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, me
     phi_ = phi - mesh_phase
     
     for il,im,ifreq,iphase,ispin,ik,iasl,incl,pincl in zip(l,m,freq,phases,spin,k,asl,incls,phaseincls):
+        # correct frequency for time evolution
+        ifreq = ifreq + dfdt*t
         #-- radial perturbation
         theta_ = theta
         ksi_r_ = iasl*radius*sqrt(4*pi)*radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl, alpha=pincl)
@@ -622,7 +625,7 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, me
 def observables(radius, theta, phi, teff, logg,
                 t, l, m, freq, phases,
                 spin, k, asl, delta_T, delta_g, incls, phaseincls,
-                mesh_phase=0.0):
+                mesh_phase=0.0, t0=0.0, dfdt=0.0):
     """
     Good defaults:
     
@@ -643,6 +646,7 @@ def observables(radius, theta, phi, teff, logg,
     ksi_grav = 0.
     ksi_teff = 0.
     zero = np.zeros_like(phi,complex)
+    t = t-t0
     
     # Take care of meshes that rotate themselves (i.e. the mesh rotates
     # independently from the rotation period, as happens e.g. in
@@ -651,6 +655,8 @@ def observables(radius, theta, phi, teff, logg,
     
     for il,im,ifreq,iphase,ispin,ik,iasl,idelta_T,idelta_g,incl,pincl in \
        zip(l,m,freq,phases,spin,k,asl,delta_T,delta_g,incls,phaseincls):
+        # correct frequency for time evolution
+        ifreq = ifreq + dfdt*t
         theta_ = theta
         rad_part = radial(theta_,phi_,il,im,ifreq,iphase,t, beta=incl, alpha=pincl)
         ksi_r_ = iasl*sqrt(4*pi)*rad_part#radial(theta,phi,il,im,ifreq,t)
@@ -772,6 +778,12 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         incl = pls.get_value('incl','rad')
         phaseincl = pls.get_value('phaseincl','rad')
         k0 = constants.GG*M/omega**2/R**3    
+        if 't0' in pls:
+            t0 = pls.get_value('t0')
+            dfdt = pls.get_value('dfdt')
+        else:
+            t0 = 0.0
+            dfdt = 0.0
         #-- if the pulsations are defined in the scheme of the traditional
         #   approximation, we need to expand the single frequencies into many.
         #   indeed, the traditional approximation approximates a mode as a
@@ -837,17 +849,17 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
     r1,theta1,phi1,vr1,vth1,vphi1 = surface(r1,theta1,phi1,time,ls,ms,freqs,
                                             phases,spinpars,ks,ampls, incls,
-                                            phaseincls, mesh_phase=mesh_phase)        
+                                            phaseincls, mesh_phase=mesh_phase,t0=t0,dfdt=dfdt)        
     r2,theta2,phi2,vr2,vth2,vphi2 = surface(r2,theta2,phi2,time,ls,ms,freqs,
                                             phases,spinpars,ks,ampls, incls,
-                                            phaseincls, mesh_phase=mesh_phase)
+                                            phaseincls, mesh_phase=mesh_phase,t0=t0,dfdt=dfdt)
     r3,theta3,phi3,vr3,vth3,vphi3 = surface(r3,theta3,phi3,time,ls,ms,freqs,
                                             phases,spinpars,ks,ampls, incls,
-                                            phaseincls, mesh_phase=mesh_phase)
+                                            phaseincls, mesh_phase=mesh_phase,t0=t0,dfdt=dfdt)
     r4,theta4,phi4,vr4,vth4,vphi4,teff,logg = observables(r4,theta4,phi4,
                  self.mesh['teff'],self.mesh['logg'],time,ls,ms,freqs,phases,
                  spinpars,ks,ampls,deltaTs,deltags, incls,
-                 phaseincls, mesh_phase=mesh_phase)
+                 phaseincls, mesh_phase=mesh_phase,t0=t0,dfdt=dfdt)
     self.mesh['triangle'][:,0:3] = np.array(coordinates.spher2cart_coord(r1,phi1,theta1))[index_inv].T
     self.mesh['triangle'][:,3:6] = np.array(coordinates.spher2cart_coord(r2,phi2,theta2))[index_inv].T
     self.mesh['triangle'][:,6:9] = np.array(coordinates.spher2cart_coord(r3,phi3,theta3))[index_inv].T

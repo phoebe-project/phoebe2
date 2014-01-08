@@ -332,7 +332,8 @@ def deriv(x,y):
 
 
 
-def phasediagram(time, y, period, t0=0.0, repeat=0, sort=True):
+def phasediagram(time, y, period, t0=0.0, repeat=0, sort=True,
+                 return_sortarray=False):
     """
     Construct a phase diagram.
     
@@ -347,11 +348,15 @@ def phasediagram(time, y, period, t0=0.0, repeat=0, sort=True):
         y = [iy[sa] for iy in y]
         phase = phase[sa]
     
+    # Better remove this?
     if repeat:
         phase = np.hstack([phase + i*period for i in range(repeat+1)])
         y = [np.hstack([iy]*(repeat+1)) for iy in y]
     
-    return phase, y
+    if return_sortarray:
+        return phase, y, sa
+    else:
+        return phase, y
 
 
 #}
