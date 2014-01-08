@@ -1,6 +1,10 @@
 """
 Limb darkening and intensity fitting and querying
 
+.. contents::
+    :local:
+    :depth: 2
+
 Section 1. File formats
 =======================
 
@@ -449,8 +453,9 @@ def disk_square_root(coeffs):
 def disk_claret(coeffs):
     a1x_,a2x_,a3x_,a4x_ = coeffs
     a0x_ = 1 - a1x_ - a2x_ - a3x_ - a4x_
-    limb_coeffs = np.array([a0x_,a1x_,a2x_,a3x_,a4x_])
+    limb_coeffs = np.array([a0x_,a1x_,a2x_,a3x_,a4x_]).reshape((5,-1))
     int_moms = np.array([I_ls(0,1 + r/2.) for r in range(0,5,1)]).reshape((5,-1))
+    print limb_coeffs.shape, int_moms.shape, (limb_coeffs*int_moms).shape
     I_lx = 2*np.pi*(limb_coeffs * int_moms).sum(axis=0)
     return I_lx
 
