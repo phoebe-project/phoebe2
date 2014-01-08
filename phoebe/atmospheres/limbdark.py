@@ -156,6 +156,58 @@ coefficient files are stored on your system? Then call::
 
     paths = limbdark.get_paths()
 
+Section 7. Phoebe parameters atm, ld_coeffs and ld_func
+=========================================================
+
+.. image:: images/atmospheres_limbdark_atm_pars.png
+   :height: 500px
+   :align: center
+
+The parameters governing the local intensities and their aspect-angle dependency
+(aka limb darkening) are the following three (see figure):
+
+    1. ``atm``: determines what the local **normal** intensity is, given
+       local parameters such as :math:`T_\mathrm{eff}`, :math:`\log g`, etc.
+       This is equivalent to the intensity in the center of the disk, or at
+       :math:`\mu=1`.
+    2. ``ld_func``: determines the functional form of the aspect angle dependency.
+       Common functional forms are the linear approximation, or Claret's nonlinear
+       approximation.
+    3. ``ld_coeffs``: fixes the parameters of the functional form given by ``ld_func``.
+       If this parameter is a list of coefficients, then the coefficients will
+       not be dependent on local parameters :math:`T_\mathrm{eff}`, :math:`\log g`, etc.,
+       but the intensity will still be set by ``atm``. If this parameter is a
+       grid name, then the coefficients will be taken according to the local
+       parameters.
+    
+In the ideal case, ``atm`` and ``ld_coeffs`` take the same value (and is a grid name).   
+Then, everything is consistent. However, sometimes you want to deviate from the
+ideal case, e.g. to compare with other codes. Then **you need to be careful!**.
+First note that the local normal emergent intensity (units: W/m3/sr) is not the
+same as the flux (units: W/m3). The flux emerging from a local surface element
+is computed by integrating over all solid angles facing outwards. The passband
+luminosity is then finally obtained by integrating over all surface elements (W/m).
+If the flux was computed bolometrically, i.e. integrated over the full wavelength
+range, then we get fluxes in W/m2 luminosities in W.
+
+**If you choose to set custom ld_coeffs**, then the following is done:
+
+    1. the normal emergent intensity is taken from ``atm``, and the flux is
+       computed using the ``ld_func`` with which the ``atm`` table was constructed.
+    2. The normal emergent intensity is scaled to conserve flux with respect to
+       the custom LD coeffs. (e.g. green solid line versus red solid line in
+       above figure)
+
+Sometimes, you cannot use any precomputed grid simply because the grid does not
+cover your set of parameters (e.g. your star is too hot or too cold, or too evolved).
+A last resort is always to set ``atm=blackbody`` (precomputed but a wide range of
+temperatures, and not dependent on surface gravity) or ``atm=true_blackbody`` (covers
+everything, but is computed on-the-fly and is thus very slow). Then you are
+responsible for setting the ``ld_coeffs`` also to some specific set of coefficients.
+In principle, you can also set ``atm=blackbody`` and ``ld_coeffs=kurucz``, but
+that would be weird: if you have a reason not to trust your normal emergent intensity,
+you shouldn't trust your limb darkening coefficients either.
+
 """
 # Required system packages
 import os
@@ -455,7 +507,6 @@ def disk_claret(coeffs):
     a0x_ = 1 - a1x_ - a2x_ - a3x_ - a4x_
     limb_coeffs = np.array([a0x_,a1x_,a2x_,a3x_,a4x_]).reshape((5,-1))
     int_moms = np.array([I_ls(0,1 + r/2.) for r in range(0,5,1)]).reshape((5,-1))
-    print limb_coeffs.shape, int_moms.shape, (limb_coeffs*int_moms).shape
     I_lx = 2*np.pi*(limb_coeffs * int_moms).sum(axis=0)
     return I_lx
 
