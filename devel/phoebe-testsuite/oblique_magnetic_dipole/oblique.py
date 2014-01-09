@@ -21,7 +21,7 @@ from phoebe.utils import plotlib
 logger = phoebe.get_basic_logger()
 
 # Define the parameters of the star. We're inspired by [Donati1997]_,
-# [Morel2006]_ and [Nieva2002]_.
+# [Morel2006]_ and [Nieva2013]_.
 
 star = phoebe.ParameterSet('star',label='beta Cephei')
 star['atm'] = 'kurucz'
