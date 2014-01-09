@@ -2319,6 +2319,11 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 if thing.get_value():
                     # If there's at least one irradiator, we need to leave it on
                     found_irradiator = True
+                    logger.info("Including heating and/or reflection effects")
+                    break
+        else:
+            logger.critical("Requested to include heating and/or reflection, but no irradiators were found. Please set the 'irradiator' parameter to 'True' in the relevant bodies.")
+                    
     # Otherwise we can switch it off
     if not found_irradiator:
         heating = False
