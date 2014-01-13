@@ -1542,7 +1542,7 @@ def circularization(M,R,q,a,envelope='radiative'):
     Circularization time scale.
     
     """
-    #-- Tidal torque constants (Zahn 1975)
+    #-- Tidal torque constants (Zahn 1975, 1977)
     E2_mass = [1.6,2.,3,5,7.,10,15.]
     E2_vals = [2.41e-9,1.45e-8,4.72e-8,1.53e-7,3.8e-7,1.02e-6,3.49e-6]
     E2 = np.interp(M,E2_mass,E2_vals)

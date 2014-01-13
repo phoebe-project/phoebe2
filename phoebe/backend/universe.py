@@ -2861,8 +2861,9 @@ class Body(object):
                             continue
                         lbl = '{}[{}]'.format(ptype, iref)
                         mystring = ['{}: '.format(lbl)]
-                        iterover = thing.params[param][ptype][ref].keys()
-                        iiterover = thing.params[param][ptype][ref]
+                        oparam = 'obs'
+                        iterover = thing.params[oparam][ptype][ref].keys()
+                        iiterover = thing.params[oparam][ptype][ref]
                         # First the reference for clarity:
                         if 'ref' in iterover:
                             iterover.remove('ref')

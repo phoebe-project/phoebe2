@@ -1067,20 +1067,27 @@ class Bundle(object):
     
     #}
     #{ Objects
-    def get_object(self, name):
+    def get_object(self, name=None):
         # return the Body/BodyBag from the system hierarchy
         system = self.get_system()
-        if system.get_label() == name:
-            return system
+        if name is None or system.get_label() == name:
+            this_child = system
         else:
-            raise NotImplementedError
+            for child in system.walk_bodies():
+                if child.get_label() == name:
+                    this_child = child
+                    break
+            else:
+                raise ValueError("Object not {} found".format(name))
+        return this_child
             
         
-    def get_children(self, name):
+    def get_children(self, name=None):
         # return list of children for self.get_object(name)
         obj = self.get_object(name)
         if hasattr(obj,'bodies'):
-            return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
+            #return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
+            return obj.bodies
         else:
             return []
         
@@ -1278,7 +1285,7 @@ class Bundle(object):
         if output is not None:
             self._attach_datasets(output)
                        
-    def create_syn(self, category='lc', times=None, components=None,
+    def create_syn(self, category='lc', times=None, component=None,
                    ref=None, **pbkwargs):
         """
         create and attach 'empty' datasets with no actual data but rather
@@ -1293,8 +1300,8 @@ class Bundle(object):
         @type times: list
         @param columns: list of columns in file
         @type columns: list of strings
-        @param components: component for each column in file
-        @type components: list of bodies
+        @param component: component for each column in file
+        @type component: None, str, list of str or list of bodies
         @param ref: name for ref for all returned datasets
         @type ref: str    
         """
@@ -1310,22 +1317,38 @@ class Bundle(object):
         else:
             dataset_class = getattr(datasets, config.dataset_class[category])
 
-        if components is None:
+        if component is None:
             # then attempt to make smart prediction
             if category == 'lc':
                 # then top-level
                 components = [self.get_system()]
-                logger.warning('components not provided - assuming {}'.format(components))
+                logger.warning('components not provided - assuming {}'.format(component))
             else:
                 logger.error('create_syn failed: components need to be provided')
                 return
-
+        # is component just one string?
+        elif isinstance(component, str):
+            components = [self.get_object(component)]
+        # is component a list of strings?
+        elif isinstance(component[0], str):
+            components = [self.get_object(icomp) for icomp in component]
+        # perhaps component is a list of bodies, that's just fine then
         else:
-            pass
-            # TODO: components were passed as strings - so we need to get the objects still
-
+            components = component
+        
         output = {}
         for component in components:
+            
+            if ref is None:
+                # If the reference is None, suggest one. We'll add it as "lc01"
+                # if no "lc01" exist, otherwise "lc02" etc (unless "lc02" already exists)
+                existing_refs = self.get_system().get_refs(category=category)
+                id_number = len(existing_refs)+1
+                ref = category + '{:02d}'.format(id_number)
+                while ref in existing_refs:
+                    id_number += 1
+                    ref = category + '{:02d}'.format(len(existing_refs)+1)
+            
             ds = dataset_class(context=category+'obs', time=times, ref=ref)
             
             # For the "dep" parameterSet, we'll use defaults derived from the
@@ -1351,7 +1374,7 @@ class Bundle(object):
         
         self._attach_datasets(output)
         
-    def get_syn(self,objref=None,dataref=None,force_dict=False):
+    def get_syn(self, category=None, objref=None, dataref=0, force_dict=False):
         """
         Get synthetic
         
@@ -1368,10 +1391,24 @@ class Bundle(object):
         
         for body in iterate_all_my_bodies:
             this_objref = body.get_label()
+            
             if objref is None or this_objref == objref:
-                for obstype in body.params['syn']:
-                    if dataref in body.params['syn'][obstype]:
+                
+                # If category is not given, run over all of them
+                if category is None:
+                    obstypes = body.params['syn'].keys()
+                else:
+                    obstypes = [category+'syn']
+                
+                for obstype in obstypes:
+                    
+                    # dataref can be integer
+                    if isinstance(dataref, int):
+                        dss[this_objref] = body.params['syn'][obstype].values()[dataref]
+                    # but dataref can be string
+                    elif dataref in body.params['syn'][obstype]:
                         dss[this_objref] = body.params['syn'][obstype][dataref]
+                    # else nothing happens and we keep searching
         
         if not force_dict and len(dss) == 1:
             return dss.values()[0]
