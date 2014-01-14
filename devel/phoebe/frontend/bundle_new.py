@@ -664,7 +664,7 @@ class Bundle(object):
     #}
     #{ Parameters/ParameterSets
     
-    def get_ps(self, name, return_type='single'):
+    def get_ps(self, qualifier, return_type='single'):
         """
         Retrieve a ParameterSet(s) from the system
         
@@ -675,10 +675,10 @@ class Bundle(object):
         
         # Extract the info on the name and structure info. The name is always
         # first
-        name = name.split('@')
-        if len(name)>1:
-            structure_info = name[1:]
-        name = name[0]
+        qualifier = qualifier.split('@')
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
                  
         # Reverse the structure info, that's easier to handle
         structure_info = structure_info[::-1]
@@ -756,13 +756,12 @@ class Bundle(object):
                 context = val.get_context()
                 ref = val['ref'] if 'ref' in val else None
                 label = val['label'] if 'label' in val else None
-                print context,ref,label
-                if name in [context, ref, label] and not val in found:
+                if qualifier in [context, ref, label] and not val in found:
                     found.append(val)
                 
                     
         if len(found) == 0:
-            raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(name,"@".join(structure_info)))
+            raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
             raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
         elif return_type in ['single']:
@@ -2583,7 +2582,8 @@ class Bundle(object):
         Include/exclude reflection effects.
         """
         self.set_value('refl', on, apply_to='all')
-        
+    
+    
     
 class Version(object):
     """ 
