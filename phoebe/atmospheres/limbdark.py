@@ -2227,7 +2227,9 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
     proj_Imu = mus*Imu
     proj_Imu[-visible] /= 2.0
     proj_intens = system.mesh['size'][keep]*proj_Imu
-    if np.all(proj_intens==0):
+    if not np.any(keep):
+        proj_velo = np.nan
+    elif np.all(proj_intens==0):
         proj_velo = 0.
     else:
         #proj_velo = np.average(-system.mesh['velo_'+ref+'_'][keep,2],weights=proj_intens)

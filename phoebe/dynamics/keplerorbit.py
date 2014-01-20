@@ -1784,7 +1784,7 @@ def walk_hierarchical(o,orbits=None,components=None):
                     yield None,orbits,components
 
 
-def get_binary_orbit(time, orbit, component, barycentric=False):
+def get_binary_orbit(time, orbit, component, barycentric=False, return_time=False):
     """
     Get the binary orbit from a Phoebe parameterSet.
     
@@ -1799,6 +1799,10 @@ def get_binary_orbit(time, orbit, component, barycentric=False):
         - x, y are the coordinates in the plane of the sky
         - z is in the direction towards from the observer. Thus, negative z means
           the object is going away from the observer
+    
+    If :envvar::`barycentric` is ``True``, then, unsurprisingly, the barycentric
+    orbit will be given (:py:func:`get_barycentric_orbit`). If you're interested
+    in the adjust times, :envvar:`set return_time=True`.
     
     @param time: time array or float to compute the orbit on
     @type time: numpy array or float
@@ -1841,7 +1845,13 @@ def get_binary_orbit(time, orbit, component, barycentric=False):
                                mass_conservation=True,
                                component=component, t0type=t0type)
     loc, velo, euler = output[:3]
-    return loc,velo,euler
+    
+    if not return_time:
+        return loc,velo,euler
+    elif return_time and barycentric:
+        return loc,velo,euler,output[3]
+    else:
+        return loc,velo,euler,time
 
 
 def place_in_binary_orbit(self,time):

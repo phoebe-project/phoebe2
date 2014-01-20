@@ -195,7 +195,7 @@ def mpirun(fctn):
                 system.fix_mesh()
             else:
                 system.init_mesh()
-            kwargs['inside_mpi'] = None
+            #kwargs['inside_mpi'] = None
             output = fctn(system, *args, **kwargs)
             return output
         
