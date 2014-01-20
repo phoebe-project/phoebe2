@@ -1644,7 +1644,6 @@ class Body(object):
         for path, syn in self.walk_dataset():
             if not syn.get_context()[-3:] == 'syn':
                 continue
-            
             if len(path):
                 subsystem = path[-1]
             else:
@@ -1655,7 +1654,7 @@ class Body(object):
             
             if hasattr(syn, 'bin_oversampling'):
                 syn.bin_oversampling()
-            
+                
             if loaded:
                 syn.unload()
     

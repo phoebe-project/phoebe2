@@ -718,6 +718,42 @@ class SPDataSet(DataSet):
         ax.set_ylabel("Normalised flux")
         if loaded:
             self.unload()
+    
+    def bin_oversampling(self):
+        """
+        Bin synthetics according to the desired oversampling rate.
+        """
+        new_flux = []
+        new_time = []
+        new_cont = []
+        new_samprate = []
+        
+        old_flux = np.array(self['flux'])
+        old_cont = np.array(self['continuum'])
+        old_time = np.array(self['time'])
+        old_wavelength = np.array(self['wavelength'])
+        old_samprate = np.array(self['samprate'])
+        sa = np.argsort(old_time)
+        old_flux = old_flux[sa]
+        old_cont = old_cont[sa]
+        old_time = old_time[sa]
+        old_samprate = old_samprate[sa]
+        old_wavelength = old_wavelength[sa]
+        
+        seek = 0
+        while seek<len(old_flux):
+            samprate = old_samprate[seek]
+            new_flux.append(np.mean(old_flux[seek:seek+samprate]))
+            new_time.append(np.mean(old_time[seek:seek+samprate]))
+            new_cont.append(np.mean(old_cont[seek:seek+samprate]))
+            new_samprate.append(1)
+            seek += samprate
+        self['flux'] = new_flux
+        self['continuum'] = new_continuum
+        self['wavelength'] = old_wavelength[seek]
+        self['time'] = new_time
+        self['samprate'] = new_samprate
+        #logger.info("Binned data according to oversampling rate")
 
 class PLDataSet(SPDataSet):
     """
@@ -1971,8 +2007,77 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
         return components
             
 
-def parse_lprof(filenames):
-    raise NotImplementedError
+def parse_spec_timeseries(profiles, timefile, clambda=None, columns=None,
+                          components=None, dtypes=None, units=None,
+                          full_output=False, **kwargs):
+    """
+    Parse a timeseries of spectrum files.
+    """
+    default_column_order = ['wavelength', 'flux', 'sigma', 'continuum']
+    
+    # read in the time file:
+    timedata = np.loadtxt(timefile, dtype=str, usecols=(0,1), unpack=True)
+    basedir = os.path.dirname(timefile)
+    filenames = [os.path.join(basedir, filename) for filename in timedata[0]]
+    times = np.array(timedata[1],float)
+    
+    # Process the header and body of the file
+    output, \
+        (columns_in_file, columns_specs, units), \
+        (pb, ds) = process_file(filenames[0], default_column_order, 'lprof', columns, \
+                                            components, dtypes, units, **kwargs)
+    
+    myds = output.values()[0][0][-1]
+    
+    # Correct columns to be a list of arrays instead of arrays
+    for col in myds['columns']:
+        myds[col] = np.array([myds[col]])
+    
+    # Convert to right units -- this is not going to work...
+    for i, col in enumerate(myds['columns']):
+        if col == 'wavelength':
+            myds['wavelength'] = conversions.convert(units[i],
+                                         myds.get_parameter(col).get_unit(), 
+                                         myds['wavelength'], wave=clambda)
+    print output
+    print myds
+    return None
+    
+    # Cut out the line profile
+    if clambda is not None and wrange is not None:
+        clambda = conversions.convert(clambda[1],\
+                        myds.get_parameter('wavelength').get_unit(), clambda[0])
+        wrange = conversions.convert(wrange[1],\
+                        myds.get_parameter('wavelength').get_unit(), wrange[0])
+        
+        keep = np.abs(myds['wavelength'][0]-clambda) < (wrange/2.0)
+        for col in myds['columns']:
+            myds[col] = myds[col][:,keep]
+    
+    
+    # Add sigma if not available
+    if not 'sigma' in myds['columns']:
+        myds.estimate_noise(from_col='flux', to_col='sigma')
+        myds['columns'] = myds['columns'] + ['sigma']
+        logger.info("No uncertainties available in data --> estimated")
+    
+    # Add continuum if not available
+    if not 'continuum' in myds['columns']:
+        myds['continuum'] = np.ones_like(myds['wavelength'])
+        myds['columns'] = myds['columns'] + ['sigma']
+    
+    
+    # Add time
+    myds['time'] = np.array([time])
+    myds['columns'] = ['time'] + myds['columns']
+    
+    
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
+    else:
+        return output
 
 def parse_spec_as_lprof(filename, clambda=None, wrange=None, time=0.0, 
                         columns=None, components=None, dtypes=None, units=None,

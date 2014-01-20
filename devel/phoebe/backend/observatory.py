@@ -94,7 +94,7 @@ def image(the_system, ref='__bol', context='lcdep',
     You can make an image from basically any defined quantity in a mesh.
     
     To make a true image, you need intensities. By default, he *bolometric*
-    intensities are used, but you can use the intensities from any obsersable,
+    intensities are used, but you can use the intensities from any observable,
     if you pass the correct ``ref`` and ``context``. Bolometric ones are the 
     default because this allows you to make an image of something for which no
     pbdeps are defined. 
@@ -176,15 +176,17 @@ def image(the_system, ref='__bol', context='lcdep',
     
     By default, a new figure is created, for which axes fill the whole canvas
     and the x and y-axis are completely removed. If you want to add an image
-    to an existing axis, that is possible by giving that axis as an argument.
+    to an existing axis, that is possible by giving that axis as an argument
+    (:envvar:`ax`).
     In this case, the limits are not automatically set, so you need to set
     them manually. Luckily, this function returns a recommendation for the
-    limits, as well as the collection of triangles themselves. The latter can
-    be helpful if you want to add a colorbar. These options provide you with the
-    utmost flexibility to incorporate the image of your Body in whatever
-    customized plot or subplot you want. Beware that this function *does* set
-    the scaling of the axis to be ``equal``, if you don't want that you'll need
-    to readjust them yourself afterwards.
+    limits, as well as the collection of triangles themselves (see output below).
+    The latter can be helpful if you want to add a colorbar. These options
+    provide you with the utmost flexibility to incorporate the image of your
+    Body in whatever customized plot or subplot you want. Beware that this
+    function *does* set the scaling of the axis to be ``equal``, if you don't
+    want that you'll need to readjust them yourself afterwards (see matplotlib
+    documentation).
     
     >>> ax = pl.gca()
     >>> xlim, ylim, patch = phoebe.image(vega,ax=ax,background='white')
@@ -218,6 +220,25 @@ def image(the_system, ref='__bol', context='lcdep',
        :width: 233px
        :align: center                                 
     
+    **Output**
+    
+    The output is a tuple with three entries:
+    
+        1. *figure properties* (dict), with entries:
+            - *xlim*: (lower, upper) (solar radii)
+            - *ylim*: (lower, upper) (solar radii)
+        2. *artist properties* (dict), with entries:
+            - *norm_proj*: normalisation constant to rescale mesh properties
+              for use in the colorbar
+            - *vmin*: minimum value of the rescaled color scale
+            - *vmax*: maximum value of the rescaled color scale
+        3. *patch collection* (matplotlib object)
+    
+    The latter is useful to add a colorbar to the plot, e.g. via::
+    
+        >>> figprop, artprop, pc = phoebe.image(vega,ax=ax,background='white')
+        >>> plt.colorbar(pc)
+    
     @param the_system: the Body to plot
     @type the_system: Body
     @param ref: reference of the intensities to use, if applicable
@@ -238,8 +259,8 @@ def image(the_system, ref='__bol', context='lcdep',
     @type size: int
     @param ax: axes to plot in
     @type ax: matplotlib axes instance
-    @return: x limits, y limits, patch collection
-    @rtype: tuple, tuple, patch collection
+    @return: figure propeties, artist properties, patch collection
+    @rtype: dict, dict, matplotlib patch collection
     """
     # Default color maps and background depend on the type of dependables:
     if cmap is None and select == 'rv':
@@ -2408,8 +2429,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
     
     if not animate:
-        for i, (time, ref, type, samp) in enumerate(iterator):
-            compute_one_time_step(system, i, time, ref, type, samp, reflect, nreflect,
+        for i, (time, ref, typ, samp) in enumerate(iterator):
+            compute_one_time_step(system, i, time, ref, typ, samp, reflect, nreflect,
                                 circular, heating, beaming, params, ltt,
                                 extra_func, extra_func_kwargs)
     
