@@ -723,6 +723,7 @@ class SPDataSet(DataSet):
         """
         Bin synthetics according to the desired oversampling rate.
         """
+        return None
         new_flux = []
         new_time = []
         new_cont = []
@@ -2007,9 +2008,9 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
         return components
             
 
-def parse_spec_timeseries(profiles, timefile, clambda=None, columns=None,
+def parse_spec_timeseries(timefile, clambda=None, columns=None,
                           components=None, dtypes=None, units=None,
-                          full_output=False, **kwargs):
+                          full_output=False, fixed_wavelength=True, **kwargs):
     """
     Parse a timeseries of spectrum files.
     """
@@ -2019,41 +2020,37 @@ def parse_spec_timeseries(profiles, timefile, clambda=None, columns=None,
     timedata = np.loadtxt(timefile, dtype=str, usecols=(0,1), unpack=True)
     basedir = os.path.dirname(timefile)
     filenames = [os.path.join(basedir, filename) for filename in timedata[0]]
-    times = np.array(timedata[1],float)
+    time = np.array(timedata[1],float)
     
     # Process the header and body of the file
-    output, \
+    for i, filename in enumerate(filenames):
+        output_, \
         (columns_in_file, columns_specs, units), \
-        (pb, ds) = process_file(filenames[0], default_column_order, 'lprof', columns, \
+        (pb, ds) = process_file(filename, default_column_order, 'lprof', columns, \
                                             components, dtypes, units, **kwargs)
-    
-    myds = output.values()[0][0][-1]
-    
-    # Correct columns to be a list of arrays instead of arrays
-    for col in myds['columns']:
-        myds[col] = np.array([myds[col]])
-    
-    # Convert to right units -- this is not going to work...
+        
+        if i==0:
+            output = output_
+            myds = output.values()[0][0][-1]
+            myds['filename'] = timefile
+        else:
+            for col in columns_in_file:
+                if col != 'wavelength' or not fixed_wavelength:
+                    myds[col] = np.vstack([myds[col], output_.values()[0][0][-1][col]])
+        
+    # Convert to right units
     for i, col in enumerate(myds['columns']):
+        if units is None or i>=len(units):
+            continue
+            
         if col == 'wavelength':
+            if conversions.get_type(units[i])=='velocity' and clambda is None:
+                raise ValueError(("If the wavelength is given in velocity "
+                                  "units, you need to specify the central "
+                                  "wavelength 'clambda'"))
             myds['wavelength'] = conversions.convert(units[i],
                                          myds.get_parameter(col).get_unit(), 
                                          myds['wavelength'], wave=clambda)
-    print output
-    print myds
-    return None
-    
-    # Cut out the line profile
-    if clambda is not None and wrange is not None:
-        clambda = conversions.convert(clambda[1],\
-                        myds.get_parameter('wavelength').get_unit(), clambda[0])
-        wrange = conversions.convert(wrange[1],\
-                        myds.get_parameter('wavelength').get_unit(), wrange[0])
-        
-        keep = np.abs(myds['wavelength'][0]-clambda) < (wrange/2.0)
-        for col in myds['columns']:
-            myds[col] = myds[col][:,keep]
-    
     
     # Add sigma if not available
     if not 'sigma' in myds['columns']:
@@ -2068,7 +2065,7 @@ def parse_spec_timeseries(profiles, timefile, clambda=None, columns=None,
     
     
     # Add time
-    myds['time'] = np.array([time])
+    myds['time'] = time
     myds['columns'] = ['time'] + myds['columns']
     
     
