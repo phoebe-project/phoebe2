@@ -79,6 +79,7 @@ from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import decorators
 import froche
+import time
 
 logger = logging.getLogger('ATM.ROCHE')
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -120,10 +121,10 @@ def temperature_zeipel(system):
     body = list(system.params.values())[0]
     if body.has_qualifier('teffpolar'):
         Teff = body['teffpolar']
-        type = 'polar'
+        typ = 'polar'
     else:
         Teff = body['teff']
-        type = 'mean'
+        typ = 'mean'
     
     # We need the gravity brightening parameter and the polar surface gravity
     # as a reference point
@@ -137,26 +138,26 @@ def temperature_zeipel(system):
         logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff,beta))
     elif beta < 0.32 or beta > 1.00:
         logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-    
+        
     # Compute G and Tpole
     Grav = abs(10**(system.mesh['logg']-2)/gp)**beta
     
-    if type == 'mean':
+    if typ == 'mean':
         Tpole = Teff*(np.sum(system.mesh['size']) / np.sum(Grav*system.mesh['size']))**(0.25)
-    elif type == 'polar':
+    elif typ == 'polar':
         Tpole = Teff
     else:
         raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(type))
-    
+        
     # Now we can compute the local temperatures. We add a constraint to the body
     # so that we can access the polar temperature if needed
-    system.mesh['teff'] = Grav**0.25 * Tpole
+    #system.mesh['teff'] = (Grav**0.25 * Tpole) -- sometimes takes very long for some reason
+    system.mesh['teff'] = (Grav * Tpole**4)**0.25
     
     #=== FORTRAN ATTEMPT DOESN'T GO ANY FASTER =======
     #Tpole,system.mesh['teff'] = froche.temperature_zeipel(system.mesh['logg'],
     #                   system.mesh['size'], Teff, ['mean','polar'].index(type),
     #                   beta, gp)
-    
     body.add_constraint('{{t_pole}} = {0:.16g}'.format(Tpole))
     logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
 

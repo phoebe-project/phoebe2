@@ -38,8 +38,8 @@ lac['shape'] = 'sphere'
 lac['atm'] = 'kurucz'
 lac['ld_coeffs'] = 'kurucz'
 lac['ld_func'] = 'claret'
-mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
-mesh['delta'] = 0.08
+mesh = phoebe.ParameterSet(context='mesh:marching',alg='c', maxpoints=100000)
+mesh['delta'] = 0.03
 lac.add(phoebe.Parameter(qualifier='veq',unit='km/s',value=200.))
 lac.add_constraint('{rotperiod} = 2*np.pi*{radius}/{veq}')
 print lac
@@ -47,7 +47,7 @@ print lac
 # Create a ParameterSet with Parameters for the pulsation mode
 freq_pars1 = phoebe.ParameterSet(context='puls',add_constraints=True)
 freq_pars1['freq'] = 3.97,'cy/d'
-freq_pars1['ampl'] = 0.01
+freq_pars1['ampl'] = 0.07
 freq_pars1['l'] = sys.argv[1] # 4
 freq_pars1['m'] = sys.argv[2] # 4
 freq_pars1['ledoux_coeff'] = 0.1585
@@ -65,25 +65,8 @@ spdep1 = phoebe.ParameterSet(context='spdep',ref='line profile')
 spdep1['ld_func'] = 'claret'
 spdep1['ld_coeffs'] = 'kurucz'
 spdep1['atm'] = 'kurucz'
-spdep1['clambda'] = 4550.,'AA'
 
-#If we would want to compute *real* profiles, we need to use grids of synthetic
-# spectra. For shallow, nearly Gaussian lines we expect similar behaviour of
-# the line profile as in the synthetic Gaussian case. In the case of deep lines,
-# all bets are off. An example of the first is the Silicon line at 4552.6 AA,
-# an example of the second line is the Helium line at 4471.5.
 name = ""
-if False:
-    spdep1['profile'] = 'bstar'
-    spdep1['clambda'] = 4552.6,'AA' # for a silicon line
-    name = "silicon"
-    #spdep1['clambda'] = 4471.5,'AA' # for a helium line
-    #name = "helium"
-
-# Body setup
-# ----------
-star = phoebe.Star(lac,mesh,puls=[freq_pars1],
-              pbdep=[lcdep1,spdep1])
 
 
 # Computation of observables
@@ -110,7 +93,15 @@ def extra_func(system,time,i_time):
 # shifts
 #times = np.linspace(0,1./(freq_pars1['freq']-freq_pars1['m']/lac.get_value('rotperiod','d')),11)
 times = np.linspace(0,1./(freq_pars1['freq']-4./lac.get_value('rotperiod','d')),50)
-phoebe.observe(star,times,subdiv_num=0,lc=True,sp=True,extra_func=[extra_func])
+# Create a DataSet with the template spectra
+spobs1 = phoebe.SPDataSet(wavelength=np.array([np.linspace(4544, 4556, 200)]),
+                          time=times, ref='line profile')
+lcobs1 = phoebe.LCDataSet(time=times, ref='light curve')
+
+star = phoebe.Star(lac,mesh,puls=[freq_pars1],
+              pbdep=[lcdep1,spdep1], obs=[lcobs1, spobs1])
+
+phoebe.compute(star, subdiv_num=0, extra_func=[extra_func])
 
 """
 
@@ -209,7 +200,6 @@ plt.close()
 """
 
 spectra = star.get_synthetic(category='sp',ref=0)
-clambda = spdep1.get_value('clambda','AA')
 
 # Plot spectra of stars separately.
 for j in range(len(spectra['wavelength'])):
@@ -219,7 +209,7 @@ for j in range(len(spectra['wavelength'])):
     plt.figure()
     plt.plot(wave,spec/cont,'k-')
     plt.grid()
-    plt.xlim(clambda-6,clambda+6)
+    plt.xlim(wave[0], wave[-1])
     if 'helium' in name: plt.ylim(0.8,1.004)
     else:                plt.ylim(0.93,1.005)
     plt.xlabel('Wavelength [Angstrom]')
@@ -231,7 +221,7 @@ for j in range(len(spectra['wavelength'])):
         ptp = (spec/cont).ptp()
     plt.plot(wave,spec/cont+j*ptp,'k-')
 plt.figure(100)
-plt.xlim(clambda-6,clambda)
+plt.xlim(wave[0], wave[-1])
 plt.ylim(1-1.2*ptp,1.+j*ptp*1.05)
 plt.xlabel('Wavelength [Angstrom]')
 plt.ylabel('Normalized flux')
