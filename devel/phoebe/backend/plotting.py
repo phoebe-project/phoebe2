@@ -296,7 +296,7 @@ def plot_lcres(system,*args,**kwargs):
     
     #-- get the period to repeat the LC with
     if period is None:
-        period = max(obs_time)
+        period = max(syn_time)
     
     #-- plot model
     artists = []
