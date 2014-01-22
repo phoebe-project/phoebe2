@@ -799,6 +799,7 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     
     R1 = star1.get_value('radius','au')
     R2 = star2.get_value('radius','au')
+    
     R1crit = roche.calculate_critical_radius(orbit['q'],component=1,d=d,F=comp1['syncpar'])*sma
     R2crit = roche.calculate_critical_radius(orbit['q'],component=2,d=d,F=comp2['syncpar'])*sma
     #if R1>R1crit: raise ValueError("Star1 radius exceeds critical radius: R/Rcrit={}".format(R1/R1crit))

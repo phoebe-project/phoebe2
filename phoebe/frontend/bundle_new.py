@@ -828,6 +828,7 @@ class Bundle(object):
         # First we'll loop through matching parametersets and gather all
         # parameters that match the qualifier
         found = []
+        found_labels = []
         
         system = self.get_system()
         
@@ -892,8 +893,9 @@ class Bundle(object):
             
             # Now did we find it?
             if isinstance(val, parameters.Parameter):
-                if val.get_qualifier() == qualifier and not val in found:
+                if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
                     found.append(val)            
+                    found_labels.append(val.get_unique_label())
         
         if len(found) == 0:
             # we should look into subsections here
@@ -913,7 +915,7 @@ class Bundle(object):
                                            return_type='list')
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
             
-        
+        print found
         if len(found) == 0:    
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
@@ -958,7 +960,7 @@ class Bundle(object):
         if kwargs:
             raise SyntaxError("set_value does not take extra keyword arguments")
         
-        params = self.get_parameter(qualifier, name, return_type=apply_to)
+        params = self.get_parameter(qualifier, return_type=apply_to)
         
         if apply_to in ['single']:
             params.set_value(value, *args)

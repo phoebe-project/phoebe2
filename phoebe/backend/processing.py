@@ -2,6 +2,7 @@
 List of user-defined contraints.
 """
 from phoebe.dynamics import keplerorbit
+from phoebe.atmospheres import roche
 import logging
 
 logger = logging.getLogger('PROC')
@@ -31,6 +32,49 @@ def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
     self[1-fix].params['component']['teff'] = teff_ratio * self[fix].params['component']['teff']**( (-1)**fix)
 
 
+#{ Modus operandi
+
+def semidetached(self, time):
+    """
+    Require a component to be semi-detached.
+    
+    This is equivalent to requiring that the component fills its Roche lobe.
+    """
+    orbit = self.params['orbit']
+    component = self.params['component']
+    
+    q = orbit['q']
+    F = component['syncpar']
+    comp = self.get_component()+1
+    
+    pot = roche.calculate_critical_potentials(q, F=F, d=d, component=comp)[0]
+    component['pot'] = pot
+    logger.info('{} potential set to critical (semi-detached)'.format('Primary' if comp==1 else 'Secondary'))
+
+
+def overcontact(self, time):
+    """
+    Require a system to be an overcontact binary (W UMa stars).
+    
+    The following constraints are applied:
+    
+        - surface potentials of secondary is the same as primary
+        - gravity darkening law and coefficients are the same
+        - atmospheres and limbdarkening are the same
+        - albedos are the same.
+    """
+    children = self.get_children()
+    components = [children[0].get_component(), children[1].get_component()]
+    primary = children[components.index(0)]
+    secondary = children[components.index(1)]
+    
+    require_equal = ['pot', 'gravb', 'gravblaw', 'alb', 'ld_coeffs', 'ld_func', 'atm']
+    
+    for key in require_equal:
+        secondary.params['component'][key] = primary.params['component'][key]
+    
+    
+#}
 
 def sed_scale_to_distance(self, time, group):
     """

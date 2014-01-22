@@ -371,10 +371,13 @@ def calculate_critical_potentials(q,F=1.,d=1.,component=1):
     axies. E.g. for circular orbits, C{d=1}.
     
     @parameter q: mass ratio M2/M1
-    @parameter d: separation between the two objects
-    @type d: float
+    @type q: float
     @param F: synchronicity parameter
     @type F: float
+    @parameter d: separation between the two objects
+    @type d: float
+    @param component: component in the system (1 or 2)
+    @type component: integer
     @return: critical potentials at L1,L2 and L3
     @rtype: float,float,float
     """
@@ -565,8 +568,10 @@ def radius2potential(radius, q, d=1., F=1., component=1, sma=1., loc='pole',
         theta = np.pi/2.
     else:
         ValueError,"don't understand loc=%s"%(loc)
+        
     def _binary_potential(Phi,r,theta,phi,q,d,F,component=1):
         return binary_potential(r,theta,phi,Phi,q,d,F,component=component)
+    
     pot = newton(_binary_potential,1000.,args=(radius/sma,theta,0.,q,d,F,component),tol=tol,maxiter=maxiter)
     return pot
 
@@ -837,6 +842,7 @@ def binary_potential(r,theta,phi,Phi,q,d,F,component=1):
     term1 = 1. / r
     term2 = q * ( 1./sqrt(d**2 - 2*lam*d*r + r**2) - lam*r/d**2)
     term3 = 0.5 * F**2 * (q+1) * r**2 * (1-nu**2)
+    
     return (Phi - (term1 + term2 + term3))
 
 def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):

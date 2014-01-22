@@ -39,7 +39,7 @@ lac['atm'] = 'kurucz'
 lac['ld_coeffs'] = 'kurucz'
 lac['ld_func'] = 'claret'
 mesh = phoebe.ParameterSet(context='mesh:marching',alg='c', maxpoints=100000)
-mesh['delta'] = 0.03
+mesh['delta'] = 0.08
 lac.add(phoebe.Parameter(qualifier='veq',unit='km/s',value=200.))
 lac.add_constraint('{rotperiod} = 2*np.pi*{radius}/{veq}')
 print lac
@@ -73,7 +73,7 @@ name = ""
 # --------------------------
 
 # Compute the light curve and spectra
-#vmin9.3e12,vmax=1e13
+
 name = 'pulsating_star_{0}rot_l{1:d}m{2:d}_{3}'.format((np.isinf(lac['rotperiod']) and 'no' or 'w'),freq_pars1['l'],freq_pars1['m'],name)
 
 def extra_func(system,time,i_time):
@@ -91,10 +91,10 @@ def extra_func(system,time,i_time):
 
 # Make sure to always have the same time period, so that we can see the frequency
 # shifts
-#times = np.linspace(0,1./(freq_pars1['freq']-freq_pars1['m']/lac.get_value('rotperiod','d')),11)
 times = np.linspace(0,1./(freq_pars1['freq']-4./lac.get_value('rotperiod','d')),50)
-# Create a DataSet with the template spectra
-spobs1 = phoebe.SPDataSet(wavelength=np.array([np.linspace(4544, 4556, 200)]),
+
+# Create a DataSet with the template spectra and light curve
+spobs1 = phoebe.SPDataSet(wavelength=np.linspace(4544, 4556, 200),
                           time=times, ref='line profile')
 lcobs1 = phoebe.LCDataSet(time=times, ref='light curve')
 

@@ -4672,7 +4672,34 @@ class BodyBag(Body):
         """
         return self.to_string()
     
+    def preprocess(self, time=None, **kwargs):
+        """
+        Run the preprocessors.
+        
+        @param time: time to which the Body will be set
+        @type time: float or None
+        """
+        # First preprocess lower level stuff
+        for body in self.bodies:
+            body.preprocess(time=time)
+            
+        # Then this level stuff
+        for func, arg, kwargs in self._preprocessing:
+            getattr(processing, func)(self, time, *arg, **kwargs)
     
+    
+    def postprocess(self, time=None):
+        """
+        Run the postprocessors.
+        """
+        # First postprocess lower level stuff
+        for body in self.bodies:
+            body.postprocess(time=time)
+        
+        # Then this level stuff
+        for func, args, kwargs in self._postprocessing:
+            getattr(processing, func)(self, time, *args, **kwargs)
+            
     def fix_mesh(self):
         """
         Make sure all bodies in a list have the same mesh columns.
@@ -6287,7 +6314,9 @@ class BinaryRocheStar(PhysicalBody):
         
     
     def set_label(self,label):
+        this_component = self.get_component()
         self.params['component']['label'] = label
+        self.params['orbit']['c{}label'.format(this_component+1)] = label
     
     def get_label(self):
         """
