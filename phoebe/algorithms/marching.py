@@ -1,6 +1,19 @@
 """
 Marching method for mesh generation
 
+**Potential functions**
+
+.. autosummary::
+    
+    Sphere
+    BinaryRoche
+    MisalignedBinaryRoche
+    DiffRotateBinaryRoche
+    RotateRoche
+    DiffRotateRoche
+    Torus
+    Heart
+
 **Some convenience functions**
 
 .. autosummary::
@@ -88,15 +101,27 @@ def dSpheredz(r):
 #{ Plain binary
 
 def BinaryRoche (r, D, q, F, Omega=0.0):
-    """
-    Computes a value of the potential. If @Omega is passed, it computes
-    the difference.
+    r"""
+    Computes a value of the asynchronous, eccentric Roche potential.
+    
+    If :envvar:`Omega` is passed, it computes the difference.
+    
+    The asynchronous, eccentric Roche potential is given by [Wilson1979]_
+    
+    .. math::
+    
+        \Omega = \frac{1}{\sqrt{x^2 + y^2 + z^2}} + q\left(\frac{1}{\sqrt{(x-D)^2+y^2+z^2}} - \frac{x}{D^2}\right) + \frac{1}{2}F^2(1+q)(x^2+y^2)
     
     @param r:      relative radius vector (3 components)
+    @type r: 3-tuple
     @param D:      instantaneous separation
+    @type D: float
     @param q:      mass ratio
+    @type q: float
     @param F:      synchronicity parameter
+    @type F: float
     @param Omega:  value of the potential
+    @type Omega: float
     """
     return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + q*(1.0/sqrt((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])-r[0]/D/D) + 0.5*F*F*(1+q)*(r[0]*r[0]+r[1]*r[1]) - Omega
 
@@ -152,8 +177,9 @@ def dBinaryRochedz (r, D, q, F):
 
 def MisalignedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     r"""
-    Computes a value of the potential. If @Omega is passed, it computes
-    the difference.
+    Computes a value of the misaligned, asynchronous eccentric Roche potential.
+    
+    If @Omega is passed, it computes the difference.
     
     See [Avni1982]_.
     
@@ -247,9 +273,10 @@ def dMisalignedBinaryRochedz (r, D, q, F, theta, phi):
 #{ Distorted binary
 
 def DistortedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
-    """
-    Computes a value of the potential. If @Omega is passed, it computes
-    the difference.
+    r"""
+    Computes a value of the differentially rotating Roche potential.
+    
+    If :envvar:`Omega` is passed, it computes the difference.
     
     For differentially rotating or tidally distorted binaries.
     
@@ -271,12 +298,39 @@ def DistortedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     factor-= 0.5*(1-v**2)**2*r**4 * (a[0]*b[0]**2 + a[1]*b[1]**2 + a[2]*b[2]**2)
     return 1./r + q + q*np.sum(r**j*p) + 0.5*r**2*(1-v**2)*factor - Omega
 
+
+def DiffRotateBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
+    r"""
+    Computes a value of the differentially rotating Roche potential.
+    
+    If :envvar:`Omega` is passed, it computes the difference.
+    
+    For differentially rotating or tidally distorted binaries.
+    
+    Sing and Gupta, 1988.
+    
+    .. math::
+    
+        \Omega = \frac{1}{\sqrt{x^2+y^2+z^2}} + \frac{1}{2} r^2 (1-\nu^2)\left(b_1^2 + b_1b_2(1-nu^2)+\frac{1}{3}b_2^2r^4(1-nu^2)^2\right)
+    
+    Incomplete!
+    
+    @param r:      relative radius vector (3 components)
+    @param D:      instantaneous separation
+    @param q:      mass ratio
+    @param F:      synchronicity parameter
+    @param theta:  misalignment coordinate
+    @param phi:    misalignment coordinate
+    @param Omega:  value of the potential
+    """
+    raise NotImplementedError
+
 #}
 #{ Rotating single star
     
 def RotateRoche(r, Omega, Rpole):
     """
-    Roche shape of rotating star.
+    Roche shape of single rotating star.
     
     In our units, 0.544... is the critical angular velocity if Rpole==1.
     Actually this is generally true, since Omega is the dimensionless
