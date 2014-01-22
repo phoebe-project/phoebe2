@@ -44,15 +44,24 @@ def semidetached(self, time):
     component = self.params['component']
     
     q = orbit['q']
+    ecc = orbit['ecc']
     F = component['syncpar']
     comp = self.get_component()+1
+    d = 1-ecc
     
-    pot = roche.calculate_critical_potentials(q, F=F, d=d, component=comp)[0]
+    if comp == 1:
+        pot = roche.calculate_critical_potentials(q, F=F, d=d, component=1)[0]
+    elif comp == 2:
+        pot = roche.calculate_critical_potentials(1./q, F=F, d=d, component=1)[0]
+        pot = roche.change_component(1./q, pot)[1]
+    else:
+        raise ValueError("Really don't know what happened")
+    
     component['pot'] = pot
-    logger.info('{} potential set to critical (semi-detached)'.format('Primary' if comp==1 else 'Secondary'))
+    logger.info('{} potential set to critical (semi-detached): pot={}'.format('Primary' if comp==1 else 'Secondary',pot))
 
 
-def overcontact(self, time):
+def geometrical_thermal_contact(self, time):
     """
     Require a system to be an overcontact binary (W UMa stars).
     
@@ -72,8 +81,26 @@ def overcontact(self, time):
     
     for key in require_equal:
         secondary.params['component'][key] = primary.params['component'][key]
+
+def geometrical_contact(self, time):
+    """
+    Require a system to be an overcontact binary (W UMa stars).
     
+    The following constraints are applied:
     
+        - surface potentials of secondary is the same as primary
+    """
+    children = self.get_children()
+    components = [children[0].get_component(), children[1].get_component()]
+    primary = children[components.index(0)]
+    secondary = children[components.index(1)]
+    
+    require_equal = ['pot']
+    
+    for key in require_equal:
+        secondary.params['component'][key] = primary.params['component'][key]    
+  
+  
 #}
 
 def sed_scale_to_distance(self, time, group):
