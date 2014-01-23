@@ -197,6 +197,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
          dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.0,llim=0,ulim=1,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='component'),
          dict(qualifier='pot',    description="Roche potential value",repr='%f',cast_type=float,value=4.75,llim=0,ulim=1e10,step=0.01,adjust=False,frame=["phoebe"],context='component'),
          dict(qualifier='teff',   description='Mean effective temperature',repr='%.0f',cast_type=float,unit='K',value=10000.,llim=0.,ulim=1e20,step=1,adjust=False,frame=["phoebe"],context='component'),         
+         dict(qualifier='morphology',   description='Binary type (unconstrained, detached...)',repr='%s',cast_type='choose',choices=['unconstrained','detached','semi-detached','overcontact'],value='unconstrained',frame=["phoebe"],context='component'),         
          #dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
          dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context=['component','star','accretion_disk']),
          dict(qualifier='abun',description='Metallicity',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context=['component','star']),

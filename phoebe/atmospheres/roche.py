@@ -382,9 +382,15 @@ def calculate_critical_potentials(q,F=1.,d=1.,component=1):
     @rtype: float,float,float
     """
     
-    L1, L2, L3 = exact_lagrangian_points(q, F, d)
+    
     theta, phi = np.pi/2, 0.0
-    Phi_L1 = -binary_potential(L1, np.pi/2.0, 0.0, 0.0, q, d, F, component=component)
+    if component == 1:
+        L1, L2, L3 = exact_lagrangian_points(q, F, d)
+        Phi_L1 = -binary_potential(L1, np.pi/2.0, 0.0, 0.0, q, d, F)
+    elif component == 2:
+        L1, L2, L3 = exact_lagrangian_points(1./q, F, d)
+        Phi_L1 = -binary_potential(L1, np.pi/2.0, 0.0, 0.0, 1./q, d, F)
+        Phi_L1 = change_component(1./q, Phi_L1)[1]
     Phi_L2 = 0.0
     Phi_L3 = 0.0
     return Phi_L1, Phi_L2, Phi_L3    

@@ -34,72 +34,56 @@ def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
 
 #{ Modus operandi
 
-def semidetached(self, time):
+def binary_morphology(self, time):
     """
-    Require a component to be semi-detached.
+    Take care of constrained morphology in binary systems.
     
-    This is equivalent to requiring that the component fills its Roche lobe.
+    The :ref:`morphology <morphology-component-phoebe>` type is set by
+    equally-named parameter in the :ref:`component <parlabel-phoebe-component>`
+    parameterSet. It can handle any of the following values:
+        
+        - unconstrained: doesn't add anything
+        - detached: sets the minimum value of the potential to be the critical one
+        - semi-detached: the component fills its critical Roche lobe
+        - overcontact: set the maximum value of the potential to be the critical one
+    
     """
     orbit = self.params['orbit']
     component = self.params['component']
+    morphology = component.get('morphology', 'detached')
     
-    q = orbit['q']
-    ecc = orbit['ecc']
-    F = component['syncpar']
-    comp = self.get_component()+1
-    d = 1-ecc
+    if morphology == 'unconstrained':
+        return None
     
-    if comp == 1:
-        pot = roche.calculate_critical_potentials(q, F=F, d=d, component=1)[0]
-    elif comp == 2:
-        pot = roche.calculate_critical_potentials(1./q, F=F, d=d, component=1)[0]
-        pot = roche.change_component(1./q, pot)[1]
-    else:
-        raise ValueError("Really don't know what happened")
-    
-    component['pot'] = pot
-    logger.info('{} potential set to critical (semi-detached): pot={}'.format('Primary' if comp==1 else 'Secondary',pot))
-
-
-def geometrical_thermal_contact(self, time):
-    """
-    Require a system to be an overcontact binary (W UMa stars).
-    
-    The following constraints are applied:
-    
-        - surface potentials of secondary is the same as primary
-        - gravity darkening law and coefficients are the same
-        - atmospheres and limbdarkening are the same
-        - albedos are the same.
-    """
-    children = self.get_children()
-    components = [children[0].get_component(), children[1].get_component()]
-    primary = children[components.index(0)]
-    secondary = children[components.index(1)]
-    
-    require_equal = ['pot', 'gravb', 'gravblaw', 'alb', 'ld_coeffs', 'ld_func', 'atm']
-    
-    for key in require_equal:
-        secondary.params['component'][key] = primary.params['component'][key]
-
-def geometrical_contact(self, time):
-    """
-    Require a system to be an overcontact binary (W UMa stars).
-    
-    The following constraints are applied:
-    
-        - surface potentials of secondary is the same as primary
-    """
-    children = self.get_children()
-    components = [children[0].get_component(), children[1].get_component()]
-    primary = children[components.index(0)]
-    secondary = children[components.index(1)]
-    
-    require_equal = ['pot']
-    
-    for key in require_equal:
-        secondary.params['component'][key] = primary.params['component'][key]    
-  
+    elif morphology in ['detached', 'semi-detached', 'overcontact']:
+        
+        # Retrieve the necessary information on the component and orbit
+        q = orbit['q']
+        ecc = orbit['ecc']
+        F = component['syncpar']
+        comp = self.get_component()+1
+        d = 1-ecc
+        
+        # Compute critical potential
+        critpot = roche.calculate_critical_potentials(q, F=F, d=d, component=comp)[0]
+        
+        # Everything has to happen with the potential parameter:
+        potpar = component.get_parameter('pot')
+        
+        # Semi-detached: fix the potential to its critical value
+        if morphology == 'semi-detached':
+            potpar.set_value(critpot)
+            logger.info('{} potential set to critical (semi-detached): pot={}'.format('Primary' if comp==1 else 'Secondary',critpot))
+            
+        # Detached: lower limit on potential
+        elif morphology == 'detached':
+            potpar.set_limits(llim=critpot,ulim=1e10)
+            logger.info('{} lower limit on potential set to critical (detached): pot>={}'.format('Primary' if comp==1 else 'Secondary',critpot))
+        
+        # Overcontact: upper limit on potential
+        elif morphology == 'overcontact':
+            potpar.set_limits(llim=0, ulim=critpot)
+            logger.info('{} upper limit on potential set to critical (overcontact): pot<={}'.format('Primary' if comp==1 else 'Secondary',critpot))
   
 #}
 

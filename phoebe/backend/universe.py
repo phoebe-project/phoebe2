@@ -6308,6 +6308,9 @@ class BinaryRocheStar(PhysicalBody):
         
         init_mesh(self)
         
+        # add morphology contrainer to preprocessing
+        self.add_preprocess('binary_morphology')
+        
         # Check for leftover kwargs and report to the user
         if kwargs:
             raise ValueError("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))

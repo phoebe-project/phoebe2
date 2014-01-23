@@ -911,20 +911,31 @@ class Parameter(object):
     
     def get_logp(self):
         """
-        Get the log-probability of a value given the prior.
+        Get the log-probability of a value given the prior and limits.
         
-        If there is no prior, the probability of the value is always 1, so the
-        log probability is zero.
+        The limits act as a uniform prior on top of the regular prior.
+        
+        First, this function checks whether the parameter value is inside the
+        predefined limits (:py:func:`Parameter.is_inside_limits`). If the value
+        is within those limits or there are no limits, the p-value is set to
+        1, otherwise it is zero.
+        
+        The, this function checks what the probability of the value is, given
+        the prior (if there is one). This value will be multiplied with the
+        the previously found p-value, if it wasn't zero already.
         
         An out-of-bound parameter has a probability of zero, or a log-probability
         of -infinity
         """
-        if self.has_prior():
-            prior = self.get_prior()
-            value = self.get_value()
-            pdf = prior.pdf(x=value)[1]
-        else:
-            pdf = 0.0
+        pdf = 0.0
+        
+        if self.is_inside_limits():
+            pdf = 1.0
+        
+            if self.has_prior():
+                prior = self.get_prior()
+                value = self.get_value()
+                pdf *= prior.pdf(x=value)[1]
             
         return np.log(pdf)
     
@@ -1146,7 +1157,7 @@ class Parameter(object):
         #else:
         #    raise AttributeError,"Parameter '%s' cannot be %s"%(self.qualifier,(adjust and 'released (adjustable)' or 'locked (not adjustable)'))
     
-    def set_limits(self,llim=None,ulim=None,force=False):
+    def set_limits(self,llim=None,ulim=None,force=None):
         """
         Set lower and upper bounds on this variable.
         """
@@ -1154,7 +1165,8 @@ class Parameter(object):
             self.llim = llim
         if hasattr(self,'ulim') and ulim is not None:
             self.ulim = ulim
-        self._force_inside_limits = force
+        if force is not None:
+            self._force_inside_limits = force
 
     def set_step(self,step):
         """
@@ -1347,7 +1359,7 @@ class Parameter(object):
         @return: C{True} if inside of limits
         @rtype: bool
         """
-        if hasattr(self, 'llim'):
+        if self.has_limits():
             value = self.get_value()
             
             if not (self.llim <= value <= self.ulim):
