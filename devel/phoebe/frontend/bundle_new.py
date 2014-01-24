@@ -781,7 +781,7 @@ class Bundle(object):
         
             - :envvar:`return_type='single'`: a ValueError is raised if multiple occurrences exit
             - :envvar:`return_type='all'`: a list of all occurrences will be returned
-            - :envvar:`return_type='dict'`: a dictionair with the structure.
+            - :envvar:`return_type='dict'`: a dictionary with the structure.
        
         You can specify which qualifier you want with the :envvar:`@` operator.
         This operator allows you to hierarchically specify which parameter you
@@ -936,13 +936,19 @@ class Bundle(object):
         @type name: str or list orNone
         @param context: context of ps, or None to search all
         @type context: str or list or None
-        @param return_type: 'single', 'dict', 'list'
+        @param return_type: 'single', 'all'
         @type return_type: str
         @return: value of the parameter
         @rtype: depends on parameter type
         """
         par = self.get_parameter(qualifier, return_type=return_type)
-        return par.get_value()
+        if return_type in ['single']:
+            return par.get_value()
+        elif return_type in ['all']:
+            return [p.get_value() for p in par]
+        else:
+            raise ValueError("Cannot interpret argument return_type='{}'".format(return_type))        
+            
     
         
     def set_value(self, qualifier, value, *args, **kwargs):
@@ -1068,33 +1074,33 @@ class Bundle(object):
     
     #}
     #{ Objects
-    def get_object(self, name=None):
+    def get_object(self, objref=None):
         # return the Body/BodyBag from the system hierarchy
         system = self.get_system()
-        if name is None or system.get_label() == name:
+        if objref is None or system.get_label() == objref:
             this_child = system
         else:
             for child in system.walk_bodies():
-                if child.get_label() == name:
+                if child.get_label() == objref:
                     this_child = child
                     break
             else:
-                raise ValueError("Object not {} found".format(name))
+                raise ValueError("Object not {} found".format(objref))
         return this_child
             
         
-    def get_children(self, name=None):
-        # return list of children for self.get_object(name)
-        obj = self.get_object(name)
+    def get_children(self, objref=None):
+        # return list of children for self.get_object(objref)
+        obj = self.get_object(objref)
         if hasattr(obj,'bodies'):
             #return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
             return obj.bodies
         else:
             return []
         
-    def get_parent(self, name):
-        # return the parent of self.get_object(name)
-        return self.get_object(name).get_parent()
+    def get_parent(self, objref):
+        # return the parent of self.get_object(objref)
+        return self.get_object(objref).get_parent()
         
     #}  
     #{ Versions
@@ -1234,7 +1240,7 @@ class Bundle(object):
     
     
     def load_data(self, category, filename, passband=None, columns=None,
-                  components=None, ref=None, scale=False, offset=False):
+                  objref=None, ref=None, scale=False, offset=False):
         """
         import data from a file, create multiple DataSets, load data,
         and add to corresponding bodies
@@ -1247,28 +1253,28 @@ class Bundle(object):
         @type passband: str
         @param columns: list of columns in file
         @type columns: list of strings
-        @param components: component for each column in file
-        @type components: list of bodies
+        @param objref: component for each column in file
+        @type objref: list of strings (labels of the bodies)
         @param ref: name for ref for all returned datasets
         @type ref: str    
         """
         
         if category == 'rv':
             output = datasets.parse_rv(filename, columns=columns,
-                                       components=components, full_output=True,
+                                       components=objref, full_output=True,
                                        **{'passband':passband, 'ref': ref})
         elif category == 'lc':
             output = datasets.parse_lc(filename, columns=columns,
-                                       components=components, full_output=True,
+                                       components=objref, full_output=True,
                                        **{'passband':passband, 'ref': ref})
         elif category == 'etv':
             output = datasets.parse_etv(filename, columns=columns,
-                                        components=components, full_output=True,
+                                        components=objref, full_output=True,
                                         **{'passband':passband, 'ref': ref})
         
         elif category == 'sp':
             output = datasets.parse_sp(filename, columns=columns,
-                                       components=components, full_output=True,
+                                       components=objref, full_output=True,
                                        **{'passband':passband, 'ref': ref})
         
         elif category == 'sed':
@@ -1277,7 +1283,7 @@ class Bundle(object):
                   full_output=True)
         #elif category == 'pl':
         #    output = datasets.parse_plprof(filename, columns=columns,
-        #                               components=components, full_output=True,
+        #                               components=objref, full_output=True,
         #                               **{'passband':passband, 'ref': ref})
         else:
             output = None
@@ -1286,7 +1292,7 @@ class Bundle(object):
         if output is not None:
             self._attach_datasets(output)
                        
-    def create_syn(self, category='lc', times=None, component=None,
+    def create_syn(self, category='lc', times=None, objref=None,
                    ref=None, **pbkwargs):
         """
         create and attach 'empty' datasets with no actual data but rather
@@ -1301,8 +1307,8 @@ class Bundle(object):
         @type times: list
         @param columns: list of columns in file
         @type columns: list of strings
-        @param component: component for each column in file
-        @type component: None, str, list of str or list of bodies
+        @param objref: component for each column in file
+        @type objref: None, str, list of str or list of bodies
         @param ref: name for ref for all returned datasets
         @type ref: str    
         """
@@ -1318,7 +1324,7 @@ class Bundle(object):
         else:
             dataset_class = getattr(datasets, config.dataset_class[category])
 
-        if component is None:
+        if objref is None:
             # then attempt to make smart prediction
             if category == 'lc':
                 # then top-level
@@ -1328,14 +1334,14 @@ class Bundle(object):
                 logger.error('create_syn failed: components need to be provided')
                 return
         # is component just one string?
-        elif isinstance(component, str):
-            components = [self.get_object(component)]
+        elif isinstance(objref, str):
+            components = [self.get_object(objref)]
         # is component a list of strings?
-        elif isinstance(component[0], str):
-            components = [self.get_object(icomp) for icomp in component]
+        elif isinstance(objref[0], str):
+            components = [self.get_object(iobjref) for iobjref in objref]
         # perhaps component is a list of bodies, that's just fine then
         else:
-            components = component
+            components = objref
         
         output = {}
         for component in components:
@@ -1416,7 +1422,7 @@ class Bundle(object):
         else:
             return dss
 
-    def get_dep(self,objref=None,dataref=None,force_dict=False):
+    def get_dep(self, objref=None, dataref=None, force_dict=False):
         pass
         
     def get_obs(self, objref=None, dataref=None, force_dict=False):
@@ -1443,16 +1449,16 @@ class Bundle(object):
         
         return dss
 
-    def enable_obs(self,dataref=None):
+    def enable_obs(self, dataref=None):
         pass
 
-    def disable_obs(self,dataref=None):
+    def disable_obs(self, dataref=None):
         pass
 
-    def adjust_obs(self,dataref=None,l3=None,pblum=None):
+    def adjust_obs(self, dataref=None, l3=None, pblum=None):
         pass
 
-    def remove_data(self,dataref):
+    def remove_data(self, dataref):
         """
         @param ref: ref (name) of the dataset
         @type ref: str
