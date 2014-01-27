@@ -97,6 +97,14 @@ by a class that subclasses the L{PhysicalBody} class for convenience. These kind
 of classes facilitate the computation of the mesh. A simple example is
 L{Ellipsoid}, parametrized by the radius of the ellipsoid in the x, y and z
 direction. One can also add functionality to these classes, which will be
+
+.. inheritance-diagram:: Star
+
+.. inheritance-diagram:: BinaryRocheStar
+
+.. inheritance-diagram:: BinaryStar
+
+
 exploited in the next Section.
 
 Section 2. Physical meshing
@@ -2662,6 +2670,54 @@ class Body(object):
             |         |            dep: 2 lcdep, 1 rvdep, 1 spdep, 1 ifdep
             |         |            syn: 2 lcsyn, 1 rvsyn, 1 spsyn, 1 ifsyn                    
         
+        Possibilities:
+        
+            - :envvar:`summary=None`: returns only the structure of the system,
+              but no information on obserations or parameters::
+              
+                23fc64ba-257c-4278-b05a-b307d164bc5b (BodyBag)
+                |
+                +----------> primary (BinaryRocheStar)
+                |
+                +----------> secondary (BinaryRocheStar)
+              
+            - :envvar:`summary='short'`: only lists information on how many
+              of each type (obs, syn and dep) are attached to the system::
+              
+                23fc64ba-257c-4278-b05a-b307d164bc5b (BodyBag)
+                obs: 4 lcobs
+                syn: 4 lcsyn
+                |
+                +----------> primary (BinaryRocheStar)
+                |            dep: 4 lcdep, 1 rvdep
+                |            obs: 0 lcobs, 1 rvobs
+                |            syn: 4 lcsyn, 1 rvsyn
+                |
+                +----------> secondary (BinaryRocheStar)
+                |            dep: 4 lcdep, 1 rvdep
+                |            obs: 0 lcobs, 1 rvobs
+                |            syn: 4 lcsyn, 1 rvsyn
+                
+            - :envvar:`summary='long'`: lists the obs and dep attached, together
+              with their reference strings::
+              
+                23fc64ba-257c-4278-b05a-b307d164bc5b (BodyBag)
+                lcobs: stromgren.u, stromgren.b, stromgren.v, stromgren.y
+                |
+                +----------> primary (BinaryRocheStar)
+                |            lcdep: stromgren.u, stromgren.b, stromgren.v, stromgren.y
+                |            rvdep: rv1
+                |            rvobs: rv1
+                |
+                +----------> secondary (BinaryRocheStar)
+                |            lcdep: stromgren.u, stromgren.b, stromgren.v, stromgren.y
+                |            rvdep: rv2
+                |            rvobs: rv2
+        
+             - :envvar:`summary='physical'`: lists only the physical parameters,
+               but not the datasets
+             - :envvar:`summary='full'`: lists all parameters and datasets
+        
         @param emphasize: bring structure in the text via boldfacing
         @type emphasize: bool
         @param summary: type of summary (envvar:`long`, envvar:`short`, envvar:`physical`, envvar:`full`)
@@ -2853,16 +2909,16 @@ class Body(object):
                         summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
                         
                         # Is there an obs here?
-                        ptype = ptype[:-3]+'obs'
-                        if not ptype in thing.params['obs']:
+                        ptype_ = ptype[:-3]+'obs'
+                        if not ptype_ in thing.params['obs']:
                             continue
-                        if not ref in thing.params['obs'][ptype]:
+                        if not ref in thing.params['obs'][ptype_]:
                             continue
-                        lbl = '{}[{}]'.format(ptype, iref)
+                        lbl = '{}[{}]'.format(ptype_, iref)
                         mystring = ['{}: '.format(lbl)]
                         oparam = 'obs'
-                        iterover = thing.params[oparam][ptype][ref].keys()
-                        iiterover = thing.params[oparam][ptype][ref]
+                        iterover = thing.params[oparam][ptype_][ref].keys()
+                        iiterover = thing.params[oparam][ptype_][ref]
                         # First the reference for clarity:
                         if 'ref' in iterover:
                             iterover.remove('ref')
@@ -5010,13 +5066,19 @@ class BodyBag(Body):
     
     def as_point_source(self,only_coords=False):
         coords = self.mesh['center'].mean(axis=0)
-        if 'orbit' in self.params:
-            distance = self.params['orbit'].request_value('distance','Rsol')
-        elif 'orbit' in self.bodies[0].params:
-            distance = self.bodies[0].params['orbit'].request_value('distance','Rsol')
+        #if 'orbit' in self.params:
+            #distance = self.params['orbit'].request_value('distance','Rsol')
+        #elif 'orbit' in self.bodies[0].params:
+            #distance = self.bodies[0].params['orbit'].request_value('distance','Rsol')
+        #else:
+            #distance = 0
+            #logger.warning("Don't know distance")
+        globs = self.get_globals()
+        if globs is not None:
+            distance = globs.request_value('distance','Rsol')
         else:
-            distance = 0
-            logger.warning("Don't know distance")
+            distance = 0.0
+            
         coords[2] += distance
         if only_coords:
             return coords

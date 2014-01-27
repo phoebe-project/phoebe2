@@ -241,6 +241,7 @@ except ImportError:
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import decorators
+from phoebe.utils import config
 from phoebe.io import fits
 from phoebe.io import ascii
 from phoebe.algorithms import interp_nDgrid
@@ -1709,6 +1710,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         filename[0].header.update('HIERARCH C__AI_'+key,
                                   key, 'iterated atmosphere parameter')
     
+    # Info on whether Doppler boosting is included
+    if vgamma is not None:
+        filename[0].header.update('HIERARCH C__VI_vgamma',
+                                  'vgamma', 'includes Doppler boosting')
+    
     # Info on used atmosphere files.
     for iatm, atm_file in enumerate(atm_files):
         filename[0].header.update('HIERARCH C__ATMFILE{:03d}'.format(iatm),
@@ -2115,6 +2121,107 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
                               "gravity, temperature etc fall inside the grids. "
                               "Perhaps if you have an eccentric orbit, the star"
                               "is outside of the grid only for some phases."))
+
+
+
+def local_intensity2(system, parset_pbdep, parset_isr={}):
+    """
+    Calculate local intensity.
+    
+    Attempt to generalize first version.
+    
+    This is the work horse for Phoebe concerning atmospheres.
+    
+    Small but perhaps important note: we do not take reddening into account
+    for OPEN.BOL calculations, if the reddening is interstellar.
+    """
+    # Get the arguments we need concerning normal emergent intensities (atm),
+    # LD coefficients and the LD function.
+    atm = parset_pbdep['atm']
+    ld_coeffs = parset_pbdep['ld_coeffs']
+    ld_func = parset_pbdep['ld_func']
+    
+    # Passband: if it's not available (e.g. in the "Star" parset), we need to
+    # take the bolometric passband
+    passband = parset_pbdep.get('passband', 'OPEN.BOL')
+    
+    # Doppler beaming: include it if there is such a keyword and it is turned on
+    include_vgamma = parset_pbdep.get('beaming', False)
+    
+    # The reference we need to take to compute stuff (if not available, it's
+    # bolometric)
+    ref = parset_pbdep.get('ref', '__bol')
+    
+    # Radial velocity needs to be in km/s, while the natural units in the 
+    # Universe are Rsol/d. If vrad needs to be computed, we'll also include
+    # gravitational redshift
+    #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
+    Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
+    vrad = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
+    
+
+    # In the following we need to take care of a lot of possible inputs by the
+    # user, and some possible simplifications for the calculations.
+    #
+    # First of all, it is possible that the whole star has the same local
+    # parameters. In that case, we compute the limb darkening coefficients only
+    # for one surface element and then set all surface elements to be the same.
+    #
+    # Basically, we need to compute intensities and limb darkening coefficients.
+    # In principle, they could be derived from different sets of atmosphere
+    # models, or, the LD coeffs could be set manually to be constant over the
+    # whole star while the intensities are varied over the surface.
+    
+    tag = 'ld_' + ref
+    log_msg = "{:s}({:s}): ".format(passband, tag[3:])
+    
+    # Now, in which parameters do we need to interpolate? This is probably teff
+    # and logg, but perhaps abundances, reddening,.. hell, perhaps even micro-
+    # turbulent velocity or mixing length parameter.
+    # 
+    # We need parameters on the passband and reddening in the form of a
+    # dictionary. We may add too much information, since the function
+    # "interp_ld_coeffs" only extracts those that are relevant.
+    atm_kwargs = dict(parset_pbdep)
+    
+    # No reddening for bolometric fluxes!
+    if ref == '__bol':
+        red_kwargs = {}
+        logger.info(("Not propagating interstellar reddening info for bolometric flux "
+                    "(taking default from grid)"))
+    else:
+        red_kwargs = dict(parset_isr)
+    
+    # extract possible atmospheric interpolation parameters
+    # find necessary interpolation parameters
+    # find non-atmospheric interpolation parameters
+    # find correct atmosphere file
+    # interpolate coefficients and intensities
+    atm_file = parset_pbdep['atm']
+    ldc_file = parset_pbdep['ld_coeffs']
+    ld_func = parset_pbdep['ld_func']
+    
+    # 1. Easiest case: atm_file and ld_coeffs file are consistent
+    if atm_file == ldc_file and atm_file in config.atm_props:
+        
+        # Find the possible interpolation parameters
+        vars_available = config.atm_props[atm_file]
+        
+        # Determine the necessary interpolation parameters
+        vars_necessary = []
+        for key in vars_atm:
+            # these are defined as those parameters which are varying over the
+            # surface
+            col = system.mesh[key]
+            if not np.allclose(col, col[0], rtol=1e-10, atol=1e-12):
+                vars_necessary.append(key)
+    
+    
+    
+
+
+
+
 
 
 

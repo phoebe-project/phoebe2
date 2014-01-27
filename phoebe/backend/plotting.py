@@ -685,7 +685,7 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
         # Get the pbdep (for info) and the synthetics
         dep, ref = system.get_parset(type='pbdep',ref=ref)
         syn = system.get_synthetic(category='lc',ref=ref).asarray()
-        
+        print syn
         # Try to get the observations. They don't need to be loaded, we just need
         # the pblum and l3 values.
         # We can scale the synthetic light curve using the observations
